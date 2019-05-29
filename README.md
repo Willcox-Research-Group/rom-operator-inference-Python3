@@ -107,10 +107,8 @@ Functions can be called as
         simulation time step
 
  **Returns**:
-
     -   projected_state -- (r x n_timesteps array) the
         simulated, reduced states
-
     -   i -- (int) the time step that the simulation ended on
         (i < n_timesteps only if NaNs occur in simulation)
 
@@ -122,10 +120,8 @@ Functions can be called as
     -   None
 
  **Returns**:
-
     -   residual -- (float) residual of data fit,
         <a href="https://www.codecogs.com/eqnedit.php?latex=\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" title="\Vert \mathbf{D}\mathbf{O}^T -\dot{ \mathbf{X}}^T \Vert_2^2" /></a>
-
     -   solution -- (float) residual of the solution,
         <a href="https://www.codecogs.com/eqnedit.php?latex=\Vert&space;\mathbf{O}^T&space;\Vert_2^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\Vert&space;\mathbf{O}^T&space;\Vert_2^2" title="\Vert \mathbf{O}^T \Vert_2^2" /></a>
 
@@ -137,7 +133,6 @@ Functions can be called as
     -   None
 
  **Returns**:
-
     -   ops -- (tuple) containing each operator (as an array) as defined
         by `degree` of the model
 
@@ -257,6 +252,7 @@ The following functions are supported and called as
     <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{H}(\mathbf{x}\otimes \mathbf{x})" /></a>
 
     **Parameters**:
+    
     -   x -- (r x 1 array) current reduced state
 
     -   dt -- (float) time step size
@@ -349,5 +345,4 @@ The following functions are supported and called as
         `input = True`).<br/>
  
  **Returns**:
-    
     -   x -- (r x 1 array) reduced state at the next time step
