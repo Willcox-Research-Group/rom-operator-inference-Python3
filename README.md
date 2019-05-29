@@ -89,7 +89,7 @@ Functions can be called as
     -   u -- (p x n_t array, optional) the input, if
         `model.input = True
 
- **Returns**:
+ **Returns**:<br/>
     -   None
     
 
@@ -106,9 +106,9 @@ Functions can be called as
     -   u -- (p x n_timesteps array) the input at each
         simulation time step
 
- **Returns**:
+ **Returns**:<br/>
     -   projected_state -- (r x n_timesteps array) the
-        simulated, reduced states
+        simulated, reduced states<br/>
     -   i -- (int) the time step that the simulation ended on
         (i < n_timesteps only if NaNs occur in simulation)
 
@@ -119,7 +119,7 @@ Functions can be called as
 
     -   None
 
- **Returns**:
+ **Returns**:<br/>
     -   residual -- (float) residual of data fit,
         <a href="https://www.codecogs.com/eqnedit.php?latex=\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" title="\Vert \mathbf{D}\mathbf{O}^T -\dot{ \mathbf{X}}^T \Vert_2^2" /></a>
     -   solution -- (float) residual of the solution,
@@ -161,7 +161,7 @@ The following functions are supported and called as
 
     -   num -- (int) number of ls problem we are solving [1..r]
 
-    **Returns**: 
+    **Returns**: <br/>
     -   <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{o}_i$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{o}_i$" title="$\mathbf{o}_i$" /></a> -- (nd array) the solution to the least squares
         problem
 <br/><br/>
@@ -171,7 +171,7 @@ The following functions are supported and called as
 
     -   X -- (n_t x r array) reduced snapshot data (transposed)
     
- **Returns**:
+ **Returns**:<br/>
     -   <a href="https://www.codecogs.com/eqnedit.php?latex=X$^2$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?X$^2$" title="X$^2$" /></a> -- (n_t x <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{r(r&plus;1)}{2}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{r(r&plus;1)}{2}" title="\frac{r(r+1)}{2}" /></a> array) reduced snapshot
         data squared without redundant terms.
 <br/><br/>
@@ -201,6 +201,7 @@ The following functions are supported and called as
 1.  `rk4advance_L(x,dt,A,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
     form <a href="https://www.codecogs.com/eqnedit.php?latex=$\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}$" title="$\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}$" /></a>
+    <br/>
 
     **Parameters**:
 
@@ -218,12 +219,12 @@ The following functions are supported and called as
         current time step (only needed if
         `input = True`).
 
- **Returns**:
+ **Returns**:<br/>
     -   x -- ($r \times 1$ array) reduced state at the next time step
 <br/><br/>
 2. `rk4advance_Lc(x,dt,A,c,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
-    form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{c}" /></a>
+    form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{c}" /></a> <br/>
 
     **Parameters**:
 
