@@ -87,7 +87,7 @@ Functions can be called as
     -   xhat-- (r x n_t array) the reduced snapshot data
 
     -   u -- (p x n_t array, optional) the input, if
-        `model.input = True
+        `model.input = True`
 
     **Returns**:
     
@@ -105,7 +105,8 @@ Functions can be called as
     -   dt-- (float) the time step size
 
     -   u -- (p x n_timesteps array) the input at each
-        simulation time step
+        simulation time step, if
+        `model.input = True`
 
     **Returns**:
     
