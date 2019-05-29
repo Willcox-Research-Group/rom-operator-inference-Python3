@@ -167,7 +167,7 @@ The following functions are supported and called as
     -   num -- (int) number of ls problem we are solving [1..r]
 
     **Returns**: <br/>
-    -   <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{o}_i$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{o}_i$" title="$\mathbf{o}_i$" /></a> -- (nd array) the solution to the least squares
+    -   <a href="https://www.codecogs.com/eqnedit.php?latex=\mathbf{o}_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\mathbf{o}_i" title="\mathbf{o}_i" /></a> -- (nd array) the solution to the least squares
         problem
 <br/><br/>
 2.  `get_x_sq(X)`<br/>
