@@ -166,7 +166,8 @@ The following functions are supported and called as
 
     -   num -- (int) number of ls problem we are solving [1..r]
 
-    **Returns**: <br/>
+    **Returns**:
+    
     -   <a href="https://www.codecogs.com/eqnedit.php?latex=\mathbf{o}_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\mathbf{o}_i" title="\mathbf{o}_i" /></a> -- (nd array) the solution to the least squares
         problem
 <br/><br/>
@@ -176,19 +177,22 @@ The following functions are supported and called as
 
     -   X -- (n_t x r array) reduced snapshot data (transposed)
     
- **Returns**:<br/>
+    **Returns**:
+    
     -   <a href="https://www.codecogs.com/eqnedit.php?latex=X$^2$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?X$^2$" title="X$^2$" /></a> -- (n_t x <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{r(r&plus;1)}{2}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{r(r&plus;1)}{2}" title="\frac{r(r+1)}{2}" /></a> array) reduced snapshot
         data squared without redundant terms.
 <br/><br/>
 3.  `F2H(F)`<br/>
     Convert quadratic operator <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{F}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{F}$" title="$\mathbf{F}$" /></a> to symmetric quadratic
     operator <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{H}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{H}$" title="$\mathbf{H}$" /></a> for simulating the learned system.<br/>
+
     **Parameters**:
 
     -   F -- (r x <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{r(r&plus;1)}{2}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{r(r&plus;1)}{2}" title="\frac{r(r+1)}{2}" /></a> array) learned quadratic
         operator
 
- **Returns**:
+    **Returns**:
+    
     -   H -- (r x r^2 array) symmetric quadratic operator
 <br/><br/>
 
