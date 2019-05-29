@@ -89,7 +89,8 @@ Functions can be called as
     -   u -- (p x n_t array, optional) the input, if
         `model.input = True
 
- **Returns**:<br/>
+    **Returns**:
+    
     -   None
     
 
@@ -180,7 +181,7 @@ The following functions are supported and called as
     operator <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{H}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{H}$" title="$\mathbf{H}$" /></a> for simulating the learned system.<br/>
     **Parameters**:
 
-    -   F -- (r x <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{r(r&plus;1)}{2}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{r(r&plus;1)}{2}" title="\frac{r(r+1)}{2}" /></a> array) learned quadratic
+    -   F --  learned quadratic
         operator
 
  **Returns**:
