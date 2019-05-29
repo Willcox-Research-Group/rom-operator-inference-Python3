@@ -49,24 +49,20 @@ the model with the following options
 
 -   'L' -- a linear model, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}" /></a>
 
--   'Lc' -- a linear model with a constant,
-    $\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{c}$
+-   'Lc' -- a linear model with a constant, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{c}" /></a>
+    
 
--   'LQ' -- a linear and quadratic model,
-    $\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{F}\mathbf{x}^2$
+-   'LQ' -- a linear and quadratic model, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{F}\mathbf{x}^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{F}\mathbf{x}^2" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{F}\mathbf{x}^2" /></a>
 
--   'LQc' -- a linear and quadratic model with a constant,
-    $\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{F}\mathbf{x}^2 + \mathbf{c}$
+-   'LQc' -- a linear and quadratic model with a constant, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{F}\mathbf{x}^2&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{F}\mathbf{x}^2&space;&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{F}\mathbf{x}^2 + \mathbf{c}" /></a>
 
--   'Q' -- a quadratic model,
-    $\dot{\mathbf{x}} = \mathbf{F}\mathbf{x}^2$
+-   'Q' -- a quadratic model, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{F}\mathbf{x}^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{F}\mathbf{x}^2" title="\dot{\mathbf{x}} = \mathbf{F}\mathbf{x}^2" /></a>
 
--   'Qc' -- a quadratic model with a constant,
-    $\dot{\mathbf{x}} = \mathbf{F}\mathbf{x}^2 + \mathbf{c}$
+-   'Qc' -- a quadratic model with a constant, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{F}\mathbf{x}^2&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{F}\mathbf{x}^2&space;&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{F}\mathbf{x}^2 + \mathbf{c}" /></a>
 
 The `input` argument is a
 boolean (True or False) denoting whether or not there is an additive
-input term of the form $+\mathbf{B} \mathbf{U}$.<br/>
+input term of the form <a href="https://www.codecogs.com/eqnedit.php?latex=&plus;\mathbf{B}&space;\mathbf{U}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?&plus;\mathbf{B}&space;\mathbf{U}" title="+\mathbf{B} \mathbf{U}" /></a>.<br/>
 The script, `opinf_demo.py`
 demonstrates the use of the operator inference model on data generated
 from the heat equation. See [@mythesis] for the problem setup.
@@ -83,14 +79,14 @@ Functions can be called as
 
     -   r -- (integer) POD basis size
 
-    -   reg -- (float) L$_2$ regularization parameter. For no
+    -   reg -- (float) L2 regularization parameter. For no
         regularization, set to 0.
 
-    -   xdot -- ($r \times n_t$ array) the reduced time derivative data
+    -   xdot -- (r x n_t array) the reduced time derivative data
 
-    -   xhat-- ($r \times n_t$ array) the reduced snapshot data
+    -   xhat-- (r x n_t array) the reduced snapshot data
 
-    -   u -- ($p \times n_t$ array, optional) the input, if
+    -   u -- (p x n_t array, optional) the input, if
         `model.input = True
 
  **Returns**:
@@ -101,22 +97,22 @@ Functions can be called as
     Simulate the learned model with a Runge Kutta scheme<br/>
     **Parameters**:
 
-    -   init -- ($r \times 1$) intial reduced state
+    -   init -- (r x 1) intial reduced state
 
-    -   n\_timesteps -- (int) number of time steps to simulate
+    -   n_timesteps -- (int) number of time steps to simulate
 
     -   dt-- (float) the time step size
 
-    -   u -- ($p \times$ n\_timesteps array) the input at each
+    -   u -- (p x n_timesteps array) the input at each
         simulation time step
 
  **Returns**:
 
-    -   projected\_state -- ($r \times$ n\_timesteps array) the
+    -   projected_state -- (r x n_timesteps array) the
         simulated, reduced states
 
     -   i -- (int) the time step that the simulation ended on
-        ($i <$n\_timesteps only if NaNs occur in simulation)
+        (i < n_timesteps only if NaNs occur in simulation)
 
 
 3.  `get_residual()`<br/>
@@ -128,10 +124,10 @@ Functions can be called as
  **Returns**:
 
     -   residual -- (float) residual of data fit,
-        $\Vert \mathbf{D}\mathbf{O}^T -\dot{ \mathbf{X}}^T \Vert_2^2$
+        <a href="https://www.codecogs.com/eqnedit.php?latex=\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" title="\Vert \mathbf{D}\mathbf{O}^T -\dot{ \mathbf{X}}^T \Vert_2^2" /></a>
 
     -   solution -- (float) residual of the solution,
-        $\Vert \mathbf{O}^T \Vert_2^2$
+        <a href="https://www.codecogs.com/eqnedit.php?latex=\Vert&space;\mathbf{O}^T&space;\Vert_2^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\Vert&space;\mathbf{O}^T&space;\Vert_2^2" title="\Vert \mathbf{O}^T \Vert_2^2" /></a>
 
 
 4.  `get_operators()`<br/>
@@ -159,7 +155,7 @@ The following functions are supported and called as
 1.  `normal_equations(D,r,k,num)`<br/>
     Solves the normal equations corresponding to the regularized least
     squares problem <br/>
-    $\displaystyle\min_{\mathbf{o}_i} \Vert \mathbf{D}\mathbf{o}_i - \mathbf{r}_i\Vert_2^2 + k\Vert \mathbf{P}\mathbf{o}_i\Vert_2^2$ <br/>
+    <a href="https://www.codecogs.com/eqnedit.php?latex=$\displaystyle\min_{\mathbf{o}_i}&space;\Vert&space;\mathbf{D}\mathbf{o}_i&space;-&space;\mathbf{r}_i\Vert_2^2&space;&plus;&space;k\Vert&space;\mathbf{P}\mathbf{o}_i\Vert_2^2$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\displaystyle\min_{\mathbf{o}_i}&space;\Vert&space;\mathbf{D}\mathbf{o}_i&space;-&space;\mathbf{r}_i\Vert_2^2&space;&plus;&space;k\Vert&space;\mathbf{P}\mathbf{o}_i\Vert_2^2$" title="$\displaystyle\min_{\mathbf{o}_i} \Vert \mathbf{D}\mathbf{o}_i - \mathbf{r}_i\Vert_2^2 + k\Vert \mathbf{P}\mathbf{o}_i\Vert_2^2$" /></a> <br/>
     **Parameters**:
 
     -   D -- (nd array) data matrix
@@ -168,32 +164,32 @@ The following functions are supported and called as
 
     -   k -- (float) regularization parameter
 
-    -   num -- (int) number of ls problem we are solving \[1..r\]
+    -   num -- (int) number of ls problem we are solving [1..r]
 
     **Returns**: 
-    -   $\mathbf{o}_i$ -- (nd array) the solution to the least squares
+    -   <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{o}_i$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{o}_i$" title="$\mathbf{o}_i$" /></a> -- (nd array) the solution to the least squares
         problem
 <br/><br/>
 2.  `get_x_sq(X)`<br/>
     Compute squared snapshot data as in [@ben].<br/>
     **Parameters**:
 
-    -   X -- ($n_t \times r$ array) reduced snapshot data (transposed)
+    -   X -- (n_t x r array) reduced snapshot data (transposed)
     
  **Returns**:
-    -   X$^2$ -- ($n_t \times \frac{r(r+1)}{2}$ array) reduced snapshot
+    -   <a href="https://www.codecogs.com/eqnedit.php?latex=X$^2$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?X$^2$" title="X$^2$" /></a> -- (n_t x <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{r(r&plus;1)}{2}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{r(r&plus;1)}{2}" title="\frac{r(r+1)}{2}" /></a> array) reduced snapshot
         data squared without redundant terms.
 <br/><br/>
 3.  `F2H(F)`<br/>
-    Convert quadratic operator $\mathbf{F}$ to symmetric quadratic
-    operator $\mathbf{H}$ for simulating the learned system.<br/>
+    Convert quadratic operator <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{F}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{F}$" title="$\mathbf{F}$" /></a> to symmetric quadratic
+    operator <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{H}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{H}$" title="$\mathbf{H}$" /></a> for simulating the learned system.<br/>
     **Parameters**:
 
-    -   F -- ($r \times \frac{r(r+1)}{2}$ array) learned quadratic
+    -   F -- (r x <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{r(r&plus;1)}{2}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{r(r&plus;1)}{2}" title="\frac{r(r+1)}{2}" /></a> array) learned quadratic
         operator
 
  **Returns**:
-    -   H -- ($r \times r^2$ array) symmetric quadratic operator
+    -   H -- (r x r^2 array) symmetric quadratic operator
 <br/><br/>
 
 `integration_helpers.py`
@@ -209,21 +205,21 @@ The following functions are supported and called as
 <br/><br/>
 1.  `rk4advance_L(x,dt,A,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
-    form $\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}$
+    form <a href="https://www.codecogs.com/eqnedit.php?latex=$\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}$" title="$\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}$" /></a>
 
     **Parameters**:
 
-    -   x -- ($r\times 1$ array) current reduced state
+    -   x -- (r x 1 array) current reduced state
 
     -   dt -- (float) time step size
 
-    -   A -- ($r \times r$ array) linear operator
+    -   A -- (r x r array) linear operator
 
-    -   B -- ($r \times p$ array, optional default = 0) input operator
+    -   B -- (r x p array, optional default = 0) input operator
         (only needed if
         `input = True`).
 
-    -   u -- ($p \times 1$ array, optional default = 0) the input at the
+    -   u -- (p x 1 array, optional default = 0) the input at the
         current time step (only needed if
         `input = True`).
 
@@ -232,126 +228,126 @@ The following functions are supported and called as
 <br/><br/>
 2. `rk4advance_Lc(x,dt,A,c,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
-    form $\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{c}$
+    form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{c}" /></a>
 
     **Parameters**:
 
-    -   x -- ($r\times 1$ array) current reduced state
+    -   x --  (r x 1 array) current reduced state
 
     -   dt -- (float) time step size
 
-    -   A -- ($r \times r$ array) linear operator
+    -   A -- (r x r array) linear operator
 
-    -   c -- ($r \times 1$ array) constant term
+    -   c -- (r x 1 array) constant term
 
-    -   B -- ($r \times p$ array, optional default = 0) input operator
+    -   B -- (r x p array, optional default = 0) input operator
         (only needed if
         `input = True`).
 
-    -   u -- ($p \times 1$ array, optional default = 0) the input at the
+    -   u -- (p x 1 array, optional default = 0) the input at the
         current time step (only needed if
         `input = True`).
 
  **Returns**:
-    -   x -- ($r \times 1$ array) reduced state at the next time step
+    -   x -- (r x 1 array) reduced state at the next time step
 <br/><br/>
 3. `rk4advance_LQ(x,dt,A,H,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
     form
-    $\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{H}(\mathbf{x}\otimes \mathbf{x})$
+    <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{H}(\mathbf{x}\otimes \mathbf{x})" /></a>
 
     **Parameters**:
-    -   x -- ($r\times 1$ array) current reduced state
+    -   x -- (r x 1 array) current reduced state
 
     -   dt -- (float) time step size
 
-    -   A -- ($r \times r$ array) linear operator
+    -   A -- (r x r array) linear operator
 
-    -   H -- ($r \times r^2$ array) quadratic operator
+    -   H -- (r x r^2 array) quadratic operator
 
-    -   B -- ($r \times p$ array, optional default = 0) input operator
+    -   B -- (r x p array, optional default = 0) input operator
         (only needed if
         `input = True`).
 
-    -   u -- ($p \times 1$ array, optional default = 0) the input at the
+    -   u -- (p x 1 array, optional default = 0) the input at the
         current time step (only needed if
         `input = True`).
 
  **Returns**:
-    -   x -- ($r \times 1$ array) reduced state at the next time step
+    -   x -- (r x 1 array) reduced state at the next time step
 <br/><br/>
 4. `rk4advance_LQc(x,dt,A,H,c,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
     form
-    $\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{H}(\mathbf{x}\otimes \mathbf{x}) + \mathbf{c}$
+    <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{H}(\mathbf{x}\otimes \mathbf{x}) + \mathbf{c}" /></a>
 
     **Parameters**:
-    -   x -- ($r\times 1$ array) current reduced state
+    -   x -- (r x 1 array) current reduced state
 
     -   dt -- (float) time step size
 
-    -   A -- ($r \times r$ array) linear operator
+    -   A -- (r x r array) linear operator
 
-    -   H -- ($r \times r^2$ array) quadratic operator
+    -   H -- (r x r^2 array) quadratic operator
 
-    -   c -- ($r \times 1$ array) constant term
+    -   c -- (r x 1 array) constant term
 
-    -   B -- ($r \times p$ array, optional default = 0) input operator
+    -   B -- (r x p array, optional default = 0) input operator
         (only needed if
         `input = True`).
 
-    -   u -- ($p \times 1$ array, optional default = 0) the input at the
+    -   u -- (p x 1 array, optional default = 0) the input at the
         current time step (only needed if
         `input = True`).
 
  **Returns**:
-    -   x -- ($r \times 1$ array) reduced state at the next time step
+    -   x -- (r x 1 array) reduced state at the next time step
 <br/><br/>
 5.  `rk4advance_Q(x,dt,H,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
-    form $\dot{\mathbf{x}} = \mathbf{H}(\mathbf{x}\otimes \mathbf{x})$
+    form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" title="\dot{\mathbf{x}} = \mathbf{H}(\mathbf{x}\otimes \mathbf{x})" /></a>
 
     **Parameters**:
-    -   x -- ($r\times 1$ array) current reduced state
+    -   x -- (r x 1 array) current reduced state
 
     -   dt -- (float) time step size
 
-    -   H -- ($r \times r^2$ array) quadratic operator
+    -   H -- (r x r^2 array) quadratic operator
 
-    -   B -- ($r \times p$ array, optional default = 0) input operator
+    -   B -- (r x p array, optional default = 0) input operator
         (only needed if
         `input = True`).
 
-    -   u -- ($p \times 1$ array, optional default = 0) the input at the
+    -   u -- (p x 1 array, optional default = 0) the input at the
         current time step (only needed if
         `input = True`).
 
  **Returns**:
-    -   x -- ($r \times 1$ array) reduced state at the next time step
+    -   x -- (r x 1 array) reduced state at the next time step
 <br/><br/>
 6. `rk4advance_Qc(x,dt,H,c,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
     form
-    $\dot{\mathbf{x}} = \mathbf{H}(\mathbf{x}\otimes \mathbf{x}) + \mathbf{c}$
+    <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{H}(\mathbf{x}\otimes \mathbf{x}) + \mathbf{c}" /></a>
 
     **Parameters**:
     
-    -   x -- ($r\times 1$ array) current reduced state
+    -   x -- (r x 1 array) current reduced state
 
     -   dt -- (float) time step size
 
-    -   H -- ($r \times r^2$ array) quadratic operator
+    -   H -- (r x r^2 array) quadratic operator
 
-    -   c -- ($r \times 1$ array) constant term
+    -   c -- (r x 1 array) constant term
 
-    -   B -- ($r \times p$ array, optional default = 0) input operator
+    -   B -- (r x p array, optional default = 0) input operator
         (only needed if
         `input = True`).
 
-    -   u -- ($p \times 1$ array, optional default = 0) the input at the
+    -   u -- (p x 1 array, optional default = 0) the input at the
         current time step (only needed if
         `input = True`).<br/>
  
  **Returns**:
     
-    -   x -- ($r \times 1$ array) reduced state at the next time step
+    -   x -- (r x 1 array) reduced state at the next time step
