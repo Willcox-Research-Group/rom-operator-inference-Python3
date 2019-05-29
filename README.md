@@ -47,7 +47,7 @@ The following commands will initialize an operator inference model.<br/>
 where `degree` is a string denoting the degree of
 the model with the following options
 
--   'L' -- a linear model, $$\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}$$
+-   'L' -- a linear model, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}" /></a>
 
 -   'Lc' -- a linear model with a constant,
     $\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{c}$
