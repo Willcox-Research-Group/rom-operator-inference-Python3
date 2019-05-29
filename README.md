@@ -228,7 +228,8 @@ The following functions are supported and called as
         current time step (only needed if
         `input = True`).
 
- **Returns**:<br/>
+    **Returns**:
+    
     -   x -- ($r \times 1$ array) reduced state at the next time step
 <br/><br/>
 2. `rk4advance_Lc(x,dt,A,c,B=0,u=0)`<br/>
@@ -253,7 +254,8 @@ The following functions are supported and called as
         current time step (only needed if
         `input = True`).
 
- **Returns**:
+    **Returns**:
+    
     -   x -- (r x 1 array) reduced state at the next time step
 <br/><br/>
 3. `rk4advance_LQ(x,dt,A,H,B=0,u=0)`<br/>
@@ -279,7 +281,8 @@ The following functions are supported and called as
         current time step (only needed if
         `input = True`).
 
- **Returns**:
+    **Returns**:
+    
     -   x -- (r x 1 array) reduced state at the next time step
 <br/><br/>
 4. `rk4advance_LQc(x,dt,A,H,c,B=0,u=0)`<br/>
@@ -288,6 +291,7 @@ The following functions are supported and called as
     <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{H}(\mathbf{x}\otimes \mathbf{x}) + \mathbf{c}" /></a>
 
     **Parameters**:
+    
     -   x -- (r x 1 array) current reduced state
 
     -   dt -- (float) time step size
@@ -306,7 +310,8 @@ The following functions are supported and called as
         current time step (only needed if
         `input = True`).
 
- **Returns**:
+    **Returns**:
+    
     -   x -- (r x 1 array) reduced state at the next time step
 <br/><br/>
 5.  `rk4advance_Q(x,dt,H,B=0,u=0)`<br/>
@@ -314,6 +319,7 @@ The following functions are supported and called as
     form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" title="\dot{\mathbf{x}} = \mathbf{H}(\mathbf{x}\otimes \mathbf{x})" /></a>
 
     **Parameters**:
+    
     -   x -- (r x 1 array) current reduced state
 
     -   dt -- (float) time step size
@@ -328,7 +334,8 @@ The following functions are supported and called as
         current time step (only needed if
         `input = True`).
 
- **Returns**:
+    **Returns**:
+    
     -   x -- (r x 1 array) reduced state at the next time step
 <br/><br/>
 6. `rk4advance_Qc(x,dt,H,c,B=0,u=0)`<br/>
@@ -354,5 +361,6 @@ The following functions are supported and called as
         current time step (only needed if
         `input = True`).<br/>
  
- **Returns**:
+    **Returns**:
+    
     -   x -- (r x 1 array) reduced state at the next time step
