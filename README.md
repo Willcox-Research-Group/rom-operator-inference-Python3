@@ -107,7 +107,8 @@ Functions can be called as
     -   u -- (p x n_timesteps array) the input at each
         simulation time step
 
- **Returns**:<br/>
+    **Returns**:
+    
     -   projected_state -- (r x n_timesteps array) the
         simulated, reduced states<br/>
     -   i -- (int) the time step that the simulation ended on
@@ -120,7 +121,8 @@ Functions can be called as
 
     -   None
 
- **Returns**:<br/>
+    **Returns**:
+    
     -   residual -- (float) residual of data fit,
         <a href="https://www.codecogs.com/eqnedit.php?latex=\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" title="\Vert \mathbf{D}\mathbf{O}^T -\dot{ \mathbf{X}}^T \Vert_2^2" /></a>
     -   solution -- (float) residual of the solution,
@@ -133,7 +135,8 @@ Functions can be called as
 
     -   None
 
- **Returns**:
+    **Returns**:
+    
     -   ops -- (tuple) containing each operator (as an array) as defined
         by `degree` of the model
 
@@ -181,7 +184,7 @@ The following functions are supported and called as
     operator <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{H}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{H}$" title="$\mathbf{H}$" /></a> for simulating the learned system.<br/>
     **Parameters**:
 
-    -   F --  learned quadratic
+    -   F -- (r x <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{r(r&plus;1)}{2}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{r(r&plus;1)}{2}" title="\frac{r(r+1)}{2}" /></a> array) learned quadratic
         operator
 
  **Returns**:
