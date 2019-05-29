@@ -209,7 +209,7 @@ The following functions are supported and called as
 <br/><br/>
 1.  `rk4advance_L(x,dt,A,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
-    form <a href="https://www.codecogs.com/eqnedit.php?latex=$\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}$" title="$\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}$" /></a>
+    form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}" /></a>
     <br/>
 
     **Parameters**:
