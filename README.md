@@ -74,7 +74,9 @@ Functions can be called as
 
 1.  `fit(r,reg,xdot,xhat,u=None)`
 
-    Find the operators of the reduced-order model that fit the data<br/>
+    Find the operators of the reduced-order model that fit the data by solving the regularized least
+    squares problem <br/>
+    <a href="https://www.codecogs.com/eqnedit.php?latex=$\displaystyle\min_{\mathbf{o}_i}&space;\Vert&space;\mathbf{D}\mathbf{o}_i&space;-&space;\mathbf{r}_i\Vert_2^2&space;&plus;&space;k\Vert&space;\mathbf{P}\mathbf{o}_i\Vert_2^2$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\displaystyle\min_{\mathbf{o}_i}&space;\Vert&space;\mathbf{D}\mathbf{o}_i&space;-&space;\mathbf{r}_i\Vert_2^2&space;&plus;&space;k\Vert&space;\mathbf{P}\mathbf{o}_i\Vert_2^2$" title="$\displaystyle\min_{\mathbf{o}_i} \Vert \mathbf{D}\mathbf{o}_i - \mathbf{r}_i\Vert_2^2 + k\Vert \mathbf{P}\mathbf{o}_i\Vert_2^2$" /></a> <br/><br/>
     **Parameters**:
 
     -   r -- (integer) POD basis size
@@ -230,7 +232,7 @@ The following functions are supported and called as
 
     **Returns**:
     
-    -   x -- ($r \times 1$ array) reduced state at the next time step
+    -   x -- (r x 1 array) reduced state at the next time step
 <br/><br/>
 2. `rk4advance_Lc(x,dt,A,c,B=0,u=0)`<br/>
     One step of 4th order runge kutta integration of a system of the
