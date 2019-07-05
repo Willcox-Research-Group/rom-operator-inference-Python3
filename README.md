@@ -142,6 +142,25 @@ Functions can be called as
     
     -   ops -- (tuple) containing each operator (as an array) as defined
         by `degree` of the model
+        
+ 
+5.  `relative_error(predicted_data,true_data,thresh = 1e-10)`<br/>
+    compute relative error between predicted data and true data<br/>
+    <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{\vert&space;\text{true&space;-&space;predicted}&space;\vert}{\vert\text{true}\vert}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{\vert&space;\text{true&space;-&space;predicted}&space;\vert}{\vert\text{true}\vert}" title="\frac{\vert \text{true - predicted} \vert}{\vert\text{true}\vert}" /></a>
+    **Parameters**:
+
+    -   predicted_data -- (n_snapshots x n_dimensions array) predicted data matrix 
+
+    -   true_data -- (n_snapshots x n_dimensions array) true data matrix. Can be projected data or full dimensional data as long as the dimensions of predicted_data and true_data match.
+
+    -   thresh -- (float, optional, default = 1e-10) the threshold for how small true values can be. If true value is <thresh, the absolute error is computed
+
+    -   num -- (int) number of ls problem we are solving [1..r]
+
+    **Returns**:
+    
+    -   ops -- (tuple) containing each operator (as an array) as defined
+        by `degree` of the model
 
 `opinf_helper.py`
 ----------------------------------------------------------
