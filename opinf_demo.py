@@ -6,7 +6,7 @@ import h5py
 
 
 # load some heat data (1D snapshots)
-hf = h5py.File('OpInfdata/heat_opinf_data.h5','r') 
+hf = h5py.File('heat_opinf_data.h5','r') 
 train_snapshots = hf['train_snapshots'][:,:]
 original_data = hf['snapshots'][:,:]
 part_test_l, part_test_r, part_train_l, part_train_r = hf['particular_test_left'][:,:], hf['particular_test_right'][:,:], hf['particular_train_left'][:,:], hf['particular_train_right'][:,:]
