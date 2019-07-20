@@ -1,12 +1,15 @@
-from operator_inference import OpInf
-from operator_inference import opinf_helper
-import numpy as np
-import matplotlib.pyplot as plt
+# opinf_demo.py
+"""Operator inference demo using 1-dimensional heat data."""
+
 import h5py
+import numpy as np
+from matplotlib import pyplot as plt
+
+from operator_inference import OpInf, opinf_helper
 
 
 # load some heat data (1D snapshots)
-hf = h5py.File('heat_opinf_data.h5','r') 
+hf = h5py.File('heat_opinf_data.h5','r')
 train_snapshots = hf['train_snapshots'][:,:]
 original_data = hf['snapshots'][:,:]
 part_test_l, part_test_r, part_train_l, part_train_r = hf['particular_test_left'][:,:], hf['particular_test_right'][:,:], hf['particular_train_left'][:,:], hf['particular_train_right'][:,:]
@@ -18,7 +21,7 @@ n_t = original_data.shape[1]
 # length of each snapshot
 d = original_data.shape[0]
 
-# range of x 
+# range of x
 x = np.linspace(0,4,d)
 
 # time step size
@@ -38,9 +41,9 @@ r=15
 print("Dimension of POD basis", r)
 
 # project data onto POD basis
-xhat = (U[:,:r].T)@train_snapshots
+xhat = (U[:,:r].T) @ train_snapshots
 
-# compute the reduced time derivative 
+# compute the reduced time derivative
 xdot = np.zeros(xhat.shape)
 xdot[:,2:-2] = (xhat[:,0:-4] - 8*xhat[:,1:-3] + 8*xhat[:,3:-1] - xhat[:,4:])/(12*dt)
 xdot[:,0] = ((xhat[:,1] - xhat[:,0])/dt).reshape((r,))
@@ -52,8 +55,8 @@ xdot[:,-2] = ((xhat[:,-2] - xhat[:,-3])/dt).reshape((r,))
 Using the operator_inference module
 ------------------------------------------------------
 '''
-#define the model 
-mymodel = OpInf.model('Lc',False) # a linear quadratic with no input
+#define the model
+mymodel = OpInf.Model('Lc',False) # a linear quadratic with no input
 
 #fit the model
 mymodel.fit(r,0,xdot,xhat) #0 is the L2 regularization param
@@ -75,7 +78,7 @@ Plot results
 ------------------------------------------------------
 '''
 
-plt.rcParams.update({'font.size': 30}) 
+plt.rcParams.update({'font.size': 30})
 
 
 alphs = np.linspace(1,0.5,int((n_t)))

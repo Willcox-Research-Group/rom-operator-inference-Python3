@@ -1,387 +1,133 @@
+# Operator Inference Package
 
-Operator inference package
-==========================
-**Author: Renee Swischuk (swischuk@mit.edu)**
+**Author**: Renee Swischuk (swischuk@mit.edu)
 
+**Contributors**: Shane McQuarrie (shanemcq@utexas.edu)
 
+Consider the (possibly nonlinear) differential equation `x'(t) = f(t,x(t))` where `x(t)` is a vector-valued function.
+The `operator_inference` package provides tools for constructing a reduced-order model that is linear or quadratic in `x`, possibly with a constant term `c`, and with optional control inputs `u(t)`.
 
-The first step is to download the operator inference module from pip. In
-the command prompt, type <br/>
-`pip3 install -i https://test.pypi.org/simple/ operator-inference`<br/>
-*This is temporary*<br/><br/>
-The `operator_inference` package
-contains a `model` class, with
-functions defined in
-[1.1.1](#sec:modelclassfunctions), and two helper scripts called
-`opinf_helper.py` and
-`integration_helpers.py`, with
-functions defined in
-[1.2.1](#sec:opinfhelperfunctions) and
-[1.3.1](#sec:integrationhelpersfunctions), respectively.<br/>
+#### Package Contents
+- The [`Model`](https://github.com/swischuk/operator_inference#model-class) class,
+- A helper script [`opinf_helper.py`](https://github.com/swischuk/operator_inference#opinf-helper), and
+- A helper script [`integration_helpers.py`](https://github.com/swischuk/operator_inference#integration-helpers).
 
- Quick Start
------------
-`from operator_inference import OpInf`<br/>
+## Quick Start
 
-#define a model of the form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\hat{\mathbf{x}}}&space;=&space;\mathbf{A}\hat{\mathbf{x}}&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\hat{\mathbf{x}}}&space;=&space;\mathbf{A}\hat{\mathbf{x}}&space;&plus;&space;\mathbf{c}" title="\dot{\hat{\mathbf{x}}} = \mathbf{A}\hat{\mathbf{x}} + \mathbf{c}" /></a><br/>
-`mymodel = OpInf.model('Lc',False) # a linear quadratic with no input` <br/>
+#### Installation
 
-#(fit the model) -- solve for the operators, <a href="https://www.codecogs.com/eqnedit.php?latex=\hat{\mathbf{A}}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\hat{\mathbf{A}}" title="\hat{\mathbf{A}}" /></a> and <a href="https://www.codecogs.com/eqnedit.php?latex=\hat{\mathbf{c}}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\hat{\mathbf{c}}" title="\hat{\mathbf{c}}" /></a>, that minimize <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\hat{\mathbf{x}}}&space;-&space;\mathbf{A}\hat{\mathbf{x}}&space;-&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\hat{\mathbf{x}}}&space;-&space;\mathbf{A}\hat{\mathbf{x}}&space;-&space;\mathbf{c}" title="\displaystyle \min_{\hat{\mathbf{A}},\hat{\mathbf{c}}} \dot{\mathbf{x}} - \mathbf{A}\hat{\mathbf{x}} - \mathbf{c}" /></a> <br/>
-`mymodel.fit(r,k,xdot,xhat)`
+Install the package on the command line with the following command.
 
-#simulate the learned model,<a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\hat{\mathbf{x}}}&space;=&space;\hat{\mathbf{A}}\hat{\mathbf{x}}&space;&plus;&space;\hat{\mathbf{c}}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\hat{\mathbf{x}}}&space;=&space;\hat{\mathbf{A}}\hat{\mathbf{x}}&space;&plus;&space;\hat{\mathbf{c}}" title="\dot{\hat{\mathbf{x}}} = \hat{\mathbf{A}}\hat{\mathbf{x}} + \hat{\mathbf{c}}" /></a> , for n_t time steps<br/>
-`xr,break_point = mymodel.predict(xhat[:,0], n_t, dt)`<br/>
+`pip3 install -i https://test.pypi.org/simple/operator-inference`
 
-#reconstruct the predictions<br/>
-`xr_rec = U[:,:r]@xr` <br/>
+_This installation command is temporary!_
 
-See `opinf_demo.py` for a working example
+#### Example
 
- Model class
------------
+<!-- TODO: what are these variables?? -->
 
-The following commands will initialize an operator inference model.<br/>
- >`from operator_inference import operator_inference`<br/>
-    `my_model = operator_inference.model(degree, input)`<br/>
-    
-where `degree` is a string denoting the degree of
-the model with the following options
+```python
+from operator_inference import OpInf
 
--   'L' -- a linear model, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}" /></a>
+# Define a model of the form x' = Ax + c (no input).
+>>> linear_c = OpInf.Model('Lc', inp=False)
 
--   'Lc' -- a linear model with a constant, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{c}" /></a>
-    
+# Fit the model by solving for the operators A and c.
+>>> linear_c.fit(r, k, xdot, xhat)
 
--   'LQ' -- a linear and quadratic model, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{F}\mathbf{x}^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{F}\mathbf{x}^2" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{F}\mathbf{x}^2" /></a>
+# Simulate the learned model for 10 timesteps of length .01.
+>>> xr, n_steps = linear_c.predict(init=xhat[:,0], n_timesteps=10, dt=.01)
 
--   'LQc' -- a linear and quadratic model with a constant, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{F}\mathbf{x}^2&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{F}\mathbf{x}^2&space;&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{F}\mathbf{x}^2 + \mathbf{c}" /></a>
+# Reconstruct the predictions.
+>>> xr_rec = U[:,:r] @ xr
+```
 
--   'Q' -- a quadratic model, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{F}\mathbf{x}^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{F}\mathbf{x}^2" title="\dot{\mathbf{x}} = \mathbf{F}\mathbf{x}^2" /></a>
+See [`opinf_demo.py`](https://github.com/swischuk/operator_inference/blob/master/opinf_demo.py) for a more complete working example.
 
--   'Qc' -- a quadratic model with a constant, <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{F}\mathbf{x}^2&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{F}\mathbf{x}^2&space;&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{F}\mathbf{x}^2 + \mathbf{c}" /></a>
+## Model class
 
-The `input` argument is a
-boolean (True or False) denoting whether or not there is an additive
-input term of the form <a href="https://www.codecogs.com/eqnedit.php?latex=&plus;\mathbf{B}&space;\mathbf{U}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?&plus;\mathbf{B}&space;\mathbf{U}" title="+\mathbf{B} \mathbf{U}" /></a>.<br/>
-The script, `opinf_demo.py`
-demonstrates the use of the operator inference model on data generated
-from the heat equation. See [@mythesis] for the problem setup.
+The following commands will initialize an operator inference `Model`.
 
-### Model class functions 
+```python
+from operator_inference import OptInf
 
-Functions can be called as
-`mymodel.function_name()`
+my_model = OptInf.Model(degree, inp)
+```
 
-1.  `fit(r,reg,xdot,xhat,u=None)`
+Here `degree` is a string denoting the structure of
+the model with the following options:
+- `"L"`:  a linear model, `x'(t) = Ax(t)`.
+- `"Lc"`:  a linear model with a constant, `x'(t) = Ax(t) + c`.
+- `"LQ"`:  a linear model, `x'(t) = Ax(t) + Fx^2(t)`.
+- `"LQc"`:  a linear model with a constant, `x'(t) = Ax(t) + Fx^2(t) + c`.
+- `"Q"`:  a strictly quadratic model, `x'(t) = Fx^2(t)`.
+- `"Qc"`:  a quadratic model with a constant, `x'(t) = Fx^2(t) + c`.
 
-    Find the operators of the reduced-order model that fit the data by solving the regularized least
-    squares problem <br/>
-    <a href="https://www.codecogs.com/eqnedit.php?latex=$\displaystyle\min_{\mathbf{o}_i}&space;\Vert&space;\mathbf{D}\mathbf{o}_i&space;-&space;\mathbf{r}_i\Vert_2^2&space;&plus;&space;k\Vert&space;\mathbf{P}\mathbf{o}_i\Vert_2^2$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\displaystyle\min_{\mathbf{o}_i}&space;\Vert&space;\mathbf{D}\mathbf{o}_i&space;-&space;\mathbf{r}_i\Vert_2^2&space;&plus;&space;k\Vert&space;\mathbf{P}\mathbf{o}_i\Vert_2^2$" title="$\displaystyle\min_{\mathbf{o}_i} \Vert \mathbf{D}\mathbf{o}_i - \mathbf{r}_i\Vert_2^2 + k\Vert \mathbf{P}\mathbf{o}_i\Vert_2^2$" /></a> <br/><br/>
-    **Parameters**:
+The `inp` argument is a boolean (`True` or `False`) denoting whether or not there is an additive input term of the form `BU`.
 
-    -   r -- (integer) POD basis size
+The script `opinf_demo.py` demonstrates the use of the operator inference model on data generated from the heat equation.
+See [@mythesis] for the problem setup.
 
-    -   reg -- (float) L2 regularization parameter. For no
-        regularization, set to 0.
+#### Methods
 
-    -   xdot -- (r x n_t array) the reduced time derivative data
+- `Model.fit(r, reg, xdot, xhat, u=None)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
+    squares problems `||D o - r||_2^2 + k||P o||_2^2`.
 
-    -   xhat-- (r x n_t array) the reduced snapshot data
+- `predict(init, n_timesteps, dt, u = None)`: Simulate the learned model with an explicit Runge-Kutta scheme tailored to the structure of the model.
 
-    -   u -- (p x n_t array, optional) the input, if
-        `model.input = True`
+- `get_residual()`: Return the residuals of the least squares problem `||D O^T - X'^T||_F^2` and `||O^T||_F^2`.
 
-    **Returns**:
-    
-    -   None
-    
+- `get_operators()`: Return each of the learned operators.
 
-2.  `predict(init, n_timesteps, dt, u = None)`<br/>
-    Simulate the learned model with a Runge Kutta scheme<br/>
-    **Parameters**:
+- `relative_error(predicted_data, true_data, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e., |`true_data` - `predicted_data`| / |`true_data`|. Computes absolute error (numerator only) if `|true_data|` < `thresh`.
 
-    -   init -- (r x 1) intial reduced state
 
-    -   n_timesteps -- (int) number of time steps to simulate
+## `opinf_helper.py`
 
-    -   dt-- (float) the time step size
+Import the helper script with the following line.
 
-    -   u -- (p x n_timesteps array) the input at each
-        simulation time step, if
-        `model.input = True`
+```python
+from operator_inference import opinf_helper
+```
 
-    **Returns**:
-    
-    -   projected_state -- (r x n_timesteps array) the
-        simulated, reduced states<br/>
-    -   i -- (int) the time step that the simulation ended on
-        (i < n_timesteps only if NaNs occur in simulation)
+#### Functions
 
+This file contains routines that are used within `OpInf.Model.fit()`.
 
-3.  `get_residual()`<br/>
-    Get the residuals of the least squares problem<br/>
-    **Parameters**:
+- `normal_equations(D, r, k, num)`: Solve the normal equations corresponding to the regularized ordinary least squares problem `min ||D o - r||_2^2 + k||P o||_2^2`.
 
-    -   None
+-  `get_x_sq(X)`: Compute squared snapshot data as in [@ben].
 
-    **Returns**:
-    
-    -   residual -- (float) residual of data fit,
-        <a href="https://www.codecogs.com/eqnedit.php?latex=\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\Vert&space;\mathbf{D}\mathbf{O}^T&space;-\dot{&space;\mathbf{X}}^T&space;\Vert_2^2" title="\Vert \mathbf{D}\mathbf{O}^T -\dot{ \mathbf{X}}^T \Vert_2^2" /></a>
-    -   solution -- (float) residual of the solution,
-        <a href="https://www.codecogs.com/eqnedit.php?latex=\Vert&space;\mathbf{O}^T&space;\Vert_2^2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\Vert&space;\mathbf{O}^T&space;\Vert_2^2" title="\Vert \mathbf{O}^T \Vert_2^2" /></a>
-
-
-4.  `get_operators()`<br/>
-    Get the learned operators<br/>
-    **Parameters**:
-
-    -   None
-
-    **Returns**:
-    
-    -   ops -- (tuple) containing each operator (as an array) as defined
-        by `degree` of the model
-        
- 
-5.  `relative_error(predicted_data,true_data,thresh = 1e-10)`<br/>
-    compute relative error between predicted data and true data<br/>
-    <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{\vert&space;\text{true&space;-&space;predicted}&space;\vert}{\vert\text{true}\vert}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{\vert&space;\text{true&space;-&space;predicted}&space;\vert}{\vert\text{true}\vert}" title="\frac{\vert \text{true - predicted} \vert}{\vert\text{true}\vert}" /></a>
-    **Parameters**:
-
-    -   predicted_data -- (n_snapshots x n_dimensions array) predicted data matrix 
-
-    -   true_data -- (n_snapshots x n_dimensions array) true data matrix. Can be projected data or full dimensional data as long as the dimensions of predicted_data and true_data match.
-
-    -   thresh -- (float, optional, default = 1e-10) the threshold for how small true values can be. If true value is <thresh, the absolute error is computed
-
-    -   num -- (int) number of ls problem we are solving [1..r]
-
-    **Returns**:
-    
-    -   ops -- (tuple) containing each operator (as an array) as defined
-        by `degree` of the model
-
-`opinf_helper.py`
-----------------------------------------------------------
-
-Import the opinf helper script as<br/>
-`from operator_inference import opinf_helper`.
-
-### functions
-
-The following functions are supported and called as
-`opinf_helper.function_name()`.
-
-1.  `normal_equations(D,r,k,num)`<br/>
-    Solves the normal equations corresponding to the regularized least
-    squares problem <br/>
-    <a href="https://www.codecogs.com/eqnedit.php?latex=$\displaystyle\min_{\mathbf{o}_i}&space;\Vert&space;\mathbf{D}\mathbf{o}_i&space;-&space;\mathbf{r}_i\Vert_2^2&space;&plus;&space;k\Vert&space;\mathbf{P}\mathbf{o}_i\Vert_2^2$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\displaystyle\min_{\mathbf{o}_i}&space;\Vert&space;\mathbf{D}\mathbf{o}_i&space;-&space;\mathbf{r}_i\Vert_2^2&space;&plus;&space;k\Vert&space;\mathbf{P}\mathbf{o}_i\Vert_2^2$" title="$\displaystyle\min_{\mathbf{o}_i} \Vert \mathbf{D}\mathbf{o}_i - \mathbf{r}_i\Vert_2^2 + k\Vert \mathbf{P}\mathbf{o}_i\Vert_2^2$" /></a> <br/>
-    **Parameters**:
-
-    -   D -- (nd array) data matrix
-
-    -   r -- (nd array) reduced time derivative data
-
-    -   k -- (float) regularization parameter
-
-    -   num -- (int) number of ls problem we are solving [1..r]
-
-    **Returns**:
-    
-    -   <a href="https://www.codecogs.com/eqnedit.php?latex=\mathbf{o}_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\mathbf{o}_i" title="\mathbf{o}_i" /></a> -- (nd array) the solution to the least squares
-        problem
-<br/><br/>
-2.  `get_x_sq(X)`<br/>
-    Compute squared snapshot data as in [@ben].<br/>
-    **Parameters**:
-
-    -   X -- (n_t x r array) reduced snapshot data (transposed)
-    
-    **Returns**:
-    
-    -   <a href="https://www.codecogs.com/eqnedit.php?latex=X$^2$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?X$^2$" title="X$^2$" /></a> -- (n_t x <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{r(r&plus;1)}{2}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{r(r&plus;1)}{2}" title="\frac{r(r+1)}{2}" /></a> array) reduced snapshot
-        data squared without redundant terms.
-<br/><br/>
-3.  `F2H(F)`<br/>
-    Convert quadratic operator <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{F}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{F}$" title="$\mathbf{F}$" /></a> to symmetric quadratic
-    operator <a href="https://www.codecogs.com/eqnedit.php?latex=$\mathbf{H}$" target="_blank"><img src="https://latex.codecogs.com/gif.latex?$\mathbf{H}$" title="$\mathbf{H}$" /></a> for simulating the learned system.<br/>
-
-    **Parameters**:
-
-    -   F -- (r x <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{r(r&plus;1)}{2}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{r(r&plus;1)}{2}" title="\frac{r(r+1)}{2}" /></a> array) learned quadratic
-        operator
-
-    **Returns**:
-    
-    -   H -- (r x r^2 array) symmetric quadratic operator
-<br/><br/>
-
-`integration_helpers.py`
-----------------------------------------------------------------
-
-Import the integration helper script as<br/>
-`from operator_inference import integration_helpers`.
-
-### functions
-
-The following functions are supported and called as
-`integration_helpers.function_name()`.
-<br/><br/>
-1.  `rk4advance_L(x,dt,A,B=0,u=0)`<br/>
-    One step of 4th order runge kutta integration of a system of the
-    form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}" /></a>
-    <br/>
-
-    **Parameters**:
-
-    -   x -- (r x 1 array) current reduced state
-
-    -   dt -- (float) time step size
-
-    -   A -- (r x r array) linear operator
-
-    -   B -- (r x p array, optional default = 0) input operator
-        (only needed if
-        `input = True`).
-
-    -   u -- (p x 1 array, optional default = 0) the input at the
-        current time step (only needed if
-        `input = True`).
-
-    **Returns**:
-    
-    -   x -- (r x 1 array) reduced state at the next time step
-<br/><br/>
-2. `rk4advance_Lc(x,dt,A,c,B=0,u=0)`<br/>
-    One step of 4th order runge kutta integration of a system of the
-    form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{c}" /></a> <br/>
-
-    **Parameters**:
-
-    -   x --  (r x 1 array) current reduced state
-
-    -   dt -- (float) time step size
-
-    -   A -- (r x r array) linear operator
-
-    -   c -- (r x 1 array) constant term
-
-    -   B -- (r x p array, optional default = 0) input operator
-        (only needed if
-        `input = True`).
-
-    -   u -- (p x 1 array, optional default = 0) the input at the
-        current time step (only needed if
-        `input = True`).
-
-    **Returns**:
-    
-    -   x -- (r x 1 array) reduced state at the next time step
-<br/><br/>
-3. `rk4advance_LQ(x,dt,A,H,B=0,u=0)`<br/>
-    One step of 4th order runge kutta integration of a system of the
-    form
-    <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{H}(\mathbf{x}\otimes \mathbf{x})" /></a>
-
-    **Parameters**:
-    
-    -   x -- (r x 1 array) current reduced state
-
-    -   dt -- (float) time step size
-
-    -   A -- (r x r array) linear operator
-
-    -   H -- (r x r^2 array) quadratic operator
-
-    -   B -- (r x p array, optional default = 0) input operator
-        (only needed if
-        `input = True`).
-
-    -   u -- (p x 1 array, optional default = 0) the input at the
-        current time step (only needed if
-        `input = True`).
-
-    **Returns**:
-    
-    -   x -- (r x 1 array) reduced state at the next time step
-<br/><br/>
-4. `rk4advance_LQc(x,dt,A,H,c,B=0,u=0)`<br/>
-    One step of 4th order runge kutta integration of a system of the
-    form
-    <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{A}\mathbf{x}&plus;&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{A}\mathbf{x}+ \mathbf{H}(\mathbf{x}\otimes \mathbf{x}) + \mathbf{c}" /></a>
-
-    **Parameters**:
-    
-    -   x -- (r x 1 array) current reduced state
-
-    -   dt -- (float) time step size
-
-    -   A -- (r x r array) linear operator
-
-    -   H -- (r x r^2 array) quadratic operator
-
-    -   c -- (r x 1 array) constant term
-
-    -   B -- (r x p array, optional default = 0) input operator
-        (only needed if
-        `input = True`).
-
-    -   u -- (p x 1 array, optional default = 0) the input at the
-        current time step (only needed if
-        `input = True`).
-
-    **Returns**:
-    
-    -   x -- (r x 1 array) reduced state at the next time step
-<br/><br/>
-5.  `rk4advance_Q(x,dt,H,B=0,u=0)`<br/>
-    One step of 4th order runge kutta integration of a system of the
-    form <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})" title="\dot{\mathbf{x}} = \mathbf{H}(\mathbf{x}\otimes \mathbf{x})" /></a>
-
-    **Parameters**:
-    
-    -   x -- (r x 1 array) current reduced state
-
-    -   dt -- (float) time step size
-
-    -   H -- (r x r^2 array) quadratic operator
-
-    -   B -- (r x p array, optional default = 0) input operator
-        (only needed if
-        `input = True`).
-
-    -   u -- (p x 1 array, optional default = 0) the input at the
-        current time step (only needed if
-        `input = True`).
-
-    **Returns**:
-    
-    -   x -- (r x 1 array) reduced state at the next time step
-<br/><br/>
-6. `rk4advance_Qc(x,dt,H,c,B=0,u=0)`<br/>
-    One step of 4th order runge kutta integration of a system of the
-    form
-    <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{\mathbf{x}}&space;=&space;\mathbf{H}(\mathbf{x}\otimes&space;\mathbf{x})&space;&plus;&space;\mathbf{c}" title="\dot{\mathbf{x}} = \mathbf{H}(\mathbf{x}\otimes \mathbf{x}) + \mathbf{c}" /></a>
-
-    **Parameters**:
-    
-    -   x -- (r x 1 array) current reduced state
-
-    -   dt -- (float) time step size
-
-    -   H -- (r x r^2 array) quadratic operator
-
-    -   c -- (r x 1 array) constant term
-
-    -   B -- (r x p array, optional default = 0) input operator
-        (only needed if
-        `input = True`).
-
-    -   u -- (p x 1 array, optional default = 0) the input at the
-        current time step (only needed if
-        `input = True`).<br/>
- 
-    **Returns**:
-    
-    -   x -- (r x 1 array) reduced state at the next time step
+-  `F2H(F)`: Convert quadratic operator `F` to symmetric quadratic operator `H` for simulating the learned system.
+
+## `integration_helpers.py`
+
+Import the integration helper script with the following line.
+
+```python
+from operator_inference import integration_helpers
+```
+
+#### Functions
+
+This file contains Runge-Kutta integrators that are used within `OpInf.Model.predict()`.
+The choice of integrator depends on `Model.degree`.
+
+- `rk4advance_L(x, dt, A, B=0, u=0)`
+- `rk4advance_Lc(x, dt, A, c, B=0, u=0)`
+- `rk4advance_Q(x, dt, H, B=0, u=0)`
+- `rk4advance_Qc(x, dt, H, c, B=0, u=0)`
+- `rk4advance_LQ(x, dt, A, H, B=0, u=0)`
+- `rk4advance_LQc(x, dt, A, H, c, B=0, u=0)`
+
+**Parameters**:
+- `x ((r,) ndarray)`: The current (reduced-dimension) state.
+- `dt (float)`: Time step size.
+- `A ((r,r) ndarray)`: The linear state operator.
+- `H ((r,r**2) ndarray)`: The matricized quadratic state operator.
+- `c ((r,) ndarray)`: The constant term.
+- `B ((r,p) ndarray)`: The input operator; only needed if `Model.inp` is `True`.
+- `u ((p,) ndarray)`: The input at the current time; only needed if `Model.inp` is `True`.
+
+**Returns**:
+- `x_next ((r,) ndarray)`: The next (reduced-dimension) state.
