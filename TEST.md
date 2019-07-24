@@ -4,7 +4,7 @@
 
 **Contributors**: Shane McQuarrie (shanemcq@utexas.edu)
 
-Consider the (possibly nonlinear) differential equation $\mathbf{x}'(t) = \mathbf{f}(t,\mathbf{x}(t))$ where $\mathbf{x}(t)$ is a vector-valued function mapping to $\mathbb{R}^n$.
+Consider the (possibly nonlinear) differential equation <img src="https://rawgit.com/shanemcq18/operator_inference/style/svgs/aefa628c6627afca01baf401ee01b509.svg?invert_in_darkmode" align=middle width=117.5226393pt height=24.7161288pt/> where <img src="https://rawgit.com/shanemcq18/operator_inference/style/svgs/1e46db9fc330938ace337126cd51f407.svg?invert_in_darkmode" align=middle width=28.69864634999999pt height=24.65753399999998pt/> is a vector-valued function mapping to <img src="https://rawgit.com/shanemcq18/operator_inference/style/svgs/8a86f4a11e2fbfc03de61d587ba826de.svg?invert_in_darkmode" align=middle width=19.998202949999992pt height=22.648391699999998pt/>.
 The `operator_inference` package provides tools for constructing a reduced-order model that is linear or quadratic in `x`, possibly with a constant term `c`, and with optional control inputs `u(t)`.
 
 #### Package Contents
