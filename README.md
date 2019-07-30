@@ -4,10 +4,15 @@
 
 **Contributors**: [Shane McQuarrie](https://github.com/shanemcq18)
 
-Consider the possibly nonlinear ordinary differential equation
-<img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)%20=%20\mathbf{f}(t,\mathbf{x}(t)),"/>
-where <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}(t)"/> is a vector-valued function mapping to <img src="https://latex.codecogs.com/svg.latex?\mathbb{R}^n"/>, called the _state_.
-The `operator_inference` package provides tools for constructing a reduced-order model that is linear or quadratic in <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}"/>, possibly with a constant term <img src="https://latex.codecogs.com/svg.latex?\mathbf{c}"/>, and with optional linear control inputs <img src="https://latex.codecogs.com/svg.latex?\mathbf{u}(t)"/>.
+Consider the (possibly nonlinear) ordinary differential equation
+
+<img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=\mathbf{f}(t,\mathbf{x}(t)),"/>
+
+where
+
+<img src="https://latex.codecogs.com/svg.latex?\mathbf{x}:\mathbb{R}\to\mathbb{R}^n,\qquad\mathbf{f}:\mathbb{R}\times\mathbb{R}^n\to\mathbb{R}^n."/>
+
+The `operator_inference` package provides tools for constructing a reduced-order model that is linear or quadratic in the state, possibly with a constant term, and with optional linear control inputs.
 
 #### Package Contents
 - The [`Model`](https://github.com/swischuk/operator_inference#model-class) class,
@@ -62,12 +67,12 @@ the model with the following options.
 
 | `degree` | Model Description | Model Equation |
 | :------- | :---------------- | :------------- |
-|  `"L"`   |  linear | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t) = A\mathbf{x}(t)"/>
-|  `"Lc"`  |  linear with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t) = A\mathbf{x}(t) + \mathbf{c}"/>
-|  `"Q"`   |  quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t) = F\mathbf{x}^2(t)"/>
-|  `"Qc"`  |  quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t) = F\mathbf{x}^2(t) + \mathbf{c}"/>
-|  `"LQ"`  |  linear quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t) = A\mathbf{x}(t) + F\mathbf{x}^2(t)"/>
-|  `"LQc"` |  linear quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t) = A\mathbf{x}(t) + F\mathbf{x}^2(t) + \mathbf{c}"/>
+|  `"L"`   |  linear | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=A\mathbf{x}(t)"/>
+|  `"Lc"`  |  linear with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=A\mathbf{x}(t)+\mathbf{c}"/>
+|  `"Q"`   |  quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=F\mathbf{x}^2(t)"/>
+|  `"Qc"`  |  quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=F\mathbf{x}^2(t)+\mathbf{c}"/>
+|  `"LQ"`  |  linear quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=A\mathbf{x}(t)+F\mathbf{x}^2(t)"/>
+|  `"LQc"` |  linear quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=A\mathbf{x}(t)+F\mathbf{x}^2(t)+\mathbf{c}"/>
 
 The `inp` argument is a boolean (`True` or `False`) denoting whether or not there is an additive input term of the form <img src="https://latex.codecogs.com/svg.latex?B\mathbf{u}(t)"/>.
 
@@ -77,15 +82,15 @@ See [@mythesis] for the problem setup.
 #### Methods
 
 - `Model.fit(r, reg, xdot, xhat, u=None)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
-    squares problems <img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D \mathbf{o}_i - \mathbf{r}||_2^2 + k||P \mathbf{o}_i||_2^2"/>.
+    squares problems <img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+k||P\mathbf{o}_i||_2^2"/>.
 
 - `predict(init, n_timesteps, dt, u = None)`: Simulate the learned model with an explicit Runge-Kutta scheme tailored to the structure of the model.
 
-- `get_residual()`: Return the residuals of the least squares problem <img src="https://latex.codecogs.com/svg.latex?||D O^T - \dot{X}^T||_F^2"/> and <img src="https://latex.codecogs.com/svg.latex?||O^T||_F^2"/>.
+- `get_residual()`: Return the residuals of the least squares problem <img src="https://latex.codecogs.com/svg.latex?||DO^T-\dot{X}^T||_F^2"/> and <img src="https://latex.codecogs.com/svg.latex?||O^T||_F^2"/>.
 
 - `get_operators()`: Return each of the learned operators.
 
-- `relative_error(predicted_data, true_data, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e., <img src="https://latex.codecogs.com/svg.latex?||\text{true} - \text{predicted}|| / ||\text{true}||"/>. Computes absolute error (numerator only) if <img src="https://latex.codecogs.com/svg.latex?||\text{true}|| < "/> `thresh`.
+- `relative_error(predicted_data, true_data, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e., <img src="https://latex.codecogs.com/svg.latex?||\text{true}-\text{predicted}||/||\text{true}||"/>.  Computes absolute error (numerator only) if <img src="https://latex.codecogs.com/svg.latex?||\text{true}||<"/> `thresh`.
 
 
 ## `opinf_helper.py`
@@ -100,7 +105,7 @@ from operator_inference import opinf_helper
 
 This file contains routines that are used within `OpInf.Model.fit()`.
 
-- `normal_equations(D, r, k, num)`: Solve the normal equations corresponding to the regularized ordinary least squares problem <img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D \mathbf{o}_i - \mathbf{r}||_2^2 + k||P \mathbf{o}_i||_2^2"/>.
+- `normal_equations(D, r, k, num)`: Solve the normal equations corresponding to the regularized ordinary least squares problem <img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+k||P\mathbf{o}_i||_2^2"/>.
 
 -  `get_x_sq(X)`: Compute squared snapshot data as in [@ben].
 
