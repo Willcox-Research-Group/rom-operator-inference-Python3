@@ -5,7 +5,7 @@
 **Contributors**: [Shane McQuarrie](https://github.com/shanemcq18)
 
 Consider the possibly nonlinear ordinary differential equation
-<img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t) = \mathbf{f}(t,\mathbf{x}(t)),"/>
+<img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)%20=%20\mathbf{f}(t,\mathbf{x}(t)),"/>
 where <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}(t)"/> is a vector-valued function mapping to <img src="https://latex.codecogs.com/svg.latex?\mathbb{R}^n"/>, called the _state_.
 The `operator_inference` package provides tools for constructing a reduced-order model that is linear or quadratic in <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}"/>, possibly with a constant term <img src="https://latex.codecogs.com/svg.latex?\mathbf{c}"/>, and with optional linear control inputs <img src="https://latex.codecogs.com/svg.latex?\mathbf{u}(t)"/>.
 
