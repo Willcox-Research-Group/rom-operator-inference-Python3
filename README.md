@@ -2,9 +2,9 @@
 
 **Author**: Renee Swischuk (swischuk@mit.edu)
 
-**Contributors**: [Shane McQuarrie](https://github.com/shanemcq18)
+**Contributors**: Renee Swischuk, [Shane McQuarrie](https://github.com/shanemcq18)
 
-Consider the (possibly nonlinear) ordinary differential equation
+Consider the (possibly nonlinear) system of ordinary differential equations
 
 <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=\mathbf{f}(t,\mathbf{x}(t)),"/>
 
@@ -12,12 +12,21 @@ where
 
 <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}:\mathbb{R}\to\mathbb{R}^n,\qquad\mathbf{f}:\mathbb{R}\times\mathbb{R}^n\to\mathbb{R}^n."/>
 
-The `operator_inference` package provides tools for constructing a reduced-order model that is linear or quadratic in the state, possibly with a constant term, and with optional linear control inputs.
+The `operator_inference` package provides tools for constructing a _reduced-order model_ (ROM) that is linear or quadratic in the state **x**, possibly with a constant term **c**, and with optional control inputs **u**.
+For example, the code can construct and solve a system of the form
+
+<img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}} + \hat{B}\mathbf{u}(t) + \hat{\mathbf{c}},"/>
+
+where now
+
+<img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}:\mathbb{R}\to\mathbb{R}^r,\qquad\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{B}\in\mathbb{R}^{r\times%20m},\qquad\mathbf{u}:\mathbb{R}\to\mathbb{R}^m,\qquad\hat{\mathbf{c}}\in\mathbb{R}^r,\qquad%20r\ll%20n."/>
+
+This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension.
 
 #### Package Contents
 - The [`Model`](https://github.com/swischuk/operator_inference#model-class) class,
 - A helper script [`opinf_helper.py`](https://github.com/swischuk/operator_inference#opinf-helper), and
-- A helper script [`integration_helpers.py`](https://github.com/swischuk/operator_inference#integration-helpers).
+<!-- - A helper script [`integration_helpers.py`](https://github.com/swischuk/operator_inference#integration-helpers). -->
 
 ## Quick Start
 
@@ -52,7 +61,9 @@ from operator_inference import OpInf
 
 See [`opinf_demo.py`](https://github.com/swischuk/operator_inference/blob/master/opinf_demo.py) for a more complete working example.
 
-## Model class
+## Documentation
+
+### Model class
 
 The following commands will initialize an operator inference `Model`.
 
@@ -79,7 +90,7 @@ The `inp` argument is a boolean (`True` or `False`) denoting whether or not ther
 The script `opinf_demo.py` demonstrates the use of the operator inference model on data generated from the heat equation.
 See [@mythesis] for the problem setup.
 
-#### Methods
+##### Methods
 
 - `Model.fit(r, reg, xdot, xhat, u=None)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
     squares problems <img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+k||P\mathbf{o}_i||_2^2"/>.
@@ -93,7 +104,7 @@ See [@mythesis] for the problem setup.
 - `relative_error(predicted_data, true_data, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e., <img src="https://latex.codecogs.com/svg.latex?||\text{true}-\text{predicted}||/||\text{true}||"/>.  Computes absolute error (numerator only) if <img src="https://latex.codecogs.com/svg.latex?||\text{true}||<"/> `thresh`.
 
 
-## `opinf_helper.py`
+### `opinf_helper.py`
 
 Import the helper script with the following line.
 
@@ -101,18 +112,18 @@ Import the helper script with the following line.
 from operator_inference import opinf_helper
 ```
 
-#### Functions
+##### Functions
 
 This file contains routines that are used within `OpInf.Model.fit()`.
 
 - `normal_equations(D, r, k, num)`: Solve the normal equations corresponding to the regularized ordinary least squares problem <img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+k||P\mathbf{o}_i||_2^2"/>.
 
--  `get_x_sq(X)`: Compute squared snapshot data as in [@ben].
+-  `get_x_sq(X)`: Compute squared snapshot data.
 
 -  `F2H(F)`: Convert quadratic operator `F` to symmetric quadratic operator `H` for simulating the learned system.
 
 
-<!-- ## `integration_helpers.py`
+<!-- ### `integration_helpers.py`
 
 Import the integration helper script with the following line.
 
@@ -120,7 +131,7 @@ Import the integration helper script with the following line.
 from operator_inference import integration_helpers
 ```
 
-#### Functions
+##### Functions
 
 This file contains Runge-Kutta integrators that are used within `OpInf.Model.predict()`.
 The choice of integrator depends on `Model.degree`.
@@ -143,3 +154,7 @@ The choice of integrator depends on `Model.degree`.
 
 **Returns**:
 - `x_next ((r,) ndarray)`: The next (reduced-dimension) state. -->
+
+## Summary of Mathematical Details
+
+For a full treatment, see [@Ben].
