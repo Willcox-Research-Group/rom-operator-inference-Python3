@@ -15,19 +15,18 @@ Computer Methods in Applied Mechanics and Engineering, 306:196-215, 2016.
     pages     = {196--215},
     year      = {2016},
     publisher = {Elsevier}
-    }
 }</pre></details>
 
 \[2\] Qian, E., Kramer, B., Marques, A., and Willcox, K.
 [Transform & Learn: A data-driven approach to nonlinear model reduction](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 In the AIAA Aviation 2019 Forum, June 17-21, Dallas, TX. ([Download](https://www.dropbox.com/s/5znea6z1vntby3d/QKMW_aviation19.pdf?dl=0))<details><summary>BibTeX</summary><pre>
 @inbook{QKMW2019aviation,
-    author = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
-    title  = {Transform \&amp; Learn: A data-driven approach to nonlinear model reduction},
+    author    = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
+    title     = {Transform \&amp; Learn: A data-driven approach to nonlinear model reduction},
     booktitle = {AIAA Aviation 2019 Forum},
-    doi    = {10.2514/6.2019-3707},
-    URL    = {https://arc.aiaa.org/doi/abs/10.2514/6.2019-3707},
-    eprint = {https://arc.aiaa.org/doi/pdf/10.2514/6.2019-3707}
+    doi       = {10.2514/6.2019-3707},
+    URL       = {https://arc.aiaa.org/doi/abs/10.2514/6.2019-3707},
+    eprint    = {https://arc.aiaa.org/doi/pdf/10.2514/6.2019-3707}
 }</pre></details>
 
 **Contributors**: [Renee Swischuk](mailto:swischuk@mit.edu), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Quian](), [Boris Kramer](http://web.mit.edu/bokramer/www/index.html).
@@ -105,7 +104,7 @@ See [`opinf_demo.py`](https://github.com/swischuk/operator_inference/blob/master
 
 ## Documentation
 
-### Model class
+#### Model class
 
 The following commands will initialize an operator inference `Model`.
 
@@ -132,7 +131,7 @@ The `inp` argument is a boolean (`True` or `False`) denoting whether or not ther
 The script `opinf_demo.py` demonstrates the use of the operator inference model on data generated from the heat equation.
 See [@mythesis] for the problem setup.
 
-##### Methods
+###### Methods
 
 - `Model.fit(r, reg, xdot, xhat, u=None)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
     squares problem
@@ -146,11 +145,10 @@ See [@mythesis] for the problem setup.
 - `get_operators()`: Return each of the learned operators.
 
 - `relative_error(predicted_data, true_data, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e.,
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\frac{||\texttt{true\_data}-\texttt{predicted\_data}||}{||\texttt{true\_data}||}"./></p>
-Computes absolute error (numerator only) if <img src="https://latex.codecogs.com/svg.latex?||\texttt{true\_data}||<\texttt{thresh}"/>.
+<p align="center"><img src="https://latex.codecogs.com/svg.latex?\frac{||\texttt{true\_data}-\texttt{predicted\_data}||}{||\texttt{true\_data}||}"./></p> Computes absolute error (numerator only) in the case that <img src="https://latex.codecogs.com/svg.latex?||\texttt{true\_data}||<\texttt{thresh}."/>
 
 
-### `opinf_helper.py`
+#### `opinf_helper.py`
 
 Import the helper script with the following line.
 
@@ -158,7 +156,7 @@ Import the helper script with the following line.
 from operator_inference import opinf_helper
 ```
 
-##### Functions
+###### Functions
 
 This file contains routines that are used within `OpInf.Model.fit()`.
 
@@ -205,19 +203,22 @@ The choice of integrator depends on `Model.degree`.
 
 For a full treatment, see [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 
+#### Notation
 
-<p align="center"><img src="https://raw.githubusercontent.com/elizqian/operator-inference/master/modelform.png"
-alt="$\dot{\hat {\mathbf{x}}} = \hat{\mathbf{A}}\hat{\mathbf{x}}+\hat{\mathbf{H}}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})+\hat{\mathbf{B}}\mathbf{u}(t)+\sum_{i=1}^m\hat{\mathbf{N}}\hat{\mathbf{x}}u_i(t)+\hat{\mathbf{C}}$"
-height=60/></p>
+**TODO**
 
-In the discrete-time setting the learned model can have any of the terms on the right-hand side of the following general model:
+#### Projection-based Model Reduction
 
-<p align="center"><img src="https://raw.githubusercontent.com/elizqian/operator-inference/master/model_discrete.png"
-alt="$\hat {\mathbf{x}}_{k+1} = \hat{\mathbf{A}}\hat{\mathbf{x}}_k+\hat{\mathbf{H}}(\hat{\mathbf{x}}_k\otimes\hat{\mathbf{x}}_k)+\hat{\mathbf{B}}\mathbf{u}_k+\sum_{i=1}^m\hat{\mathbf{N}}\hat{\mathbf{x}}_ku_{i,k}+\hat{\mathbf{C}}$"
-height=60/></p>
+**TODO**
+
+#### Operator Inference via Least Squares
 
 ## Examples
+
+_**WARNING: under construction!!**_
+
 The [`examples/`](https://github.com/swischuk/operator_inference/blob/master/examples/) folder contains scripts that set up and run several examples:
 - The heat equation example from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 - The Burgers' equation from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
-- The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707). This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions.
+- The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
+This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions.
