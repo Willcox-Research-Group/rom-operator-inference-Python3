@@ -10,7 +10,7 @@ from operator_inference import integration_helpers
 class Model:
     """Reduced order model for a system of high-dimensional ODEs of the form
 
-        x'(t) = f(x(t)) + Bu(t),
+        x'(t) = f(t,x(t)) + Bu(t),
          x(0) = x0.
 
     The degree (structure) of the model is user specified, and the operators
@@ -24,16 +24,16 @@ class Model:
     inp : bool
         Whether or not the full model includes the term Bu(t).
     """
-    def __init__(self, degree='LQ', inp=True):
+    def __init__(self, degree, inp=True):
         """Initalize operator inference model for the high-dimensional model
 
-            x'(t) = f(x(t)) + Bu(t),
+            x'(t) = f(t,x(t)) + Bu(t),
              x(0) = x0.
 
         Parameters
         ----------
-        degree : {'L','Lc','LQ','LQc','Q','Qc'}, optional, default 'LQ'
-            'L'
+        degree : {'L','Lc','Q','Qc','LQ','LQc'}
+            'L':
                 a linear model f(x) = Ax
             'Lc'
                 a linear model with a constant f(x) = Ax + c
