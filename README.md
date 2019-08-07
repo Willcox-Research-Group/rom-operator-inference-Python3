@@ -311,7 +311,7 @@ For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\wid
 ### Index of Notation
 
 We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
-In the code, a low-dimensional quantity ends with an underscore, which matches scikit-learn conventions for the Model class.
+In the code, a low-dimensional quantity ends with an underscore, which matches scikit-learn conventions for the `Model` class.
 
 ##### Dimensions
 
@@ -353,7 +353,7 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\otimes\mathbf{x}"/> | `np.kron(x,x)` | <img src="https://latex.codecogs.com/svg.latex?n^2"/> | Kronecker product of full state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}"/> | `np.kron(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?r^2"/>  | Kronecker product of reduced state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_thin(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?\frac{r(r+1)}{2}"/>  | Compact Kronecker product of reduced state (quadratic terms) |
-| <img src="https://latex.codecogs.com/svg.latex?\mathbf{v}_j"/> | `vj` | <img src="https://latex.codecogs.com/svg.latex?n"/> | _j_th POD basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
+| <img src="https://latex.codecogs.com/svg.latex?\mathbf{v}_j"/> | `vj` | <img src="https://latex.codecogs.com/svg.latex?n"/> | _j_<sup>th</sup> POD basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
 
 <!-- | **y**  | `y`             | Output vector | -->
 <!-- | **y_ROM**, **y~** | `y_ROM`      | Approximation to **y** produced by ROM | -->
