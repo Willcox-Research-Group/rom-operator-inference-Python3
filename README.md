@@ -33,7 +33,7 @@ In the AIAA Aviation 2019 Forum, June 17-21, Dallas, TX. ([Download](https://www
 
 See [this repository](https://github.com/elizqian/operator-inference) for a MATLAB implementation.
 
-## Mathematical Setting
+## Problem Setting
 
 Consider the (possibly nonlinear) system of _n_ ordinary differential equations
 
@@ -137,7 +137,7 @@ the desired ROM with the following options.
 The `inp` argument is a boolean (`True` or `False`) denoting whether or not there is an additive input term of the form <img src="https://latex.codecogs.com/svg.latex?B\mathbf{u}(t)"/>.
 
 
-###### Methods
+##### Methods
 
 - `Model.fit(r, reg, xdot, xhat, u=None)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
     squares problem
@@ -162,7 +162,7 @@ Import the helper script with the following line.
 from operator_inference import opinf_helper
 ```
 
-###### Functions
+##### Functions
 
 This file contains helper routines that are used internally for `OpInf.Model.fit()`.
 
@@ -211,7 +211,7 @@ The choice of integrator depends on `Model.degree`.
 For a full treatment, see [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 However, note that some notation has been altered for coding convenience and clarity.
 
-#### Projection-based Model Reduction
+### Projection-based Model Reduction
 
 Model reduction via projection occurs in three steps:
 1. (**Data Collection**) Gather snapshot data, i.e., solutions to the full-order model (FOM) at various times / parameters.
@@ -220,7 +220,7 @@ Model reduction via projection occurs in three steps:
 
 <!-- These steps comprise what is called the _offline phase_ in the literature, since they can all be done before the resulting ROM is simulated. -->
 
-This package focuses on step 3, constructing the ROM given the snapshot data and low-rank basis from steps 1 and 2, respectively.
+This package focuses on step 3, constructing the ROM given the snapshot data and the low-rank basis from steps 1 and 2, respectively.
 
 Let _X_ be the _n_ x _k_ matrix whose _k_ columns are snapshots of length _n_ (step 1), and let _V_<sub>_r_</sub> be an orthonormal _n_ x _r_ matrix representation for an _r_-dimensional subspace (step 2).
 For example, a common choice for _V_<sub>_r_</sub> is the POD Basis of rank _r_, the matrix comprised of the first _r_ singular vectors of _X_.
@@ -248,7 +248,7 @@ If the FOM operator **f** is known and has a nice structure, this reduced system
 For example, if **f** is linear in **x**, then
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{f}(t,\mathbf{x}(t)) = A\mathbf{x}(t)\qquad\Longrightarrow\qquad\hat{\mathbf{f}}(t,\hat{\mathbf{x}}(t))=V_r^\mathsf{T}AV_r\hat{\mathbf{x}}(t)=\hat{A}\hat{\mathbf{x}},"/>
+  <img src="https://latex.codecogs.com/svg.latex?\mathbf{f}(t,\mathbf{x}(t))=A\mathbf{x}(t)\qquad\Longrightarrow\qquad\hat{\mathbf{f}}(t,\hat{\mathbf{x}}(t))=V_r^\mathsf{T}AV_r\hat{\mathbf{x}}(t)=\hat{A}\hat{\mathbf{x}},"/>
 </p>
 
 where
@@ -259,7 +259,7 @@ where
 
 However, this approach breaks down if the FOM operator **f** is unknown, uncertain, or highly nonlinear.
 
-#### Operator Inference via Least Squares
+### Operator Inference via Least Squares
 
 Instead of directly computing reduced operators, the operator inference framework takes a more data-driven approach: assuming a specific structure of the ROM (linear, quadratic, etc.), solve for the involved operators that best fit the data.
 For example, suppose that we seek a ROM of the form
@@ -270,7 +270,7 @@ For example, suppose that we seek a ROM of the form
 
 where we have now introduced a control (input) variable **u**.
 We have only the snapshot matrix _X_, the low-rank basis matrix _V_<sub>_r_</sub>, the inputs _U_, and perhaps the snapshot velocities _X'_ (if not, these must be approximated).
-Here the (_ij_)th entry of _U_ is the _i_th component of **u** at the time corresponding to the _j_th snapshot.
+Here the (_ij_)<sup>th</sup> entry of _U_ is the _i_<sup>th</sup> component of **u** at the time corresponding to the _j_<sup>th</sup> snapshot.
 To solve for the linear operators on the right-hand side of the preceding equation, we solve the least squares problem
 
 <p align="center">
@@ -282,7 +282,7 @@ The code allows for a Tikhonov regularization factor, which prevents numerical i
 
 It can be shown [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104) that under some idealized assumptions, these inferred operators converge to the operators computed by explicit projection.
 
-###### Kronecker Product
+##### Kronecker Product
 
 The vector [Kronecker product](https://en.wikipedia.org/wiki/Kronecker_product) ⊗ introduces some redundancies.
 For example, the product **x** ⊗ **x** contains both _x_<sub>1</sub>_x_<sub>2</sub> and _x_<sub>2</sub>_x_<sub>1</sub>.
@@ -308,12 +308,12 @@ and the corresponding operator inference least squares problem is
 For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> between used for matrices denotes a column-wise Kronecker product (also called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product)).
 
 
-#### Index of Notation
+### Index of Notation
 
 We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
 In the code, a low-dimensional quantity ends with an underscore, which matches scikit-learn conventions for the Model class.
 
-###### Dimensions
+##### Dimensions
 
 | Symbol | Code | Description |
 | :----: | :--- | :---------- |
@@ -329,7 +329,7 @@ In the code, a low-dimensional quantity ends with an underscore, which matches s
 <!-- | <img src="https://latex.codecogs.com/svg.latex?p"/> | `p`             | Dimension of the paramteter space | -->
 <!-- | <img src="https://latex.codecogs.com/svg.latex?d"/> | `d`             | Dimension of the spatial domain | -->
 
-###### Vectors
+##### Vectors
 
 <!-- \sigma_j\in\text{diag}(\Sigma) &= \textrm{singular value of }X\\
 \boldsymbol{\mu}\in\mathcal{P} &= \text{system parameter}\\
@@ -358,7 +358,7 @@ t\ge 0 &= \text{time}\\
 <!-- | **y**  | `y`             | Output vector | -->
 <!-- | **y_ROM**, **y~** | `y_ROM`      | Approximation to **y** produced by ROM | -->
 
-###### Matrices
+##### Matrices
 
 | Symbol | Code | Shape | Description |
 | :----: | :--- | :---: | :---------- |
@@ -379,7 +379,7 @@ t\ge 0 &= \text{time}\\
 <!-- I_{a\times%20a}\in\mathbb{R}^{a\times a} | | identity matrix\\ -->
 <!-- \Sigma \in \mathbb{R}^{\ell\times\ell} &= \text{diagonal singular value matrix}\\ -->
 
-#### Other References
+### Other References
 
 - \[3\] Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.
 [Projection-based model reduction: Formulations for physics-based machine learning.](https://www.sciencedirect.com/science/article/pii/S0045793018304250)
