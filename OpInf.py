@@ -119,7 +119,7 @@ class Model:
             oshape = s
 
         else:
-            raise ValueError(f"invalid degree '{self.degree}'. ""
+            raise ValueError(f"invalid degree '{self.degree}'. "
                              "Options are 'L','Lc','LQ','LQc','Q','Qc'.")
 
         if self.input:
@@ -232,7 +232,7 @@ class Model:
             if u.any() and m != n_timesteps:
                 raise ValueError(f"invalid input shape ({K} != {n_timesteps})")
         else:
-            u = np.zeros((n, n_timesteps))
+            u = np.zeros((1, n_timesteps))
 
 
         projected_state = np.zeros((self.r, n_timesteps))
