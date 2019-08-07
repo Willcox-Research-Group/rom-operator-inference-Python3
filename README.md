@@ -3,7 +3,7 @@
 This is a Python implementation of the operator learning approach for projection-based reduced order models of systems of ordinary differential equations.
 The methodology is described in detail the following papers:
 
-\[1\] Peherstorfer, B. and Willcox, K.
+- \[1\] Peherstorfer, B. and Willcox, K.
 [Data-driven operator inference for non-intrusive projection-based model reduction.](https://www.sciencedirect.com/science/article/pii/S0045782516301104)
 Computer Methods in Applied Mechanics and Engineering, 306:196-215, 2016.
 ([Download](https://cims.nyu.edu/~pehersto/preprints/Non-intrusive-model-reduction-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
@@ -17,7 +17,7 @@ Computer Methods in Applied Mechanics and Engineering, 306:196-215, 2016.
     publisher = {Elsevier}
 }</pre></details>
 
-\[2\] Qian, E., Kramer, B., Marques, A., and Willcox, K.
+- \[2\] Qian, E., Kramer, B., Marques, A., and Willcox, K.
 [Transform & Learn: A data-driven approach to nonlinear model reduction](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 In the AIAA Aviation 2019 Forum, June 17-21, Dallas, TX. ([Download](https://www.dropbox.com/s/5znea6z1vntby3d/QKMW_aviation19.pdf?dl=0))<details><summary>BibTeX</summary><pre>
 @inbook{QKMW2019aviation,
@@ -53,7 +53,7 @@ This package provides tools for constructing a _reduced-order model_ (ROM) that 
 In the most general case, the code can construct and solve a system of the form
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})+\hat{B}\mathbf{u}(t)+\sum_{k=1}^m\hat{N}_{k}\hat{\mathbf{x}}u_{k}(t)+\hat{\mathbf{c}},"/>
+  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\sum_{i=1}^m\hat{N}_{i}\hat{\mathbf{x}}(t)u_{i}(t)+\hat{\mathbf{c}},"/>
 </p>
 
 where now
@@ -62,7 +62,7 @@ where now
   <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}:\mathbb{R}\to\mathbb{R}^r,\qquad\mathbf{u}:\mathbb{R}\to\mathbb{R}^m,\qquad\hat{\mathbf{c}}\in\mathbb{R}^r,\qquad%20r\ll%20n,"/>
 </p>
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{B}\in\mathbb{R}^{r\times%20m},\qquad\hat{N}_{k}\in\mathbb{R}^{r\times%20r}."/>
+  <img src="https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{B}\in\mathbb{R}^{r\times%20m},\qquad\hat{N}_{i}\in\mathbb{R}^{r\times%20r}."/>
 </p>
 
 This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension _r_ << _n_.
@@ -109,27 +109,25 @@ See [`opinf_demo.py`](https://github.com/swischuk/operator_inference/blob/master
 The following commands will initialize an operator inference `Model`.
 
 ```python
-from operator_inference import OptInf
+from operator_inference import OpInf
 
-my_model = OptInf.Model(degree, inp)
+my_model = OpInf.Model(degree, inp)
 ```
 
 Here `degree` is a string denoting the structure of
-the model with the following options.
+the desired ROM with the following options.
 
 | `degree` | Model Description | Model Equation |
 | :------- | :---------------- | :------------- |
-|  `"L"`   |  linear | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=A\mathbf{x}(t)"/>
-|  `"Lc"`  |  linear with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=A\mathbf{x}(t)+\mathbf{c}"/>
-|  `"Q"`   |  quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=F\mathbf{x}^2(t)"/>
-|  `"Qc"`  |  quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=F\mathbf{x}^2(t)+\mathbf{c}"/>
-|  `"LQ"`  |  linear quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=A\mathbf{x}(t)+F\mathbf{x}^2(t)"/>
-|  `"LQc"` |  linear quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=A\mathbf{x}(t)+F\mathbf{x}^2(t)+\mathbf{c}"/>
+|  `"L"`   |  linear | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/>
+|  `"Lc"`  |  linear with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)+\hat{\mathbf{c}}"/>
+|  `"Q"`   |  quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/>
+|  `"Qc"`  |  quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{\mathbf{c}}"/>
+|  `"LQ"`  |  linear quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/>
+|  `"LQc"` |  linear quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{\mathbf{c}}"/>
 
 The `inp` argument is a boolean (`True` or `False`) denoting whether or not there is an additive input term of the form <img src="https://latex.codecogs.com/svg.latex?B\mathbf{u}(t)"/>.
 
-The script `opinf_demo.py` demonstrates the use of the operator inference model on data generated from the heat equation.
-See [@mythesis] for the problem setup.
 
 ###### Methods
 
@@ -160,11 +158,12 @@ from operator_inference import opinf_helper
 
 This file contains routines that are used within `OpInf.Model.fit()`.
 
-- `normal_equations(D, r, k, num)`: Solve the normal equations corresponding to the regularized ordinary least squares problem <img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+k||P\mathbf{o}_i||_2^2"/>.
+- `normal_equations(D, r, k, num)`: Solve the normal equations corresponding to the regularized ordinary least squares problem
+<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+k||P\mathbf{o}_i||_2^2."/></p>
 
 -  `get_x_sq(X)`: Compute squared snapshot data.
 
--  `F2H(F)`: Convert quadratic operator `F` to symmetric quadratic operator `H` for simulating the learned system.
+-  `F2H(F)`: Convert quadratic operator `F` to "symmetric" quadratic operator `H` for simulating the learned system.
 
 
 <!-- ### `integration_helpers.py`
@@ -213,6 +212,27 @@ For a full treatment, see [\[1\]](https://www.sciencedirect.com/science/article/
 
 #### Operator Inference via Least Squares
 
+**TODO**
+
+#### Other References
+
+- \[3\] Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.
+[Projection-based model reduction: Formulations for physics-based machine learning.](https://www.sciencedirect.com/science/article/pii/S0045793018304250)
+Computers & Fluids 179:704-717, 2019.
+([Download](https://kiwi.oden.utexas.edu/papers/Physics-based-machine-learning-swischuk-willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{swischuk2019projection,
+  title    = {Projection-based model reduction: Formulations for physics-based machine learning},
+  author   = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
+  journal  = {Computers \& Fluids},
+  volume   = {179},
+  pages    = {704--717},
+  year     = {2019},
+  publisher={Elsevier}
+}</pre></details>
+
+- [4] Swischuck, R. Physics-based machine learning and data-driven reduced-order modeling, MIT Thesis
+<!-- TODO: Renee's MIT masters thesis -->
+
 ## Examples
 
 _**WARNING: under construction!!**_
@@ -222,3 +242,5 @@ The [`examples/`](https://github.com/swischuk/operator_inference/blob/master/exa
 - The Burgers' equation from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 - The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions.
+- The script `opinf_demo.py` demonstrates the use of the operator inference model on data generated from the heat equation.
+See [@mythesis] for the problem setup.
