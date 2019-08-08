@@ -1,6 +1,7 @@
 # Operator Inference
 
 This is a Python implementation of the operator learning approach for projection-based reduced order models of systems of ordinary differential equations.
+The procedure is **data-driven** and **non-intrusive**, making it a viable candidate for model reduction of black-box or complex systems.
 The methodology is described in detail the following papers:
 
 - \[1\] Peherstorfer, B. and Willcox, K.

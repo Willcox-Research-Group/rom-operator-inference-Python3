@@ -146,9 +146,10 @@ Thus, the full reduced order model becomes
 and the corresponding operator inference least squares problem is
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{F}\in\mathbb{R}^{r\times(r(r+1)/2)},\\\hat{B}\in\mathbb{R}^{r\times%20m},\,\hat{\mathbf{c}}\in\mathbb{R}^{r}}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\,\widetilde{\otimes}\,\hat{X}\big)^\mathsf{T}\hat{F}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2,"/>
+  <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{F}\in\mathbb{R}^{r\times%20s},\\\hat{B}\in\mathbb{R}^{r\times%20m},\,\hat{\mathbf{c}}\in\mathbb{R}^{r}}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\,\widetilde{\otimes}\,\hat{X}\big)^\mathsf{T}\hat{F}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2,"/>
 </p>
 
+where _s_ = _r_(_r_+1)/2.
 For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> between used for matrices denotes a column-wise Kronecker product (also called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product)).
 
 
@@ -196,7 +197,7 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_()` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | ROM system operator |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\otimes\mathbf{x}"/> | `np.kron(x,x)` | <img src="https://latex.codecogs.com/svg.latex?n^2"/> | Kronecker product of full state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}"/> | `np.kron(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?r^2"/>  | Kronecker product of reduced state (quadratic terms) |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_thin(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?\frac{r(r+1)}{2}"/>  | Compact Kronecker product of reduced state (quadratic terms) |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_thin(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?s"/>  | Compact Kronecker product of reduced state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{v}_j"/> | `vj` | <img src="https://latex.codecogs.com/svg.latex?n"/> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
 
 <!-- | **y**  | `y`             | Output vector | -->
@@ -215,7 +216,7 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\hat{A}"/> | `A_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Learned state matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{B}"/> | `B_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20m"/> | Learned input matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{H}"/> | `H_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r^2"/> | Learned matricized quadratic tensor |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{F}"/> | `F_` | <img src="https://latex.codecogs.com/svg.latex?r\times\frac{r(r+1)}{2}"/> | Learned matricized quadratic tensor without redundancy |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{F}"/> | `F_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20s"/> | Learned matricized quadratic tensor without redundancy |
 
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{N}_i"/> | `Ni_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Bilinear state-input matrix for _i_th input | -->
 
