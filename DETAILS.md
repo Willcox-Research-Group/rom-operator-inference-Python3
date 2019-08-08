@@ -155,7 +155,7 @@ For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\wid
 ## Index of Notation
 
 We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
-In the code, a low-dimensional quantity ends with an underscore, which matches scikit-learn conventions for the `Model` class.
+In the code, a low-dimensional quantity ends with an underscore, which matches scikit-learn conventions for the `ReducedModel` class.
 
 #### Dimensions
 

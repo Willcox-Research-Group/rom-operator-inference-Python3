@@ -102,7 +102,7 @@ _This installation command is temporary!_
 from operator_inference import OpInf
 
 # Define a model of the form x' = Ax + c (no input).
->>> lc_model = OpInf.Model('Lc', inp=False)
+>>> lc_model = OpInf.ReducedModel('Lc', inp=False)
 
 # Fit the model to projected data xdot, xhat
 # by solving for the operators A and c.
@@ -116,19 +116,19 @@ from operator_inference import OpInf
 >>> xr_rec = U[:,:r] @ xr
 ```
 
-See [`opinf_demo.py`](https://github.com/swischuk/operator_inference/blob/master/opinf_demo.py) for a more complete working example.
+See the [**Examples**](#examples) section for a list of complete working examples.
 
 
 ## Documentation
 
-#### Model class
+#### ReducedModel class
 
-The following commands will initialize an operator inference `Model`.
+The following commands will initialize an operator inference `ReducedModel`.
 
 ```python
 from operator_inference import OpInf
 
-my_model = OpInf.Model(degree, inp)
+my_model = OpInf.ReducedModel(degree, inp)
 ```
 
 Here `degree` is a string denoting the structure of
@@ -148,18 +148,18 @@ The `inp` argument is a boolean (`True` or `False`) denoting whether or not ther
 
 ##### Methods
 
-- `Model.fit(r, reg, xdot, xhat, u=None)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
+- `ReducedModel.fit(r, reg, xdot, xhat, u=None)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
     squares problem
 <p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+\lambda||P\mathbf{o}_i||_2^2."/></p>
 
-- `predict(init, n_timesteps, dt, u=None)`: Simulate the learned model with an explicit Runge-Kutta scheme tailored to the structure of the model.
+- `ReducedModel.predict(init, n_timesteps, dt, u=None)`: Simulate the learned model with an explicit Runge-Kutta scheme tailored to the structure of the model.
 
-- `get_residual()`: Return the residuals of the least squares problem
+- `ReducedModel.get_residual()`: Return the residuals of the least squares problem
 <p align="center"><img src="https://latex.codecogs.com/svg.latex?||DO^T-\dot{X}^T||_F^2\qquad\text{and}\qquad||O^T||_F^2."/></p>
 
-- `get_operators()`: Return each of the learned operators.
+- `ReducedModel.get_operators()`: Return each of the learned operators.
 
-- `relative_error(predicted_data, true_data, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e.,
+- `ReducedModel.relative_error(predicted_data, true_data, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e.,
 <p align="center"><img src="https://latex.codecogs.com/svg.latex?\frac{||\texttt{true\_data}-\texttt{predicted\_data}||}{||\texttt{true\_data}||}"./></p> Computes absolute error (numerator only) in the case that <img src="https://latex.codecogs.com/svg.latex?||\texttt{true\_data}||<\texttt{thresh}."/>
 
 
@@ -173,7 +173,7 @@ from operator_inference import opinf_helper
 
 ##### Functions
 
-This file contains helper routines that are used internally for `OpInf.Model.fit()`.
+This file contains helper routines that are used internally for `OpInf.ReducedModel.fit()`.
 
 - `normal_equations(D, r, k, num)`: Solve the normal equations corresponding to the regularized ordinary least squares problem
 <p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+\lambda||P\mathbf{o}_i||_2^2."/></p>
@@ -193,7 +193,7 @@ from operator_inference import integration_helpers
 
 ##### Functions
 
-This file contains Runge-Kutta integrators that are used within `OpInf.Model.predict()`.
+This file contains Runge-Kutta integrators that are used within `OpInf.ReducedModel.predict()`.
 The choice of integrator depends on `Model.degree`.
 
 - `rk4advance_L(x, dt, A, B=0, u=0)`
@@ -219,10 +219,12 @@ The choice of integrator depends on `Model.degree`.
 
 _**WARNING: under construction!!**_
 
-The [`examples/`](examples/) folder contains scripts that set up and run several examples:
+The [`examples/`](examples/) folder contains scripts and notebooks that set up and run several examples:
 - The heat equation example from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 - The Burgers' equation from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 - The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions.
 - The script `opinf_demo.py` demonstrates the use of the operator inference model on data generated from the heat equation.
 See [@ReneeThesis] for the problem setup.
+
+<!-- TODO: actual links to the folders or files -->

@@ -7,7 +7,7 @@ from operator_inference import opinf_helper
 from operator_inference import integration_helpers
 
 
-class Model:
+class ReducedModel:
     """Reduced order model for a system of high-dimensional ODEs of the form
 
         x'(t) = f(t,x(t)) + Bu(t),
@@ -24,6 +24,9 @@ class Model:
     inp : bool
         Whether or not the full model includes the term Bu(t).
     """
+
+    _VALID_MODEL_FORMS = {"L", "Lc", "Q", "Qc", "LQ", "LQc"}
+
     def __init__(self, degree, inp=True):
         """Initalize operator inference model for the high-dimensional model
 
@@ -53,7 +56,7 @@ class Model:
                 assumes the system does not have an input u(t) = 0
         """
         self.degree = degree
-        self.input = inp
+        self.inp = inp
 
     def fit(self, r, reg, Xdot, X, U=None):
         """Solve for the reduced model operators.
@@ -81,6 +84,9 @@ class Model:
         s = int(r*(r+1)/2)
         self.r = r
 
+        if self.degree not in self._VALID_MODEL_FORMS:
+            raise ValueError(f"invalid degree '{self.degree}'. "
+                             f"Options are {self._VALID_MODEL_FORMS}.")
 
         # Linear Quadratic
         if self.degree == 'LQ':
@@ -122,7 +128,7 @@ class Model:
             raise ValueError(f"invalid degree '{self.degree}'. "
                              "Options are 'L','Lc','LQ','LQc','Q','Qc'.")
 
-        if self.input:
+        if self.inp:
 
             U = np.atleast_2d(U)
             D = np.hstack((D,U.T))
@@ -139,7 +145,7 @@ class Model:
 
         # Linear
         if self.degree == 'L':
-            if self.input:
+            if self.inp:
                 # A B
                 self.A, self.B = O[:,:r],O[:,r:r+p]
             else:
@@ -149,7 +155,7 @@ class Model:
 
         # Linear with a constant
         elif self.degree == 'Lc':
-            if self.input:
+            if self.inp:
                 # A c B
                 self.A, self.c, self.B = O[:,:r],O[:,r:r+1],O[:,r+1:r+1+p]
             else:
@@ -159,7 +165,7 @@ class Model:
 
         # Linear Quadratic
         elif self.degree == 'LQ':
-            if self.input:
+            if self.inp:
                 # A H B
                 # self.F = O[:,r:r+s]
                 self.A, self.H, self.B = O[:,:r], opinf_helper.F2H(O[:,r:r+s]),O[:,r+s:r+s+p]
@@ -170,7 +176,7 @@ class Model:
 
         # Linear Quadratic with constant
         elif self.degree == 'LQc':
-            if self.input:
+            if self.inp:
                 # A H c B
                 self.A, self.H, self.c, self.B = O[:,:r],opinf_helper.F2H(O[:,r:r+s]),O[:,r:r+1],O[:,r+s+1:r+s+p+1]
 
@@ -181,7 +187,7 @@ class Model:
 
         # Strictly Quadratic
         elif self.degree == 'Q':
-            if self.input:
+            if self.inp:
                 # H B
                 self.H, self.B = opinf_helper.F2H(O[:,:s]),O[:,s:s+p]
             else:
@@ -191,7 +197,7 @@ class Model:
 
         # Strictly Quadratic with a constant
         elif self.degree == 'Qc':
-            if self.input:
+            if self.inp:
                 # H c B
                 self.H, self.c, self.B = opinf_helper.F2H(O[:,:s]),O[:,s:s+1],O[:,s+1:s+1+p]
             else:
@@ -320,7 +326,7 @@ class Model:
         else:
             ops += (self.H,self.c)
 
-        if self.input:
+        if self.inp:
             ops += (self.B,)
 
         return ops
@@ -328,24 +334,18 @@ class Model:
     def __str__(self):
         """String representation: the structure of the model."""
 
-        # Linear / Quadratic, constant or not
-        if self.degree == 'L':
-            out = "x'(t) = Ax(t)"
-        elif self.degree == 'Lc':
-            out = "x'(t) = Ax(t) + c"
-        elif self.degree == 'LQ':
-            out = "x'(t) = Ax(t) + Hx^2(t)"
-        elif self.degree == 'LQc':
-            out = "x'(t) = Ax(t) + Hx^2(t) + c"
-        elif self.degree == 'Q':
-            out = "x'(t) = Hx^2(t)"
-        elif self.degree == 'Qc':
-            out = "x'(t) = Hx^2(t) + c"
-        else:
-            return f"invalid model degree {self.degree}"
 
-        # Inputs
-        if self.input:
-            out += " + Bu(t)"
+        if self.degree not in self._VALID_MODEL_FORMS:
+            raise ValueError(f"invalid degree '{self.degree}'. "
+                             f"Options are {self._VALID_MODEL_FORMS}.")
+        out = []
+        if 'L' in self.degree:
+            out.append("Ax(t)")
+        if 'Q' in self.degree:
+            out.append("H(x x)(t)")
+        if 'c' in self.degree:
+            out.append("c")
+        if self.inp:
+            out.append("Bu(t)")
 
-        return out
+        return "x'(t) = " + " + ".join(out)

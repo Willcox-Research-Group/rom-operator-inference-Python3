@@ -56,7 +56,7 @@ Using the operator_inference module
 ------------------------------------------------------
 '''
 #define the model
-mymodel = OpInf.Model('Lc',False) # a linear quadratic with no input
+mymodel = OpInf.ReducedModel('Lc',False) # a linear quadratic with no input
 
 #fit the model
 mymodel.fit(r,0,xdot,xhat) #0 is the L2 regularization param
