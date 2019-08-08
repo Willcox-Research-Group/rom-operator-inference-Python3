@@ -5,6 +5,8 @@
 *.py[cod]
 __pycache__/
 .ipynb_checkpoints/
+build/
+dist/
 
 # Extra Matlab files
 *.mat
@@ -23,7 +25,7 @@ html/
 .hw*
 .notes*
 
-# Submissions and figures
+# Archives and figures
 *.zip
 *.png
 *.jpg
