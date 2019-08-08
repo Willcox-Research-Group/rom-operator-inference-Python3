@@ -29,27 +29,34 @@ In the AIAA Aviation 2019 Forum, June 17-21, Dallas, TX. ([Download](https://www
     eprint    = {https://arc.aiaa.org/doi/pdf/10.2514/6.2019-3707}
 }</pre></details>
 
-**Contributors**: [Renee Swischuk](mailto:swischuk@mit.edu), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Quian](), [Boris Kramer](http://web.mit.edu/bokramer/www/index.html).
+**Contributors**: [Renee Swischuk](https://github.com/swischuk), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Qian](https://github.com/elizqian), [Boris Kramer](https://github.com/bokramer).
 
 See [this repository](https://github.com/elizqian/operator-inference) for a MATLAB implementation.
 
-## Problem Setting
+**Contents**
+- [**Problem Statement**](#problem-statement)
+- [**Quick Start**](#quick-start)
+- [**Documentation**](#documentation)
+- [**Examples**](#examples)
 
-Consider the (possibly nonlinear) system of _n_ ordinary differential equations
+## Problem Statement
+
+Consider the (possibly nonlinear) system of _n_ ordinary differential equations with state variable **x**, input (control) variable **u**, and independent variable _t_:
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=\mathbf{f}(t,\mathbf{x}(t)),"/>
+  <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t)),"/>
 </p>
 
 where
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}:\mathbb{R}\to\mathbb{R}^n,\qquad\mathbf{f}:\mathbb{R}\times\mathbb{R}^n\to\mathbb{R}^n."/>
+  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}:\mathbb{R}\to\mathbb{R}^n,\qquad\mathbf{u}:\mathbb{R}\to\mathbb{R}^m,\qquad\mathbf{f}:\mathbb{R}\times\mathbb{R}^n\times\mathbb{R}^m\to\mathbb{R}^n."/>
 </p>
 
 This system is called the _full-order model_ (FOM).
 If _n_ is large (as it often is in applications), it is computationally expensive to numerically solve the FOM.
 This package provides tools for constructing a _reduced-order model_ (ROM) that is linear or quadratic in the state **x**, possibly with a constant term **c**, and with optional control inputs **u**.
+The procedure is data-driven, non-intrusive, and relatively inexpensive.
 In the most general case, the code can construct and solve a system of the form
 
 <p align="center">
@@ -75,6 +82,7 @@ where now
 
 This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension _r_ << _n_.
 
+See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notation.
 
 ## Quick Start
 
@@ -96,7 +104,8 @@ from operator_inference import OpInf
 # Define a model of the form x' = Ax + c (no input).
 >>> lc_model = OpInf.Model('Lc', inp=False)
 
-# Fit the model by solving for the operators A and c.
+# Fit the model to projected data xdot, xhat
+# by solving for the operators A and c.
 >>> lc_model.fit(r, k, xdot, xhat)
 
 # Simulate the learned model for 10 timesteps of length .01.
@@ -206,203 +215,11 @@ The choice of integrator depends on `Model.degree`.
 **Returns**:
 - `x_next ((r,) ndarray)`: The next (reduced-dimension) state. -->
 
-## Summary of Mathematical Details
-
-For a full treatment, see [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
-However, note that some notation has been altered for coding convenience and clarity.
-
-### Projection-based Model Reduction
-
-Model reduction via projection occurs in three steps:
-1. (**Data Collection**) Gather snapshot data, i.e., solutions to the full-order model (FOM) at various times / parameters.
-2. (**Representation**) Compute a low-rank basis (which defines a low-dimensional linear subspace) that captures most of the behavior of the snapshots.
-3. (**Projection**) Use the low-rank basis to construct a low-dimensional ODE (the ROM) that approximates the FOM.
-
-<!-- These steps comprise what is called the _offline phase_ in the literature, since they can all be done before the resulting ROM is simulated. -->
-
-This package focuses on step 3, constructing the ROM given the snapshot data and the low-rank basis from steps 1 and 2, respectively.
-
-Let _X_ be the _n_ x _k_ matrix whose _k_ columns are snapshots of length _n_ (step 1), and let _V_<sub>_r_</sub> be an orthonormal _n_ x _r_ matrix representation for an _r_-dimensional subspace (step 2).
-For example, a common choice for _V_<sub>_r_</sub> is the POD Basis of rank _r_, the matrix comprised of the first _r_ singular vectors of _X_.
-
-The classical approach to step 3 is to make the Ansatz
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}(t)\approx%20V_{r}\hat{\mathbf{x}}(t),">
-</p>
-
-which, inserted into the FOM, yields
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?V_{r}\dot{\hat{\mathbf{x}}}(t)=\mathbf{f}(t,V_{r}\hat{\mathbf{x}}(t))."/>
-</p>
-
-Since _V_<sub>_r_</sub> is orthogonal, multiplying both sides by the transpose gives
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=V_{r}^\mathsf{T}\mathbf{f}(t,V_{r}\hat{\mathbf{x}}(t))=:\hat{\mathbf{f}}(t,\hat{\mathbf{x}}(t))."/>
-</p>
-
-Note that this system is _r_-dimensional.
-If the FOM operator **f** is known and has a nice structure, this reduced system can be solved cheaply by precomputing any involved matrices and then applying a time-stepping scheme.
-For example, if **f** is linear in **x**, then
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{f}(t,\mathbf{x}(t))=A\mathbf{x}(t)\qquad\Longrightarrow\qquad\hat{\mathbf{f}}(t,\hat{\mathbf{x}}(t))=V_r^\mathsf{T}AV_r\hat{\mathbf{x}}(t)=\hat{A}\hat{\mathbf{x}},"/>
-</p>
-
-where
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\hat{A}:=V_r^\mathsf{T}AV_r\in\mathbb{R}^{r\times%20r}."/>
-</p>
-
-However, this approach breaks down if the FOM operator **f** is unknown, uncertain, or highly nonlinear.
-
-### Operator Inference via Least Squares
-
-Instead of directly computing reduced operators, the operator inference framework takes a more data-driven approach: assuming a specific structure of the ROM (linear, quadratic, etc.), solve for the involved operators that best fit the data.
-For example, suppose that we seek a ROM of the form
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t),"/>
-</p>
-
-where we have now introduced a control (input) variable **u**.
-We have only the snapshot matrix _X_, the low-rank basis matrix _V_<sub>_r_</sub>, the inputs _U_, and perhaps the snapshot velocities _X'_ (if not, these must be approximated).
-Here the (_ij_)<sup>th</sup> entry of _U_ is the _i_<sup>th</sup> component of **u** at the time corresponding to the _j_<sup>th</sup> snapshot.
-To solve for the linear operators on the right-hand side of the preceding equation, we solve the least squares problem
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\underset{\hat{A}\in\mathbb{R}^{r\times%20r},\hat{H}\in\mathbb{R}^{r\times%20r^2},\hat{B}\in\mathbb{R}^{r\times%20r}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\otimes\hat{X}\big)^\mathsf{T}\hat{H}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2."/>
-</p>
-
-This problem decouples into _r_ independent least-squares problems, so it is relatively inexpensive to solve.
-The code allows for a Tikhonov regularization factor, which prevents numerical instabilities from dominating the computation.
-
-It can be shown [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104) that under some idealized assumptions, these inferred operators converge to the operators computed by explicit projection.
-
-##### Kronecker Product
-
-The vector [Kronecker product](https://en.wikipedia.org/wiki/Kronecker_product) ⊗ introduces some redundancies.
-For example, the product **x** ⊗ **x** contains both _x_<sub>1</sub>_x_<sub>2</sub> and _x_<sub>2</sub>_x_<sub>1</sub>.
-To avoid these redundancies, we introduce a "compact" Kronecker product <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> which only computes the unique terms of the usual vector Kronecker product:
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\,\widetilde{\otimes}\,\mathbf{x}=\left[\begin{array}{c}\mathbf{x}^{(1)}\\\vdots\\\mathbf{x}^{(n)}\end{array}\right]\in\mathbb{R}^{n(n+1)/2},\qquad\text{where}\qquad\mathbf{x}^{(i)}=x_{i}\left[\begin{array}{c}x_{1}\\\vdots\\x_{i}\end{array}\right]."/>
-</p>
-
-When the compact Kronecker product is used, we call the resulting operator _F_ instead of _H_.
-Thus, the full reduced order model becomes
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{F}(\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t),"/>
-</p>
-
-and the corresponding operator inference least squares problem is
-
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\underset{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{F}\in\mathbb{R}^{r\times(r(r+1)/2)},\,\hat{B}\in\mathbb{R}^{r\times%20r}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\,\widetilde{\otimes}\,\hat{X}\big)^\mathsf{T}\hat{F}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2."/>
-</p>
-
-For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> between used for matrices denotes a column-wise Kronecker product (also called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product)).
-
-
-### Index of Notation
-
-We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
-In the code, a low-dimensional quantity ends with an underscore, which matches scikit-learn conventions for the `Model` class.
-
-##### Dimensions
-
-| Symbol | Code | Description |
-| :----: | :--- | :---------- |
-| <img src="https://latex.codecogs.com/svg.latex?n"/> | `n`  | Dimension of the full-order system (large) |
-| <img src="https://latex.codecogs.com/svg.latex?r"/> | `r`  | Dimension of the reduced-order system (small) |
-| <img src="https://latex.codecogs.com/svg.latex?m"/> | `m`  | Dimension of the input **u** |
-| <img src="https://latex.codecogs.com/svg.latex?k"/> | `k`  | Number of state snapshots, i.e., the number of training points |
-| <img src="https://latex.codecogs.com/svg.latex?s"/> | `s`  | Number of unique quadratic reduced-state interactions, _r_(_r_+1)/2 |
-
-<!-- TODO: number of time steps -->
-
-<!-- | <img src="https://latex.codecogs.com/svg.latex?q"/> | `q`             | Dimension of the output **y** | -->
-<!-- | <img src="https://latex.codecogs.com/svg.latex?p"/> | `p`             | Dimension of the paramteter space | -->
-<!-- | <img src="https://latex.codecogs.com/svg.latex?d"/> | `d`             | Dimension of the spatial domain | -->
-
-##### Vectors
-
-<!-- \sigma_j\in\text{diag}(\Sigma) &= \textrm{singular value of }X\\
-\boldsymbol{\mu}\in\mathcal{P} &= \text{system parameter}\\
-\mathcal{P}\subset\mathbb{R}^{p} &= \text{parameter space}\\
-\Omega\subset\mathbb{R}^{d} &= \text{spatial domain}\\
-% \omega\in\Omega &= \text{spatial point (one dimension)}\\
-\boldsymbol{\omega}\in\Omega &= \text{spatial point}\\
-t\ge 0 &= \text{time}\\
-\hat{} &= \textrm{reduced variable, e.g., }\hat{\mathbf{x}}\textrm{ or }\hat{A}\\
-\dot{} = \frac{d}{dt} &= \text{time derivative} -->
-
-
-| Symbol | Code | Size | Description |
-| :----: | :--- | :--: | :---------- |
-| <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}"/> | `x` | <img src="https://latex.codecogs.com/svg.latex?n"/> | Full-order state vector |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}"/> | `x_` | <img src="https://latex.codecogs.com/svg.latex?r"/> | Reduced-order state vector |
-| <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}"/> | `xdot_` | <img src="https://latex.codecogs.com/svg.latex?r"/> | Reduced-order state velocity vector |
-| <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_\text{ROM}"/> | `x_ROM` | <img src="https://latex.codecogs.com/svg.latex?n"/> | Approximation to **x** produced by ROM |
-| <img src="https://latex.codecogs.com/svg.latex?\mathbf{u}"/> | `u` | <img src="https://latex.codecogs.com/svg.latex?m"/> | Input vector  |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_()` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | ROM system operator |
-| <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\otimes\mathbf{x}"/> | `np.kron(x,x)` | <img src="https://latex.codecogs.com/svg.latex?n^2"/> | Kronecker product of full state (quadratic terms) |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}"/> | `np.kron(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?r^2"/>  | Kronecker product of reduced state (quadratic terms) |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_thin(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?\frac{r(r+1)}{2}"/>  | Compact Kronecker product of reduced state (quadratic terms) |
-| <img src="https://latex.codecogs.com/svg.latex?\mathbf{v}_j"/> | `vj` | <img src="https://latex.codecogs.com/svg.latex?n"/> | _j_<sup>th</sup> POD basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
-
-<!-- | **y**  | `y`             | Output vector | -->
-<!-- | **y_ROM**, **y~** | `y_ROM`      | Approximation to **y** produced by ROM | -->
-
-##### Matrices
-
-| Symbol | Code | Shape | Description |
-| :----: | :--- | :---: | :---------- |
-| <img src="https://latex.codecogs.com/svg.latex?X"> | `X` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot matrix |
-| <img src="https://latex.codecogs.com/svg.latex?\dot{X}"> | `Xdot` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot velocity matrix |
-| <img src="https://latex.codecogs.com/svg.latex?V_r"/> | `Vr` | <img src="https://latex.codecogs.com/svg.latex?n\times%20r"/> | POD basis of rank _r_ |
-| <img src="https://latex.codecogs.com/svg.latex?U"/> | `U` | <img src="https://latex.codecogs.com/svg.latex?m\times%20k"/> | Input matrix (inputs corresonding to the snapshots) |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{A}"/> | `A_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Learned state matrix |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{B}"/> | `B_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20m"/> | Learned input matrix |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{H}"/> | `H_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r^2"/> | Learned matricized quadratic tensor |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{F}"/> | `F_` | <img src="https://latex.codecogs.com/svg.latex?r\times\frac{r(r+1)}{2}"/> | Learned matricized quadratic tensor without redundancy |
-
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{N}_i"/> | `Ni_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Bilinear state-input matrix for _i_th input | -->
-
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{C}"/> | `C_` | <img src="https://latex.codecogs.com/svg.latex?q\times%20r"/> | Learned output matrix | -->
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{E}"/> | `E_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Learned mass matrix | -->
-
-<!-- I_{a\times%20a}\in\mathbb{R}^{a\times a} | | identity matrix\\ -->
-<!-- \Sigma \in \mathbb{R}^{\ell\times\ell} &= \text{diagonal singular value matrix}\\ -->
-
-### Other References
-
-- \[3\] Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.
-[Projection-based model reduction: Formulations for physics-based machine learning.](https://www.sciencedirect.com/science/article/pii/S0045793018304250)
-Computers & Fluids 179:704-717, 2019.
-([Download](https://kiwi.oden.utexas.edu/papers/Physics-based-machine-learning-swischuk-willcox.pdf))<details><summary>BibTeX</summary><pre>
-@article{swischuk2019projection,
-  title    = {Projection-based model reduction: Formulations for physics-based machine learning},
-  author   = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
-  journal  = {Computers \& Fluids},
-  volume   = {179},
-  pages    = {704--717},
-  year     = {2019},
-  publisher={Elsevier}
-}</pre></details>
-
-- [4] Swischuck, R. Physics-based machine learning and data-driven reduced-order modeling, MIT Thesis
-<!-- TODO: Renee's MIT masters thesis -->
-
 ## Examples
 
 _**WARNING: under construction!!**_
 
-The [`examples/`](https://github.com/swischuk/operator_inference/blob/master/examples/) folder contains scripts that set up and run several examples:
+The [`examples/`](examples/) folder contains scripts that set up and run several examples:
 - The heat equation example from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 - The Burgers' equation from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 - The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
