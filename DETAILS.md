@@ -115,7 +115,7 @@ Here the (_ij_)<sup>th</sup> entry of _U_ is the _i_<sup>th</sup> component of *
 To solve for the linear operators on the right-hand side of the preceding equation, we solve the least squares problem
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{H}\in\mathbb{R}^{r\times%20r^2},\\\hat{B}\in\mathbb{R}^{r\times%20r},\,\hat{\mathbf{c}}\in\mathbb{R}^{r}}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\otimes\hat{X}\big)^\mathsf{T}\hat{H}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2,"/>
+  <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{H}\in\mathbb{R}^{r\times%20r^2},\\\hat{B}\in\mathbb{R}^{r\times%20m},\,\hat{\mathbf{c}}\in\mathbb{R}^{r}}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\otimes\hat{X}\big)^\mathsf{T}\hat{H}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2,"/>
 </p>
 
 Where **1** is a _k_-vector of 1's.
@@ -146,7 +146,7 @@ Thus, the full reduced order model becomes
 and the corresponding operator inference least squares problem is
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{F}\in\mathbb{R}^{r\times(r(r+1)/2)},\\\hat{B}\in\mathbb{R}^{r\times%20r},\,\hat{\mathbf{c}}\in\mathbb{R}^{r}}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\,\widetilde{\otimes}\,\hat{X}\big)^\mathsf{T}\hat{F}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2,"/>
+  <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{F}\in\mathbb{R}^{r\times(r(r+1)/2)},\\\hat{B}\in\mathbb{R}^{r\times%20m},\,\hat{\mathbf{c}}\in\mathbb{R}^{r}}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\,\widetilde{\otimes}\,\hat{X}\big)^\mathsf{T}\hat{F}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2,"/>
 </p>
 
 For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> between used for matrices denotes a column-wise Kronecker product (also called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product)).
@@ -210,6 +210,8 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\dot{X}"> | `Xdot` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot velocity matrix |
 | <img src="https://latex.codecogs.com/svg.latex?V_r"/> | `Vr` | <img src="https://latex.codecogs.com/svg.latex?n\times%20r"/> | low-rank basis of rank _r_ (usually the POD basis) |
 | <img src="https://latex.codecogs.com/svg.latex?U"/> | `U` | <img src="https://latex.codecogs.com/svg.latex?m\times%20k"/> | Input matrix (inputs corresonding to the snapshots) |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{X}"> | `X_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot matrix |
+| <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{X}}"> | `Xdot_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot velocity matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{A}"/> | `A_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Learned state matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{B}"/> | `B_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20m"/> | Learned input matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{H}"/> | `H_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r^2"/> | Learned matricized quadratic tensor |
