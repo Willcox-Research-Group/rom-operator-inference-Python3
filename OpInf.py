@@ -3,23 +3,22 @@
 
 import numpy as np
 from scipy.sparse import csr_matrix
-from operator_inference import opinf_helper
-from operator_inference import integration_helpers
+import opinf_helper, integration_helpers
 
 
 class ReducedModel:
     """Reduced order model for a system of high-dimensional ODEs of the form
 
-        x'(t) = f(t,x(t)) + Bu(t),
+        x'(t) = f(t,x(t),u(t)),
          x(0) = x0.
 
-    The degree (structure) of the model is user specified, and the operators
-    of the reduced model are inferred by solving a regularized ordinary least
-    squares problem.
+    The model form (structure) of the desired reduced model is user specified,
+    and the operators of the reduced model are inferred by solving a
+    regularized ordinary least squares problem.
 
     Attributes
     ----------
-    degree : str
+    modelform : str
         Designates the structure of the reduced model to learn.
     inp : bool
         Whether or not the full model includes the term Bu(t).
@@ -27,15 +26,15 @@ class ReducedModel:
 
     _VALID_MODEL_FORMS = {"L", "Lc", "Q", "Qc", "LQ", "LQc"}
 
-    def __init__(self, degree, inp=True):
+    def __init__(self, modelform, inp=True):
         """Initalize operator inference model for the high-dimensional model
 
-            x'(t) = f(t,x(t)) + Bu(t),
+            x'(t) = f(t,x(t),u(t)),
              x(0) = x0.
 
         Parameters
         ----------
-        degree : {'L','Lc','Q','Qc','LQ','LQc'}
+        modelform : {'L','Lc','Q','Qc','LQ','LQc'}
             'L':
                 a linear model f(x) = Ax
             'Lc'
@@ -51,81 +50,80 @@ class ReducedModel:
 
         inp : bool, optional, default = True
             True
-                assumes the system has an additive input term u(t) != 0
+                assume the system has an input term u(t) != 0
             False
-                assumes the system does not have an input u(t) = 0
+                assume the system does not have an input u(t) = 0
         """
-        self.degree = degree
+        self.modelform = modelform
         self.inp = inp
 
-    def fit(self, r, reg, Xdot, X, U=None):
+    def fit(self, X_, Xdot_, U=None, reg=0):
         """Solve for the reduced model operators.
 
         Parameters
         ----------
-        r : int
-            The basis size (number of basis vectors)
+        X_ : (reduced_dimension, num_snapshots) ndarray
+            The PROJECTED snapshot training data.
+        Xdot_ : (reduced_dimension, num_snapshots) ndarray
+            The PROJECTED velocity training data.
+        U : (num_inputs, num_snapshots) ndarray
+            The inputs corresponding to the snapshots.
         reg : float
             L2 regularization penalty. Can be imposed if this is non-zero.
             Solves min ||Do - r||_2 + k || reg ||_2.
-        Xdot : (n_variables, n_samples) ndarray
-            The PROJECTED velocity training data.
-        X: (n_variables, n_samples) ndarray
-            The PROJECTED snapshot training data.
-        U: array, optional, default = None
-            The input training data in an array of size [n_parameters, n_samples] (only if input == True)
 
         Returns
         -------
         self
         """
-        K = X.shape[1] # number of timesteps
+        r,k = X_.shape          # (num basis vectors, num snapshots)
         p = 0
-        s = int(r*(r+1)/2)
-        self.r = r
 
-        if self.degree not in self._VALID_MODEL_FORMS:
-            raise ValueError(f"invalid degree '{self.degree}'. "
+        s = int(r*(r+1)/2)      # Dimension of compact Kronecker.
+        self.r_ = r
+
+        if self.modelform not in self._VALID_MODEL_FORMS:
+            raise ValueError(f"invalid modelform '{self.modelform}'. "
                              f"Options are {self._VALID_MODEL_FORMS}.")
 
         # Linear Quadratic
-        if self.degree == 'LQ':
-            X2 = opinf_helper.get_x_sq(X.T)
-            D = np.hstack((X.T,X2))
+        if self.modelform == 'LQ':
+            X2_ = opinf_helper.get_x_sq(X_.T)
+            D = np.hstack((X_.T,X2_))
             oshape = r + s
 
         # Linear Quadratic with a constant
-        elif self.degree == 'LQc':
-            X2 = opinf_helper.get_x_sq(X.T)
-            D = np.hstack((X.T,X2, np.ones((K,1))))
+        elif self.modelform == 'LQc':
+            X2_ = opinf_helper.get_x_sq(X_.T)
+            D = np.hstack((X_.T,X2_, np.ones((k,1))))
             p += 1
             oshape = r + s
 
         # Linear
-        elif self.degree == 'L':
-            D = X.T
+        elif self.modelform == 'L':
+            D = X_.T
             s = 0
             oshape = r
 
         # Linear with a constant
-        elif self.degree == 'Lc':
-            D = np.hstack((X.T,np.ones((K,1))))
+        elif self.modelform == 'Lc':
+            D = np.hstack((X_.T,np.ones((k,1))))
             p += 1
             oshape = r
 
         # Strictly Quadratic
-        elif self.degree == 'Q':
-            D = opinf_helper.get_x_sq(X.T)
+        elif self.modelform == 'Q':
+            D = opinf_helper.get_x_sq(X_.T)
             oshape = s
 
         # Strictly Quadratic with a constant
-        elif self.degree == 'Qc':
-            D = np.hstack((opinf_helper.get_x_sq(X.T), np.ones((K,1))))
+        elif self.modelform == 'Qc':
+            D = np.hstack((opinf_helper.get_x_sq(X_.T), np.ones((k,1))))
             p += 1
             oshape = s
 
         else:
-            raise ValueError(f"invalid degree '{self.degree}'. "
+            raise ValueError(f"invalid modelform '{self.modelform}'. "
                              "Options are 'L','Lc','LQ','LQc','Q','Qc'.")
 
         if self.inp:
@@ -137,164 +135,163 @@ class ReducedModel:
         # Solve for the operators !
         O = np.zeros((oshape+p,r))
         for it in range(r):
-            O[:,it] = np.ravel(opinf_helper.normal_equations(D,Xdot[it,:],reg,it))
+            O[:,it] = np.ravel(opinf_helper.normal_equations(D,Xdot_[it,:],reg,it))
         O = O.T
 
-        self.residual = np.linalg.norm(D@O.T - Xdot.T,2)**2
+        self.residual = np.linalg.norm(D@O.T - Xdot_.T,2)**2
         self.solution = np.linalg.norm(O.T,2)**2
 
         # Linear
-        if self.degree == 'L':
+        if self.modelform == 'L':
             if self.inp:
                 # A B
-                self.A, self.B = O[:,:r],O[:,r:r+p]
+                self.A_, self.B_ = O[:,:r],O[:,r:r+p]
             else:
                 # A
-                self.A = O[:,:r]
-                self.B = np.zeros((r,1))
+                self.A_ = O[:,:r]
+                self.B_ = np.zeros((r,1))
 
         # Linear with a constant
-        elif self.degree == 'Lc':
+        elif self.modelform == 'Lc':
             if self.inp:
                 # A c B
-                self.A, self.c, self.B = O[:,:r],O[:,r:r+1],O[:,r+1:r+1+p]
+                self.A_, self.c_, self.B_ = O[:,:r],O[:,r:r+1],O[:,r+1:r+1+p]
             else:
                 # A c
-                self.A, self.c = O[:,:r],O[:,r:r+1]
-                self.B = np.zeros((r,1))
+                self.A_, self.c_ = O[:,:r],O[:,r:r+1]
+                self.B_ = np.zeros((r,1))
 
         # Linear Quadratic
-        elif self.degree == 'LQ':
+        elif self.modelform == 'LQ':
             if self.inp:
                 # A H B
                 # self.F = O[:,r:r+s]
-                self.A, self.H, self.B = O[:,:r], opinf_helper.F2H(O[:,r:r+s]),O[:,r+s:r+s+p]
+                self.A_, self.H_, self.B_ = O[:,:r], opinf_helper.F2H(O[:,r:r+s]),O[:,r+s:r+s+p]
             else:
                 # A H
-                self.A, self.H = O[:,:r], opinf_helper.F2H(O[:,r:r+s])
-                self.B = np.zeros((r,1))
+                self.A_, self.H_ = O[:,:r], opinf_helper.F2H(O[:,r:r+s])
+                self.B_ = np.zeros((r,1))
 
         # Linear Quadratic with constant
-        elif self.degree == 'LQc':
+        elif self.modelform == 'LQc':
             if self.inp:
                 # A H c B
-                self.A, self.H, self.c, self.B = O[:,:r],opinf_helper.F2H(O[:,r:r+s]),O[:,r:r+1],O[:,r+s+1:r+s+p+1]
+                self.A_, self.H_, self.c_, self.B_ = O[:,:r],opinf_helper.F2H(O[:,r:r+s]),O[:,r:r+1],O[:,r+s+1:r+s+p+1]
 
             else:
                 # A H c
-                self.B = np.zeros((r,1))
-                self.A, self.H, self.c = O[:,:r],opinf_helper.F2H(O[:,r:r+s]),O[:,r:r+1],
+                self.B_ = np.zeros((r,1))
+                self.A_, self.H_, self.c_ = O[:,:r],opinf_helper.F2H(O[:,r:r+s]),O[:,r:r+1],
 
         # Strictly Quadratic
-        elif self.degree == 'Q':
+        elif self.modelform == 'Q':
             if self.inp:
                 # H B
-                self.H, self.B = opinf_helper.F2H(O[:,:s]),O[:,s:s+p]
+                self.H_, self.B_ = opinf_helper.F2H(O[:,:s]),O[:,s:s+p]
             else:
                 # H
-                self.H = opinf_helper.F2H(O[:,:s])
-                self.B = np.zeros((r,1))
+                self.H_ = opinf_helper.F2H(O[:,:s])
+                self.B_ = np.zeros((r,1))
 
         # Strictly Quadratic with a constant
-        elif self.degree == 'Qc':
+        elif self.modelform == 'Qc':
             if self.inp:
                 # H c B
-                self.H, self.c, self.B = opinf_helper.F2H(O[:,:s]),O[:,s:s+1],O[:,s+1:s+1+p]
+                self.H_, self.c_, self.B_ = opinf_helper.F2H(O[:,:s]),O[:,s:s+1],O[:,s+1:s+1+p]
             else:
                 # H c
-                self.H, self.c = opinf_helper.F2H(O[:,:s]),O[:,s:s+1]
-                self.B = np.zeros((r,1))
+                self.H_, self.c_ = opinf_helper.F2H(O[:,:s]),O[:,s:s+1]
+                self.B_ = np.zeros((r,1))
 
         return self
 
-    def predict(self, init, n_timesteps, dt, u=None):
+    def predict(self, x0_, n_timesteps, dt, U=None):
         """Simulate the learned model.
 
         Parameters
         ----------
-        init : (n_variables,) ndarray
-            The initial state vector to begin simulation.
+        x0_ : (n_variables,) ndarray
+            The PROJECTED initial state vector to begin simulation.
         n_timesteps : int
             Number of time steps to simulate.
         dt : float
             Time step size.
-        u : (n_parameters, n_timesteps) ndarray, optional, default=None
+        U : (n_parameters, n_timesteps) ndarray, optional, default=None
             The input for each time step.
 
         Output
         ------
-        projected_state: (n_variables, i) ndarray
+        projected_state: (n_variables, n_iters) ndarray
             The reduced state
-        i: int
+        n_iters: int
             The number of time steps computed.
         """
-        r = init.shape[0]
-        if r != self.r:
-            raise ValueError(f"invalid initial state size ({r} != {self.r})")
+        if x0_.shape[0] != self.r_:
+            raise ValueError(f"invalid initial state size ({r} != {self.r_})")
 
-        if u is not None:
-            u = np.atleast_2d(u)
-            K = u.shape[1]
-            if u.any() and m != n_timesteps:
+        if U is not None:
+            U = np.atleast_2d(U)
+            K = U.shape[1]
+            if U.any() and K != n_timesteps:
                 raise ValueError(f"invalid input shape ({K} != {n_timesteps})")
         else:
-            u = np.zeros((1, n_timesteps))
+            U = np.zeros((1, n_timesteps))
 
 
-        projected_state = np.zeros((self.r, n_timesteps))
-        projected_state[:,0] = init.copy()
+        projected_state = np.zeros((self.r_, n_timesteps))
+        projected_state[:,0] = x0_.copy()
 
-        # Integrate, depending on the degree.
+        # Integrate, depending on the modelform.
 
         # Strictly linear
-        if self.degree == 'L':
+        if self.modelform == 'L':
             for i in range(1,n_timesteps):
-                projected_state[:,i] = integration_helpers.rk4advance_L(projected_state[:,i-1],dt,self.A,self.B,u[:,i])
+                projected_state[:,i] = integration_helpers.rk4advance_L(projected_state[:,i-1],dt,self.A_,self.B_,U[:,i])
                 if np.any(np.isnan(projected_state[:,i])):
                     print("NaNs enountered at step ", i)
                     break
             return projected_state,i
 
         # Linear with constant
-        elif self.degree == 'Lc':
+        elif self.modelform == 'Lc':
             for i in range(1,n_timesteps):
-                projected_state[:,i] = integration_helpers.rk4advance_Lc(projected_state[:,i-1],dt,self.A,self.c[:,0],self.B,u[:,i])
+                projected_state[:,i] = integration_helpers.rk4advance_Lc(projected_state[:,i-1],dt,self.A_,self.c_[:,0],self.B_,U[:,i])
                 if np.any(np.isnan(projected_state[:,i])):
                     print("NaNs enountered at step ", i)
                     break
             return projected_state,i
 
         # Strictly Quadratic
-        elif self.degree == 'Q':
+        elif self.modelform == 'Q':
             for i in range(1,n_timesteps):
-                projected_state[:,i] = integration_helpers.rk4advance_Q(projected_state[:,i-1],dt,self.H,self.B,u[:,i])
+                projected_state[:,i] = integration_helpers.rk4advance_Q(projected_state[:,i-1],dt,self.H_,self.B_,U[:,i])
                 if np.any(np.isnan(projected_state[:,i])):
                     print("NaNs enountered at step ", i)
                     break
             return projected_state,i
 
         # Strictly Quadratic with a constant
-        elif self.degree == 'Qc':
+        elif self.modelform == 'Qc':
             for i in range(1,n_timesteps):
-                projected_state[:,i] = integration_helpers.rk4advance_Qc(projected_state[:,i-1],dt,self.H,self.c[:,0],self.B,u[:,i])
+                projected_state[:,i] = integration_helpers.rk4advance_Qc(projected_state[:,i-1],dt,self.H_,self.c_[:,0],self.B_,U[:,i])
                 if np.any(np.isnan(projected_state[:,i])):
                     print("NaNs enountered at step ", i)
                     break
             return projected_state,i
 
         # Linear Quadratic
-        elif self.degree == 'LQ':
+        elif self.modelform == 'LQ':
             for i in range(1,n_timesteps):
-                projected_state[:,i] = integration_helpers.rk4advance_LQ(projected_state[:,i-1],dt,self.A,self.H,self.B,u[:,i])
+                projected_state[:,i] = integration_helpers.rk4advance_LQ(projected_state[:,i-1],dt,self.A_,self.H_,self.B_,U[:,i])
                 if np.any(np.isnan(projected_state[:,i])):
                     print("NaNs enountered at step ", i)
                     break
             return projected_state,i
 
         # Linear Quadratic with constant
-        elif self.degree == 'LQc':
+        elif self.modelform == 'LQc':
             for i in range(1,n_timesteps):
-                projected_state[:,i] = integration_helpers.rk4advance_LQc(projected_state[:,i-1],dt,self.A,self.H,self.c[:,0],self.B,u[:,i])
+                projected_state[:,i] = integration_helpers.rk4advance_LQc(projected_state[:,i-1],dt,self.A_,self.H_,self.c_[:,0],self.B_,U[:,i])
                 if np.any(np.isnan(projected_state[:,i])):
                     print("NaNs enountered at step ", i)
                     break
@@ -309,25 +306,25 @@ class ReducedModel:
         Returns
         ------
         (ops,) : tuple of ndarrays
-            Each operator as defined by degree of the model.
+            Each operator as defined by modelform of the model.
         """
         ops = ()
 
-        if self.degree == 'L':
-            ops += (self.A,)
-        elif self.degree == 'Lc':
-            ops += (self.A,self.c)
-        elif self.degree == 'LQ':
-            ops += (self.A, self.H)
-        elif self.degree == 'LQc':
-            ops += (self.A, self.H, self.c)
-        elif self.degree == 'Q':
-            ops += (self.H)
+        if self.modelform == 'L':
+            ops += (self.A_,)
+        elif self.modelform == 'Lc':
+            ops += (self.A_,self.c_)
+        elif self.modelform == 'LQ':
+            ops += (self.A_, self.H_)
+        elif self.modelform == 'LQc':
+            ops += (self.A_, self.H_, self.c_)
+        elif self.modelform == 'Q':
+            ops += (self.H_)
         else:
-            ops += (self.H,self.c)
+            ops += (self.H_,self.c_)
 
         if self.inp:
-            ops += (self.B,)
+            ops += (self.B_,)
 
         return ops
 
@@ -335,15 +332,15 @@ class ReducedModel:
         """String representation: the structure of the model."""
 
 
-        if self.degree not in self._VALID_MODEL_FORMS:
-            raise ValueError(f"invalid degree '{self.degree}'. "
+        if self.modelform not in self._VALID_MODEL_FORMS:
+            raise ValueError(f"invalid modelform '{self.modelform}'. "
                              f"Options are {self._VALID_MODEL_FORMS}.")
         out = []
-        if 'L' in self.degree:
+        if 'L' in self.modelform:
             out.append("Ax(t)")
-        if 'Q' in self.degree:
+        if 'Q' in self.modelform:
             out.append("H(x x)(t)")
-        if 'c' in self.degree:
+        if 'c' in self.modelform:
             out.append("c")
         if self.inp:
             out.append("Bu(t)")
