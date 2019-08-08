@@ -2,8 +2,8 @@
 """Class for Model Order Reduction of ODEs via operator inference."""
 
 import numpy as np
-from scipy.sparse import csr_matrix
-import opinf_helper, integration_helpers
+
+from . import opinf_helper, integration_helpers
 
 
 class ReducedModel:
@@ -339,10 +339,13 @@ class ReducedModel:
         if 'L' in self.modelform:
             out.append("Ax(t)")
         if 'Q' in self.modelform:
-            out.append("H(x x)(t)")
+            out.append("H(x ⊗ x)(t)")
         if 'c' in self.modelform:
             out.append("c")
         if self.inp:
             out.append("Bu(t)")
 
         return "x'(t) = " + " + ".join(out)
+
+
+__all__ = ["ReducedModel"]
