@@ -90,31 +90,31 @@ See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notat
 #### Installation
 
 ```bash
-$ pip3 install -i https://test.pypi.org/simple/operator-inference
+$ pip install -i https://test.pypi.org/simple/ rom-operator-inference-shanemcq18
 ```
 
-_This installation command is temporary!_
+_**This installation command is temporary!**_
 
 #### Example
 
 <!-- TODO: what are these variables?? -->
 
 ```python
-from operator_inference import OpInf
+import rom_operator_inference as roi
 
 # Define a model of the form x' = Ax + c (no input).
->>> lc_model = OpInf.ReducedModel('Lc', inp=False)
+>>> lc_model = roi.ReducedModel('Lc', inp=False)
 
-# Fit the model to projected data xdot, xhat
+# Fit the model to projected data X_ and projected derivative Xdot_
 # by solving for the operators A and c.
->>> lc_model.fit(r, k, xdot, xhat)
+>>> lc_model.fit(X_, Xdot_)
 
 # Simulate the learned model for 10 timesteps of length .01.
->>> xr, n_steps = lc_model.predict(init=xhat[:,0],
+>>> xr, n_steps = lc_model.predict(init=X_[:,0],
                                    n_timesteps=10,
                                    dt=.01)
 # Reconstruct the predictions.
->>> xr_rec = U[:,:r] @ xr
+>>> X_ROM = Vr @ xr
 ```
 
 See the [**Examples**](#examples) section for a list of complete working examples.
@@ -127,15 +127,15 @@ See the [**Examples**](#examples) section for a list of complete working example
 The following commands will initialize an operator inference `ReducedModel`.
 
 ```python
-from operator_inference import OpInf
+import rom_operator_inference as roi
 
-my_model = OpInf.ReducedModel(degree, inp)
+my_model = roi.ReducedModel(modelform, inp)
 ```
 
-Here `degree` is a string denoting the structure of
+Here `modelform` is a string denoting the structure of
 the desired ROM with the following options.
 
-| `degree` | Model Description | Model Equation |
+| `modelform` | Model Description | Model Equation |
 | :------- | :---------------- | :------------- |
 |  `"L"`   |  linear | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/>
 |  `"Lc"`  |  linear with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)+\hat{\mathbf{c}}"/>
@@ -149,7 +149,7 @@ The `inp` argument is a boolean (`True` or `False`) denoting whether or not ther
 
 ##### Methods
 
-- `ReducedModel.fit(r, reg, xdot, xhat, u=None)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
+- `ReducedModel.fit(X_, Xdot_, U=None, reg=0)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
     squares problem
 <p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+\lambda||P\mathbf{o}_i||_2^2."/></p>
 
@@ -169,7 +169,7 @@ The `inp` argument is a boolean (`True` or `False`) denoting whether or not ther
 Import the helper script with the following line.
 
 ```python
-from operator_inference import opinf_helper
+from rom_operator_inference import opinf_helper
 ```
 
 ##### Functions
@@ -189,7 +189,7 @@ This file contains helper routines that are used internally for `OpInf.ReducedMo
 Import the integration helper script with the following line.
 
 ```python
-from operator_inference import integration_helpers
+from rom__inference import integration_helpers
 ```
 
 ##### Functions

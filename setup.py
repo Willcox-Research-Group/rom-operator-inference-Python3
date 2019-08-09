@@ -5,7 +5,7 @@ with open("README.md", "r") as infile:
 
 setuptools.setup(
     name="rom_operator_inference-shanemcq18",
-    version="0.2.1",
+    version="0.2.2",
     author="Renee Swischuk et al.",
     author_email="swischuk@mit.edu",
     maintainer="Shane McQuarrie",
@@ -16,6 +16,9 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/shanemcq18/rom_operator_inference",
     packages=["rom_operator_inference"],
+    install_requires=[
+          "numpy",
+      ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Natural Language :: English",

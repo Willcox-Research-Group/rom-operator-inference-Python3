@@ -3,7 +3,8 @@
 Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
 """
 
-from . import opinf
-from . import opinf_helper
+from .opinf import ReducedModel
+from . import opinf_helper as helpers
 
-__version__ = "0.2.1"
+
+__version__ = "0.2.2"

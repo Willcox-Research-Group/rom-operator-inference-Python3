@@ -1,12 +1,9 @@
 # opinf_helper.py
 """Utility functions for the operator inference."""
 
-import numpy as np
-import matplotlib.pyplot as plt
 import h5py
+import numpy as np
 from scipy.sparse import csr_matrix
-from sklearn.linear_model import SGDRegressor,LinearRegression,Ridge
-from scipy.optimize import lsq_linear
 
 
 def normal_equations(D, r, k, num):

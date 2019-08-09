@@ -5,7 +5,6 @@ import sys
 import h5py
 import numba
 import numpy as np
-from matplotlib import pyplot as plt
 from sklearn.utils.extmath import randomized_svd
 
 
@@ -26,19 +25,19 @@ def compute_randomized_svd(data, savepath, n_components=500):
     """
 
 
-    U,Sigma,_ = randomized_svd(data, n_components, n_iter=15, random_state=42)
+    Vr,Sigma,_ = randomized_svd(data, n_components, n_iter=15, random_state=42)
 
     svd_h5file = h5py.File(savepath,'w')
-    svd_h5file.create_dataset("U", data=U)
+    svd_h5file.create_dataset("U", data=Vr)
     svd_h5file.create_dataset("S", data=Sigma)
     svd_h5file.close()
 
-    return U,Sigma
+    return Vr,Sigma
     print(f"SVD computed and saved in {savepath}")
 
 
 @numba.jit(nopython=True)
-def compute_xdot(data,dt):
+def compute_xdot(data, dt):
     """Compute xdot for a chunk of snapshots.
 
     Parameters
@@ -63,7 +62,7 @@ def compute_xdot(data,dt):
 def project_data(data,
                  projected_data_folder,
                  projected_xdot_folder,
-                 U,
+                 Vr,
                  dt,
                  r_vals=-1):
     """
@@ -83,13 +82,13 @@ def project_data(data,
     projected_xdot_folder : string
         Folder to save projected xdot data to.
 
-    U: (n_variables, r) ndarray
+    Vr: (n_variables, r) ndarray
         The POD basis.
 
     dt: float
         Timestep size between data (for computing xdot)
 
-    r_vals: list of ints <= U.shape[1] (the number of columns in U).
+    r_vals: list of ints <= Vr.shape[1] (the number of columns in Vr).
         Basis sizes to compute projection for.
     """
 
@@ -100,7 +99,7 @@ def project_data(data,
     os.makedirs(os.path.dirname(projected_xdot_folder), exist_ok=True)
 
     if r_vals == -1:
-        r_vals = [U.shape[1]]
+        r_vals = [Vr.shape[1]]
 
     # full dimension
     N = data.shape[0]
@@ -110,50 +109,50 @@ def project_data(data,
 
     remainder = numtimesteps%1000
 
-    chunck = np.math.floor(numtimesteps/1000) # for efficient memory chunking
+    chunck = numtimesteps // 1000 # for efficient memory chunking
 
     # if more than 1000 snapshots are passed, the projection is done 1000 snapshots at a time.
     # the remainder tells me if it
 
     for r in r_vals:
         print(" r = ", r)
-        UrT = U[:,:r].T
+        VrT = Vr[:,:r].T
 
         data_reduced = np.zeros((r,numtimesteps))
         xdot_reduced = np.zeros((r,numtimesteps))
 
         # forward difference for first 2 timesteps and project
-        xdot_reduced[:,0] = UrT @ ((data[:,1] - data[:,0])/dt)
-        xdot_reduced[:,1] = UrT @ ((data[:,2] - data[:,1])/dt)
+        xdot_reduced[:,0] = VrT @ ((data[:,1] - data[:,0])/dt)
+        xdot_reduced[:,1] = VrT @ ((data[:,2] - data[:,1])/dt)
 
         # project first two snapshots
-        data_reduced[:,:2] = UrT @ data[:,:2]
+        data_reduced[:,:2] = VrT @ data[:,:2]
 
 
         if (numtimesteps > 2):
             if numtimesteps == 3:
                 # low order derivative
-                xdot_reduced[:,2] = UrT @ ((data[:,2] - data[:,1])/dt)
-                data_reduced[:,2] = UrT @ data[:,2]
+                xdot_reduced[:,2] = VrT @ ((data[:,2] - data[:,1])/dt)
+                data_reduced[:,2] = VrT @ data[:,2]
 
             elif numtimesteps == 4:
                 # low order derivate for last two
-                xdot_reduced[:,2] = UrT @ ((data[:,2] - data[:,1])/dt)
-                data_reduced[:,2] = UrT @ data[:,2]
+                xdot_reduced[:,2] = VrT @ ((data[:,2] - data[:,1])/dt)
+                data_reduced[:,2] = VrT @ data[:,2]
 
-                xdot_reduced[:,3] = UrT @ ((data[:,3] - data[:,2])/dt)
-                data_reduced[:,3] = UrT @ data[:,3]
+                xdot_reduced[:,3] = VrT @ ((data[:,3] - data[:,2])/dt)
+                data_reduced[:,3] = VrT @ data[:,3]
 
             else:
                 if chunck == 0:
                     # less than 1000
                     print("Less than 1000")
-                    xdot_reduced[:,2:-2] = UrT @ compute_xdot(data,dt)
-                    data_reduced[:,:] = UrT @ data
+                    xdot_reduced[:,2:-2] = VrT @ compute_xdot(data,dt)
+                    data_reduced[:,:] = VrT @ data
 
                     # backward difference for last two
-                    xdot_reduced[:,-2] = UrT @ ((data[:,-2] - data[:,-3])/dt)
-                    xdot_reduced[:,-1] = UrT @ ((data[:,-1] - data[:,-2])/dt)
+                    xdot_reduced[:,-2] = VrT @ ((data[:,-2] - data[:,-3])/dt)
+                    xdot_reduced[:,-1] = VrT @ ((data[:,-1] - data[:,-2])/dt)
 
                 else:
                     # more than 1000
@@ -163,35 +162,35 @@ def project_data(data,
 
                         # first 1000 - excluding the first 2
                         current_snap = data[:,:1002]
-                        data_reduced[:,2:1000] = UrT @ current_snap[:,2:-2]
-                        xdot_reduced[:,2:1000] = UrT @ compute_xdot(current_snap,dt)
+                        data_reduced[:,2:1000] = VrT @ current_snap[:,2:-2]
+                        xdot_reduced[:,2:1000] = VrT @ compute_xdot(current_snap,dt)
 
                         for ii in range(1,chunck):
                             current_snap = data[:,(ii*1000)-2 : (ii+1)*1000 + 2] # grab 1004 snapshots because xdot chops off first 2 and last 2
-                            data_reduced[:,ii*1000:(ii+1)*1000] = UrT @ current_snap[:,2:-2]
-                            xdot_reduced[:,ii*1000:(ii+1)*1000] = UrT @ compute_xdot(current_snap,dt)
+                            data_reduced[:,ii*1000:(ii+1)*1000] = VrT @ current_snap[:,2:-2]
+                            xdot_reduced[:,ii*1000:(ii+1)*1000] = VrT @ compute_xdot(current_snap,dt)
 
                         if remainder == 1:
                             # just one off (1001,2001,...)
-                            xdot_reduced[:,-1] = UrT @ ((data[:,-1] - data[:,-2])/dt)
-                            data_reduced[:,-1] = UrT @ data[:,-1]
+                            xdot_reduced[:,-1] = VrT @ ((data[:,-1] - data[:,-2])/dt)
+                            data_reduced[:,-1] = VrT @ data[:,-1]
 
                         elif remainder == 2:
                             # two off (1002,2002,...)
-                            xdot_reduced[:,-2] = UrT @ ((data[:,-2] - data[:,-3])/dt)
-                            xdot_reduced[:,-1] = UrT @ ((data[:,-1] - data[:,-2])/dt)
-                            data_reduced[:,-2] = UrT @ data[:,-2]
-                            data_reduced[:,-1] = UrT @ data[:,-1]
+                            xdot_reduced[:,-2] = VrT @ ((data[:,-2] - data[:,-3])/dt)
+                            xdot_reduced[:,-1] = VrT @ ((data[:,-1] - data[:,-2])/dt)
+                            data_reduced[:,-2] = VrT @ data[:,-2]
+                            data_reduced[:,-1] = VrT @ data[:,-1]
 
                         else:
                             # more than 2 we can use higher order xdot
-                            xdot_reduced[:,chunck*1000:-2] = UrT @ compute_xdot(data[:,1000*chunck-2:],dt)
+                            xdot_reduced[:,chunck*1000:-2] = VrT @ compute_xdot(data[:,1000*chunck-2:],dt)
                             # and project data
-                            data_reduced[:,chunck*1000:] = UrT @ data[:,1000*chunck:]
+                            data_reduced[:,chunck*1000:] = VrT @ data[:,1000*chunck:]
 
                             # low order for last two
-                            xdot_reduced[:,-2] = UrT @ ((data[:,-2] - data[:,-3])/dt)
-                            xdot_reduced[:,-1] = UrT @ ((data[:,-1] - data[:,-2])/dt)
+                            xdot_reduced[:,-2] = VrT @ ((data[:,-2] - data[:,-3])/dt)
+                            xdot_reduced[:,-1] = VrT @ ((data[:,-1] - data[:,-2])/dt)
 
 
 
@@ -201,25 +200,25 @@ def project_data(data,
 
                         # first 1000 - excluding the first 2
                         current_snap = data[:,:1002]
-                        data_reduced[:,2:1000] = UrT @ current_snap[:,2:-2]
-                        xdot_reduced[:,2:1000] = UrT @ compute_xdot(current_snap,dt)
+                        data_reduced[:,2:1000] = VrT @ current_snap[:,2:-2]
+                        xdot_reduced[:,2:1000] = VrT @ compute_xdot(current_snap,dt)
 
                         # compute high order derivatives 1000 at a time
                         for ii in range(1,chunck-1):
                             current_snap = data[:,(ii*1000)-2 : (ii+1)*1000 + 2] # grab 1004 snapshots because xdot chops off first 2 and last 2
-                            data_reduced[:,ii*1000:(ii+1)*1000] = UrT @ current_snap[:,2:-2]
-                            xdot_reduced[:,ii*1000:(ii+1)*1000] = UrT @ compute_xdot(current_snap,dt)
+                            data_reduced[:,ii*1000:(ii+1)*1000] = VrT @ current_snap[:,2:-2]
+                            xdot_reduced[:,ii*1000:(ii+1)*1000] = VrT @ compute_xdot(current_snap,dt)
 
                         # deal with last 1000
                         current_snap = data[:,numtimesteps-1000-2:numtimesteps]
-                        data_reduced[:,-1000:numtimesteps] = UrT @ current_snap[:,-1000:]
+                        data_reduced[:,-1000:numtimesteps] = VrT @ current_snap[:,-1000:]
 
                         # high order xdot for last 998
-                        xdot_reduced[:,numtimesteps-1000:-2] = UrT @ compute_xdot(current_snap,dt)
+                        xdot_reduced[:,numtimesteps-1000:-2] = VrT @ compute_xdot(current_snap,dt)
 
                         # first order xdot for last two
-                        xdot_reduced[:,-2] = UrT @ ((data[:,-2] - data[:,-3])/dt)
-                        xdot_reduced[:,-1] = UrT @ ((data[:,-1] - data[:,-2])/dt)
+                        xdot_reduced[:,-2] = VrT @ ((data[:,-2] - data[:,-3])/dt)
+                        xdot_reduced[:,-1] = VrT @ ((data[:,-1] - data[:,-2])/dt)
 
 
 
@@ -265,12 +264,17 @@ if __name__ == '__main__':
     hf.close()
     if comp_svd:
         print("Computing svd...")
-        U,_ = compute_randomized_svd(data[:,:trainsize],"data/svd_nt%d.h5" %trainsize)
+        V,_ = compute_randomized_svd(data[:,:trainsize],"data/svd_nt%d.h5" %trainsize)
 
     else:
         print("loading svd...")
         hfs = h5py.File("data/svd_nt%d.h5" %trainsize, 'r')
-        U = hfs['Und'][:,:]
+        V = hfs['Und'][:,:]
 
     print("Computing xdot and reducing data...")
-    project_data(data[:,:trainsize], "data/data_reduced_minmax_nt%d/" %trainsize, "data/data_reduced_minmax_nt%d/" %trainsize, U, 1e-7,[5,10,15])
+    project_data(data[:,:trainsize],
+                 f"data/data_reduced_minmax_nt{trainsize}/",
+                 f"data/data_reduced_minmax_nt{trainsize}/",
+                 V,
+                 1e-7,
+                 [5,10,15])
