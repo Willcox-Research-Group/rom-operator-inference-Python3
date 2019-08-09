@@ -3,10 +3,11 @@
 
 import h5py
 import numpy as np
+from scipy import linalg as la
 from scipy.sparse import csr_matrix
 
 
-def normal_equations(D, r, k, num):
+def normal_equations(D, r, reg, num):
     """Solve the normal equations corresponding to the regularized ordinary
     least squares problem
 
@@ -36,13 +37,13 @@ def normal_equations(D, r, k, num):
     F = np.eye(rps)
     F[num,num] = 0
 
-    pseudo = k*F
+    pseudo = reg*F
     rhs = np.zeros((rps))
 
     Dplus = np.vstack((D,pseudo))
     Rplus = np.vstack((r.reshape((-1,1)),rhs.reshape((-1,1))))
 
-    return np.linalg.lstsq(Dplus,Rplus,rcond=None)[0]
+    return np.linalg.lstsq(Dplus, Rplus, rcond=None)[0]
 
 
 def get_x_sq(X):

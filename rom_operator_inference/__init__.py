@@ -7,4 +7,6 @@ from .opinf import ReducedModel
 from . import opinf_helper as helpers
 
 
+__all__ = ["ReducedModel", "helpers"]
+
 __version__ = "0.2.2"

@@ -90,10 +90,10 @@ See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notat
 #### Installation
 
 ```bash
-$ pip install -i https://test.pypi.org/simple/ rom-operator-inference-shanemcq18
+$ pip3 install -i https://test.pypi.org/simple/ rom-operator-inference-shanemcq18
 ```
 
-_**This installation command is temporary!**_
+_**This installation command is very temporary!**_
 
 #### Example
 
