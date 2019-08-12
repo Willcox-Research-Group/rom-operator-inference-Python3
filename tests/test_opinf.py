@@ -28,7 +28,7 @@ def set_up_reduced_model():
     return roi.ReducedModel("LQc", has_inputs=False)
 
 
-def test_fit2(set_up_reduced_model):
+def test_fit(set_up_reduced_model):
     model = set_up_reduced_model
     assert isinstance(model, roi.ReducedModel)
 
@@ -42,31 +42,31 @@ def test_fit2(set_up_reduced_model):
     # Try to use an invalid modelform.
     model.modelform = "LLL"
     with pytest.raises(ValueError) as exc:
-        model.fit2(X, Xdot, Vr)
+        model.fit(X, Xdot, Vr)
     assert exc.value.args[0] == \
         f"invalid modelform 'LLL'. Options are {model._VALID_MODEL_FORMS}."
     model.modelform = "LQc"
 
     model.has_inputs = True
     with pytest.raises(ValueError) as exc:
-        model.fit2(X, Xdot, Vr)
+        model.fit(X, Xdot, Vr)
     assert exc.value.args[0] == "argument 'U' required since has_inputs=True"
 
     model.has_inputs = False
     with pytest.raises(ValueError) as exc:
-        model.fit2(X, Xdot, Vr, U=U)
+        model.fit(X, Xdot, Vr, U=U)
     assert exc.value.args[0] == "argument 'U' invalid since has_inputs=False"
 
     # Try to fit the model with misaligned X and Xdot.
     with pytest.raises(ValueError) as exc:
-        model.fit2(X, Xdot[:,1:-1], Vr)
+        model.fit(X, Xdot[:,1:-1], Vr)
     assert exc.value.args[0] == \
         f"X and Xdot different shapes ({(n,k)} != {(n,k-2)})"
 
     # Try to fit the model with misaligned X and Vr.
     with pytest.raises(ValueError) as exc:
-        model.fit2(X, Xdot, Vr[1:-1,:])
+        model.fit(X, Xdot, Vr[1:-1,:])
     assert exc.value.args[0] == \
         f"X and Vr not aligned, first dimension {n} != {n-2}"
 
-    # model.fit2(X, Xdot, Vr)
+    # model.fit(X, Xdot, Vr)

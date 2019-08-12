@@ -38,7 +38,7 @@ def rk4advance_L(x, dt, A, B=0, u=0):
 
 def rk4advance_Lc(x, dt, A, c, B=0, u=0):
     """One step of 4th order runge kutta integration of a system of the form
-    x'(t) = Ax(t) + H(x ⊗ x)(t) + c
+    x'(t) = Ax(t) + c
 
     Parameters
     ----------
@@ -71,7 +71,7 @@ def rk4advance_Lc(x, dt, A, c, B=0, u=0):
 
 def rk4advance_LQ(x, dt, A, H, B=0, u=0):
     """One step of 4th order runge kutta integration of a system of the form
-    x'(t) = Ax(t) + H(x ⊗ x)(t) + c
+    x'(t) = Ax(t) + H(x ⊗ x)(t)
 
     Parameters
     ----------
@@ -104,7 +104,7 @@ def rk4advance_LQ(x, dt, A, H, B=0, u=0):
 
 def rk4advance_LQ_addinput(x, dt, A, H, u):
     """One step of 4th order runge kutta integration of a system of the form
-    x'(t) = Ax(t) + H(x ⊗ x)(t) + c
+    x'(t) = Ax(t) + H(x ⊗ x)(t) + c + Bu(t)
 
     Parameters
     ----------
@@ -174,7 +174,7 @@ def rk4advance_LQc(x, dt, A, H, c, B=0, u=0):
 
 def rk4advance_Q(x, dt, H, B=0, u=0):
     """One step of 4th order runge kutta integration of a system of the form
-    x'(t) = Ax(t) + H(x ⊗ x)(t) + c
+    x'(t) = H(x ⊗ x)(t)
 
     Parameters
     ----------
@@ -206,7 +206,7 @@ def rk4advance_Q(x, dt, H, B=0, u=0):
 
 def rk4advance_Qc(x, dt, H, c, B=0, u=0):
     """One step of 4th order runge kutta integration of a system of the form
-    x'(t) = Ax(t) + H(x ⊗ x)(t) + c
+    x'(t) = H(x ⊗ x)(t) + c
 
     Parameters
     ----------

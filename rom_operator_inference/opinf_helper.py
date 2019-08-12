@@ -23,9 +23,6 @@ def normal_equations(D, r, reg, num):
         Regularization parameter
     num : int
         Index of the OLS problem we are solving (0 ≤ num < r).
-    offdiagonals : bool
-        If True, minimize only off-diagonals of A; if False, minimize all
-        values of A, F, and c.
 
     Returns
     -------
@@ -43,7 +40,7 @@ def normal_equations(D, r, reg, num):
     Dplus = np.vstack((D,pseudo))
     Rplus = np.vstack((r.reshape((-1,1)),rhs.reshape((-1,1))))
 
-    return np.linalg.lstsq(Dplus, Rplus, rcond=None)[0]
+    return la.lstsq(Dplus, Rplus)[0]
 
 
 def get_x_sq(X):
