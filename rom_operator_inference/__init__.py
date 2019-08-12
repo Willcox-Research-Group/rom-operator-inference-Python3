@@ -3,10 +3,10 @@
 Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
 """
 
-from .opinf import ReducedModel
-from . import opinf_helper as helpers
+from .core import ReducedModel
+from . import utils
 
 
-__all__ = ["ReducedModel", "helpers"]
+__all__ = ["ReducedModel", "utils"]
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"

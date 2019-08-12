@@ -1,10 +1,10 @@
-# OpInf.py
-"""Class for Model Order Reduction of ODEs via operator inference."""
+# core.py
+"""Class for model order reduction of ODEs via operator inference."""
 
 import numpy as np
 from scipy.integrate import solve_ivp, IntegrationWarning
 
-from . import opinf_helper
+from . import utils
 
 
 class ReducedModel:
@@ -119,7 +119,7 @@ class ReducedModel:
             D_blocks.append(X_.T)
 
         if 'Q' in self.modelform:
-            X2T_ = opinf_helper.get_x_sq(X_.T)
+            X2T_ = utils.get_x_sq(X_.T)
             D_blocks.append(X2T_)
             s = r*(r+1) // 2      # Dimension of compact Kronecker.
             if X2T_.shape[1] != s:
@@ -141,7 +141,7 @@ class ReducedModel:
         # Solve for the reduced-order model operators.
         O = np.zeros((d, r))
         for j in range(r):
-            O[:,j] = opinf_helper.normal_equations(D,
+            O[:,j] = utils.normal_equations(D,
                                                    Xdot_[j,:],
                                                    reg,
                                                    j).flatten()
@@ -161,7 +161,7 @@ class ReducedModel:
         if 'Q' in self.modelform:
             self.F_ = O[i:i+s].T
             i += s
-            self.H_ = opinf_helper.F2H(self.F_)
+            self.H_ = utils.F2H(self.F_)
         else:
             self.F_, self.H_ = None, None
 
