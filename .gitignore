@@ -1,0 +1,40 @@
+# PDFs
+*.pdf
+
+# Extra Python files
+*.py[cod]
+__pycache__/
+.ipynb_checkpoints/
+build/
+dist/
+*.egg-info/
+
+# Extra Matlab files
+*.mat
+*.*~
+html/
+
+# Extra LaTex files
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+
+# Hidden files for Makefile
+.hw*
+.notes*
+
+# Archives and figures
+*.zip
+*.png
+*.jpg
+*.mp4
+*.gif
+
+# Extra Mac files
+*.DS_Store
+
+# Specific files / folders
+
