@@ -105,7 +105,7 @@ import rom_operator_inference as roi
 # Define a model of the form x' = Ax + c (no input).
 >>> lc_model = roi.ReducedModel('Lc', inp=False)
 
-# Fit the model to projected data X_, the projected derivative Xdot_,
+# Fit the model to snapshot data X, the snapshot derivative Xdot,
 # and the linear basis Vr by solving for the operators A_ and c_.
 >>> lc_model.fit(X, Xdot, Vr)
 
@@ -121,12 +121,14 @@ See the [**Examples**](#examples) section for a list of complete working example
 
 #### ReducedModel class
 
-The following commands will initialize an operator inference `ReducedModel`.
+The API for this class adopts some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects): the class has `fit()` and `predict()` methods, hyperparameters are set in the constructor, estimated attributes end with underscore, and so on.
+
+##### Constructor
 
 ```python
 import rom_operator_inference as roi
 
-my_model = roi.ReducedModel(modelform, inp)
+model = roi.ReducedModel(modelform, has_inputs)
 ```
 
 Here `modelform` is a string denoting the structure of
@@ -134,51 +136,48 @@ the desired ROM with the following options.
 
 | `modelform` | Model Description | Model Equation |
 | :------- | :---------------- | :------------- |
-|  `"L"`   |  linear | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/>
-|  `"Lc"`  |  linear with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)+\hat{\mathbf{c}}"/>
-|  `"Q"`   |  quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/>
-|  `"Qc"`  |  quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{\mathbf{c}}"/>
-|  `"LQ"`  |  linear quadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/>
-|  `"LQc"` |  linear quadratic with constant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{\mathbf{c}}"/>
+|  `"L"`   |  **L**inear | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/>
+|  `"Lc"`  |  **L**inear with **c**onstant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)+\hat{\mathbf{c}}"/>
+|  `"Q"`   |  **Q**uadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/>
+|  `"Qc"`  |  **Q**uadratic with **c**onstant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{\mathbf{c}}"/>
+|  `"LQ"`  |  **L**inear-**Q**uadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/>
+|  `"LQc"` |  **L**inear-**Q**uadratic with **c**onstant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{\mathbf{c}}"/>
 
-The `inp` argument is a boolean (`True` or `False`) denoting whether or not there is an additive input term of the form <img src="https://latex.codecogs.com/svg.latex?B\mathbf{u}(t)"/>.
-
+The `has_inputs` argument is a boolean (`True` or `False`) denoting whether or not there is an additive input term of the form <img src="https://latex.codecogs.com/svg.latex?B\mathbf{u}(t)"/>.
 
 ##### Methods
 
-- `ReducedModel.fit(X_, Xdot_, U=None, reg=0)`: Compute the operators of the reduced-order model that best fit the data by solving the regularized least
-    squares problem
+- `ReducedModel.fit(X, Xdot, Vr, U=None, reg=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
+    squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
+Parameters:
+    - `X`: Snapshot matrix of solutions to the full-order model. Each column is one snapshot.
+    - `Xdot`: Snapshot velocity of solutions to the full-order model. Each column is the velocity `dx / dt` for the corresponding column of `X`.
+    <!-- See [TODO] for some simple derivative approximation tools. -->
+    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`.
+    <!-- See [TODO] for a POD basis computer. -->
+    - `U`: Input matrix. Each column is the input for the corresponding column of `X`. Only required when `has_inputs=True`.
+    - `reg`: Tikhonov regularization factor for the least squares problem.
+
+- `ReducedModel.predict(x0, t, u=None, **options)`: Simulate the learned reduced-order model with `scipy.integrate.solve_ivp()`. Parameters:
+    - `x0`: The initial condition, given in the original (high-dimensional) space.
+    - `t`: The time domain over which to integrate the reduced-order model.
+    - `u`: The input as a function of time. Alternatively, a matrix aligned with the time domain `t` where each column is the input at the corresonding time.
+    - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
+
+<!-- - `ReducedModel.relative_error(prediction, truth, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e.,
+<p align="center"><img src="https://latex.codecogs.com/svg.latex?\frac{||\texttt{truth}-\texttt{prediction}||}{||\texttt{truth}||}"./></p> Computes absolute error (numerator only) in the case that <img src="https://latex.codecogs.com/svg.latex?||\texttt{truth}||<\texttt{thresh}."/> -->
+
+#### Utility Functions
+
+These functions are helper routines that are used internally for `ReducedModel.fit()`.
+See [DETAILS.md](DETAILS.md) for more mathematical explanation.
+
+-  `utils.kron_compact(x)`: Compute the column-wise compact Kronecker product of `x`.
+
+-  `F2H(F)`: Convert the compact matricized quadratic operator `F` to the full, symmetric, matricezed quadratic operator `H`.
+
+- `utils.normal_equations(D, r, reg, num)`: Solve one row of the regularized ordinary least squares problem
 <p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+\lambda||P\mathbf{o}_i||_2^2."/></p>
-
-- `ReducedModel.predict(init, n_timesteps, dt, u=None)`: Simulate the learned model with an explicit Runge-Kutta scheme tailored to the structure of the model.
-
-- `ReducedModel.get_residual()`: Return the residuals of the least squares problem
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?||DO^T-\dot{X}^T||_F^2\qquad\text{and}\qquad||O^T||_F^2."/></p>
-
-- `ReducedModel.get_operators()`: Return each of the learned operators.
-
-- `ReducedModel.relative_error(predicted_data, true_data, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e.,
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\frac{||\texttt{true\_data}-\texttt{predicted\_data}||}{||\texttt{true\_data}||}"./></p> Computes absolute error (numerator only) in the case that <img src="https://latex.codecogs.com/svg.latex?||\texttt{true\_data}||<\texttt{thresh}."/>
-
-
-#### `opinf_helper.py`
-
-Import the helper script with the following line.
-
-```python
-from rom_operator_inference import opinf_helper
-```
-
-##### Functions
-
-This file contains helper routines that are used internally for `OpInf.ReducedModel.fit()`.
-
-- `normal_equations(D, r, k, num)`: Solve the normal equations corresponding to the regularized ordinary least squares problem
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+\lambda||P\mathbf{o}_i||_2^2."/></p>
-
--  `get_x_sq(X)`: Compute squared snapshot data.
-
--  `F2H(F)`: Convert quadratic operator `F` to "symmetric" quadratic operator `H` for simulating the learned system.
 
 
 ## Examples
@@ -186,11 +185,10 @@ This file contains helper routines that are used internally for `OpInf.ReducedMo
 _**WARNING: under construction!!**_
 
 The [`examples/`](examples/) folder contains scripts and notebooks that set up and run several examples:
-- The heat equation example from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
-- The Burgers' equation from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
-- The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
+- `examples/TODO.ipynb`: The heat equation example from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
+- `examples/TODO.ipynb`: The Burgers' equation from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
+- `examples/TODO.ipynb`: The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions.
-- The script `opinf_demo.py` demonstrates the use of the operator inference model on data generated from the heat equation.
-See [@ReneeThesis] for the problem setup.
+- [`examples/heat_1D.ipynb`](examples/heat_1D.ipynb): A purely data-driven example using data generated from the heat equation. See [TODO: \[4\]].
 
 <!-- TODO: actual links to the folders or files -->

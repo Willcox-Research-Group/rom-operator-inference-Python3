@@ -120,7 +120,7 @@ To solve for the linear operators on the right-hand side of the preceding equati
 
 Where **1** is a _k_-vector of 1's.
 This problem decouples into _r_ independent least-squares problems, so it is relatively inexpensive to solve.
-The code allows for a Tikhonov regularization factor, which prevents numerical instabilities from dominating the computation.
+The code allows for a Tikhonov regularization factor to prevent numerical instabilities from dominating the computation.
 
 It can be shown [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104) that under some idealized assumptions, these inferred operators converge to the operators computed by explicit projection.
 The key idea, however, is that _the inferred operators can be cheaply computed without even knowing the full-order model_.
@@ -151,7 +151,6 @@ and the corresponding operator inference least squares problem is
 
 where _s_ = _r_(_r_+1)/2.
 For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> between used for matrices denotes a column-wise Kronecker product (also called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product)).
-
 
 ## Index of Notation
 
