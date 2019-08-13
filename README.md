@@ -40,6 +40,7 @@ See [this repository](https://github.com/elizqian/operator-inference) for a MATL
 - [**Documentation**](#documentation)
 - [**Examples**](#examples)
 
+
 ## Problem Statement
 
 Consider the (possibly nonlinear) system of _n_ ordinary differential equations with state variable **x**, input (control) variable **u**, and independent variable _t_:
@@ -84,6 +85,7 @@ where now
 This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension _r_ << _n_.
 
 See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notation.
+
 
 ## Quick Start
 
@@ -164,20 +166,22 @@ Parameters:
     - `u`: The input as a function of time. Alternatively, a matrix aligned with the time domain `t` where each column is the input at the corresonding time.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 
-<!-- - `ReducedModel.relative_error(prediction, truth, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e.,
+<!-- TODO: new files for pre- and post-processing? pre.py, post.py -->
+
+<!-- - `relative_error(prediction, truth, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e.,
 <p align="center"><img src="https://latex.codecogs.com/svg.latex?\frac{||\texttt{truth}-\texttt{prediction}||}{||\texttt{truth}||}"./></p> Computes absolute error (numerator only) in the case that <img src="https://latex.codecogs.com/svg.latex?||\texttt{truth}||<\texttt{thresh}."/> -->
 
 #### Utility Functions
 
-These functions are helper routines that are used internally for `ReducedModel.fit()`.
+These functions are helper routines that are used internally for `ReducedModel.fit()` or `ReducedModel.predict()`.
 See [DETAILS.md](DETAILS.md) for more mathematical explanation.
+
+- `utils.lstsq_reg(A, b, reg)`: Solve the Tikhonov-regularized ordinary least squares problem
+<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}}{\text{min}}||A\mathbf{x}-\mathbf{b}||_2^2+\lambda||\mathbf{x}_i||_2^2."/></p>
 
 -  `utils.kron_compact(x)`: Compute the column-wise compact Kronecker product of `x`.
 
 -  `F2H(F)`: Convert the compact matricized quadratic operator `F` to the full, symmetric, matricezed quadratic operator `H`.
-
-- `utils.normal_equations(D, r, reg, num)`: Solve one row of the regularized ordinary least squares problem
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{o}_i}{\text{min}}||D\mathbf{o}_i-\mathbf{r}||_2^2+\lambda||P\mathbf{o}_i||_2^2."/></p>
 
 
 ## Examples
