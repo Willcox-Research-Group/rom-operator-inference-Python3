@@ -1,10 +1,59 @@
 # opinf_helper.py
 """Utility functions for the operator inference."""
 
-import h5py
 import numpy as np
 from scipy import linalg as la
-from scipy.sparse import csr_matrix
+
+
+def kron_compact(x):
+    """Calculate the unique terms of the Kronecker product x ⊗ x.
+
+    Parameters
+    ----------
+    x : (n,) ndarray
+
+    Returns
+    -------
+    x ⊗ x : (n(n+1)/2,) ndarray
+        The "compact" Kronecker product of x with itself.
+    """
+    return np.concatenate([x[i]*x[:i+1] for i in range(x.shape[0])], axis=0)
+
+
+def F2H(F):
+    """Calculate the matricized quadratic operator that operates on the full
+    Kronecker product.
+
+    Parameters
+    ----------
+    F : (r,s) ndarray
+        The matricized quadratic tensor that operates on the COMPACT Kronecker
+        product. Here s = r * (r+1) / 2.
+
+    Returns
+    -------
+    H : (r,r**2) ndarray
+        The matricized quadratic tensor that operators on the full Kronecker
+        product. This is a symmetric operator in the sense that each layer of
+        H.reshape((r,r,r)) is a symmetric (r,r) matrix.
+    """
+    r,s = F.shape
+    if s != r*(r+1)//2:
+        raise ValueError(f"invalid shape (r,s) = {(r,s)} with s != r(r+1)/2")
+
+    H = np.zeros((r,r**2))
+    fj = 0
+    for i in range(r):
+        for j in range(i+1):
+            if i == j:      # Place column corresonding to unique term.
+                H[:,(i*r)+j] = F[:,fj]
+            else:           # Distribute columns corresponding to repeated terms.
+                fill = F[:,fj] / 2
+                H[:,(i*r)+j] = fill
+                H[:,(j*r)+i] = fill
+            fj += 1
+
+    return H
 
 
 def normal_equations(D, r, reg, num):
@@ -41,71 +90,3 @@ def normal_equations(D, r, reg, num):
     Rplus = np.vstack((r.reshape((-1,1)),rhs.reshape((-1,1))))
 
     return la.lstsq(Dplus, Rplus)[0]
-
-
-def get_x_sq(X):
-    """
-    TODO
-    """
-    N,w = X.shape
-    S = w*(w+1)/2
-    Xi = np.zeros((N,int(S)))
-    c = 0
-    for i in range(w):
-        Xi[:,c:c+(w-i)] = np.multiply(np.tile(X[:,i].reshape(N,1),[1,w-i]),X[:,i:w])
-        c = c+(w-i)
-    return Xi
-
-
-def F2H(F):
-    """
-    TODO
-    """
-    n,_ = F.shape
-
-    jj,ii = np.nonzero(F.T)
-
-    FT = F.T
-    vv = np.ravel(FT[jj,ii])
-    jj = jj+1
-    ii = ii+1
-    iH = []
-    jH = []
-    vH = []
-    # print(type(iH))
-    bb = 0
-    for i in range(1,n+1):
-        cc = bb+n+1-i
-        # print(jj)
-        sel = (jj>bb) & (jj <=cc)
-        # print(sel)
-        itemp = ii[sel]
-        jtemp = jj[sel]
-        vtemp = vv[sel]
-        for j in range(1,len(jtemp)+1):
-            sj = jtemp[j-1] - bb
-            if sj == 1 :
-                iH.append([itemp[j-1]])
-                jH.append([(i-1)*n+i+(sj)-1])
-                vH.append([vtemp[j-1]])
-            else:
-                iH.append([itemp[j-1]])
-                iH.append([itemp[j-1]])
-                jH.append([(i-1)*n+(i)+(sj)-1])
-                jH.append([(i+(sj)-2)*n+i])
-                vH.append([vtemp[j-1]/2])
-                vH.append([vtemp[j-1]/2])
-        bb = cc
-    # print(np.array(vH).shape)
-    # print(np.array(iH).shape)
-    # print(np.array(jH).shape)
-    vHa = np.ndarray.flatten(np.array(vH))
-
-    iHa = np.ndarray.flatten(np.array(iH))
-    iHa = iHa-1
-    jHa = np.ndarray.flatten(np.array(jH))
-    jHa = jHa-1
-    # print(vH)
-    # print(vHa)
-    H = csr_matrix((vHa,(iHa,jHa)),shape=(n,n**2)).toarray()
-    return H

@@ -1,8 +1,9 @@
-# test_opinf.py
-"""Tests for rom_operator_inference.opinf.ReducedModel."""
+# test_core.py
+"""Tests for rom_operator_inference.core.ReducedModel."""
 
 import pytest
 import numpy as np
+from scipy import linalg as la
 
 import rom_operator_inference as roi
 
@@ -24,19 +25,26 @@ def test_init():
 
 
 @pytest.fixture
-def set_up_reduced_model():
+def set_up_fresh_model():
     return roi.ReducedModel("LQc", has_inputs=False)
 
+@pytest.fixture
+def set_up_trained_model(n=200, k=100, m=20, r=10):
+    X = np.random.random((n,k))
+    Xdot = np.zeros((n,k))
+    Vr = la.svd(X)[0][:,:r]
+    U = np.ones((m,k))
+    return roi.ReducedModel("LQc", has_inputs=True).fit(X, Xdot, Vr, U)
 
-def test_fit(set_up_reduced_model):
-    model = set_up_reduced_model
+def test_fit(set_up_fresh_model):
+    model = set_up_fresh_model
     assert isinstance(model, roi.ReducedModel)
 
     # Get test data.
     n, k, m, r = 200, 100, 20, 10
     X = np.random.random((n,k))
     Xdot = np.zeros((n,k))
-    Vr = np.linalg.svd(X)[0][:,:r]
+    Vr = la.svd(X)[0][:,:r]
     U = np.ones(m)
 
     # Try to use an invalid modelform.
@@ -69,4 +77,14 @@ def test_fit(set_up_reduced_model):
     assert exc.value.args[0] == \
         f"X and Vr not aligned, first dimension {n} != {n-2}"
 
-    # model.fit(X, Xdot, Vr)
+def test_fit_outputs(set_up_trained_model):
+    model = set_up_trained_model
+    n, r, m = model.n, model.r, model.m
+
+    assert model.A_.shape == (r,r)
+    assert model.F_.shape == (r,r*(r+1)//2)
+    assert model.H_.shape == (r,r**2)
+    assert model.c_.shape == (r,)
+    assert model.B_.shape == (r,m)
+
+    assert hasattr(model, "residual_")

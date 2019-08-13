@@ -55,7 +55,7 @@ where
 </p>
 
 This system is called the _full-order model_ (FOM).
-If _n_ is large (as it often is in applications), it is computationally expensive to numerically solve the FOM.
+If _n_ is large, as it often is in high-consequence engineering applications, it is computationally expensive to numerically solve the FOM.
 This package provides tools for constructing a _reduced-order model_ (ROM) that is linear or quadratic in the state **x**, possibly with a constant term **c**, and with optional control inputs **u**.
 The procedure is data-driven, non-intrusive, and relatively inexpensive.
 In the most general case, the code can construct and solve a system of the form
@@ -105,16 +105,13 @@ import rom_operator_inference as roi
 # Define a model of the form x' = Ax + c (no input).
 >>> lc_model = roi.ReducedModel('Lc', inp=False)
 
-# Fit the model to projected data X_ and projected derivative Xdot_
-# by solving for the operators A and c.
->>> lc_model.fit(X_, Xdot_)
+# Fit the model to projected data X_, the projected derivative Xdot_,
+# and the linear basis Vr by solving for the operators A_ and c_.
+>>> lc_model.fit(X, Xdot, Vr)
 
-# Simulate the learned model for 10 timesteps of length .01.
->>> xr, n_steps = lc_model.predict(init=X_[:,0],
-                                   n_timesteps=10,
-                                   dt=.01)
-# Reconstruct the predictions.
->>> X_ROM = Vr @ xr
+# Simulate the learned model over the time domain [0,1] with 100 timesteps.
+>>> t = np.linspace(0, 1, 100)
+>>> X_ROM = lc_model.predict(X[:,0], t)
 ```
 
 See the [**Examples**](#examples) section for a list of complete working examples.
@@ -183,38 +180,6 @@ This file contains helper routines that are used internally for `OpInf.ReducedMo
 
 -  `F2H(F)`: Convert quadratic operator `F` to "symmetric" quadratic operator `H` for simulating the learned system.
 
-
-<!-- ### `integration_helpers.py`
-
-Import the integration helper script with the following line.
-
-```python
-from rom__inference import integration_helpers
-```
-
-##### Functions
-
-This file contains Runge-Kutta integrators that are used within `OpInf.ReducedModel.predict()`.
-The choice of integrator depends on `Model.degree`.
-
-- `rk4advance_L(x, dt, A, B=0, u=0)`
-- `rk4advance_Lc(x, dt, A, c, B=0, u=0)`
-- `rk4advance_Q(x, dt, H, B=0, u=0)`
-- `rk4advance_Qc(x, dt, H, c, B=0, u=0)`
-- `rk4advance_LQ(x, dt, A, H, B=0, u=0)`
-- `rk4advance_LQc(x, dt, A, H, c, B=0, u=0)`
-
-**Parameters**:
-- `x ((r,) ndarray)`: The current (reduced-dimension) state.
-- `dt (float)`: Time step size.
-- `A ((r,r) ndarray)`: The linear state operator.
-- `H ((r,r**2) ndarray)`: The matricized quadratic state operator.
-- `c ((r,) ndarray)`: The constant term.
-- `B ((r,p) ndarray)`: The input operator; only needed if `Model.inp` is `True`.
-- `u ((p,) ndarray)`: The input at the current time; only needed if `Model.inp` is `True`.
-
-**Returns**:
-- `x_next ((r,) ndarray)`: The next (reduced-dimension) state. -->
 
 ## Examples
 

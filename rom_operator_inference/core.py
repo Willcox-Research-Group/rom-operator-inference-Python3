@@ -6,6 +6,8 @@ from scipy.integrate import solve_ivp, IntegrationWarning
 
 from . import utils
 
+kron2 = utils.kron_compact
+
 
 class ReducedModel:
     """Reduced order model for a system of high-dimensional ODEs of the form
@@ -17,67 +19,91 @@ class ReducedModel:
     and the operators of the reduced model are inferred by solving a
     regularized ordinary least squares problem.
 
-    Attributes
+    Parameters
     ----------
     modelform : str
-        Designates the structure of the reduced model to learn.
-    has_inputs : bool
-        True
-            Assume the system has an additive input u(t).
-        False (default)
-            Assume the system does not have an additive input u(t).
+        The structure of the desired reduced-order model. Options:
+        'L'    : linear model f(x) = Ax.
+        'Lc'   : linear model with a constant f(x) = Ax + c.
+        'Q'    : strictly quadratic model f(x) = Fx^2.
+        'Qc'   : strictly quadratic model with a constant f(x) = Fx^2 + c.
+        'LQ'   : linear quadratic model f(x) = Ax + Fx^2.
+        'LQc'  : linear quadratic model with a constant f(x) = Ax + Fx^2 + c.
+
+    has_inputs : bool, optional, default: False.
+        If True, assume the system has an additive input term u(t).
+
+    Attributes
+    ----------
+    n : int
+        The dimension of the original model.
+
+    r : int
+        The dimension of the learned reduced-order model.
+
+    m : int or None
+        The dimension of the input u(t), or None if `has_inputs` is False.
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    residual_ : float
+        The squared Frobenius-norm residual of the least-squares problem for
+        computing the reduced-order model operators.
+
+    A_ : (r,r) ndarray or None
+        Learned ROM linear state matrix, or None if 'L' is not in `modelform`.
+
+    F_ : (r,r(r+1)//2) ndarray or None
+        Learned ROM quadratic state matrix (compact), or None if 'Q' is not
+        in `modelform`. Used internally instead of the larger H_.
+
+    H_ : (r,r**2) ndarray or None
+        Learned ROM quadratic state matrix (full size), or None if 'Q' is not
+        in `modelform`. Computed on they fly from F_.
+
+    c_ : (r,) ndarray or None
+        Learned ROM constant term, or None if 'c' is not in `modelform`.
+
+    B_ : (r,m) ndarray or None
+        Learned ROM input matrix, or None if `has_inputs` is False.
+
+    f_ : func(float, (r,) ndarray) -> (r,) ndarray
+        The complete ROM operator, defined by A_, F_, c_, and/or B_.
+        Note the signiture is f_(t, x_); that is, f_ maps time x reduced state
+        to reduced state. Calculated in fit() if `has_inputs` is False, and
+        in predict() otherwise.
+
+    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
+        of integrating the learned ROM in predict(). For more details, see
+        https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
 
     _VALID_MODEL_FORMS = {"L", "Lc", "Q", "Qc", "LQ", "LQc"}
 
     def __init__(self, modelform, has_inputs=False):
-        """Initalize operator inference model for the high-dimensional model
-
-            dx / dt = f(t,x(t),u(t)),
-               x(0) = x0.
-
-        Parameters
-        ----------
-        modelform : {'L','Lc','Q','Qc','LQ','LQc'}
-            The structure of the desired reduced-order model.
-            'L'
-                A linear model f(x) = Ax.
-            'Lc'
-                A linear model with a constant f(x) = Ax + c.
-            'Q'
-                A strictly quadratic model f(x) = Fx^2.
-            'Qc'
-                A strictly quadratic model with a constant f(x) = Fx^2 + c.
-            'LQ'
-                A linear quadratic model f(x) = Ax + Fx^2.
-            'LQc'
-                A linear quadratic model with a constant f(x) = Ax + Fx^2 + c.
-
-        has_inputs : bool
-            True
-                Assume the system has an additive input u(t).
-            False (default)
-                Assume the system does not have an additive input u(t).
-        """
         self.modelform = modelform
         self.has_inputs = has_inputs
 
     def fit(self, X, Xdot, Vr, U=None, reg=0):
-        """Solve for the reduced model operators.
+        """Solve for the reduced model operators via regularized least squares.
 
         Parameters
         ----------
         X : (n,k) ndarray
             Column-wise snapshot training data (each column is a snapshot).
+
         Xdot : (n,k) ndarray
             Column-wise velocity training data.
+
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
+
         U : (m,k) ndarray
             Column-wise inputs corresponding to the snapshots.
+
         reg : float
-            L2 regularization penalty.
-            Solves min ||Do - r||_2 + reg*||Po||_2.
+            L2 regularization penalty. Solves min ||Do - r||_2 + reg*||Po||_2.
         TODO: P
 
         Returns
@@ -119,11 +145,11 @@ class ReducedModel:
             D_blocks.append(X_.T)
 
         if 'Q' in self.modelform:
-            X2T_ = utils.get_x_sq(X_.T)
-            D_blocks.append(X2T_)
+            X2_ = kron2(X_)
+            D_blocks.append(X2_.T)
             s = r*(r+1) // 2      # Dimension of compact Kronecker.
-            if X2T_.shape[1] != s:
-                raise ArithmeticError("get_x_sq() FAILED: incorrect size!")
+            if X2_.shape[0] != s:
+                raise ArithmeticError("kron_compact() FAILED: incorrect size!")
 
         if 'c' in self.modelform:
             D_blocks.append(np.ones(k).reshape((k,1)))
@@ -142,13 +168,13 @@ class ReducedModel:
         O = np.zeros((d, r))
         for j in range(r):
             O[:,j] = utils.normal_equations(D,
-                                                   Xdot_[j,:],
-                                                   reg,
-                                                   j).flatten()
+                                            Xdot_[j,:],
+                                            reg,
+                                            j).flatten()
 
         # Calculate residuals (squared Frobenius norms).
         self.residual_ = np.sum((D @ O - Xdot_.T)**2)
-        self.solution_ = np.sum(O.T**2)
+        # self.solution_ = np.sum(O**2)
 
         # Extract the reduced operators from O.
         i = 0
@@ -161,9 +187,8 @@ class ReducedModel:
         if 'Q' in self.modelform:
             self.F_ = O[i:i+s].T
             i += s
-            self.H_ = utils.F2H(self.F_)
         else:
-            self.F_, self.H_ = None, None
+            self.F_ = None
 
         if 'c' in self.modelform:
             self.c_ = O[i:i+1][0]       # Note that c_ is one-dimensional.
@@ -187,31 +212,38 @@ class ReducedModel:
             elif self.modelform == "Lc":
                 f_ = lambda t,x_: self.A_@x_ + self.c_
             elif self.modelform == "Q":
-                f_ = lambda t,x_: self.H_@np.kron(x_,x_)
+                f_ = lambda t,x_: self.F_@kron2(x_)
             elif self.modelform == "Qc":
-                f_ = lambda t,x_: self.H_@np.kron(x_,x_) + self.c_
+                f_ = lambda t,x_: self.F_@kron2(x_) + self.c_
             elif self.modelform == "LQ":
-                f_ = lambda t,x_: self.A_@x_ + self.H_@np.kron(x_,x_)
+                f_ = lambda t,x_: self.A_@x_ + self.F_@kron2(x_)
             elif self.modelform == "LQc":
-                f_ = lambda t,x_: self.A_@x_ + self.H_@np.kron(x_,x_) + self.c_
+                f_ = lambda t,x_: self.A_@x_ + self.F_@kron2(x_) + self.c_
             self.f_ = f_
 
         return self
 
+    @property
+    def H_(self):
+        """Matricized quadratic tensor; operates on full Kronecker product."""
+        return None if self.F_ is None else utils.F2H(self.F_)
+
     def predict(self, x0, t, u=None, **options):
-        """Simulate the learned ROM with scipy.integrate.solve_ivp(). See
-        docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp
+        """Simulate the learned ROM with scipy.integrate.solve_ivp().
 
         Parameters
         ----------
         x0 : (n,) ndarray
             The initial (high-dimensional) state vector to begin a simulation.
+
         t : (T,) ndarray
             The time domain over which to integrate the reduced-order system.
+
         u : callable OR (m,T) ndarray
             The input as a function of time (preferred) OR the input at the
             times `t`. If given as an array, u(t) is calculated by linearly
             interpolating known data points if needed for an adaptive solver.
+
         options
             Arguments for solver.integrate.solve_ivp(), such as the following:
             method : str
@@ -286,28 +318,28 @@ class ReducedModel:
                 f_ = lambda t,x_: self.A_@x_ + self.c_ + self.B_@u(t)
                 jac_ = lambda t,x_: self.A_
             elif self.modelform == "Q":
-                f_ = lambda t,x_: self.H_@np.kron(x_,x_) + self.B_@u(t)
+                f_ = lambda t,x_: self.F_@kron2(x_) + self.B_@u(t)
             elif self.modelform == "Qc":
-                f_ = lambda t,x_: self.H_@np.kron(x_,x_) + self.c_ + self.B_@u(t)
+                f_ = lambda t,x_: self.F_@kron2(x_) + self.c_ + self.B_@u(t)
             elif self.modelform == "LQ":
-                f_ = lambda t,x_: self.A_@x_ + self.H_@np.kron(x_,x_) + self.B_@u(t)
+                f_ = lambda t,x_: self.A_@x_ + self.F_@kron2(x_) + self.B_@u(t)
             elif self.modelform == "LQc":
-                f_ = lambda t,x_: self.A_@x_ + self.H_@np.kron(x_,x_) + self.c_ + self.B_@u(t)
+                f_ = lambda t,x_: self.A_@x_ + self.F_@kron2(x_) + self.c_ + self.B_@u(t)
             self.f_ = f_
 
         # Integrate the reduced-order model.
-        sol = solve_ivp(self.f_,            # Integrate f_(t,x)
-                        [t[0], t[-1]],      # over this time interval
-                        x0_,                # with this initial condition
-                        t_eval=t,           # evaluated at these points
-                        **options)          # with these solver options.
+        self.sol_ = solve_ivp(self.f_,          # Integrate f_(t,x)
+                              [t[0], t[-1]],    # over this time interval
+                              x0_,              # with this initial condition
+                              t_eval=t,         # evaluated at these points
+                              **options)        # with these solver options.
 
         # Raise errors if the integration failed.
-        if not sol.success:
-            raise IntegrationWarning(sol.message)
+        if not self.sol_.success:
+            raise IntegrationWarning(self.sol_.message)
 
         # Reconstruct the approximation to the full-order model.
-        return self.Vr @ sol.y
+        return self.Vr @ self.sol_.y
 
     def get_residual_norm(self):
         return self.residual_, self.solution_
