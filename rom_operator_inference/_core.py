@@ -5,7 +5,6 @@ import numpy as np
 from scipy.integrate import solve_ivp, IntegrationWarning
 
 from . import utils
-
 kron2 = utils.kron_compact
 
 
@@ -23,12 +22,12 @@ class ReducedModel:
     ----------
     modelform : str
         The structure of the desired reduced-order model. Options:
-        'L'    : linear model f(x) = Ax.
-        'Lc'   : linear model with a constant f(x) = Ax + c.
-        'Q'    : strictly quadratic model f(x) = Fx^2.
-        'Qc'   : strictly quadratic model with a constant f(x) = Fx^2 + c.
-        'LQ'   : linear quadratic model f(x) = Ax + Fx^2.
-        'LQc'  : linear quadratic model with a constant f(x) = Ax + Fx^2 + c.
+        'L'    : Linear model, f(x) = Ax.
+        'Lc'   : Linear model with constant, f(x) = Ax + c.
+        'Q'    : Quadratic model, f(x) = H(x⊗x).
+        'Qc'   : Quadratic model with constant, f(x) = H(x⊗x) + c.
+        'LQ'   : Linear-Quadratic model, f(x) = Ax + H(x⊗x).
+        'LQc'  : Linear-Quadratic model with constant, f(x) = Ax + H(x⊗x) + c.
 
     has_inputs : bool, optional, default: False.
         If True, assume the system has an additive input term u(t).
@@ -104,6 +103,7 @@ class ReducedModel:
 
         reg : float
             L2 regularization penalty. Solves min ||Do - r||_2 + reg*||Po||_2.
+
         TODO: P
 
         Returns
@@ -340,9 +340,6 @@ class ReducedModel:
 
         # Reconstruct the approximation to the full-order model.
         return self.Vr @ self.sol_.y
-
-    def get_residual_norm(self):
-        return self.residual_, self.solution_
 
     def __getitem__(self, key):
         """Return an operator of the learned model."""

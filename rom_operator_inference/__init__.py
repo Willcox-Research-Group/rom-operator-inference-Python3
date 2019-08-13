@@ -3,10 +3,10 @@
 Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
 """
 
-from .core import ReducedModel
+from ._core import ReducedModel
 from . import utils
 
 
 __all__ = ["ReducedModel", "utils"]
 
-__version__ = "0.2.3"
+__version__ = "0.3.0"
