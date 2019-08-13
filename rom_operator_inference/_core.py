@@ -2,6 +2,7 @@
 """Class for model order reduction of ODEs via operator inference."""
 
 import numpy as np
+from scipy import linalg as la
 from scipy.integrate import solve_ivp, IntegrationWarning
 
 from . import utils
@@ -102,9 +103,8 @@ class ReducedModel:
             Column-wise inputs corresponding to the snapshots.
 
         reg : float
-            L2 regularization penalty. Solves min ||Do - r||_2 + reg*||Po||_2.
-
-        TODO: P
+            L2 regularization penalty. If nonzero, the least squares problem
+            takes the form min_{x}||Ax - b||_2^2 + reg*||x||_2^2.
 
         Returns
         -------
@@ -164,17 +164,9 @@ class ReducedModel:
         D = np.hstack(D_blocks)
         d = D.shape[1]
 
-        # Solve for the reduced-order model operators.
-        O = np.zeros((d, r))
-        for j in range(r):
-            O[:,j] = utils.normal_equations(D,
-                                            Xdot_[j,:],
-                                            reg,
-                                            j).flatten()
-
-        # Calculate residuals (squared Frobenius norms).
-        self.residual_ = np.sum((D @ O - Xdot_.T)**2)
-        # self.solution_ = np.sum(O**2)
+        # Solve for the reduced-order model operators via least squares.
+        O, res = utils.lstsq_reg(D, Xdot_.T, reg)[0:2]
+        self.residual_ = np.sum(res)
 
         # Extract the reduced operators from O.
         i = 0

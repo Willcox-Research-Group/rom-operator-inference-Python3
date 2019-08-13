@@ -5,6 +5,59 @@ import numpy as np
 from scipy import linalg as la
 
 
+def lstsq_reg(A, b, reg=0):
+    """Solve the l2- (Tikhonov)-regularized ordinary least squares problem
+
+        min_{x} ||Ax - b||_2^2 + reg*||x||_2^2
+
+    by solving the equivalent ordinary least squares problem
+
+                || [   A   ]    _  [ b ] ||^2
+        min_{x} || [ reg*I ] x     [ 0 ] ||_2,
+
+    with scipy.linalg.lstsq().
+    See https://docs.scipy.org/doc/scipy/reference/linalg.html.
+
+    Parameters
+    ----------
+    A : (k,d) ndarray
+        The "left-hand side" matrix.
+
+    b : (k,) or (k,r) ndarray
+        The "right-hand side" vector. If `b` is a two-dimensional array, then r
+        independent least squares problems are solved.
+
+    reg : float
+        The l2/Tikhonov regularization factor.
+
+    Returns
+    -------
+    x : (d,) or (d,r) ndarray
+        The least squares solution. If `b` is a two-dimensional array, then
+        each column is a solution to the regularized least squares problem with
+        the corresponding column of b.
+
+    residual : float or (r,) ndarray
+        The residual of the regularized least squares problem. If `b` is a
+        two-dimensional array, then an array of residuals are returned that
+        correspond to the columns of b.
+
+    rank : int
+        Effective rank of `A`.
+
+    s : (min(k, d),) ndarray or None
+        Singular values of `A`.
+    """
+    if reg == 0:                    # Ordinary least squares.
+        return la.lstsq(A, b)
+    elif b.ndim == 1:               # Regularized least squares (1D RHS).
+        return la.lstsq(np.vstack((A, np.diag(np.full(d,np.sqrt(reg))))),
+                        np.concatenate((b, np.zeros(A.shape[1]))))
+    else:                           # Regularized least squares (2D RHS).
+        return la.lstsq(np.vstack((A, np.diag(np.full(d,np.sqrt(reg))))),
+                        np.vstack((b.T, np.zeros((d,r)))))
+
+
 def kron_compact(x):
     """Calculate the unique terms of the Kronecker product x ⊗ x.
 
@@ -45,48 +98,12 @@ def F2H(F):
     fj = 0
     for i in range(r):
         for j in range(i+1):
-            if i == j:      # Place column corresonding to unique term.
+            if i == j:      # Place column for unique term.
                 H[:,(i*r)+j] = F[:,fj]
-            else:           # Distribute columns corresponding to repeated terms.
+            else:           # Distribute columns for repeated terms.
                 fill = F[:,fj] / 2
                 H[:,(i*r)+j] = fill
                 H[:,(j*r)+i] = fill
             fj += 1
 
     return H
-
-
-def normal_equations(D, r, reg, num):
-    """Solve the normal equations corresponding to the regularized ordinary
-    least squares problem
-
-    minimize ||Do - r|| + k||Fo||
-
-    Parameters
-    ----------
-    D : (K, n+1+s) ndarray
-        Data matrix.
-    r : (K,1) ndarray
-        X dot data reduced.
-    k : float
-        Regularization parameter
-    num : int
-        Index of the OLS problem we are solving (0 ≤ num < r).
-
-    Returns
-    -------
-    o : (n+1+s,) ndarray
-        The least squares solution.
-    """
-    K,rps = D.shape
-
-    F = np.eye(rps)
-    F[num,num] = 0
-
-    pseudo = reg*F
-    rhs = np.zeros((rps))
-
-    Dplus = np.vstack((D,pseudo))
-    Rplus = np.vstack((r.reshape((-1,1)),rhs.reshape((-1,1))))
-
-    return la.lstsq(Dplus, Rplus)[0]

@@ -120,7 +120,7 @@ To solve for the linear operators on the right-hand side of the preceding equati
 
 Where **1** is a _k_-vector of 1's.
 This problem decouples into _r_ independent least-squares problems, so it is relatively inexpensive to solve.
-The code allows for a Tikhonov regularization factor to prevent numerical instabilities from dominating the computation.
+The code allows for a Tikhonov regularization factor (the `reg` keyword argument for `ReducedModel.predict()`) to reduce numerical instabilities.
 
 It can be shown [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104) that under some idealized assumptions, these inferred operators converge to the operators computed by explicit projection.
 The key idea, however, is that _the inferred operators can be cheaply computed without even knowing the full-order model_.
@@ -155,7 +155,7 @@ For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\wid
 ## Index of Notation
 
 We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
-In the code, a low-dimensional quantity ends with an underscore, which matches scikit-learn conventions for the `ReducedModel` class.
+In the code, a low-dimensional quantity ends with an underscore, so that the `ReducedModel` class follows some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects).
 
 #### Dimensions
 
@@ -193,7 +193,7 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}"/> | `xdot_` | <img src="https://latex.codecogs.com/svg.latex?r"/> | Reduced-order state velocity vector |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_\text{ROM}"/> | `x_ROM` | <img src="https://latex.codecogs.com/svg.latex?n"/> | Approximation to **x** produced by ROM |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{u}"/> | `u` | <img src="https://latex.codecogs.com/svg.latex?m"/> | Input vector  |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_()` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | ROM system operator |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_(t,x_)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | ROM system operator |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\otimes\mathbf{x}"/> | `np.kron(x,x)` | <img src="https://latex.codecogs.com/svg.latex?n^2"/> | Kronecker product of full state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}"/> | `np.kron(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?r^2"/>  | Kronecker product of reduced state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_compact(x_)` | <img src="https://latex.codecogs.com/svg.latex?s"/>  | Compact Kronecker product of reduced state (quadratic terms) |
@@ -220,7 +220,6 @@ t\ge 0 &= \text{time}\\
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{N}_i"/> | `Ni_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Bilinear state-input matrix for _i_th input | -->
 
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{C}"/> | `C_` | <img src="https://latex.codecogs.com/svg.latex?q\times%20r"/> | Learned output matrix | -->
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{E}"/> | `E_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Learned mass matrix | -->
 
 <!-- I_{a\times%20a}\in\mathbb{R}^{a\times a} | | identity matrix\\ -->
 <!-- \Sigma \in \mathbb{R}^{\ell\times\ell} &= \text{diagonal singular value matrix}\\ -->
