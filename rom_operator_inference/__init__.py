@@ -4,9 +4,8 @@ Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
 """
 
 from ._core import ReducedModel
-from . import utils
+from . import utils, pre #, post
 
+__all__ = ["ReducedModel", "utils", "pre"] #, "post"]
 
-__all__ = ["ReducedModel", "utils"]
-
-__version__ = "0.3.0"
+__version__ = "0.3.1"

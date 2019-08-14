@@ -21,14 +21,14 @@ class ReducedModel:
 
     Parameters
     ----------
-    modelform : str
+    modelform : str {'L', 'Lc', 'Q', 'Qc', 'LQ', 'LQc'}
         The structure of the desired reduced-order model. Options:
-        'L'    : Linear model, f(x) = Ax.
-        'Lc'   : Linear model with constant, f(x) = Ax + c.
-        'Q'    : Quadratic model, f(x) = H(x⊗x).
-        'Qc'   : Quadratic model with constant, f(x) = H(x⊗x) + c.
-        'LQ'   : Linear-Quadratic model, f(x) = Ax + H(x⊗x).
-        'LQc'  : Linear-Quadratic model with constant, f(x) = Ax + H(x⊗x) + c.
+        'L'   : Linear model, f(x) = Ax.
+        'Lc'  : Linear model with constant, f(x) = Ax + c.
+        'Q'   : Quadratic model, f(x) = H(x⊗x).
+        'Qc'  : Quadratic model with constant, f(x) = H(x⊗x) + c.
+        'LQ'  : Linear-Quadratic model, f(x) = Ax + H(x⊗x).
+        'LQc' : Linear-Quadratic model with constant, f(x) = Ax + H(x⊗x) + c.
 
     has_inputs : bool, optional, default: False.
         If True, assume the system has an additive input term u(t).

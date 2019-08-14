@@ -7,7 +7,7 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="rom_operator_inference-shanemcq18",
-    version="0.3.0",
+    version="0.3.1",
 
     # Package description, license, and keywords.
     description="Operator Inference for Data-Driven, Non-intrusive, Projection-based Model Reduction",
@@ -22,7 +22,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering",
         "Intended Audience :: Science/Research",
-        "Development Status :: 2 - Pre-Alpha",
+        "Development Status :: 3 - Alpha",
     ],
 
     # Humans to contact about this code.
@@ -36,12 +36,14 @@ setuptools.setup(
     install_requires=[
           "numpy",
           "scipy",
-          "h5py",           # TODO: eliminate dependency (isolate to exmaples).
+          "sklearn",
+          "numba",
       ],
     setup_requires=["pytest-runner"],
     test_suite="pytest",
     tests_require=[
         "pytest",
         "numpy",
+        "scipy",
     ],
 )
