@@ -45,7 +45,7 @@ def pod_basis(X, r, mode="arpack", **options):
 
 
 @_numba.jit(nopython=True)
-def _fwd4(Y, dt):
+def _fwd4(Y, dt):                                           # pragma: no cover
     """Compute the first column-wise derivative of a uniformly-spaced 2D array
     with a 4th order forward difference scheme.
 
@@ -63,7 +63,7 @@ def _fwd4(Y, dt):
 
 
 @_numba.jit(nopython=True)
-def _fwd6(Y, dt):
+def _fwd6(Y, dt):                                           # pragma: no cover
     """Compute the first column-wise derivative of a uniformly-spaced 2D array
     with a 6th order forward difference scheme.
 

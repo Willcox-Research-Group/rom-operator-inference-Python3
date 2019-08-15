@@ -1,5 +1,7 @@
 # core.py
 """Class for model order reduction of ODEs via operator inference."""
+# TODO: jacobians for each model form
+# TODO: complete test coverage
 
 import numpy as np
 from scipy import linalg as la
@@ -80,6 +82,7 @@ class ReducedModel:
     """
 
     _VALID_MODEL_FORMS = {"L", "Lc", "Q", "Qc", "LQ", "LQc"}
+    _VALID_KEYS = {"A_", "H_", "F_", "c_", "B_"}
 
     def __init__(self, modelform, has_inputs=False):
         self.modelform = modelform
@@ -99,8 +102,9 @@ class ReducedModel:
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
-        U : (m,k) ndarray
-            Column-wise inputs corresponding to the snapshots.
+        U : (m,k) or (k,) ndarray
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array.
 
         reg : float
             L2 regularization penalty. If nonzero, the least squares problem
@@ -147,16 +151,14 @@ class ReducedModel:
         if 'Q' in self.modelform:
             X2_ = kron2(X_)
             D_blocks.append(X2_.T)
-            s = r*(r+1) // 2      # Dimension of compact Kronecker.
-            if X2_.shape[0] != s:
-                raise ArithmeticError("kron_compact() FAILED: incorrect size!")
+            s = X2_.shape[0]    # = r(r+1)//2, size of the compact Kronecker.
 
         if 'c' in self.modelform:
             D_blocks.append(np.ones(k).reshape((k,1)))
 
         if self.has_inputs:
             if U.ndim == 1:
-                U = U.reshape((-1,k))
+                U = U.reshape((1,k))
             D_blocks.append(U.T)
             m = U.shape[0]
             self.m = m
@@ -193,9 +195,6 @@ class ReducedModel:
             i += self.m
         else:
             self.B_ = None
-
-        if i != d:
-            raise ArithmeticError("EXTRACTION FAILED: sizes don't match!")
 
         # Construct the complete ROM operator IF there are not control inputs.
         if not self.has_inputs:
@@ -249,7 +248,7 @@ class ReducedModel:
                     derivative.
                 * 'LSODA': Adams/BDF method with automatic stiffness detection
                     and switching. This wraps the Fortran solver from ODEPACK.
-            `max_step` : float
+            max_step : float
                 The maximimum allowed integration step size.
             See https://docs.scipy.org/doc/scipy/reference/integrate.html.
 
@@ -278,37 +277,55 @@ class ReducedModel:
         if self.has_inputs and u is None:
             raise ValueError("argument 'u' required since has_inputs=True")
 
+        # Check for consistency with fit().
+        if (self.has_inputs and self.B_ is None) or \
+           (not self.has_inputs and self.B_ is not None):
+            raise AttributeError("`has_inputs` attribute altered between fit()"
+                                 " and predict(); call fit() again to retrain")
+
         # Project initial conditions.
         x0_ = self.Vr.T @ x0
 
         # Interpret control input argument `u`.
         if self.has_inputs:
-            if not callable(u):         # Then u should an (m,T) array.
+            if callable(u):         # If u is a function, check output shape.
+                out = u(t[0])
+                if np.isscalar(out):
+                    if self.m == 1:     # u : R -> R, wrap output as array.
+                        _u = u
+                        u = lambda s: np.array([_u(s)])
+                    else:               # u : R -> R, but m != 1.
+                        raise ValueError("input function u() must return"
+                                         f" ndarray of shape (m,)={(self.m,)}")
+                elif not isinstance(out, np.ndarray):
+                    raise ValueError("input function u() must return"
+                                     f" ndarray of shape (m,)={(self.m,)}")
+                elif out.shape != (self.m,):
+                    message = "input function u() must return" \
+                              f" ndarray of shape (m,)={(self.m,)}"
+                    if self.m == 1:
+                        raise ValueError(message + " or scalar")
+                    raise ValueError(message)
+            else:                   # Then u should an (m,T) array.
                 U = np.atleast_2d(u.copy())
                 if U.shape != (self.m,T):
                     raise ValueError("invalid input shape "
-                                     f"({U.shape} != {(m,T)}")
-                def u(s):               # Write an interpolator function.
+                                     f"({U.shape} != {(self.m,T)}")
+                def u(s):
                     """Interpolant for the discrete data U, aligned with t"""
                     k = np.searchsorted(t, s)
-                    if np.isscalar(s):
-                        if k == 0 or k == T:
-                            return U[:,k]
-                        elif self.m == 1:
-                            return np.interp(s, t[k-1:k+1], U[0,k-1:k+1])
-                        return np.row_stack([np.interp(s, t[k-1:k+1],
-                                                          U[i,k-1:k+1])
-                                             for i in range(self.m)])
-                    else:
-                        return np.array([u(ss) for ss in s])
+                    if k == 0:
+                        return U[:,0]
+                    # elif k == T:          # This clause is never entered.
+                    #     return U[:,-1]
+                    return np.array([np.interp(s, t[k-1:k+1], U[i,k-1:k+1])
+                                                for i in range(self.m)])
 
-            # Construct the ROM operator if needed (waited for control inputs).
+            # Construct the ROM operator if needed (deferred due to u(t)).
             if self.modelform == "L":
                 f_ = lambda t,x_: self.A_@x_ + self.B_@u(t)
-                jac_ = lambda t,x_: self.A_
             elif self.modelform == "Lc":
                 f_ = lambda t,x_: self.A_@x_ + self.c_ + self.B_@u(t)
-                jac_ = lambda t,x_: self.A_
             elif self.modelform == "Q":
                 f_ = lambda t,x_: self.F_@kron2(x_) + self.B_@u(t)
             elif self.modelform == "Qc":
@@ -327,7 +344,7 @@ class ReducedModel:
                               **options)        # with these solver options.
 
         # Raise errors if the integration failed.
-        if not self.sol_.success:
+        if not self.sol_.success:               # pragma: no cover
             raise IntegrationWarning(self.sol_.message)
 
         # Reconstruct the approximation to the full-order model.
@@ -335,9 +352,8 @@ class ReducedModel:
 
     def __getitem__(self, key):
         """Return an operator of the learned model."""
-        valid_keys = {"A_", "H_", "F_", "c_", "B_"}
-        if key not in valid_keys:
-            raise KeyError(f"valid keys are {', '.join(valid_keys)}")
+        if key not in self._VALID_KEYS:
+            raise KeyError(f"valid keys are {self._VALID_KEYS}")
         elif key == "A_": return self.A_
         elif key == "H_": return self.H_
         elif key == "F_": return self.F_
@@ -346,19 +362,14 @@ class ReducedModel:
 
     def __str__(self):
         """String representation: the structure of the model."""
-
         if self.modelform not in self._VALID_MODEL_FORMS:
-            raise ValueError(f"invalid modelform '{self.modelform}'. "
-                             f"Options are {self._VALID_MODEL_FORMS}.")
+            raise ValueError(f"invalid modelform '{self.modelform}'; "
+                             f"valid options: {self._VALID_MODEL_FORMS}")
         out = []
-        if 'L' in self.modelform:
-            out.append("Ax(t)")
-        if 'Q' in self.modelform:
-            out.append("H(x ⊗ x)(t)")
-        if 'c' in self.modelform:
-            out.append("c")
-        if self.has_inputs:
-            out.append("Bu(t)")
+        if 'L' in self.modelform: out.append("Ax(t)")
+        if 'Q' in self.modelform: out.append("H(x ⊗ x)(t)")
+        if 'c' in self.modelform: out.append("c")
+        if self.has_inputs: out.append("Bu(t)")
 
         return "Reduced-order model structure: dx / dt = " + " + ".join(out)
 
