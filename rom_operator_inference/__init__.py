@@ -8,4 +8,4 @@ from . import utils, pre #, post
 
 __all__ = ["ReducedModel", "utils", "pre"] #, "post"]
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
