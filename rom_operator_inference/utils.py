@@ -28,7 +28,7 @@ def lstsq_reg(A, b, reg=0):
         independent least squares problems are solved.
 
     reg : float
-        The l2/Tikhonov regularization factor.
+        The l2 (Tikhonov) regularization factor.
 
     Returns
     -------
@@ -48,14 +48,22 @@ def lstsq_reg(A, b, reg=0):
     s : (min(k, d),) ndarray or None
         Singular values of `A`.
     """
-    if reg == 0:                    # Ordinary least squares.
+    if reg < 0:
+        raise ValueError("regularization parameter must be positive")
+    if b.ndim not in {1,2}:
+        raise ValueError("parameter `b` must be one- or two-dimensional")
+
+    # No regularization -> do ordinary least squares.
+    if reg == 0 or reg is None:
         return la.lstsq(A, b)
-    elif b.ndim == 1:               # Regularized least squares (1D RHS).
-        return la.lstsq(np.vstack((A, np.diag(np.full(d,np.sqrt(reg))))),
-                        np.concatenate((b, np.zeros(A.shape[1]))))
-    else:                           # Regularized least squares (2D RHS).
-        return la.lstsq(np.vstack((A, np.diag(np.full(d,np.sqrt(reg))))),
-                        np.vstack((b.T, np.zeros((d,r)))))
+
+    d = A.shape[1]
+    reg_I = np.diag(np.full(d, np.sqrt(reg)))           # reg * identity
+    pad = np.zeros(d) if b.ndim == 1 else np.zeros((d,b.shape[1]))
+    lhs = np.vstack((A, reg_I))
+    rhs = np.concatenate((b, pad))
+
+    return la.lstsq(lhs, rhs)
 
 
 def kron_compact(x):
