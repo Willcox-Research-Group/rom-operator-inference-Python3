@@ -57,12 +57,29 @@ def _fwd4(Y, dt):
     Returns
     -------
     dy0 : (n,) ndarray
-        Approximate derivative of Y at the first column, i.e., d Y[:,0] / dt.
+        Approximate derivative of Y at the first column, i.e., dY[:,0] / dt.
     """
-    return (−25*Y[:,0] + 48*Y[:,1] − 36*Y[:,2] + 16*Y[:,3] − 3*Y[:,4])/(12*dt)
+    return (-25*Y[:,0] + 48*Y[:,1] - 36*Y[:,2] + 16*Y[:,3] - 3*Y[:,4])/(12*dt)
 
-# TODO: _fwd6(Y, dt) for 6th order uniform differences
-# TODO: test_pre.py
+
+@_numba.jit(nopython=True)
+def _fwd6(Y, dt):
+    """Compute the first column-wise derivative of a uniformly-spaced 2D array
+    with a 6th order forward difference scheme.
+
+    Parameters
+    ----------
+    Y : (n,7) ndarray
+        The data to differentiate.
+
+    Returns
+    -------
+    dy0 : (n,) ndarray
+        Approximate derivative of Y at the first column, i.e., dY[:,0] / dt.
+    """
+    return (-147*Y[:,0] + 360*Y[:,1] - 450*Y[:,2] + 400*Y[:,3] \
+            - 225*Y[:,4] + 72*Y[:,5] - 10*Y[:,6]) / (60*dt)
+
 
 def compute_xdot_uniform(X, dt, order=2):
     """Approximate the time derivatives for a chunk of snapshots that are
@@ -90,21 +107,38 @@ def compute_xdot_uniform(X, dt, order=2):
     if order == 2:
         return np.gradient(X, dt, edge_order=2, axis=1)
 
-    elif order == 4:
-        Xdot = np.empty_like(X)
-
+    Xdot = np.empty_like(X)
+    if order == 4:
         # Central difference on interior
         Xdot[:,2:-2] = (X[:,:-4] - 8*X[:,1:-3] + 8*X[:,3:-1] - X[:,4:])/(12*dt)
 
         # Forward difference on the front.
-        Xdot[:,0] = _fwd4(X[:,:5])
-        Xdot[:,1] = _fwd4(X[:,1:6])
+        Xdot[:,0] = _fwd4(X[:,:5], dt)
+        Xdot[:,1] = _fwd4(X[:,1:6], dt)
 
         # Backward difference on the end.
-        Xdot[:,:-1] = _fwd4(X[:,-5:][:,::-1])[:,::-1]
-        Xdot[:,:-2] = _fwd4(X[:,-6:-1][:,::-1])[:,::-1]
+        Xdot[:,-1] = -_fwd4(X[:,-5:][:,::-1], dt)
+        Xdot[:,-2] = -_fwd4(X[:,-6:-1][:,::-1], dt)
 
-        return Xdot
+    elif order == 6:
+        # Central difference on interior
+        Xdot[:,3:-3] = (-X[:,:-6] + 9*X[:,1:-5] - 45*X[:,2:-4] \
+                        + 45*X[:,4:-2] - 9*X[:,5:-1] + X[:,6:]) / (60*dt)
+
+        # Forward difference on the front.
+        Xdot[:,0] = _fwd6(X[:,:7], dt)
+        Xdot[:,1] = _fwd6(X[:,1:8], dt)
+        Xdot[:,2] = _fwd6(X[:,2:9], dt)
+
+        # Backward difference on the end.
+        Xdot[:,-1] = -_fwd6(X[:,-7:][:,::-1], dt)
+        Xdot[:,-2] = -_fwd6(X[:,-8:-1][:,::-1], dt)
+        Xdot[:,-3] = -_fwd6(X[:,-9:-2][:,::-1], dt)
+
+    else:
+        raise ValueError(f"invalid order '{order}'")
+
+    return Xdot
 
 
 def compute_xdot(X, t):
