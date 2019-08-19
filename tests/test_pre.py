@@ -17,6 +17,16 @@ def set_up_basis_data():
     return np.random.random((n,k)) - .5
 
 
+def test_mean_shift(set_up_basis_data):
+    """Test pre.mean_shift()."""
+    X = set_up_basis_data
+    xbar, Xshifted = roi.pre.mean_shift(X)
+    assert xbar.shape == (X.shape[0],)
+    assert Xshifted.shape == X.shape
+    assert np.allclose(np.mean(Xshifted, axis=1), np.zeros(X.shape[0]))
+    assert np.allclose(xbar.reshape((-1,1)) + Xshifted, X)
+
+
 def test_pod_basis(set_up_basis_data):
     """Test pre.pod_basis() on a small case with the ARPACK solver."""
     X = set_up_basis_data
@@ -27,6 +37,10 @@ def test_pod_basis(set_up_basis_data):
     with pytest.raises(ValueError) as exc:
         roi.pre.pod_basis(X, r, mode="dense")
     assert exc.value.args[0] == "invalid mode 'dense'"
+
+    # Attempt with scipy.linalg.
+    Vr = roi.pre.pod_basis(X, r, mode="simple")
+    assert Vr.shape == (n,r)
 
     # Attempt with ARPACK.
     Vr = roi.pre.pod_basis(X, r, mode="arpack")
@@ -128,10 +142,10 @@ def set_up_nonuniform_difference_data():
     return DynamicState(t, Y, dY)
 
 
-def test_compute_xdot(set_up_nonuniform_difference_data):
+def test_compute_xdot_nonuniform(set_up_nonuniform_difference_data):
     """Test pre.compute_xdot()."""
     dynamicstate = set_up_nonuniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
-    dY_ = roi.pre.compute_xdot(Y, t)
+    dY_ = roi.pre.compute_xdot_nonuniform(Y, t)
     assert dY_.shape == Y.shape
     assert np.allclose(dY, dY_, atol=1e-4)

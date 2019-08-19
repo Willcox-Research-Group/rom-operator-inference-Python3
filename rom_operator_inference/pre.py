@@ -3,13 +3,37 @@
 
 import numpy as np
 import numba as _numba
+from scipy.linalg import svd as _svd
 from scipy.sparse.linalg import svds as _svds
 from sklearn.utils.extmath import randomized_svd as _rsvd
 
 
+def mean_shift(X):
+    """Compute the mean of the columns of X, then use it to shift the columns
+    so that they have mean zero.
+
+    Parameters
+    ----------
+    X : (n,k) ndarray
+        A matrix of k snapshots. Each column is a single snapshot.
+
+    Returns
+    -------
+    xbar : (n,) ndarray
+        The mean snapshot. Since this is a one-dimensional array, it must be
+        reshaped to be applied to a matrix: Xshifted + xbar.reshape((-1,1)).
+
+    Xshifted : (n,k) ndarray
+        The matrix such that Xshifted[:,j] + xbar = X[:,j] for j=1,2,...,k.
+    """
+    xbar = np.mean(X, axis=1)               # Compute the mean column.
+    Xshifted = X - xbar.reshape((-1,1))     # Subtract by the mean.
+    return xbar, Xshifted
+
+
 def pod_basis(X, r, mode="arpack", **options):
     """Compute the POD basis of rank r corresponding to the data in X.
-    This function does not shift or scale the data before computing the basis.
+    This function does NOT shift or scale the data before computing the basis.
 
     Parameters
     ----------
@@ -21,21 +45,29 @@ def pod_basis(X, r, mode="arpack", **options):
 
     mode : str
         The strategy to use for computing the truncated SVD. Options:
-        * "arpack": Use scipy.sparse.linalg.svds() to compute only the first r
-            left singular vectors of X. This uses ARPACK for the eigensolver.
+        * "simple": Use scipy.linalg.svd() to compute the entire SVD of X, then
+            truncate it to get the first r left singular vectors of X. May be
+            inefficient for very large matrices.
+        * "arpack" (default): Use scipy.sparse.linalg.svds() to compute only
+            the first r left singular vectors of X. This uses ARPACK for the
+            eigensolver.
         * "randomized": Compute an approximate SVD with a randomized approach
             using sklearn.utils.extmath.randomized_svd(). This gives faster
             results at the cost of some accuracy.
 
     options
-        Additional paramters for scipy.linalg.svds() if mode="arpack", or
-        sklearn.utils.extmath.randomized_svd() if mode="randomized".
+        Additional paramters for the SVD solver, which depends on `mode`:
+        * "simple": scipy.linalg.svd()
+        * "arpack": scipy.sparse.linalg.svds()
+        * "randomized": sklearn.utils.extmath.randomized_svd()
 
     Returns
     -------
     Vr : (n,r) ndarray
         The first r POD basis vectors of X. Each column is one basis vector.
     """
+    if mode == "simple":
+        return _svd(X, full_matrices=False, **options)[0][:,:r]
     if mode == "arpack":
         return _svds(X, r, which="LM", **options)[0][:,::-1]
     elif mode == "randomized":
@@ -140,8 +172,9 @@ def compute_xdot_uniform(X, dt, order=2):
 
     return Xdot
 
+compute_xdot = compute_xdot_uniform
 
-def compute_xdot(X, t):
+def compute_xdot_nonuniform(X, t):
     """Approximate the time derivatives for a chunk of snapshots with second-
     order finite differences.
 

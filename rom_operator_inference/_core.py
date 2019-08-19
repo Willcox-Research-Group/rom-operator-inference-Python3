@@ -1,7 +1,6 @@
-# core.py
+# _core.py
 """Class for model order reduction of ODEs via operator inference."""
 # TODO: jacobians for each model form
-# TODO: complete test coverage
 
 import numpy as np
 from scipy import linalg as la
