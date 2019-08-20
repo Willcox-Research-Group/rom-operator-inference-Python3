@@ -37,8 +37,12 @@ See [this repository](https://github.com/elizqian/operator-inference) for a MATL
 **Contents**
 - [**Problem Statement**](#problem-statement)
 - [**Quick Start**](#quick-start)
-- [**Documentation**](#documentation)
 - [**Examples**](#examples)
+- [**Documentation**](#documentation)
+    - [**ReducedModel Class**](#reducedmodel-class)
+    - [**Preprocessing**](#preprocessing-tools)
+    - [**Postprocessing**](#postprocessing-tools)
+    - [**Utilities**](#utilities)
 
 
 ## Problem Statement
@@ -97,7 +101,7 @@ $ pip3 install -i https://test.pypi.org/simple/ rom-operator-inference-shanemcq1
 
 _**This installation command is very temporary!**_
 
-#### Example
+#### Usage
 
 <!-- TODO: what are these variables?? -->
 
@@ -116,10 +120,25 @@ import rom_operator_inference as roi
 >>> X_ROM = lc_model.predict(X[:,0], t)
 ```
 
-See the [**Examples**](#examples) section for a list of complete working examples.
+
+## Examples
+
+_**WARNING: under construction!!**_
+
+The [`examples/`](examples/) folder contains scripts and notebooks that set up and run several examples:
+- `examples/TODO.ipynb`: The heat equation example from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
+- `examples/TODO.ipynb`: The Burgers' equation from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
+- `examples/TODO.ipynb`: The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
+This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions.
+- [`examples/heat_1D.ipynb`](examples/heat_1D.ipynb): A purely data-driven example using data generated from the heat equation. See [TODO: \[4\]].
+
+<!-- TODO: actual links to the folders or files -->
 
 
 ## Documentation
+
+**TODO**: The complete documentation at _\<insert link to sphinx-generated readthedocs page\>_.
+<!-- Here we include a short catalog of functions and their inputs. -->
 
 #### ReducedModel class
 
@@ -133,8 +152,8 @@ import rom_operator_inference as roi
 model = roi.ReducedModel(modelform, has_inputs)
 ```
 
-Here `modelform` is a string denoting the structure of
-the desired ROM with the following options.
+Here `modelform` is one of the following strings denoting the structure of
+the desired ROM.
 
 | `modelform` | Model Description | Model Equation |
 | :------- | :---------------- | :------------- |
@@ -153,10 +172,8 @@ The `has_inputs` argument is a boolean (`True` or `False`) denoting whether or n
     squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
 Parameters:
     - `X`: Snapshot matrix of solutions to the full-order model. Each column is one snapshot.
-    - `Xdot`: Snapshot velocity of solutions to the full-order model. Each column is the velocity `dx / dt` for the corresponding column of `X`.
-    <!-- See [TODO] for some simple derivative approximation tools. -->
-    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`.
-    <!-- See [TODO] for a POD basis computer. -->
+    - `Xdot`: Snapshot velocity of solutions to the full-order model. Each column is the velocity `dx / dt` for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
+    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `U`: Input matrix. Each column is the input for the corresponding column of `X`. Only required when `has_inputs=True`.
     - `reg`: Tikhonov regularization factor for the least squares problem.
 
@@ -166,33 +183,52 @@ Parameters:
     - `u`: The input as a function of time. Alternatively, a matrix aligned with the time domain `t` where each column is the input at the corresonding time.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 
-<!-- TODO: new files for pre- and post-processing? pre.py, post.py -->
+##### Attributes
 
-<!-- - `relative_error(prediction, truth, thresh=1e-10)`: Compute the relative error between predicted data and true data, i.e.,
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\frac{||\texttt{truth}-\texttt{prediction}||}{||\texttt{truth}||}"./></p> Computes absolute error (numerator only) in the case that <img src="https://latex.codecogs.com/svg.latex?||\texttt{truth}||<\texttt{thresh}."/> -->
+- Hyperparameters: `modelform` and `has_inputs`, set in the [constructor](#constructor).
+
+- Dimensions:
+    - `n`: The dimension of the original model
+    - `r`: The dimension of the learned reduced-order model
+    - `m`: The dimension of the input u(t), or `None` if `has_inputs` is `False`.
+
+- Reduced operators `A_`, `H_`, `F_`, `c_`, and `B_`: the `numpy.ndarray` objects corresponding to the learned parts of the reduced-order model. Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="LQ"`, then `c_` is `None`). Accessible as attributes (`model.A_`) or by indexing (`model['A_']`).
+
+#### Preprocessing Tools
+
+The `pre` submodule is a collection of common routines for preparing data to be used by the `ReducedModel` class.
+None of these routines are novel, but they may be instructive for new Python users.
+
+- `pre.mean_shift(X)`: Compute the mean of the columns of `X` and shift `X` by that mean so that the result has mean column of zero.
+
+- `pre.pod_basis(X, r, mode="arpack", **options)`: Compute the POD basis of rank `r` for a snapshot matrix `X`.
+
+- `pre.xdot_uniform(X, dt, order=2)`: Compute an approximate first derivative for a snapshot matrix `X` in which the snapshots are evenly spaced in time.
+
+- `pre.xdot_nonuniform(X, t)`: Compute an approximate first derivative for a snapshot matrix `X` in which the snapshots are **not** evenly spaced in time.
+
+- `pre.xdot(X, *args, **kwargs)`: Calls `pre.xdot_uniform()` or `pre.xdot_nonuniform()`, depending on the arguments.
+
+
+#### Postprocessing Tools
+
+The `post` submodule is a collection of common routines for computing the absolute and relative errors produced by an ROM approximation.
+Given a norm, "true" data _X_, and an approximation _Y_ to _X_, these errors are defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?\texttt{abs\_err}=||X-Y||,\qquad\texttt{rel\_err}=\frac{\texttt{abs\_err}}{||X||}=\frac{||X-Y||}{||X||}."/></p>
+
+- `post.discrete_error(X, Y)`: Compute the absolute and relative _l_<sup>_2_</sup>-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
+The _l_<sup>_2_</sup> norm is the usual Euclidean norm, <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}||_{\ell^2}=\sqrt{\sum_{i=1}^n|x_{i}|^2}."/></p>
+
+- `post.continuous_error(X, Y, t)`: Approximate the absolute and relative _L_<sup>_2_</sup>-norm errors between snapshot sets `X` and `Y` corresponding to times `t`, assuming `Y` is an approximation to `X`.
+The _L_<sup>_2_</sup> norm is approximated by the trapezoidal rule: <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}(\cdot)||_{L^2([0,T])}=\sqrt{\int_0^T||\mathbf{x}(t)||_{\ell^2}^2\:dt}\approx\Delta%20t\left(\frac{1}{2}\|\mathbf{x}(t_0)\|_{\ell^2}^2+\sum_{j=1}^{k-1}\|\mathbf{x}(t_j)\|_{\ell^2}^2+\frac{1}{2}\|\mathbf{x}(t_k)\|_{\ell^2}^2\right)."/></p>
 
 #### Utility Functions
 
 These functions are helper routines that are used internally for `ReducedModel.fit()` or `ReducedModel.predict()`.
 See [DETAILS.md](DETAILS.md) for more mathematical explanation.
 
-- `utils.lstsq_reg(A, b, reg)`: Solve the Tikhonov-regularized ordinary least squares problem
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}}{\text{min}}||A\mathbf{x}-\mathbf{b}||_2^2+\lambda||\mathbf{x}_i||_2^2."/></p>
+- `utils.lstsq_reg(A, b, reg=0)`: Solve the Tikhonov-regularized ordinary least squares problem
+<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}}{\text{min}}||A\mathbf{x}-\mathbf{b}||_2^2+\lambda||\mathbf{x}||_2^2."/></p>
 
 -  `utils.kron_compact(x)`: Compute the column-wise compact Kronecker product of `x`.
 
--  `F2H(F)`: Convert the compact matricized quadratic operator `F` to the full, symmetric, matricezed quadratic operator `H`.
-
-
-## Examples
-
-_**WARNING: under construction!!**_
-
-The [`examples/`](examples/) folder contains scripts and notebooks that set up and run several examples:
-- `examples/TODO.ipynb`: The heat equation example from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
-- `examples/TODO.ipynb`: The Burgers' equation from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
-- `examples/TODO.ipynb`: The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
-This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions.
-- [`examples/heat_1D.ipynb`](examples/heat_1D.ipynb): A purely data-driven example using data generated from the heat equation. See [TODO: \[4\]].
-
-<!-- TODO: actual links to the folders or files -->
+-  `utils.F2H(F)`: Convert the compact matricized quadratic operator `F` to the full, symmetric, matricized quadratic operator `H`.
