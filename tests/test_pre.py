@@ -9,7 +9,7 @@ from collections import namedtuple
 import rom_operator_inference as roi
 
 
-# Basis calculation -----------------------------------------------------------
+# Basis calculation ===========================================================
 @pytest.fixture
 def set_up_basis_data():
     n = 200
@@ -38,16 +38,16 @@ def test_pod_basis(set_up_basis_data):
     n,k = X.shape
     r = k // 10
 
-    # Attempt an invalid mode.
+    # Try with an invalid mode.
     with pytest.raises(NotImplementedError) as exc:
         roi.pre.pod_basis(X, r, mode="dense")
     assert exc.value.args[0] == "invalid mode 'dense'"
 
-    # Attempt with scipy.linalg.
+    # Via scipy.linalg.svd().
     Vr = roi.pre.pod_basis(X, r, mode="simple")
     assert Vr.shape == (n,r)
 
-    # Attempt with ARPACK.
+    # Via scipy.sparse.linalg.svds() (ARPACK).
     Vr = roi.pre.pod_basis(X, r, mode="arpack")
     assert Vr.shape == (n,r)
 
@@ -57,13 +57,13 @@ def test_pod_basis(set_up_basis_data):
             Ur[:,j] = -Ur[:,j]
     assert np.allclose(Vr, Ur)
 
-    # Attempt with randomized_svd().
+    # Via sklearn.utils.extmath.randomized_svd().
     Vr = roi.pre.pod_basis(X, r, mode="randomized")
     assert Vr.shape == (n,r)
     # No accuracy test, since that is not guaranteed by randomized SVD.
 
 
-# Differentiation routines ----------------------------------------------------
+# Differentiation routines ====================================================
 DynamicState = namedtuple("DynamicState", ["time", "state", "derivative"])
 
 def _difference_data(t):
@@ -138,51 +138,106 @@ def test_fwd6(set_up_uniform_difference_data):
         assert dY0 == dYj[0]
 
 
-def test_compute_xdot_uniform(set_up_uniform_difference_data):
-    """Test pre.compute_xdot_uniform()."""
+def test_xdot_uniform(set_up_uniform_difference_data):
+    """Test pre.xdot_uniform()."""
     dynamicstate = set_up_uniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
     dt = t[1] - t[0]
     for o in [2, 4, 6]:
-        dY_ = roi.pre.compute_xdot_uniform(Y, dt, order=o)
+        dY_ = roi.pre.xdot_uniform(Y, dt, order=o)
         assert dY_.shape == Y.shape
-        print("(order, error):", (o, np.linalg.norm(dY - dY_)))
         assert np.allclose(dY, dY_, atol=1e-4)
 
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
-        roi.pre.compute_xdot_uniform(Y[:,0], dt, order=2)
+        roi.pre.xdot_uniform(Y[:,0], dt, order=2)
     assert exc.value.args[0] == "data X must be two-dimensional"
 
     # Try with bad order.
     with pytest.raises(NotImplementedError) as exc:
-        roi.pre.compute_xdot_uniform(Y, dt, order=-1)
-    assert exc.value.args[0] == "invalid order '-1'"
+        roi.pre.xdot_uniform(Y, dt, order=-1)
+    assert exc.value.args[0] == "invalid order '-1'; valid options: {2, 4, 6}"
 
     # Try with bad dt type.
     with pytest.raises(TypeError) as exc:
-        roi.pre.compute_xdot_uniform(Y, np.array([dt, 2*dt]), order=-1)
+        roi.pre.xdot_uniform(Y, np.array([dt, 2*dt]), order=-1)
     assert exc.value.args[0] == "time step dt must be a scalar (e.g., float)"
 
 
-def test_compute_xdot_nonuniform(set_up_nonuniform_difference_data):
-    """Test pre.compute_xdot()."""
+def test_xdot_nonuniform(set_up_nonuniform_difference_data):
+    """Test pre.xdot_nonuniform()."""
     dynamicstate = set_up_nonuniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
-    dY_ = roi.pre.compute_xdot_nonuniform(Y, t)
+    dY_ = roi.pre.xdot_nonuniform(Y, t)
     assert dY_.shape == Y.shape
     assert np.allclose(dY, dY_, atol=1e-4)
 
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
-        roi.pre.compute_xdot_nonuniform(Y[:,0], t)
+        roi.pre.xdot_nonuniform(Y[:,0], t)
     assert exc.value.args[0] == "data X must be two-dimensional"
 
     # Try with bad time shape.
     with pytest.raises(ValueError) as exc:
-        roi.pre.compute_xdot_nonuniform(Y, np.dstack((t,t)))
+        roi.pre.xdot_nonuniform(Y, np.dstack((t,t)))
     assert exc.value.args[0] == "time t must be one-dimensional"
 
     with pytest.raises(ValueError) as exc:
-        roi.pre.compute_xdot_nonuniform(Y, np.hstack((t,t)))
+        roi.pre.xdot_nonuniform(Y, np.hstack((t,t)))
     assert exc.value.args[0] == "data X not aligned with time t"
+
+
+def test_xdot(set_up_uniform_difference_data,
+              set_up_nonuniform_difference_data):
+    """Test pre.xdot()."""
+    # Uniform tests.
+    dynamicstate = set_up_uniform_difference_data
+    t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
+    dt = t[1] - t[0]
+
+    def _single_test(*args, **kwargs):
+        dY_ = roi.pre.xdot(*args, **kwargs)
+        assert dY_.shape == Y.shape
+        assert np.allclose(dY, dY_, atol=1e-4)
+
+    _single_test(Y, dt)
+    _single_test(Y, dt=dt)
+    for o in [2, 4, 6]:
+        _single_test(Y, dt, o)
+        _single_test(Y, dt, order=o)
+        _single_test(Y, dt=dt, order=o)
+        _single_test(Y, order=o, dt=dt)
+        _single_test(Y, t)
+
+    # Nonuniform tests.
+    dynamicstate = set_up_nonuniform_difference_data
+    t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
+
+    _single_test(Y, t)
+    _single_test(Y, t=t)
+
+    # Try with bad arguments.
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y)
+    assert exc.value.args[0] == \
+        "at least one other argument required (dt or t)"
+
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y, order=2)
+    assert exc.value.args[0] == \
+        "keyword argument 'order' requires float argument dt"
+
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y, other=2)
+    assert exc.value.args[0] == \
+        "xdot() got unexpected keyword argument 'other'"
+
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y, 2)
+    assert exc.value.args[0] == \
+        "invalid argument type '<class 'int'>'"
+
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y, dt, 4, None)
+    assert exc.value.args[0] == \
+        "xdot() takes from 2 to 3 positional arguments but 4 were given"

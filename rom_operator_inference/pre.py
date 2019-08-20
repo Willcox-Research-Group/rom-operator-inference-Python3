@@ -127,7 +127,7 @@ def _fwd6(y, dt):                                           # pragma: no cover
                                               + 72*y[5] - 10*y[6]) / (60*dt)
 
 
-def compute_xdot_uniform(X, dt, order=2):
+def xdot_uniform(X, dt, order=2):
     """Approximate the time derivatives for a chunk of snapshots that are
     uniformly spaced in time.
 
@@ -181,14 +181,13 @@ def compute_xdot_uniform(X, dt, order=2):
             Xdot[:,-j-1] = -_fwd6(X[:,-j-7:k-j].T[::-1], dt)    # Backward
 
     else:
-        raise NotImplementedError(f"invalid order '{order}'")
+        raise NotImplementedError(f"invalid order '{order}'; "
+                                  "valid options: {2, 4, 6}")
 
     return Xdot
 
-compute_xdot = compute_xdot_uniform                 # Slightly shorter alias.
 
-
-def compute_xdot_nonuniform(X, t):
+def xdot_nonuniform(X, t):
     """Approximate the time derivatives for a chunk of snapshots with a
     second-order finite difference scheme.
 
@@ -200,7 +199,7 @@ def compute_xdot_nonuniform(X, t):
 
     t : (k,) ndarray
         The times corresponding to the snapshots. May not be uniformly spaced.
-        See compute_xdot_uniform() for higher-order computation in the case of
+        See xdot_uniform() for higher-order computation in the case of
         evenly-spaced-in-time snapshots.
 
     Returns
@@ -219,3 +218,70 @@ def compute_xdot_nonuniform(X, t):
 
     # Compute the derivative with a second-order difference scheme.
     return np.gradient(X, t, edge_order=2, axis=-1)
+
+
+def xdot(X, *args, **kwargs):
+    """Approximate the time derivatives for a chunk of snapshots with a finite
+    difference scheme. Calls xdot_uniform() or xdot_nonuniform(), depending on
+    the arguments.
+
+    Parameters
+    ----------
+    X : (n,k) ndarray
+        The data to estimate the derivative of. The jth column is a snapshot
+        that corresponds to the jth time step, i.e., X[:,j] = x(t[j]).
+
+    Additional parameters
+    ---------------------
+    dt : float
+        The time step between the snapshots, i.e., t[j+1] - t[j] = dt.
+    order : int {2, 4, 6} (optional)
+        The order of the derivative approximation.
+        See https://en.wikipedia.org/wiki/Finite_difference_coefficient.
+
+    OR
+
+    t : (k,) ndarray
+        The times corresponding to the snapshots. May or may not be uniformly
+        spaced.
+
+    Returns
+    -------
+    Xdot : (n,k) ndarray
+        Approximate time derivative of the snapshot data. The jth column is
+        the derivative dx / dt corresponding to the jth snapshot, X[:,j].
+    """
+    n_args = len(args)          # Number of positional arguments (excluding X).
+    n_kwargs = len(kwargs)      # Number of keyword arguments.
+    n_total = n_args + n_kwargs # Total number of arguments (excluding X).
+
+    if n_total == 0:
+        raise TypeError("at least one other argument required (dt or t)")
+    elif n_total == 1:              # There is only one other argument.
+        if n_kwargs == 1:               # It is a keyword argument.
+            arg_name = list(kwargs.keys())[0]
+            if arg_name == "dt":
+                func = xdot_uniform
+            elif arg_name == "t":
+                func = xdot_nonuniform
+            elif arg_name == "order":
+                raise TypeError("keyword argument 'order' requires float "
+                                "argument dt")
+            else:
+                raise TypeError("xdot() got unexpected keyword argument "
+                                f"'{arg_name}'")
+        elif n_args == 1:               # It is a positional argument.
+            arg = args[0]
+            if isinstance(arg, float):          # arg = dt.
+                func = xdot_uniform
+            elif isinstance(arg, np.ndarray):   # arg = t; do uniformity test.
+                func = xdot_nonuniform
+            else:
+                raise TypeError(f"invalid argument type '{type(arg)}'")
+    elif n_total == 2:              # There are two other argumetns: dt, order.
+        func = xdot_uniform
+    else:
+        raise TypeError("xdot() takes from 2 to 3 positional arguments "
+                        f"but {n_total+1} were given")
+
+    return func(X, *args, **kwargs)
