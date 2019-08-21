@@ -217,6 +217,7 @@ Given a norm, "true" data _X_, and an approximation _Y_ to _X_, these errors are
 
 - `post.discrete_error(X, Y)`: Compute the absolute and relative _l_<sup>_2_</sup>-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
 The _l_<sup>_2_</sup> norm is the usual Euclidean norm, <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}||_{\ell^2}=\sqrt{\sum_{i=1}^n|x_{i}|^2}."/></p>
+The errors are calculated for each pair of columns of `X` and `Y`.
 
 - `post.continuous_error(X, Y, t)`: Approximate the absolute and relative _L_<sup>_2_</sup>-norm errors between snapshot sets `X` and `Y` corresponding to times `t`, assuming `Y` is an approximation to `X`.
 The _L_<sup>_2_</sup> norm is approximated by the trapezoidal rule: <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}(\cdot)||_{L^2([0,T])}=\sqrt{\int_0^T||\mathbf{x}(t)||_{\ell^2}^2\:dt}\approx\Delta%20t\left(\frac{1}{2}\|\mathbf{x}(t_0)\|_{\ell^2}^2+\sum_{j=1}^{k-1}\|\mathbf{x}(t_j)\|_{\ell^2}^2+\frac{1}{2}\|\mathbf{x}(t_k)\|_{\ell^2}^2\right)."/></p>
@@ -227,7 +228,10 @@ These functions are helper routines that are used internally for `ReducedModel.f
 See [DETAILS.md](DETAILS.md) for more mathematical explanation.
 
 - `utils.lstsq_reg(A, b, reg=0)`: Solve the Tikhonov-regularized ordinary least squares problem
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}}{\text{min}}||A\mathbf{x}-\mathbf{b}||_2^2+\lambda||\mathbf{x}||_2^2."/></p>
+<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}\in\mathbb{R}^n}{\text{min}}||A\mathbf{x}-\mathbf{b}||_{\ell^2}^2+\lambda||\mathbf{x}||_{\ell^2}^2,"/></p>
+
+  where λ is the regularization factor `reg`. If `b` is a matrix, call it _B_, then solve the regularized least squares problem
+<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{X\in\mathbb{R}^{n\times%20n}}{\text{min}}||AX-B||_{F}^2+\lambda||X||_{F}^2,"/></p>
 
 -  `utils.kron_compact(x)`: Compute the column-wise compact Kronecker product of `x`.
 
