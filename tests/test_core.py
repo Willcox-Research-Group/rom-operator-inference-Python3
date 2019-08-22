@@ -8,7 +8,7 @@ from scipy import linalg as la
 import rom_operator_inference as roi
 
 
-def _get_data(n=200, k=100, m=20):
+def _get_data(n=2000, k=500, m=20):
     X = np.random.random((n,k))
     Xdot = np.zeros((n,k))
     U = np.ones((m,k))

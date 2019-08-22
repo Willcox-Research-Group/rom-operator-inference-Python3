@@ -43,7 +43,7 @@ def test_lstsq_reg(n_tests=20):
     # Negative regularization parameter not allowed.
     with pytest.raises(ValueError) as exc:
         roi.utils.lstsq_reg(None, None, -1)
-    assert exc.value.args[0] == "regularization parameter must be positive"
+    assert exc.value.args[0] == "regularization parameter must be nonnegative"
 
     # b must be one- or two-dimensional
     with pytest.raises(ValueError) as exc:

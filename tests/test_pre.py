@@ -5,6 +5,7 @@ import pytest
 import numpy as np
 from scipy import linalg as la
 from collections import namedtuple
+from matplotlib import pyplot as plt
 
 import rom_operator_inference as roi
 
@@ -12,8 +13,8 @@ import rom_operator_inference as roi
 # Basis calculation ===========================================================
 @pytest.fixture
 def set_up_basis_data():
-    n = 200
-    k = 50
+    n = 2000
+    k = 500
     return np.random.random((n,k)) - .5
 
 
@@ -26,10 +27,72 @@ def test_mean_shift(set_up_basis_data):
     assert np.allclose(np.mean(Xshifted, axis=1), np.zeros(X.shape[0]))
     assert np.allclose(xbar.reshape((-1,1)) + Xshifted, X)
 
-    # Try using bad data shape.
+    # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
         roi.pre.mean_shift(np.random.random((3,3,3)))
     assert exc.value.args[0] == "data X must be two-dimensional"
+
+
+def test_significant_svdvals(set_up_basis_data):
+    """Test pre.significant_svdvals()."""
+    X = set_up_basis_data
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.significant_svdvals(np.ravel(X), 1e-14, plot=False)
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Single cutoffs.
+    r = roi.pre.significant_svdvals(X, 1e-14, plot=False)
+    assert isinstance(r, int) and r >= 1
+
+    # Multiple cutoffss.
+    rs = roi.pre.significant_svdvals(X, [1e-10, 1e-12], plot=False)
+    assert isinstance(rs, list)
+    for r in rs:
+        assert isinstance(r, int) and r >= 1
+    assert rs == sorted(rs)
+
+    # Plotting.
+    status = plt.isinteractive()
+    plt.ion()
+    rs = roi.pre.significant_svdvals(X, .0001, plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    rs = roi.pre.significant_svdvals(X, [1e-4, 1e-8, 1e-12], plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    plt.interactive(status)
+    plt.close("all")
+
+
+def test_energy_capture(set_up_basis_data):
+    """Test pre.energy_capture()."""
+    X = set_up_basis_data
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.energy_capture(np.ravel(X), .99)
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Single threshold.
+    r = roi.pre.energy_capture(X, .9, plot=False)
+    assert isinstance(r, np.int64) and r >= 1
+
+    # Multiple thresholds.
+    rs = roi.pre.energy_capture(X, [.9, .99, .999], plot=False)
+    assert isinstance(rs, list)
+    for r in rs:
+        assert isinstance(r, np.int64) and r >= 1
+    assert rs == sorted(rs)
+
+    # Plotting.
+    status = plt.isinteractive()
+    plt.ion()
+    rs = roi.pre.energy_capture(X, .999, plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    rs = roi.pre.energy_capture(X, [.9, .99, .999], plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    plt.interactive(status)
+    plt.close("all")
 
 
 def test_pod_basis(set_up_basis_data):
@@ -43,18 +106,19 @@ def test_pod_basis(set_up_basis_data):
         roi.pre.pod_basis(X, r, mode="dense")
     assert exc.value.args[0] == "invalid mode 'dense'"
 
+    Ur = la.svd(X)[0][:,:r]
+
     # Via scipy.linalg.svd().
     Vr = roi.pre.pod_basis(X, r, mode="simple")
     assert Vr.shape == (n,r)
+    assert np.allclose(Vr, Ur)
 
     # Via scipy.sparse.linalg.svds() (ARPACK).
     Vr = roi.pre.pod_basis(X, r, mode="arpack")
     assert Vr.shape == (n,r)
-
-    Ur = la.svd(X)[0][:,:r]
     for j in range(r):              # Make sure the columns have the same sign.
         if not np.isclose(Ur[0,j], Vr[0,j]):
-            Ur[:,j] = -Ur[:,j]
+            Vr[:,j] = -Vr[:,j]
     assert np.allclose(Vr, Ur)
 
     # Via sklearn.utils.extmath.randomized_svd().

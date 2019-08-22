@@ -49,7 +49,7 @@ def lstsq_reg(A, b, reg=0):
         Singular values of `A`.
     """
     if reg < 0:
-        raise ValueError("regularization parameter must be positive")
+        raise ValueError("regularization parameter must be nonnegative")
     if b.ndim not in {1,2}:
         raise ValueError("parameter `b` must be one- or two-dimensional")
 

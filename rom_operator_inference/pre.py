@@ -1,19 +1,13 @@
 # pre.py
-"""Tools for pre-processing data """
+"""Tools for preprocessing data."""
 
-import numpy as np
+import numpy as _np
+import numba as _numba
+from matplotlib import pyplot as _plt
+
 from scipy.linalg import svd as _svd
 from scipy.sparse.linalg import svds as _svds
 from sklearn.utils.extmath import randomized_svd as _rsvd
-
-# Attempt to import numba (not included in the default requirements list).
-try:
-    import numba as _numba
-except ImportError:                                         # pragma: no cover
-    # If numba isn't installed, make an empty decorator in its place.
-    def _numba(): pass
-    def _jit(nopython=True): return lambda x: x
-    _numba.jit = _jit
 
 
 # Basis computation ===========================================================
@@ -39,12 +33,114 @@ def mean_shift(X):
     if X.ndim != 2:
         raise ValueError("data X must be two-dimensional")
 
-    xbar = np.mean(X, axis=1)               # Compute the mean column.
+    xbar = _np.mean(X, axis=1)               # Compute the mean column.
     Xshifted = X - xbar.reshape((-1,1))     # Shift the columns by the mean.
     return xbar, Xshifted
 
 
-def pod_basis(X, r, mode="arpack", **options):
+def significant_svdvals(X, eps, plot=False):
+    """Count the number of singular values of X that are greater than eps.
+
+    Parameters
+    ----------
+    X : (n,k) ndarray
+        A matrix of k snapshots. Each column is a single snapshot.
+
+    eps : float or list(floats)
+        Cutoff value(s) for the singular values of X.
+
+    plot : bool
+        If True, plot the singular values and the cutoff value(s) against the
+        singular value index.
+
+    Returns
+    -------
+    ranks : int or list(int)
+        The number of singular values greater than the cutoff value(s).
+    """
+    # Check dimensions.
+    if X.ndim != 2:
+        raise ValueError("data X must be two-dimensional")
+
+    # Calculate the number of singular values above the cutoff value(s).
+    singular_values = _svd(X, compute_uv=False)
+    one_eps = _np.isscalar(eps)
+    if one_eps:
+        eps = [eps]
+    barriers = [_np.count_nonzero(singular_values > ep) for ep in eps]
+
+    if plot:
+        # Visualize singular values and cutoff value(s).
+        fig, ax = _plt.subplots(1, 1, sharex=True, figsize=(12,4))
+        j = _np.arange(1, singular_values.size + 1)
+        ax.semilogy(j, singular_values, 'C0*', ms=4, zorder=3)
+        ylim = ax.get_ylim()
+        for ep,br in zip(eps, barriers):
+            ax.hlines(ep, 1, br, color="black", linewidth=1)
+            ax.vlines(br, ylim[0], ep, color="black", linewidth=1)
+        ax.axis((1,j.size) + ylim)
+        ax.set_xlabel(r"Singular value index $j$")
+        ax.set_ylabel(r"Singular value $\sigma_j$")
+
+    return barriers[0] if one_eps else barriers
+
+
+def energy_capture(X, thresh, plot=False):
+    """Compute the number of singular values of X needed to surpass a given
+    energy threshold. The energy of j singular values is defined by
+
+        energy_j = sum(singular_values[:j]) / sum(singular_values).
+
+    Parameters
+    ----------
+    X : (n,k) ndarray
+        A matrix of k snapshots. Each column is a single snapshot.
+
+    thresh : float or list(floats)
+        Energy capture threshold(s).
+
+    plot : bool
+        If True, plot the singular values and the energy capture against
+        the singular value index.
+
+    Returns
+    -------
+    ranks : int or list(int)
+        The number of singular values required to capture more than each
+        energy capture threshold.
+    """
+    # Check dimensions.
+    if X.ndim != 2:
+        raise ValueError("data X must be two-dimensional")
+
+    # Calculate singular values and cumulative energy.
+    singular_values = _svd(X, compute_uv=False)
+    svdvals2 = singular_values**2
+    cumulative_energy = _np.cumsum(svdvals2) / _np.sum(svdvals2)
+
+    # Determine the points at which the cumulative energy is
+    one_thresh = _np.isscalar(thresh)
+    if one_thresh:
+        thresh = [thresh]
+    barriers = [_np.searchsorted(cumulative_energy, th) + 1 for th in thresh]
+
+    if plot:
+        # Visualize cumulative energy and threshold value(s).
+        fig, ax = _plt.subplots(1, 1, sharex=True, figsize=(12,4))
+        j = _np.arange(1, singular_values.size + 1)
+        ax.semilogy(j, cumulative_energy, 'C1.-', ms=4, zorder=3)
+        ylim = ax.get_ylim()
+        for th,br in zip(thresh, barriers):
+            ax.hlines(th, 1, br, color="black", linewidth=1)
+            ax.vlines(br, ylim[0], th, color="black", linewidth=1)
+        ax.axis((1,j.size) + ylim)
+        ax.set_xlabel(r"Singular value index $j$")
+        ax.set_ylabel(r"Cumulative energy")
+
+    return barriers[0] if one_thresh else barriers
+
+
+def pod_basis(X, r, mode="simple", **options):
     """Compute the POD basis of rank r corresponding to the data in X.
     This function does NOT shift or scale the data before computing the basis.
 
@@ -57,13 +153,12 @@ def pod_basis(X, r, mode="arpack", **options):
         The number of POD basis vectors to compute.
 
     mode : str
-        The strategy to use for computing the truncated SVD. Options:
-        * "simple": Use scipy.linalg.svd() to compute the entire SVD of X, then
-            truncate it to get the first r left singular vectors of X. May be
-            inefficient for very large matrices.
-        * "arpack" (default): Use scipy.sparse.linalg.svds() to compute only
-            the first r left singular vectors of X. This uses ARPACK for the
-            eigensolver.
+        The strategy to use for computing the truncated SVD of X. Options:
+        * "simple" (default): Use scipy.linalg.svd() to compute the entire SVD
+            of X, then truncate it to get the first r left singular vectors of
+            X. May be inefficient for very large matrices.
+        * "arpack": Use scipy.sparse.linalg.svds() to compute only the first r
+            left singular vectors of X. This uses ARPACK for the eigensolver.
         * "randomized": Compute an approximate SVD with a randomized approach
             using sklearn.utils.extmath.randomized_svd(). This gives faster
             results at the cost of some accuracy.
@@ -153,13 +248,13 @@ def xdot_uniform(X, dt, order=2):
     # Check dimensions and input types.
     if X.ndim != 2:
         raise ValueError("data X must be two-dimensional")
-    if not np.isscalar(dt):
+    if not _np.isscalar(dt):
         raise TypeError("time step dt must be a scalar (e.g., float)")
 
     if order == 2:
-        return np.gradient(X, dt, edge_order=2, axis=1)
+        return _np.gradient(X, dt, edge_order=2, axis=1)
 
-    Xdot = np.empty_like(X)
+    Xdot = _np.empty_like(X)
     n,k = X.shape
     if order == 4:
         # Central difference on interior
@@ -217,7 +312,7 @@ def xdot_nonuniform(X, t):
         raise ValueError("data X not aligned with time t")
 
     # Compute the derivative with a second-order difference scheme.
-    return np.gradient(X, t, edge_order=2, axis=-1)
+    return _np.gradient(X, t, edge_order=2, axis=-1)
 
 
 def xdot(X, *args, **kwargs):
@@ -274,7 +369,7 @@ def xdot(X, *args, **kwargs):
             arg = args[0]
             if isinstance(arg, float):          # arg = dt.
                 func = xdot_uniform
-            elif isinstance(arg, np.ndarray):   # arg = t; do uniformity test.
+            elif isinstance(arg, _np.ndarray):  # arg = t; do uniformity test.
                 func = xdot_nonuniform
             else:
                 raise TypeError(f"invalid argument type '{type(arg)}'")
@@ -285,3 +380,13 @@ def xdot(X, *args, **kwargs):
                         f"but {n_total+1} were given")
 
     return func(X, *args, **kwargs)
+
+
+__all__ = [
+            "mean_shift",
+            "energy_capture",
+            "pod_basis",
+            "xdot_uniform",
+            "xdot_nonuniform",
+            "xdot",
+          ]

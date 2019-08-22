@@ -43,7 +43,7 @@ See [this repository](https://github.com/elizqian/operator-inference) for a MATL
     - [**Preprocessing**](#preprocessing-tools)
     - [**Postprocessing**](#postprocessing-tools)
     - [**Utilities**](#utilities)
-
+- [**References**](#references)
 
 ## Problem Statement
 
@@ -130,7 +130,7 @@ The [`examples/`](examples/) folder contains scripts and notebooks that set up a
 - `examples/TODO.ipynb`: The Burgers' equation from [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 - `examples/TODO.ipynb`: The Euler equation example from [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions.
-- [`examples/heat_1D.ipynb`](examples/heat_1D.ipynb): A purely data-driven example using data generated from the heat equation. See [TODO: \[4\]].
+- [`examples/heat_1D.ipynb`](examples/heat_1D.ipynb): A purely data-driven example using data generated from a one-dimensional heat equation \[4\].
 
 <!-- TODO: actual links to the folders or files -->
 
@@ -201,13 +201,17 @@ None of these routines are novel, but they may be instructive for new Python use
 
 - `pre.mean_shift(X)`: Compute the mean of the columns of `X` and shift `X` by that mean so that the result has mean column of zero.
 
+- `pre.significant_svdvals(X, eps, plot=False)`: Count the number of singular values of `X` that are greater than `eps`.
+
+- `pre.energy_capture(X, thresh, plot=False)`: Compute the number of singular values of `X` needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?\kappa_j=\frac{\sum_{i=1}^j\sigma_i^2}{\sum_{i=1}^n\sigma_i^2}."/></p>
+
 - `pre.pod_basis(X, r, mode="arpack", **options)`: Compute the POD basis of rank `r` for a snapshot matrix `X`.
 
-- `pre.xdot_uniform(X, dt, order=2)`: Compute an approximate first derivative for a snapshot matrix `X` in which the snapshots are evenly spaced in time.
+- `pre.xdot_uniform(X, dt, order=2)`: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are evenly spaced in time.
 
-- `pre.xdot_nonuniform(X, t)`: Compute an approximate first derivative for a snapshot matrix `X` in which the snapshots are **not** evenly spaced in time.
+- `pre.xdot_nonuniform(X, t)`: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are **not** evenly spaced in time.
 
-- `pre.xdot(X, *args, **kwargs)`: Calls `pre.xdot_uniform()` or `pre.xdot_nonuniform()`, depending on the arguments.
+- `pre.xdot(X, *args, **kwargs)`: Call `pre.xdot_uniform()` or `pre.xdot_nonuniform()`, depending on the arguments.
 
 
 #### Postprocessing Tools
@@ -236,3 +240,49 @@ See [DETAILS.md](DETAILS.md) for more mathematical explanation.
 -  `utils.kron_compact(x)`: Compute the column-wise compact Kronecker product of `x`.
 
 -  `utils.F2H(F)`: Convert the compact matricized quadratic operator `F` to the full, symmetric, matricized quadratic operator `H`.
+
+
+## References
+
+- \[1\] Peherstorfer, B. and Willcox, K.
+[Data-driven operator inference for non-intrusive projection-based model reduction.](https://www.sciencedirect.com/science/article/pii/S0045782516301104)
+Computer Methods in Applied Mechanics and Engineering, 306:196-215, 2016.
+([Download](https://cims.nyu.edu/~pehersto/preprints/Non-intrusive-model-reduction-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{Peherstorfer16DataDriven,
+    title     = {Data-driven operator inference for nonintrusive projection-based model reduction},
+    author    = {Peherstorfer, B. and Willcox, K.},
+    journal   = {Computer Methods in Applied Mechanics and Engineering},
+    volume    = {306},
+    pages     = {196--215},
+    year      = {2016},
+    publisher = {Elsevier}
+}</pre></details>
+
+- \[2\] Qian, E., Kramer, B., Marques, A., and Willcox, K.
+[Transform & Learn: A data-driven approach to nonlinear model reduction](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
+In the AIAA Aviation 2019 Forum, June 17-21, Dallas, TX. ([Download](https://www.dropbox.com/s/5znea6z1vntby3d/QKMW_aviation19.pdf?dl=0))<details><summary>BibTeX</summary><pre>
+@inbook{QKMW2019aviation,
+    author    = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
+    title     = {Transform \&amp; Learn: A data-driven approach to nonlinear model reduction},
+    booktitle = {AIAA Aviation 2019 Forum},
+    doi       = {10.2514/6.2019-3707},
+    URL       = {https://arc.aiaa.org/doi/abs/10.2514/6.2019-3707},
+    eprint    = {https://arc.aiaa.org/doi/pdf/10.2514/6.2019-3707}
+}</pre></details>
+
+- \[3\] Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.
+[Projection-based model reduction: Formulations for physics-based machine learning.](https://www.sciencedirect.com/science/article/pii/S0045793018304250)
+Computers & Fluids 179:704-717, 2019.
+([Download](https://kiwi.oden.utexas.edu/papers/Physics-based-machine-learning-swischuk-willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{swischuk2019projection,
+  title    = {Projection-based model reduction: Formulations for physics-based machine learning},
+  author   = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
+  journal  = {Computers \& Fluids},
+  volume   = {179},
+  pages    = {704--717},
+  year     = {2019},
+  publisher={Elsevier}
+}</pre></details>
+
+- \[4\] Swischuk, R. Physics-based machine learning and data-driven reduced-order modeling, Master's thesis, Massachusetts Institute of Technology, 2019.
+<!-- TODO: link -->

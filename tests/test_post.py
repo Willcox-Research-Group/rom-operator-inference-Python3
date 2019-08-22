@@ -13,8 +13,8 @@ ErrorData = namedtuple("ErrorData", ["truth", "approximation", "time"])
 
 @pytest.fixture
 def set_up_error_data():
-    n = 200
-    k = 50
+    n = 2000
+    k = 500
     X = np.random.random((n,k)) - .5
     Y = X + np.random.normal(loc=0, scale=1e-4, size=(n,k))
     t = np.linspace(0, 1, k)

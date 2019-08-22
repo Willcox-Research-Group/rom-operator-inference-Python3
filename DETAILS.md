@@ -9,6 +9,7 @@ However, note that some notation has been altered for coding convenience and cla
 - [**Projection-based Model Reduction**](#projection-based-model-reduction)
 - [**Operator Inference via Least Squares**](#operator-inference-via-least-squares)
 - [**Index of Notation**](#index-of-notation)
+- [**References**](#references)
 
 
 ## Problem Statement
@@ -266,5 +267,5 @@ Computers & Fluids 179:704-717, 2019.
   publisher={Elsevier}
 }</pre></details>
 
-- [4] Swischuk, R. Physics-based machine learning and data-driven reduced-order modeling, MIT Thesis
-<!-- TODO: Renee's MIT masters thesis -->
+- \[4\] Swischuk, R. Physics-based machine learning and data-driven reduced-order modeling, Master's thesis, Massachusetts Institute of Technology, 2019.
+<!-- TODO: link -->
