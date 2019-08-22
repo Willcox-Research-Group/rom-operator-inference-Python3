@@ -42,7 +42,7 @@ See [this repository](https://github.com/elizqian/operator-inference) for a MATL
     - [**ReducedModel Class**](#reducedmodel-class)
     - [**Preprocessing**](#preprocessing-tools)
     - [**Postprocessing**](#postprocessing-tools)
-    - [**Utilities**](#utilities)
+    - [**Utility Functions**](#utility-functions)
 - [**References**](#references)
 
 ## Problem Statement
