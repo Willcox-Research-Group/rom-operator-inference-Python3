@@ -5,8 +5,11 @@
 *.py[cod]
 __pycache__/
 .ipynb_checkpoints/
+htmlcov/
+.coverage*
 build/
 dist/
+*.eggs/
 *.egg-info/
 
 # Extra Matlab files

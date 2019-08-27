@@ -1,6 +1,6 @@
 # Summary of Mathematical Details
 
-This file gives a short explanation of the mathematical details behind the package.
+This document gives a short explanation of the mathematical details behind the package.
 For a full treatment, see [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 However, note that some notation has been altered for coding convenience and clarity.
 
@@ -9,6 +9,7 @@ However, note that some notation has been altered for coding convenience and cla
 - [**Projection-based Model Reduction**](#projection-based-model-reduction)
 - [**Operator Inference via Least Squares**](#operator-inference-via-least-squares)
 - [**Index of Notation**](#index-of-notation)
+- [**References**](#references)
 
 
 ## Problem Statement
@@ -120,7 +121,7 @@ To solve for the linear operators on the right-hand side of the preceding equati
 
 Where **1** is a _k_-vector of 1's.
 This problem decouples into _r_ independent least-squares problems, so it is relatively inexpensive to solve.
-The code allows for a Tikhonov regularization factor, which prevents numerical instabilities from dominating the computation.
+The code allows for a Tikhonov regularization factor (the `reg` keyword argument for `ReducedModel.predict()`) to reduce numerical instabilities.
 
 It can be shown [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104) that under some idealized assumptions, these inferred operators converge to the operators computed by explicit projection.
 The key idea, however, is that _the inferred operators can be cheaply computed without even knowing the full-order model_.
@@ -133,11 +134,11 @@ For example, the product **x** ⊗ **x** contains both _x_<sub>1</sub>_x_<sub>2<
 To avoid these redundancies, we introduce a "compact" Kronecker product <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> which only computes the unique terms of the usual vector Kronecker product:
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\,\widetilde{\otimes}\,\mathbf{x}=\left[\begin{array}{c}\mathbf{x}^{(1)}\\\vdots\\\mathbf{x}^{(n)}\end{array}\right]\in\mathbb{R}^{n(n+1)/2},\qquad\text{where}\qquad\mathbf{x}^{(i)}=x_{i}\left[\begin{array}{c}x_{1}\\\vdots\\x_{i}\end{array}\right]."/>
+  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\,\widetilde{\otimes}\,\mathbf{x}=\left[\begin{array}{c}\mathbf{x}^{(1)}\\\vdots\\\mathbf{x}^{(n)}\end{array}\right]\in\mathbb{R}^{n(n+1)/2},\qquad\text{where}\qquad\mathbf{x}^{(i)}=x_{i}\left[\begin{array}{c}x_{1}\\\vdots\\x_{i}\end{array}\right]\in\mathbb{R}^{i}."/>
 </p>
 
 When the compact Kronecker product is used, we call the resulting operator _F_ instead of _H_.
-Thus, the full reduced order model becomes
+Thus, the reduced order model becomes
 
 <p align="center">
   <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{F}(\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t) + \hat{\mathbf{c}},"/>
@@ -152,11 +153,10 @@ and the corresponding operator inference least squares problem is
 where _s_ = _r_(_r_+1)/2.
 For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> between used for matrices denotes a column-wise Kronecker product (also called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product)).
 
-
 ## Index of Notation
 
 We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
-In the code, a low-dimensional quantity ends with an underscore, which matches scikit-learn conventions for the `ReducedModel` class.
+In the code, a low-dimensional quantity ends with an underscore, so that the `ReducedModel` class follows some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects).
 
 #### Dimensions
 
@@ -194,10 +194,10 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}"/> | `xdot_` | <img src="https://latex.codecogs.com/svg.latex?r"/> | Reduced-order state velocity vector |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_\text{ROM}"/> | `x_ROM` | <img src="https://latex.codecogs.com/svg.latex?n"/> | Approximation to **x** produced by ROM |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{u}"/> | `u` | <img src="https://latex.codecogs.com/svg.latex?m"/> | Input vector  |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_()` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | ROM system operator |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_(t,x_)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | ROM system operator |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\otimes\mathbf{x}"/> | `np.kron(x,x)` | <img src="https://latex.codecogs.com/svg.latex?n^2"/> | Kronecker product of full state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}"/> | `np.kron(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?r^2"/>  | Kronecker product of reduced state (quadratic terms) |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_thin(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?s"/>  | Compact Kronecker product of reduced state (quadratic terms) |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_compact(x_)` | <img src="https://latex.codecogs.com/svg.latex?s"/>  | Compact Kronecker product of reduced state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{v}_j"/> | `vj` | <img src="https://latex.codecogs.com/svg.latex?n"/> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
 
 <!-- | **y**  | `y`             | Output vector | -->
@@ -221,7 +221,6 @@ t\ge 0 &= \text{time}\\
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{N}_i"/> | `Ni_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Bilinear state-input matrix for _i_th input | -->
 
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{C}"/> | `C_` | <img src="https://latex.codecogs.com/svg.latex?q\times%20r"/> | Learned output matrix | -->
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{E}"/> | `E_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Learned mass matrix | -->
 
 <!-- I_{a\times%20a}\in\mathbb{R}^{a\times a} | | identity matrix\\ -->
 <!-- \Sigma \in \mathbb{R}^{\ell\times\ell} &= \text{diagonal singular value matrix}\\ -->
@@ -268,5 +267,5 @@ Computers & Fluids 179:704-717, 2019.
   publisher={Elsevier}
 }</pre></details>
 
-- [4] Swischuk, R. Physics-based machine learning and data-driven reduced-order modeling, MIT Thesis
-<!-- TODO: Renee's MIT masters thesis -->
+- \[4\] Swischuk, R. Physics-based machine learning and data-driven reduced-order modeling, Master's thesis, Massachusetts Institute of Technology, 2019.
+<!-- TODO: link -->

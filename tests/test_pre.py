@@ -1,0 +1,307 @@
+# test_pre.py
+"""Tests for rom_operator_inference.pre.py"""
+
+import pytest
+import numpy as np
+from scipy import linalg as la
+from collections import namedtuple
+from matplotlib import pyplot as plt
+
+import rom_operator_inference as roi
+
+
+# Basis calculation ===========================================================
+@pytest.fixture
+def set_up_basis_data():
+    n = 2000
+    k = 500
+    return np.random.random((n,k)) - .5
+
+
+def test_mean_shift(set_up_basis_data):
+    """Test pre.mean_shift()."""
+    X = set_up_basis_data
+    xbar, Xshifted = roi.pre.mean_shift(X)
+    assert xbar.shape == (X.shape[0],)
+    assert Xshifted.shape == X.shape
+    assert np.allclose(np.mean(Xshifted, axis=1), np.zeros(X.shape[0]))
+    assert np.allclose(xbar.reshape((-1,1)) + Xshifted, X)
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.mean_shift(np.random.random((3,3,3)))
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+
+def test_significant_svdvals(set_up_basis_data):
+    """Test pre.significant_svdvals()."""
+    X = set_up_basis_data
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.significant_svdvals(np.ravel(X), 1e-14, plot=False)
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Single cutoffs.
+    r = roi.pre.significant_svdvals(X, 1e-14, plot=False)
+    assert isinstance(r, int) and r >= 1
+
+    # Multiple cutoffss.
+    rs = roi.pre.significant_svdvals(X, [1e-10, 1e-12], plot=False)
+    assert isinstance(rs, list)
+    for r in rs:
+        assert isinstance(r, int) and r >= 1
+    assert rs == sorted(rs)
+
+    # Plotting.
+    status = plt.isinteractive()
+    plt.ion()
+    rs = roi.pre.significant_svdvals(X, .0001, plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    rs = roi.pre.significant_svdvals(X, [1e-4, 1e-8, 1e-12], plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    plt.interactive(status)
+    plt.close("all")
+
+
+def test_energy_capture(set_up_basis_data):
+    """Test pre.energy_capture()."""
+    X = set_up_basis_data
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.energy_capture(np.ravel(X), .99)
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Single threshold.
+    r = roi.pre.energy_capture(X, .9, plot=False)
+    assert isinstance(r, np.int64) and r >= 1
+
+    # Multiple thresholds.
+    rs = roi.pre.energy_capture(X, [.9, .99, .999], plot=False)
+    assert isinstance(rs, list)
+    for r in rs:
+        assert isinstance(r, np.int64) and r >= 1
+    assert rs == sorted(rs)
+
+    # Plotting.
+    status = plt.isinteractive()
+    plt.ion()
+    rs = roi.pre.energy_capture(X, .999, plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    rs = roi.pre.energy_capture(X, [.9, .99, .999], plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    plt.interactive(status)
+    plt.close("all")
+
+
+def test_pod_basis(set_up_basis_data):
+    """Test pre.pod_basis() on a small case with the ARPACK solver."""
+    X = set_up_basis_data
+    n,k = X.shape
+    r = k // 10
+
+    # Try with an invalid mode.
+    with pytest.raises(NotImplementedError) as exc:
+        roi.pre.pod_basis(X, r, mode="dense")
+    assert exc.value.args[0] == "invalid mode 'dense'"
+
+    Ur = la.svd(X)[0][:,:r]
+
+    # Via scipy.linalg.svd().
+    Vr = roi.pre.pod_basis(X, r, mode="simple")
+    assert Vr.shape == (n,r)
+    assert np.allclose(Vr, Ur)
+
+    # Via scipy.sparse.linalg.svds() (ARPACK).
+    Vr = roi.pre.pod_basis(X, r, mode="arpack")
+    assert Vr.shape == (n,r)
+    for j in range(r):              # Make sure the columns have the same sign.
+        if not np.isclose(Ur[0,j], Vr[0,j]):
+            Vr[:,j] = -Vr[:,j]
+    assert np.allclose(Vr, Ur)
+
+    # Via sklearn.utils.extmath.randomized_svd().
+    Vr = roi.pre.pod_basis(X, r, mode="randomized")
+    assert Vr.shape == (n,r)
+    # No accuracy test, since that is not guaranteed by randomized SVD.
+
+
+# Differentiation routines ====================================================
+DynamicState = namedtuple("DynamicState", ["time", "state", "derivative"])
+
+def _difference_data(t):
+    Y = np.row_stack((t,
+                      t**2/2,
+                      t**3/3,
+                      np.sin(t),
+                      np.exp(t),
+                      1/(t+1),
+                      t + t**2/2 + t**3/3 + np.sin(t) - np.exp(t)
+                    ))
+    dY = np.row_stack((np.ones_like(t),
+                       t,
+                       t**2,
+                       np.cos(t),
+                       np.exp(t),
+                       -1/(t+1)**2,
+                       1 + t + t**2 + np.cos(t) - np.exp(t)
+                     ))
+    return DynamicState(t, Y, dY)
+
+
+@pytest.fixture
+def set_up_uniform_difference_data():
+    t = np.linspace(0, 1, 400)
+    return _difference_data(t)
+
+
+@pytest.fixture
+def set_up_nonuniform_difference_data():
+    t = np.linspace(0, 1, 400)**2
+    return _difference_data(t)
+
+
+def test_fwd4(set_up_uniform_difference_data):
+    """Test pre._fwd4()."""
+    dynamicstate = set_up_uniform_difference_data
+    t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
+    dt = t[1] - t[0]
+    for j in range(Y.shape[1] - 5):
+        # One-dimensional test.
+        dY0 = roi.pre._fwd4(Y[0,j:j+5], dt)
+        assert isinstance(dY0, float)
+        assert np.isclose(dY0, dY[0,j])
+
+        # Two-dimensional test.
+        dYj = roi.pre._fwd4(Y[:,j:j+5].T, dt)
+        assert dYj.shape == Y[:,j].shape
+        assert np.allclose(dYj, dY[:,j])
+
+        # Check agreement.
+        assert dY0 == dYj[0]
+
+
+def test_fwd6(set_up_uniform_difference_data):
+    """Test pre._fwd6()."""
+    dynamicstate = set_up_uniform_difference_data
+    t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
+    dt = t[1] - t[0]
+    for j in range(Y.shape[1] - 7):
+        # One-dimensional test.
+        dY0 = roi.pre._fwd6(Y[0,j:j+7], dt)
+        assert isinstance(dY0, float)
+        assert np.isclose(dY0, dY[0,j])
+
+        # Two-dimensional test.
+        dYj = roi.pre._fwd6(Y[:,j:j+7].T, dt).T
+        assert dYj.shape == Y[:,j].shape
+        assert np.allclose(dYj, dY[:,j])
+
+        # Check agreement.
+        assert dY0 == dYj[0]
+
+
+def test_xdot_uniform(set_up_uniform_difference_data):
+    """Test pre.xdot_uniform()."""
+    dynamicstate = set_up_uniform_difference_data
+    t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
+    dt = t[1] - t[0]
+    for o in [2, 4, 6]:
+        dY_ = roi.pre.xdot_uniform(Y, dt, order=o)
+        assert dY_.shape == Y.shape
+        assert np.allclose(dY, dY_, atol=1e-4)
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.xdot_uniform(Y[:,0], dt, order=2)
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Try with bad order.
+    with pytest.raises(NotImplementedError) as exc:
+        roi.pre.xdot_uniform(Y, dt, order=-1)
+    assert exc.value.args[0] == "invalid order '-1'; valid options: {2, 4, 6}"
+
+    # Try with bad dt type.
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot_uniform(Y, np.array([dt, 2*dt]), order=-1)
+    assert exc.value.args[0] == "time step dt must be a scalar (e.g., float)"
+
+
+def test_xdot_nonuniform(set_up_nonuniform_difference_data):
+    """Test pre.xdot_nonuniform()."""
+    dynamicstate = set_up_nonuniform_difference_data
+    t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
+    dY_ = roi.pre.xdot_nonuniform(Y, t)
+    assert dY_.shape == Y.shape
+    assert np.allclose(dY, dY_, atol=1e-4)
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.xdot_nonuniform(Y[:,0], t)
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Try with bad time shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.xdot_nonuniform(Y, np.dstack((t,t)))
+    assert exc.value.args[0] == "time t must be one-dimensional"
+
+    with pytest.raises(ValueError) as exc:
+        roi.pre.xdot_nonuniform(Y, np.hstack((t,t)))
+    assert exc.value.args[0] == "data X not aligned with time t"
+
+
+def test_xdot(set_up_uniform_difference_data,
+              set_up_nonuniform_difference_data):
+    """Test pre.xdot()."""
+    # Uniform tests.
+    dynamicstate = set_up_uniform_difference_data
+    t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
+    dt = t[1] - t[0]
+
+    def _single_test(*args, **kwargs):
+        dY_ = roi.pre.xdot(*args, **kwargs)
+        assert dY_.shape == Y.shape
+        assert np.allclose(dY, dY_, atol=1e-4)
+
+    _single_test(Y, dt)
+    _single_test(Y, dt=dt)
+    for o in [2, 4, 6]:
+        _single_test(Y, dt, o)
+        _single_test(Y, dt, order=o)
+        _single_test(Y, dt=dt, order=o)
+        _single_test(Y, order=o, dt=dt)
+        _single_test(Y, t)
+
+    # Nonuniform tests.
+    dynamicstate = set_up_nonuniform_difference_data
+    t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
+
+    _single_test(Y, t)
+    _single_test(Y, t=t)
+
+    # Try with bad arguments.
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y)
+    assert exc.value.args[0] == \
+        "at least one other argument required (dt or t)"
+
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y, order=2)
+    assert exc.value.args[0] == \
+        "keyword argument 'order' requires float argument dt"
+
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y, other=2)
+    assert exc.value.args[0] == \
+        "xdot() got unexpected keyword argument 'other'"
+
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y, 2)
+    assert exc.value.args[0] == \
+        "invalid argument type '<class 'int'>'"
+
+    with pytest.raises(TypeError) as exc:
+        roi.pre.xdot(Y, dt, 4, None)
+    assert exc.value.args[0] == \
+        "xdot() takes from 2 to 3 positional arguments but 4 were given"

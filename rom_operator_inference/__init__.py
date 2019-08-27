@@ -3,8 +3,9 @@
 Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
 """
 
-from .opinf import ReducedModel
-from . import opinf_helper as helpers
+from ._core import ReducedModel
+from . import utils, pre, post
 
 
-__version__ = "0.2.2"
+__all__ = ["ReducedModel", "utils", "pre", "post"]
+__version__ = "0.3.5"
