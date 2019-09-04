@@ -141,7 +141,7 @@ When the compact Kronecker product is used, we call the resulting operator _F_ i
 Thus, the reduced order model becomes
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{F}(\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t) + \hat{\mathbf{c}},"/>
+  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{F}(\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\hat{\mathbf{c}},"/>
 </p>
 
 and the corresponding operator inference least squares problem is
@@ -151,7 +151,7 @@ and the corresponding operator inference least squares problem is
 </p>
 
 where _s_ = _r_(_r_+1)/2.
-For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> between used for matrices denotes a column-wise Kronecker product (also called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product)).
+For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> between matrices denotes a column-wise Kronecker product (also called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product)).
 
 ## Index of Notation
 
