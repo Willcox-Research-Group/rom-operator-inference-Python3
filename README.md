@@ -168,14 +168,14 @@ The `has_inputs` argument is a boolean (`True` or `False`) denoting whether or n
 
 ##### Methods
 
-- `ReducedModel.fit(X, Xdot, Vr, U=None, reg=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
+- `ReducedModel.fit(X, Xdot, Vr, U=None, G=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
     squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
 Parameters:
     - `X`: Snapshot matrix of solutions to the full-order model. Each column is one snapshot.
     - `Xdot`: Snapshot velocity of solutions to the full-order model. Each column is the velocity `dx / dt` for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
     - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `U`: Input matrix. Each column is the input for the corresponding column of `X`. Only required when `has_inputs=True`.
-    - `reg`: Tikhonov regularization factor for the least squares problem.
+    - `G`: Tikhonov regularization matrix for the least squares problem.
 
 - `ReducedModel.predict(x0, t, u=None, **options)`: Simulate the learned reduced-order model with `scipy.integrate.solve_ivp()`. Parameters:
     - `x0`: The initial condition, given in the original (high-dimensional) space.
@@ -216,8 +216,8 @@ None of these routines are novel, but they may be instructive for new Python use
 
 #### Postprocessing Tools
 
-The `post` submodule is a collection of common routines for computing the absolute and relative errors produced by an ROM approximation.
-Given a norm, "true" data _X_, and an approximation _Y_ to _X_, these errors are defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?\texttt{abs\_err}=||X-Y||,\qquad\texttt{rel\_err}=\frac{\texttt{abs\_err}}{||X||}=\frac{||X-Y||}{||X||}."/></p>
+The `post` submodule is a collection of common routines for computing the absolute and relative errors produced by a ROM approximation.
+Given a norm, "true" data _X_, and an approximation _Y_ to _X_, these errors are defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?\texttt{abs\_error}=||X-Y||,\qquad\texttt{rel\_error}=\frac{\texttt{abs\_error}}{||X||}=\frac{||X-Y||}{||X||}."/></p>
 
 - `post.discrete_error(X, Y)`: Compute the absolute and relative _l_<sup>_2_</sup>-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
 The _l_<sup>_2_</sup> norm is the usual Euclidean norm, <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}||_{\ell^2}=\sqrt{\sum_{i=1}^n|x_{i}|^2}."/></p>
@@ -231,11 +231,10 @@ The _L_<sup>_2_</sup> norm is approximated by the trapezoidal rule: <p align="ce
 These functions are helper routines that are used internally for `ReducedModel.fit()` or `ReducedModel.predict()`.
 See [DETAILS.md](DETAILS.md) for more mathematical explanation.
 
-- `utils.lstsq_reg(A, b, reg=0)`: Solve the Tikhonov-regularized ordinary least squares problem
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}\in\mathbb{R}^n}{\text{min}}||A\mathbf{x}-\mathbf{b}||_{\ell^2}^2+\lambda||\mathbf{x}||_{\ell^2}^2,"/></p>
+- `utils.lstsq_reg(A, b, G=0)`: Solve the Tikhonov-regularized ordinary least squares problem
+<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}\in\mathbb{R}^n}{\text{min}}||A\mathbf{x}-\mathbf{b}||_{\ell^2}^2+||G\mathbf{x}||_{\ell^2}^2,"/></p>
 
-  where λ is the regularization factor `reg`. If `b` is a matrix, call it _B_, then solve the regularized least squares problem
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{X\in\mathbb{R}^{n\times%20n}}{\text{min}}||AX-B||_{F}^2+\lambda||X||_{F}^2,"/></p>
+  where _G_ is the regularization factor `reg`. If `b` is a matrix, solve the above problem for each column of `b`. If _G_ is a scalar, use the identity matrix times that scalar for the regularization matrix.
 
 -  `utils.kron_compact(x)`: Compute the column-wise compact Kronecker product of `x`.
 

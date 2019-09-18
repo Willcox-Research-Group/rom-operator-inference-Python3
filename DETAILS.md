@@ -121,7 +121,7 @@ To solve for the linear operators on the right-hand side of the preceding equati
 
 Where **1** is a _k_-vector of 1's.
 This problem decouples into _r_ independent least-squares problems, so it is relatively inexpensive to solve.
-The code allows for a Tikhonov regularization factor (the `reg` keyword argument for `ReducedModel.predict()`) to reduce numerical instabilities.
+The code allows for a Tikhonov regularization matrix (the `G` keyword argument for `ReducedModel.predict()`) to reduce numerical instabilities.
 
 It can be shown [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104) that under some idealized assumptions, these inferred operators converge to the operators computed by explicit projection.
 The key idea, however, is that _the inferred operators can be cheaply computed without even knowing the full-order model_.
