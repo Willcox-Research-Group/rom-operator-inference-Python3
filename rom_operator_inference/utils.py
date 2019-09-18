@@ -5,15 +5,15 @@ import numpy as np
 from scipy import linalg as la
 
 
-def lstsq_reg(A, b, reg=0):
+def lstsq_reg(A, b, G=0):
     """Solve the l2- (Tikhonov)-regularized ordinary least squares problem
 
-        min_{x} ||Ax - b||_2^2 + reg*||x||_2^2
+        min_{x} ||Ax - b||_2^2 + ||Gx||_2^2
 
     by solving the equivalent ordinary least squares problem
 
-                || [   A   ]    _  [ b ] ||^2
-        min_{x} || [ reg*I ] x     [ 0 ] ||_2,
+                || [ A ]    _  [ b ] ||^2
+        min_{x} || [ G ] x     [ 0 ] ||_2,
 
     with scipy.linalg.lstsq().
     See https://docs.scipy.org/doc/scipy/reference/linalg.html.
@@ -24,11 +24,12 @@ def lstsq_reg(A, b, reg=0):
         The "left-hand side" matrix.
 
     b : (k,) or (k,r) ndarray
-        The "right-hand side" vector. If `b` is a two-dimensional array, then r
+        The "right-hand side" vector. If a two-dimensional array, then r
         independent least squares problems are solved.
 
-    reg : float
-        The l2 (Tikhonov) regularization factor.
+    G : (d,d) ndarray or float > 0
+        The Tikhonov regularization matrix. If a number, the regularization
+        matrix is set to G * I (scaled identity matrix).
 
     Returns
     -------
@@ -48,19 +49,23 @@ def lstsq_reg(A, b, reg=0):
     s : (min(k, d),) ndarray or None
         Singular values of `A`.
     """
-    if reg < 0:
-        raise ValueError("regularization parameter must be nonnegative")
+    # Check dimensions.
     if b.ndim not in {1,2}:
         raise ValueError("parameter `b` must be one- or two-dimensional")
 
-    # No regularization -> do ordinary least squares.
-    if reg == 0 or reg is None:
-        return la.lstsq(A, b)
-
+    # If reg is a scalar, construct the default regularization matrix G*I.
     d = A.shape[1]
-    reg_I = np.diag(np.full(d, np.sqrt(reg)))           # reg * identity
+    if np.isscalar(G):
+        if G == 0:
+            return la.lstsq(A, b)
+        elif G < 0:
+            raise ValueError("regularization parameter must be nonnegative")
+        G = np.diag(np.full(d, G))                  # regularizer * identity
+    if G.shape != (d,d):
+        raise ValueError("G must be (d,d) with d = number of columns of A")
+
     pad = np.zeros(d) if b.ndim == 1 else np.zeros((d,b.shape[1]))
-    lhs = np.vstack((A, reg_I))
+    lhs = np.vstack((A, G))
     rhs = np.concatenate((b, pad))
 
     return la.lstsq(lhs, rhs)
