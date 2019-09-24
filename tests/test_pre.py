@@ -10,12 +10,44 @@ from matplotlib import pyplot as plt
 import rom_operator_inference as roi
 
 
-# Basis calculation ===========================================================
+# Basis computation ===========================================================
 @pytest.fixture
 def set_up_basis_data():
     n = 2000
     k = 500
     return np.random.random((n,k)) - .5
+
+
+def test_pod_basis(set_up_basis_data):
+    """Test pre.pod_basis() on a small case with the ARPACK solver."""
+    X = set_up_basis_data
+    n,k = X.shape
+    r = k // 10
+
+    # Try with an invalid mode.
+    with pytest.raises(NotImplementedError) as exc:
+        roi.pre.pod_basis(X, r, mode="dense")
+    assert exc.value.args[0] == "invalid mode 'dense'"
+
+    Ur = la.svd(X)[0][:,:r]
+
+    # Via scipy.linalg.svd().
+    Vr = roi.pre.pod_basis(X, r, mode="simple")
+    assert Vr.shape == (n,r)
+    assert np.allclose(Vr, Ur)
+
+    # Via scipy.sparse.linalg.svds() (ARPACK).
+    Vr = roi.pre.pod_basis(X, r, mode="arpack")
+    assert Vr.shape == (n,r)
+    for j in range(r):              # Make sure the columns have the same sign.
+        if not np.isclose(Ur[0,j], Vr[0,j]):
+            Vr[:,j] = -Vr[:,j]
+    assert np.allclose(Vr, Ur)
+
+    # Via sklearn.utils.extmath.randomized_svd().
+    Vr = roi.pre.pod_basis(X, r, mode="randomized")
+    assert Vr.shape == (n,r)
+    # No accuracy test, since that is not guaranteed by randomized SVD.
 
 
 def test_mean_shift(set_up_basis_data):
@@ -33,6 +65,7 @@ def test_mean_shift(set_up_basis_data):
     assert exc.value.args[0] == "data X must be two-dimensional"
 
 
+# Reduced dimension selection =================================================
 def test_significant_svdvals(set_up_basis_data):
     """Test pre.significant_svdvals()."""
     X = set_up_basis_data
@@ -95,39 +128,47 @@ def test_energy_capture(set_up_basis_data):
     plt.close("all")
 
 
-def test_pod_basis(set_up_basis_data):
-    """Test pre.pod_basis() on a small case with the ARPACK solver."""
+def test_projection_error(set_up_basis_data):
+    """Test pre.projection_error()."""
     X = set_up_basis_data
-    n,k = X.shape
-    r = k // 10
+    Vr = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
 
-    # Try with an invalid mode.
-    with pytest.raises(NotImplementedError) as exc:
-        roi.pre.pod_basis(X, r, mode="dense")
-    assert exc.value.args[0] == "invalid mode 'dense'"
-
-    Ur = la.svd(X)[0][:,:r]
-
-    # Via scipy.linalg.svd().
-    Vr = roi.pre.pod_basis(X, r, mode="simple")
-    assert Vr.shape == (n,r)
-    assert np.allclose(Vr, Ur)
-
-    # Via scipy.sparse.linalg.svds() (ARPACK).
-    Vr = roi.pre.pod_basis(X, r, mode="arpack")
-    assert Vr.shape == (n,r)
-    for j in range(r):              # Make sure the columns have the same sign.
-        if not np.isclose(Ur[0,j], Vr[0,j]):
-            Vr[:,j] = -Vr[:,j]
-    assert np.allclose(Vr, Ur)
-
-    # Via sklearn.utils.extmath.randomized_svd().
-    Vr = roi.pre.pod_basis(X, r, mode="randomized")
-    assert Vr.shape == (n,r)
-    # No accuracy test, since that is not guaranteed by randomized SVD.
+    err = roi.pre.projection_error(X, Vr)
+    assert np.isscalar(err) and err >= 0
 
 
-# Differentiation routines ====================================================
+def test_minimal_projection_error(set_up_basis_data):
+    """Test pre.minimal_projection_error()."""
+    X = set_up_basis_data
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.minimal_projection_error(np.ravel(X), 1e-14, plot=False)
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Single cutoffs.
+    r = roi.pre.minimal_projection_error(X, 1e-14, 10, plot=False)
+    assert isinstance(r, int) and r >= 1
+
+    # Multiple cutoffs.
+    rs = roi.pre.minimal_projection_error(X, [1e-10, 1e-12], 10, plot=False)
+    assert isinstance(rs, list)
+    for r in rs:
+        assert isinstance(r, int) and r >= 1
+    assert rs == sorted(rs)
+
+    # Plotting
+    status = plt.isinteractive()
+    plt.ion()
+    roi.pre.minimal_projection_error(X, .0001, 10, plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    roi.pre.minimal_projection_error(X, [1e-4, 1e-6, 1e-10], 10, plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    plt.interactive(status)
+    plt.close("all")
+
+
+# Derivative approximation ====================================================
 DynamicState = namedtuple("DynamicState", ["time", "state", "derivative"])
 
 def _difference_data(t):
