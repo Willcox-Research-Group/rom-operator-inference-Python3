@@ -96,7 +96,7 @@ See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notat
 #### Installation
 
 ```bash
-$ pip3 install -i https://test.pypi.org/simple/ rom-operator-inference-shanemcq18
+$ pip3 install -i https://test.pypi.org/simple/rom-operator-inference-shanemcq18
 ```
 
 _**This installation command is very temporary!**_
@@ -137,7 +137,7 @@ This example uses MATLAB's Curve Fitting Toolbox to generate the random initial 
 
 ## Documentation
 
-**TODO**: The complete documentation at _\<insert link to sphinx-generated readthedocs page\>_.
+<!-- **TODO**: The complete documentation at _\<insert link to sphinx-generated readthedocs page\>_. -->
 <!-- Here we include a short catalog of functions and their inputs. -->
 
 #### ReducedModel class
@@ -201,11 +201,16 @@ None of these routines are novel, but they may be instructive for new Python use
 
 - `pre.mean_shift(X)`: Compute the mean of the columns of `X` and shift `X` by that mean so that the result has mean column of zero.
 
+- `pre.pod_basis(X, r, mode="arpack", **options)`: Compute the POD basis of rank `r` for a snapshot matrix `X`.
+
 - `pre.significant_svdvals(X, eps, plot=False)`: Count the number of singular values of `X` that are greater than `eps`.
 
 - `pre.energy_capture(X, thresh, plot=False)`: Compute the number of singular values of `X` needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?\kappa_j=\frac{\sum_{i=1}^j\sigma_i^2}{\sum_{i=1}^n\sigma_i^2}."/></p>
 
-- `pre.pod_basis(X, r, mode="arpack", **options)`: Compute the POD basis of rank `r` for a snapshot matrix `X`.
+- `pre.projection_error(X, Vr)`: Compute the relative projection error on _X_ induced by the basis matrix _V<sub>r</sub>_, <p align="center"><img src="https://latex.codecogs.com/svg.latex?\mathtt{proj\_err}=\frac{||X-V_rV_r^\mathsf{T}X||_F}{||X||_F}."/></p>
+
+- `pre.minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options)`: Compute the number of POD basis vectors required to obtain a projection
+error less than `eps`, capped at `rmax`.
 
 - `pre.xdot_uniform(X, dt, order=2)`: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are evenly spaced in time.
 
@@ -219,12 +224,19 @@ None of these routines are novel, but they may be instructive for new Python use
 The `post` submodule is a collection of common routines for computing the absolute and relative errors produced by a ROM approximation.
 Given a norm, "true" data _X_, and an approximation _Y_ to _X_, these errors are defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?\texttt{abs\_error}=||X-Y||,\qquad\texttt{rel\_error}=\frac{\texttt{abs\_error}}{||X||}=\frac{||X-Y||}{||X||}."/></p>
 
-- `post.discrete_error(X, Y)`: Compute the absolute and relative _l_<sup>_2_</sup>-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
-The _l_<sup>_2_</sup> norm is the usual Euclidean norm, <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}||_{\ell^2}=\sqrt{\sum_{i=1}^n|x_{i}|^2}."/></p>
-The errors are calculated for each pair of columns of `X` and `Y`.
+- `post.frobenius_error(X, Y)`: Compute the absolute and relative Frobenius-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
+The [Frobenius matrix norm](https://en.wikipedia.org/wiki/Matrix_norm#Frobenius_norm) is defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?||X||_{F}=\sqrt{\text{tr}(X^\mathsf{T}X)}=\left(\sum_{i=1}^n\sum_{j=1}^k|x_{ij}|^2\right)^{1/2}."></p>
 
-- `post.continuous_error(X, Y, t)`: Approximate the absolute and relative _L_<sup>_2_</sup>-norm errors between snapshot sets `X` and `Y` corresponding to times `t`, assuming `Y` is an approximation to `X`.
-The _L_<sup>_2_</sup> norm is approximated by the trapezoidal rule: <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}(\cdot)||_{L^2([0,T])}=\sqrt{\int_0^T||\mathbf{x}(t)||_{\ell^2}^2\:dt}\approx\Delta%20t\left(\frac{1}{2}\|\mathbf{x}(t_0)\|_{\ell^2}^2+\sum_{j=1}^{k-1}\|\mathbf{x}(t_j)\|_{\ell^2}^2+\frac{1}{2}\|\mathbf{x}(t_k)\|_{\ell^2}^2\right)."/></p>
+- `post.lp_error(X, Y, p=2, normalize=False)`: Compute the absolute and relative _l_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
+The [_l_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#The_p-norm_in_finite_dimensions) is defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}||_{\ell^p}=\begin{cases}\left(\displaystyle\sum_{i=1}^n|x_{i}|^p\right)^{1/p}&p<\infty,\\\\\displaystyle\sup_{i=1,\ldots,n}|x_i|&p=\infty.\end{cases}"/></p>
+With _p=2_ this is the usual Euclidean norm.
+The errors are calculated for each pair of columns of `X` and `Y`.
+If `normalize=True`, then the _normalized absolute error_ is computed instead of the relative error: <p align="center"><img src="https://latex.codecogs.com/svg.latex?\texttt{norm\_abs\_err}_j=\frac{||\mathbf{x}_j-\mathbf{y}_j||_{\ell^p}}{\displaystyle\max_{i=1,\ldots,k}||\mathbf{x}_i||_{\ell^p}},\quad%20j=1,\ldots,k."></p>
+
+- `post.Lp_error(X, Y, t=None, p=2)`: Approximate the absolute and relative _L_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y` corresponding to times `t`, assuming `Y` is an approximation to `X`.
+The [_L_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#Lp_spaces) for vector-valued functions is defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}(\cdot)||_{L^p([0,T])}=\begin{cases}\left(\displaystyle\int_{0}^{T}||\mathbf{x}(t)||_{\ell^p}^p\:dt\right)^{1/p}&p<\infty,\\\\\displaystyle\sup_{t\in[0,T]}||\mathbf{x}(t)||_{\ell^\infty}&%20p=\infty.\end{cases}"/></p>
+For finite _p_, the integrals are approximated by the trapezoidal rule: <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}(\cdot)||_{L^2([0,T])}=\sqrt{\int_0^T||\mathbf{x}(t)||_{\ell^2}^2\:dt}\approx\Delta%20t\left(\frac{1}{2}\|\mathbf{x}(t_0)\|_{\ell^2}^2+\sum_{j=1}^{k-1}\|\mathbf{x}(t_j)\|_{\ell^2}^2+\frac{1}{2}\|\mathbf{x}(t_k)\|_{\ell^2}^2\right)."/></p>
+The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
 
 #### Utility Functions
 

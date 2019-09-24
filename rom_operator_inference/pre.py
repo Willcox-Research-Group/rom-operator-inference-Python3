@@ -484,6 +484,7 @@ __all__ = [
             "significant_svdvals",
             "energy_capture",
             "projection_error",
+            "minimal_projection_error",
             "xdot_uniform",
             "xdot_nonuniform",
             "xdot",
