@@ -55,6 +55,8 @@ where now
 
 This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension _r_ << _n_.
 
+<!-- TODO: discrete setting -->
+
 ## Projection-based Model Reduction
 
 Model reduction via projection occurs in three steps:
@@ -66,8 +68,9 @@ Model reduction via projection occurs in three steps:
 
 This package focuses on step 3, constructing the ROM given the snapshot data and the low-rank basis from steps 1 and 2, respectively.
 
-Let _X_ be the _n_ x _k_ matrix whose _k_ columns are snapshots of length _n_ (step 1), and let _V_<sub>_r_</sub> be an orthonormal _n_ x _r_ matrix representation for an _r_-dimensional subspace (step 2).
+Let _X_ be the _n_ x _k_ matrix whose _k_ columns are each solutions to the FOM of length _n_ (step 1), and let _V_<sub>_r_</sub> be an orthonormal _n_ x _r_ matrix representation for an _r_-dimensional subspace (step 2).
 For example, a common choice for _V_<sub>_r_</sub> is the POD Basis of rank _r_, the matrix comprised of the first _r_ singular vectors of _X_.
+We call _X_ the _snapshot matrix_ and _V<sub>_r_</sub>_ the _reduced basis matrix_.
 
 The classical approach to the projection step is to make the Ansatz
 
@@ -116,15 +119,30 @@ Here the (_ij_)<sup>th</sup> entry of _U_ is the _i_<sup>th</sup> component of *
 To solve for the linear operators on the right-hand side of the preceding equation, we solve the least squares problem
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{H}\in\mathbb{R}^{r\times%20r^2},\\\hat{B}\in\mathbb{R}^{r\times%20m},\,\hat{\mathbf{c}}\in\mathbb{R}^{r}}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\otimes\hat{X}\big)^\mathsf{T}\hat{H}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2,"/>
+  <img src="https://latex.codecogs.com/svg.latex?\begin{align*}\underset{\substack{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{H}\in\mathbb{R}^{r\times%20r^2},\\\hat{B}\in\mathbb{R}^{r\times%20m},\,\hat{\mathbf{c}}\in\mathbb{R}^{r}}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\otimes\hat{X}\big)^\mathsf{T}\hat{H}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2\\=\min_{O^\mathsf{T}\in\mathbb{R}^{(r+r^2+m+1)\times%20r}}||DO^\mathsf{T}-R||_F^2,\end{align*}"/>
 </p>
 
-Where **1** is a _k_-vector of 1's.
-This problem decouples into _r_ independent least-squares problems, so it is relatively inexpensive to solve.
-The code allows for a Tikhonov regularization matrix (the `G` keyword argument for `ReducedModel.predict()`) to reduce numerical instabilities.
+where **1** is a _k_-vector of 1's and
 
-It can be shown [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104) that under some idealized assumptions, these inferred operators converge to the operators computed by explicit projection.
-The key idea, however, is that _the inferred operators can be cheaply computed without even knowing the full-order model_.
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.latex?\begin{align*}D&=\left[\begin{array}{cccc}\hat{X}^\mathsf{T}&(\hat{X}\otimes\hat{X})^\mathsf{T}&U^\mathsf{T}&\mathbf{1}\end{array}\right]&&\text{(Data)},\\O&=\left[\begin{array}{cccc}\hat{A}&\hat{H}&\hat{B}&\hat{\mathbf{c}}\end{array}\right]&&\text{(Operators)},\\R&=\dot{\hat{X}}^\mathsf{T}&&\text{(Right-hand%20side)}.\end{align*}"/>
+</p>
+
+The problem decouples into _r_ independent ordinary least-squares problems, one for each of the columns of _O<sup>T</sup>_:
+
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.latex?\begin{align*}&\min_{O^\mathsf{T}}\sum_{j=1}^r||D\mathbf{o}_j-\mathbf{r}_j||_2^2,\\O^\mathsf{T}&=\begin{bmatrix}\mathbf{o}_1&\mathbf{o}_2&\cdots&\mathbf{o}_r\end{bmatrix},\\R&=\begin{bmatrix}\mathbf{r}_1&\mathbf{r}_2&\cdots&\mathbf{r}_r\end{bmatrix}.\end{align*}"/>
+</p>
+
+The entire routine is relatively inexpensive to solve.
+The code also allows for a Tikhonov regularization matrix or list of matrices (the `G` keyword argument for `ReducedModel.predict()`), in which case the problem being solved is
+
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.latex?\min_{O^\mathsf{T}}\sum_{j=1}^r||D\mathbf{o}_j-\mathbf{r}_j||_2^2+||G\mathbf{o}_j||_2^2."/>
+</p>
+
+It can be shown [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104) that, under some idealized assumptions, these inferred operators converge to the operators computed by explicit projection.
+The key idea, however, is that _the inferred operators can be cheaply computed without knowing the full-order model_.
 This is very convenient in situations where the FOM is given by a "black box," such as a legacy code for complex fluid simulations.
 
 #### Implementation Note: The Kronecker Product
@@ -134,14 +152,14 @@ For example, the product **x** ⊗ **x** contains both _x_<sub>1</sub>_x_<sub>2<
 To avoid these redundancies, we introduce a "compact" Kronecker product <img src="https://latex.codecogs.com/svg.latex?\widetilde{\otimes}" height=10/> which only computes the unique terms of the usual vector Kronecker product:
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\,\widetilde{\otimes}\,\mathbf{x}=\left[\begin{array}{c}\mathbf{x}^{(1)}\\\vdots\\\mathbf{x}^{(n)}\end{array}\right]\in\mathbb{R}^{n(n+1)/2},\qquad\text{where}\qquad\mathbf{x}^{(i)}=x_{i}\left[\begin{array}{c}x_{1}\\\vdots\\x_{i}\end{array}\right]\in\mathbb{R}^{i}."/>
+  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\,\widetilde{\otimes}\,\mathbf{x}=\left[\begin{array}{c}\mathbf{x}^{(1)}\\\vdots\\\m athbf{x}^{(n)}\end{array}\right]\in\mathbb{R}^{n(n+1)/2},\qquad\text{where}\qquad\mathbf{x}^{(i)}=x_{i}\left[\begin{array}{c}x_{1}\\\vdots\\x_{i}\end{array}\right]\in\mathbb{R}^{i}."/>
 </p>
 
 When the compact Kronecker product is used, we call the resulting operator _F_ instead of _H_.
 Thus, the reduced order model becomes
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{F}(\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t) + \hat{\mathbf{c}},"/>
+  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{F}(\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\hat{\mathbf{c}},"/>
 </p>
 
 and the corresponding operator inference least squares problem is
@@ -167,12 +185,13 @@ In the code, a low-dimensional quantity ends with an underscore, so that the `Re
 | <img src="https://latex.codecogs.com/svg.latex?m"/> | `m`  | Dimension of the input **u** |
 | <img src="https://latex.codecogs.com/svg.latex?k"/> | `k`  | Number of state snapshots, i.e., the number of training points |
 | <img src="https://latex.codecogs.com/svg.latex?s"/> | `s`  | Number of unique quadratic reduced-state interactions, _r_(_r_+1)/2 |
+| <img src="https://latex.codecogs.com/svg.latex?n_t"/> | `nt`  | Number of time steps in a simulation |
 
 <!-- TODO: number of time steps -->
 
 <!-- | <img src="https://latex.codecogs.com/svg.latex?q"/> | `q`             | Dimension of the output **y** | -->
 <!-- | <img src="https://latex.codecogs.com/svg.latex?p"/> | `p`             | Dimension of the paramteter space | -->
-<!-- | <img src="https://latex.codecogs.com/svg.latex?d"/> | `d`             | Dimension of the spatial domain | -->
+<!-- | <img src="https://latex.codecogs.com/svg.latex?d"/> | `d`             | Dimension of the spatial domain OR paramter space? | -->
 
 #### Vectors
 
@@ -269,3 +288,21 @@ Computers & Fluids 179:704-717, 2019.
 
 - \[4\] Swischuk, R. Physics-based machine learning and data-driven reduced-order modeling, Master's thesis, Massachusetts Institute of Technology, 2019.
 <!-- TODO: link -->
+
+- \[5\] Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K. [Learning physics-based reduced-order models for a single-injector combustion process](https://arxiv.org/abs/1908.03620). ArXiv preprint arXiv:1908.03620.
+([Download](https://arxiv.org/pdf/1908.03620.pdf))<details><summary>BibTeX</summary><pre>
+@article{swischuk2019learning,
+  title={Learning physics-based reduced-order models for a single-injector combustion process},
+  author={Swischuk, Renee and Kramer, Boris and Huang, Cheng and Willcox, Karen},
+  journal={arXiv preprint arXiv:1908.03620},
+  year={2019}
+}</pre></details>
+
+- \[6\] Peherstorfer, B. [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). ArXiv preprint arXiv:1908.11233.
+([Download](https://arxiv.org/pdf/1908.11233.pdf))<details><summary>BibTeX</summary><pre>
+@article{peherstorfer2019sampling,
+  title={Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
+  author={Peherstorfer, Benjamin},
+  journal={arXiv preprint arXiv:1908.11233},
+  year={2019}
+}</pre></details>

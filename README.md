@@ -297,3 +297,21 @@ Computers & Fluids 179:704-717, 2019.
 
 - \[4\] Swischuk, R. Physics-based machine learning and data-driven reduced-order modeling, Master's thesis, Massachusetts Institute of Technology, 2019.
 <!-- TODO: link -->
+
+- \[5\] Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K. [Learning physics-based reduced-order models for a single-injector combustion process](https://arxiv.org/abs/1908.03620). ArXiv preprint arXiv:1908.03620.
+([Download](https://arxiv.org/pdf/1908.03620.pdf))<details><summary>BibTeX</summary><pre>
+@article{swischuk2019learning,
+  title={Learning physics-based reduced-order models for a single-injector combustion process},
+  author={Swischuk, Renee and Kramer, Boris and Huang, Cheng and Willcox, Karen},
+  journal={arXiv preprint arXiv:1908.03620},
+  year={2019}
+}</pre></details>
+
+- \[6\] Peherstorfer, B. [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). ArXiv preprint arXiv:1908.11233.
+([Download](https://arxiv.org/pdf/1908.11233.pdf))<details><summary>BibTeX</summary><pre>
+@article{peherstorfer2019sampling,
+  title={Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
+  author={Peherstorfer, Benjamin},
+  journal={arXiv preprint arXiv:1908.11233},
+  year={2019}
+}</pre></details>
