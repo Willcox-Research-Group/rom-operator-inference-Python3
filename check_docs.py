@@ -73,5 +73,5 @@ def check_references_sections_are_the_same(filelist=FILES):
 
 
 if __name__ == "__main__":
-    # check_latex_code_for_spaces()
+    check_latex_code_for_spaces()
     check_references_sections_are_the_same()
