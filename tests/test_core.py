@@ -16,35 +16,35 @@ def _get_data(n=2000, k=500, m=20):
     return X, Xdot, U
 
 
-class TestReducedModel:
-    """Test rom_operator_inference._core.ReducedModel."""
+class TestInferredContinuousModel:
+    """Test rom_operator_inference._core.InferredContinuousModel."""
 
 
     @pytest.fixture
     def set_up_fresh_model(self):
-        return roi.ReducedModel("LQc", has_inputs=False)
+        return roi.InferredContinuousModel("LQc", has_inputs=False)
 
 
     @pytest.fixture
     def set_up_trained_model(self, r=15):
         X, Xdot, U = _get_data()
         Vr = la.svd(X)[0][:,:r]
-        return roi.ReducedModel("LQc", has_inputs=True).fit(X, Xdot, Vr, U)
+        return roi.InferredContinuousModel("LQc", has_inputs=True).fit(X, Xdot, Vr, U)
 
 
     def test_init(self):
-        """Test ReducedModel.__init__()."""
+        """Test InferredContinuousModel.__init__()."""
         with pytest.raises(TypeError) as exc:
-            roi.ReducedModel()
+            roi.InferredContinuousModel()
         assert exc.value.args[0] == \
             "__init__() missing 1 required positional argument: 'modelform'"
 
         with pytest.raises(TypeError) as exc:
-            roi.ReducedModel("LQc", False, None)
+            roi.InferredContinuousModel("LQc", False, None)
         assert exc.value.args[0] == \
             "__init__() takes from 2 to 3 positional arguments but 4 were given"
 
-        model = roi.ReducedModel("LQc")
+        model = roi.InferredContinuousModel("LQc")
         assert hasattr(model, "modelform")
 
 
@@ -140,7 +140,7 @@ class TestReducedModel:
         Upred = np.ones((m, nt))
 
         # Try to predict before fitting.
-        model = roi.ReducedModel("LQc", has_inputs=True)
+        model = roi.InferredContinuousModel("LQc", has_inputs=True)
         with pytest.raises(AttributeError) as exc:
             model.predict(x0, t, u)
         assert exc.value.args[0] == "model not trained (call fit() first)"
@@ -263,7 +263,7 @@ class TestReducedModel:
 
 
     def test_getitem(self, set_up_trained_model):
-        """Test ReducedModel.__getitem__() (indexing, e.g., model["A_"])."""
+        """Test InferredContinuousModel.__getitem__() (indexing, e.g., model["A_"])."""
         model = set_up_trained_model
 
         assert model.A_ is model["A_"]
@@ -278,7 +278,7 @@ class TestReducedModel:
 
 
     def test_str(self, set_up_fresh_model):
-        """Test ReducedModel.__str__() (string representation)."""
+        """Test InferredContinuousModel.__str__() (string representation)."""
         model = set_up_fresh_model
 
         model.modelform = "L"

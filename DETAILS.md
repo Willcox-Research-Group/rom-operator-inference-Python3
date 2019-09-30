@@ -135,7 +135,7 @@ The problem decouples into _r_ independent ordinary least-squares problems, one 
 </p>
 
 The entire routine is relatively inexpensive to solve.
-The code also allows for a Tikhonov regularization matrix or list of matrices (the `G` keyword argument for `ReducedModel.predict()`), in which case the problem being solved is
+The code also allows for a Tikhonov regularization matrix or list of matrices (the `G` keyword argument for `predict()` methods), in which case the problem being solved is
 
 <p align="center">
   <img src="https://latex.codecogs.com/svg.latex?\min_{O^\mathsf{T}}\sum_{j=1}^r||D\mathbf{o}_j-\mathbf{r}_j||_2^2+||G\mathbf{o}_j||_2^2."/>
@@ -174,7 +174,7 @@ For our purposes, any ⊗ or <img src="https://latex.codecogs.com/svg.latex?\wid
 ## Index of Notation
 
 We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
-In the code, a low-dimensional quantity ends with an underscore, so that the `ReducedModel` class follows some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects).
+In the code, a low-dimensional quantity ends with an underscore, so that the model classes follow some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects).
 
 #### Dimensions
 

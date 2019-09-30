@@ -10,7 +10,7 @@ from . import utils
 kron2 = utils.kron_compact
 
 
-class ReducedModel:
+class InferredContinuousModel:
     """Reduced order model for a system of high-dimensional ODEs of the form
 
         dx / dt = f(t,x(t),u(t)),
@@ -378,4 +378,4 @@ class ReducedModel:
 
 
 
-__all__ = ["ReducedModel"]
+__all__ = ["InferredContinuousModel"]

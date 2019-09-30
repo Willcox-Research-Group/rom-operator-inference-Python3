@@ -28,7 +28,7 @@ See [this repository](https://github.com/elizqian/operator-inference) for a MATL
 - [**Quick Start**](#quick-start)
 - [**Examples**](#examples)
 - [**Documentation**](#documentation)
-    - [**ReducedModel Class**](#reducedmodel-class)
+    - [**ReducedModel Classes**](#reducedmodel-classes)
     - [**Preprocessing**](#preprocessing-tools)
     - [**Postprocessing**](#postprocessing-tools)
     - [**Utility Functions**](#utility-functions)
@@ -98,7 +98,7 @@ _**This installation command is very temporary!**_
 import rom_operator_inference as roi
 
 # Define a model of the form x' = Ax + c (no input).
->>> lc_model = roi.ReducedModel('Lc', inp=False)
+>>> lc_model = roi.InferredContinuousModel('Lc', inp=False)
 
 # Fit the model to snapshot data X, the snapshot derivative Xdot,
 # and the linear basis Vr by solving for the operators A_ and c_.
@@ -129,16 +129,21 @@ This example uses MATLAB's Curve Fitting Toolbox to generate the random initial 
 <!-- **TODO**: The complete documentation at _\<insert link to sphinx-generated readthedocs page\>_. -->
 <!-- Here we include a short catalog of functions and their inputs. -->
 
-#### ReducedModel Class
+### ReducedModel Classes
 
-The API for this class adopts some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects): the class has `fit()` and `predict()` methods, hyperparameters are set in the constructor, estimated attributes end with underscore, and so on.
+The API for these classes adopts some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects): there are `fit()` and `predict()` methods, hyperparameters are set in the constructor, estimated attributes end with underscore, and so on.
+
+#### InferredContinuousModel
+
+This class solves the problem [stated above](#problem-statement) with operator inference.
+That is, given snapshot data, a basis, and a form for a reduced model, it computes the reduced model operators by solving a least squares problem.
 
 ##### Constructor
 
 ```python
 import rom_operator_inference as roi
 
-model = roi.ReducedModel(modelform, has_inputs)
+model = roi.InferredContinuousModel(modelform, has_inputs)
 ```
 
 Here `modelform` is one of the following strings denoting the structure of
@@ -157,7 +162,7 @@ The `has_inputs` argument is a boolean (`True` or `False`) denoting whether or n
 
 ##### Methods
 
-- `ReducedModel.fit(X, Xdot, Vr, U=None, G=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
+- `InferredContinuousModel.fit(X, Xdot, Vr, U=None, G=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
     squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
 Parameters:
     - `X`: Snapshot matrix of solutions to the full-order model. Each column is one snapshot.
@@ -166,7 +171,7 @@ Parameters:
     - `U`: Input matrix. Each column is the input for the corresponding column of `X`. Only required when `has_inputs=True`.
     - `G`: Tikhonov regularization matrix for the least squares problem.
 
-- `ReducedModel.predict(x0, t, u=None, **options)`: Simulate the learned reduced-order model with `scipy.integrate.solve_ivp()`. Parameters:
+- `InferredContinuousModel.predict(x0, t, u=None, **options)`: Simulate the learned reduced-order model with `scipy.integrate.solve_ivp()`. Parameters:
     - `x0`: The initial condition, given in the original (high-dimensional) space.
     - `t`: The time domain over which to integrate the reduced-order model.
     - `u`: The input as a function of time. Alternatively, a matrix aligned with the time domain `t` where each column is the input at the corresonding time.
@@ -183,9 +188,10 @@ Parameters:
 
 - Reduced operators `A_`, `H_`, `F_`, `c_`, and `B_`: the `numpy.ndarray` objects corresponding to the learned parts of the reduced-order model. Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="LQ"`, then `c_` is `None`). Accessible as attributes (`model.A_`) or by indexing (`model['A_']`).
 
-#### Preprocessing Tools
 
-The `pre` submodule is a collection of common routines for preparing data to be used by the `ReducedModel` class.
+### Preprocessing Tools
+
+The `pre` submodule is a collection of common routines for preparing data to be used by the `ReducedModel` classes.
 None of these routines are novel, but they may be instructive for new Python users.
 
 - `pre.mean_shift(X)`: Compute the mean of the columns of `X` and shift `X` by that mean so that the result has mean column of zero.
@@ -208,7 +214,7 @@ error less than `eps`, capped at `rmax`.
 - `pre.xdot(X, *args, **kwargs)`: Call `pre.xdot_uniform()` or `pre.xdot_nonuniform()`, depending on the arguments.
 
 
-#### Postprocessing Tools
+### Postprocessing Tools
 
 The `post` submodule is a collection of common routines for computing the absolute and relative errors produced by a ROM approximation.
 Given a norm, "true" data _X_, and an approximation _Y_ to _X_, these errors are defined by <p align="center"><img src="https://latex.codecogs.com/svg.latex?\texttt{abs\_error}=||X-Y||,\qquad\texttt{rel\_error}=\frac{\texttt{abs\_error}}{||X||}=\frac{||X-Y||}{||X||}."/></p>
@@ -227,9 +233,10 @@ The [_L_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#Lp_spaces) f
 For finite _p_, the integrals are approximated by the trapezoidal rule: <p align="center"><img src="https://latex.codecogs.com/svg.latex?||\mathbf{x}(\cdot)||_{L^2([0,T])}=\sqrt{\int_0^T||\mathbf{x}(t)||_{\ell^2}^2\:dt}\approx\Delta%20t\left(\frac{1}{2}\|\mathbf{x}(t_0)\|_{\ell^2}^2+\sum_{j=1}^{k-1}\|\mathbf{x}(t_j)\|_{\ell^2}^2+\frac{1}{2}\|\mathbf{x}(t_k)\|_{\ell^2}^2\right)."/></p>
 The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
 
-#### Utility Functions
 
-These functions are helper routines that are used internally for `ReducedModel.fit()` or `ReducedModel.predict()`.
+### Utility Functions
+
+These functions are helper routines that are used internally for `fit()` or `predict()` methods.
 See [DETAILS.md](DETAILS.md) for more mathematical explanation.
 
 - `utils.lstsq_reg(A, b, G=0)`: Solve the Tikhonov-regularized ordinary least squares problem
