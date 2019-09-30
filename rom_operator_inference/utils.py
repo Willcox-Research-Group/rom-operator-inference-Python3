@@ -118,7 +118,7 @@ def F2H(F):
     Returns
     -------
     H : (r,r**2) ndarray
-        The matricized quadratic tensor that operators on the full Kronecker
+        The matricized quadratic tensor that operates on the full Kronecker
         product. This is a symmetric operator in the sense that each layer of
         H.reshape((r,r,r)) is a symmetric (r,r) matrix.
     """
@@ -139,3 +139,40 @@ def F2H(F):
             fj += 1
 
     return H
+
+
+def H2F(H):
+    """Calculate the matricized quadratic operator that operates on the compact
+    Kronecker product.
+
+    Parameters
+    ----------
+    H : (r,r**2) ndarray
+        The matricized quadratic tensor that operates on the Kronecker product.
+        This should be a symmetric operator in the sense that each layer of
+        H.reshape((r,r,r)) is a symmetric (r,r) matrix, but it is not required.
+
+    Returns
+    -------
+    F : (r,s) ndarray
+        The matricized quadratic tensor that operates on the COMPACT Kronecker
+        product. Here s = r * (r+1) / 2.
+    """
+    r = H.shape[0]
+    r2 = H.shape[1]
+    if r2 != r**2:
+        raise ValueError(f"invalid shape (r,a) = {(r,r2)} with a != r**2")
+    s = r * (r+1) // 2
+    F = _np.zeros((r, s))
+
+    fj = 0
+    for i in range(r):
+        for j in range(i+1):
+            if i == j:      # Place column for unique term.
+                F[:,fj] = H[:,(i*r)+j]
+            else:           # Combine columns for repeated terms.
+                fill = H[:,(i*r)+j] + H[:,(j*r)+i]
+                F[:,fj] = fill
+            fj += 1
+
+    return F

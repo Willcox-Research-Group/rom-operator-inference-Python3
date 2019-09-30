@@ -168,3 +168,43 @@ def test_F2H(n_tests=100):
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 100, n_tests):
         _test_F2H_single(r)
+
+
+# rom_operator_inference.utils.H2F() ------------------------------------------
+def _test_H2F_single(r):
+    """Do one test of rom_operator_inference.utils.F2H()."""
+    x = np.random.random(r)
+
+    # Do a valid H2F() calculation and check dimensions.
+    H = np.random.random((r,r**2))
+    s = r*(r+1)//2
+    F = roi.utils.H2F(H)
+    assert F.shape == (r,s)
+
+    # Check that F(x^2) == H(x⊗x).
+    Hxx = H @ np.kron(x,x)
+    assert np.allclose(Hxx, F @ roi.utils.kron_compact(x))
+
+    # Check that F2H() and H2F() are inverses up to symmetry.
+    H2 = roi.utils.F2H(F)
+    Ht = H.reshape((r,r,r))
+    Htnew = np.empty_like(Ht)
+    for l in range(r):
+        Htnew[l] = (Ht[l] + Ht[l].T) / 2
+    assert np.allclose(H2, Htnew.reshape(H.shape))
+
+
+def test_H2F(n_tests=100):
+    """Test rom_operator_inference.utils.F2H()."""
+    # Try to do H2F() with a bad second dimension.
+    r = 5
+    r2bad = r**2 + 1
+    H = np.random.random((r, r2bad))
+    with pytest.raises(ValueError) as exc:
+        roi.utils.H2F(H)
+    assert exc.value.args[0] == \
+        f"invalid shape (r,a) = {(r,r2bad)} with a != r**2"
+
+    # Do 100 test cases of varying dimensions.
+    for r in np.random.randint(2, 100, n_tests):
+        _test_H2F_single(r)
