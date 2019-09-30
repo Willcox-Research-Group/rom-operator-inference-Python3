@@ -140,7 +140,7 @@ This example uses MATLAB's Curve Fitting Toolbox to generate the random initial 
 <!-- **TODO**: The complete documentation at _\<insert link to sphinx-generated readthedocs page\>_. -->
 <!-- Here we include a short catalog of functions and their inputs. -->
 
-#### ReducedModel class
+#### ReducedModel Class
 
 The API for this class adopts some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects): the class has `fit()` and `predict()` methods, hyperparameters are set in the constructor, estimated attributes end with underscore, and so on.
 
@@ -246,7 +246,7 @@ See [DETAILS.md](DETAILS.md) for more mathematical explanation.
 - `utils.lstsq_reg(A, b, G=0)`: Solve the Tikhonov-regularized ordinary least squares problem
 <p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}\in\mathbb{R}^n}{\text{min}}||A\mathbf{x}-\mathbf{b}||_{\ell^2}^2+||G\mathbf{x}||_{\ell^2}^2,"/></p>
 
-  where _G_ is the regularization factor `reg`. If `b` is a matrix, solve the above problem for each column of `b`. If _G_ is a scalar, use the identity matrix times that scalar for the regularization matrix.
+  where _G_ is the regularization matrix. If `b` is a matrix, solve the above problem for each column of `b`. If `G` is a scalar, use the identity matrix times that scalar for the regularization matrix _G_.
 
 -  `utils.kron_compact(x)`: Compute the column-wise compact Kronecker product of `x`.
 
