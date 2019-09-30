@@ -75,7 +75,7 @@ We call _X_ the _snapshot matrix_ and _V<sub>_r_</sub>_ the _reduced basis matri
 The classical approach to the projection step is to make the Ansatz
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}(t)\approx%20V_{r}\hat{\mathbf{x}}(t).">
+  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}(t)\approx%20V_{r}\hat{\mathbf{x}}(t)."/>
 </p>
 
 Inserting this into the FOM and multiplying both sides by the transpose of _V_<sub>_r_</sub> yields
@@ -226,12 +226,12 @@ t\ge 0 &= \text{time}\\
 
 | Symbol | Code | Shape | Description |
 | :----: | :--- | :---: | :---------- |
-| <img src="https://latex.codecogs.com/svg.latex?X"> | `X` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot matrix |
-| <img src="https://latex.codecogs.com/svg.latex?\dot{X}"> | `Xdot` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot velocity matrix |
+| <img src="https://latex.codecogs.com/svg.latex?X"/> | `X` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot matrix |
+| <img src="https://latex.codecogs.com/svg.latex?\dot{X}"/> | `Xdot` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot velocity matrix |
 | <img src="https://latex.codecogs.com/svg.latex?V_r"/> | `Vr` | <img src="https://latex.codecogs.com/svg.latex?n\times%20r"/> | low-rank basis of rank _r_ (usually the POD basis) |
 | <img src="https://latex.codecogs.com/svg.latex?U"/> | `U` | <img src="https://latex.codecogs.com/svg.latex?m\times%20k"/> | Input matrix (inputs corresonding to the snapshots) |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{X}"> | `X_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot matrix |
-| <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{X}}"> | `Xdot_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot velocity matrix |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{X}"/> | `X_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot matrix |
+| <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{X}}"/> | `Xdot_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot velocity matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{A}"/> | `A_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Learned state matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{B}"/> | `B_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20m"/> | Learned input matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{H}"/> | `H_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r^2"/> | Learned matricized quadratic tensor |
