@@ -70,7 +70,7 @@ This package focuses on step 3, constructing the ROM given the snapshot data and
 
 Let _X_ be the _n_ x _k_ matrix whose _k_ columns are each solutions to the FOM of length _n_ (step 1), and let _V_<sub>_r_</sub> be an orthonormal _n_ x _r_ matrix representation for an _r_-dimensional subspace (step 2).
 For example, a common choice for _V_<sub>_r_</sub> is the POD Basis of rank _r_, the matrix comprised of the first _r_ singular vectors of _X_.
-We call _X_ the _snapshot matrix_ and _V<sub>_r_</sub>_ the _reduced basis matrix_.
+We call _X_ the _snapshot matrix_ and _V_<sub>_r_</sub> the _reduced basis matrix_.
 
 The classical approach to the projection step is to make the Ansatz
 

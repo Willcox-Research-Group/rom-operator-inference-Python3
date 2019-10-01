@@ -40,4 +40,5 @@ html/
 *.DS_Store
 
 # Specific files / folders
+Makefile
 
