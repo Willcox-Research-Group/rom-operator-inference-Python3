@@ -5,6 +5,7 @@ import numpy as _np
 from scipy import linalg as _la
 
 
+# Least squares solver ========================================================
 def lstsq_reg(A, b, G=0):
     """Solve the l2- (Tikhonov)-regularized ordinary least squares problem
 
@@ -90,21 +91,56 @@ def lstsq_reg(A, b, G=0):
     return _la.lstsq(lhs, rhs)
 
 
+# Kronecker products ==========================================================
 def kron_compact(x):
     """Calculate the unique terms of the Kronecker product x ⊗ x.
 
     Parameters
     ----------
-    x : (n,) ndarray
+    x : (n,) or (n,k) ndarray
+        If two-dimensional, the product is computed column-wise (Khatri-Rao).
 
     Returns
     -------
-    x ⊗ x : (n(n+1)/2,) ndarray
+    x ⊗ x : (n(n+1)/2,) or (n(n+1)/2,k) ndarray
         The "compact" Kronecker product of x with itself.
     """
+    if x.ndim not in (1,2):
+        raise ValueError("x must be one- or two-dimensional")
     return _np.concatenate([x[i]*x[:i+1] for i in range(x.shape[0])], axis=0)
 
 
+def kron_col(x, y):
+    """Calculate the full column-wise Kronecker (Khatri-Rao) product x ⊗ y.
+
+    Parameters
+    ----------
+    x : (n,) or (n,k) ndarray
+        If two-dimensional, the product is computed column-wise (Khatri-Rao).
+
+    y : (m,) or (m,k) ndarray
+        Must have the same number of dimensions as x. If two-dimensional, must
+        have the same number of columns as x.
+
+    Returns
+    -------
+    x ⊗ y : (nm,) or (nm,k) ndarray
+        The full Kronecker product of x and y, by column if two-dimensional.
+    """
+    if x.ndim != y.ndim:
+        raise ValueError("x and y must have the same number of dimensions")
+    if x.ndim == 1:
+        return _np.kron(x,y)
+    elif x.ndim == 2:
+        if x.shape[1] != y.shape[1]:
+            raise ValueError("x and y must have the same number of columns")
+        return _np.column_stack([_np.kron(xcol,ycol)
+                                 for xcol,ycol in zip(x.T, y.T)])
+    else:
+        raise ValueError("x and y must be one- or two-dimensional")
+
+
+# Matricized tensor management ================================================
 def F2H(F):
     """Calculate the matricized quadratic operator that operates on the full
     Kronecker product.

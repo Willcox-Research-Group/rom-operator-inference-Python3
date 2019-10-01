@@ -127,9 +127,65 @@ def _test_kron_compact_single_matrix(n):
 
 def test_kron_compact(n_tests=100):
     """Test rom_operator_inference.utils.kron_compact()."""
+    # Try with bad input.
+    with pytest.raises(ValueError) as exc:
+        roi.utils.kron_compact(np.random.random((3,3,3)))
+    assert exc.value.args[0] == "x must be one- or two-dimensional"
+
+    # Correct inputs.
     for n in np.random.randint(2, 100, n_tests):
         _test_kron_compact_single_vector(n)
         _test_kron_compact_single_matrix(n)
+
+
+# rom_operator_inference.utils.kron_col() ------------------------------
+def _test_kron_col_single_vector(n, m):
+    """Do one vector test of rom_operator_inference.utils.kron_col()."""
+    x = np.random.random(n)
+    y = np.random.random(m)
+    xy = roi.utils.kron_col(x, y)
+    assert xy.ndim == 1
+    assert xy.shape[0] == x.shape[0] * y.shape[0]
+    for i in range(n):
+        assert np.allclose(xy[i*m:(i+1)*m], x[i]*y)
+
+
+def _test_kron_col_single_matrix(n, k, m):
+    """Do one matrix test of rom_operator_inference.utils.kron_col()."""
+    X = np.random.random((n,k))
+    Y = np.random.random((m,k))
+    XY = roi.utils.kron_col(X, Y)
+    assert XY.ndim == 2
+    assert XY.shape[0] == X.shape[0] * Y.shape[0]
+    assert XY.shape[1] == X.shape[1]
+    for i in range(n):
+        assert np.allclose(XY[i*m:(i+1)*m], X[i]*Y)
+
+
+def test_kron_col(n_tests=100):
+    """Test rom_operator_inference.utils.kron_compact()."""
+    # Try with bad inputs.
+    with pytest.raises(ValueError) as exc:
+        roi.utils.kron_col(np.random.random(5), np.random.random((5,5)))
+    assert exc.value.args[0] == \
+        "x and y must have the same number of dimensions"
+
+    x = np.random.random((3,3))
+    y = np.random.random((3,4))
+    with pytest.raises(ValueError) as exc:
+        roi.utils.kron_col(x, y)
+    assert exc.value.args[0] == "x and y must have the same number of columns"
+
+    x, y = np.random.random((2,3,3,3))
+    with pytest.raises(ValueError) as exc:
+        roi.utils.kron_col(x, y)
+    assert exc.value.args[0] == "x and y must be one- or two-dimensional"
+
+    for n in np.random.randint(4, 100, n_tests):
+        m = np.random.randint(2, n)
+        k = np.random.randint(2, 100)
+        _test_kron_col_single_vector(n, m)
+        _test_kron_col_single_matrix(n, k, m)
 
 
 # rom_operator_inference.utils.F2H() ------------------------------------------

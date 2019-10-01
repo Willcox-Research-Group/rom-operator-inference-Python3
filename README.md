@@ -244,9 +244,13 @@ See [DETAILS.md](DETAILS.md) for more mathematical explanation.
 
   where _G_ is the regularization matrix. If `b` is a matrix, solve the above problem for each column of `b`. If `G` is a scalar, use the identity matrix times that scalar for the regularization matrix _G_.
 
--  `utils.kron_compact(x)`: Compute the column-wise compact Kronecker product of `x`.
+- `utils.kron_compact(x)`: Compute the compact column-wise (Khatri-Rao) Kronecker product of `x` with itself.
 
--  `utils.F2H(F)`: Convert the compact matricized quadratic operator `F` to the full, symmetric, matricized quadratic operator `H`.
+- `utils.kron_col(x, y)`: Compute the full column-wise (Khatri-Rao) Kronecker product of `x` and `y`.
+
+- `utils.F2H(F)`: Convert the compact matricized quadratic operator `F` to the full, symmetric, matricized quadratic operator `H`.
+
+- `utils.H2F(H)`: Convert the full matricized quadratic operator `H` to the compact matricized quadratic operator `F`.
 
 
 ## References
