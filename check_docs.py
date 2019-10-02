@@ -84,7 +84,7 @@ def check_version_numbers_match(filelist=VNFILES):
         raise ValueError("can only compare 2 files at a time")
     file1, file2 = filelist
 
-    # Get the version
+    # Get the version number listed in each file.
     versions = []
     for filename in filelist:
         with open(filename, 'r') as infile:

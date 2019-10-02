@@ -181,7 +181,7 @@ All model classes have the following attributes.
     - `r`: The dimension of the learned reduced-order model
     - `m`: The dimension of the input u(t), or `None` if `has_inputs` is `False`.
 
-- Reduced operators `A_`, `H_`, `F_`, `c_`, and `B_`: the `numpy.ndarray` objects corresponding to the learned parts of the reduced-order model. Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="LQ"`, then `c_` is `None`). Accessible as attributes (`model.A_`) or by indexing (`model['A_']`).
+- Reduced operators `A_`, `H_`, `F_`, `c_`, and `B_`: the `numpy.ndarray` objects corresponding to the learned parts of the reduced-order model. Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="LQ"`, then `c_` is `None`).
 
 
 #### InferredContinuousModel

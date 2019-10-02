@@ -94,15 +94,6 @@ class TestIntrusiveContinuousModel:
     def set_up_fresh_model(self):
         return roi.IntrusiveContinuousModel("LQc", has_inputs=False)
 
-    @pytest.fixture
-    def set_up_trained_model(self, r=15):
-        X, Xdot, U = _get_data()
-        Vr = la.svd(X)[0][:,:r]
-        ops = list(_get_FOM_operators())
-
-        model = roi.IntrusiveContinuousModel("LQc", has_inputs=True)
-        return model.fit(ops, Vr)
-
     def test_fit(self, set_up_fresh_model):
         model = set_up_fresh_model
 
@@ -337,24 +328,6 @@ class TestIntrusiveContinuousModel:
             assert isinstance(out, np.ndarray)
             assert out.shape == (n,nt)
 
-    def test_getitem(self, set_up_trained_model):
-        """Test IntrusiveContinuousModel.__getitem__() (e.g., model["A_"])."""
-        model = set_up_trained_model
-        assert model.A is model["A"]
-        assert model.H is model["H"]
-        assert model.F is model["F"]
-        assert model.c is model["c"]
-        assert model.B is model["B"]
-        assert model.A_ is model["A_"]
-        assert model.F_ is model["F_"]
-        assert model.c_ is model["c_"]
-        assert model.B_ is model["B_"]
-        assert np.allclose(model.H_, model["H_"])
-
-        with pytest.raises(KeyError) as exc:
-            model["G_"]
-        assert exc.value.args[0] == f"valid keys are {model._VALID_KEYS}"
-
 
 class TestInferredContinuousModel:
     """Test rom_operator_inference._core.InferredContinuousModel."""
@@ -362,15 +335,6 @@ class TestInferredContinuousModel:
     @pytest.fixture
     def set_up_fresh_model(self):
         return roi.InferredContinuousModel("LQc", has_inputs=False)
-
-    @pytest.fixture
-    def set_up_trained_model(self, r=15):
-        X, Xdot, U = _get_data()
-        Vr = la.svd(X)[0][:,:r]
-        return roi.InferredContinuousModel("LQc", has_inputs=True).fit(X,
-                                                                       Xdot,
-                                                                       Vr,
-                                                                       U)
 
     def test_fit(self, set_up_fresh_model):
         model = set_up_fresh_model
@@ -583,17 +547,3 @@ class TestInferredContinuousModel:
             out = model.predict(x0, t, np.ones_like(t))   # discrete case
             assert isinstance(out, np.ndarray)
             assert out.shape == (n,nt)
-
-    def test_getitem(self, set_up_trained_model):
-        """Test InferredContinuousModel.__getitem__() (e.g., model["A_"])."""
-        model = set_up_trained_model
-
-        assert model.A_ is model["A_"]
-        assert model.F_ is model["F_"]
-        assert model.c_ is model["c_"]
-        assert model.B_ is model["B_"]
-        assert np.allclose(model.H_, model["H_"])
-
-        with pytest.raises(KeyError) as exc:
-            model["G_"]
-        assert exc.value.args[0] == f"valid keys are {model._VALID_KEYS}"
