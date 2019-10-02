@@ -3,15 +3,16 @@
 Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
 """
 
-from ._core import InferredContinuousModel
+from ._core import InferredContinuousModel, IntrusiveContinuousModel
 from . import utils, pre, post
 
 
 __all__ = [
             "InferredContinuousModel",
+            "IntrusiveContinuousModel",
             "utils",
             "pre",
             "post",
           ]
 
-__version__ = "0.3.5"
+__version__ = "0.4.0"

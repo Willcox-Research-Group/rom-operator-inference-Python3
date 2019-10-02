@@ -94,11 +94,14 @@ _**This installation command is very temporary!**_
 
 <!-- TODO: what are these variables?? -->
 
+Given snapshot data `X`, snapshot velocities `Xdot`, and a linear basis `Vr`, the following code learns a reduced model for a problem of the form _d**x**/dt = A**x**(t) + **c**_, then runs the reduced system for _0 ≤ t ≤ 1_.
+
 ```python
+import numpy as np
 import rom_operator_inference as roi
 
-# Define a model of the form x' = Ax + c (no input).
->>> lc_model = roi.InferredContinuousModel('Lc', inp=False)
+# Define a model of the form  dx/dt = Ax + c.
+>>> lc_model = roi.InferredContinuousModel(modelform="Lc", has_inputs=False)
 
 # Fit the model to snapshot data X, the snapshot derivative Xdot,
 # and the linear basis Vr by solving for the operators A_ and c_.
@@ -131,26 +134,33 @@ This example uses MATLAB's Curve Fitting Toolbox to generate the random initial 
 
 ### ReducedModel Classes
 
+These classes are the workhorse of the package.
 The API for these classes adopts some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects): there are `fit()` and `predict()` methods, hyperparameters are set in the constructor, estimated attributes end with underscore, and so on.
 
-#### InferredContinuousModel
+Classes differ by the type of full-order model in question and the strategy for constructing the ROM.
 
-This class solves the problem [stated above](#problem-statement) with operator inference.
-That is, given snapshot data, a basis, and a form for a reduced model, it computes the reduced model operators by solving a least squares problem.
+| Class Name | Full-order Model | ROM Strategy |
+| :--------- | :--------------: | :----------- |
+| `InferredContinuousModel` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t))"/> | Operator Inference |
+| `IntrusiveContinuousModel` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t))"/> | Intrusive Projection |
 
-##### Constructor
+<!-- | `InferredDiscreteModel` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k})"/> | Operator Inference | -->
+<!-- ^^Move this to the second row -->
 
-```python
-import rom_operator_inference as roi
+<!-- | `IntrusiveDiscreteModel` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k})"/> | Intrusive Projection | -->
+<!-- | `InterpolatedContinuousModel` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\mathbf{p})"/> | Operator Inference | -->
+<!-- | `InterpolatedDiscreteModel` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k};\mathbf{p})"/> | Chosen in `fit()` | -->
+<!-- | `EmbeddedContinuousModel` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\mathbf{p})"/> | Operator Inference | -->
+<!-- | `EmbeddedDiscreteModel` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k};\mathbf{p})"/> | Operator Inference | -->
 
-model = roi.InferredContinuousModel(modelform, has_inputs)
-```
+#### Constructors
 
+Each class is instantiated with two arguments: `modelform` and `has_inputs`.
 Here `modelform` is one of the following strings denoting the structure of
 the desired ROM.
 
 | `modelform` | Model Description | Model Equation |
-| :------- | :---------------- | :------------- |
+| :---------- | :---------------- | :------------- |
 |  `"L"`   |  **L**inear | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/>
 |  `"Lc"`  |  **L**inear with **c**onstant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)+\hat{\mathbf{c}}"/>
 |  `"Q"`   |  **Q**uadratic | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/>
@@ -160,13 +170,32 @@ the desired ROM.
 
 The `has_inputs` argument is a boolean (`True` or `False`) denoting whether or not there is an additive input term of the form <img src="https://latex.codecogs.com/svg.latex?B\mathbf{u}(t)"/>.
 
+#### Attributes
+
+All model classes have the following attributes.
+
+- Hyperparameters: `modelform` and `has_inputs`, set in the [constructor](#constructor).
+
+- Dimensions:
+    - `n`: The dimension of the original model
+    - `r`: The dimension of the learned reduced-order model
+    - `m`: The dimension of the input u(t), or `None` if `has_inputs` is `False`.
+
+- Reduced operators `A_`, `H_`, `F_`, `c_`, and `B_`: the `numpy.ndarray` objects corresponding to the learned parts of the reduced-order model. Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="LQ"`, then `c_` is `None`). Accessible as attributes (`model.A_`) or by indexing (`model['A_']`).
+
+
+#### InferredContinuousModel
+
+This class solves the problem [stated above](#problem-statement) with operator inference.
+That is, given snapshot data, a basis, and a form for a reduced model, it computes the reduced model operators by solving a least squares problem.
+
 ##### Methods
 
 - `InferredContinuousModel.fit(X, Xdot, Vr, U=None, G=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
     squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
 Parameters:
     - `X`: Snapshot matrix of solutions to the full-order model. Each column is one snapshot.
-    - `Xdot`: Snapshot velocity of solutions to the full-order model. Each column is the velocity `dx / dt` for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
+    - `Xdot`: Snapshot velocity of solutions to the full-order model. Each column is the velocity _d**x**/dt_ for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
     - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `U`: Input matrix. Each column is the input for the corresponding column of `X`. Only required when `has_inputs=True`.
     - `G`: Tikhonov regularization matrix for the least squares problem.
@@ -177,16 +206,37 @@ Parameters:
     - `u`: The input as a function of time. Alternatively, a matrix aligned with the time domain `t` where each column is the input at the corresonding time.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 
-##### Attributes
 
-- Hyperparameters: `modelform` and `has_inputs`, set in the [constructor](#constructor).
+#### IntrusiveContinuousModel
 
-- Dimensions:
-    - `n`: The dimension of the original model
-    - `r`: The dimension of the learned reduced-order model
-    - `m`: The dimension of the input u(t), or `None` if `has_inputs` is `False`.
+This class solves the problem [stated above](#problem-statement) with intrusive projection, i.e.,
 
-- Reduced operators `A_`, `H_`, `F_`, `c_`, and `B_`: the `numpy.ndarray` objects corresponding to the learned parts of the reduced-order model. Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="LQ"`, then `c_` is `None`). Accessible as attributes (`model.A_`) or by indexing (`model['A_']`).
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.latex?\hat{A}=V_{r}^\mathsf{T}AV_{r}."/>
+</p>
+
+The class requires the actual full-order operators (_A_, _**c**_, etc.) that define _f_.
+It is included in the package for ease of comparison with operator inference.
+
+##### Methods
+
+- `IntrusiveContinuousModel.fit(operators, Vr)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
+Parameters:
+    - `operators`: A list of the full-order operators that define _**f**(t,**x**)_. The list must be as follows, depending on the value of `modelform`:
+      - `'L'`   : `[A]`, or `[A, B]` if `has_inputs` is `True`.
+      - `'Lc'`  : `[A, c]`, or `[A, c, B]` if `has_inputs` is `True`.
+      - `'Q'`   : `[H]`, or `[A, H, B]` if `has_inputs` is `True`.
+      - `'Qc'`  : `[H, c]`, or `[H, c, B]` if `has_inputs` is `True`.
+      - `'LQ'`  : `[A, H]`, or `[A, H, B]` if `has_inputs` is `True`.
+      - `'LQc'` : `[A, H, c]`, or `[A, H, c, B]` if `has_inputs` is `True`.
+    `H` and `F` may be used interchangeably.
+    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
+
+- `IntrusiveContinuousModel.predict(x0, t, u=None, **options)`: Simulate the learned reduced-order model with `scipy.integrate.solve_ivp()`. Parameters:
+    - `x0`: The initial condition, given in the original (high-dimensional) space.
+    - `t`: The time domain over which to integrate the reduced-order model.
+    - `u`: The input as a function of time. Alternatively, a matrix aligned with the time domain `t` where each column is the input at the corresonding time.
+    - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 
 
 ### Preprocessing Tools
