@@ -7,7 +7,7 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="rom_operator_inference-shanemcq18",
-    version="0.4.0",
+    version="0.4.2",
 
     # Package description, license, and keywords.
     description="Operator Inference for Data-Driven, Non-intrusive, Projection-based Model Reduction",

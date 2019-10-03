@@ -1,5 +1,5 @@
 # test_pre.py
-"""Tests for rom_operator_inference.pre.py"""
+"""Tests for rom_operator_inference.post.py"""
 
 import pytest
 import numpy as np

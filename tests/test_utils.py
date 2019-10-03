@@ -8,9 +8,9 @@ from scipy import linalg as la
 import rom_operator_inference as roi
 
 
-# rom_operator_inference.utils.lstsq_reg() ------------------------------------
+# utils.lstsq_reg() -----------------------------------------------------------
 def _test_lstq_reg_single(k,d,r):
-    """Do one test of rom_operator_inference.utils.lstsq_reg()."""
+    """Do one test of utils.lstsq_reg()."""
     A = np.random.random((k, d))
     b = np.random.random(k)
     B = np.random.random((k,r))
@@ -61,7 +61,7 @@ def _test_lstq_reg_single(k,d,r):
 
 
 def test_lstsq_reg(n_tests=5):
-    """Test rom_operator_inference.utils.lstsq_reg()."""
+    """Test utils.lstsq_reg()."""
     A = np.random.random((20,10))
     B = np.random.random((20, 5))
 
@@ -103,9 +103,9 @@ def test_lstsq_reg(n_tests=5):
         _test_lstq_reg_single(k, r+s+m+1, r)
 
 
-# rom_operator_inference.utils.kron_compact() ---------------------------------
+# utils.kron_compact() --------------------------------------------------------
 def _test_kron_compact_single_vector(n):
-    """Do one vector test of rom_operator_inference.utils.kron_compact()."""
+    """Do one vector test of utils.kron_compact()."""
     x = np.random.random(n)
     x2 = roi.utils.kron_compact(x)
     assert x2.ndim == 1
@@ -115,7 +115,7 @@ def _test_kron_compact_single_vector(n):
 
 
 def _test_kron_compact_single_matrix(n):
-    """Do one matrix test of rom_operator_inference.utils.kron_compact()."""
+    """Do one matrix test of utils.kron_compact()."""
     X = np.random.random((n,n))
     X2 = roi.utils.kron_compact(X)
     assert X2.ndim == 2
@@ -126,7 +126,7 @@ def _test_kron_compact_single_matrix(n):
 
 
 def test_kron_compact(n_tests=100):
-    """Test rom_operator_inference.utils.kron_compact()."""
+    """Test utils.kron_compact()."""
     # Try with bad input.
     with pytest.raises(ValueError) as exc:
         roi.utils.kron_compact(np.random.random((3,3,3)))
@@ -138,9 +138,9 @@ def test_kron_compact(n_tests=100):
         _test_kron_compact_single_matrix(n)
 
 
-# rom_operator_inference.utils.kron_col() ------------------------------
+# utils.kron_col() ------------------------------------------------------------
 def _test_kron_col_single_vector(n, m):
-    """Do one vector test of rom_operator_inference.utils.kron_col()."""
+    """Do one vector test of utils.kron_col()."""
     x = np.random.random(n)
     y = np.random.random(m)
     xy = roi.utils.kron_col(x, y)
@@ -151,7 +151,7 @@ def _test_kron_col_single_vector(n, m):
 
 
 def _test_kron_col_single_matrix(n, k, m):
-    """Do one matrix test of rom_operator_inference.utils.kron_col()."""
+    """Do one matrix test of utils.kron_col()."""
     X = np.random.random((n,k))
     Y = np.random.random((m,k))
     XY = roi.utils.kron_col(X, Y)
@@ -163,7 +163,7 @@ def _test_kron_col_single_matrix(n, k, m):
 
 
 def test_kron_col(n_tests=100):
-    """Test rom_operator_inference.utils.kron_compact()."""
+    """Test utils.kron_compact()."""
     # Try with bad inputs.
     with pytest.raises(ValueError) as exc:
         roi.utils.kron_col(np.random.random(5), np.random.random((5,5)))
@@ -188,9 +188,9 @@ def test_kron_col(n_tests=100):
         _test_kron_col_single_matrix(n, k, m)
 
 
-# rom_operator_inference.utils.F2H() ------------------------------------------
+# utils.F2H() -----------------------------------------------------------------
 def _test_F2H_single(r):
-    """Do one test of rom_operator_inference.utils.F2H()."""
+    """Do one test of utils.F2H()."""
     x = np.random.random(r)
 
     # Do a valid F2H() calculation and check dimensions.
@@ -211,7 +211,7 @@ def _test_F2H_single(r):
 
 
 def test_F2H(n_tests=100):
-    """Test rom_operator_inference.utils.F2H()."""
+    """Test utils.F2H()."""
     # Try to do F2H() with a bad second dimension.
     r = 5
     sbad = r*(r+3)//2
@@ -226,9 +226,9 @@ def test_F2H(n_tests=100):
         _test_F2H_single(r)
 
 
-# rom_operator_inference.utils.H2F() ------------------------------------------
+# utils.H2F() -----------------------------------------------------------------
 def _test_H2F_single(r):
-    """Do one test of rom_operator_inference.utils.F2H()."""
+    """Do one test of utils.F2H()."""
     x = np.random.random(r)
 
     # Do a valid H2F() calculation and check dimensions.
@@ -251,7 +251,7 @@ def _test_H2F_single(r):
 
 
 def test_H2F(n_tests=100):
-    """Test rom_operator_inference.utils.F2H()."""
+    """Test utils.F2H()."""
     # Try to do H2F() with a bad second dimension.
     r = 5
     r2bad = r**2 + 1

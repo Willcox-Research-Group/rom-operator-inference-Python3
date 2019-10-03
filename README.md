@@ -148,8 +148,8 @@ Classes differ by the type of full-order model in question and the strategy for 
 <!-- ^^Move this to the second row -->
 
 <!-- | `IntrusiveDiscreteModel` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k})"/> | Intrusive Projection | -->
-<!-- | `InterpolatedContinuousModel` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\mathbf{p})"/> | Operator Inference | -->
-<!-- | `InterpolatedDiscreteModel` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k};\mathbf{p})"/> | Chosen in `fit()` | -->
+<!-- | `InterpolatedInferredContinuousModel` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\mathbf{p})"/> | Operator Inference | -->
+<!-- | `InterpolatedInferredDiscreteModel` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k};\mathbf{p})"/> | Operator Inference | -->
 <!-- | `EmbeddedContinuousModel` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\mathbf{p})"/> | Operator Inference | -->
 <!-- | `EmbeddedDiscreteModel` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k};\mathbf{p})"/> | Operator Inference | -->
 
@@ -159,7 +159,7 @@ Each class is instantiated with two arguments: `modelform` and `has_inputs`.
 Here `modelform` is one of the following strings denoting the structure of
 the desired ROM.
 
-| `modelform` | Model Description | Model Equation |
+| `modelform` | Model Description | Reduced-order Model Form |
 | :---------- | :---------------- | :------------- |
 |  `"L"`   |  **L**inear | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/>
 |  `"Lc"`  |  **L**inear with **c**onstant | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)+\hat{\mathbf{c}}"/>

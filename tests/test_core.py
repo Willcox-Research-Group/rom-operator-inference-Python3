@@ -16,31 +16,99 @@ def _get_data(n=200, k=50, m=20):
 
     return X, Xdot, U
 
-def _get_FOM_operators(n=200, m=20):
-    A = np.zeros((n,n))
+def _get_operators(n=200, m=20):
+    A = np.eye(n)
     H = np.zeros((n,n**2))
+    F = np.zeros((n,n*(n+1)//2))
     c = np.random.random(n)
     B = np.random.random((n,m))
-    return A, H, c, B
+    return A, H, F, c, B
+
+_contmodel = roi._core._BaseContinuousModel._trained_model_from_operators
+# _discmodel = roi._core._BaseDiscreteModel._trained_model_from_operators
+
+class TestBaseModel:
+    """Test _core._BaseModel."""
+    def test_init(self):
+        """Test _BaseModel.__init__()."""
+        with pytest.raises(TypeError) as ex:
+            roi._core._BaseModel()
+        assert ex.value.args[0] == \
+            "__init__() missing 1 required positional argument: 'modelform'"
+
+        with pytest.raises(TypeError) as ex:
+            roi._core._BaseModel("LQc", False, None)
+        assert ex.value.args[0] == \
+            "__init__() takes from 2 to 3 positional arguments " \
+            "but 4 were given"
+
+        model = roi._core._BaseModel("LQc")
+        assert hasattr(model, "modelform")
+        assert hasattr(model, "has_inputs")
+
+    def test_check_modelform(self):
+        """Test _BaseModel._check_modelform()."""
+        model = roi._core._BaseModel("bad_form", False)
+        with pytest.raises(ValueError) as ex:
+            model._check_modelform()
+        assert ex.value.args[0] == \
+            "invalid modelform 'bad_form'; " \
+            f"options are {model._VALID_MODEL_FORMS}"
+
+    def test_check_hasinputs(self):
+        """Test _BaseModel._check_hasinputs()."""
+        model = roi._core._BaseModel("some model form", None)
+
+        # Try with has_inputs = True but without inputs.
+        model.has_inputs = True
+        with pytest.raises(ValueError) as ex:
+            model._check_hasinputs(None, 'U')
+        assert ex.value.args[0] == \
+            "argument 'U' required since has_inputs=True"
+
+        # Try with has_inputs = False but with inputs.
+        model.has_inputs = False
+        with pytest.raises(ValueError) as ex:
+            model._check_hasinputs(1, 'u')
+        assert ex.value.args[0] == \
+            "argument 'u' invalid since has_inputs=False"
 
 
 class TestBaseContinuousModel:
-    """Test rom_operator_inference._core._BaseContinuousModel."""
-    def test_init(self):
-        """Test _BaseContinuousModel.__init__()."""
-        with pytest.raises(TypeError) as exc:
-            roi._core._BaseContinuousModel()
-        assert exc.value.args[0] == \
-            "__init__() missing 1 required positional argument: 'modelform'"
+    """Test _core._BaseContinuousModel."""
+    def test_construct_f_(self):
+        """Test incorrect usage of BaseContinuousModel._construct_f_()."""
+        model = roi._core._BaseContinuousModel(None, False)
 
-        with pytest.raises(TypeError) as exc:
-            roi._core._BaseContinuousModel("LQc", False, None)
-        assert exc.value.args[0] == \
-            "__init__() takes from 2 to 3 positional arguments but 4 were given"
+        model.has_inputs = False
+        with pytest.raises(RuntimeError) as ex:
+            model._construct_f_(lambda t: 1)
+        assert ex.value.args[0] == "improper use of _construct_f_()!"
 
-        model = roi._core._BaseContinuousModel("LQc")
-        assert hasattr(model, "modelform")
-        assert hasattr(model, "has_inputs")
+        model.has_inputs = True
+        with pytest.raises(RuntimeError) as ex:
+            model._construct_f_()
+        assert ex.value.args[0] == "improper use of _construct_f_()!"
+
+    def test_trained_model_from_operators(self):
+        """Test BaseContinuousModel._trained_model_from_operators."""
+        # Try with no operators given.
+        with pytest.raises(AttributeError) as ex:
+            roi._core._BaseContinuousModel._trained_model_from_operators("LQc",
+                                                                         True)
+        assert ex.value.args[0] == \
+            "attributes 'Vr', 'n', 'r', 'm', 'A_', 'F_', 'c_', 'B_' required"
+
+        # Try with everything given but one attribute.
+        with pytest.raises(AttributeError) as ex:
+            roi._core._BaseContinuousModel._trained_model_from_operators(
+                            "LQc", True, n=1, r=1, m=1, A_=1, F_=1, c_=1, B_=1)
+        assert ex.value.args[0] == "attribute 'Vr' required"
+
+        # Correct usage.
+        A, H, F, c, B = _get_operators(n=200, m=20)
+        roi._core._BaseContinuousModel._trained_model_from_operators(
+            "LQc", False, n=200, m=20, r=10, A_=A, F_=F, c_=c, B_=B, Vr=None)
 
     def test_str(self):
         """Test BaseContinuousModel.__str__() (string representation)."""
@@ -65,37 +133,179 @@ class TestBaseContinuousModel:
         assert str(model) == \
             "Reduced-order model structure: dx / dt = Ax(t) + H(x ⊗ x)(t) + c"
 
-        model.modelform = "bad_form"
-        with pytest.raises(ValueError) as exc:
-            str(model)
-        assert exc.value.args[0] == \
-            "invalid modelform 'bad_form'; " \
-            f"options are {model._VALID_MODEL_FORMS}"
+    def test_fit(self):
+        """Test _core._BaseContinuousModel.fit()."""
+        model = roi._core._BaseContinuousModel("L", False)
+        with pytest.raises(NotImplementedError) as ex:
+            model.fit()
+        assert ex.value.args[0] == \
+            "fit() must be implemented by child classes"
 
-    def test_construct_f_(self):
-        """Test BaseContinuousModel._construct_f_() a little."""
-        model = roi._core._BaseContinuousModel(None, False)
+        with pytest.raises(NotImplementedError) as ex:
+            model.fit(1, 2, 3, 4, 5, 6, 7, a=8)
+        assert ex.value.args[0] == \
+            "fit() must be implemented by child classes"
+
+    def test_predict(self):
+        """Test _core._BaseContinuousModel.predict()."""
+        model = roi._core._BaseContinuousModel(None, None)
+
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X, Xdot, U = _get_data(n, k, m)
+        Vr = la.svd(X)[0][:,:r]
+        U1d = np.ones(k)
+
+        # Get test (reduced) operators.
+        A, H, F, c, B = _get_operators(r, m)
+        B1d = B[:,0]
+
+        nt = 5
+        x0 = X[:,0]
+        t = np.linspace(0, .01*nt, nt)
+        u = lambda t: np.ones(m)
+        Upred = np.ones((m, nt))
+
+        # Try to predict before fitting.
+        model.modelform = "LQc"
+        model.has_inputs = True
+        with pytest.raises(AttributeError) as ex:
+            model.predict(x0, t, u)
+        assert ex.value.args[0] == "model not trained (call fit() first)"
+        model = _contmodel("LQc", True,
+                           n=n, m=m, r=r, Vr=Vr, A_=A, F_=F, c_=c, B_=B)
+
+        # Try to predict with invalid initial condition.
+        x0_ = Vr.T @ x0
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0_, t, u)
+        assert ex.value.args[0] == f"invalid initial state size ({r} != {n})"
+
+        # Try to predict with weird time array.
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, np.vstack((t,t)), u)
+        assert ex.value.args[0] == "time 't' must be one-dimensional"
+
+        # Try to predict without inputs when required and vice versa
+        model.has_inputs = True
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, t)
+        assert ex.value.args[0] == \
+            "argument 'u' required since has_inputs=True"
 
         model.has_inputs = False
-        with pytest.raises(RuntimeError) as exc:
-            model._construct_f_(lambda t: 1)
-        assert exc.value.args[0] == "improper use of _construct_f_()!"
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, t, u)
+        assert ex.value.args[0] == \
+            "argument 'u' invalid since has_inputs=False"
 
+        # Change has_inputs between fit() and predict().
+        model = _contmodel("LQc", True,
+                           n=n, m=m, r=r, Vr=Vr, A_=A, F_=F, c_=c, B_=B)
+        model.has_inputs = False
+        with pytest.raises(AttributeError) as ex:
+            model.predict(x0, t)
+        assert ex.value.args[0] == \
+            "`has_inputs` attribute altered between fit()" \
+            " and predict(); call fit() again to retrain"
+
+        model = _contmodel("LQc", False,
+                           n=n, m=None, r=r, Vr=Vr, A_=A, F_=F, c_=c, B_=None)
         model.has_inputs = True
-        with pytest.raises(RuntimeError) as exc:
+        with pytest.raises(AttributeError) as ex:
+            model.predict(x0, t, u)
+        assert ex.value.args[0] == \
+            "`has_inputs` attribute altered between fit()" \
+            " and predict(); call fit() again to retrain"
+
+        # Predict without inputs.
+        model.has_inputs = False
+        for form in model._VALID_MODEL_FORMS:
+            model.modelform = form
             model._construct_f_()
-        assert exc.value.args[0] == "improper use of _construct_f_()!"
+            model.predict(x0, t)
+
+        # Try to predict with badly-shaped discrete inputs.
+        model = _contmodel("LQc", True,
+                           n=n, m=m, r=r, Vr=Vr, A_=A, F_=F, c_=c, B_=B)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, t, np.random.random((m-1, nt)))
+        assert ex.value.args[0] == \
+            f"invalid input shape ({(m-1,nt)} != {(m,nt)}"
+
+        model = _contmodel("LQc", True,
+                           n=n, m=1, r=r, Vr=Vr, A_=A, F_=F, c_=c, B_=B1d)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, t, np.random.random((2, nt)))
+        assert ex.value.args[0] == \
+            f"invalid input shape ({(2,nt)} != {(1,nt)}"
+
+        # Try to predict with badly-shaped continuous inputs.
+        model = _contmodel("LQc", True,
+                           n=n, m=m, r=r, Vr=Vr, A_=A, F_=F, c_=c, B_=B)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, t, lambda t: np.ones(m-1))
+        assert ex.value.args[0] == \
+            f"input function u() must return ndarray of shape (m,)={(m,)}"
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, t, lambda t: 1)
+        assert ex.value.args[0] == \
+            f"input function u() must return ndarray of shape (m,)={(m,)}"
+
+        model = _contmodel("LQc", True,
+                           n=n, m=1, r=r, Vr=Vr, A_=A, F_=F, c_=c, B_=B1d)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, t, u)
+        assert ex.value.args[0] == \
+            f"input function u() must return ndarray of shape (m,)={(1,)}" \
+            " or scalar"
+
+        # Try to predict with continuous inputs with bad return type
+        model = _contmodel("LQc", True,
+                           n=n, m=m, r=r, Vr=Vr, A_=A, F_=F, c_=c, B_=B)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, t, lambda t: set([5]))
+        assert ex.value.args[0] == \
+            f"input function u() must return ndarray of shape (m,)={(m,)}"
+
+        # Predict with 2D inputs.
+        model = _contmodel("LQc", True,
+                           n=n, m=m, r=r, Vr=Vr, A_=A, F_=F, c_=c, B_=B)
+        for form in ["L", "Lc", "Q", "Qc", "LQ", "LQc"]:
+            model.modelform = form
+            # continuous input.
+            out = model.predict(x0, t, u)
+            assert isinstance(out, np.ndarray)
+            assert out.shape == (n,nt)
+            # discrete input.
+            out = model.predict(x0, t, Upred)
+            assert isinstance(out, np.ndarray)
+            assert out.shape == (n,nt)
+
+        # Predict with 1D inputs.
+        model = _contmodel("LQc", True,
+                           n=n, m=1, r=r, Vr=Vr, A_=A, F_=F, c_=c,
+                           B_=B1d.reshape((-1,1)))
+        for form in ["L", "Lc", "Q", "Qc", "LQ", "LQc"]:
+            model.modelform = form
+            # continuous input.
+            out = model.predict(x0, t, lambda t: 1)
+            assert isinstance(out, np.ndarray)
+            assert out.shape == (n,nt)
+            out = model.predict(x0, t, lambda t: np.array([1]))
+            assert isinstance(out, np.ndarray)
+            assert out.shape == (n,nt)
+            # discrete input.
+            out = model.predict(x0, t, np.ones_like(t))
+            assert isinstance(out, np.ndarray)
+            assert out.shape == (n,nt)
 
 
 class TestIntrusiveContinuousModel:
-    """Test rom_operator_inference._core.IntrusiveContinuousModel."""
+    """Test _core.IntrusiveContinuousModel."""
 
-    @pytest.fixture
-    def set_up_fresh_model(self):
-        return roi.IntrusiveContinuousModel("LQc", has_inputs=False)
-
-    def test_fit(self, set_up_fresh_model):
-        model = set_up_fresh_model
+    def test_fit(self):
+        model = roi.IntrusiveContinuousModel("LQc", has_inputs=False)
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
@@ -103,17 +313,9 @@ class TestIntrusiveContinuousModel:
         Vr = la.svd(X)[0][:,:r]
 
         # Get test operators.
-        A, H, c, B = _get_FOM_operators(n, m)
+        A, H, F, c, B = _get_operators(n, m)
         B1d = B[:,0]
         operators = [A, H, c, B]
-
-        # Try to use an invalid modelform.
-        model.modelform = "LLL"
-        model.has_inputs = True
-        with pytest.raises(ValueError) as exc:
-            model.fit(operators, Vr)
-        assert exc.value.args[0] == \
-            f"invalid modelform 'LLL'; options are {model._VALID_MODEL_FORMS}"
 
         # Try to fit the model with misaligned operators and Vr.
         Abad = A[:,:-2]
@@ -123,26 +325,26 @@ class TestIntrusiveContinuousModel:
         model.modelform = "LQc"
         model.has_inputs = True
 
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             model.fit([A, H, B], Vr)
-        assert exc.value.args[0] == "expected 4 operators, got 3"
+        assert ex.value.args[0] == "expected 4 operators, got 3"
 
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             model.fit([Abad, H, c, B], Vr)
-        assert exc.value.args[0] == "basis Vr and FOM operator A not aligned"
+        assert ex.value.args[0] == "basis Vr and FOM operator A not aligned"
 
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             model.fit([A, Hbad, c, B], Vr)
-        assert exc.value.args[0] == \
+        assert ex.value.args[0] == \
             "basis Vr and FOM operator H (F) not aligned"
 
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             model.fit([A, H, cbad, B], Vr)
-        assert exc.value.args[0] == "basis Vr and FOM operator c not aligned"
+        assert ex.value.args[0] == "basis Vr and FOM operator c not aligned"
 
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             model.fit([A, H, c, Bbad], Vr)
-        assert exc.value.args[0] == "basis Vr and FOM operator B not aligned"
+        assert ex.value.args[0] == "basis Vr and FOM operator B not aligned"
 
         # Fit the model with each possible modelform.
         model.has_inputs = False
@@ -185,195 +387,27 @@ class TestIntrusiveContinuousModel:
         assert model.B.shape == (n,1)
         assert model.B_.shape == (r,1)
 
-    def test_predict(self, set_up_fresh_model):
-        model = set_up_fresh_model
-
-        # Get test data.
-        n, k, m, r = 200, 100, 20, 10
-        X, Xdot, U = _get_data(n, k, m)
-        Vr = la.svd(X)[0][:,:r]
-        U1d = np.ones(k)
-
-        # Get test operators.
-        A, H, c, B = _get_FOM_operators(n, m)
-        B1d = B[:,0]
-        operators = [A, H, c, B]
-
-        nt = 5
-        x0 = X[:,0]
-        t = np.linspace(0, .01*nt, nt)
-        u = lambda t: np.ones(m)
-        Upred = np.ones((m, nt))
-
-        # Try to predict before fitting.
-        model = roi.IntrusiveContinuousModel("LQc", has_inputs=True)
-        with pytest.raises(AttributeError) as exc:
-            model.predict(x0, t, u)
-        assert exc.value.args[0] == "model not trained (call fit() first)"
-        model.fit(operators, Vr)
-
-        # Try to predict with invalid initial condition.
-        x0_ = Vr.T @ x0
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0_, t, u)
-        assert exc.value.args[0] == f"invalid initial state size ({r} != {n})"
-
-        # Try to predict with weird time array.
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, np.vstack((t,t)), u)
-        assert exc.value.args[0] == "time 't' must be one-dimensional"
-
-        # Try to predict without inputs when required and vice versa
-        model.has_inputs = True
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t)
-        assert exc.value.args[0] == \
-            "argument 'u' required since has_inputs=True"
-
-        model.has_inputs = False
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, u)
-        assert exc.value.args[0] == \
-            "argument 'u' invalid since has_inputs=False"
-
-        # Change has_inputs between fit() and predict().
-        model.has_inputs = True
-        model.fit(operators, Vr)
-        model.has_inputs = False
-        with pytest.raises(AttributeError) as exc:
-            model.predict(x0, t)
-        assert exc.value.args[0] == \
-            "`has_inputs` attribute altered between fit()" \
-            " and predict(); call fit() again to retrain"
-
-        model.has_inputs = False
-        model.fit(operators[:-1], Vr)
-        model.has_inputs = True
-        with pytest.raises(AttributeError) as exc:
-            model.predict(x0, t, u)
-        assert exc.value.args[0] == \
-            "`has_inputs` attribute altered between fit()" \
-            " and predict(); call fit() again to retrain"
-
-        # Predict without inputs.
-        model.has_inputs = False
-        model.fit(operators[:-1], Vr)
-        model.predict(x0, t)
-
-        # Try to predict with badly-shaped discrete inputs.
-        model.has_inputs = True
-        model.fit(operators, Vr)
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, np.random.random((m-1, nt)))
-        assert exc.value.args[0] == \
-            f"invalid input shape ({(m-1,nt)} != {(m,nt)}"
-
-        model.fit([A, H, c, B1d], Vr)
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, np.random.random((2, nt)))
-        assert exc.value.args[0] == \
-            f"invalid input shape ({(2,nt)} != {(1,nt)}"
-
-        # Try to predict with badly-shaped continuous inputs.
-        model.has_inputs = True
-        model.fit(operators, Vr)                        # 2D case
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, lambda t: np.ones(m-1))
-        assert exc.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(m,)}"
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, lambda t: 1)
-        assert exc.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(m,)}"
-
-        model.fit([A, H, c, B1d], Vr)                   # 1D case
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, u)
-        assert exc.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(1,)}" \
-            " or scalar"
-
-        # Try to predict with continuous inputs with bad return type
-        model.has_inputs = True
-        model.fit(operators, Vr)                        # 2D case
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, lambda t: set([5]))
-        assert exc.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(m,)}"
-
-        # Successes
-        model.has_inputs = True
-        for form, ops in zip(["L", "Lc", "Q", "Qc", "LQ", "LQc"],
-                             [[A], [A, c], [H], [H, c], [A, H], [A, H, c]]):
-            model.modelform = form
-
-            # Predict with 2D inputs.
-            model.fit(ops + [B], Vr)
-            out = model.predict(x0, t, u)                   # continuous case
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
-            out = model.predict(x0, t, Upred)               # discrete case
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
-
-            # Predict with 1D inputs.
-            model.fit(ops + [B1d], Vr)
-            out = model.predict(x0, t, lambda t: 1)         # continuous cases
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
-            out = model.predict(x0, t, lambda t: np.array([1]))
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
-            out = model.predict(x0, t, np.ones_like(t))     # discrete case
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
-
 
 class TestInferredContinuousModel:
-    """Test rom_operator_inference._core.InferredContinuousModel."""
-
-    @pytest.fixture
-    def set_up_fresh_model(self):
-        return roi.InferredContinuousModel("LQc", has_inputs=False)
-
-    def test_fit(self, set_up_fresh_model):
-        model = set_up_fresh_model
+    """Test _core.InferredContinuousModel."""
+    def test_fit(self):
+        model = roi.InferredContinuousModel("LQc", has_inputs=False)
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
         X, Xdot, U = _get_data(n, k, m)
         Vr = la.svd(X)[0][:,:r]
 
-        # Try to use an invalid modelform.
-        model.modelform = "LLL"
-        with pytest.raises(ValueError) as exc:
-            model.fit(X, Xdot, Vr)
-        assert exc.value.args[0] == \
-            f"invalid modelform 'LLL'; options are {model._VALID_MODEL_FORMS}"
-        model.modelform = "LQc"
-
-        model.has_inputs = True
-        with pytest.raises(ValueError) as exc:
-            model.fit(X, Xdot, Vr)
-        assert exc.value.args[0] == \
-            "argument 'U' required since has_inputs=True"
-
-        model.has_inputs = False
-        with pytest.raises(ValueError) as exc:
-            model.fit(X, Xdot, Vr, U=U)
-        assert exc.value.args[0] == \
-            "argument 'U' invalid since has_inputs=False"
-
         # Try to fit the model with misaligned X and Xdot.
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             model.fit(X, Xdot[:,1:-1], Vr)
-        assert exc.value.args[0] == \
+        assert ex.value.args[0] == \
             f"X and Xdot different shapes ({(n,k)} != {(n,k-2)})"
 
         # Try to fit the model with misaligned X and Vr.
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             model.fit(X, Xdot, Vr[1:-1,:])
-        assert exc.value.args[0] == \
+        assert ex.value.args[0] == \
             f"X and Vr not aligned, first dimension {n} != {n-2}"
 
         # Fit the model with each possible modelform.
@@ -411,139 +445,84 @@ class TestInferredContinuousModel:
         assert model.B_.shape == (r,1)
         assert hasattr(model, "residual_")
 
-    def test_predict(self, set_up_fresh_model):
-        model = set_up_fresh_model
+class TestInterpolatedInferredContinuousModel:
+    """Test _core.InterpolatedInferredContinuousModel."""
+    def test_fit(self):
+        """Test _core.InterpolatedInferredContinuousModel.fit()."""
+        model = roi.InterpolatedInferredContinuousModel("LQc", False)
 
-        # Get test data.
-        n, k, m, r = 200, 100, 20, 10
-        X, Xdot, U = _get_data(n, k, m)
-        Vr = la.svd(X)[0][:,:r]
-        U1d = np.ones(k)
+        # Get data for fitting.
+        n, m, k, r = 50, 10, 20, 5
+        X1, Xdot1, U1 = _get_data(n, k, m)
+        X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
+        Xs = [X1, X2]
+        Xdots = [Xdot1, Xdot2]
+        Us = [U1, U2]
+        ps = [1, 2]
+        Vr = la.svd(np.hstack(Xs))[0][:,:r]
 
-        nt = 30
-        x0 = X[:,0]
-        t = np.linspace(0, 1, nt)
-        u = lambda t: np.ones(m)
-        Upred = np.ones((m, nt))
+        # Try with non-scalar parameters.
+        with pytest.raises(ValueError) as ex:
+            model.fit([np.array([1,1]), np.array([2,2])], Xs, Xdots, Vr)
+        assert ex.value.args[0] == "only scalar parameter values are supported"
 
-        # Try to predict before fitting.
-        model = roi.InferredContinuousModel("LQc", has_inputs=True)
-        with pytest.raises(AttributeError) as exc:
-            model.predict(x0, t, u)
-        assert exc.value.args[0] == "model not trained (call fit() first)"
-        model.fit(X, Xdot, Vr, U)
+        # Try with bad number of Xs.
+        with pytest.raises(ValueError) as ex:
+            model.fit(ps, [X1, X2, X2+1], Xdots, Vr)
+        assert ex.value.args[0] == \
+            "num parameter samples != num state snapshot sets (2 != 3)"
 
-        # Try to predict with invalid initial condition.
-        x0_ = Vr.T @ x0
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0_, t, u)
-        assert exc.value.args[0] == f"invalid initial state size ({r} != {n})"
+        # Try with bad number of Xdots.
+        with pytest.raises(ValueError) as ex:
+            model.fit(ps, Xs, Xdots + [Xdot1], Vr)
+        assert ex.value.args[0] == \
+            "num parameter samples != num velocity snapshot sets (2 != 3)"
 
-        # Try to predict with weird time array.
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, np.vstack((t,t)), u)
-        assert exc.value.args[0] == "time 't' must be one-dimensional"
-
-        # Try to predict without inputs when required and vice versa
+        # Try with varying input sizes.
         model.has_inputs = True
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t)
-        assert exc.value.args[0] == \
-            "argument 'u' required since has_inputs=True"
+        with pytest.raises(ValueError) as ex:
+            model.fit(ps, Xs, Xdots, Vr, [U1, U2[:-1]])
+        assert ex.value.args[0] == \
+            "dimension 'm' inconsistent across training sets"
 
+        # Fit correctly with no inputs.
         model.has_inputs = False
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, u)
-        assert exc.value.args[0] == \
-            "argument 'u' invalid since has_inputs=False"
+        model.fit(ps, Xs, Xdots, Vr)
+        for attr in ["models_", "dataconds_", "residuals_", "fs_"]:
+            assert hasattr(model, attr)
+            assert len(getattr(model, attr)) == len(model.models_)
 
-        # Change has_inputs between fit() and predict().
+        # Fit correctly with inputs.
         model.has_inputs = True
-        model.fit(X, Xdot, Vr, U)
-        model.has_inputs = False
-        with pytest.raises(AttributeError) as exc:
-            model.predict(x0, t)
-        assert exc.value.args[0] == \
-            "`has_inputs` attribute altered between fit()" \
-            " and predict(); call fit() again to retrain"
+        model.fit(ps, Xs, Xdots, Vr, Us)
 
-        model.has_inputs = False
-        model.fit(X, Xdot, Vr)
+    def test_predict(self):
+        """Test _core.InterpolatedInferredContinuousModel.predict()."""
+        model = roi.InterpolatedInferredContinuousModel("LQc", False)
+
+        # Get data for fitting.
+        n, m, k, r = 50, 10, 20, 5
+        X1, Xdot1, U1 = _get_data(n, k, m)
+        X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
+        Xs = [X1, X2]
+        Xdots = [Xdot1, Xdot2]
+        Us = [U1, U2]
+        ps = [1, 2]
+        Vr = la.svd(np.hstack(Xs))[0][:,:r]
+
+        # Parameters for predicting.
+        x0 = np.random.random(n)
+        nt = 5
+        t = np.linspace(0, .01*nt, nt)
+        u = lambda t: np.ones(10)
+
+        # Fit / predict with no inputs.
+        model.fit(ps, Xs, Xdots, Vr)
+        model.predict(1, x0, t)
+        model.predict(1.5, x0, t)
+
+        # Fit / predict with inputs.
         model.has_inputs = True
-        with pytest.raises(AttributeError) as exc:
-            model.predict(x0, t, u)
-        assert exc.value.args[0] == \
-            "`has_inputs` attribute altered between fit()" \
-            " and predict(); call fit() again to retrain"
-
-        # Predict without inputs.
-        model.has_inputs = False
-        model.fit(X, Xdot, Vr)
-        model.predict(x0, t)
-
-        # Try to predict with badly-shaped discrete inputs.
-        model.has_inputs = True
-        model.fit(X, Xdot, Vr, U)
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, np.random.random((m-1, nt)))
-        assert exc.value.args[0] == \
-            f"invalid input shape ({(m-1,nt)} != {(m,nt)}"
-
-        model.fit(X, Xdot, Vr, U1d)
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, np.random.random((2, nt)))
-        assert exc.value.args[0] == \
-            f"invalid input shape ({(2,nt)} != {(1,nt)}"
-
-        # Try to predict with badly-shaped continuous inputs.
-        model.has_inputs = True
-        model.fit(X, Xdot, Vr, U)                       # 2D case
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, lambda t: np.ones(m-1))
-        assert exc.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(m,)}"
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, lambda t: 1)
-        assert exc.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(m,)}"
-
-        model.fit(X, Xdot, Vr, U1d)                     # 1D case
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, u)
-        assert exc.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(1,)}" \
-            " or scalar"
-
-        # Try to predict with continuous inputs with bad return type
-        model.has_inputs = True
-        model.fit(X, Xdot, Vr, U)                       # 2D case
-        with pytest.raises(ValueError) as exc:
-            model.predict(x0, t, lambda t: set([5]))
-        assert exc.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(m,)}"
-
-        # Successes
-        model.has_inputs = True
-        for form in model._VALID_MODEL_FORMS:
-            model.modelform = form
-
-            # Predict with 2D inputs.
-            model.fit(X, Xdot, Vr, U)
-            out = model.predict(x0, t, u)                 # continuous case
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
-            out = model.predict(x0, t, Upred)             # discrete case
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
-
-            # Predict with 1D inputs.
-            model.fit(X, Xdot, Vr, U1d)
-            out = model.predict(x0, t, lambda t: 1)       # continuous cases
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
-            out = model.predict(x0, t, lambda t: np.array([1]))
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
-            out = model.predict(x0, t, np.ones_like(t))   # discrete case
-            assert isinstance(out, np.ndarray)
-            assert out.shape == (n,nt)
+        model.fit(ps, Xs, Xdots, Vr, Us)
+        model.predict(1, x0, t, u)
+        model.predict(1.5, x0, t, u)
