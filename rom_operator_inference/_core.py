@@ -1,6 +1,6 @@
 # _core.py
 """Class for model order reduction of ODEs via operator inference."""
-# TODO: jacobians for each model form
+# TODO: jacobians for each model form in the continuous case.
 
 import warnings
 import numpy as np
@@ -10,6 +10,117 @@ from scipy.integrate import solve_ivp, IntegrationWarning
 
 from . import utils
 kron2 = utils.kron_compact
+
+
+# Helper classes and functions ================================================
+class _AffineOperator:
+    """Class for representing a linear operator with affine structure, i.e.,
+
+        A(p) = sum_{i=1}^{nterms} f_{i}(p) * A_{i}.
+
+    The matrix A(p) is constructed by calling the object once the coefficient
+    functions and constituent matrices are set.
+
+    Attributes
+    ----------
+    nterms : int
+        The number of terms in the sum defining the linear operator.
+
+    coefficient_functions : list of nterms callables
+        The coefficient scalar-valued functions that define the operator.
+        Each must take the same sized input and return a scalar.
+
+    matrices : list of nterms ndarrays of the same shape
+        The constituent matrices defining the linear operator.
+    """
+
+    def __init__(self, coeffs, matrices=None):
+        self.coefficient_functions = coeffs
+        self.nterms = len(coeffs)
+        if matrices:
+            self.matrices = matrices
+        else:
+            self._ready = False
+
+    @property
+    def matrices(self):
+        """Get the constituent matrices."""
+        return self._matrices
+
+    @matrices.setter
+    def matrices(self, ms):
+        """Set the constituent matrices."""
+        if len(ms) != self.nterms:
+            _noun = "matrix" if self.nterms == 1 else "matrices"
+            raise ValueError(f"expected {self.nterms} {_noun}, got {len(ms)}")
+
+        # Check that each matrix in the list has the same shape.
+        shape = ms[0].shape
+        for m in ms:
+            if m.shape != shape:
+                raise ValueError("affine operator matrix shapes do not match "
+                                 f"({m.shape} != {shape})")
+
+        # Store matrix list and shape, and mark as ready (for __call__()).
+        self._matrices = ms
+        self.shape = shape
+        self._ready = True
+
+    def validate_coeffs(self, p):
+        """Check that each coefficient function 1) is a callable function,
+        2) takes in the right sized inputs, and 3) returns scalar values.
+
+        Parameters
+        ----------
+        p : float or (dp,) ndarray
+            A test input for the coefficient functions.
+        """
+        for f in self.coefficient_functions:
+            if not callable(f):
+                raise ValueError("coefficients of affine operator must be "
+                                 "callable functions")
+            elif not np.isscalar(f(p)):
+                raise ValueError("coefficient functions of affine operator "
+                                 "must return a scalar")
+
+    def __call__(self, p):
+        if not self._ready:
+            raise RuntimeError("constituent matrices not initialized!")
+        return np.sum([fi(p)*Ai for fi,Ai in zip(self.coefficient_functions,
+                                                 self.matrices)], axis=0)
+
+
+def _trained_model_from_operators(modelclass, modelform, has_inputs, Vr,
+                                  m=None, A_=None, F_=None, c_=None, B_=None):
+    """Construct a prediction-capable Model object from the operators of
+    the reduced model.
+
+    Returns
+    -------
+    model : modelclass object
+        A new model, ready for predict() calls.
+    """
+    # Check that the modelclass is valid.
+    if not issubclass(modelclass, _BaseModel):
+        raise TypeError("modelclass must be derived from _BaseModel")
+
+    # Construct the new model object.
+    model = modelclass(modelform, has_inputs)
+    model._check_modelform(trained=False)
+
+    # Insert the attributes.
+    model.Vr = Vr
+    model.n, model.r, model.m = Vr.shape + (m,)
+    model.A_, model.F_, model.c_, model.B_ = A_, F_, c_, B_
+
+    # Check that the attributes match the modelform.
+    model._check_modelform(trained=True)
+
+    # Construct the ROM operator f_() if there are no system inputs.
+    if not has_inputs and issubclass(modelclass, _ContinuousModel):
+        model._construct_f_()
+
+    return model
 
 
 # Base classes ================================================================
@@ -31,7 +142,7 @@ class _BaseModel:
             # and that nonrequired attributes exist but are None.
             for key, s in zip("LQc", ["A_", "F_", "c_"]):
                 if not hasattr(self, s):
-                    raise AttributeError(f"missing attribute '{s}';"
+                    raise AttributeError(f"attribute '{s}' missing;"
                                          " call fit() to train model")
                 attr = getattr(self, s)
                 if key in self.modelform and attr is None:
@@ -41,7 +152,7 @@ class _BaseModel:
                     raise AttributeError(f"attribute '{s}' should be None;"
                                          " call fit() to train model")
             if not hasattr(self, 'B_'):
-                raise AttributeError(f"missing attribute 'B_';"
+                raise AttributeError(f"attribute 'B_' missing;"
                                      " call fit() to train model")
             if self.has_inputs and self.B_ is None:
                 raise AttributeError(f"attribute 'B_' is None;"
@@ -103,35 +214,6 @@ class _ContinuousModel(_BaseModel):
         else:
             raise RuntimeError("improper use of _construct_f_()!")
         self.f_ = f_
-
-    @staticmethod
-    def _trained_model_from_operators(modelform, has_inputs, Vr, m=None,
-                                      A_=None, F_=None, c_=None, B_=None):
-        """Construct a prediction-capable Model object from the operators of
-        the reduced model.
-
-        Returns
-        -------
-        model : _ContinuousModel
-            A new model, ready for predict() calls.
-        """
-        # Construct the new model object.
-        model = _ContinuousModel(modelform, has_inputs)
-        model._check_modelform()
-
-        # Insert the attributes.
-        model.Vr = Vr
-        model.n, model.r, model.m = Vr.shape + (m,)
-        model.A_, model.F_, model.c_, model.B_ = A_, F_, c_, B_
-
-        # Check that the attributes match the modelform.
-        model._check_modelform(True)
-
-        # Construct the ROM operator f_() if there are no system inputs.
-        if not has_inputs:
-            model._construct_f_()
-
-        return model
 
     def __str__(self):
         """String representation: the structure of the model."""
@@ -227,15 +309,6 @@ class _ContinuousModel(_BaseModel):
                     raise ValueError("invalid input shape "
                                      f"({U.shape} != {(self.m,nt)}")
                 u = CubicSpline(t, U, axis=1)
-                # def u(s):
-                #     """Interpolant for the discrete data U, aligned with t"""
-                #     k = np.searchsorted(t, s)
-                #     if k == 0:
-                #         return U[:,0]
-                #     # elif k == nt:         # This clause is never entered.
-                #     #     return U[:,-1]
-                #     return np.array([np.interp(s, t[k-1:k+1], U[i,k-1:k+1])
-                #                                 for i in range(self.m)])
 
             # Construct the ROM operator if needed (deferred due to u(t)).
             self._construct_f_(u)
@@ -334,13 +407,12 @@ class _AffineContinuousModel(_BaseModel):
         # Make sure the parameter p has the correct dimension.
 
         # Use the affine structure of A to do the thing.
-        model = _ContinuousModel._trained_model_from_operators(
-                    self.modelform,
-                    self.has_inputs,
-                    n=self.n,
-                    r=self.r,
-                    m=self.m,
+        model = _trained_model_from_operators(
+                    modelclass=_ContinuousModel,
+                    modelform=self.modelform,
+                    has_inputs=self.has_inputs,
                     Vr=self.Vr,
+                    m=self.m,
                     A_=self.A_(p),
                     F_=self.F_,
                     c_=self.c_,
@@ -382,87 +454,9 @@ class _ParametricMixin:
     pass
 
 
-# Helper classes ==============================================================
-class _AffineOperator:
-    """Class for representing a linear operator with affine structure, i.e.,
-
-        A(p) = sum_{i=1}^{nterms} f_{i}(p) * A_{i}.
-
-    The matrix A(p) is constructed by calling the object once the coefficient
-    functions and constituent matrices are set.
-
-    Attributes
-    ----------
-    nterms : int
-        The number of terms in the sum defining the linear operator.
-
-    coefficient_functions : list of nterms callables
-        The coefficient scalar-valued functions that define the operator.
-        Each must take the same sized input and return a scalar.
-
-    matrices : list of nterms ndarrays of the same shape
-        The constituent matrices defining the linear operator.
-    """
-
-    def __init__(self, coeffs, matrices=None):
-        self.coefficient_functions = coeffs
-        self.nterms = len(coeffs)
-        if matrices:
-            self.matrices = matrices
-        else:
-            self._ready = False
-
-    @property
-    def matrices(self):
-        """Get the constituent matrices."""
-        return self._matrices
-
-    @matrices.setter
-    def matrices(self, ms):
-        """Set the constituent matrices."""
-        if len(ms) != self.nterms:
-            _noun = "matrix" if self.nterms == 1 else "matrices"
-            raise ValueError(f"expected {self.nterms} {_noun}, got {len(ms)}")
-
-        # Check that each matrix in the list has the same shape.
-        shape = ms[0].shape
-        for m in ms:
-            if m.shape != shape:
-                raise ValueError("affine operator matrix shapes do not match "
-                                 f"({m.shape} != {shape})")
-
-        # Store matrix list and shape, and mark as ready (for __call__()).
-        self._matrices = ms
-        self.shape = shape
-        self._ready = True
-
-    def validate_coeffs(self, p):
-        """Check that each coefficient function 1) is a callable function,
-        2) takes in the right sized inputs, and 3) returns scalar values.
-
-        Parameters
-        ----------
-        p : float or (dp,) ndarray
-            A test input for the coefficient functions.
-        """
-        for f in self.coefficient_functions:
-            if not callable(f):
-                raise ValueError("coefficients of affine operator must be "
-                                 "callable functions")
-            elif not np.isscalar(f(p)):
-                raise ValueError("coefficient functions of affine operator "
-                                 "must return a scalar")
-
-    def __call__(self, p):
-        if not self._ready:
-            raise RuntimeError("constituent matrices not initialized!")
-        return np.sum([fi(p)*Ai for fi,Ai in zip(self.coefficient_functions,
-                                                 self.matrices)], axis=0)
-
-
 # Useable classes =============================================================
 
-# Continuous Models (i.e., solving dx/dt = f(t,x,u)) --------------------------
+# Continuous models (i.e., solving dx/dt = f(t,x,u)) --------------------------
 class InferredContinuousModel(_ContinuousModel,
                               _InferredMixin, _NonparametricMixin):
     """Reduced order model for a system of high-dimensional ODEs of the form
@@ -1030,7 +1024,8 @@ class InterpolatedInferredContinuousModel(_ContinuousModel,
         self._check_modelform(trained=True)
         self._check_hasinputs(u, 'u')
 
-        model = _ContinuousModel._trained_model_from_operators(
+        model = _trained_model_from_operators(
+                    modelclass=_ContinuousModel,
                     modelform=self.modelform,
                     has_inputs=self.has_inputs,
                     Vr=self.Vr,
@@ -1216,7 +1211,8 @@ class AffineIntrusiveContinuousModel(_ContinuousModel,  # pragma: no cover
         raise NotImplementedError
 
 
-# Discrete Models (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
+# Discrete models (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
+# TODO
 
 
 __all__ = [

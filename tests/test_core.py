@@ -9,6 +9,7 @@ from scipy import linalg as la
 import rom_operator_inference as roi
 
 
+# Helper functions for testing ================================================
 def _get_data(n=200, k=50, m=20):
     X = np.random.random((n,k))
     Xdot = np.zeros((n,k))
@@ -24,7 +25,12 @@ def _get_operators(n=200, m=20):
     B = np.random.random((n,m)) if m else None
     return A, H, F, c, B
 
-def _contmodel(modelform, has_inputs, Vr, m=20):
+def _trainedmodel(continuous, modelform, has_inputs, Vr, m=20):
+    if continuous:
+        modelclass = roi._core._ContinuousModel
+    else:
+        modelclass = roi._core._DiscreteModel
+
     n,r = Vr.shape
     A, H, F, c, B = _get_operators(r, m)
     operators = {}
@@ -36,10 +42,12 @@ def _contmodel(modelform, has_inputs, Vr, m=20):
         operators['c_'] = c
     if has_inputs:
         operators['B_'] = B
-    return roi._core._ContinuousModel._trained_model_from_operators(
+
+    return roi._core._trained_model_from_operators(modelclass,
                                     modelform, has_inputs, Vr, m, **operators)
 
 
+# Base Classes ================================================================
 class TestBaseModel:
     """Test _core._BaseModel."""
     def test_init(self):
@@ -61,12 +69,70 @@ class TestBaseModel:
 
     def test_check_modelform(self):
         """Test _BaseModel._check_modelform()."""
+        Vr = np.random.random((200,5))
+        m = 20
+
+        # Try with invalid modelform.
         model = roi._core._BaseModel("bad_form", False)
         with pytest.raises(ValueError) as ex:
-            model._check_modelform()
+            model._check_modelform(trained=False)
         assert ex.value.args[0] == \
             "invalid modelform 'bad_form'; " \
             f"options are {model._VALID_MODEL_FORMS}"
+
+        # Try with untrained model.
+        model.modelform = "LQc"
+        with pytest.raises(AttributeError) as ex:
+            model._check_modelform(trained=True)
+        assert ex.value.args[0] == \
+            "attribute 'A_' missing; call fit() to train model"
+
+        # Try with missing attributes.
+        model = _trainedmodel(True, "LQc", True, Vr, m)
+        c_ = model.c_.copy()
+        del model.c_
+        with pytest.raises(AttributeError) as ex:
+            model._check_modelform(trained=True)
+        assert ex.value.args[0] == \
+            "attribute 'c_' missing; call fit() to train model"
+        model.c_ = c_
+
+        B_ = model.B_.copy()
+        del model.B_
+        with pytest.raises(AttributeError) as ex:
+            model._check_modelform(trained=True)
+        assert ex.value.args[0] == \
+            "attribute 'B_' missing; call fit() to train model"
+        model.B_ = B_
+
+        # Try with incorrectly set attributes.
+        A_ = model.A_.copy()
+        model.A_ = None
+        with pytest.raises(AttributeError) as ex:
+            model._check_modelform(trained=True)
+        assert ex.value.args[0] == \
+            "attribute 'A_' is None; call fit() to train model"
+
+        model = _trainedmodel(True, "Lc", True, Vr, m)
+        model.F_ = 1
+        with pytest.raises(AttributeError) as ex:
+            model._check_modelform(trained=True)
+        assert ex.value.args[0] == \
+            "attribute 'F_' should be None; call fit() to train model"
+        model.F_ = None
+
+        model.has_inputs = False
+        with pytest.raises(AttributeError) as ex:
+            model._check_modelform(trained=True)
+        assert ex.value.args[0] == \
+            "attribute 'B_' should be None; call fit() to train model"
+
+        model = _trainedmodel(False, "LQc", False, Vr, None)
+        model.has_inputs = True
+        with pytest.raises(AttributeError) as ex:
+            model._check_modelform(trained=True)
+        assert ex.value.args[0] == \
+            "attribute 'B_' is None; call fit() to train model"
 
     def test_check_hasinputs(self):
         """Test _BaseModel._check_hasinputs()."""
@@ -102,16 +168,6 @@ class TestContinuousModel:
         with pytest.raises(RuntimeError) as ex:
             model._construct_f_()
         assert ex.value.args[0] == "improper use of _construct_f_()!"
-
-    def test_trained_model_from_operators(self):
-        """Test BaseContinuousModel._trained_model_from_operators."""
-        n, m, r = 200, 20, 30
-        Vr = np.random.random((n, r))
-        A, H, F, c, B = _get_operators(n=n, m=m)
-        roi._core._ContinuousModel._trained_model_from_operators(
-                                    "LQc", False, Vr, A_=A, F_=F, c_=c)
-        roi._core._ContinuousModel._trained_model_from_operators(
-                                    "L", True, Vr, A_=A, m=m, B_=B)
 
     def test_str(self):
         """Test BaseContinuousModel.__str__() (string representation)."""
@@ -169,17 +225,9 @@ class TestContinuousModel:
         u = lambda t: np.ones(m)
         Upred = np.ones((m, nt))
 
-        # Try to predict before fitting.
-        model.modelform = "LQc"
-        model.has_inputs = True
-        with pytest.raises(AttributeError) as ex:
-            model.predict(x0, t, u)
-        assert ex.value.args[0] == \
-            "missing attribute 'A_'; call fit() to train model"
-
         # Try to predict with invalid initial condition.
         x0_ = Vr.T @ x0
-        model = _contmodel("LQc", True, Vr, m)
+        model = _trainedmodel(True, "LQc", True, Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0_, t, u)
         assert ex.value.args[0] == f"invalid initial state size ({r} != {n})"
@@ -189,54 +237,26 @@ class TestContinuousModel:
             model.predict(x0, np.vstack((t,t)), u)
         assert ex.value.args[0] == "time 't' must be one-dimensional"
 
-        # Try to predict without inputs when required and vice versa.
-        model.has_inputs = True
-        with pytest.raises(ValueError) as ex:
-            model.predict(x0, t)
-        assert ex.value.args[0] == \
-            "argument 'u' required since has_inputs=True"
-
-        model = _contmodel("LQc", False, Vr, None)
-        with pytest.raises(ValueError) as ex:
-            model.predict(x0, t, u)
-        assert ex.value.args[0] == \
-            "argument 'u' invalid since has_inputs=False"
-
-        # Change has_inputs between fit() and predict().
-        model = _contmodel("LQc", True, Vr, m)
-        model.has_inputs = False
-        with pytest.raises(AttributeError) as ex:
-            model.predict(x0, t)
-        assert ex.value.args[0] == \
-            "attribute 'B_' should be None; call fit() to train model"
-
-        model = _contmodel("LQc", False, Vr, None)
-        model.has_inputs = True
-        with pytest.raises(AttributeError) as ex:
-            model.predict(x0, t, u)
-        assert ex.value.args[0] == \
-            "attribute 'B_' is None; call fit() to train model"
-
         # Predict without inputs.
         for form in model._VALID_MODEL_FORMS:
-            model = _contmodel(form, False, Vr, None)
+            model = _trainedmodel(True, form, False, Vr, None)
             model.predict(x0, t)
 
         # Try to predict with badly-shaped discrete inputs.
-        model = _contmodel("LQc", True, Vr, m)
+        model = _trainedmodel(True, "LQc", True, Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, np.random.random((m-1, nt)))
         assert ex.value.args[0] == \
             f"invalid input shape ({(m-1,nt)} != {(m,nt)}"
 
-        model = _contmodel("LQc", True, Vr, m=1)
+        model = _trainedmodel(True, "LQc", True, Vr, m=1)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, np.random.random((2, nt)))
         assert ex.value.args[0] == \
             f"invalid input shape ({(2,nt)} != {(1,nt)}"
 
         # Try to predict with badly-shaped continuous inputs.
-        model = _contmodel("LQc", True, Vr, m)
+        model = _trainedmodel(True, "LQc", True, Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, lambda t: np.ones(m-1))
         assert ex.value.args[0] == \
@@ -246,7 +266,7 @@ class TestContinuousModel:
         assert ex.value.args[0] == \
             f"input function u() must return ndarray of shape (m,)={(m,)}"
 
-        model = _contmodel("LQc", True, Vr, m=1)
+        model = _trainedmodel(True, "LQc", True, Vr, m=1)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, u)
         assert ex.value.args[0] == \
@@ -254,7 +274,7 @@ class TestContinuousModel:
             " or scalar"
 
         # Try to predict with continuous inputs with bad return type
-        model = _contmodel("LQc", True, Vr, m)
+        model = _trainedmodel(True, "LQc", True, Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, lambda t: set([5]))
         assert ex.value.args[0] == \
@@ -262,7 +282,7 @@ class TestContinuousModel:
 
         # Predict with 2D inputs.
         for form in model._VALID_MODEL_FORMS:
-            model = _contmodel(form, True, Vr, m)
+            model = _trainedmodel(True, form, True, Vr, m)
             # continuous input.
             out = model.predict(x0, t, u)
             assert isinstance(out, np.ndarray)
@@ -274,7 +294,7 @@ class TestContinuousModel:
 
         # Predict with 1D inputs.
         for form in model._VALID_MODEL_FORMS:
-            model = _contmodel(form, True, Vr, 1)
+            model = _trainedmodel(True, form, True, Vr, 1)
             # continuous input.
             out = model.predict(x0, t, lambda t: 1)
             assert isinstance(out, np.ndarray)
@@ -288,6 +308,7 @@ class TestContinuousModel:
             assert out.shape == (n,nt)
 
 
+# Helper Functions and Classes ================================================
 class TestAffineOperator:
     """Test _core._AffineOperator."""
     @staticmethod
@@ -357,6 +378,27 @@ class TestAffineOperator:
                                np.cos(10)*As[1] + np.exp(10)*As[2])
 
 
+def test_trained_model_from_operators():
+    """Test _core._trained_model_from_operators()."""
+    n, m, r = 200, 20, 30
+    Vr = np.random.random((n, r))
+    A, H, F, c, B = _get_operators(n=n, m=m)
+
+    # Try with bad modelclass argument.
+    with pytest.raises(TypeError) as ex:
+        roi._core._trained_model_from_operators(str, "LQc", False, Vr)
+    assert ex.value.args[0] == "modelclass must be derived from _BaseModel"
+
+    # Correct usage.
+    roi._core._trained_model_from_operators(roi._core._ContinuousModel,
+                                "LQc", False, Vr, A_=A, F_=F, c_=c)
+    roi._core._trained_model_from_operators(roi._core._ContinuousModel,
+                                "L", True, Vr, A_=A, m=m, B_=B)
+
+
+# Useable Classes =============================================================
+
+# Continuous Models (i.e., solving dx/dt = f(t,x,u)) --------------------------
 class TestIntrusiveContinuousModel:
     """Test _core.IntrusiveContinuousModel."""
 
@@ -583,3 +625,7 @@ class TestInterpolatedInferredContinuousModel:
         model.fit(ps, Xs, Xdots, Vr, Us)
         model.predict(1, x0, t, u)
         model.predict(1.5, x0, t, u)
+
+
+# Discrete Models (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
+# TODO
