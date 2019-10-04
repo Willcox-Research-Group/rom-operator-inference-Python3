@@ -47,7 +47,95 @@ def _trainedmodel(continuous, modelform, has_inputs, Vr, m=20):
                                     modelform, has_inputs, Vr, m, **operators)
 
 
-# Base Classes ================================================================
+# Helper classes and functions ================================================
+class TestAffineOperator:
+    """Test _core._AffineOperator."""
+    @staticmethod
+    def _set_up_affine_attributes(n=5):
+        fs = [np.sin, np.cos, np.exp]
+        As = list(np.random.random((3,n,n)))
+        return fs, As
+
+    def test_init(self):
+        """Test _core._AffineOperator.__init__()."""
+        fs, As = self._set_up_affine_attributes()
+
+        # Try with different number of functions and matrices.
+        with pytest.raises(ValueError) as ex:
+            roi._core._AffineOperator(fs, As[:-1])
+        assert ex.value.args[0] == "expected 3 matrices, got 2"
+
+        # Try with matrices of different shapes.
+        with pytest.raises(ValueError) as ex:
+            roi._core._AffineOperator(fs, As[:-1] + [np.random.random((4,4))])
+        assert ex.value.args[0] == \
+            "affine operator matrix shapes do not match ((4, 4) != (5, 5))"
+
+        # Correct usage.
+        affop = roi._core._AffineOperator(fs, As)
+        affop = roi._core._AffineOperator(fs)
+        affop.matrices = As
+
+    def test_validate_coeffs(self):
+        """Test _core._AffineOperator.validate_coeffs()."""
+        fs, As = self._set_up_affine_attributes()
+
+        # Try with non-callables.
+        affop = roi._core._AffineOperator(As)
+        with pytest.raises(ValueError) as ex:
+            affop.validate_coeffs(10)
+        assert ex.value.args[0] == \
+            "coefficients of affine operator must be callable functions"
+
+        # Try with vector-valued functions.
+        f1 = lambda t: np.array([t, t**2])
+        affop = roi._core._AffineOperator([f1, f1])
+        with pytest.raises(ValueError) as ex:
+            affop.validate_coeffs(10)
+        assert ex.value.args[0] == \
+            "coefficient functions of affine operator must return a scalar"
+
+        # Correct usage.
+        affop = roi._core._AffineOperator(fs, As)
+        affop.validate_coeffs(0)
+
+    def test_call(self):
+        """Test _core._AffineOperator.__call__()."""
+        fs, As = self._set_up_affine_attributes()
+
+        # Try without matrices set.
+        affop = roi._core._AffineOperator(fs)
+        with pytest.raises(RuntimeError) as ex:
+            affop(10)
+        assert ex.value.args[0] == "constituent matrices not initialized!"
+
+        # Correct usage.
+        affop.matrices = As
+        Ap = affop(10)
+        assert Ap.shape == (5,5)
+        assert np.allclose(Ap, np.sin(10)*As[0] + \
+                               np.cos(10)*As[1] + np.exp(10)*As[2])
+
+
+def test_trained_model_from_operators():
+    """Test _core._trained_model_from_operators()."""
+    n, m, r = 200, 20, 30
+    Vr = np.random.random((n, r))
+    A, H, F, c, B = _get_operators(n=n, m=m)
+
+    # Try with bad modelclass argument.
+    with pytest.raises(TypeError) as ex:
+        roi._core._trained_model_from_operators(str, "LQc", False, Vr)
+    assert ex.value.args[0] == "modelclass must be derived from _BaseModel"
+
+    # Correct usage.
+    roi._core._trained_model_from_operators(roi._core._ContinuousModel,
+                                "LQc", False, Vr, A_=A, F_=F, c_=c)
+    roi._core._trained_model_from_operators(roi._core._ContinuousModel,
+                                "L", True, Vr, A_=A, m=m, B_=B)
+
+
+# Base classes ================================================================
 class TestBaseModel:
     """Test _core._BaseModel."""
     def test_init(self):
@@ -308,97 +396,78 @@ class TestContinuousModel:
             assert out.shape == (n,nt)
 
 
-# Helper Functions and Classes ================================================
-class TestAffineOperator:
-    """Test _core._AffineOperator."""
-    @staticmethod
-    def _set_up_affine_attributes(n=5):
-        fs = [np.sin, np.cos, np.exp]
-        As = list(np.random.random((3,n,n)))
-        return fs, As
+# Mixin classes ===============================================================
+class TestInferredMixin:
+    def test_check_training_data_shapes(self):
+        """Test _core._InferredMixin._check_training_data_shapes()."""
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X, Xdot, U = _get_data(n, k, m)
+        Vr = la.svd(X)[0][:,:r]
+        model = roi._core._InferredMixin()
 
-    def test_init(self):
-        """Test _core._AffineOperator.__init__()."""
-        fs, As = self._set_up_affine_attributes()
-
-        # Try with different number of functions and matrices.
+        # Try to fit the model with misaligned X and Xdot.
         with pytest.raises(ValueError) as ex:
-            roi._core._AffineOperator(fs, As[:-1])
-        assert ex.value.args[0] == "expected 3 matrices, got 2"
-
-        # Try with matrices of different shapes.
-        with pytest.raises(ValueError) as ex:
-            roi._core._AffineOperator(fs, As[:-1] + [np.random.random((4,4))])
+            model._check_training_data_shapes(X, Xdot[:,1:-1], Vr)
         assert ex.value.args[0] == \
-            "affine operator matrix shapes do not match ((4, 4) != (5, 5))"
+            f"shape of X != shape of Xdot ({(n,k)} != {(n,k-2)})"
 
-        # Correct usage.
-        affop = roi._core._AffineOperator(fs, As)
-        affop = roi._core._AffineOperator(fs)
-        affop.matrices = As
-
-    def test_validate_coeffs(self):
-        """Test _core._AffineOperator.validate_coeffs()."""
-        fs, As = self._set_up_affine_attributes()
-
-        # Try with non-callables.
-        affop = roi._core._AffineOperator(As)
+        # Try to fit the model with misaligned X and Vr.
         with pytest.raises(ValueError) as ex:
-            affop.validate_coeffs(10)
+            model._check_training_data_shapes(X, Xdot, Vr[1:-1,:])
         assert ex.value.args[0] == \
-            "coefficients of affine operator must be callable functions"
-
-        # Try with vector-valued functions.
-        f1 = lambda t: np.array([t, t**2])
-        affop = roi._core._AffineOperator([f1, f1])
-        with pytest.raises(ValueError) as ex:
-            affop.validate_coeffs(10)
-        assert ex.value.args[0] == \
-            "coefficient functions of affine operator must return a scalar"
-
-        # Correct usage.
-        affop = roi._core._AffineOperator(fs, As)
-        affop.validate_coeffs(0)
-
-    def test_call(self):
-        """Test _core._AffineOperator.__call__()."""
-        fs, As = self._set_up_affine_attributes()
-
-        # Try without matrices set.
-        affop = roi._core._AffineOperator(fs)
-        with pytest.raises(RuntimeError) as ex:
-            affop(10)
-        assert ex.value.args[0] == "constituent matrices not initialized!"
-
-        # Correct usage.
-        affop.matrices = As
-        Ap = affop(10)
-        assert Ap.shape == (5,5)
-        assert np.allclose(Ap, np.sin(10)*As[0] + \
-                               np.cos(10)*As[1] + np.exp(10)*As[2])
+            f"X and Vr not aligned, first dimension {n} != {n-2}"
 
 
-def test_trained_model_from_operators():
-    """Test _core._trained_model_from_operators()."""
-    n, m, r = 200, 20, 30
-    Vr = np.random.random((n, r))
-    A, H, F, c, B = _get_operators(n=n, m=m)
+# Useable classes =============================================================
 
-    # Try with bad modelclass argument.
-    with pytest.raises(TypeError) as ex:
-        roi._core._trained_model_from_operators(str, "LQc", False, Vr)
-    assert ex.value.args[0] == "modelclass must be derived from _BaseModel"
+# Continuous models (i.e., solving dx/dt = f(t,x,u)) --------------------------
+class TestInferredContinuousModel:
+    """Test _core.InferredContinuousModel."""
+    def test_fit(self):
+        model = roi.InferredContinuousModel("LQc", has_inputs=False)
 
-    # Correct usage.
-    roi._core._trained_model_from_operators(roi._core._ContinuousModel,
-                                "LQc", False, Vr, A_=A, F_=F, c_=c)
-    roi._core._trained_model_from_operators(roi._core._ContinuousModel,
-                                "L", True, Vr, A_=A, m=m, B_=B)
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X, Xdot, U = _get_data(n, k, m)
+        Vr = la.svd(X)[0][:,:r]
+
+        # Fit the model with each possible modelform.
+        model.has_inputs = False
+        for form in model._VALID_MODEL_FORMS:
+            model.modelform = form
+            model.fit(X, Xdot, Vr)
+
+        # Test fit output sizes.
+        model.modelform = "LQc"
+        model.has_inputs = True
+        model.fit(X, Xdot, Vr, U=U)
+        assert model.n == n
+        assert model.r == r
+        assert model.m == m
+        assert model.A_.shape == (r,r)
+        assert model.F_.shape == (r,r*(r+1)//2)
+        assert model.H_.shape == (r,r**2)
+        assert model.c_.shape == (r,)
+        assert model.B_.shape == (r,m)
+        assert hasattr(model, "residual_")
+
+        # Try again with one-dimensional inputs.
+        m = 1
+        U = np.ones(k)
+        model.fit(X, Xdot, Vr, U=U)
+        n, r, m = model.n, model.r, model.m
+        assert model.n == n
+        assert model.r == r
+        assert model.m == 1
+        assert model.A_.shape == (r,r)
+        assert model.F_.shape == (r,r*(r+1)//2)
+        assert model.H_.shape == (r,r**2)
+        assert model.c_.shape == (r,)
+        assert model.B_.shape == (r,1)
+        assert hasattr(model, "residual_")
 
 
-# Useable Classes =============================================================
-
-# Continuous Models (i.e., solving dx/dt = f(t,x,u)) --------------------------
 class TestIntrusiveContinuousModel:
     """Test _core.IntrusiveContinuousModel."""
 
@@ -486,64 +555,6 @@ class TestIntrusiveContinuousModel:
         assert model.B_.shape == (r,1)
 
 
-class TestInferredContinuousModel:
-    """Test _core.InferredContinuousModel."""
-    def test_fit(self):
-        model = roi.InferredContinuousModel("LQc", has_inputs=False)
-
-        # Get test data.
-        n, k, m, r = 200, 100, 20, 10
-        X, Xdot, U = _get_data(n, k, m)
-        Vr = la.svd(X)[0][:,:r]
-
-        # Try to fit the model with misaligned X and Xdot.
-        with pytest.raises(ValueError) as ex:
-            model.fit(X, Xdot[:,1:-1], Vr)
-        assert ex.value.args[0] == \
-            f"shape of X != shape of Xdot ({(n,k)} != {(n,k-2)})"
-
-        # Try to fit the model with misaligned X and Vr.
-        with pytest.raises(ValueError) as ex:
-            model.fit(X, Xdot, Vr[1:-1,:])
-        assert ex.value.args[0] == \
-            f"X and Vr not aligned, first dimension {n} != {n-2}"
-
-        # Fit the model with each possible modelform.
-        model.has_inputs = False
-        for form in model._VALID_MODEL_FORMS:
-            model.modelform = form
-            model.fit(X, Xdot, Vr)
-
-        # Test fit output sizes.
-        model.modelform = "LQc"
-        model.has_inputs = True
-        model.fit(X, Xdot, Vr, U=U)
-        assert model.n == n
-        assert model.r == r
-        assert model.m == m
-        assert model.A_.shape == (r,r)
-        assert model.F_.shape == (r,r*(r+1)//2)
-        assert model.H_.shape == (r,r**2)
-        assert model.c_.shape == (r,)
-        assert model.B_.shape == (r,m)
-        assert hasattr(model, "residual_")
-
-        # Try again with one-dimensional inputs.
-        m = 1
-        U = np.ones(k)
-        model.fit(X, Xdot, Vr, U=U)
-        n, r, m = model.n, model.r, model.m
-        assert model.n == n
-        assert model.r == r
-        assert model.m == 1
-        assert model.A_.shape == (r,r)
-        assert model.F_.shape == (r,r*(r+1)//2)
-        assert model.H_.shape == (r,r**2)
-        assert model.c_.shape == (r,)
-        assert model.B_.shape == (r,1)
-        assert hasattr(model, "residual_")
-
-
 class TestInterpolatedInferredContinuousModel:
     """Test _core.InterpolatedInferredContinuousModel."""
     def test_fit(self):
@@ -628,4 +639,3 @@ class TestInterpolatedInferredContinuousModel:
 
 
 # Discrete Models (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
-# TODO

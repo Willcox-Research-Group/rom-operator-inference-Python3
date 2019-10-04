@@ -354,7 +354,7 @@ class _DiscreteModel(_BaseModel):           # pragma: no cover
         return "Reduced-order model structure: x_{k+1} = " + " + ".join(out)
 
 
-class _AffineContinuousModel(_BaseModel):
+class _AffineContinuousModel(_ContinuousModel):
     def predict(self, p, x0, t, u=None, **options):
         """Construct a ROM for the parameter p by exploiting the affine
         structure of the ROM operators, then simulate the resulting ROM with
@@ -1105,7 +1105,10 @@ class AffineInferredContinuousModel(_AffineContinuousModel,
             input), then U may be a one-dimensional array. Required if
             has_inputs is True; must be None if has_inputs is False.
 
-        affines : list of M functions from
+        affines : list of M scalar-valued functions
+            The functions that define the affine structure of the full-order
+            operator A. This structure carries over to the reduced-order
+            operator A_.
 
         G : (d,d) ndarray or float
             Tikhonov regularization matrix. If nonzero, the least-squares
@@ -1205,14 +1208,14 @@ class AffineInferredContinuousModel(_AffineContinuousModel,
         return self
 
 
-class AffineIntrusiveContinuousModel(_ContinuousModel,  # pragma: no cover
+class AffineIntrusiveContinuousModel(_ContinuousModel,
                                      _IntrusiveMixin, _ParametricMixin):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):                    # pragma: no cover
         raise NotImplementedError
 
 
 # Discrete models (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
-# TODO
+
 
 
 __all__ = [
