@@ -21,19 +21,34 @@ class _BaseModel:
         self.modelform = modelform
         self.has_inputs = has_inputs
 
-    def _check_modelform(self): # TODO: trained=False
+    def _check_modelform(self, trained=False):
         """Ensure that self.modelform is valid."""
         if self.modelform not in self._VALID_MODEL_FORMS:
             raise ValueError(f"invalid modelform '{self.modelform}'; "
                              f"options are {self._VALID_MODEL_FORMS}")
-        # if trained:
-        #     # Make sure that the required attributes exist and aren't None.
-        #     for key, s, attr in zip("LQc", ["A_", "F_", "c_"],
-        #                                [self.A_, self.F_, self.c_]):
-        #         if key in self.modelform and attr is None:
-        #             raise RuntimeError(f"{s} is None but '{key}' in modelform")
-        #     if self.has_inputs and self.B_ is None:
-        #         raise RuntimeError("B_ in None but has_inputs is True")
+        if trained:
+            # Make sure that the required attributes exist and aren't None,
+            # and that nonrequired attributes exist but are None.
+            for key, s in zip("LQc", ["A_", "F_", "c_"]):
+                if not hasattr(self, s):
+                    raise AttributeError(f"missing attribute '{s}';"
+                                         " call fit() to train model")
+                attr = getattr(self, s)
+                if key in self.modelform and attr is None:
+                    raise AttributeError(f"attribute '{s}' is None;"
+                                         " call fit() to train model")
+                elif key not in self.modelform and attr is not None:
+                    raise AttributeError(f"attribute '{s}' should be None;"
+                                         " call fit() to train model")
+            if not hasattr(self, 'B_'):
+                raise AttributeError(f"missing attribute 'B_';"
+                                     " call fit() to train model")
+            if self.has_inputs and self.B_ is None:
+                raise AttributeError(f"attribute 'B_' is None;"
+                                     " call fit() to train model")
+            elif not self.has_inputs and self.B_ is not None:
+                raise AttributeError(f"attribute 'B_' should be None;"
+                                     " call fit() to train model")
 
     def _check_hasinputs(self, u, argname):
         """Check that self.has_inputs agrees with input arguments."""
@@ -46,18 +61,7 @@ class _BaseModel:
                              " since has_inputs=False")
 
 
-class _NonparametricMixin:
-    """Mixin class for non-parametric reduced model classes."""
-    @property
-    def H_(self):
-        """Matricized quadratic tensor; operates on full Kronecker product."""
-        return None if self.F_ is None else utils.F2H(self.F_)
-
-
-# class _ParametricMixin? What would this need?
-
-
-class _BaseContinuousModel(_BaseModel):
+class _ContinuousModel(_BaseModel):
     """Base class for models that solve the continuous (ODE) ROM problem,
 
         dx / dt = f(t, x(t), u(t)),         x(0) = x0.
@@ -101,43 +105,29 @@ class _BaseContinuousModel(_BaseModel):
         self.f_ = f_
 
     @staticmethod
-    def _trained_model_from_operators(modelform, has_inputs, **attrs):
+    def _trained_model_from_operators(modelform, has_inputs, Vr, m=None,
+                                      A_=None, F_=None, c_=None, B_=None):
         """Construct a prediction-capable Model object from the operators of
         the reduced model.
 
-        Parameters
-        ----------
-        modelform : str {'L', 'Lc', 'Q', 'Qc', 'LQ', 'LQc'}
-            The structure of the desired reduced-order model.
-
-        has_inputs : bool, optional, default: False.
-            If True, assume the system has an additive input term u(t).
-
-        attrs:
-            Other attributes needed in order to call predict() successfully.
-            Must include Vr, n, r, m, A_, F_, c_, and B_.
-
         Returns
         -------
-        model : _BaseContinuousModel
+        model : _ContinuousModel
             A new model, ready for predict() calls.
         """
         # Construct the new model object.
-        model = _BaseContinuousModel(modelform, has_inputs)
+        model = _ContinuousModel(modelform, has_inputs)
         model._check_modelform()
 
         # Insert the attributes.
-        for key,value in attrs.items():
-            setattr(model, key, value)
+        model.Vr = Vr
+        model.n, model.r, model.m = Vr.shape + (m,)
+        model.A_, model.F_, model.c_, model.B_ = A_, F_, c_, B_
 
-        # Make sure that the new model has essential attributes for prediction.
-        missed = [repr(a) for a in ['Vr', 'n','r','m', 'A_','F_','c_','B_']
-                                                    if not hasattr(model, a)]
-        if missed:
-            _noun = "attribute" + ('s' if len(missed) > 1 else '')
-            raise AttributeError(f"{_noun} {', '.join(missed)} required")
+        # Check that the attributes match the modelform.
+        model._check_modelform(True)
 
-        # Construct ROM operator f_() if there are no system inputs.
+        # Construct the ROM operator f_() if there are no system inputs.
         if not has_inputs:
             model._construct_f_()
 
@@ -196,12 +186,8 @@ class _BaseContinuousModel(_BaseModel):
             The reduced-order approximation to the full-order system over `t`.
         """
         # Verify modelform.
-        self._check_modelform()
+        self._check_modelform(trained=True)
         self._check_hasinputs(u, 'u')
-
-        # Check that the model is already trained.
-        if not hasattr(self, 'B_'):
-            raise AttributeError("model not trained (call fit() first)")
 
         # Check dimensions.
         if x0.shape[0] != self.n:
@@ -211,12 +197,6 @@ class _BaseContinuousModel(_BaseModel):
         if t.ndim != 1:
             raise ValueError("time 't' must be one-dimensional")
         nt = t.shape[0]
-
-        # Check for consistency with fit().
-        if (self.has_inputs and self.B_ is None) or \
-           (not self.has_inputs and self.B_ is not None):
-            raise AttributeError("`has_inputs` attribute altered between fit()"
-                                 " and predict(); call fit() again to retrain")
 
         # Project initial conditions.
         x0_ = self.Vr.T @ x0
@@ -275,7 +255,7 @@ class _BaseContinuousModel(_BaseModel):
         return self.Vr @ self.sol_.y
 
 
-class _BaseDiscreteModel(_BaseModel):           # pragma: no cover
+class _DiscreteModel(_BaseModel):           # pragma: no cover
     """Base class for models that solve the discrete ROM problem,
 
         x_{k+1} = f(x_{k}, u_{k}),         x_{0} = x0.
@@ -286,7 +266,7 @@ class _BaseDiscreteModel(_BaseModel):           # pragma: no cover
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be overwritten by child classes")
 
-    def predict(self, x0, niters, u=None, **options):
+    def predict(self, x0, niters, U=None, **options):
         raise NotImplementedError
 
     def __str__(self):
@@ -301,13 +281,190 @@ class _BaseDiscreteModel(_BaseModel):           # pragma: no cover
         return "Reduced-order model structure: x_{k+1} = " + " + ".join(out)
 
 
-# class _BaseAffineContinuousModel(_BaseModel) with predict() method.
+class _AffineContinuousModel(_BaseModel):
+    def predict(self, p, x0, t, u=None, **options):
+        """Construct a ROM for the parameter p by exploiting the affine
+        structure of the ROM operators, then simulate the resulting ROM with
+        scipy.integrate.solve_ivp().
+
+        TODO: right now this only assumes affine dependence in A_.
+
+        Parameters
+        ----------
+        p : float
+            The paramter of interest for the prediction.
+
+        x0 : (n,) ndarray
+            The initial (high-dimensional) state vector to begin a simulation.
+
+        t : (nt,) ndarray
+            The time domain over which to integrate the reduced-order system.
+
+        u : callable OR (m,nt) ndarray
+            The input as a function of time (preferred) OR the input at the
+            times `t`. If given as an array, u(t) is calculated by linearly
+            interpolating known data points if needed for an adaptive solver.
+
+        options
+            Arguments for solver.integrate.solve_ivp(), such as the following:
+            method : str
+                The ODE solver for the reduced-order system.
+                * 'RK45' (default): Explicit Runge-Kutta method of order 5(4).
+                * 'RK23': Explicit Runge-Kutta method of order 3(2).
+                * 'Radau': Implicit Runge-Kutta method of the Radau IIA family
+                    of order 5.
+                * 'BDF': Implicit multi-step variable-order (1 to 5) method
+                    based on a backward differentiation formula for the
+                    derivative.
+                * 'LSODA': Adams/BDF method with automatic stiffness detection
+                    and switching. This wraps the Fortran solver from ODEPACK.
+            max_step : float
+                The maximimum allowed integration step size.
+            See https://docs.scipy.org/doc/scipy/reference/integrate.html.
+
+        Returns
+        -------
+        X_ROM: (n,nt) ndarray
+            The reduced-order approximation to the full-order system over `t`.
+        """
+        # Check modelform and inputs.
+        self._check_modelform(trained=True)
+        self._check_hasinputs(u, 'u')
+
+        # Make sure the parameter p has the correct dimension.
+
+        # Use the affine structure of A to do the thing.
+        model = _ContinuousModel._trained_model_from_operators(
+                    self.modelform,
+                    self.has_inputs,
+                    n=self.n,
+                    r=self.r,
+                    m=self.m,
+                    Vr=self.Vr,
+                    A_=self.A_(p),
+                    F_=self.F_,
+                    c_=self.c_,
+                    B_=self.B_,
+                )
+        return model.predict(x0, t, u, **options)
+
+
+# Mixins ======================================================================
+class _InferredMixin:
+    """Mixin class for reduced model classes that use operator inference."""
+    @staticmethod
+    def _check_training_data_shapes(X, Xdot, Vr):
+        """Ensure that X, Xdot, and Vr are aligned."""
+        if X.shape != Xdot.shape:
+            raise ValueError("shape of X != shape of Xdot "
+                             f"({X.shape} != {Xdot.shape})")
+
+        if X.shape[0] != Vr.shape[0]:
+            raise ValueError("X and Vr not aligned, first dimension "
+                             f"{X.shape[0]} != {Vr.shape[0]}")
+
+
+class _IntrusiveMixin:
+    """Mixin class for reduced model classes that use intrusive projection."""
+    pass
+
+
+class _NonparametricMixin:
+    """Mixin class for non-parametric reduced model classes."""
+    @property
+    def H_(self):
+        """Matricized quadratic tensor; operates on full Kronecker product."""
+        return None if self.F_ is None else utils.F2H(self.F_)
+
+
+class _ParametricMixin:
+    """Mixin class for parametric reduced model classes."""
+    pass
+
+
+# Helper classes ==============================================================
+class _AffineOperator:
+    """Class for representing a linear operator with affine structure, i.e.,
+
+        A(p) = sum_{i=1}^{nterms} f_{i}(p) * A_{i}.
+
+    The matrix A(p) is constructed by calling the object once the coefficient
+    functions and constituent matrices are set.
+
+    Attributes
+    ----------
+    nterms : int
+        The number of terms in the sum defining the linear operator.
+
+    coefficient_functions : list of nterms callables
+        The coefficient scalar-valued functions that define the operator.
+        Each must take the same sized input and return a scalar.
+
+    matrices : list of nterms ndarrays of the same shape
+        The constituent matrices defining the linear operator.
+    """
+
+    def __init__(self, coeffs, matrices=None):
+        self.coefficient_functions = coeffs
+        self.nterms = len(coeffs)
+        if matrices:
+            self.matrices = matrices
+        else:
+            self._ready = False
+
+    @property
+    def matrices(self):
+        """Get the constituent matrices."""
+        return self._matrices
+
+    @matrices.setter
+    def matrices(self, ms):
+        """Set the constituent matrices."""
+        if len(ms) != self.nterms:
+            _noun = "matrix" if self.nterms == 1 else "matrices"
+            raise ValueError(f"expected {self.nterms} {_noun}, got {len(ms)}")
+
+        # Check that each matrix in the list has the same shape.
+        shape = ms[0].shape
+        for m in ms:
+            if m.shape != shape:
+                raise ValueError("affine operator matrix shapes do not match "
+                                 f"({m.shape} != {shape})")
+
+        # Store matrix list and shape, and mark as ready (for __call__()).
+        self._matrices = ms
+        self.shape = shape
+        self._ready = True
+
+    def validate_coeffs(self, p):
+        """Check that each coefficient function 1) is a callable function,
+        2) takes in the right sized inputs, and 3) returns scalar values.
+
+        Parameters
+        ----------
+        p : float or (dp,) ndarray
+            A test input for the coefficient functions.
+        """
+        for f in self.coefficient_functions:
+            if not callable(f):
+                raise ValueError("coefficients of affine operator must be "
+                                 "callable functions")
+            elif not np.isscalar(f(p)):
+                raise ValueError("coefficient functions of affine operator "
+                                 "must return a scalar")
+
+    def __call__(self, p):
+        if not self._ready:
+            raise RuntimeError("constituent matrices not initialized!")
+        return np.sum([fi(p)*Ai for fi,Ai in zip(self.coefficient_functions,
+                                                 self.matrices)], axis=0)
 
 
 # Useable classes =============================================================
 
 # Continuous Models (i.e., solving dx/dt = f(t,x,u)) --------------------------
-class InferredContinuousModel(_BaseContinuousModel, _NonparametricMixin):
+class InferredContinuousModel(_ContinuousModel,
+                              _InferredMixin, _NonparametricMixin):
     """Reduced order model for a system of high-dimensional ODEs of the form
 
         dx / dt = f(t,x(t),u(t)),           x(0) = x0.
@@ -415,14 +572,7 @@ class InferredContinuousModel(_BaseContinuousModel, _NonparametricMixin):
         self._check_hasinputs(U, 'U')
 
         # Check and store dimensions.
-        if X.shape != Xdot.shape:
-            raise ValueError("X and Xdot different shapes "
-                             f"({X.shape} != {Xdot.shape})")
-
-        if X.shape[0] != Vr.shape[0]:
-            raise ValueError("X and Vr not aligned, first dimension "
-                             f"{X.shape[0]} != {Vr.shape[0]}")
-
+        self._check_training_data_shapes(X, Xdot, Vr)
         n,k = X.shape           # Dimension of system, number of shapshots.
         r = Vr.shape[1]         # Number of basis vectors.
         self.n, self.r, self.m = n, r, None
@@ -492,7 +642,8 @@ class InferredContinuousModel(_BaseContinuousModel, _NonparametricMixin):
         return self
 
 
-class IntrusiveContinuousModel(_BaseContinuousModel, _NonparametricMixin):
+class IntrusiveContinuousModel(_ContinuousModel,
+                               _IntrusiveMixin, _NonparametricMixin):
     """Reduced order model for a system of high-dimensional ODEs of the form
 
         dx / dt = f(t, x(t), u(t)),         x(0) = x0.
@@ -669,7 +820,8 @@ class IntrusiveContinuousModel(_BaseContinuousModel, _NonparametricMixin):
         return self
 
 
-class InterpolatedInferredContinuousModel(_BaseContinuousModel):
+class InterpolatedInferredContinuousModel(_ContinuousModel,
+                                          _IntrusiveMixin, _ParametricMixin):
     """Reduced order model for a system of high-dimensional ODEs, parametrized
     by a scalar p, of the form
 
@@ -763,7 +915,7 @@ class InterpolatedInferredContinuousModel(_BaseContinuousModel):
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
-        U : list of num_models (m,k) or (k,) ndarrays or None
+        Us : list of num_models (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
             input), then U may be a one-dimensional array. Required if
             has_inputs is True; must be None if has_inputs is False.
@@ -875,16 +1027,14 @@ class InterpolatedInferredContinuousModel(_BaseContinuousModel):
             The reduced-order approximation to the full-order system over `t`.
         """
         # Check modelform and inputs.
-        self._check_modelform()
+        self._check_modelform(trained=True)
         self._check_hasinputs(u, 'u')
 
-        model = _BaseContinuousModel._trained_model_from_operators(
-                    self.modelform,
-                    self.has_inputs,
-                    n=self.n,
-                    r=self.r,
-                    m=self.m,
+        model = _ContinuousModel._trained_model_from_operators(
+                    modelform=self.modelform,
+                    has_inputs=self.has_inputs,
                     Vr=self.Vr,
+                    m=self.m,
                     A_=self.A_(p) if self.A_ is not None else None,
                     F_=self.F_(p) if self.F_ is not None else None,
                     c_=self.c_(p) if self.c_ is not None else None,
@@ -933,12 +1083,137 @@ class InterpolatedInferredContinuousModel(_BaseContinuousModel):
         return np.array([m.residual_ for m in self.models_])
 
 
-# class AffineInferredContinuousModel(_BaseContinuousModel):  # pragma: no cover
-    pass
+class AffineInferredContinuousModel(_AffineContinuousModel,
+                                    _InferredMixin, _ParametricMixin):
+    def fit(self, ps, Xs, Xdots, Vr, affines, Us=None, G=0):
+        """Solve for the reduced model operators via regularized least squares.
+        For terms with affine structure, solve for the constituent operators.
+
+        Parameters
+        ----------
+        ps : list of scalars or (p,) ndarrays
+            Parameter values at which the snapshot data is collected.
+
+        Xs : list of num_models (n,k) ndarrays
+            Column-wise snapshot training data (each column is a snapshot).
+            The ith array Xs[i] corresponds to the ith parameter, ps[i].
+
+        Xdots : list of num_models (n,k) ndarrays
+            Column-wise velocity training data. The ith array Xdots[i]
+            corresponds to the ith parameter, ps[i].
+
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
+        Us : list of num_models (m,k) or (k,) ndarrays or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if
+            has_inputs is True; must be None if has_inputs is False.
+
+        affines : list of M functions from
+
+        G : (d,d) ndarray or float
+            Tikhonov regularization matrix. If nonzero, the least-squares
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Gx||^2.
+            If a nonzero number is provided, the regularization matrix is
+            G * I (a scaled identity matrix). Here d is the dimension of the
+            data matrix for the least-squares problem, e.g., d = r + m for a
+            linear model with inputs.
+
+        Returns
+        -------
+        self
+        """
+        if 'L' not in self.modelform:
+            raise NotImplementedError(
+                "this class is currently only implemented for affine "
+                "dependencies in the linear state matrix")
+
+        # Check modelform and inputs.
+        self._check_modelform()
+        self._check_hasinputs(Us, 'Us')
+
+        # Check and store dimensions.
+        for X, Xdot in zip(Xs, Xdots):
+            self._check_training_data_shapes(X, Xdot, Vr)
+        n,k = Xs[0].shape       # Dimension of system, number of shapshots.
+        r = Vr.shape[1]         # Number of basis vectors.
+        self.n, self.r, self.m = n, r, None
+
+        # Check affines argument.
+        M = len(affines)
+        self.A_ = _AffineOperator(affines)
+
+        # Project states and velocities to the reduced subspace.
+        Xs_ = [Vr.T @ X for X in Xs]
+        Xdots_ = [Vr.T @ Xdot for Xdot in Xdots]
+        self.Vr = Vr
+
+        # Construct the "Data matrix" D = [X^T, (X ⊗ X)^T, U^T, 1].
+        D_blockrows = []
+        for i in range(len(ps)):
+            row = []
+            if 'L' in self.modelform:
+                row.append([affines[j](ps[i]) * Xs_[i].T
+                                 for j in range(M)])
+            if 'Q' in self.modelform:
+                X2_ = kron2(Xs_[i])
+                row.append(X2_.T)
+
+            if 'c' in self.modelform:
+                row.append(np.ones(k).reshape((k,1)))
+
+            if self.has_inputs:
+                if U.ndim == 1:
+                    U = U.reshape((1,k))
+                row.append(U.T)
+                m = U.shape[0]
+                self.m = m
+            D_blockrows.append(np.hstack(row))
+
+        D = np.vstack(D_blockrows)
+        self.datacond_ = np.linalg.cond(D)      # Condition number of data.
+
+        # Solve for the reduced-order model operators via least squares.
+        OT, res = utils.lstsq_reg(D, Xdot_.T, G)[0:2]
+        self.residual_ = np.sum(res)
+
+        # Extract the reduced operators from OT.
+        i = 0
+        if 'L' in self.modelform:
+            self.As_ = []
+            for j in range(M):
+                self.As_.append(OT[i:i+self.r].T)
+                i += self.r
+        else:
+            self.As_ = None
+        self.A_.matrices = self.As_
+
+        if 'Q' in self.modelform:
+            self.F_ = OT[i:i+s].T
+            i += s
+        else:
+            self.F_ = None
+
+        if 'c' in self.modelform:
+            self.c_ = OT[i:i+1][0]       # Note that c_ is one-dimensional.
+            i += 1
+        else:
+            self.c_ = None
+
+        if self.has_inputs:
+            self.B_ = OT[i:i+self.m].T
+            i += self.m
+        else:
+            self.B_ = None
+
+        return self
 
 
-# class AffineIntrusiveContinuousModel(_BaseContinuousModel): # pragma: no cover
-    pass
+class AffineIntrusiveContinuousModel(_ContinuousModel,  # pragma: no cover
+                                     _IntrusiveMixin, _ParametricMixin):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 # Discrete Models (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
