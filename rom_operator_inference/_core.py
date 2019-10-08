@@ -87,7 +87,7 @@ class ReducedModel:
         self.modelform = modelform
         self.has_inputs = has_inputs
 
-    def fit(self, X, Xdot, Vr, U=None, reg=0):
+    def fit(self, X, Xdot, Vr, U=None, G=0):
         """Solve for the reduced model operators via regularized least squares.
 
         Parameters
@@ -105,9 +105,13 @@ class ReducedModel:
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
             input), then U may be a one-dimensional array.
 
-        reg : float
-            L2 regularization penalty. If nonzero, the least squares problem
-            takes the form min_{x}||Ax - b||_2^2 + reg*||x||_2^2.
+        G : (d,d) ndarray or float
+            Tikhonov regularization matrix. If nonzero, the least squares
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Gx||^2.
+            If a nonzero number is provided, the regularization matrix is
+            G * I (a scaled identity matrix). Here d is the dimension of the
+            data matrix for the least squares problem, e.g., d = r + m for a
+            linear model with inputs.
 
         Returns
         -------
@@ -166,7 +170,7 @@ class ReducedModel:
         d = D.shape[1]
 
         # Solve for the reduced-order model operators via least squares.
-        O, res = utils.lstsq_reg(D, Xdot_.T, reg)[0:2]
+        O, res = utils.lstsq_reg(D, Xdot_.T, G)[0:2]
         self.residual_ = np.sum(res)
 
         # Extract the reduced operators from O.

@@ -8,6 +8,17 @@ import numpy as np
 from sklearn.utils.extmath import randomized_svd
 
 
+def offdiag_penalizer(reg, r, m):
+    """Construct a list of regularization matrices that penalize the
+    off-diagonal elements of A and all elements of the remaining operators.
+    """
+    regI = _np.sqrt(reg) * _np.eye(r + r**2 + m + 1)
+    Gs = [regI] * r
+    for i in range(r):
+        Gs[r][r,r] = 0
+    return Gs
+
+
 def compute_randomized_svd(data, savepath, n_components=500):
     """Compute and save randomized SVD following
     https://scikit-learn.org/stable/modules/generated/sklearn.utils.extmath.randomized_svd.html

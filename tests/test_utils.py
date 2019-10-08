@@ -14,45 +14,87 @@ def _test_lstq_reg_single(k,d,r):
     A = np.random.random((k, d))
     b = np.random.random(k)
     B = np.random.random((k,r))
+    I = np.eye(d)
 
     # VECTOR TEST
     x = la.lstsq(A, b)[0]
 
-    # Ensure that the least squares solution is the usual one when reg=0.
-    x_ = roi.utils.lstsq_reg(A, b, reg=0)[0]
+    # Ensure that the least squares solution is the usual one when G=0.
+    x_ = roi.utils.lstsq_reg(A, b, G=0)[0]
+    assert np.allclose(x, x_)
+
+    # Ensure that the least squares solution is the usual one when G=0 (matrix)
+    x_ = roi.utils.lstsq_reg(A, b, np.zeros((d,d)))[0]
     assert np.allclose(x, x_)
 
     # Check that the regularized least squares solution has decreased norm.
-    x_ = roi.utils.lstsq_reg(A, b, reg=2)[0]
+    x_ = roi.utils.lstsq_reg(A, b, G=2)[0]
+    assert la.norm(x_) <= la.norm(x)
+
+    x_ = roi.utils.lstsq_reg(A, b, G=2*I)[0]
     assert la.norm(x_) <= la.norm(x)
 
     # MATRIX TEST
     X = la.lstsq(A, B)[0]
 
-    # Ensure that the least squares solution is the usual one when reg=0.
-    X_ = roi.utils.lstsq_reg(A, B, reg=0)[0]
+    # Ensure that the least squares solution is the usual one when G=0.
+    X_ = roi.utils.lstsq_reg(A, B, G=0)[0]
+    assert np.allclose(X, X_)
+
+    # Ensure that the least squares solution is the usual one when G=0 (matrix)
+    X_ = roi.utils.lstsq_reg(A, B, G=0)[0]
+    assert np.allclose(X, X_)
+
+    # Ensure that the least squares solution is the usual one when G=0 (list)
+    X_ = roi.utils.lstsq_reg(A, B, G=[np.zeros((d,d))]*r)[0]
     assert np.allclose(X, X_)
 
     # Check that the regularized least squares solution has decreased norm.
-    X_ = roi.utils.lstsq_reg(A, B, reg=2)[0]
+    X_ = roi.utils.lstsq_reg(A, B, G=2)[0]
+    assert la.norm(X_) <= la.norm(X)
+
+    X_ = roi.utils.lstsq_reg(A, B, G=2)[0]
+    assert la.norm(X_) <= la.norm(X)
+
+    X_ = roi.utils.lstsq_reg(A, B, G=[2*I]*r)[0]
     assert la.norm(X_) <= la.norm(X)
 
 
-def test_lstsq_reg(n_tests=20):
+def test_lstsq_reg(n_tests=5):
     """Test rom_operator_inference.utils.lstsq_reg()."""
+    A = np.random.random((20,10))
+    B = np.random.random((20, 5))
+
     # Negative regularization parameter not allowed.
     with pytest.raises(ValueError) as exc:
-        roi.utils.lstsq_reg(None, None, -1)
+        roi.utils.lstsq_reg(A, B, -1)
     assert exc.value.args[0] == "regularization parameter must be nonnegative"
 
     # b must be one- or two-dimensional
     with pytest.raises(ValueError) as exc:
-        roi.utils.lstsq_reg(None, np.random.random((2,2,2)))
-    assert exc.value.args[0] == "parameter `b` must be one- or two-dimensional"
+        roi.utils.lstsq_reg(A, np.random.random((2,2,2)))
+    assert exc.value.args[0] == "`b` must be one- or two-dimensional"
 
     with pytest.raises(ValueError) as exc:
-        roi.utils.lstsq_reg(None, np.array(5))
-    assert exc.value.args[0] == "parameter `b` must be one- or two-dimensional"
+        roi.utils.lstsq_reg(A, np.array(5))
+    assert exc.value.args[0] == "`b` must be one- or two-dimensional"
+
+    with pytest.raises(ValueError) as exc:
+        roi.utils.lstsq_reg(A, B[:,0],
+                            [np.random.random((10,10)) for i in range(5)])
+    assert exc.value.args[0] == "`b` must be two-dimensional with multiple G"
+
+    # Badly shaped regularization matrix.
+    with pytest.raises(ValueError) as exc:
+        roi.utils.lstsq_reg(A, B, np.random.random((5,5)))
+    assert exc.value.args[0] == \
+        "G must be (d,d) with d = number of columns of A"
+
+    with pytest.raises(ValueError) as exc:
+        roi.utils.lstsq_reg(A, B,
+                            [np.random.random((10,10)) for i in range(3)])
+    assert exc.value.args[0] == \
+        "list G must have r entries with r = number of columns of b"
 
     # Do individual tests.
     k, m = 200, 20
