@@ -3,6 +3,7 @@
 # TODO: jacobians for each model form in the continuous case.
 
 import warnings
+import itertools
 import numpy as np
 from scipy import linalg as la
 from scipy.interpolate import CubicSpline
@@ -126,21 +127,34 @@ def _trained_model_from_operators(modelclass, modelform, has_inputs, Vr,
 # Base classes ================================================================
 class _BaseModel:
     """Base class for all rom_operator_inference reduced model classes."""
-    _VALID_MODEL_FORMS = {"L", "Lc", "Q", "Qc", "LQ", "LQc"}
+    _MODEL_KEYS = "CLQ"                 # Constant, Linear, Quadratic.
 
     def __init__(self, modelform, has_inputs=False):
         self.modelform = modelform
+        if 'I' in self.modelform:
+            self.has_inputs = True
+            self.modelform = self.modelform.replace('I', '')
         self.has_inputs = has_inputs
+
+    @property
+    def modelform(self):
+        return self._form
+
+    @modelform.setter
+    def modelform(self, form):
+        self._form = ''.join(sorted(form.upper()))
 
     def _check_modelform(self, trained=False):
         """Ensure that self.modelform is valid."""
-        if self.modelform not in self._VALID_MODEL_FORMS:
-            raise ValueError(f"invalid modelform '{self.modelform}'; "
-                             f"options are {self._VALID_MODEL_FORMS}")
+        for key in self.modelform:
+            if key not in self._MODEL_KEYS:
+                raise ValueError(f"invalid modelform key '{key}'; options "
+                                 "are " + ', '.join(self._MODEL_KEYS))
+
         if trained:
             # Make sure that the required attributes exist and aren't None,
             # and that nonrequired attributes exist but are None.
-            for key, s in zip("LQc", ["A_", "F_", "c_"]):
+            for key, s in zip("CLQ", ["c_", "A_", "F_"]):
                 if not hasattr(self, s):
                     raise AttributeError(f"attribute '{s}' missing;"
                                          " call fit() to train model")
@@ -185,32 +199,36 @@ class _ContinuousModel(_BaseModel):
         if has_inputs is True, the input function.
         """
         if not self.has_inputs and u is None:
-            if self.modelform == "L":
+            if self.modelform == "C":
+                f_ = lambda t,x_: self.c_
+            elif self.modelform == "L":
                 f_ = lambda t,x_: self.A_@x_
-            elif self.modelform == "Lc":
-                f_ = lambda t,x_: self.A_@x_ + self.c_
+            elif self.modelform == "CL":
+                f_ = lambda t,x_: self.c_ + self.A_@x_
             elif self.modelform == "Q":
                 f_ = lambda t,x_: self.F_@kron2(x_)
-            elif self.modelform == "Qc":
-                f_ = lambda t,x_: self.F_@kron2(x_) + self.c_
+            elif self.modelform == "CQ":
+                f_ = lambda t,x_: self.c_ + self.F_@kron2(x_)
             elif self.modelform == "LQ":
                 f_ = lambda t,x_: self.A_@x_ + self.F_@kron2(x_)
-            elif self.modelform == "LQc":
-                f_ = lambda t,x_: self.A_@x_ + self.F_@kron2(x_) + self.c_
+            elif self.modelform == "CLQ":
+                f_ = lambda t,x_: self.c_ + self.A_@x_ + self.F_@kron2(x_)
         elif self.has_inputs and u is not None:
             u_ = u
-            if self.modelform == "L":
+            if self.modelform == "C":
+                f_ = lambda t,x_: self.c_ + self.B_@u_(t)
+            elif self.modelform == "L":
                 f_ = lambda t,x_: self.A_@x_ + self.B_@u_(t)
-            elif self.modelform == "Lc":
-                f_ = lambda t,x_: self.A_@x_ + self.c_ + self.B_@u_(t)
+            elif self.modelform == "CL":
+                f_ = lambda t,x_: self.c_ + self.A_@x_ + self.B_@u_(t)
             elif self.modelform == "Q":
                 f_ = lambda t,x_: self.F_@kron2(x_) + self.B_@u_(t)
-            elif self.modelform == "Qc":
-                f_ = lambda t,x_: self.F_@kron2(x_) + self.c_ + self.B_@u_(t)
+            elif self.modelform == "CQ":
+                f_ = lambda t,x_: self.c_ + self.F_@kron2(x_) + self.B_@u_(t)
             elif self.modelform == "LQ":
                 f_ = lambda t,x_: self.A_@x_ + self.F_@kron2(x_) + self.B_@u_(t)
-            elif self.modelform == "LQc":
-                f_ = lambda t,x_: self.A_@x_ + self.F_@kron2(x_) + self.c_ + self.B_@u_(t)
+            elif self.modelform == "CLQ":
+                f_ = lambda t,x_: self.c_ + self.A_@x_ + self.F_@kron2(x_) + self.B_@u_(t)
         else:
             raise RuntimeError("improper use of _construct_f_()!")
         self.f_ = f_
@@ -219,9 +237,9 @@ class _ContinuousModel(_BaseModel):
         """String representation: the structure of the model."""
         self._check_modelform()
         out = []
+        if 'C' in self.modelform: out.append("c")
         if 'L' in self.modelform: out.append("Ax(t)")
         if 'Q' in self.modelform: out.append("H(x ⊗ x)(t)")
-        if 'c' in self.modelform: out.append("c")
         if self.has_inputs: out.append("Bu(t)")
 
         return "Reduced-order model structure: dx / dt = " + " + ".join(out)
@@ -346,21 +364,22 @@ class _DiscreteModel(_BaseModel):           # pragma: no cover
         """String representation: the structure of the model."""
         self._check_modelform()
         out = []
+        if 'C' in self.modelform: out.append("c")
         if 'L' in self.modelform: out.append("Ax_{k}")
         if 'Q' in self.modelform: out.append("H(x_{k} ⊗ x_{k})")
-        if 'c' in self.modelform: out.append("c")
         if self.has_inputs: out.append("Bu_{k}")
 
         return "Reduced-order model structure: x_{k+1} = " + " + ".join(out)
 
 
 class _AffineContinuousModel(_ContinuousModel):
+    """Base class for models with affinely parametric operators."""
     def predict(self, p, x0, t, u=None, **options):
         """Construct a ROM for the parameter p by exploiting the affine
         structure of the ROM operators, then simulate the resulting ROM with
         scipy.integrate.solve_ivp().
 
-        TODO: right now this only assumes affine dependence in A_.
+        TODO: right now this assumes affine dependence in A_ and c_.
 
         Parameters
         ----------
@@ -406,17 +425,18 @@ class _AffineContinuousModel(_ContinuousModel):
 
         # Make sure the parameter p has the correct dimension.
 
-        # Use the affine structure of A to do the thing.
+        # Use the affine structure of the operators to construct a new model.
+
         model = _trained_model_from_operators(
-                    modelclass=_ContinuousModel,
-                    modelform=self.modelform,
-                    has_inputs=self.has_inputs,
-                    Vr=self.Vr,
-                    m=self.m,
-                    A_=self.A_(p),
-                    F_=self.F_,
-                    c_=self.c_,
-                    B_=self.B_,
+            modelclass=_ContinuousModel,
+            modelform=self.modelform,
+            has_inputs=self.has_inputs,
+            Vr=self.Vr,
+            m=self.m,
+            A_=self.A_(p) if isinstance(self.A_, _AffineOperator) else self.A_,
+            F_=self.F_(p) if isinstance(self.F_, _AffineOperator) else self.F_,
+            c_=self.c_(p) if isinstance(self.c_, _AffineOperator) else self.c_,
+            B_=self.B_(p) if isinstance(self.B_, _AffineOperator) else self.B_,
                 )
         return model.predict(x0, t, u, **options)
 
@@ -434,6 +454,15 @@ class _InferredMixin:
         if X.shape[0] != Vr.shape[0]:
             raise ValueError("X and Vr not aligned, first dimension "
                              f"{X.shape[0]} != {Vr.shape[0]}")
+
+    @staticmethod
+    def _check_dataset_consistency(arrlist, label):
+        """Ensure that each array in the list of arrays is the same shape."""
+        shape = arrlist[0].shape
+        for arr in arrlist:
+            if arr.shape != shape:
+                raise ValueError(f"shape of '{label}'"
+                                 " inconsistent across samples")
 
 
 class _IntrusiveMixin:
@@ -469,14 +498,14 @@ class InferredContinuousModel(_ContinuousModel,
 
     Parameters
     ----------
-    modelform : str {'L', 'Lc', 'Q', 'Qc', 'LQ', 'LQc'}
+    modelform : str {'L', 'CL', 'Q', 'CQ', 'LQ', 'CLQ'}
         The structure of the desired reduced-order model. Options:
         'L'   : Linear model, f(x) = Ax.
-        'Lc'  : Linear model with constant, f(x) = Ax + c.
+        'CL'  : Linear model with constant, f(x) = Ax + c.
         'Q'   : Quadratic model, f(x) = H(x⊗x).
-        'Qc'  : Quadratic model with constant, f(x) = H(x⊗x) + c.
+        'CQ'  : Quadratic model with constant, f(x) = H(x⊗x) + c.
         'LQ'  : Linear-Quadratic model, f(x) = Ax + H(x⊗x).
-        'LQc' : Linear-Quadratic model with constant, f(x) = Ax + H(x⊗x) + c.
+        'CLQ' : Linear-Quadratic model with constant, f(x) = Ax + H(x⊗x) + c.
 
     has_inputs : bool, optional, default: False.
         If True, assume the system has an additive input term u(t).
@@ -515,7 +544,7 @@ class InferredContinuousModel(_ContinuousModel,
         solving the ROM.
 
     c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
+        Learned ROM constant term, or None if 'C' is not in `modelform`.
 
     B_ : (r,m) ndarray or None
         Learned ROM input matrix, or None if `has_inputs` is False.
@@ -586,7 +615,7 @@ class InferredContinuousModel(_ContinuousModel,
             D_blocks.append(X2_.T)
             s = X2_.shape[0]    # = r(r+1)//2, size of the compact Kronecker.
 
-        if 'c' in self.modelform:
+        if 'C' in self.modelform:
             D_blocks.append(np.ones(k).reshape((k,1)))
 
         if self.has_inputs:
@@ -617,7 +646,7 @@ class InferredContinuousModel(_ContinuousModel,
         else:
             self.F_ = None
 
-        if 'c' in self.modelform:
+        if 'C' in self.modelform:
             self.c_ = OT[i:i+1][0]       # Note that c_ is one-dimensional.
             i += 1
         else:
@@ -648,14 +677,14 @@ class IntrusiveContinuousModel(_ContinuousModel,
 
     Parameters
     ----------
-    modelform : str {'L', 'Lc', 'Q', 'Qc', 'LQ', 'LQc'}
+    modelform : str {'L', 'CL', 'Q', 'CQ', 'LQ', 'CLQ'}
         The structure of the full-order and reduced-order models. Options:
         'L'   : Linear model, f(x) = Ax.
-        'Lc'  : Linear model with constant, f(x) = Ax + c.
+        'CL'  : Linear model with constant, f(x) = Ax + c.
         'Q'   : Quadratic model, f(x) = H(x⊗x).
-        'Qc'  : Quadratic model with constant, f(x) = H(x⊗x) + c.
+        'CQ'  : Quadratic model with constant, f(x) = H(x⊗x) + c.
         'LQ'  : Linear-Quadratic model, f(x) = Ax + H(x⊗x).
-        'LQc' : Linear-Quadratic model with constant, f(x) = Ax + H(x⊗x) + c.
+        'CLQ' : Linear-Quadratic model with constant, f(x) = Ax + H(x⊗x) + c.
 
     has_inputs : bool, optional, default: False.
         If True, assume the system has an additive input term u(t).
@@ -686,7 +715,7 @@ class IntrusiveContinuousModel(_ContinuousModel,
         in `modelform`.
 
     c : (n,) ndarray or None
-        FOM constant term, or None if 'c' is not in `modelform`.
+        FOM constant term, or None if 'C' is not in `modelform`.
 
     B : (n,m) ndarray or None
         Learned ROM input matrix, or None if `has_inputs` is False.
@@ -709,7 +738,7 @@ class IntrusiveContinuousModel(_ContinuousModel,
         solving the ROM.
 
     c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
+        Learned ROM constant term, or None if 'C' is not in `modelform`.
 
     B_ : (r,m) ndarray or None
         Learned ROM input matrix, or None if `has_inputs` is False.
@@ -733,11 +762,11 @@ class IntrusiveContinuousModel(_ContinuousModel,
             The operators that define the full-order model f(t,x).
             The list must be as follows, depending on the value of modelform:
             'L'   : [A],        or  [A, B]          if has_inputs is True.
-            'Lc'  : [A, c],     or  [A, c, B]       if has_inputs is True.
+            'CL'  : [A, c],     or  [A, c, B]       if has_inputs is True.
             'Q'   : [H],        or  [A, H, B]       if has_inputs is True.
-            'Qc'  : [H, c],     or  [H, c, B]       if has_inputs is True.
+            'CQ'  : [H, c],     or  [H, c, B]       if has_inputs is True.
             'LQ'  : [A, H],     or  [A, H, B]       if has_inputs is True.
-            'LQc' : [A, H, c],  or  [A, H, c, B]    if has_inputs is True.
+            'CLQ' : [A, H, c],  or  [A, H, c, B]    if has_inputs is True.
             H or F may be used interchangeably (code detects which by shape).
 
         Vr : (n,r) ndarray
@@ -786,7 +815,7 @@ class IntrusiveContinuousModel(_ContinuousModel,
         else:
             self.F, self.H, self.F_ = None, None, None
 
-        if 'c' in self.modelform:               # Constant term.
+        if 'C' in self.modelform:               # Constant term.
             self.c = next(operator)
             if self.c.shape != (n,):
                 raise ValueError("basis Vr and FOM operator c not aligned")
@@ -815,7 +844,7 @@ class IntrusiveContinuousModel(_ContinuousModel,
 
 
 class InterpolatedInferredContinuousModel(_ContinuousModel,
-                                          _IntrusiveMixin, _ParametricMixin):
+                                          _InferredMixin, _ParametricMixin):
     """Reduced order model for a system of high-dimensional ODEs, parametrized
     by a scalar p, of the form
 
@@ -828,14 +857,14 @@ class InterpolatedInferredContinuousModel(_ContinuousModel,
 
     Parameters
     ----------
-    modelform : str {'L', 'Lc', 'Q', 'Qc', 'LQ', 'LQc'}
+    modelform : str {'L', 'CL', 'Q', 'CQ', 'LQ', 'CLQ'}
         The structure of the desired reduced-order model. Options:
         'L'   : Linear model, f(x) = Ax.
-        'Lc'  : Linear model with constant, f(x) = Ax + c.
+        'CL'  : Linear model with constant, f(x) = Ax + c.
         'Q'   : Quadratic model, f(x) = H(x⊗x).
-        'Qc'  : Quadratic model with constant, f(x) = H(x⊗x) + c.
+        'CQ'  : Quadratic model with constant, f(x) = H(x⊗x) + c.
         'LQ'  : Linear-Quadratic model, f(x) = Ax + H(x⊗x).
-        'LQc' : Linear-Quadratic model with constant, f(x) = Ax + H(x⊗x) + c.
+        'CLQ' : Linear-Quadratic model with constant, f(x) = Ax + H(x⊗x) + c.
 
     has_inputs : bool, optional, default: False.
         If True, assume the system has an additive input term u(t).
@@ -877,7 +906,7 @@ class InterpolatedInferredContinuousModel(_ContinuousModel,
         solving the ROM.
 
     cs_ : list of num_models (r,) ndarrays or None
-        Learned ROM constant terms, or None if 'c' is not in `modelform`.
+        Learned ROM constant terms, or None if 'C' is not in `modelform`.
 
     Bs_ : list of num_models (r,m) ndarrays or None
         Learned ROM input matrices, or None if `has_inputs` is False.
@@ -943,8 +972,22 @@ class InterpolatedInferredContinuousModel(_ContinuousModel,
             raise ValueError("num parameter samples != num velocity snapshot "
                              f"sets ({num_models} != {len(Xdots)})")
 
-        if not self.has_inputs:
+        # Check and store dimensions.
+        for X, Xdot in zip(Xs, Xdots):
+            self._check_training_data_shapes(X, Xdot, Vr)
+        n,k = Xs[0].shape       # Dimension of system, number of shapshots.
+        r = Vr.shape[1]         # Number of basis vectors.
+        self.n, self.r, self.m = n, r, None
+
+        # Check that all arrays in each list of arrays are the same sizes.
+        _tocheck = [(Xs, "X"), (Xdots, "Xdot")]
+        if self.has_inputs:
+            _tocheck += [(Us, "U")]
+            self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
+        else:
             Us = [None]*num_models
+        for dataset, label in _tocheck:
+            self._check_dataset_consistency(dataset, label)
 
         # TODO: figure out how to handle G (scalar, array, list(arrays)).
 
@@ -957,23 +1000,12 @@ class InterpolatedInferredContinuousModel(_ContinuousModel,
             model.p = p
             self.models_.append(model)
 
-        # Check that all models have the same dimensions (n, m, and r):
-        for attr in "nmr":
-            setattr(self, attr, getattr(self.models_[0], attr))
-            v = getattr(self, attr)
-            for model in self.models_:
-                if getattr(model, attr) != v:
-                    raise ValueError(f"dimension '{attr}' "
-                                     "inconsistent across training sets")
-
         # Construct interpolators.
         self.A_ = CubicSpline(ps, self.As_) if 'L' in self.modelform else None
         self.F_ = CubicSpline(ps, self.Fs_) if 'Q' in self.modelform else None
         self.H_ = CubicSpline(ps, self.Hs_) if 'Q' in self.modelform else None
-        self.c_ = CubicSpline(ps, self.cs_) if 'c' in self.modelform else None
+        self.c_ = CubicSpline(ps, self.cs_) if 'C' in self.modelform else None
         self.B_ = CubicSpline(ps, self.Bs_) if self.has_inputs else None
-
-
 
         return self
 
@@ -1055,7 +1087,7 @@ class InterpolatedInferredContinuousModel(_ContinuousModel,
     @property
     def cs_(self):
         """The constant terms for each submodel."""
-        return [m.c_ for m in self.models_] if 'c' in self.modelform else None
+        return [m.c_ for m in self.models_] if 'C' in self.modelform else None
 
     @property
     def Bs_(self):
@@ -1077,10 +1109,14 @@ class InterpolatedInferredContinuousModel(_ContinuousModel,
         """The residuals for each submodel."""
         return np.array([m.residual_ for m in self.models_])
 
+    def __len__(self):
+        """The number of trained models."""
+        return len(self.models_) if hasattr(self, "models_") else 0
+
 
 class AffineInferredContinuousModel(_AffineContinuousModel,
                                     _InferredMixin, _ParametricMixin):
-    def fit(self, ps, Xs, Xdots, Vr, affines, Us=None, G=0):
+    def fit(self, ps, affines, Xs, Xdots, Vr, Us=None, G=0):
         """Solve for the reduced model operators via regularized least squares.
         For terms with affine structure, solve for the constituent operators.
 
@@ -1088,6 +1124,13 @@ class AffineInferredContinuousModel(_AffineContinuousModel,
         ----------
         ps : list of scalars or (p,) ndarrays
             Parameter values at which the snapshot data is collected.
+
+        affines : dict(str -> list(functions))
+            Functions that define the affine structure of the operators. Keys:
+            'c': constant term
+            'L': linear state matrix
+            'Q': quadratic state matrix
+            'I': linear input matrix
 
         Xs : list of num_models (n,k) ndarrays
             Column-wise snapshot training data (each column is a snapshot).
@@ -1105,10 +1148,11 @@ class AffineInferredContinuousModel(_AffineContinuousModel,
             input), then U may be a one-dimensional array. Required if
             has_inputs is True; must be None if has_inputs is False.
 
-        affines : list of M scalar-valued functions
+        affines : dict(operator key -> list of M scalar-valued functions)
             The functions that define the affine structure of the full-order
-            operator A. This structure carries over to the reduced-order
-            operator A_.
+            operator, specified by the key ("L" for A, "Q" for H, "c" for c,
+            and "I" for B). The structure carries over to the corresponding
+            reduced-order operator.
 
         G : (d,d) ndarray or float
             Tikhonov regularization matrix. If nonzero, the least-squares
@@ -1138,77 +1182,138 @@ class AffineInferredContinuousModel(_AffineContinuousModel,
         r = Vr.shape[1]         # Number of basis vectors.
         self.n, self.r, self.m = n, r, None
 
-        # Check affines argument.
-        M = len(affines)
-        self.A_ = _AffineOperator(affines)
+        # Check that all arrays in each list of arrays are the same sizes.
+        _tocheck = [(Xs, "X"), (Xdots, "Xdot")]
+        if self.has_inputs:
+            _tocheck += [(Us, "U")]
+            self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
+        for dataset, label in _tocheck:
+            self._check_dataset_consistency(dataset, label)
+
+        # Check affines argument. # TODO: put this in parent class.
+        for a in affines.values():
+            ao = _AffineOperator(a)
+            ao.validate_coeffs(ps[0])
+            del ao
 
         # Project states and velocities to the reduced subspace.
         Xs_ = [Vr.T @ X for X in Xs]
         Xdots_ = [Vr.T @ Xdot for Xdot in Xdots]
         self.Vr = Vr
 
-        # Construct the "Data matrix" D = [X^T, (X ⊗ X)^T, U^T, 1].
+        # Construct the "Data matrix" D.
         D_blockrows = []
         for i in range(len(ps)):
             row = []
-            if 'L' in self.modelform:
-                row.append([affines[j](ps[i]) * Xs_[i].T
-                                 for j in range(M)])
-            if 'Q' in self.modelform:
-                X2_ = kron2(Xs_[i])
-                row.append(X2_.T)
+            p = ps[i]
+            k = Xs[i].shape[1]
 
-            if 'c' in self.modelform:
-                row.append(np.ones(k).reshape((k,1)))
+            if 'L' in self.modelform:
+                if 'L' in affines:
+                    for j in range(len(affines['L'])):
+                        row.append(affines['L'][j](p) * Xs_[i].T)
+                else:
+                    row.append(Xs_[i].T)
+
+            if 'Q' in self.modelform:
+                X2i_ = kron2(Xs_[i])
+                if 'Q' in affines:
+                    for j in range(len(affines['Q'])):
+                        row.append(affines['Q'][j](p) * X2i_.T)
+                else:
+                    row.append(X2i_.T)
+
+            if 'C' in self.modelform:
+                ones = np.ones(k).reshape((k,1))
+                if 'C' in affines:
+                    for j in range(len(affines['c'])):
+                        row.append(affines['c'][j](p) * ones)
+                else:
+                    row.append(ones)
 
             if self.has_inputs:
-                if U.ndim == 1:
-                    U = U.reshape((1,k))
-                row.append(U.T)
-                m = U.shape[0]
-                self.m = m
+                Ui = Us[i]
+                if self.m == 1:
+                    Ui = Ui.reshape((1,k))
+                if 'I' in affines:
+                    for j in range(len(affines['I'])):
+                        row.append(affines['I'][j](p) * Ui.T)
+                else:
+                    row.append(Ui.T)
+
             D_blockrows.append(np.hstack(row))
 
         D = np.vstack(D_blockrows)
         self.datacond_ = np.linalg.cond(D)      # Condition number of data.
+        R = np.hstack(Xdots_).T
 
         # Solve for the reduced-order model operators via least squares.
-        OT, res = utils.lstsq_reg(D, Xdot_.T, G)[0:2]
+        OT, res = utils.lstsq_reg(D, R, G)[0:2]
         self.residual_ = np.sum(res)
 
         # Extract the reduced operators from OT.
         i = 0
         if 'L' in self.modelform:
-            self.As_ = []
-            for j in range(M):
-                self.As_.append(OT[i:i+self.r].T)
+            if 'L' in affines:
+                self.As_ = []
+                for j in range(len(affines['L'])):
+                    self.As_.append(OT[i:i+self.r].T)
+                    i += self.r
+                self.A_ = _AffineOperator(affines['L'], self.As_)
+            else:
+                self.A_ = OT[i:i+self.r].T
                 i += self.r
+                self.As_ = [self.A_]
         else:
-            self.As_ = None
-        self.A_.matrices = self.As_
+            self.A_, self.As_ = None, None
 
         if 'Q' in self.modelform:
-            self.F_ = OT[i:i+s].T
-            i += s
+            s = self.r * (self.r + 1) // 2
+            if 'Q' in affines:
+                self.Fs_ = []
+                for j in range(len(affines['Q'])):
+                    self.Fs_.append(OT[i:i+s].T)
+                    i += s
+                self.F_ = _AffineOperator(affines['Q'], self.Fs_)
+            else:
+                self.F_ = OT[i:i+s].T
+                i += s
+                self.Fs_ = [self.F_]
         else:
-            self.F_ = None
+            self.F_, self.Fs_ = None, None
 
-        if 'c' in self.modelform:
-            self.c_ = OT[i:i+1][0]       # Note that c_ is one-dimensional.
-            i += 1
+        if 'C' in self.modelform:
+            if 'C' in affines:
+                self.cs_ = []
+                for j in range(len(affines['c'])):
+                    self.cs_.append(OT[i:i+1][0])   # c_ is one-dimensional.
+                    i += 1
+                self.c_ = _AffineOperator(affines['c'], self.cs_)
+            else:
+                self.c_ = OT[i:i+1][0]              # c_ is one-dimensional.
+                i += 1
+                self.cs_ = [self.c_]
         else:
-            self.c_ = None
+            self.c_, self.cs_ = None, None
 
         if self.has_inputs:
-            self.B_ = OT[i:i+self.m].T
-            i += self.m
+            if 'I' in affines:
+                self.Bs_ = []
+                for j in range(len(affines['B'])):
+                    self.Bs_.append(OT[i:i+self.m].T)
+                    i += self.m
+                self.B_ = _AffineOperator(affines['B'], self.Bs_)
+            else:
+                self.B_ = OT[i:i+self.m].T
+                i += self.m
+                self.Bs_ = [self.B_]
         else:
-            self.B_ = None
+            self.B_, self.Bs_ = None, None
 
         return self
 
 
-class AffineIntrusiveContinuousModel(_ContinuousModel,
+class AffineIntrusiveContinuousModel(_AffineContinuousModel,
                                      _IntrusiveMixin, _ParametricMixin):
     def __init__(self, *args, **kwargs):                    # pragma: no cover
         raise NotImplementedError

@@ -3,6 +3,7 @@
 
 import pytest
 import warnings
+import itertools
 import numpy as np
 from scipy import linalg as la
 
@@ -10,6 +11,11 @@ import rom_operator_inference as roi
 
 
 # Helper functions for testing ================================================
+_MODEL_KEYS = roi._core._BaseModel._MODEL_KEYS
+_MODEL_FORMS = [''.join(s) for k in range(1, len(_MODEL_KEYS)+1)
+                           for s in itertools.combinations(_MODEL_KEYS, k)]
+
+
 def _get_data(n=200, k=50, m=20):
     X = np.random.random((n,k))
     Xdot = np.zeros((n,k))
@@ -38,7 +44,7 @@ def _trainedmodel(continuous, modelform, has_inputs, Vr, m=20):
         operators['A_'] = A
     if 'Q' in modelform:
         operators['F_'] = F
-    if 'c' in modelform:
+    if 'C' in modelform.upper():
         operators['c_'] = c
     if has_inputs:
         operators['B_'] = B
@@ -165,15 +171,15 @@ class TestBaseModel:
         with pytest.raises(ValueError) as ex:
             model._check_modelform(trained=False)
         assert ex.value.args[0] == \
-            "invalid modelform 'bad_form'; " \
-            f"options are {model._VALID_MODEL_FORMS}"
+            "invalid modelform key 'A'; " \
+            f"options are {', '.join(model._MODEL_KEYS)}"
 
         # Try with untrained model.
         model.modelform = "LQc"
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
-            "attribute 'A_' missing; call fit() to train model"
+            "attribute 'c_' missing; call fit() to train model"
 
         # Try with missing attributes.
         model = _trainedmodel(True, "LQc", True, Vr, m)
@@ -245,7 +251,7 @@ class TestContinuousModel:
     """Test _core._ContinuousModel."""
     def test_construct_f_(self):
         """Test incorrect usage of BaseContinuousModel._construct_f_()."""
-        model = roi._core._ContinuousModel(None, False)
+        model = roi._core._ContinuousModel('', False)
 
         model.has_inputs = False
         with pytest.raises(RuntimeError) as ex:
@@ -259,26 +265,26 @@ class TestContinuousModel:
 
     def test_str(self):
         """Test BaseContinuousModel.__str__() (string representation)."""
-        model = roi._core._ContinuousModel(None, False)
+        model = roi._core._ContinuousModel('', False)
 
         model.modelform = "L"
         assert str(model) == \
             "Reduced-order model structure: dx / dt = Ax(t)"
         model.modelform = "Lc"
         assert str(model) == \
-            "Reduced-order model structure: dx / dt = Ax(t) + c"
+            "Reduced-order model structure: dx / dt = c + Ax(t)"
         model.modelform = "Q"
         assert str(model) == \
             "Reduced-order model structure: dx / dt = H(x ⊗ x)(t)"
         model.modelform = "Qc"
         assert str(model) == \
-            "Reduced-order model structure: dx / dt = H(x ⊗ x)(t) + c"
+            "Reduced-order model structure: dx / dt = c + H(x ⊗ x)(t)"
         model.modelform = "LQ"
         assert str(model) == \
             "Reduced-order model structure: dx / dt = Ax(t) + H(x ⊗ x)(t)"
         model.modelform = "LQc"
         assert str(model) == \
-            "Reduced-order model structure: dx / dt = Ax(t) + H(x ⊗ x)(t) + c"
+            "Reduced-order model structure: dx / dt = c + Ax(t) + H(x ⊗ x)(t)"
 
     def test_fit(self):
         """Test _core._ContinuousModel.fit()."""
@@ -295,7 +301,7 @@ class TestContinuousModel:
 
     def test_predict(self):
         """Test _core._ContinuousModel.predict()."""
-        model = roi._core._ContinuousModel(None, None)
+        model = roi._core._ContinuousModel('', None)
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
@@ -326,7 +332,7 @@ class TestContinuousModel:
         assert ex.value.args[0] == "time 't' must be one-dimensional"
 
         # Predict without inputs.
-        for form in model._VALID_MODEL_FORMS:
+        for form in _MODEL_FORMS:
             model = _trainedmodel(True, form, False, Vr, None)
             model.predict(x0, t)
 
@@ -369,7 +375,7 @@ class TestContinuousModel:
             f"input function u() must return ndarray of shape (m,)={(m,)}"
 
         # Predict with 2D inputs.
-        for form in model._VALID_MODEL_FORMS:
+        for form in _MODEL_FORMS:
             model = _trainedmodel(True, form, True, Vr, m)
             # continuous input.
             out = model.predict(x0, t, u)
@@ -381,7 +387,7 @@ class TestContinuousModel:
             assert out.shape == (n,nt)
 
         # Predict with 1D inputs.
-        for form in model._VALID_MODEL_FORMS:
+        for form in _MODEL_FORMS:
             model = _trainedmodel(True, form, True, Vr, 1)
             # continuous input.
             out = model.predict(x0, t, lambda t: 1)
@@ -434,7 +440,7 @@ class TestInferredContinuousModel:
 
         # Fit the model with each possible modelform.
         model.has_inputs = False
-        for form in model._VALID_MODEL_FORMS:
+        for form in _MODEL_FORMS:
             model.modelform = form
             model.fit(X, Xdot, Vr)
 
@@ -593,7 +599,7 @@ class TestInterpolatedInferredContinuousModel:
         with pytest.raises(ValueError) as ex:
             model.fit(ps, Xs, Xdots, Vr, [U1, U2[:-1]])
         assert ex.value.args[0] == \
-            "dimension 'm' inconsistent across training sets"
+            "shape of 'U' inconsistent across samples"
 
         # Fit correctly with no inputs.
         model.has_inputs = False
