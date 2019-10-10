@@ -1,27 +1,28 @@
-"""Operator Inference for Data-Driven, Non-intrusive, Projection-based Model Reduction.
+"""Operator inference for data-driven, non-intrusive model reduction of
+dynamical systems.
 
 Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
 """
 
 from ._core import (
-                        InferredContinuousModel,
-                        IntrusiveContinuousModel,
-                        # AffineInferredContinuousModel,
-                        # AffineIntrusiveContinuousModel,
-                        InterpolatedInferredContinuousModel,
+                        InferredContinuousROM,
+                        IntrusiveContinuousROM,
+                        AffineInferredContinuousROM,
+                        # AffineIntrusiveContinuousROM,
+                        InterpolatedInferredContinuousROM,
                     )
 from . import utils, pre, post
 
 
 __all__ = [
-            "InferredContinuousModel",
-            "IntrusiveContinuousModel",
-            # "AffineInferredContinuousModel",
-            # "AffineIntrusiveContinuousModel",
-            "InterpolatedInferredContinuousModel",
+            "InferredContinuousROM",
+            "IntrusiveContinuousROM",
+            "AffineInferredContinuousROM",
+            # "AffineIntrusiveContinuousROM",
+            "InterpolatedInferredContinuousROM",
             "utils",
             "pre",
             "post",
           ]
 
-__version__ = "0.4.2"
+__version__ = "0.5.0"

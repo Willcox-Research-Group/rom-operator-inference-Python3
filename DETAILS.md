@@ -33,7 +33,7 @@ The procedure is data-driven, non-intrusive, and relatively inexpensive.
 In the most general case, the code can construct and solve a system of the form
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\hat{\mathbf{c}},"/>
+  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t),"/>
 </p>
 
 <!-- <p align="center">
@@ -111,7 +111,7 @@ Instead of directly computing the reduced operators, the operator inference fram
 For example, suppose that we seek a ROM of the form
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\hat{\mathbf{c}}."/>
+  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)."/>
 </p>
 
 We have only the snapshot matrix _X_, the low-rank basis matrix _V_<sub>_r_</sub> (which was derived from _X_), the inputs _U_, and perhaps the snapshot velocities _X'_ (if not, these must be approximated).
@@ -119,13 +119,13 @@ Here the (_ij_)<sup>th</sup> entry of _U_ is the _i_<sup>th</sup> component of *
 To solve for the linear operators on the right-hand side of the preceding equation, we solve the least squares problem
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\begin{align*}\underset{\substack{\hat{A}\in\mathbb{R}^{r\times%20r},\,\hat{H}\in\mathbb{R}^{r\times%20r^2},\\\hat{B}\in\mathbb{R}^{r\times%20m},\,\hat{\mathbf{c}}\in\mathbb{R}^{r}}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\otimes\hat{X}\big)^\mathsf{T}\hat{H}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2\\=\min_{O^\mathsf{T}\in\mathbb{R}^{(r+r^2+m+1)\times%20r}}||DO^\mathsf{T}-R||_F^2,\end{align*}"/>
+  <img src="https://latex.codecogs.com/svg.latex?\begin{align*}\underset{\substack{\hat{\mathbf{c}}\in\mathbb{R}^{r},\,\hat{A}\in\mathbb{R}^{r\times%20r},\\\hat{H}\in\mathbb{R}^{r\times%20r^2},\,\hat{B}\in\mathbb{R}^{r\times%20m}}}{\text{min}}\,\Big\|\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}+\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\otimes\hat{X}\big)^\mathsf{T}\hat{H}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2\\=\min_{O^\mathsf{T}\in\mathbb{R}^{(1+r+r^2+m)\times%20r}}||DO^\mathsf{T}-R||_F^2,\end{align*}"/>
 </p>
 
 where **1** is a _k_-vector of 1's and
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\begin{align*}D&=\left[\begin{array}{cccc}\hat{X}^\mathsf{T}&(\hat{X}\otimes\hat{X})^\mathsf{T}&U^\mathsf{T}&\mathbf{1}\end{array}\right]&&\text{(Data)},\\O&=\left[\begin{array}{cccc}\hat{A}&\hat{H}&\hat{B}&\hat{\mathbf{c}}\end{array}\right]&&\text{(Operators)},\\R&=\dot{\hat{X}}^\mathsf{T}&&\text{(Right-hand%20side)}.\end{align*}"/>
+  <img src="https://latex.codecogs.com/svg.latex?\begin{align*}D&=\left[\begin{array}{cccc}\mathbf{1}&\hat{X}^\mathsf{T}&(\hat{X}\otimes\hat{X})^\mathsf{T}&U^\mathsf{T}\end{array}\right]&&\text{(Data)},\\O&=\left[\begin{array}{cccc}\hat{\mathbf{c}}&\hat{A}&\hat{H}&\hat{B}\end{array}\right]&&\text{(Operators)},\\R&=\dot{\hat{X}}^\mathsf{T}&&\text{(Right-hand%20side)}.\end{align*}"/>
 </p>
 
 The problem decouples into _r_ independent ordinary least-squares problems, one for each of the columns of _O<sup>T</sup>_:
@@ -212,8 +212,10 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}"/> | `x_` | <img src="https://latex.codecogs.com/svg.latex?r"/> | Reduced-order state vector |
 | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}"/> | `xdot_` | <img src="https://latex.codecogs.com/svg.latex?r"/> | Reduced-order state velocity vector |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_\text{ROM}"/> | `x_ROM` | <img src="https://latex.codecogs.com/svg.latex?n"/> | Approximation to **x** produced by ROM |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{c}}"/> | `c_` | <img src="https://latex.codecogs.com/svg.latex?m"/> | Learned constant term  |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{u}"/> | `u` | <img src="https://latex.codecogs.com/svg.latex?m"/> | Input vector  |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_(t,x_)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | ROM system operator |
+| <img src="https://latex.codecogs.com/svg.latex?\mathbf{f}"/> | `f(t,x)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | Full-order system operator |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_(t,x_)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | Reduced-order system operator |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\otimes\mathbf{x}"/> | `np.kron(x,x)` | <img src="https://latex.codecogs.com/svg.latex?n^2"/> | Kronecker product of full state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}"/> | `np.kron(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?r^2"/>  | Kronecker product of reduced state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_compact(x_)` | <img src="https://latex.codecogs.com/svg.latex?s"/>  | Compact Kronecker product of reduced state (quadratic terms) |
@@ -233,9 +235,9 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\hat{X}"/> | `X_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{X}}"/> | `Xdot_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot velocity matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{A}"/> | `A_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Learned state matrix |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{B}"/> | `B_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20m"/> | Learned input matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{H}"/> | `H_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r^2"/> | Learned matricized quadratic tensor |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{F}"/> | `F_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20s"/> | Learned matricized quadratic tensor without redundancy |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{B}"/> | `B_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20m"/> | Learned input matrix |
 
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{N}_i"/> | `Ni_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Bilinear state-input matrix for _i_th input | -->
 
