@@ -184,14 +184,16 @@ In the code, a low-dimensional quantity ends with an underscore, so that the mod
 | <img src="https://latex.codecogs.com/svg.latex?r"/> | `r`  | Dimension of the reduced-order system (small) |
 | <img src="https://latex.codecogs.com/svg.latex?m"/> | `m`  | Dimension of the input **u** |
 | <img src="https://latex.codecogs.com/svg.latex?k"/> | `k`  | Number of state snapshots, i.e., the number of training points |
-| <img src="https://latex.codecogs.com/svg.latex?s"/> | `s`  | Number of unique quadratic reduced-state interactions, _r_(_r_+1)/2 |
+| <img src="https://latex.codecogs.com/svg.latex?s"/> | `s`  | Number of parameter samples for parametric training |
 | <img src="https://latex.codecogs.com/svg.latex?n_t"/> | `nt`  | Number of time steps in a simulation |
+| <img src="https://latex.codecogs.com/svg.latex?p"/> | `p` | Dimension of the parameter space |
+| <img src="https://latex.codecogs.com/svg.latex?d"/> | `d` | Dimension of the spatial domain |
 
-<!-- TODO: number of time steps -->
 
-<!-- | <img src="https://latex.codecogs.com/svg.latex?q"/> | `q`             | Dimension of the output **y** | -->
-<!-- | <img src="https://latex.codecogs.com/svg.latex?p"/> | `p`             | Dimension of the paramteter space | -->
-<!-- | <img src="https://latex.codecogs.com/svg.latex?d"/> | `d`             | Dimension of the spatial domain OR paramter space? | -->
+<!-- | <img src="https://latex.codecogs.com/svg.latex?\frac{n(n+1)}{2}"/> | `_n2`  | Number of unique quadratic reduced-state interactions, _n_(_n_+1)/2 | -->
+<!-- | <img src="https://latex.codecogs.com/svg.latex?\frac{r(r+1)}{2}"/> | `_r2`  | Number of unique quadratic reduced-state interactions, _r_(_r_+1)/2 | -->
+<!-- | <img src="https://latex.codecogs.com/svg.latex?\ell"/> | `l`             | Dimension of the output **y** | -->
+
 
 #### Vectors
 

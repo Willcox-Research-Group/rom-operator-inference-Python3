@@ -49,13 +49,13 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
     if 'I' in modelform:
         operators['B_'] = B
 
-    return roi._core._trained_model_from_operators(modelclass, modelform,
+    return roi._core.trained_model_from_operators(modelclass, modelform,
                                                    Vr, m, **operators)
 
 
 # Helper classes and functions ================================================
 class TestAffineOperator:
-    """Test _core._AffineOperator."""
+    """Test _core.AffineOperator."""
     @staticmethod
     def _set_up_affine_attributes(n=5):
         fs = [np.sin, np.cos, np.exp]
@@ -63,31 +63,31 @@ class TestAffineOperator:
         return fs, As
 
     def test_init(self):
-        """Test _core._AffineOperator.__init__()."""
+        """Test _core.AffineOperator.__init__()."""
         fs, As = self._set_up_affine_attributes()
 
         # Try with different number of functions and matrices.
         with pytest.raises(ValueError) as ex:
-            roi._core._AffineOperator(fs, As[:-1])
+            roi._core.AffineOperator(fs, As[:-1])
         assert ex.value.args[0] == "expected 3 matrices, got 2"
 
         # Try with matrices of different shapes.
         with pytest.raises(ValueError) as ex:
-            roi._core._AffineOperator(fs, As[:-1] + [np.random.random((4,4))])
+            roi._core.AffineOperator(fs, As[:-1] + [np.random.random((4,4))])
         assert ex.value.args[0] == \
             "affine operator matrix shapes do not match ((4, 4) != (5, 5))"
 
         # Correct usage.
-        affop = roi._core._AffineOperator(fs, As)
-        affop = roi._core._AffineOperator(fs)
+        affop = roi._core.AffineOperator(fs, As)
+        affop = roi._core.AffineOperator(fs)
         affop.matrices = As
 
     def test_validate_coeffs(self):
-        """Test _core._AffineOperator.validate_coeffs()."""
+        """Test _core.AffineOperator.validate_coeffs()."""
         fs, As = self._set_up_affine_attributes()
 
         # Try with non-callables.
-        affop = roi._core._AffineOperator(As)
+        affop = roi._core.AffineOperator(As)
         with pytest.raises(ValueError) as ex:
             affop.validate_coeffs(10)
         assert ex.value.args[0] == \
@@ -95,22 +95,22 @@ class TestAffineOperator:
 
         # Try with vector-valued functions.
         f1 = lambda t: np.array([t, t**2])
-        affop = roi._core._AffineOperator([f1, f1])
+        affop = roi._core.AffineOperator([f1, f1])
         with pytest.raises(ValueError) as ex:
             affop.validate_coeffs(10)
         assert ex.value.args[0] == \
             "coefficient functions of affine operator must return a scalar"
 
         # Correct usage.
-        affop = roi._core._AffineOperator(fs, As)
+        affop = roi._core.AffineOperator(fs, As)
         affop.validate_coeffs(0)
 
     def test_call(self):
-        """Test _core._AffineOperator.__call__()."""
+        """Test _core.AffineOperator.__call__()."""
         fs, As = self._set_up_affine_attributes()
 
         # Try without matrices set.
-        affop = roi._core._AffineOperator(fs)
+        affop = roi._core.AffineOperator(fs)
         with pytest.raises(RuntimeError) as ex:
             affop(10)
         assert ex.value.args[0] == "constituent matrices not initialized!"
@@ -123,21 +123,21 @@ class TestAffineOperator:
                                np.cos(10)*As[1] + np.exp(10)*As[2])
 
 
-def test_trained_model_from_operators():
-    """Test _core._trained_model_from_operators()."""
+def testtrained_model_from_operators():
+    """Test _core.trained_model_from_operators()."""
     n, m, r = 200, 20, 30
     Vr = np.random.random((n, r))
     c, A, H, F, B = _get_operators(n=n, m=m)
 
     # Try with bad modelclass argument.
     with pytest.raises(TypeError) as ex:
-        roi._core._trained_model_from_operators(str, "CLQ", Vr)
+        roi._core.trained_model_from_operators(str, "CLQ", Vr)
     assert ex.value.args[0] == "modelclass must be derived from _BaseROM"
 
     # Correct usage.
-    roi._core._trained_model_from_operators(roi._core._ContinuousROM,
+    roi._core.trained_model_from_operators(roi._core._ContinuousROM,
                                 "CLQ", Vr, A_=A, F_=F, c_=c)
-    roi._core._trained_model_from_operators(roi._core._ContinuousROM,
+    roi._core.trained_model_from_operators(roi._core._ContinuousROM,
                                 "LI", Vr, A_=A, m=m, B_=B)
 
 
@@ -432,6 +432,56 @@ class TestInferredMixin:
             f"X and Vr not aligned, first dimension {n} != {n-2}"
 
 
+class TestIntrusiveMixin:
+    def test_check_operators(self):
+        model = roi._core._IntrusiveMixin()
+        model.modelform = "CLQI"
+        v = None
+
+        # Try with missing operator keys.
+        with pytest.raises(KeyError) as ex:
+            model._check_operators({'L':v, 'Q':v, 'I':v})
+        assert ex.value.args[0] == "missing operator key 'C'"
+
+        with pytest.raises(KeyError) as ex:
+            model._check_operators({'Q':v, 'I':v})
+        assert ex.value.args[0] == "missing operator keys 'C', 'L'"
+
+        # Try with surplus operator keys.
+        with pytest.raises(KeyError) as ex:
+            model._check_operators({'CC':v, 'C':v, 'L':v, 'Q':v, 'I':v})
+        assert ex.value.args[0] == "invalid operator key 'CC'"
+
+        with pytest.raises(KeyError) as ex:
+            model._check_operators({'C':v, 'L':v, 'Q':v, 'I':v,
+                                    'CC':v, 'LL':v})
+        assert ex.value.args[0] == "invalid operator keys 'CC', 'LL'"
+
+        # Correct usage.
+        model._check_operators({'C':v, 'L':v, 'Q':v, 'I':v})
+
+
+class TestAffineMixin:
+    def test_check_affines(self):
+        model = roi._core._AffineMixin()
+        model.modelform = "CLQI"
+        v = [lambda s: 0, lambda s: 0]
+
+        # Try with surplus affine keys.
+        with pytest.raises(KeyError) as ex:
+            model._check_affines({'CC':v, 'C':v, 'L':v, 'Q':v, 'I':v}, 0)
+        assert ex.value.args[0] == "invalid affine key 'CC'"
+
+        with pytest.raises(KeyError) as ex:
+            model._check_affines({'C':v, 'L':v, 'Q':v, 'I':v,
+                                    'CC':v, 'LL':v}, 0)
+        assert ex.value.args[0] == "invalid affine keys 'CC', 'LL'"
+
+        # Correct usage.
+        model._check_affines({'C':v, 'Q':v}, 0)     # OK to be missing some.
+        model._check_affines({'C':v, 'L':v, 'Q':v, 'I':v}, 0)
+
+
 # Useable classes =============================================================
 
 # Continuous models (i.e., solving dx/dt = f(t,x,u)) --------------------------
@@ -484,7 +534,7 @@ class TestIntrusiveContinuousROM:
     """Test _core.IntrusiveContinuousROM."""
 
     def test_fit(self):
-        model = roi.IntrusiveContinuousROM("CLQ")
+        model = roi.IntrusiveContinuousROM("CLQI")
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
@@ -494,52 +544,39 @@ class TestIntrusiveContinuousROM:
         # Get test operators.
         c, A, H, F, B = _get_operators(n, m)
         B1d = B[:,0]
-        operators = [c, A, H, B]
+        operators = {'C':c, 'L':A, 'Q':H, 'I':B}
 
         # Try to fit the model with misaligned operators and Vr.
         Abad = A[:,:-2]
         Hbad = H[:,1:]
         cbad = c[::2]
         Bbad = B[1:,:]
-        model.modelform = "CLQI"
 
         with pytest.raises(ValueError) as ex:
-            model.fit([A, H, B], Vr)
-        assert ex.value.args[0] == "expected 4 operators, got 3"
-
-        with pytest.raises(ValueError) as ex:
-            model.fit([cbad, A, H, B], Vr)
+            model.fit({'C':cbad, 'L':A, 'Q':H, 'I':B}, Vr)
         assert ex.value.args[0] == "basis Vr and FOM operator c not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit([c, Abad, H, B], Vr)
+            model.fit({'C':c, 'L':Abad, 'Q':H, 'I':B}, Vr)
         assert ex.value.args[0] == "basis Vr and FOM operator A not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit([c, A, Hbad, B], Vr)
+            model.fit({'C':c, 'L':A, 'Q':Hbad, 'I':B}, Vr)
         assert ex.value.args[0] == \
             "basis Vr and FOM operator H (F) not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit([c, A, H, Bbad], Vr)
+            model.fit({'C':c, 'L':A, 'Q':H, 'I':Bbad}, Vr)
         assert ex.value.args[0] == "basis Vr and FOM operator B not aligned"
 
         # Fit the model with each possible modelform.
-        model.modelform = "L"
-        model.fit([A], Vr)
-        model.modelform = "CL"
-        model.fit([c, A], Vr)
-        model.modelform = "Q"
-        model.fit([H], Vr)
-        model.fit([roi.utils.H2F(H)], Vr)
-        model.modelform = "CQ"
-        model.fit([c, H], Vr)
-        model.modelform = "LQ"
-        model.fit([A, H], Vr)
-        model.modelform = "CLQ"
-        model.fit([c, A, H], Vr)
+        for form in ["L", "CL", "Q", "CQ", "LQ", "CLQ", "CLQI"]:
+            model.modelform = form
+            ops = {key:val for key,val in operators.items() if key in form}
+            model.fit(ops, Vr)
+
         model.modelform = "CLQI"
-        model.fit([c, A, H, B], Vr)
+        model.fit({'C':c, 'L':A, 'Q':F, 'I':B}, Vr)
 
         # Test fit output sizes.
         assert model.n == n
@@ -558,7 +595,7 @@ class TestIntrusiveContinuousROM:
 
         # Fit the model with 1D inputs (1D array for B)
         model.modelform = "CLQI"
-        model.fit([c, A, H, B1d], Vr)
+        model.fit({'C':c, 'L':A, 'Q':H, 'I':B1d}, Vr)
         assert model.B.shape == (n,1)
         assert model.B_.shape == (r,1)
 

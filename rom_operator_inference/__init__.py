@@ -8,7 +8,7 @@ from ._core import (
                         InferredContinuousROM,
                         IntrusiveContinuousROM,
                         AffineInferredContinuousROM,
-                        # AffineIntrusiveContinuousROM,
+                        AffineIntrusiveContinuousROM,
                         InterpolatedInferredContinuousROM,
                     )
 from . import utils, pre, post
@@ -18,7 +18,7 @@ __all__ = [
             "InferredContinuousROM",
             "IntrusiveContinuousROM",
             "AffineInferredContinuousROM",
-            # "AffineIntrusiveContinuousROM",
+            "AffineIntrusiveContinuousROM",
             "InterpolatedInferredContinuousROM",
             "utils",
             "pre",
