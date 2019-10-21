@@ -424,7 +424,7 @@ class _AffineContinuousROM(_ContinuousROM):
         Parameters
         ----------
         µ : (p,) ndarray
-            The paramter of interest for the prediction.
+            The parameter of interest for the prediction.
 
         x0 : (n,) ndarray
             The initial (high-dimensional) state vector to begin a simulation.
@@ -638,7 +638,7 @@ class InferredContinuousROM(_ContinuousROM,
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def fit(self, X, Xdot, Vr, U=None, G=0):
+    def fit(self, X, Xdot, Vr, U=None, P=0):
         """Solve for the reduced model operators via regularized least squares.
 
         Parameters
@@ -657,11 +657,11 @@ class InferredContinuousROM(_ContinuousROM,
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        G : (d,d) ndarray or float
+        P : (d,d) ndarray or float
             Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Gx||^2.
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
             If a nonzero number is provided, the regularization matrix is
-            G * I (a scaled identity matrix). Here d is the dimension of the
+            P * I (a scaled identity matrix). Here d is the dimension of the
             data matrix for the least-squares problem, e.g., d = r + m for a
             linear model with inputs.
 
@@ -708,7 +708,7 @@ class InferredContinuousROM(_ContinuousROM,
         self.datacond_ = np.linalg.cond(D)      # Condition number of data.
 
         # Solve for the reduced-order model operators via least squares.
-        OT, res = lstsq_reg(D, Xdot_.T, G)[0:2]
+        OT, res = lstsq_reg(D, Xdot_.T, P)[0:2]
         self.residual_ = np.sum(res)
 
         # Extract the reduced operators from OT.
@@ -999,7 +999,7 @@ class InterpolatedInferredContinuousROM(_ContinuousROM,
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def fit(self, µs, Xs, Xdots, Vr, Us=None, G=0):
+    def fit(self, µs, Xs, Xdots, Vr, Us=None, P=0):
         """Solve for the reduced model operators via regularized least squares,
         contructing one ROM per parameter value.
 
@@ -1024,11 +1024,11 @@ class InterpolatedInferredContinuousROM(_ContinuousROM,
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        G : (d,d) ndarray or float
+        P : (d,d) ndarray or float
             Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Gx||^2.
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
             If a nonzero number is provided, the regularization matrix is
-            G * I (a scaled identity matrix). Here d is the dimension of the
+            P * I (a scaled identity matrix). Here d is the dimension of the
             data matrix for the least-squares problem, e.g., d = r + m for a
             linear model with inputs.
 
@@ -1070,14 +1070,14 @@ class InterpolatedInferredContinuousROM(_ContinuousROM,
         for dataset, label in _tocheck:
             self._check_dataset_consistency(dataset, label)
 
-        # TODO: figure out how to handle G (scalar, array, list(arrays)).
+        # TODO: figure out how to handle P (scalar, array, list(arrays)).
 
         # Train one model per parameter sample.
         self.Vr = Vr
         self.models_ = []
         for µ, X, Xdot, U in zip(µs, Xs, Xdots, Us):
             model = InferredContinuousROM(self.modelform)
-            model.fit(X, Xdot, Vr, U, G)
+            model.fit(X, Xdot, Vr, U, P)
             model.parameter = µ
             self.models_.append(model)
 
@@ -1098,7 +1098,7 @@ class InterpolatedInferredContinuousROM(_ContinuousROM,
         Parameters
         ----------
         µ : float
-            The paramter of interest for the prediction.
+            The parameter of interest for the prediction.
 
         x0 : (n,) ndarray
             The initial (high-dimensional) state vector to begin a simulation.
@@ -1265,7 +1265,7 @@ class AffineInferredContinuousROM(_AffineContinuousROM,
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def fit(self, µs, affines, Xs, Xdots, Vr, Us=None, G=0):
+    def fit(self, µs, affines, Xs, Xdots, Vr, Us=None, P=0):
         """Solve for the reduced model operators via regularized least squares.
         For terms with affine structure, solve for the constituent operators.
 
@@ -1300,11 +1300,11 @@ class AffineInferredContinuousROM(_AffineContinuousROM,
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        G : (d,d) ndarray or float
+        P : (d,d) ndarray or float
             Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Gx||^2.
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
             If a nonzero number is provided, the regularization matrix is
-            G * I (a scaled identity matrix). Here d is the dimension of the
+            P * I (a scaled identity matrix). Here d is the dimension of the
             data matrix for the least-squares problem, e.g., d = r + m for a
             linear model with inputs.
 
@@ -1384,7 +1384,7 @@ class AffineInferredContinuousROM(_AffineContinuousROM,
         R = np.hstack(Xdots_).T
 
         # Solve for the reduced-order model operators via least squares.
-        OT, res = lstsq_reg(D, R, G)[0:2]
+        OT, res = lstsq_reg(D, R, P)[0:2]
         self.residual_ = np.sum(res)
 
         # Extract the reduced operators from OT.

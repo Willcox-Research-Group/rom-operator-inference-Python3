@@ -19,44 +19,44 @@ def _test_lstq_reg_single(k,d,r):
     # VECTOR TEST
     x = la.lstsq(A, b)[0]
 
-    # Ensure that the least squares solution is the usual one when G=0.
-    x_ = roi.utils.lstsq_reg(A, b, G=0)[0]
+    # Ensure that the least squares solution is the usual one when P=0.
+    x_ = roi.utils.lstsq_reg(A, b, P=0)[0]
     assert np.allclose(x, x_)
 
-    # Ensure that the least squares solution is the usual one when G=0 (matrix)
+    # Ensure that the least squares solution is the usual one when P=0 (matrix)
     x_ = roi.utils.lstsq_reg(A, b, np.zeros((d,d)))[0]
     assert np.allclose(x, x_)
 
     # Check that the regularized least squares solution has decreased norm.
-    x_ = roi.utils.lstsq_reg(A, b, G=2)[0]
+    x_ = roi.utils.lstsq_reg(A, b, P=2)[0]
     assert la.norm(x_) <= la.norm(x)
 
-    x_ = roi.utils.lstsq_reg(A, b, G=2*I)[0]
+    x_ = roi.utils.lstsq_reg(A, b, P=2*I)[0]
     assert la.norm(x_) <= la.norm(x)
 
     # MATRIX TEST
     X = la.lstsq(A, B)[0]
 
-    # Ensure that the least squares solution is the usual one when G=0.
-    X_ = roi.utils.lstsq_reg(A, B, G=0)[0]
+    # Ensure that the least squares solution is the usual one when P=0.
+    X_ = roi.utils.lstsq_reg(A, B, P=0)[0]
     assert np.allclose(X, X_)
 
-    # Ensure that the least squares solution is the usual one when G=0 (matrix)
-    X_ = roi.utils.lstsq_reg(A, B, G=0)[0]
+    # Ensure that the least squares solution is the usual one when P=0 (matrix)
+    X_ = roi.utils.lstsq_reg(A, B, P=0)[0]
     assert np.allclose(X, X_)
 
-    # Ensure that the least squares solution is the usual one when G=0 (list)
-    X_ = roi.utils.lstsq_reg(A, B, G=[np.zeros((d,d))]*r)[0]
+    # Ensure that the least squares solution is the usual one when P=0 (list)
+    X_ = roi.utils.lstsq_reg(A, B, P=[np.zeros((d,d))]*r)[0]
     assert np.allclose(X, X_)
 
     # Check that the regularized least squares solution has decreased norm.
-    X_ = roi.utils.lstsq_reg(A, B, G=2)[0]
+    X_ = roi.utils.lstsq_reg(A, B, P=2)[0]
     assert la.norm(X_) <= la.norm(X)
 
-    X_ = roi.utils.lstsq_reg(A, B, G=2)[0]
+    X_ = roi.utils.lstsq_reg(A, B, P=2)[0]
     assert la.norm(X_) <= la.norm(X)
 
-    X_ = roi.utils.lstsq_reg(A, B, G=[2*I]*r)[0]
+    X_ = roi.utils.lstsq_reg(A, B, P=[2*I]*r)[0]
     assert la.norm(X_) <= la.norm(X)
 
 
@@ -82,19 +82,19 @@ def test_lstsq_reg(n_tests=5):
     with pytest.raises(ValueError) as exc:
         roi.utils.lstsq_reg(A, B[:,0],
                             [np.random.random((10,10)) for i in range(5)])
-    assert exc.value.args[0] == "`b` must be two-dimensional with multiple G"
+    assert exc.value.args[0] == "`b` must be two-dimensional with multiple P"
 
     # Badly shaped regularization matrix.
     with pytest.raises(ValueError) as exc:
         roi.utils.lstsq_reg(A, B, np.random.random((5,5)))
     assert exc.value.args[0] == \
-        "G must be (d,d) with d = number of columns of A"
+        "P must be (d,d) with d = number of columns of A"
 
     with pytest.raises(ValueError) as exc:
         roi.utils.lstsq_reg(A, B,
                             [np.random.random((10,10)) for i in range(3)])
     assert exc.value.args[0] == \
-        "list G must have r entries with r = number of columns of b"
+        "list P must have r entries with r = number of columns of b"
 
     # Do individual tests.
     k, m = 200, 20

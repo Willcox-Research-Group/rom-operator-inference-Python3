@@ -6,15 +6,15 @@ from scipy import linalg as _la
 
 
 # Least squares solver ========================================================
-def lstsq_reg(A, b, G=0):
+def lstsq_reg(A, b, P=0):
     """Solve the l2- (Tikhonov)-regularized ordinary least squares problem
 
-        min_{x} ||Ax - b||_2^2 + ||Gx||_2^2
+        min_{x} ||Ax - b||_2^2 + ||Px||_2^2
 
     by solving the equivalent ordinary least squares problem
 
                 || [ A ]    _  [ b ] ||^2
-        min_{x} || [ G ] x     [ 0 ] ||_2,
+        min_{x} || [ P ] x     [ 0 ] ||_2,
 
     with scipy.linalg.lstsq().
     See https://docs.scipy.org/doc/scipy/reference/linalg.html.
@@ -28,12 +28,12 @@ def lstsq_reg(A, b, G=0):
         The "right-hand side" vector. If a two-dimensional array, then r
         independent least squares problems are solved.
 
-    G : float > 0, (d,d) ndarray, or list of r (d,d) ndarrays
+    P : float > 0, (d,d) ndarray, or list of r (d,d) ndarrays
         The Tikhonov regularization matrix or matrices, in one of the
         following formats:
-        * float > 0: G * I (a scaled identity matrix) is the regularization
+        * float > 0: P * I (a scaled identity matrix) is the regularization
             matrix.
-        * (d,d) ndarray: G is the regularization matrix.
+        * (d,d) ndarray: P is the regularization matrix.
         * list of r (d,d) ndarrays: the jth matrix in the list is the regularization matrix for the jth column of b. Only valid if b is two-dimensional.
 
     Returns
@@ -59,33 +59,33 @@ def lstsq_reg(A, b, G=0):
         raise ValueError("`b` must be one- or two-dimensional")
     d = A.shape[1]
 
-    # If G is a list of ndarrays, decouple the problem by column.
-    if isinstance(G, list) or isinstance(G, tuple):
+    # If P is a list of ndarrays, decouple the problem by column.
+    if isinstance(P, list) or isinstance(P, tuple):
         if b.ndim != 2:
-            raise ValueError("`b` must be two-dimensional with multiple G")
+            raise ValueError("`b` must be two-dimensional with multiple P")
         r = b.shape[1]
-        if len(G) != r:
+        if len(P) != r:
             raise ValueError(
-                "list G must have r entries with r = number of columns of b")
+                "list P must have r entries with r = number of columns of b")
         X = _np.empty((d,r))
         residuals = []
         for j in range(r):
-            X[:,j], res, rank, s = lstsq_reg(A, b[:,j], G[j])
+            X[:,j], res, rank, s = lstsq_reg(A, b[:,j], P[j])
             residuals.append(res)
         return X, _np.array(residuals), rank, s
 
-    # If G is a scalar, construct the default regularization matrix G*I.
-    if _np.isscalar(G):
-        if G == 0:
+    # If P is a scalar, construct the default regularization matrix P*I.
+    if _np.isscalar(P):
+        if P == 0:
             return _la.lstsq(A, b)
-        elif G < 0:
+        elif P < 0:
             raise ValueError("regularization parameter must be nonnegative")
-        G = _np.diag(_np.full(d, G))                # regularizer * identity
-    if G.shape != (d,d):
-        raise ValueError("G must be (d,d) with d = number of columns of A")
+        P = _np.diag(_np.full(d, P))                # regularizer * identity
+    if P.shape != (d,d):
+        raise ValueError("P must be (d,d) with d = number of columns of A")
 
     pad = _np.zeros(d) if b.ndim == 1 else _np.zeros((d,b.shape[1]))
-    lhs = _np.vstack((A, G))
+    lhs = _np.vstack((A, P))
     rhs = _np.concatenate((b, pad))
 
     return _la.lstsq(lhs, rhs)
