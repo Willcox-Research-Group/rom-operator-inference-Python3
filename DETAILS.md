@@ -198,6 +198,7 @@ and the corresponding operator inference least squares problem is
   <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{\mathbf{c}}\in\mathbb{R}^{r},\,\hat{A}\in\mathbb{R}^{r\times%20r},\\\hat{H}_{c}\in\mathbb{R}^{r\times(r(r+1)/2)},\,\hat{B}\in\mathbb{R}^{r\times%20m},}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\,\widetilde{\otimes}\,\hat{X}\big)^\mathsf{T}\hat{H}_{c}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2."/>
 </p>
 
+
 ## Index of Notation
 
 We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
