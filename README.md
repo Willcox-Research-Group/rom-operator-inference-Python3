@@ -92,8 +92,6 @@ _**This installation command is very temporary!**_
 
 #### Usage
 
-<!-- TODO: what are these variables?? -->
-
 Given snapshot data `X`, snapshot velocities `Xdot`, and a linear basis `Vr`, the following code learns a reduced model for a problem of the form _d**x**/dt = **c** + A**x**(t)_, then runs the reduced system for _0 ≤ t ≤ 1_.
 
 ```python
@@ -101,7 +99,7 @@ import numpy as np
 import rom_operator_inference as roi
 
 # Define a model of the form  dx/dt = Ax + c.
->>> lc_model = roi.InferredContinuousROM(modelform="cL", has_inputs=False)
+>>> lc_model = roi.InferredContinuousROM(modelform="cA")
 
 # Fit the model to snapshot data X, the snapshot derivative Xdot,
 # and the linear basis Vr by solving for the operators A_ and c_.
@@ -115,14 +113,13 @@ import rom_operator_inference as roi
 
 ## Examples
 
-_**WARNING: under construction!!**_
-
 The [`examples/`](examples/) folder contains scripts and notebooks that set up and run several examples:
 - [`examples/heat_1D.ipynb`](examples/heat_1D.ipynb): One-dimensional heat equation [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
-- `examples/TODO.ipynb`: Burgers' equation [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
-- `examples/TODO.ipynb`: Euler equation [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
-<!-- This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions. -->
 - [`examples/data_driven_heat.ipynb`](examples/data_driven_heat.ipynb): A purely data-driven example using data generated from a one-dimensional heat equation \[4\].
+- (more coming)
+<!-- - `examples/TODO.ipynb`: Burgers' equation [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104). -->
+<!-- - `examples/TODO.ipynb`: Euler equation [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707). -->
+<!-- This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions. -->
 
 <!-- TODO: actual links to the folders or files -->
 
@@ -161,10 +158,10 @@ Each character in the string corresponds to a single term of the operator, given
 
 | Character | Name | Continuous Term | Discrete Term |
 | :-------- | :--- | :-------------- | :------------ |
-| `C` | **C**onstant | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{c}}"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{c}}"/> |
-| `L` | **L**inear | <img src="https://latex.codecogs.com/svg.latex?\hat{A}\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{A}\hat{\mathbf{x}}_{k}"/> |
-| `Q` | **Q**uadratic | <img src="https://latex.codecogs.com/svg.latex?\hat{H}\left(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}\right)(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{H}\left(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k}\right)"/> |
-| `I` | **I**nput | <img src="https://latex.codecogs.com/svg.latex?\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{B}\mathbf{u}_{k}"/> |
+| `c` | Constant | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{c}}"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{c}}"/> |
+| `A` | Linear | <img src="https://latex.codecogs.com/svg.latex?\hat{A}\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{A}\hat{\mathbf{x}}_{k}"/> |
+| `H` | Quadratic | <img src="https://latex.codecogs.com/svg.latex?\hat{H}\left(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}\right)(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{H}\left(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k}\right)"/> |
+| `B` | Input | <img src="https://latex.codecogs.com/svg.latex?\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{B}\mathbf{u}_{k}"/> |
 
 <!-- | `O` | **O**utput | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}(t)=\hat{C}\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}_{k}=\hat{C}\hat{\mathbf{x}}_{k}"/> | -->
 
@@ -173,10 +170,10 @@ Examples:
 
 | `modelform` | Continuous ROM Structure | Discrete ROM Structure |
 | :---------- | :-------------------- | ------------------- |
-|  `"L"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{A}{\hat{\mathbf{x}}_{k}"/>
-|  `"CL"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}{\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{\mathbf{c}}+\hat{A}{\hat{\mathbf{x}}_{k}"/>
-|  `"QI"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{H}(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k})+\hat{B}\mathbf{u}_{k}"/>
-|  `"CLQI"` | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}_{k}+\hat{H}(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k})+\hat{B}\mathbf{u}_{k}"/>
+|  `"A"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{A}{\hat{\mathbf{x}}_{k}"/>
+|  `"cA"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}{\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{\mathbf{c}}+\hat{A}{\hat{\mathbf{x}}_{k}"/>
+|  `"HB"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{H}(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k})+\hat{B}\mathbf{u}_{k}"/>
+|  `"cAHB"` | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}_{k}+\hat{H}(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k})+\hat{B}\mathbf{u}_{k}"/>
 
 #### Attributes
 
@@ -196,8 +193,8 @@ All model classes have the following attributes.
     - `m`: The dimension of the input **u**, or `None` if `has_inputs` is `False`.
     <!-- - `l`: The dimension of the output **y**, or `None` if `has_outputs` is `False`. -->
 
-- Reduced operators `c_`, `A_`, `H_`, `F_`, and `B_`: the NumPy arrays corresponding to the learned parts of the reduced-order model.
-Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="LQ"`, then `c_` is `None`).
+- Reduced operators `c_`, `A_`, `H_`, `Hc_`, and `B_`: the NumPy arrays corresponding to the learned parts of the reduced-order model.
+Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="AH"`, then `c_` is `None`).
 
 
 #### InferredContinuousROM
@@ -207,14 +204,14 @@ That is, given snapshot data, a basis, and a form for a reduced model, it comput
 
 ##### Methods
 
-- `InferredContinuousROM.fit(X, Xdot, Vr, U=None, G=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
+- `InferredContinuousROM.fit(X, Xdot, Vr, U=None, P=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
     squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
 Parameters:
     - `X`: Snapshot matrix of solutions to the full-order model. Each column is one snapshot.
     - `Xdot`: Snapshot velocity of solutions to the full-order model. Each column is the velocity _d**x**/dt_ for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
     - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `U`: Input matrix. Each column is the input for the corresponding column of `X`. Only required when `has_inputs=True`.
-    - `G`: Tikhonov regularization matrix for the least squares problem.
+    - `P`: Tikhonov regularization matrix for the least squares problem.
 
 - `InferredContinuousROM.predict(x0, t, u=None, **options)`: Simulate the learned reduced-order model with `scipy.integrate.solve_ivp()`. Parameters:
     - `x0`: The initial condition, given in the original (high-dimensional) space.
@@ -237,8 +234,8 @@ The class requires the actual full-order operators (_**c**_, _A_, etc.) that def
 
 - `IntrusiveContinuousROM.fit(operators, Vr)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
 Parameters:
-    - `operators`: A list of the full-order operators that define _**f**(t,**x**)_. The operators must be in the order `c`, `A`, `H`, `B`. For example, if `modelform="CQI"`, then the list is `[c, H, B]`.
-    `H` and `F` may be used interchangeably.
+    - `operators`: A list of the full-order operators that define _**f**(t,**x**)_. The operators must be in the order `c`, `A`, `H`, `B`. For example, if `modelform="cHB"`, then the list is `[c, H, B]`.
+    `H` and `Hc` may be used interchangeably.
     - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
 
 - `IntrusiveContinuousROM.predict(x0, t, u=None, **options)`: Simulate the learned reduced-order model with `scipy.integrate.solve_ivp()`. Parameters:
@@ -298,18 +295,18 @@ The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
 These functions are helper routines that are used internally for `fit()` or `predict()` methods.
 See [DETAILS.md](DETAILS.md) for more mathematical explanation.
 
-- `utils.lstsq_reg(A, b, G=0)`: Solve the Tikhonov-regularized ordinary least squares problem
-<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}\in\mathbb{R}^n}{\text{min}}||A\mathbf{x}-\mathbf{b}||_{\ell^2}^2+||G\mathbf{x}||_{\ell^2}^2,"/></p>
+- `utils.lstsq_reg(A, b, P=0)`: Solve the Tikhonov-regularized ordinary least squares problem
+<p align="center"><img src="https://latex.codecogs.com/svg.latex?\underset{\mathbf{x}\in\mathbb{R}^n}{\text{min}}||A\mathbf{x}-\mathbf{b}||_{\ell^2}^2+||P\mathbf{x}||_{\ell^2}^2,"/></p>
 
-  where _G_ is the regularization matrix. If `b` is a matrix, solve the above problem for each column of `b`. If `G` is a scalar, use the identity matrix times that scalar for the regularization matrix _G_.
+  where _P_ is the regularization matrix. If `b` is a matrix, solve the above problem for each column of `b`. If `P` is a scalar, use the identity matrix times that scalar for the regularization matrix _P_.
 
 - `utils.kron_compact(x)`: Compute the compact column-wise (Khatri-Rao) Kronecker product of `x` with itself.
 
 - `utils.kron_col(x, y)`: Compute the full column-wise (Khatri-Rao) Kronecker product of `x` and `y`.
 
-- `utils.F2H(F)`: Convert the compact matricized quadratic operator `F` to the full, symmetric, matricized quadratic operator `H`.
+- `utils.compress_H(H)`: Convert the full matricized quadratic operator `H` to the compact matricized quadratic operator `Hc`.
 
-- `utils.H2F(H)`: Convert the full matricized quadratic operator `H` to the compact matricized quadratic operator `F`.
+- `utils.expand_Hc(Hc)`: Convert the compact matricized quadratic operator `Hc` to the full, symmetric, matricized quadratic operator `H`.
 
 
 ## References

@@ -141,43 +141,7 @@ def kron_col(x, y):
 
 
 # Matricized tensor management ================================================
-def F2H(F):
-    """Calculate the matricized quadratic operator that operates on the full
-    Kronecker product.
-
-    Parameters
-    ----------
-    F : (r,s) ndarray
-        The matricized quadratic tensor that operates on the COMPACT Kronecker
-        product. Here s = r * (r+1) / 2.
-
-    Returns
-    -------
-    H : (r,r**2) ndarray
-        The matricized quadratic tensor that operates on the full Kronecker
-        product. This is a symmetric operator in the sense that each layer of
-        H.reshape((r,r,r)) is a symmetric (r,r) matrix.
-    """
-    r,s = F.shape
-    if s != r*(r+1)//2:
-        raise ValueError(f"invalid shape (r,s) = {(r,s)} with s != r(r+1)/2")
-
-    H = _np.zeros((r,r**2))
-    fj = 0
-    for i in range(r):
-        for j in range(i+1):
-            if i == j:      # Place column for unique term.
-                H[:,(i*r)+j] = F[:,fj]
-            else:           # Distribute columns for repeated terms.
-                fill = F[:,fj] / 2
-                H[:,(i*r)+j] = fill
-                H[:,(j*r)+i] = fill
-            fj += 1
-
-    return H
-
-
-def H2F(H):
+def compress_H(H):
     """Calculate the matricized quadratic operator that operates on the compact
     Kronecker product.
 
@@ -212,3 +176,39 @@ def H2F(H):
             fj += 1
 
     return F
+
+
+def expand_Hc(F):
+    """Calculate the matricized quadratic operator that operates on the full
+    Kronecker product.
+
+    Parameters
+    ----------
+    F : (r,s) ndarray
+        The matricized quadratic tensor that operates on the COMPACT Kronecker
+        product. Here s = r * (r+1) / 2.
+
+    Returns
+    -------
+    H : (r,r**2) ndarray
+        The matricized quadratic tensor that operates on the full Kronecker
+        product. This is a symmetric operator in the sense that each layer of
+        H.reshape((r,r,r)) is a symmetric (r,r) matrix.
+    """
+    r,s = F.shape
+    if s != r*(r+1)//2:
+        raise ValueError(f"invalid shape (r,s) = {(r,s)} with s != r(r+1)/2")
+
+    H = _np.zeros((r,r**2))
+    fj = 0
+    for i in range(r):
+        for j in range(i+1):
+            if i == j:      # Place column for unique term.
+                H[:,(i*r)+j] = F[:,fj]
+            else:           # Distribute columns for repeated terms.
+                fill = F[:,fj] / 2
+                H[:,(i*r)+j] = fill
+                H[:,(j*r)+i] = fill
+            fj += 1
+
+    return H

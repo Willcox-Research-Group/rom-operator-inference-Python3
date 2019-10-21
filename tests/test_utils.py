@@ -188,20 +188,20 @@ def test_kron_col(n_tests=100):
         _test_kron_col_single_matrix(n, k, m)
 
 
-# utils.F2H() -----------------------------------------------------------------
-def _test_F2H_single(r):
-    """Do one test of utils.F2H()."""
+# utils.expand_Hc() -----------------------------------------------------------
+def _test_expand_Hc_single(r):
+    """Do one test of utils.expand_Hc()."""
     x = np.random.random(r)
 
-    # Do a valid F2H() calculation and check dimensions.
+    # Do a valid expand_Hc() calculation and check dimensions.
     s = r*(r+1)//2
-    F = np.random.random((r,s))
-    H = roi.utils.F2H(F)
+    Hc = np.random.random((r,s))
+    H = roi.utils.expand_Hc(Hc)
     assert H.shape == (r,r**2)
 
-    # Check that F(x^2) == H(x⊗x).
+    # Check that Hc(x^2) == H(x⊗x).
     Hxx = H @ np.kron(x,x)
-    assert np.allclose(F @ roi.utils.kron_compact(x), Hxx)
+    assert np.allclose(Hc @ roi.utils.kron_compact(x), Hxx)
 
     # Check properties of the tensor for H.
     Htensor = H.reshape((r,r,r))
@@ -210,39 +210,39 @@ def _test_F2H_single(r):
         assert np.allclose(subH, subH.T)
 
 
-def test_F2H(n_tests=100):
-    """Test utils.F2H()."""
-    # Try to do F2H() with a bad second dimension.
+def test_expand_Hc(n_tests=100):
+    """Test utils.expand_Hc()."""
+    # Try to do expand_Hc() with a bad second dimension.
     r = 5
     sbad = r*(r+3)//2
-    F = np.random.random((r, sbad))
+    Hc = np.random.random((r, sbad))
     with pytest.raises(ValueError) as exc:
-        roi.utils.F2H(F)
+        roi.utils.expand_Hc(Hc)
     assert exc.value.args[0] == \
         f"invalid shape (r,s) = {(r,sbad)} with s != r(r+1)/2"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 100, n_tests):
-        _test_F2H_single(r)
+        _test_expand_Hc_single(r)
 
 
-# utils.H2F() -----------------------------------------------------------------
-def _test_H2F_single(r):
-    """Do one test of utils.F2H()."""
+# utils.compress_H() ----------------------------------------------------------
+def _test_compress_H_single(r):
+    """Do one test of utils.expand_Hc()."""
     x = np.random.random(r)
 
-    # Do a valid H2F() calculation and check dimensions.
+    # Do a valid compress_H() calculation and check dimensions.
     H = np.random.random((r,r**2))
     s = r*(r+1)//2
-    F = roi.utils.H2F(H)
-    assert F.shape == (r,s)
+    Hc = roi.utils.compress_H(H)
+    assert Hc.shape == (r,s)
 
-    # Check that F(x^2) == H(x⊗x).
+    # Check that Hc(x^2) == H(x⊗x).
     Hxx = H @ np.kron(x,x)
-    assert np.allclose(Hxx, F @ roi.utils.kron_compact(x))
+    assert np.allclose(Hxx, Hc @ roi.utils.kron_compact(x))
 
-    # Check that F2H() and H2F() are inverses up to symmetry.
-    H2 = roi.utils.F2H(F)
+    # Check that expand_Hc() and compress_H() are inverses up to symmetry.
+    H2 = roi.utils.expand_Hc(Hc)
     Ht = H.reshape((r,r,r))
     Htnew = np.empty_like(Ht)
     for l in range(r):
@@ -250,17 +250,17 @@ def _test_H2F_single(r):
     assert np.allclose(H2, Htnew.reshape(H.shape))
 
 
-def test_H2F(n_tests=100):
-    """Test utils.F2H()."""
-    # Try to do H2F() with a bad second dimension.
+def test_compress_H(n_tests=100):
+    """Test utils.expand_Hc()."""
+    # Try to do compress_H() with a bad second dimension.
     r = 5
     r2bad = r**2 + 1
     H = np.random.random((r, r2bad))
     with pytest.raises(ValueError) as exc:
-        roi.utils.H2F(H)
+        roi.utils.compress_H(H)
     assert exc.value.args[0] == \
         f"invalid shape (r,a) = {(r,r2bad)} with a != r**2"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 100, n_tests):
-        _test_H2F_single(r)
+        _test_compress_H_single(r)

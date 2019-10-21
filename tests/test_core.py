@@ -27,9 +27,9 @@ def _get_operators(n=200, m=20):
     c = np.random.random(n)
     A = np.eye(n)
     H = np.zeros((n,n**2))
-    F = np.zeros((n,n*(n+1)//2))
+    Hc = np.zeros((n,n*(n+1)//2))
     B = np.random.random((n,m)) if m else None
-    return c, A, H, F, B
+    return c, A, H, Hc, B
 
 def _trainedmodel(continuous, modelform, Vr, m=20):
     if continuous:
@@ -38,15 +38,15 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
         modelclass = roi._core._DiscreteROM
 
     n,r = Vr.shape
-    c, A, H, F, B = _get_operators(r, m)
+    c, A, H, Hc, B = _get_operators(r, m)
     operators = {}
-    if 'L' in modelform:
+    if "A" in modelform:
         operators['A_'] = A
-    if 'Q' in modelform:
-        operators['F_'] = F
-    if 'C' in modelform.upper():
+    if "H" in modelform:
+        operators['Hc_'] = Hc
+    if "c" in modelform:
         operators['c_'] = c
-    if 'I' in modelform:
+    if "B" in modelform:
         operators['B_'] = B
 
     return roi._core.trained_model_from_operators(modelclass, modelform,
@@ -127,18 +127,18 @@ def testtrained_model_from_operators():
     """Test _core.trained_model_from_operators()."""
     n, m, r = 200, 20, 30
     Vr = np.random.random((n, r))
-    c, A, H, F, B = _get_operators(n=n, m=m)
+    c, A, H, Hc, B = _get_operators(n=n, m=m)
 
     # Try with bad modelclass argument.
     with pytest.raises(TypeError) as ex:
-        roi._core.trained_model_from_operators(str, "CLQ", Vr)
+        roi._core.trained_model_from_operators(str, "cAH", Vr)
     assert ex.value.args[0] == "modelclass must be derived from _BaseROM"
 
     # Correct usage.
     roi._core.trained_model_from_operators(roi._core._ContinuousROM,
-                                "CLQ", Vr, A_=A, F_=F, c_=c)
+                                "cAH", Vr, A_=A, Hc_=Hc, c_=c)
     roi._core.trained_model_from_operators(roi._core._ContinuousROM,
-                                "LI", Vr, A_=A, m=m, B_=B)
+                                "AB", Vr, A_=A, m=m, B_=B)
 
 
 # Base classes ================================================================
@@ -152,22 +152,22 @@ class TestBaseROM:
             "__init__() missing 1 required positional argument: 'modelform'"
 
         with pytest.raises(TypeError) as ex:
-            roi._core._BaseROM("CLQ", False)
+            roi._core._BaseROM("cAH", False)
         assert ex.value.args[0] == \
             "__init__() takes 2 positional arguments but 3 were given"
 
-        model = roi._core._BaseROM("CL")
+        model = roi._core._BaseROM("cA")
         assert hasattr(model, "modelform")
         assert hasattr(model, "_form")
         assert hasattr(model, "has_inputs")
-        assert model.modelform == "CL"
+        assert model.modelform == "cA"
         assert model.has_constant is True
         assert model.has_linear is True
         assert model.has_quadratic is False
         assert model.has_inputs is False
 
-        model.modelform = "cqi"
-        assert model.modelform == "CIQ"
+        model.modelform = "BHc"
+        assert model.modelform == "cHB"
         assert model.has_constant is True
         assert model.has_linear is False
         assert model.has_quadratic is True
@@ -183,18 +183,18 @@ class TestBaseROM:
         with pytest.raises(ValueError) as ex:
             model._check_modelform(trained=False)
         assert ex.value.args[0] == \
-            "invalid modelform key 'A'; " \
+            "invalid modelform key 'b'; " \
             f"options are {', '.join(model._MODEL_KEYS)}"
 
         # Try with untrained model.
-        model.modelform = "CLQ"
+        model.modelform = "cAH"
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
             "attribute 'c_' missing; call fit() to train model"
 
         # Try with missing attributes.
-        model = _trainedmodel(True, "CLQI", Vr, m)
+        model = _trainedmodel(True, "cAHB", Vr, m)
         c_ = model.c_.copy()
         del model.c_
         with pytest.raises(AttributeError) as ex:
@@ -219,43 +219,43 @@ class TestBaseROM:
         assert ex.value.args[0] == \
             "attribute 'A_' is None; call fit() to train model"
 
-        model = _trainedmodel(True, "CLI", Vr, m)
-        model.F_ = 1
+        model = _trainedmodel(True, "cAB", Vr, m)
+        model.Hc_ = 1
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
-            "attribute 'F_' should be None; call fit() to train model"
-        model.F_ = None
+            "attribute 'Hc_' should be None; call fit() to train model"
+        model.Hc_ = None
 
-        model.modelform = "CL"
+        model.modelform = "cA"
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
             "attribute 'B_' should be None; call fit() to train model"
 
-        model = _trainedmodel(False, "CLQ", Vr, None)
-        model.modelform = "CLQI"
+        model = _trainedmodel(False, "cAH", Vr, None)
+        model.modelform = "cAHB"
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
             "attribute 'B_' is None; call fit() to train model"
 
-    def test_check_hasinputs(self):
-        """Test _BaseROM._check_hasinputs()."""
+    def test_check_inputargs(self):
+        """Test _BaseROM._check_inputargs()."""
 
         # Try with has_inputs = True but without inputs.
-        model = roi._core._BaseROM("CI")
+        model = roi._core._BaseROM("cB")
         with pytest.raises(ValueError) as ex:
-            model._check_hasinputs(None, 'U')
+            model._check_inputargs(None, 'U')
         assert ex.value.args[0] == \
-            "argument 'U' required since 'I' in modelform"
+            "argument 'U' required since 'B' in modelform"
 
         # Try with has_inputs = False but with inputs.
-        model.modelform = "CL"
+        model.modelform = "cA"
         with pytest.raises(ValueError) as ex:
-            model._check_hasinputs(1, 'u')
+            model._check_inputargs(1, 'u')
         assert ex.value.args[0] == \
-            "argument 'u' invalid since 'I' in modelform"
+            "argument 'u' invalid since 'B' in modelform"
 
 
 class TestContinuousROM:
@@ -264,12 +264,12 @@ class TestContinuousROM:
         """Test incorrect usage of BaseContinuousROM._construct_f_()."""
         model = roi._core._ContinuousROM('')
 
-        model.modelform = "CL"
+        model.modelform = "cA"
         with pytest.raises(RuntimeError) as ex:
             model._construct_f_(lambda t: 1)
         assert ex.value.args[0] == "improper use of _construct_f_()!"
 
-        model.modelform = "CIQ"
+        model.modelform = "cHB"
         with pytest.raises(RuntimeError) as ex:
             model._construct_f_()
         assert ex.value.args[0] == "improper use of _construct_f_()!"
@@ -278,22 +278,22 @@ class TestContinuousROM:
         """Test BaseContinuousROM.__str__() (string representation)."""
         model = roi._core._ContinuousROM('')
 
-        model.modelform = "L"
+        model.modelform = "A"
         assert str(model) == \
             "Reduced-order model structure: dx / dt = Ax(t)"
-        model.modelform = "CL"
+        model.modelform = "cA"
         assert str(model) == \
             "Reduced-order model structure: dx / dt = c + Ax(t)"
-        model.modelform = "QI"
+        model.modelform = "HB"
         assert str(model) == \
             "Reduced-order model structure: dx / dt = H(x ⊗ x)(t) + Bu(t)"
-        model.modelform = "CLQ"
+        model.modelform = "cAH"
         assert str(model) == \
             "Reduced-order model structure: dx / dt = c + Ax(t) + H(x ⊗ x)(t)"
 
     def test_fit(self):
         """Test _core._ContinuousROM.fit()."""
-        model = roi._core._ContinuousROM("L")
+        model = roi._core._ContinuousROM("A")
         with pytest.raises(NotImplementedError) as ex:
             model.fit()
         assert ex.value.args[0] == \
@@ -315,7 +315,7 @@ class TestContinuousROM:
         U1d = np.ones(k)
 
         # Get test (reduced) operators.
-        c, A, H, F, B = _get_operators(r, m)
+        c, A, H, Hc, B = _get_operators(r, m)
         B1d = B[:,0]
 
         nt = 5
@@ -326,7 +326,7 @@ class TestContinuousROM:
 
         # Try to predict with invalid initial condition.
         x0_ = Vr.T @ x0
-        model = _trainedmodel(True, "CLQI", Vr, m)
+        model = _trainedmodel(True, "cAHB", Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0_, t, u)
         assert ex.value.args[0] == f"invalid initial state size ({r} != {n})"
@@ -338,25 +338,25 @@ class TestContinuousROM:
 
         # Predict without inputs.
         for form in _MODEL_FORMS:
-            if 'I' not in form:
+            if "B" not in form:
                 model = _trainedmodel(True, form, Vr, None)
                 model.predict(x0, t)
 
         # Try to predict with badly-shaped discrete inputs.
-        model = _trainedmodel(True, "CLQI", Vr, m)
+        model = _trainedmodel(True, "cAHB", Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, np.random.random((m-1, nt)))
         assert ex.value.args[0] == \
             f"invalid input shape ({(m-1,nt)} != {(m,nt)}"
 
-        model = _trainedmodel(True, "CLQI", Vr, m=1)
+        model = _trainedmodel(True, "cAHB", Vr, m=1)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, np.random.random((2, nt)))
         assert ex.value.args[0] == \
             f"invalid input shape ({(2,nt)} != {(1,nt)}"
 
         # Try to predict with badly-shaped continuous inputs.
-        model = _trainedmodel(True, "CLQI", Vr, m)
+        model = _trainedmodel(True, "cAHB", Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, lambda t: np.ones(m-1))
         assert ex.value.args[0] == \
@@ -366,7 +366,7 @@ class TestContinuousROM:
         assert ex.value.args[0] == \
             f"input function u() must return ndarray of shape (m,)={(m,)}"
 
-        model = _trainedmodel(True, "CLQI", Vr, m=1)
+        model = _trainedmodel(True, "cAHB", Vr, m=1)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, u)
         assert ex.value.args[0] == \
@@ -374,7 +374,7 @@ class TestContinuousROM:
             " or scalar"
 
         # Try to predict with continuous inputs with bad return type
-        model = _trainedmodel(True, "CLQI", Vr, m)
+        model = _trainedmodel(True, "cAHB", Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0, t, lambda t: set([5]))
         assert ex.value.args[0] == \
@@ -382,7 +382,7 @@ class TestContinuousROM:
 
 
         for form in _MODEL_FORMS:
-            if 'I' in form:
+            if "B" in form:
                 # Predict with 2D inputs.
                 model = _trainedmodel(True, form, Vr, m)
                 # continuous input.
@@ -435,51 +435,51 @@ class TestInferredMixin:
 class TestIntrusiveMixin:
     def test_check_operators(self):
         model = roi._core._IntrusiveMixin()
-        model.modelform = "CLQI"
+        model.modelform = "cAHB"
         v = None
 
         # Try with missing operator keys.
         with pytest.raises(KeyError) as ex:
-            model._check_operators({'L':v, 'Q':v, 'I':v})
-        assert ex.value.args[0] == "missing operator key 'C'"
+            model._check_operators({"A":v, "H":v, "B":v})
+        assert ex.value.args[0] == "missing operator key 'c'"
 
         with pytest.raises(KeyError) as ex:
-            model._check_operators({'Q':v, 'I':v})
-        assert ex.value.args[0] == "missing operator keys 'C', 'L'"
+            model._check_operators({"H":v, "B":v})
+        assert ex.value.args[0] == "missing operator keys 'c', 'A'"
 
         # Try with surplus operator keys.
         with pytest.raises(KeyError) as ex:
-            model._check_operators({'CC':v, 'C':v, 'L':v, 'Q':v, 'I':v})
+            model._check_operators({'CC':v, "c":v, "A":v, "H":v, "B":v})
         assert ex.value.args[0] == "invalid operator key 'CC'"
 
         with pytest.raises(KeyError) as ex:
-            model._check_operators({'C':v, 'L':v, 'Q':v, 'I':v,
+            model._check_operators({"c":v, "A":v, "H":v, "B":v,
                                     'CC':v, 'LL':v})
         assert ex.value.args[0] == "invalid operator keys 'CC', 'LL'"
 
         # Correct usage.
-        model._check_operators({'C':v, 'L':v, 'Q':v, 'I':v})
+        model._check_operators({"c":v, "A":v, "H":v, "B":v})
 
 
 class TestAffineMixin:
     def test_check_affines(self):
         model = roi._core._AffineMixin()
-        model.modelform = "CLQI"
+        model.modelform = "cAHB"
         v = [lambda s: 0, lambda s: 0]
 
         # Try with surplus affine keys.
         with pytest.raises(KeyError) as ex:
-            model._check_affines({'CC':v, 'C':v, 'L':v, 'Q':v, 'I':v}, 0)
+            model._check_affines({'CC':v, "c":v, "A":v, "H":v, "B":v}, 0)
         assert ex.value.args[0] == "invalid affine key 'CC'"
 
         with pytest.raises(KeyError) as ex:
-            model._check_affines({'C':v, 'L':v, 'Q':v, 'I':v,
+            model._check_affines({"c":v, "A":v, "H":v, "B":v,
                                     'CC':v, 'LL':v}, 0)
         assert ex.value.args[0] == "invalid affine keys 'CC', 'LL'"
 
         # Correct usage.
-        model._check_affines({'C':v, 'Q':v}, 0)     # OK to be missing some.
-        model._check_affines({'C':v, 'L':v, 'Q':v, 'I':v}, 0)
+        model._check_affines({"c":v, "H":v}, 0)     # OK to be missing some.
+        model._check_affines({"c":v, "A":v, "H":v, "B":v}, 0)
 
 
 # Useable classes =============================================================
@@ -488,7 +488,7 @@ class TestAffineMixin:
 class TestInferredContinuousROM:
     """Test _core.InferredContinuousROM."""
     def test_fit(self):
-        model = roi.InferredContinuousROM("CLQ")
+        model = roi.InferredContinuousROM("cAH")
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
@@ -497,18 +497,18 @@ class TestInferredContinuousROM:
 
         # Fit the model with each possible modelform.
         for form in _MODEL_FORMS:
-            if 'I' not in form:
+            if "B" not in form:
                 model.modelform = form
                 model.fit(X, Xdot, Vr)
 
         # Test fit output sizes.
-        model.modelform = "CLQI"
+        model.modelform = "cAHB"
         model.fit(X, Xdot, Vr, U=U)
         assert model.n == n
         assert model.r == r
         assert model.m == m
         assert model.A_.shape == (r,r)
-        assert model.F_.shape == (r,r*(r+1)//2)
+        assert model.Hc_.shape == (r,r*(r+1)//2)
         assert model.H_.shape == (r,r**2)
         assert model.c_.shape == (r,)
         assert model.B_.shape == (r,m)
@@ -523,7 +523,7 @@ class TestInferredContinuousROM:
         assert model.r == r
         assert model.m == 1
         assert model.A_.shape == (r,r)
-        assert model.F_.shape == (r,r*(r+1)//2)
+        assert model.Hc_.shape == (r,r*(r+1)//2)
         assert model.H_.shape == (r,r**2)
         assert model.c_.shape == (r,)
         assert model.B_.shape == (r,1)
@@ -534,7 +534,7 @@ class TestIntrusiveContinuousROM:
     """Test _core.IntrusiveContinuousROM."""
 
     def test_fit(self):
-        model = roi.IntrusiveContinuousROM("CLQI")
+        model = roi.IntrusiveContinuousROM("cAHB")
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
@@ -542,9 +542,9 @@ class TestIntrusiveContinuousROM:
         Vr = la.svd(X)[0][:,:r]
 
         # Get test operators.
-        c, A, H, F, B = _get_operators(n, m)
+        c, A, H, Hc, B = _get_operators(n, m)
         B1d = B[:,0]
-        operators = {'C':c, 'L':A, 'Q':H, 'I':B}
+        operators = {"c":c, "A":A, "H":H, "B":B}
 
         # Try to fit the model with misaligned operators and Vr.
         Abad = A[:,:-2]
@@ -553,49 +553,49 @@ class TestIntrusiveContinuousROM:
         Bbad = B[1:,:]
 
         with pytest.raises(ValueError) as ex:
-            model.fit({'C':cbad, 'L':A, 'Q':H, 'I':B}, Vr)
+            model.fit({"c":cbad, "A":A, "H":H, "B":B}, Vr)
         assert ex.value.args[0] == "basis Vr and FOM operator c not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit({'C':c, 'L':Abad, 'Q':H, 'I':B}, Vr)
+            model.fit({"c":c, "A":Abad, "H":H, "B":B}, Vr)
         assert ex.value.args[0] == "basis Vr and FOM operator A not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit({'C':c, 'L':A, 'Q':Hbad, 'I':B}, Vr)
+            model.fit({"c":c, "A":A, "H":Hbad, "B":B}, Vr)
         assert ex.value.args[0] == \
-            "basis Vr and FOM operator H (F) not aligned"
+            "basis Vr and FOM operator H not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit({'C':c, 'L':A, 'Q':H, 'I':Bbad}, Vr)
+            model.fit({"c":c, "A":A, "H":H, "B":Bbad}, Vr)
         assert ex.value.args[0] == "basis Vr and FOM operator B not aligned"
 
         # Fit the model with each possible modelform.
-        for form in ["L", "CL", "Q", "CQ", "LQ", "CLQ", "CLQI"]:
+        for form in ["A", "cA", "H", "cH", "AH", "cAH", "cAHB"]:
             model.modelform = form
             ops = {key:val for key,val in operators.items() if key in form}
             model.fit(ops, Vr)
 
-        model.modelform = "CLQI"
-        model.fit({'C':c, 'L':A, 'Q':F, 'I':B}, Vr)
+        model.modelform = "cAHB"
+        model.fit({"c":c, "A":A, "H":Hc, "B":B}, Vr)
 
         # Test fit output sizes.
         assert model.n == n
         assert model.r == r
         assert model.m == m
         assert model.A.shape == (n,n)
-        assert model.F.shape == (n,n*(n+1)//2)
+        assert model.Hc.shape == (n,n*(n+1)//2)
         assert model.H.shape == (n,n**2)
         assert model.c.shape == (n,)
         assert model.B.shape == (n,m)
         assert model.A_.shape == (r,r)
-        assert model.F_.shape == (r,r*(r+1)//2)
+        assert model.Hc_.shape == (r,r*(r+1)//2)
         assert model.H_.shape == (r,r**2)
         assert model.c_.shape == (r,)
         assert model.B_.shape == (r,m)
 
         # Fit the model with 1D inputs (1D array for B)
-        model.modelform = "CLQI"
-        model.fit({'C':c, 'L':A, 'Q':H, 'I':B1d}, Vr)
+        model.modelform = "cAHB"
+        model.fit({"c":c, "A":A, "H":H, "B":B1d}, Vr)
         assert model.B.shape == (n,1)
         assert model.B_.shape == (r,1)
 
@@ -604,7 +604,7 @@ class TestInterpolatedInferredContinuousROM:
     """Test _core.InterpolatedInferredContinuousROM."""
     def test_fit(self):
         """Test _core.InterpolatedInferredContinuousROM.fit()."""
-        model = roi.InterpolatedInferredContinuousROM("CLQ")
+        model = roi.InterpolatedInferredContinuousROM("cAH")
 
         # Get data for fitting.
         n, m, k, r = 50, 10, 20, 5
@@ -634,28 +634,28 @@ class TestInterpolatedInferredContinuousROM:
             "num parameter samples != num velocity snapshot sets (2 != 3)"
 
         # Try with varying input sizes.
-        model.modelform = "CLQI"
+        model.modelform = "cAHB"
         with pytest.raises(ValueError) as ex:
             model.fit(ps, Xs, Xdots, Vr, [U1, U2[:-1]])
         assert ex.value.args[0] == \
             "shape of 'U' inconsistent across samples"
 
         # Fit correctly with no inputs.
-        model.modelform = "CLQ"
+        model.modelform = "cAH"
         model.fit(ps, Xs, Xdots, Vr)
         for attr in ["models_", "dataconds_", "residuals_", "fs_"]:
             assert hasattr(model, attr)
             assert len(getattr(model, attr)) == len(model.models_)
 
         # Fit correctly with inputs.
-        model.modelform = "CLQI"
+        model.modelform = "cAHB"
         model.fit(ps, Xs, Xdots, Vr, Us)
 
         assert len(model) == len(ps)
 
     def test_predict(self):
         """Test _core.InterpolatedInferredContinuousROM.predict()."""
-        model = roi.InterpolatedInferredContinuousROM("CLQ")
+        model = roi.InterpolatedInferredContinuousROM("cAH")
 
         # Get data for fitting.
         n, m, k, r = 50, 10, 20, 5
@@ -679,7 +679,7 @@ class TestInterpolatedInferredContinuousROM:
         model.predict(1.5, x0, t)
 
         # Fit / predict with inputs.
-        model.modelform = "CLQI"
+        model.modelform = "cAHB"
         model.fit(ps, Xs, Xdots, Vr, Us)
         model.predict(1, x0, t, u)
         model.predict(1.5, x0, t, u)
