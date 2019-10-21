@@ -195,7 +195,7 @@ Thus, the reduced order model becomes
 and the corresponding operator inference least squares problem is
 
 <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{\mathbf{c}}\in\mathbb{R}^{r},\,\hat{A}\in\mathbb{R}^{r\times%20r},\\\hat{H}_{c}\in\mathbb{R}^{r\times(r(r+1)/1)},\,\hat{B}\in\mathbb{R}^{r\times%20m},}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\,\widetilde{\otimes}\,\hat{X}\big)^\mathsf{T}\hat{H}_{c}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2."/>
+  <img src="https://latex.codecogs.com/svg.latex?\underset{\substack{\hat{\mathbf{c}}\in\mathbb{R}^{r},\,\hat{A}\in\mathbb{R}^{r\times%20r},\\\hat{H}_{c}\in\mathbb{R}^{r\times(r(r+1)/2)},\,\hat{B}\in\mathbb{R}^{r\times%20m},}}{\text{min}}\,\Big\|\hat{X}^\mathsf{T}\hat{A}^\mathsf{T}+\big(\hat{X}\,\widetilde{\otimes}\,\hat{X}\big)^\mathsf{T}\hat{H}_{c}^\mathsf{T}+U^\mathsf{T}\hat{B}^\mathsf{T}+\mathbf{1}\hat{\mathbf{c}}^\mathsf{T}-\dot{\hat{X}}^\mathsf{T}\Big\|_{F}^2."/>
 </p>
 
 ## Index of Notation
@@ -212,16 +212,11 @@ In the code, a low-dimensional quantity ends with an underscore, so that the mod
 | <img src="https://latex.codecogs.com/svg.latex?m"/> | `m`  | Dimension of the input **u** |
 | <img src="https://latex.codecogs.com/svg.latex?k"/> | `k`  | Number of state snapshots, i.e., the number of training points |
 | <img src="https://latex.codecogs.com/svg.latex?s"/> | `s`  | Number of parameter samples for parametric training |
-| <img src="https://latex.codecogs.com/svg.latex?n_t"/> | `nt`  | Number of time steps in a simulation |
 | <img src="https://latex.codecogs.com/svg.latex?p"/> | `p` | Dimension of the parameter space |
-
+| <img src="https://latex.codecogs.com/svg.latex?d"/> | `d` | Number of columns of the data matrix _D_ |
+| <img src="https://latex.codecogs.com/svg.latex?n_t"/> | `nt`  | Number of time steps in a simulation |
 
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\ell"/> | `l` | Dimension of the output **y** | -->
-
-<!-- | <img src="https://latex.codecogs.com/svg.latex?d"/> | `d` | Dimension of the spatial domain | -->
-
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\frac{n(n+1)}{2}"/> | `_n2`  | Number of unique quadratic reduced-state interactions, _n_(_n_+1)/2 | -->
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\frac{r(r+1)}{2}"/> | `_r2`  | Number of unique quadratic reduced-state interactions, _r_(_r_+1)/2 | -->
 
 
 #### Vectors
@@ -249,7 +244,7 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_(t,x_)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | Reduced-order system operator |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\otimes\mathbf{x}"/> | `np.kron(x,x)` | <img src="https://latex.codecogs.com/svg.latex?n^2"/> | Kronecker product of full state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}"/> | `np.kron(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?r^2"/>  | Kronecker product of reduced state (quadratic terms) |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_compact(x_)` | <img src="https://latex.codecogs.com/svg.latex?s"/>  | Compact Kronecker product of reduced state (quadratic terms) |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_compact(x_)` | <img src="https://latex.codecogs.com/svg.latex?\frac{r(r+1)}{2}"/>  | Compact Kronecker product of reduced state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{v}_j"/> | `vj` | <img src="https://latex.codecogs.com/svg.latex?n"/> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
 
 <!-- | **y**  | `y`             | Output vector | -->
@@ -265,9 +260,13 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?U"/> | `U` | <img src="https://latex.codecogs.com/svg.latex?m\times%20k"/> | Input matrix (inputs corresonding to the snapshots) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{X}"/> | `X_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{X}}"/> | `Xdot_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot velocity matrix |
+| <img src="https://latex.codecogs.com/svg.latex?D"/> | `D` | <img src="https://latex.codecogs.com/svg.latex?k\times%20d"/> | Data matrix |
+| <img src="https://latex.codecogs.com/svg.latex?O"/> | `O` | <img src="https://latex.codecogs.com/svg.latex?d\times%20r"/> | Operator matrix |
+| <img src="https://latex.codecogs.com/svg.latex?R"/> | `R` | <img src="https://latex.codecogs.com/svg.latex?k\times%20r"/> | Right-hand side matrix |
+| <img src="https://latex.codecogs.com/svg.latex?P"/> | `P` | <img src="https://latex.codecogs.com/svg.latex?d\times%20d"/> | Tikhonov regularization matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{A}"/> | `A_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Learned state matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{H}"/> | `H_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r^2"/> | Learned matricized quadratic tensor |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{F}"/> | `Hc_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20s"/> | Learned matricized quadratic tensor without redundancy (compact) |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{H}_c"/> | `Hc_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20\frac{r(r+1)}{2}"/> | Learned matricized quadratic tensor without redundancy (compact) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{B}"/> | `B_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20m"/> | Learned input matrix |
 
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{N}_i"/> | `Ni_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Bilinear state-input matrix for _i_th input | -->
