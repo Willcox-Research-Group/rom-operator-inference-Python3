@@ -41,7 +41,7 @@ def frobenius_error(X, Y):
     abs_err : float
         The absolute error ||X - Y||_F.
 
-    rel_err : (k,) float
+    rel_err : float
         The relative error ||X - Y||_F / ||X||_F.
     """
     # Check dimensions.
@@ -146,7 +146,7 @@ def Lp_error(X, Y, t=None, p=2):
     abs_err : float
         The absolute error ||X - Y||_{L^p}.
 
-    rel_err : (k,) float
+    rel_err : float
         The relative error ||X - Y||_{L^p} / ||X||_{L^p}.
     """
     # Check p.

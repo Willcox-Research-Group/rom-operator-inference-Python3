@@ -88,7 +88,7 @@ import rom_operator_inference as roi
 ## Examples
 
 The [`examples/`](examples/) folder contains scripts and notebooks that set up and run several examples:
-- [`examples/tutorial.ipynb`](examples/tutorial.ipynb): A short tutorial using a very simple heat equation.
+- [`examples/tutorial.ipynb`](examples/tutorial.ipynb): A walkthrough of a very simple heat equation example.
 - [`examples/heat_1D.ipynb`](examples/heat_1D.ipynb): A more complicated one-dimensional heat equation example [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 - [`examples/data_driven_heat.ipynb`](examples/data_driven_heat.ipynb): A purely data-driven example using data generated from a one-dimensional heat equation \[4\].
 <!-- - `examples/TODO.ipynb`: Burgers' equation [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104). -->
