@@ -50,7 +50,7 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
         operators['B_'] = B
 
     return roi._core.trained_model_from_operators(modelclass, modelform,
-                                                   Vr, m, **operators)
+                                                   Vr, **operators)
 
 
 # Helper classes and functions ================================================
@@ -138,7 +138,7 @@ def testtrained_model_from_operators():
     roi._core.trained_model_from_operators(roi._core._ContinuousROM,
                                 "cAH", Vr, A_=A, Hc_=Hc, c_=c)
     roi._core.trained_model_from_operators(roi._core._ContinuousROM,
-                                "AB", Vr, A_=A, m=m, B_=B)
+                                "AB", Vr, A_=A, B_=B)
 
 
 # Base classes ================================================================

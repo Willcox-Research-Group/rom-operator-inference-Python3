@@ -91,7 +91,7 @@ class AffineOperator:
                                                  self.matrices)], axis=0)
 
 
-def trained_model_from_operators(modelclass, modelform, Vr, m=None,
+def trained_model_from_operators(modelclass, modelform, Vr,
                                  c_=None, A_=None, H_=None, Hc_=None, B_=None):
     """Construct a prediction-capable ROM object from the operators of
     the reduced model.
@@ -106,9 +106,6 @@ def trained_model_from_operators(modelclass, modelform, Vr, m=None,
 
     Vr : (n,r) ndarray
         The basis for the linear reduced space (e.g., POD basis matrix).
-
-    m : int or None : TODO: eliminate this argument (it comes with B).
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
 
     c_ : (r,) ndarray or None
         Reduced constant term, or None if 'c' is not in `modelform`.
@@ -142,7 +139,8 @@ def trained_model_from_operators(modelclass, modelform, Vr, m=None,
 
     # Insert the attributes.
     model.Vr = Vr
-    model.n, model.r, model.m = Vr.shape + (m,)
+    model.n, model.r = Vr.shape
+    model.m = None if B_ is None else 1 if B_.ndim == 1 else B_.shape[1]
     model.c_, model.A_, model.B_ = c_, A_, B_
     model.Hc_ = H2Hc(H_) if H_ else Hc_
 
@@ -470,7 +468,6 @@ class _AffineContinuousROM(_ContinuousROM):
             modelclass=_ContinuousROM,
             modelform=self.modelform,
             Vr=self.Vr,
-            m=self.m,
             c_=self.c_(µ) if isinstance(self.c_, AffineOperator) else self.c_,
             A_=self.A_(µ) if isinstance(self.A_, AffineOperator) else self.A_,
             Hc_=self.Hc_(µ) if isinstance(self.Hc_, AffineOperator) \
@@ -1141,7 +1138,6 @@ class InterpolatedInferredContinuousROM(_ContinuousROM,
                     modelclass=_ContinuousROM,
                     modelform=self.modelform,
                     Vr=self.Vr,
-                    m=self.m,
                     A_=self.A_(µ)   if self.A_  is not None else None,
                     Hc_=self.Hc_(µ) if self.Hc_ is not None else None,
                     c_=self.c_(µ)   if self.c_  is not None else None,
