@@ -203,7 +203,7 @@ and the corresponding operator inference least squares problem is
 We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
 In the code, a low-dimensional quantity ends with an underscore, so that the model classes follow some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects).
 
-#### Dimensions
+### Dimensions
 
 | Symbol | Code | Description |
 | :----: | :--- | :---------- |
@@ -219,7 +219,7 @@ In the code, a low-dimensional quantity ends with an underscore, so that the mod
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\ell"/> | `l` | Dimension of the output **y** | -->
 
 
-#### Vectors
+### Vectors
 
 <!-- \sigma_j\in\text{diag}(\Sigma) &= \textrm{singular value of }X\\
 \boldsymbol{\mu}\in\mathcal{P} &= \text{system parameter}\\
@@ -250,7 +250,7 @@ t\ge 0 &= \text{time}\\
 <!-- | **y**  | `y`             | Output vector | -->
 <!-- | **y_ROM**, **y~** | `y_ROM`      | Approximation to **y** produced by ROM | -->
 
-#### Matrices
+### Matrices
 
 | Symbol | Code | Shape | Description |
 | :----: | :--- | :---: | :---------- |

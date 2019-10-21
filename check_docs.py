@@ -9,9 +9,11 @@ import difflib
 # Global variables ============================================================
 README = "README.md"
 DETAILS = "DETAILS.md"
+DOCS = "DOCUMENTATION.md"
 SETUP = "setup.py"
 INIT = os.path.join("rom_operator_inference", "__init__.py")
-MDFILES = [README, DETAILS]
+MDFILES = [README, DETAILS, DOCS]
+DOCFILES = [DETAILS, DOCS]
 VNFILES = [SETUP, INIT]
 
 REDSPACE = '\x1b[41m \x1b[49m'
@@ -57,10 +59,6 @@ def check_latex_code_for_spaces(filelist=MDFILES):
 def check_references_sections_are_the_same(filelist=MDFILES):
     """Make sure that the "References" sections in each doc file are the same.
     """
-    if len(filelist) != 2:
-        raise ValueError("can only compare 2 files at a time")
-    file1, file2 = filelist
-
     # Read both '## References' sections.
     refsections = []
     for filename in filelist:
@@ -70,12 +68,40 @@ def check_references_sections_are_the_same(filelist=MDFILES):
 
     # Compare sections and report errors.
     errors = False
-    for line in difflib.unified_diff(refsections[0], refsections[1],
-                                     fromfile=file1, tofile=file2):
-        print(line)
-        errors = True
-    if errors:
-        raise SyntaxError(f"'References' of {file1} and {file2} do not match")
+    for i in range(len(filelist)-1):
+        file1, file2 = filelist[i:i+2]
+        for line in difflib.unified_diff(refsections[i], refsections[i+1],
+                                         fromfile=file1, tofile=file2):
+            print(line)
+            errors = True
+        if errors:
+            raise SyntaxError(f"'References' of {file1} and {file2}"
+                               " do not match")
+
+
+def check_index_sections_are_the_same(filelist=DOCFILES):
+    """Make sure that the "Index of Notation" sections in each doc file are
+    the same.
+    """
+    idxsections = []
+    for filename in filelist:
+        with open(filename, 'r') as infile:
+            data = infile.read()
+        start = data.index("## Index of Notation")
+        end = data.index("## References")
+        idxsections.append(data[start:end].splitlines())
+
+    # Compare sections and report errors.
+    errors = False
+    for i in range(len(filelist)-1):
+        file1, file2 = filelist[i:i+2]
+        for line in difflib.unified_diff(idxsections[i], idxsections[i+1],
+                                         fromfile=file1, tofile=file2):
+            print(line)
+            errors = True
+        if errors:
+            raise SyntaxError(f"'Index of Notation' of {file1} and {file2} "
+                               " do not match")
 
 
 def check_version_numbers_match(filelist=VNFILES):
@@ -99,4 +125,5 @@ def check_version_numbers_match(filelist=VNFILES):
 if __name__ == "__main__":
     check_latex_code_for_spaces()
     check_references_sections_are_the_same()
+    check_index_sections_are_the_same()
     check_version_numbers_match()
