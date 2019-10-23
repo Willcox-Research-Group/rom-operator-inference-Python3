@@ -25,10 +25,6 @@ html/
 *.fls
 *.fdb_latexmk
 
-# Hidden files for Makefile
-.hw*
-.notes*
-
 # Archives and figures
 *.zip
 *.png
