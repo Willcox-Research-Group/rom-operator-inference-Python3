@@ -135,7 +135,7 @@ def energy_capture(X, thresh, plot=False):
     """Compute the number of singular values of X needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
-        energy_j = sum(singular_values[:j]) / sum(singular_values).
+        energy_j = sum(singular_values[:j]**2) / sum(singular_values**2).
 
     Parameters
     ----------

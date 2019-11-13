@@ -236,6 +236,7 @@ class _ContinuousROM(_BaseROM):
         """Define the attribute self.f_ based on the computed operators and,
         if appropriate, the input function u(t).
         """
+        self._jac = None
         if not self.has_inputs and u is None:
             if self.modelform == "c":
                 f_ = lambda t,x_: self.c_
@@ -259,6 +260,7 @@ class _ContinuousROM(_BaseROM):
                 f_ = lambda t,x_: self.c_ + self.B_@u_(t)
             elif self.modelform == "AB":
                 f_ = lambda t,x_: self.A_@x_ + self.B_@u_(t)
+                self._jac = self.A_
             elif self.modelform == "cAB":
                 f_ = lambda t,x_: self.c_ + self.A_@x_ + self.B_@u_(t)
             elif self.modelform == "HB":
@@ -376,6 +378,7 @@ class _ContinuousROM(_BaseROM):
                               [t[0], t[-1]],    # over this time interval
                               x0_,              # with this initial condition
                               t_eval=t,         # evaluated at these points
+                              # jac=self._jac,    # with this Jacobian
                               **options)        # with these solver options.
 
         # Raise warnings if the integration failed.
@@ -484,8 +487,8 @@ class _AffineContinuousROM(_ContinuousROM):
 class _InferredMixin:
     """Mixin class for reduced model classes that use operator inference."""
     @staticmethod
-    def _check_training_data_shapes(X, Xdot, Vr):
-        """Ensure that X, Xdot, and Vr are aligned."""
+    def _check_training_data_shapes(X, Xdot, Vr, U=None):
+        """Ensure that X, Xdot, Vr, and U are aligned."""
         if X.shape != Xdot.shape:
             raise ValueError("shape of X != shape of Xdot "
                              f"({X.shape} != {Xdot.shape})")
@@ -493,6 +496,10 @@ class _InferredMixin:
         if X.shape[0] != Vr.shape[0]:
             raise ValueError("X and Vr not aligned, first dimension "
                              f"{X.shape[0]} != {Vr.shape[0]}")
+
+        if U is not None and X.shape[-1] != U.shape[-1]:
+            raise ValueError("X and U not aligned, last dimension "
+                             f"{X.shape[-1]} != {U.shape[-1]}")
 
     @staticmethod
     def _check_dataset_consistency(arrlist, label):
@@ -671,7 +678,7 @@ class InferredContinuousROM(_ContinuousROM,
         self._check_inputargs(U, 'U')
 
         # Check and store dimensions.
-        self._check_training_data_shapes(X, Xdot, Vr)
+        self._check_training_data_shapes(X, Xdot, Vr, U)
         n,k = X.shape           # Dimension of system, number of shapshots.
         r = Vr.shape[1]         # Number of basis vectors.
         self.n, self.r, self.m = n, r, None
@@ -703,33 +710,34 @@ class InferredContinuousROM(_ContinuousROM,
 
         D = np.hstack(D_blocks)
         self.datacond_ = np.linalg.cond(D)      # Condition number of data.
+        self.datarank_ = np.linalg.matrix_rank(D)
 
         # Solve for the reduced-order model operators via least squares.
-        OT, res = lstsq_reg(D, Xdot_.T, P)[0:2]
+        Otrp, res = lstsq_reg(D, Xdot_.T, P)[0:2]
         self.residual_ = np.sum(res)
 
-        # Extract the reduced operators from OT.
+        # Extract the reduced operators from Otrp.
         i = 0
         if self.has_constant:
-            self.c_ = OT[i:i+1][0]       # Note that c_ is one-dimensional.
+            self.c_ = Otrp[i:i+1][0]        # Note that c_ is one-dimensional.
             i += 1
         else:
             self.c_ = None
 
         if self.has_linear:
-            self.A_ = OT[i:i+self.r].T
+            self.A_ = Otrp[i:i+self.r].T
             i += self.r
         else:
             self.A_ = None
 
         if self.has_quadratic:
-            self.Hc_ = OT[i:i+_r2].T
+            self.Hc_ = Otrp[i:i+_r2].T
             i += _r2
         else:
             self.Hc_ = None
 
         if self.has_inputs:
-            self.B_ = OT[i:i+self.m].T
+            self.B_ = Otrp[i:i+self.m].T
             i += self.m
         else:
             self.B_ = None
@@ -1380,20 +1388,20 @@ class AffineInferredContinuousROM(_AffineContinuousROM,
         R = np.hstack(Xdots_).T
 
         # Solve for the reduced-order model operators via least squares.
-        OT, res = lstsq_reg(D, R, P)[0:2]
+        Otrp, res = lstsq_reg(D, R, P)[0:2]
         self.residual_ = np.sum(res)
 
-        # Extract the reduced operators from OT.
+        # Extract the reduced operators from Otrp.
         i = 0
         if self.has_constant:
             if 'c' in affines:
                 cs_ = []
                 for j in range(len(affines['c'])):
-                    cs_.append(OT[i:i+1][0])        # c_ is one-dimensional.
+                    cs_.append(Otrp[i:i+1][0])      # c_ is one-dimensional.
                     i += 1
                 self.c_ = AffineOperator(affines['c'], cs_)
             else:
-                self.c_ = OT[i:i+1][0]              # c_ is one-dimensional.
+                self.c_ = Otrp[i:i+1][0]            # c_ is one-dimensional.
                 i += 1
         else:
             self.c_, self.cs_ = None, None
@@ -1402,11 +1410,11 @@ class AffineInferredContinuousROM(_AffineContinuousROM,
             if 'A' in affines:
                 As_ = []
                 for j in range(len(affines['A'])):
-                    As_.append(OT[i:i+self.r].T)
+                    As_.append(Otrp[i:i+self.r].T)
                     i += self.r
                 self.A_ = AffineOperator(affines['A'], As_)
             else:
-                self.A_ = OT[i:i+self.r].T
+                self.A_ = Otrp[i:i+self.r].T
                 i += self.r
         else:
             self.A_ = None
@@ -1416,12 +1424,12 @@ class AffineInferredContinuousROM(_AffineContinuousROM,
             if 'H' in affines:
                 Hcs_ = []
                 for j in range(len(affines['H'])):
-                    Hcs_.append(OT[i:i+_r2].T)
+                    Hcs_.append(Otrp[i:i+_r2].T)
                     i += _r2
                 self.Hc_ = AffineOperator(affines['H'], Hcs_)
                 self.H_ = lambda µ: Hc2H(self.Hc_(µ))
             else:
-                self.Hc_ = OT[i:i+_r2].T
+                self.Hc_ = Otrp[i:i+_r2].T
                 i += _r2
                 self.H_ = Hc2H(self.Hc)
         else:
@@ -1431,11 +1439,11 @@ class AffineInferredContinuousROM(_AffineContinuousROM,
             if 'B' in affines:
                 Bs_ = []
                 for j in range(len(affines['B'])):
-                    Bs_.append(OT[i:i+self.m].T)
+                    Bs_.append(Otrp[i:i+self.m].T)
                     i += self.m
                 self.B_ = AffineOperator(affines['B'], Bs_)
             else:
-                self.B_ = OT[i:i+self.m].T
+                self.B_ = Otrp[i:i+self.m].T
                 i += self.m
         else:
             self.B_ = None
