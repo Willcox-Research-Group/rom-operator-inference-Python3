@@ -240,10 +240,13 @@ class _ContinuousROM(_BaseROM):
         if not self.has_inputs and u is None:
             if self.modelform == "c":
                 f_ = lambda t,x_: self.c_
+                # self._jac = np.zeros((self.r, self.r))
             elif self.modelform == "A":
                 f_ = lambda t,x_: self.A_@x_
+                # self._jac = self.A_
             elif self.modelform == "cA":
                 f_ = lambda t,x_: self.c_ + self.A_@x_
+                # self._jac = self.A_
             elif self.modelform == "H":
                 f_ = lambda t,x_: self.Hc_@kron2(x_)
             elif self.modelform == "cH":
@@ -256,13 +259,16 @@ class _ContinuousROM(_BaseROM):
             u_ = u
             if self.modelform == "B":
                 f_ = lambda t,x_: self.B_@u(t)
+                # self._jac = np.zeros((self.r, self.r))
             elif self.modelform == "cB":
                 f_ = lambda t,x_: self.c_ + self.B_@u_(t)
+                # self._jac = np.zeros((self.r, self.r))
             elif self.modelform == "AB":
                 f_ = lambda t,x_: self.A_@x_ + self.B_@u_(t)
-                self._jac = self.A_
+                # self._jac = self.A_
             elif self.modelform == "cAB":
                 f_ = lambda t,x_: self.c_ + self.A_@x_ + self.B_@u_(t)
+                # self._jac = self.A_
             elif self.modelform == "HB":
                 f_ = lambda t,x_: self.Hc_@kron2(x_) + self.B_@u_(t)
             elif self.modelform == "cHB":
@@ -710,7 +716,6 @@ class InferredContinuousROM(_ContinuousROM,
 
         D = np.hstack(D_blocks)
         self.datacond_ = np.linalg.cond(D)      # Condition number of data.
-        self.datarank_ = np.linalg.matrix_rank(D)
 
         # Solve for the reduced-order model operators via least squares.
         Otrp, res = lstsq_reg(D, Xdot_.T, P)[0:2]
