@@ -881,7 +881,7 @@ class IntrusiveContinuousROM(_ContinuousROM,
         else:
             self.c, self.c_ = None, None
 
-        if self.has_linear:               # Linear state matrix.
+        if self.has_linear:                 # Linear state matrix.
             self.A = operators['A']
             if self.A.shape != (self.n,self.n):
                 raise ValueError("basis Vr and FOM operator A not aligned")
@@ -889,7 +889,7 @@ class IntrusiveContinuousROM(_ContinuousROM,
         else:
             self.A, self.A_ = None, None
 
-        if self.has_quadratic:               # Quadratic state matrix.
+        if self.has_quadratic:              # Quadratic state matrix.
             H_or_Hc = operators['H']
             _n2 = self.n * (self.n + 1) // 2
             if H_or_Hc.shape == (self.n,self.n**2):          # It's H.
@@ -905,7 +905,7 @@ class IntrusiveContinuousROM(_ContinuousROM,
         else:
             self.Hc, self.H, self.Hc_ = None, None, None
 
-        if self.has_inputs:                     # Linear input matrix.
+        if self.has_inputs:                 # Linear input matrix.
             self.B = operators['B']
             if self.B.shape[0] != self.n:
                 raise ValueError("basis Vr and FOM operator B not aligned")
@@ -1209,8 +1209,10 @@ class AffineIntrusiveContinuousROM(_AffineContinuousROM,
                                    _IntrusiveMixin, _AffineMixin):
     """Reduced order model for a system of high-dimensional ODEs of the form
 
-        dx / dt = f(t, x(t), u(t); µ),          x(0;µ) = x0(µ).
+        dx / dt = f(t, x(t), u(t); µ),          x(0;µ) = x0(µ),
 
+    where the one or more of the operators that compose f have an affine
+    dependendence on the parameter, e.g, A(µ) = θ1(µ)A1 + θ2(µ)A2 + θ3(µ)A3.
     The user must specify the model form of the full-order model (FOM)
     operator f and the associated operators; the operators for the reduced
     model (ROM) are explicitly computed by projecting the full-order operators.
@@ -1351,7 +1353,7 @@ class AffineIntrusiveContinuousROM(_AffineContinuousROM,
         else:
             self.c, self.c_ = None, None
 
-        if self.has_linear:               # Linear state matrix.
+        if self.has_linear:                 # Linear state matrix.
             if 'A' in affines:
                 self.A = AffineOperator(affines['A'], operators['A'])
                 if self.A.shape != (self.n,self.n):
@@ -1371,18 +1373,18 @@ class AffineIntrusiveContinuousROM(_AffineContinuousROM,
             _n2 = self.n * (self.n + 1) // 2
             if 'H' in affines:
                 H_or_Hc = AffineOperator(affines['H'], operators['H'])
-                if H_or_Hc.shape == (self.n,self.n**2):      # It's H.
+                if H_or_Hc.shape == (self.n,self.n**2):     # It's H.
                     self.H = H_or_Hc
                     self.Hc = AffineOperator(affines['H'],
                                              [H2Hc(H)
                                               for H in H_or_Hc.matrices])
-                elif H_or_Hc.shape == (self.n,_n2):           # It's Hc.
+                elif H_or_Hc.shape == (self.n,_n2):         # It's Hc.
                     self.Hc = H_or_Hc
                     self.H = AffineOperator(affines['H'],
                                              [Hc2H(Hc)
                                               for Hc in H_or_Hc.matrices])
                 else:
-                    raise ValueError("basis VR and FOM operator H not aligned")
+                    raise ValueError("basis Vr and FOM operator H not aligned")
                 Vr2 = np.kron(self.Vr, self.Vr)
                 self.H_ = AffineOperator(affines['H'],
                                           [self.Vr.T @ H @ Vr2
@@ -1392,10 +1394,10 @@ class AffineIntrusiveContinuousROM(_AffineContinuousROM,
                                            for H_ in self.H_.matrices])
             else:
                 H_or_Hc = operators['H']
-                if H_or_Hc.shape == (self.n,self.n**2):      # It's H.
+                if H_or_Hc.shape == (self.n,self.n**2):     # It's H.
                     self.H = H_or_Hc
                     self.Hc = H2Hc(self.H)
-                elif H_or_Hc.shape == (self.n,_n2):           # It's Hc.
+                elif H_or_Hc.shape == (self.n,_n2):         # It's Hc.
                     self.Hc = H_or_Hc
                     self.H = Hc2H(self.Hc)
                 else:

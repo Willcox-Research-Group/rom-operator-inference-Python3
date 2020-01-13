@@ -17,6 +17,7 @@ _MODEL_FORMS = [''.join(s) for k in range(1, len(_MODEL_KEYS)+1)
 
 
 def _get_data(n=200, k=50, m=20):
+    """Get fake snapshot, velocity, and input data."""
     X = np.random.random((n,k))
     Xdot = np.zeros((n,k))
     U = np.ones((m,k))
@@ -24,6 +25,7 @@ def _get_data(n=200, k=50, m=20):
     return X, Xdot, U
 
 def _get_operators(n=200, m=20):
+    """Construct fake model operators."""
     c = np.random.random(n)
     A = np.eye(n)
     H = np.zeros((n,n**2))
@@ -32,6 +34,7 @@ def _get_operators(n=200, m=20):
     return c, A, H, Hc, B
 
 def _trainedmodel(continuous, modelform, Vr, m=20):
+    """Construct a base class with model operators already constructed."""
     if continuous:
         modelclass = roi._core._ContinuousROM
     else:
@@ -50,7 +53,7 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
         operators['B_'] = B
 
     return roi._core.trained_model_from_operators(modelclass, modelform,
-                                                   Vr, **operators)
+                                                  Vr, **operators)
 
 
 # Helper classes and functions ================================================
@@ -310,13 +313,11 @@ class TestContinuousROM:
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
-        X, Xdot, U = _get_data(n, k, m)
+        X = _get_data(n, k, m)[0]
         Vr = la.svd(X)[0][:,:r]
-        U1d = np.ones(k)
 
         # Get test (reduced) operators.
         c, A, H, Hc, B = _get_operators(r, m)
-        B1d = B[:,0]
 
         nt = 5
         x0 = X[:,0]
@@ -409,8 +410,33 @@ class TestContinuousROM:
                 assert out.shape == (n,nt)
 
 
+class TestAffineContinuousROM:
+    """Test _core._AffineContinuousROM"""
+    def test_predict(self):
+        """Test _core._AffineContinuousROM.predict()."""
+        model = roi._core._AffineContinuousROM("cAH")
+
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X = _get_data(n, k, m)[0]
+        Vr = la.svd(X)[0][:,:r]
+
+        # Get test operators.
+        ident = lambda a: a
+        c, A, H, Hc, B = _get_operators(r, m)
+        model.c_ = roi._core.AffineOperator([ident, ident], [c,c])
+        model.A_ = roi._core.AffineOperator([ident, ident, ident], [A,A,A])
+        model.Hc_ = roi._core.AffineOperator([ident], [Hc])
+        model.B_ = None
+        model.Vr = Vr
+
+        # Predict.
+        model.predict(1, X[:,0], np.linspace(0, 1, 100))
+
+
 # Mixin classes ===============================================================
 class TestInferredMixin:
+    """Test _core._InferredMixin."""
     def test_check_training_data_shapes(self):
         """Test _core._InferredMixin._check_training_data_shapes()."""
         # Get test data.
@@ -431,9 +457,15 @@ class TestInferredMixin:
         assert ex.value.args[0] == \
             f"X and Vr not aligned, first dimension {n} != {n-2}"
 
+        # Try to fit the model with misaligned X and U.
+        with pytest.raises(ValueError) as ex:
+            model._check_training_data_shapes(X, Xdot, Vr, U=U[:,:-1])
+
 
 class TestIntrusiveMixin:
+    """Test _core._IntrusiveMixin."""
     def test_check_operators(self):
+        """Test _core._IntrusiveMixin._check_operators()."""
         model = roi._core._IntrusiveMixin()
         model.modelform = "cAHB"
         v = None
@@ -462,7 +494,9 @@ class TestIntrusiveMixin:
 
 
 class TestAffineMixin:
+    """Test _core._AffineMixin."""
     def test_check_affines(self):
+        """Test _core._AffineMixin._check_affines()."""
         model = roi._core._AffineMixin()
         model.modelform = "cAHB"
         v = [lambda s: 0, lambda s: 0]
@@ -488,6 +522,7 @@ class TestAffineMixin:
 class TestInferredContinuousROM:
     """Test _core.InferredContinuousROM."""
     def test_fit(self):
+        """Test _core.InferredContinuousROM.fit()."""
         model = roi.InferredContinuousROM("cAH")
 
         # Get test data.
@@ -532,13 +567,13 @@ class TestInferredContinuousROM:
 
 class TestIntrusiveContinuousROM:
     """Test _core.IntrusiveContinuousROM."""
-
     def test_fit(self):
+        """Test _core.IntrusiveContinuousROM.fit()."""
         model = roi.IntrusiveContinuousROM("cAHB")
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
-        X, Xdot, U = _get_data(n, k, m)
+        X = _get_data(n, k, m)[0]
         Vr = la.svd(X)[0][:,:r]
 
         # Get test operators.
@@ -683,6 +718,136 @@ class TestInterpolatedInferredContinuousROM:
         model.fit(ps, Xs, Xdots, Vr, Us)
         model.predict(1, x0, t, u)
         model.predict(1.5, x0, t, u)
+
+
+class TestAffineIntrusiveContinuousROM:
+    """Test _core.AffineIntrusiveContinuousROM."""
+    def test_fit(self):
+        """Test _core.InterpolatedInferredContinuousROM.fit()."""
+        model = roi.AffineIntrusiveContinuousROM("cAHB")
+
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X = _get_data(n, k, m)[0]
+        Vr = la.svd(X)[0][:,:r]
+
+        # Get test operators.
+        c, A, H, Hc, B = _get_operators(n, m)
+        B1d = B[:,0]
+        ident = lambda a: a
+        affines = {"c": [ident, ident],
+                   "A": [ident, ident, ident],
+                   "H": [ident],
+                   "B": [ident, ident]}
+        operators = {"c": [c, c],
+                     "A": [A, A, A],
+                     "H": [H],
+                     "B": [B, B]}
+
+        # Try to fit the model with misaligned operators and Vr.
+        Abad = A[:,:-2]
+        Hbad = H[:,1:]
+        cbad = c[::2]
+        Bbad = B[1:,:]
+
+        with pytest.raises(ValueError) as ex:
+            model.fit(affines,
+                      {"c":[cbad, cbad],
+                       "A": [A, A, A],
+                       "H": [H],
+                       "B": [B, B]},
+                      Vr)
+        assert ex.value.args[0] == "basis Vr and FOM operator c not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit(affines,
+                      {"c":[c, c],
+                       "A": [Abad, Abad, Abad],
+                       "H": [H],
+                       "B": [B, B]},
+                      Vr)
+        assert ex.value.args[0] == "basis Vr and FOM operator A not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit(affines,
+                      {"c":[c, c],
+                       "A": [A, A, A],
+                       "H": [Hbad],
+                       "B": [B, B]},
+                      Vr)
+        assert ex.value.args[0] == \
+            "basis Vr and FOM operator H not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit(affines,
+                      {"c":[c, c],
+                       "A": [A, A, A],
+                       "H": [H],
+                       "B": [Bbad, Bbad]},
+                      Vr)
+        assert ex.value.args[0] == "basis Vr and FOM operator B not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit({}, {"c":cbad, "A":A, "H":H, "B":B}, Vr)
+        assert ex.value.args[0] == "basis Vr and FOM operator c not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit({}, {"c":c, "A":Abad, "H":H, "B":B}, Vr)
+        assert ex.value.args[0] == "basis Vr and FOM operator A not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit({}, {"c":c, "A":A, "H":Hbad, "B":B}, Vr)
+        assert ex.value.args[0] == "basis Vr and FOM operator H not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit({}, {"c":c, "A":A, "H":H, "B":Bbad}, Vr)
+        assert ex.value.args[0] == "basis Vr and FOM operator B not aligned"
+
+        # Fit the model correctly with each possible modelform.
+        for form in ["A", "cA", "H", "cH", "AH", "cAH", "cAHB"]:
+            model.modelform = form
+            afs = {key:val for key,val in affines.items() if key in form}
+            ops = {key:val for key,val in operators.items() if key in form}
+            model.fit(afs, ops, Vr)
+
+        model.modelform = "cAHB"
+        model.fit({}, {"c":c, "A":A, "H":H, "B":B}, Vr)
+        model.fit({}, {"c":c, "A":A, "H":Hc, "B":B}, Vr)
+        model.fit({}, {"c":c, "A":A, "H":H, "B":B1d}, Vr)
+        model.fit(affines,
+                  {"c":[c, c],
+                   "A": [A, A, A],
+                   "H": [Hc],
+                   "B": [B, B]},
+                  Vr)
+        model.fit(affines, operators, Vr)
+
+        # Test fit output sizes.
+        assert model.n == n
+        assert model.r == r
+        assert model.m == m
+        assert model.A.shape == (n,n)
+        assert model.Hc.shape == (n,n*(n+1)//2)
+        assert model.H.shape == (n,n**2)
+        assert model.c.shape == (n,)
+        assert model.B.shape == (n,m)
+        assert model.A_.shape == (r,r)
+        assert model.Hc_.shape == (r,r*(r+1)//2)
+        assert model.H_.shape == (r,r**2)
+        assert model.c_.shape == (r,)
+        assert model.B_.shape == (r,m)
+
+        # Fit the model with 1D inputs (1D array for B)
+        model.modelform = "cAHB"
+        model.fit(affines,
+                  {"c":[c, c],
+                   "A": [A, A, A],
+                   "H": [H],
+                   "B": [B1d, B1d]},
+                  Vr)
+        assert model.B.shape == (n,1)
+        assert model.B_.shape == (r,1)
+
 
 
 # Discrete ROMs (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
