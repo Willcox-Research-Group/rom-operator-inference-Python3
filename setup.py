@@ -6,7 +6,7 @@ with open("README.md", "r") as infile:
 
 setuptools.setup(
     # Package name and version.
-    name="rom_operator_inference-shanemcq18",
+    name="rom_operator_inference",
     version="0.6.2",
 
     # Package description, license, and keywords.
