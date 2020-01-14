@@ -150,6 +150,8 @@ def trained_model_from_operators(modelclass, modelform, Vr,
     # Construct the ROM operator f_() if there are no system inputs.
     if not model.has_inputs and issubclass(modelclass, _ContinuousROM):
         model._construct_f_()
+    elif issubclass(modelclass, _DiscreteROM):
+        model._construct_f_()
 
     return model
 
@@ -224,6 +226,126 @@ class _BaseROM:
                              " since 'B' in modelform")
 
 
+class _DiscreteROM(_BaseROM):
+    """Base class for models that solve the discrete ROM problem,
+
+        x_{k+1} = f(x_{k}, u_{k}),         x_{0} = x0.
+
+    The problem may also be parametric, i.e., x and f may depend on an
+    independent parameter µ.
+    """
+    def _construct_f_(self):
+        """Define the attribute self.f_ based on the computed operators."""
+        self._check_modelform(trained=True)
+
+        # No control inputs, so f = f(x).
+        if self.modelform == "c":
+            f_ = lambda x_: self.c_
+        elif self.modelform == "A":
+            f_ = lambda x_: self.A_@x_
+        elif self.modelform == "cA":
+            f_ = lambda x_: self.c_ + self.A_@x_
+        elif self.modelform == "H":
+            f_ = lambda x_: self.Hc_@kron2(x_)
+        elif self.modelform == "cH":
+            f_ = lambda x_: self.c_ + self.Hc_@kron2(x_)
+        elif self.modelform == "AH":
+            f_ = lambda x_: self.A_@x_ + self.Hc_@kron2(x_)
+        elif self.modelform == "cAH":
+            f_ = lambda x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_)
+        # Has control inputs, so f = f(x, u).
+        elif self.modelform == "B":
+            f_ = lambda x_,u: self.B_@u
+        elif self.modelform == "cB":
+            f_ = lambda x_,u: self.c_ + self.B_@u
+        elif self.modelform == "AB":
+            f_ = lambda x_,u: self.A_@x_ + self.B_@u
+        elif self.modelform == "cAB":
+            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.B_@u
+        elif self.modelform == "HB":
+            f_ = lambda x_,u: self.Hc_@kron2(x_) + self.B_@u
+        elif self.modelform == "cHB":
+            f_ = lambda x_,u: self.c_ + self.Hc_@kron2(x_) + self.B_@u
+        elif self.modelform == "AHB":
+            f_ = lambda x_,u: self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u
+        elif self.modelform == "cAHB":
+            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u
+
+        self.f_ = f_
+
+    def __str__(self):
+        """String representation: the structure of the model."""
+        self._check_modelform()
+        out = []
+        if self.has_constant:  out.append("c")
+        if self.has_linear:    out.append("Ax_{k}")
+        if self.has_quadratic: out.append("H(x_{k} ⊗ x_{k})")
+        if self.has_inputs:    out.append("Bu_{k}")
+
+        return "Reduced-order model structure: x_{k+1} = " + " + ".join(out)
+
+    def fit(self, *args, **kwargs):             # pragma: no cover
+        raise NotImplementedError("fit() must be implemented by child classes")
+
+    def predict(self, x0, niters, U=None, **options):
+        """Step forward the learned ROM `niters` steps.
+
+        Parameters
+        ----------
+        x0 : (n,) ndarray
+            The initial (high-dimensional) state vector to begin a simulation.
+
+        niters : int
+            The number of times to step the system forward.
+
+        U : (m,niters-1) ndarray
+            The inputs for the next niters time steps.
+
+        Returns
+        -------
+        X_ROM: (n,niters) ndarray
+            The reduced-order solutions to the full-order system, including
+            the (projected) given initial condition.
+        """
+        # Verify modelform.
+        self._check_modelform(trained=True)
+        self._check_inputargs(U, 'U')
+
+        # Check dimensions.
+        if x0.shape != (self.n,):
+            raise ValueError("invalid initial state shape "
+                             f"({x0.shape} != {(self.n,)})")
+
+        # Verify iteration argument.
+        if not isinstance(niters, int) or niters < 0:
+            raise ValueError("argument 'niters' must be a nonnegative integer")
+
+        # Project initial conditions.
+        x0_ = self.Vr.T @ x0
+
+        # Create the solution array and fill in the initial condition.
+        X_ = np.empty((self.Vr.shape[1],niters))
+        X_[:,0] = x0_.copy()
+
+        # Run the iteration.
+        if self.has_inputs:
+            if callable(U):
+                raise TypeError("input U must be an array, not a callable")
+            # Validate shape of input, reshaping if input is 1d.
+            U = np.atleast_2d(U)
+            if U.shape != (self.m,niters-1) and U.shape != (self.m,niters):
+                raise ValueError("invalid input shape "
+                                 f"({U.shape} != {(self.m,niters-1)}")
+            for j in range(niters-1):
+                X_[:,j+1] = self.f_(X_[:,j], U[:,j])    # f(xj,uj)
+        else:
+            for j in range(niters-1):
+                X_[:,j+1] = self.f_(X_[:,j])            # f(xj)
+
+        # Reconstruct the approximation to the full-order model.
+        return self.Vr @ X_
+
+
 class _ContinuousROM(_BaseROM):
     """Base class for models that solve the continuous (ODE) ROM problem,
 
@@ -236,49 +358,50 @@ class _ContinuousROM(_BaseROM):
         """Define the attribute self.f_ based on the computed operators and,
         if appropriate, the input function u(t).
         """
+        self._check_modelform(trained=True)
+        self._check_inputargs(u, 'u')
+
         self._jac = None
-        if not self.has_inputs and u is None:
-            if self.modelform == "c":
-                f_ = lambda t,x_: self.c_
-                # self._jac = np.zeros((self.r, self.r))
-            elif self.modelform == "A":
-                f_ = lambda t,x_: self.A_@x_
-                # self._jac = self.A_
-            elif self.modelform == "cA":
-                f_ = lambda t,x_: self.c_ + self.A_@x_
-                # self._jac = self.A_
-            elif self.modelform == "H":
-                f_ = lambda t,x_: self.Hc_@kron2(x_)
-            elif self.modelform == "cH":
-                f_ = lambda t,x_: self.c_ + self.Hc_@kron2(x_)
-            elif self.modelform == "AH":
-                f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2(x_)
-            elif self.modelform == "cAH":
-                f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_)
-        elif self.has_inputs and u is not None:
-            u_ = u
-            if self.modelform == "B":
-                f_ = lambda t,x_: self.B_@u(t)
-                # self._jac = np.zeros((self.r, self.r))
-            elif self.modelform == "cB":
-                f_ = lambda t,x_: self.c_ + self.B_@u_(t)
-                # self._jac = np.zeros((self.r, self.r))
-            elif self.modelform == "AB":
-                f_ = lambda t,x_: self.A_@x_ + self.B_@u_(t)
-                # self._jac = self.A_
-            elif self.modelform == "cAB":
-                f_ = lambda t,x_: self.c_ + self.A_@x_ + self.B_@u_(t)
-                # self._jac = self.A_
-            elif self.modelform == "HB":
-                f_ = lambda t,x_: self.Hc_@kron2(x_) + self.B_@u_(t)
-            elif self.modelform == "cHB":
-                f_ = lambda t,x_: self.c_ + self.Hc_@kron2(x_) + self.B_@u_(t)
-            elif self.modelform == "AHB":
-                f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u_(t)
-            elif self.modelform == "cAHB":
-                f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u_(t)
-        else:
-            raise RuntimeError("improper use of _construct_f_()!")
+        u_ = u
+        # No control inputs.
+        if self.modelform == "c":
+            f_ = lambda t,x_: self.c_
+            # self._jac = np.zeros((self.r, self.r))
+        elif self.modelform == "A":
+            f_ = lambda t,x_: self.A_@x_
+            # self._jac = self.A_
+        elif self.modelform == "cA":
+            f_ = lambda t,x_: self.c_ + self.A_@x_
+            # self._jac = self.A_
+        elif self.modelform == "H":
+            f_ = lambda t,x_: self.Hc_@kron2(x_)
+        elif self.modelform == "cH":
+            f_ = lambda t,x_: self.c_ + self.Hc_@kron2(x_)
+        elif self.modelform == "AH":
+            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2(x_)
+        elif self.modelform == "cAH":
+            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_)
+        # Has control inputs.
+        elif self.modelform == "B":
+            f_ = lambda t,x_: self.B_@u_(t)
+            # self._jac = np.zeros((self.r, self.r))
+        elif self.modelform == "cB":
+            f_ = lambda t,x_: self.c_ + self.B_@u_(t)
+            # self._jac = np.zeros((self.r, self.r))
+        elif self.modelform == "AB":
+            f_ = lambda t,x_: self.A_@x_ + self.B_@u_(t)
+            # self._jac = self.A_
+        elif self.modelform == "cAB":
+            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.B_@u_(t)
+            # self._jac = self.A_
+        elif self.modelform == "HB":
+            f_ = lambda t,x_: self.Hc_@kron2(x_) + self.B_@u_(t)
+        elif self.modelform == "cHB":
+            f_ = lambda t,x_: self.c_ + self.Hc_@kron2(x_) + self.B_@u_(t)
+        elif self.modelform == "AHB":
+            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u_(t)
+        elif self.modelform == "cAHB":
+            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u_(t)
         self.f_ = f_
 
     def __str__(self):
@@ -338,9 +461,9 @@ class _ContinuousROM(_BaseROM):
         self._check_inputargs(u, 'u')
 
         # Check dimensions.
-        if x0.shape[0] != self.n:
-            raise ValueError("invalid initial state size "
-                             f"({x0.shape[0]} != {self.n})")
+        if x0.shape != (self.n,):
+            raise ValueError("invalid initial state shape "
+                             f"({x0.shape} != {(self.n,)})")
 
         if t.ndim != 1:
             raise ValueError("time 't' must be one-dimensional")
@@ -393,32 +516,6 @@ class _ContinuousROM(_BaseROM):
 
         # Reconstruct the approximation to the full-order model.
         return self.Vr @ self.sol_.y
-
-
-class _DiscreteROM(_BaseROM):           # pragma: no cover
-    """Base class for models that solve the discrete ROM problem,
-
-        x_{k+1} = f(x_{k}, u_{k}),         x_{0} = x0.
-
-    The problem may also be parametric, i.e., x and f may depend on an
-    independent parameter µ.
-    """
-    def fit(self, *args, **kwargs):             # pragma: no cover
-        raise NotImplementedError("fit() must be implemented by child classes")
-
-    def predict(self, x0, niters, U=None, **options):
-        raise NotImplementedError("TODO")
-
-    def __str__(self):
-        """String representation: the structure of the model."""
-        self._check_modelform()
-        out = []
-        if self.has_constant:  out.append("c")
-        if self.has_linear:    out.append("Ax_{k}")
-        if self.has_quadratic: out.append("H(x_{k} ⊗ x_{k})")
-        if self.has_inputs:    out.append("Bu_{k}")
-
-        return "Reduced-order model structure: x_{k+1} = " + " + ".join(out)
 
 
 class _AffineContinuousROM(_ContinuousROM):

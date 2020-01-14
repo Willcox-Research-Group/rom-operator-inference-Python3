@@ -261,24 +261,147 @@ class TestBaseROM:
             "argument 'u' invalid since 'B' in modelform"
 
 
+class TestDiscreteROM:
+    """Test _core._DiscreteROM."""
+    def test_construct_f_(self):
+        """Test _core.DiscreteROM._construct_f_()."""
+        model = roi._core._DiscreteROM('')
+
+        # Check that the constructed f takes the right number of arguments.
+        model.modelform = "cA"
+        model.c_, model.A_ = 1, 1
+        model.Hc_, model.B_ = None, None
+        model._construct_f_()
+        with pytest.raises(TypeError) as ex:
+            model.f_(1, 2)
+        assert ex.value.args[0] == \
+            "<lambda>() takes 1 positional argument but 2 were given"
+
+        model.modelform = "HB"
+        model.Hc_, model.B_ = 1, 1
+        model.c_, model.A_, = None, None
+        model._construct_f_()
+        with pytest.raises(TypeError) as ex:
+            model.f_(1)
+        assert ex.value.args[0] == \
+            "<lambda>() missing 1 required positional argument: 'u'"
+
+    def test_str(self):
+        """Test _core.DiscreteROM.__str__()."""
+        model = roi._core._DiscreteROM('')
+        model.modelform = "A"
+        assert str(model) == \
+            "Reduced-order model structure: x_{k+1} = Ax_{k}"
+        model.modelform = "cB"
+        assert str(model) == \
+            "Reduced-order model structure: x_{k+1} = c + Bu_{k}"
+        model.modelform = "H"
+        assert str(model) == \
+            "Reduced-order model structure: x_{k+1} = H(x_{k} ⊗ x_{k})"
+
+    def test_fit(self):
+        """Test _core._DiscreteROM.fit()."""
+        model = roi._core._DiscreteROM("A")
+        with pytest.raises(NotImplementedError) as ex:
+            model.fit()
+        assert ex.value.args[0] == \
+            "fit() must be implemented by child classes"
+
+        with pytest.raises(NotImplementedError) as ex:
+            model.fit(1, 2, 3, 4, 5, 6, 7, a=8)
+        assert ex.value.args[0] == \
+            "fit() must be implemented by child classes"
+
+    def test_predict(self):
+        """Test _core._DiscreteROM.predict()."""
+        model = roi._core._DiscreteROM('')
+
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X = _get_data(n, k, m)[0]
+        Vr = la.svd(X)[0][:,:r]
+
+        # Get test (reduced) operators.
+        c, A, H, Hc, B = _get_operators(r, m)
+
+        niters = 5
+        x0 = X[:,0]
+        U = np.ones((m, niters-1))
+
+        # Try to predict with invalid initial condition.
+        x0_ = Vr.T @ x0
+        model = _trainedmodel(False, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0_, niters, U)
+        assert ex.value.args[0] == \
+            f"invalid initial state shape ({(r,)} != {(n,)})"
+
+        # Try to predict with bad niters argument.
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, -18, U)
+        assert ex.value.args[0] == \
+            "argument 'niters' must be a nonnegative integer"
+
+        # Predict without inputs.
+        for form in _MODEL_FORMS:
+            if "B" not in form:
+                model = _trainedmodel(False, form, Vr, None)
+                model.predict(x0, niters)
+
+        # Try to predict with badly-shaped discrete inputs.
+        model = _trainedmodel(False, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, niters, np.random.random((m-1, niters-1)))
+        assert ex.value.args[0] == \
+            f"invalid input shape ({(m-1,niters-1)} != {(m,niters-1)}"
+
+        model = _trainedmodel(False, "cAHB", Vr, m=1)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, niters, np.random.random((2, niters-1)))
+        assert ex.value.args[0] == \
+            f"invalid input shape ({(2,niters-1)} != {(1,niters-1)}"
+
+        # Try to predict with continuous inputs.
+        model = _trainedmodel(False, "cAHB", Vr, m)
+        with pytest.raises(TypeError) as ex:
+            model.predict(x0, niters, lambda t: np.ones(m-1))
+        assert ex.value.args[0] == "input U must be an array, not a callable"
+
+        for form in _MODEL_FORMS:
+            if "B" in form:
+                # Predict with 2D inputs.
+                model = _trainedmodel(False, form, Vr, m)
+                # discrete input.
+                out = model.predict(x0, niters, U)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,niters)
+
+                # Predict with 1D inputs.
+                model = _trainedmodel(False, form, Vr, 1)
+                # discrete input.
+                out = model.predict(x0, niters, np.ones(niters))
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,niters)
+
+
 class TestContinuousROM:
     """Test _core._ContinuousROM."""
     def test_construct_f_(self):
-        """Test incorrect usage of BaseContinuousROM._construct_f_()."""
+        """Test incorrect usage of _core.ContinuousROM._construct_f_()."""
         model = roi._core._ContinuousROM('')
 
+        # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
-        with pytest.raises(RuntimeError) as ex:
-            model._construct_f_(lambda t: 1)
-        assert ex.value.args[0] == "improper use of _construct_f_()!"
-
-        model.modelform = "cHB"
-        with pytest.raises(RuntimeError) as ex:
-            model._construct_f_()
-        assert ex.value.args[0] == "improper use of _construct_f_()!"
+        model.c_, model.A_ = 1, 1
+        model.Hc_, model.B_ = None, None
+        model._construct_f_()
+        with pytest.raises(TypeError) as ex:
+            model.f_(1)
+        assert ex.value.args[0] == \
+            "<lambda>() missing 1 required positional argument: 'x_'"
 
     def test_str(self):
-        """Test BaseContinuousROM.__str__() (string representation)."""
+        """Test _core.ContinuousROM.__str__() (string representation)."""
         model = roi._core._ContinuousROM('')
 
         model.modelform = "A"
@@ -330,7 +453,8 @@ class TestContinuousROM:
         model = _trainedmodel(True, "cAHB", Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0_, t, u)
-        assert ex.value.args[0] == f"invalid initial state size ({r} != {n})"
+        assert ex.value.args[0] == \
+            f"invalid initial state shape ({(r,)} != {(n,)})"
 
         # Try to predict with bad time array.
         with pytest.raises(ValueError) as ex:
