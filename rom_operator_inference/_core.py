@@ -1,5 +1,5 @@
 # _core.py
-"""Class for model order reduction of ODEs via operator inference."""
+"""Classes for reduction of dynamical systems via operator inference."""
 
 import warnings
 import itertools
@@ -236,13 +236,17 @@ class _ContinuousROM(_BaseROM):
         """Define the attribute self.f_ based on the computed operators and,
         if appropriate, the input function u(t).
         """
+        self._jac = None
         if not self.has_inputs and u is None:
             if self.modelform == "c":
                 f_ = lambda t,x_: self.c_
+                # self._jac = np.zeros((self.r, self.r))
             elif self.modelform == "A":
                 f_ = lambda t,x_: self.A_@x_
+                # self._jac = self.A_
             elif self.modelform == "cA":
                 f_ = lambda t,x_: self.c_ + self.A_@x_
+                # self._jac = self.A_
             elif self.modelform == "H":
                 f_ = lambda t,x_: self.Hc_@kron2(x_)
             elif self.modelform == "cH":
@@ -255,12 +259,16 @@ class _ContinuousROM(_BaseROM):
             u_ = u
             if self.modelform == "B":
                 f_ = lambda t,x_: self.B_@u(t)
+                # self._jac = np.zeros((self.r, self.r))
             elif self.modelform == "cB":
                 f_ = lambda t,x_: self.c_ + self.B_@u_(t)
+                # self._jac = np.zeros((self.r, self.r))
             elif self.modelform == "AB":
                 f_ = lambda t,x_: self.A_@x_ + self.B_@u_(t)
+                # self._jac = self.A_
             elif self.modelform == "cAB":
                 f_ = lambda t,x_: self.c_ + self.A_@x_ + self.B_@u_(t)
+                # self._jac = self.A_
             elif self.modelform == "HB":
                 f_ = lambda t,x_: self.Hc_@kron2(x_) + self.B_@u_(t)
             elif self.modelform == "cHB":
@@ -376,6 +384,7 @@ class _ContinuousROM(_BaseROM):
                               [t[0], t[-1]],    # over this time interval
                               x0_,              # with this initial condition
                               t_eval=t,         # evaluated at these points
+                              # jac=self._jac,    # with this Jacobian
                               **options)        # with these solver options.
 
         # Raise warnings if the integration failed.
@@ -484,8 +493,8 @@ class _AffineContinuousROM(_ContinuousROM):
 class _InferredMixin:
     """Mixin class for reduced model classes that use operator inference."""
     @staticmethod
-    def _check_training_data_shapes(X, Xdot, Vr):
-        """Ensure that X, Xdot, and Vr are aligned."""
+    def _check_training_data_shapes(X, Xdot, Vr, U=None):
+        """Ensure that X, Xdot, Vr, and U are aligned."""
         if X.shape != Xdot.shape:
             raise ValueError("shape of X != shape of Xdot "
                              f"({X.shape} != {Xdot.shape})")
@@ -493,6 +502,10 @@ class _InferredMixin:
         if X.shape[0] != Vr.shape[0]:
             raise ValueError("X and Vr not aligned, first dimension "
                              f"{X.shape[0]} != {Vr.shape[0]}")
+
+        if U is not None and X.shape[-1] != U.shape[-1]:
+            raise ValueError("X and U not aligned, last dimension "
+                             f"{X.shape[-1]} != {U.shape[-1]}")
 
     @staticmethod
     def _check_dataset_consistency(arrlist, label):
@@ -671,7 +684,7 @@ class InferredContinuousROM(_ContinuousROM,
         self._check_inputargs(U, 'U')
 
         # Check and store dimensions.
-        self._check_training_data_shapes(X, Xdot, Vr)
+        self._check_training_data_shapes(X, Xdot, Vr, U)
         n,k = X.shape           # Dimension of system, number of shapshots.
         r = Vr.shape[1]         # Number of basis vectors.
         self.n, self.r, self.m = n, r, None
@@ -705,31 +718,31 @@ class InferredContinuousROM(_ContinuousROM,
         self.datacond_ = np.linalg.cond(D)      # Condition number of data.
 
         # Solve for the reduced-order model operators via least squares.
-        OT, res = lstsq_reg(D, Xdot_.T, P)[0:2]
+        Otrp, res = lstsq_reg(D, Xdot_.T, P)[0:2]
         self.residual_ = np.sum(res)
 
-        # Extract the reduced operators from OT.
+        # Extract the reduced operators from Otrp.
         i = 0
         if self.has_constant:
-            self.c_ = OT[i:i+1][0]       # Note that c_ is one-dimensional.
+            self.c_ = Otrp[i:i+1][0]        # Note that c_ is one-dimensional.
             i += 1
         else:
             self.c_ = None
 
         if self.has_linear:
-            self.A_ = OT[i:i+self.r].T
+            self.A_ = Otrp[i:i+self.r].T
             i += self.r
         else:
             self.A_ = None
 
         if self.has_quadratic:
-            self.Hc_ = OT[i:i+_r2].T
+            self.Hc_ = Otrp[i:i+_r2].T
             i += _r2
         else:
             self.Hc_ = None
 
         if self.has_inputs:
-            self.B_ = OT[i:i+self.m].T
+            self.B_ = Otrp[i:i+self.m].T
             i += self.m
         else:
             self.B_ = None
@@ -868,7 +881,7 @@ class IntrusiveContinuousROM(_ContinuousROM,
         else:
             self.c, self.c_ = None, None
 
-        if self.has_linear:               # Linear state matrix.
+        if self.has_linear:                 # Linear state matrix.
             self.A = operators['A']
             if self.A.shape != (self.n,self.n):
                 raise ValueError("basis Vr and FOM operator A not aligned")
@@ -876,7 +889,7 @@ class IntrusiveContinuousROM(_ContinuousROM,
         else:
             self.A, self.A_ = None, None
 
-        if self.has_quadratic:               # Quadratic state matrix.
+        if self.has_quadratic:              # Quadratic state matrix.
             H_or_Hc = operators['H']
             _n2 = self.n * (self.n + 1) // 2
             if H_or_Hc.shape == (self.n,self.n**2):          # It's H.
@@ -892,7 +905,7 @@ class IntrusiveContinuousROM(_ContinuousROM,
         else:
             self.Hc, self.H, self.Hc_ = None, None, None
 
-        if self.has_inputs:                     # Linear input matrix.
+        if self.has_inputs:                 # Linear input matrix.
             self.B = operators['B']
             if self.B.shape[0] != self.n:
                 raise ValueError("basis Vr and FOM operator B not aligned")
@@ -1192,263 +1205,14 @@ class InterpolatedInferredContinuousROM(_ContinuousROM,
         return len(self.models_) if hasattr(self, "models_") else 0
 
 
-class AffineInferredContinuousROM(_AffineContinuousROM,
-                                  _InferredMixin, _AffineMixin):
-    """Reduced order model for a system of high-dimensional ODEs of the form
-
-        dx / dt = f(t, x(t), u(t); µ),          x(0;µ) = x0(µ).
-
-    The user must specify the model form of the full-order model (FOM)
-    operator f and the associated operators; the operators for the reduced
-    model (ROM) are explicitly computed by projecting the full-order operators.
-
-    Parameters
-    ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        * 'c' : Constant term c(µ).
-        * 'A' : Linear state term A(µ)x(t).
-        * 'H' : Quadratic state term H(µ)(x⊗x)(t).
-        * 'B' : Linear input term B(µ)u(t).
-        For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c(µ).
-
-    has_linear : bool
-        Whether or not there is a linear term A(µ)x(t).
-
-    has_quadratic : bool
-        Whether or not there is a quadratic term H(µ)(x⊗x)(t).
-
-    has_inputs : bool
-        Whether or not there is an input term B(µ)u(t).
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the projected reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    c_ : func(µ) -> (r,) ndarray; (r,) ndarray; or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : func(µ) -> (r,r) ndarray; (r,r) ndarray; or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : func(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : func(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
-
-    B_ : func(µ) -> (r,m) ndarray; (r,m) ndarray; or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
-    """
-    def fit(self, µs, affines, Xs, Xdots, Vr, Us=None, P=0):
-        """Solve for the reduced model operators via regularized least squares.
-        For terms with affine structure, solve for the constituent operators.
-
-        Parameters
-        ----------
-        µs : list of s scalars or (p,) ndarrays
-            Parameter values at which the snapshot data is collected.
-
-        affines : dict(str -> list(functions))
-            Functions that define the structures of the affine operators.
-            Keys must match the modelform:
-            * 'c': Constant term c(µ).
-            * 'A': Linear state matrix A(µ).
-            * 'H': Quadratic state matrix H(µ).
-            * 'B': Linear input matrix B(µ).
-            For example, if the constant term has the affine structure
-            c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
-
-        Xs : list of s (n,k) ndarrays
-            Column-wise snapshot training data (each column is a snapshot).
-            The ith array Xs[i] corresponds to the ith parameter, µs[i].
-
-        Xdots : list of s (n,k) ndarrays
-            Column-wise velocity training data. The ith array Xdots[i]
-            corresponds to the ith parameter, µs[i].
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
-
-        Us : list of s (m,k) or (k,) ndarrays or None
-            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
-            in `modelform`; must be None if 'B' is not in `modelform`.
-
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
-
-        Returns
-        -------
-        self
-        """
-        # Check modelform and inputs.
-        self._check_modelform()
-        self._check_affines(affines, µs[0])
-        self._check_inputargs(Us, 'Us')
-
-        # Check and store dimensions.
-        for X, Xdot in zip(Xs, Xdots):
-            self._check_training_data_shapes(X, Xdot, Vr)
-        n,k = Xs[0].shape       # Dimension of system, number of shapshots.
-        r = Vr.shape[1]         # Number of basis vectors.
-        self.n, self.r, self.m = n, r, None
-
-        # Check that all arrays in each list of arrays are the same sizes.
-        _tocheck = [(Xs, "X"), (Xdots, "Xdot")]
-        if self.has_inputs:
-            _tocheck += [(Us, "U")]
-            self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
-        for dataset, label in _tocheck:
-            self._check_dataset_consistency(dataset, label)
-
-        # Project states and velocities to the reduced subspace.
-        Xs_ = [Vr.T @ X for X in Xs]
-        Xdots_ = [Vr.T @ Xdot for Xdot in Xdots]
-        self.Vr = Vr
-
-        # Construct the "Data matrix" D.
-        D_blockrows = []
-        for i in range(len(µs)):
-            row = []
-            µ = µs[i]
-            k = Xs[i].shape[1]
-
-            if self.has_constant:
-                ones = np.ones(k).reshape((k,1))
-                if 'c' in affines:
-                    for j in range(len(affines['c'])):
-                        row.append(affines['c'][j](µ) * ones)
-                else:
-                    row.append(ones)
-
-            if self.has_linear:
-                if 'A' in affines:
-                    for j in range(len(affines['A'])):
-                        row.append(affines['A'][j](µ) * Xs_[i].T)
-                else:
-                    row.append(Xs_[i].T)
-
-            if self.has_quadratic:
-                X2i_ = kron2(Xs_[i])
-                if 'H' in affines:
-                    for j in range(len(affines['H'])):
-                        row.append(affines['H'][j](µ) * X2i_.T)
-                else:
-                    row.append(X2i_.T)
-
-            if self.has_inputs:
-                Ui = Us[i]
-                if self.m == 1:
-                    Ui = Ui.reshape((1,k))
-                if 'B' in affines:
-                    for j in range(len(affines['B'])):
-                        row.append(affines['B'][j](µ) * Ui.T)
-                else:
-                    row.append(Ui.T)
-
-            D_blockrows.append(np.hstack(row))
-
-        D = np.vstack(D_blockrows)
-        self.datacond_ = np.linalg.cond(D)      # Condition number of data.
-        R = np.hstack(Xdots_).T
-
-        # Solve for the reduced-order model operators via least squares.
-        OT, res = lstsq_reg(D, R, P)[0:2]
-        self.residual_ = np.sum(res)
-
-        # Extract the reduced operators from OT.
-        i = 0
-        if self.has_constant:
-            if 'c' in affines:
-                cs_ = []
-                for j in range(len(affines['c'])):
-                    cs_.append(OT[i:i+1][0])        # c_ is one-dimensional.
-                    i += 1
-                self.c_ = AffineOperator(affines['c'], cs_)
-            else:
-                self.c_ = OT[i:i+1][0]              # c_ is one-dimensional.
-                i += 1
-        else:
-            self.c_, self.cs_ = None, None
-
-        if self.has_linear:
-            if 'A' in affines:
-                As_ = []
-                for j in range(len(affines['A'])):
-                    As_.append(OT[i:i+self.r].T)
-                    i += self.r
-                self.A_ = AffineOperator(affines['A'], As_)
-            else:
-                self.A_ = OT[i:i+self.r].T
-                i += self.r
-        else:
-            self.A_ = None
-
-        if self.has_quadratic:
-            _r2 = self.r * (self.r + 1) // 2
-            if 'H' in affines:
-                Hcs_ = []
-                for j in range(len(affines['H'])):
-                    Hcs_.append(OT[i:i+_r2].T)
-                    i += _r2
-                self.Hc_ = AffineOperator(affines['H'], Hcs_)
-                self.H_ = lambda µ: Hc2H(self.Hc_(µ))
-            else:
-                self.Hc_ = OT[i:i+_r2].T
-                i += _r2
-                self.H_ = Hc2H(self.Hc)
-        else:
-            self.Hc_, self.H_ = None, None
-
-        if self.has_inputs:
-            if 'B' in affines:
-                Bs_ = []
-                for j in range(len(affines['B'])):
-                    Bs_.append(OT[i:i+self.m].T)
-                    i += self.m
-                self.B_ = AffineOperator(affines['B'], Bs_)
-            else:
-                self.B_ = OT[i:i+self.m].T
-                i += self.m
-        else:
-            self.B_ = None
-
-        return self
-
-
 class AffineIntrusiveContinuousROM(_AffineContinuousROM,
                                    _IntrusiveMixin, _AffineMixin):
     """Reduced order model for a system of high-dimensional ODEs of the form
 
-        dx / dt = f(t, x(t), u(t); µ),          x(0;µ) = x0(µ).
+        dx / dt = f(t, x(t), u(t); µ),          x(0;µ) = x0(µ),
 
+    where the one or more of the operators that compose f have an affine
+    dependendence on the parameter, e.g, A(µ) = θ1(µ)A1 + θ2(µ)A2 + θ3(µ)A3.
     The user must specify the model form of the full-order model (FOM)
     operator f and the associated operators; the operators for the reduced
     model (ROM) are explicitly computed by projecting the full-order operators.
@@ -1589,7 +1353,7 @@ class AffineIntrusiveContinuousROM(_AffineContinuousROM,
         else:
             self.c, self.c_ = None, None
 
-        if self.has_linear:               # Linear state matrix.
+        if self.has_linear:                 # Linear state matrix.
             if 'A' in affines:
                 self.A = AffineOperator(affines['A'], operators['A'])
                 if self.A.shape != (self.n,self.n):
@@ -1609,18 +1373,18 @@ class AffineIntrusiveContinuousROM(_AffineContinuousROM,
             _n2 = self.n * (self.n + 1) // 2
             if 'H' in affines:
                 H_or_Hc = AffineOperator(affines['H'], operators['H'])
-                if H_or_Hc.shape == (self.n,self.n**2):      # It's H.
+                if H_or_Hc.shape == (self.n,self.n**2):     # It's H.
                     self.H = H_or_Hc
                     self.Hc = AffineOperator(affines['H'],
                                              [H2Hc(H)
                                               for H in H_or_Hc.matrices])
-                elif H_or_Hc.shape == (self.n,_n2):           # It's Hc.
+                elif H_or_Hc.shape == (self.n,_n2):         # It's Hc.
                     self.Hc = H_or_Hc
                     self.H = AffineOperator(affines['H'],
                                              [Hc2H(Hc)
                                               for Hc in H_or_Hc.matrices])
                 else:
-                    raise ValueError("basis VR and FOM operator H not aligned")
+                    raise ValueError("basis Vr and FOM operator H not aligned")
                 Vr2 = np.kron(self.Vr, self.Vr)
                 self.H_ = AffineOperator(affines['H'],
                                           [self.Vr.T @ H @ Vr2
@@ -1630,10 +1394,10 @@ class AffineIntrusiveContinuousROM(_AffineContinuousROM,
                                            for H_ in self.H_.matrices])
             else:
                 H_or_Hc = operators['H']
-                if H_or_Hc.shape == (self.n,self.n**2):      # It's H.
+                if H_or_Hc.shape == (self.n,self.n**2):     # It's H.
                     self.H = H_or_Hc
                     self.Hc = H2Hc(self.H)
-                elif H_or_Hc.shape == (self.n,_n2):           # It's Hc.
+                elif H_or_Hc.shape == (self.n,_n2):         # It's Hc.
                     self.Hc = H_or_Hc
                     self.H = Hc2H(self.Hc)
                 else:
@@ -1681,7 +1445,6 @@ class AffineIntrusiveContinuousROM(_AffineContinuousROM,
 __all__ = [
             "InferredContinuousROM",
             "IntrusiveContinuousROM",
-            "AffineInferredContinuousROM",
             "AffineIntrusiveContinuousROM",
             "InterpolatedInferredContinuousROM",
           ]

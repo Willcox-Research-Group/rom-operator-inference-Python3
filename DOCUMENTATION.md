@@ -8,6 +8,7 @@ This document contains documentation for `rom_operator_inference` classes and fu
     - [**InferredContinuousROM**](#inferredcontinuousrom)
     - [**InterpolatedInferredContinuousROM**](#interpolatedinferredcontinuousrom)
     - [**IntrusiveContinuousROM**](#intrusivecontinuousrom)
+    - [**AffineIntrusiveContinuousROM**](#affineintrusivecontinuousrom)
 - [**Preprocessing**](#preprocessing-tools)
 - [**Postprocessing**](#postprocessing-tools)
 - [**Utility Functions**](#utility-functions)
@@ -30,8 +31,8 @@ Only those with "Operator Inference" as the strategy are novel; the others are i
 | `InferredContinuousROM` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t))"/> | Operator Inference |
 | `InterpolatedInferredContinuousROM` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t;\boldsymbol{\mu})=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\boldsymbol{\mu})"/> | Operator Inference |
 | `IntrusiveContinuousROM` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t))"/> | Intrusive Projection |
+| `AffineIntrusiveContinuousROM` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t;\boldsymbol{\mu})=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\boldsymbol{\mu})"/> | Intrusive Projection |
 
-<!-- | `AffineIntrusiveContinuousROM` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\boldsymbol{\mu})"/> | Intrusive Projection | -->
 <!-- | `AffineInferredContinuousROM` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t;\boldsymbol{\mu})=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\boldsymbol{\mu})"/> | Operator Inference | -->
 <!-- | `InferredDiscreteROM` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k})"/> | Operator Inference | -->
 <!-- | `InterpolatedInferredDiscreteROM` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}(\boldsymbol{\mu})=\mathbf{f}(\mathbf{x}_{k}(\boldsymbol{\mu}),\mathbf{u}_{k};\boldsymbol{\mu})"/> | Operator Inference | -->
@@ -60,10 +61,10 @@ Examples:
 
 | `modelform` | Continuous ROM Structure | Discrete ROM Structure |
 | :---------- | :----------------------- | ---------------------- |
-|  `"A"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{A}{\hat{\mathbf{x}}_{k}"/>
-|  `"cA"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}{\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{\mathbf{c}}+\hat{A}{\hat{\mathbf{x}}_{k}"/>
-|  `"HB"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{H}(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k})+\hat{B}\mathbf{u}_{k}"/>
-|  `"cAHB"` | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k}=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}_{k}+\hat{H}(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k})+\hat{B}\mathbf{u}_{k}"/>
+|  `"A"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}{\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k+1}=\hat{A}{\hat{\mathbf{x}}_{k}"/>
+|  `"cA"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}{\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k+1}=\hat{\mathbf{c}}+\hat{A}{\hat{\mathbf{x}}_{k}"/>
+|  `"HB"`   | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k+1}=\hat{H}(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k})+\hat{B}\mathbf{u}_{k}"/>
+|  `"cAHB"` | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}_{k+1}=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}_{k}+\hat{H}(\hat{\mathbf{x}}_{k}\otimes\hat{\mathbf{x}}_{k})+\hat{B}\mathbf{u}_{k}"/>
 
 ### Attributes
 
@@ -84,7 +85,7 @@ All model classes have the following attributes.
     <!-- - `l`: The dimension of the output **y**, or `None` if `has_outputs` is `False`. -->
 
 - Reduced operators `c_`, `A_`, `H_`, `Hc_`, and `B_`: the [NumPy](https://numpy.org/) arrays corresponding to the learned parts of the reduced-order model.
-Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="AH"`, then `c_` is `None`).
+Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="AH"`, then `c_` and `B_` are `None`).
 
 
 ### InferredContinuousROM
@@ -175,6 +176,45 @@ Parameters:
     - `t`: The time domain over which to integrate the reduced-order model.
     - `u`: The input as a function of time. Alternatively, a matrix aligned with the time domain `t` where each column is the input at the corresponding time. Only required if `'B'` is in `modelform`.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
+
+
+### AffineIntrusiveContinuousROM
+
+This class constructs a reduced-order model for the continuous, parametric system
+
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t;\boldsymbol{\mu})=\mathbf{f}(t,\mathbf{x}(t;\boldsymbol{\mu}),\mathbf{u}(t);\boldsymbol{\mu}),\qquad\mathbf{x}(0;\boldsymbol{\mu})=\mathbf{x}_0(\boldsymbol{\mu}),\qquad\boldsymbol{\mu}\in\mathbb{R}^p,"/>
+</p>
+
+where one or more of the operators that define **f** has an affine dependence on the parameter, for example,
+
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.latex?A(\boldsymbol{\mu})=\sum_{j=1}^{q}\theta_{j}(\boldsymbol{\mu})A_{j},\qquad\theta_{j}:\mathbb{R}^p\to\mathbb{R},\qquad%20A_{j}\in\mathbb{R}^{n\times%20n}."/>
+</p>
+
+The reduction is done via intrusive projection, i.e.,
+
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.latex?\hat{A}(\boldsymbol{\mu})=V_{r}^\mathsf{T}A(\boldsymbol{\mu})V_{r}=\sum_{j=1}^{q}\theta_{j}(\boldsymbol{\mu})V_{r}^\mathsf{T}A_{j}V_{r}"/>
+</p>
+
+The class requires the actual full-order operators (_**c**_, _A_, _H_, and/or _B_) that define **f** _and_ the functions that define any affine parameter dependencies (i.e., the _θ_ functions).
+
+#### Methods
+
+- `AffineIntrusiveContinuousROM.fit(affines, operators, Vr)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
+Parameters:
+    - `affines` A dictionary mapping labels of the operators that depend affinely on the parameter to the list of functions that define that affine dependence. The keys are entries of `modelform`. For example, if the constant term has the affine structure _c_(_**µ**_) = _θ_<sub>1</sub>(_**µ**_)_c_<sub>1</sub> + _θ_<sub>2</sub>(_**µ**_)_c_<sub>2</sub> + _θ_<sub>3</sub>(_**µ**_)_c_<sub>3</sub>, then `'c'` -> `[θ1, θ2, θ3]`.
+    - `operators`: A dictionary mapping labels to the full-order operators that define **f**(_t_,**x**). The keys are entries of `modelform`. Terms with affine structure should be given as a list of the constituent matrices. For example, suppose `modelform="cA"`. If _A_ has the affine structure _A_(_**µ**_) = _θ_<sub>1</sub>(_**µ**_)_A_<sub>1</sub> + _θ_<sub>2</sub>(_**µ**_)_A_<sub>2</sub>, then `'A' -> [A1, A2]`. If _**c**_ does not vary with the parameter, then `'c' -> c`, the complete full-order order.
+    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
+
+- `AffineIntrusiveContinuousROM.predict(µ, x0, t, u=None, **options)`: Simulate the learned reduced-order model at the given parameter value with `scipy.integrate.solve_ivp()`. Parameters:
+    - `µ`: The parameter value at which to simulate the model.
+    - `x0`: The initial condition, given in the original (high-dimensional) space.
+    - `t`: The time domain over which to integrate the reduced-order model.
+    - `u`: The input as a function of time. Alternatively, a matrix aligned with the time domain `t` where each column is the input at the corresponding time. Only required if `'B'` is in `modelform`.
+    - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
+
 
 ## Preprocessing Tools
 

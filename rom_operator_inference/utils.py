@@ -34,7 +34,8 @@ def lstsq_reg(A, b, P=0):
         * float > 0: P * I (a scaled identity matrix) is the regularization
             matrix.
         * (d,d) ndarray: P is the regularization matrix.
-        * list of r (d,d) ndarrays: the jth matrix in the list is the regularization matrix for the jth column of b. Only valid if b is two-dimensional.
+        * list of r (d,d) ndarrays: the jth matrix in the list is the regularization
+          matrix for the jth column of b. Only valid if b is two-dimensional.
 
     Returns
     -------
@@ -154,7 +155,7 @@ def compress_H(H):
 
     Returns
     -------
-    F : (r,s) ndarray
+    Hc : (r,s) ndarray
         The matricized quadratic tensor that operates on the COMPACT Kronecker
         product. Here s = r * (r+1) / 2.
     """
@@ -163,28 +164,28 @@ def compress_H(H):
     if r2 != r**2:
         raise ValueError(f"invalid shape (r,a) = {(r,r2)} with a != r**2")
     s = r * (r+1) // 2
-    F = _np.zeros((r, s))
+    Hc = _np.zeros((r, s))
 
     fj = 0
     for i in range(r):
         for j in range(i+1):
             if i == j:      # Place column for unique term.
-                F[:,fj] = H[:,(i*r)+j]
+                Hc[:,fj] = H[:,(i*r)+j]
             else:           # Combine columns for repeated terms.
                 fill = H[:,(i*r)+j] + H[:,(j*r)+i]
-                F[:,fj] = fill
+                Hc[:,fj] = fill
             fj += 1
 
-    return F
+    return Hc
 
 
-def expand_Hc(F):
+def expand_Hc(Hc):
     """Calculate the matricized quadratic operator that operates on the full
     Kronecker product.
 
     Parameters
     ----------
-    F : (r,s) ndarray
+    Hc : (r,s) ndarray
         The matricized quadratic tensor that operates on the COMPACT Kronecker
         product. Here s = r * (r+1) / 2.
 
@@ -195,7 +196,7 @@ def expand_Hc(F):
         product. This is a symmetric operator in the sense that each layer of
         H.reshape((r,r,r)) is a symmetric (r,r) matrix.
     """
-    r,s = F.shape
+    r,s = Hc.shape
     if s != r*(r+1)//2:
         raise ValueError(f"invalid shape (r,s) = {(r,s)} with s != r(r+1)/2")
 
@@ -204,9 +205,9 @@ def expand_Hc(F):
     for i in range(r):
         for j in range(i+1):
             if i == j:      # Place column for unique term.
-                H[:,(i*r)+j] = F[:,fj]
+                H[:,(i*r)+j] = Hc[:,fj]
             else:           # Distribute columns for repeated terms.
-                fill = F[:,fj] / 2
+                fill = Hc[:,fj] / 2
                 H[:,(i*r)+j] = fill
                 H[:,(j*r)+i] = fill
             fj += 1
