@@ -37,7 +37,6 @@ setuptools.setup(
         "numpy>=1.16",
         "scipy>=1.3",
         "scikit-learn>=0.18",
-        "numba>=0.45",
         "matplotlib>=3.1",
       ],
     setup_requires=["pytest-runner"],

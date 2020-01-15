@@ -2,7 +2,6 @@
 """Tools for preprocessing data."""
 
 import numpy as _np
-import numba as _numba
 from scipy import linalg as _la
 from scipy.linalg import svd as _svd
 from scipy.sparse import linalg as _spla
@@ -281,7 +280,6 @@ def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
 
 
 # Derivative approximation ====================================================
-@_numba.jit(nopython=True)
 def _fwd4(y, dt):                                           # pragma: no cover
     """Compute the first derivative of a uniformly-spaced-in-time array with a
     fourth-order forward difference scheme.
@@ -299,7 +297,6 @@ def _fwd4(y, dt):                                           # pragma: no cover
     return (-25*y[0] + 48*y[1] - 36*y[2] + 16*y[3] - 3*y[4]) / (12*dt)
 
 
-@_numba.jit(nopython=True)
 def _fwd6(y, dt):                                           # pragma: no cover
     """Compute the first derivative of a uniformly-spaced-in-time array with a
     sixth-order forward difference scheme.
