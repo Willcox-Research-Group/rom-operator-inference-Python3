@@ -5,22 +5,24 @@ Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
 """
 
 from ._core import (
-                        InferredContinuousROM,
-                        IntrusiveContinuousROM,
-                        AffineIntrusiveContinuousROM,
-                        InterpolatedInferredContinuousROM,
+                    InferredDiscreteROM, InferredContinuousROM,
+                    IntrusiveDiscreteROM, IntrusiveContinuousROM,
+                    AffineIntrusiveContinuousROM, AffineIntrusiveDiscreteROM,
+                    InterpolatedInferredDiscreteROM,
+                    InterpolatedInferredContinuousROM,
                     )
 from . import utils, pre, post
 
 
 __all__ = [
-            "InferredContinuousROM",
-            "IntrusiveContinuousROM",
-            "AffineIntrusiveContinuousROM",
+            "InferredDiscreteROM", "InferredContinuousROM",
+            "IntrusiveDiscreteROM" "IntrusiveContinuousROM",
+            "AffineIntrusiveContinuousROM", # AffineIntrusiveDiscreteROM",
+            "InterpolatedInferredDiscreteROM",
             "InterpolatedInferredContinuousROM",
             "utils",
             "pre",
             "post",
           ]
 
-__version__ = "0.6.2"
+__version__ = "0.6.3"

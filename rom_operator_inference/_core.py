@@ -299,7 +299,7 @@ class _DiscreteROM(_BaseROM):
             The number of times to step the system forward.
 
         U : (m,niters-1) ndarray
-            The inputs for the next niters time steps.
+            The inputs for the next niters-1 time steps.
 
         Returns
         -------
@@ -333,7 +333,7 @@ class _DiscreteROM(_BaseROM):
                 raise TypeError("input U must be an array, not a callable")
             # Validate shape of input, reshaping if input is 1d.
             U = np.atleast_2d(U)
-            if U.shape != (self.m,niters-1) and U.shape != (self.m,niters):
+            if U.ndim != 2 or U.shape[0] != self.m or U.shape[1] < niters - 1:
                 raise ValueError("invalid input shape "
                                  f"({U.shape} != {(self.m,niters-1)}")
             for j in range(niters-1):
@@ -518,86 +518,14 @@ class _ContinuousROM(_BaseROM):
         return self.Vr @ self.sol_.y
 
 
-class _AffineDiscreteROM(_DiscreteROM):
-    """Base class for discrete models with affinely parametric operators."""
-    pass
-
-
-class _AffineContinuousROM(_ContinuousROM):
-    """Base class for continuous models with affinely parametric operators."""
-    def predict(self, µ, x0, t, u=None, **options):
-        """Construct a ROM for the parameter µ by exploiting the affine
-        structure of the ROM operators, then simulate the resulting ROM with
-        scipy.integrate.solve_ivp().
-
-        Parameters
-        ----------
-        µ : (p,) ndarray
-            The parameter of interest for the prediction.
-
-        x0 : (n,) ndarray
-            The initial (high-dimensional) state vector to begin a simulation.
-
-        t : (nt,) ndarray
-            The time domain over which to integrate the reduced-order system.
-
-        u : callable or (m,nt) ndarray
-            The input as a function of time (preferred) or the input at the
-            times `t`. If given as an array, u(t) is approximated by a cubic
-            spline interpolating the known data points.
-
-        options
-            Arguments for solver.integrate.solve_ivp(), such as the following:
-            method : str
-                The ODE solver for the reduced-order system.
-                * 'RK45' (default): Explicit Runge-Kutta method of order 5(4).
-                * 'RK23': Explicit Runge-Kutta method of order 3(2).
-                * 'Radau': Implicit Runge-Kutta method of the Radau IIA family
-                    of order 5.
-                * 'BDF': Implicit multi-step variable-order (1 to 5) method
-                    based on a backward differentiation formula for the
-                    derivative.
-                * 'LSODA': Adams/BDF method with automatic stiffness detection
-                    and switching. This wraps the Fortran solver from ODEPACK.
-            max_step : float
-                The maximimum allowed integration step size.
-            See https://docs.scipy.org/doc/scipy/reference/integrate.html.
-
-        Returns
-        -------
-        X_ROM: (n,nt) ndarray
-            The reduced-order approximation to the full-order system over `t`.
-        """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(u, 'u')
-
-        # TODO: Make sure the parameter µ has the correct dimension.
-
-        # Use the affine structure of the operators to construct a new model.
-        model = trained_model_from_operators(
-            modelclass=_ContinuousROM,
-            modelform=self.modelform,
-            Vr=self.Vr,
-            c_=self.c_(µ) if isinstance(self.c_, AffineOperator) else self.c_,
-            A_=self.A_(µ) if isinstance(self.A_, AffineOperator) else self.A_,
-            Hc_=self.Hc_(µ) if isinstance(self.Hc_, AffineOperator) \
-                                                                 else self.Hc_,
-            B_=self.B_(µ) if isinstance(self.B_, AffineOperator) else self.B_,
-                )
-        out = model.predict(x0, t, u, **options)
-        self.sol_ = model.sol_
-        return out
-
-
-# Mixins ======================================================================
+# Basic mixins ================================================================
 class _InferredMixin:
     """Mixin class for reduced model classes that use operator inference."""
     @staticmethod
     def _check_training_data_shapes(X, Xdot, Vr, U=None):
         """Ensure that X, Xdot, Vr, and U are aligned."""
-        if X.shape != Xdot.shape:
-            raise ValueError("shape of X != shape of Xdot "
+        if Xdot is not None and X.shape != Xdot.shape:
+            raise ValueError(f"shape of X != shape of Xdot "
                              f"({X.shape} != {Xdot.shape})")
 
         if X.shape[0] != Vr.shape[0]:
@@ -617,463 +545,7 @@ class _InferredMixin:
                 raise ValueError(f"shape of '{label}'"
                                  " inconsistent across samples")
 
-
-class _IntrusiveMixin:
-    """Mixin class for reduced model classes that use intrusive projection."""
-    def _check_operators(self, operators):
-        """Check the keys of the operators argument."""
-        # Check for missing operator keys.
-        missing = [repr(key) for key in self.modelform if key not in operators]
-        if missing:
-            _noun = "key" + ('' if len(missing) == 1 else 's')
-            raise KeyError(f"missing operator {_noun} {', '.join(missing)}")
-
-        # Check for unnecessary operator keys.
-        surplus = [repr(key) for key in operators if key not in self.modelform]
-        if surplus:
-            _noun = "key" + ('' if len(surplus) == 1 else 's')
-            raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
-
-
-class _NonparametricMixin:
-    """Mixin class for non-parametric reduced model classes."""
-    @property
-    def H_(self):
-        """Matricized quadratic tensor; operates on full Kronecker product."""
-        return None if self.Hc_ is None else Hc2H(self.Hc_)
-
-
-class _ParametricMixin:
-    """Mixin class for parametric reduced model classes."""
-    pass
-
-
-class _AffineMixin(_ParametricMixin):
-    """Mixin class for affinely parametric reduced model classes."""
-
-    def _check_affines(self, affines, µ=None):
-        """Check the keys of the affines argument."""
-        # Check for unnecessary affine keys.
-        surplus = [repr(key) for key in affines if key not in self.modelform]
-        if surplus:
-            _noun = "key" + ('' if len(surplus) == 1 else 's')
-            raise KeyError(f"invalid affine {_noun} {', '.join(surplus)}")
-
-        if µ is not None:
-            for a in affines.values():
-                AffineOperator(a).validate_coeffs(µ)
-
-
-# Useable classes =============================================================
-
-# Discrete models (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
-class InferredDiscreteROM(_DiscreteROM,
-                          _InferredMixin, _NonparametricMixin):
-    """Reduced order model for a discrete dynamical system of
-    the form
-
-        x_{k+1} = f(x_{k}, u_{k}),              x_{0} = x0.
-
-    The model form (structure) of the desired reduced model is user specified,
-    and the operators of the reduced model are inferred by solving an ordinary
-    least-squares problem.
-
-    Parameters
-    ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        'c' : Constant term c
-        'A' : Linear state term Ax.
-        'H' : Quadratic state term H(x⊗x).
-        'B' : Input term Bu.
-        For example, modelform=="AB" means f(x,u) = Ax + Bu.
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax.
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu.
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    datacond_ : float
-        Condition number of the data matrix for the least-squares problem.
-
-    residual_ : float
-        The squared Frobenius-norm residual of the least-squares problem for
-        computing the reduced-order model operators.
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)//2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
-        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and inputs if appropriate) to reduced state. Calculated in fit().
-    """
-    pass
-
-
-class IntrusiveDiscreteROM(_DiscreteROM,
-                           _IntrusiveMixin, _NonparametricMixin):
-    """Reduced order model for a discrete dynamical system of
-    the form
-
-        x_{k+1} = f(x_{k}, u_{k}),              x_{0} = x0.
-
-    The user must specify the model form of the full-order model (FOM)
-    operator f and the associated operators; the operators for the reduced
-    model (ROM) are computed explicitly by projecting the full-order operators.
-
-    Parameters
-    ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        'c' : Constant term c
-        'A' : Linear state term Ax.
-        'H' : Quadratic state term H(x⊗x).
-        'B' : Input term Bu.
-        For example, modelform=="AB" means f(x,u) = Ax + Bu.
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax.
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu.
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    datacond_ : float
-        Condition number of the data matrix for the least-squares problem.
-
-    residual_ : float
-        The squared Frobenius-norm residual of the least-squares problem for
-        computing the reduced-order model operators.
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)//2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
-        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and inputs if appropriate) to reduced state. Calculated in fit().
-    """
-    pass
-
-
-class InterpolatedInferredDiscreteROM(_DiscreteROM,
-                                      _InferredMixin, _ParametricMixin): #TODO
-    """Reduced order model for a high-dimensional discrete dynamical system,
-    parametrized by a scalar µ, of the form
-
-        x_{k+1}(µ) = f(x_{k}(µ), u_{k}; µ),     x_{0}(µ) = x0(µ),
-
-    where µ is a scalar. The model form (structure) of the desired reduced
-    model is user specified, and the operators of the reduced model are
-    inferred by solving several ordinary least-squares problems, then
-    interpolating those models with respect to the scalar parameter µ.
-
-    Parameters
-    ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        'c' : Constant term c
-        'A' : Linear state term Ax.
-        'H' : Quadratic state term H(x⊗x).
-        'B' : Input term Bu.
-        For example, modelform=="AB" means f(x,u) = Ax + Bu.
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax.
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu.
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    dataconds_ : (s,) ndarray
-        Condition number of the data matrix for each least-squares problem.
-
-    residuals_ : (s,) ndarray
-        The squared Frobenius-norm residual of each least-squares problem for
-        computing the reduced-order model operators.
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)//2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
-        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and inputs if appropriate) to reduced state. Calculated in fit().
-    """
-    pass
-
-
-class AffineIntrusiveDiscreteROM(_AffineDiscreteROM,
-                                 _IntrusiveMixin, _AffineMixin):
-    """Reduced order model for a high-dimensional discrete dynamical system,
-    parametrized by a scalar µ, of the form
-
-        x_{k+1}(µ) = f(x_{k}(µ), u_{k}; µ),     x_{0}(µ) = x0(µ),
-
-    where one or more of the operators that compose f have an affine
-    dependence on the parameter, e.g., A(µ) = θ1(µ)A1 + θ2(µ)A2 + θ3(µ)A3.
-    The user must specify the model form of the full-order model (FOM)
-    operator f and the associated operators; the operators for the reduced
-    model (ROM) are explicitly computed by projecting the full-order operators.
-
-    Parameters
-    ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        'c' : Constant term c
-        'A' : Linear state term Ax.
-        'H' : Quadratic state term H(x⊗x).
-        'B' : Input term Bu.
-        For example, modelform=="AB" means f(x,u) = Ax + Bu.
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax.
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu.
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)//2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
-        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and inputs if appropriate) to reduced state. Calculated in fit().
-    """
-
-
-# Continuous models (i.e., solving dx/dt = f(t,x,u)) --------------------------
-class InferredContinuousROM(_ContinuousROM,
-                            _InferredMixin, _NonparametricMixin):
-    """Reduced order model for a system of high-dimensional ODEs of the form
-
-        dx / dt = f(t, x(t), u(t)),             x(0) = x0.
-
-    The model form (structure) of the desired reduced model is user specified,
-    and the operators of the reduced model are inferred by solving an ordinary
-    least-squares problem.
-
-    Parameters
-    ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        'c' : Constant term c
-        'A' : Linear state term Ax(t).
-        'H' : Quadratic state term H(x⊗x)(t).
-        'B' : Input term Bu(t).
-        For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax(t).
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x)(t).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu(t).
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    datacond_ : float
-        Condition number of the data matrix for the least-squares problem.
-
-    residual_ : float
-        The squared Frobenius-norm residual of the least-squares problem for
-        computing the reduced-order model operators.
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)//2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : func(float, (r,) ndarray) -> (r,) ndarray
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        Note the signature is f_(t, x_); that is, f_ maps time and reduced
-        state to reduced state. Calculated in fit() if 'B' is not in
-        `modelform`, and in predict() otherwise.
-
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
-    """
-    def fit(self, X, Xdot, Vr, U=None, P=0):
+    def fit(self, X, rhs, Vr, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -1081,8 +553,9 @@ class InferredContinuousROM(_ContinuousROM,
         X : (n,k) ndarray
             Column-wise snapshot training data (each column is a snapshot).
 
-        Xdot : (n,k) ndarray
-            Column-wise velocity training data.
+        rhs : (n,k) ndarray
+            Column-wise next-iteration (discrete model) or velocity
+            (continuous model) training data.
 
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
@@ -1109,20 +582,20 @@ class InferredContinuousROM(_ContinuousROM,
         self._check_inputargs(U, 'U')
 
         # Check and store dimensions.
-        self._check_training_data_shapes(X, Xdot, Vr, U)
+        self._check_training_data_shapes(X, rhs, Vr, U)
         n,k = X.shape           # Dimension of system, number of shapshots.
         r = Vr.shape[1]         # Number of basis vectors.
         self.n, self.r, self.m = n, r, None
 
-        # Project states and velocities to the reduced subspace.
+        # Project states and rhs to the reduced subspace.
         X_ = Vr.T @ X
-        Xdot_ = Vr.T @ Xdot
+        rhs_ = Vr.T @ rhs
         self.Vr = Vr
 
         # Construct the "Data matrix" D = [X^T, (X ⊗ X)^T, U^T, 1].
         D_blocks = []
         if self.has_constant:
-            D_blocks.append(np.ones(k).reshape((k,1)))
+            D_blocks.append(np.ones((k,1)))
 
         if self.has_linear:
             D_blocks.append(X_.T)
@@ -1143,7 +616,7 @@ class InferredContinuousROM(_ContinuousROM,
         self.datacond_ = np.linalg.cond(D)      # Condition number of data.
 
         # Solve for the reduced-order model operators via least squares.
-        Otrp, res = lstsq_reg(D, Xdot_.T, P)[0:2]
+        Otrp, res = lstsq_reg(D, rhs_.T, P)[0:2]
         self.residual_ = np.sum(res)
 
         # Extract the reduced operators from Otrp.
@@ -1176,105 +649,29 @@ class InferredContinuousROM(_ContinuousROM,
         return self
 
 
-class IntrusiveContinuousROM(_ContinuousROM,
-                             _IntrusiveMixin, _NonparametricMixin):
-    """Reduced order model for a system of high-dimensional ODEs of the form
+class _IntrusiveMixin:
+    """Mixin class for reduced model classes that use intrusive projection."""
+    def _check_operators(self, operators):
+        """Check the keys of the operators argument."""
+        # Check for missing operator keys.
+        missing = [repr(key) for key in self.modelform if key not in operators]
+        if missing:
+            _noun = "key" + ('' if len(missing) == 1 else 's')
+            raise KeyError(f"missing operator {_noun} {', '.join(missing)}")
 
-        dx / dt = f(t, x(t), u(t)),             x(0) = x0.
+        # Check for unnecessary operator keys.
+        surplus = [repr(key) for key in operators if key not in self.modelform]
+        if surplus:
+            _noun = "key" + ('' if len(surplus) == 1 else 's')
+            raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
 
-    The user must specify the model form of the full-order model (FOM)
-    operator f and the associated operators; the operators for the reduced
-    model (ROM) are computed explicitly by projecting the full-order operators.
-
-    Parameters
-    ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        'c' : Constant term c
-        'A' : Linear state term Ax(t).
-        'H' : Quadratic state term H(x⊗x)(t).
-        'B' : Input term Bu(t).
-        For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax(t).
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x)(t).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu(t).
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the projected reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    c : (n,) ndarray or None
-        FOM constant term, or None if 'c' is not in `modelform`.
-
-    A : (n,n) ndarray or None
-        FOM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc : (n,n(n+1)//2) ndarray or None
-        FOM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`.
-
-    H : (n,n**2) ndarray or None
-        FOM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`.
-
-    B : (n,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)//2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : func(float, (r,) ndarray) -> (r,) ndarray
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        Note the signature is f_(t, x_); that is, f_ maps time and reduced
-        state to reduced state. Calculated in fit() if 'B' is not in
-        `modelform`, and in predict() otherwise.
-
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
-    """
     def fit(self, operators, Vr):
         """Compute the reduced model operators via intrusive projection.
 
         Parameters
         ----------
         operators: dict(str -> ndarray)
-            The operators that define the full-order model f(t,x).
+            The operators that define the full-order model f.
             Keys must match the modelform:
             * 'c': constant term c.
             * 'A': linear state matrix A.
@@ -1317,10 +714,10 @@ class IntrusiveContinuousROM(_ContinuousROM,
         if self.has_quadratic:              # Quadratic state matrix.
             H_or_Hc = operators['H']
             _n2 = self.n * (self.n + 1) // 2
-            if H_or_Hc.shape == (self.n,self.n**2):          # It's H.
+            if H_or_Hc.shape == (self.n,self.n**2):         # It's H.
                 self.H = H_or_Hc
                 self.Hc = H2Hc(self.H)
-            elif H_or_Hc.shape == (self.n,_n2):               # It's Hc.
+            elif H_or_Hc.shape == (self.n,_n2):             # It's Hc.
                 self.Hc = H_or_Hc
                 self.H = Hc2H(self.Hc)
             else:
@@ -1342,249 +739,27 @@ class IntrusiveContinuousROM(_ContinuousROM,
             self.B_ = self.Vr.T @ self.B
         else:
             self.B, self.B_, self.m = None, None, None
-            self._construct_f_()
 
         return self
 
 
-class InterpolatedInferredContinuousROM(_ContinuousROM,
-                                        _InferredMixin, _ParametricMixin):
-    """Reduced order model for a system of high-dimensional ODEs, parametrized
-    by a scalar µ, of the form
+class _NonparametricMixin:
+    """Mixin class for non-parametric reduced model classes."""
+    @property
+    def H_(self):
+        """Matricized quadratic tensor; operates on full Kronecker product."""
+        return None if self.Hc_ is None else Hc2H(self.Hc_)
 
-         dx / dt = f(t, x(t;µ), u(t); µ),       x(0;µ) = x0(µ),
 
-    where µ is a scalar. The model form (structure) of the desired reduced
-    model is user specified, and the operators of the reduced model are
-    inferred by solving several ordinary least-squares problems, then
-    interpolating those models with respect to the scalar parameter µ.
+class _ParametricMixin:
+    """Mixin class for parametric reduced model classes."""
+    pass
+    # IDEA: check parameter dimension?
 
-    Parameters
-    ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        'c' : Constant term c(µ)
-        'A' : Linear state term A(µ)x(t).
-        'H' : Quadratic state term H(µ)(x⊗x)(t).
-        'B' : Input term B(µ)u(t).
-        For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
 
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c(µ).
-
-    has_linear : bool
-        Whether or not there is a linear state term A(µ)x(t).
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(µ)(x⊗x)(t).
-
-    has_inputs : bool
-        Whether or not there is a linear input term B(µ)u(t).
-
-    n : int
-        The dimension of the original model.
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    s : int
-        The number of training parameter samples, so also the number of reduced
-        models computed via inference and used in the interpolation.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    dataconds_ : (s,) ndarray
-        Condition number of the data matrix for each least-squares problem.
-
-    residuals_ : (s,) ndarray
-        The squared Frobenius-norm residual of each least-squares problem (one
-        per parameter) for computing the reduced-order model operators.
-
-    As_ : list of s (r,r) ndarrays or None
-        Learned ROM linear state matrices, or None if 'A' not in `modelform`.
-
-    Hcs_ : list of s (r,r(r+1)//2) ndarrays or None
-        Learned ROM quadratic state matrices (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    Hs_ : list of s (r,r**2) ndarrays or None
-        Learned ROM quadratic state matrices (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hcs_ if desired; not used in
-        solving the ROM.
-
-    cs_ : list of s (r,) ndarrays or None
-        Learned ROM constant terms, or None if 'c' is not in `modelform`.
-
-    Bs_ : list of s (r,m) ndarrays or None
-        Learned ROM input matrices, or None if 'B' not in `modelform`.
-
-    fs_ : list of func(float, (r,) ndarray) -> (r,) ndarray
-        The complete ROM operators for each parameter sample, defined by
-        cs_, As_, and/or Hcs_. Only available after calling fit() and only if
-        there are no inputs ('B' is not in the modelform).
-
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
-    """
-    def fit(self, µs, Xs, Xdots, Vr, Us=None, P=0):
-        """Solve for the reduced model operators via ordinary least squares,
-        contructing one ROM per parameter value.
-
-        Parameters
-        ----------
-        µs : (s,) ndarray
-            Parameter values at which the snapshot data is collected.
-
-        Xs : list of s (n,k) ndarrays
-            Column-wise snapshot training data (each column is a snapshot).
-            The ith array Xs[i] corresponds to the ith parameter, µs[i].
-
-        Xdots : list of s (n,k) ndarrays
-            Column-wise velocity training data. The ith array Xdots[i]
-            corresponds to the ith parameter, µs[i].
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
-
-        Us : list of s (m,k) or (k,) ndarrays or None
-            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
-            in `modelform`; must be None if 'B' is not in `modelform`.
-
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
-
-        Returns
-        -------
-        self
-        """
-        # Check modelform and inputs.
-        self._check_modelform()
-        self._check_inputargs(Us, 'Us')
-
-        # Check that parameters are one-dimensional.
-        if not np.isscalar(µs[0]):
-            raise ValueError("only scalar parameter values are supported")
-
-        # Check that the number of params matches the number of snapshot sets.
-        s = len(µs)
-        if len(Xs) != s:
-            raise ValueError("num parameter samples != num state snapshot "
-                             f"sets ({s} != {len(Xs)})")
-        if len(Xdots) != s:
-            raise ValueError("num parameter samples != num velocity snapshot "
-                             f"sets ({s} != {len(Xdots)})")
-
-        # Check and store dimensions.
-        for X, Xdot in zip(Xs, Xdots):
-            self._check_training_data_shapes(X, Xdot, Vr)
-        n,k = Xs[0].shape       # Dimension of system, number of shapshots.
-        r = Vr.shape[1]         # Number of basis vectors.
-        self.n, self.r, self.m = n, r, None
-
-        # Check that all arrays in each list of arrays are the same sizes.
-        _tocheck = [(Xs, "X"), (Xdots, "Xdot")]
-        if self.has_inputs:
-            _tocheck += [(Us, "U")]
-            self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
-        else:
-            Us = [None]*s
-        for dataset, label in _tocheck:
-            self._check_dataset_consistency(dataset, label)
-
-        # TODO: figure out how to handle P (scalar, array, list(arrays)).
-
-        # Train one model per parameter sample.
-        self.Vr = Vr
-        self.models_ = []
-        for µ, X, Xdot, U in zip(µs, Xs, Xdots, Us):
-            model = InferredContinuousROM(self.modelform)
-            model.fit(X, Xdot, Vr, U, P)
-            model.parameter = µ
-            self.models_.append(model)
-
-        # Construct interpolators.
-        self.A_ = CubicSpline(µs, self.As_)  if self.has_linear    else None
-        self.Hc_= CubicSpline(µs, self.Hcs_) if self.has_quadratic else None
-        self.H_ = CubicSpline(µs, self.Hs_)  if self.has_quadratic else None
-        self.c_ = CubicSpline(µs, self.cs_)  if self.has_constant  else None
-        self.B_ = CubicSpline(µs, self.Bs_)  if self.has_inputs    else None
-
-        return self
-
-    def predict(self, µ, x0, t, u=None, **options):
-        """Construct a ROM for the parameter µ by interolating the entries of
-        the learned models, then simulate this interpolated ROM with
-        scipy.integrate.solve_ivp().
-
-        Parameters
-        ----------
-        µ : float
-            The parameter of interest for the prediction.
-
-        x0 : (n,) ndarray
-            The initial (high-dimensional) state vector to begin a simulation.
-
-        t : (nt,) ndarray
-            The time domain over which to integrate the reduced-order system.
-
-        u : callable or (m,nt) ndarray
-            The input as a function of time (preferred) or the input at the
-            times `t`. If given as an array, u(t) is approximated by a cubic
-            spline interpolating the known data points.
-
-        options
-            Arguments for solver.integrate.solve_ivp(), such as the following:
-            method : str
-                The ODE solver for the reduced-order system.
-                * 'RK45' (default): Explicit Runge-Kutta method of order 5(4).
-                * 'RK23': Explicit Runge-Kutta method of order 3(2).
-                * 'Radau': Implicit Runge-Kutta method of the Radau IIA family
-                    of order 5.
-                * 'BDF': Implicit multi-step variable-order (1 to 5) method
-                    based on a backward differentiation formula for the
-                    derivative.
-                * 'LSODA': Adams/BDF method with automatic stiffness detection
-                    and switching. This wraps the Fortran solver from ODEPACK.
-            max_step : float
-                The maximimum allowed integration step size.
-            See https://docs.scipy.org/doc/scipy/reference/integrate.html.
-
-        Returns
-        -------
-        X_ROM: (n,nt) ndarray
-            The reduced-order approximation to the full-order system over `t`.
-        """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(u, 'u')
-
-        model = trained_model_from_operators(
-                    modelclass=_ContinuousROM,
-                    modelform=self.modelform,
-                    Vr=self.Vr,
-                    A_=self.A_(µ)   if self.A_  is not None else None,
-                    Hc_=self.Hc_(µ) if self.Hc_ is not None else None,
-                    c_=self.c_(µ)   if self.c_  is not None else None,
-                    B_=self.B_(µ)   if self.B_  is not None else None,
-                )
-        out = model.predict(x0, t, u, **options)
-        self.sol_ = model.sol_
-        return out
-
+# Specialized mixins ==========================================================
+class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
+    """Mixin class for interpolatory parametric reduced model classes."""
     @property
     def As_(self):
         """The linear state matrices for each submodel."""
@@ -1629,95 +804,146 @@ class InterpolatedInferredContinuousROM(_ContinuousROM,
         """The number of trained models."""
         return len(self.models_) if hasattr(self, "models_") else 0
 
+    def __call__(self, µ, discrete=False):
+        """Construct the reduced model corresponding to the parameter µ."""
+        A_  = self.A_(µ)  if self.A_  is not None else None
+        Hc_ = self.Hc_(µ) if self.Hc_ is not None else None
+        c_  = self.c_(µ)  if self.c_  is not None else None
+        B_  = self.B_(µ)  if self.B_  is not None else None
+        return trained_model_from_operators(
+                    modelclass=_DiscreteROM if discrete else _ContinuousROM,
+                    modelform=self.modelform,
+                    Vr=self.Vr, A_=A_, Hc_=Hc_, c_=c_, B_=B_)
 
-class AffineIntrusiveContinuousROM(_AffineContinuousROM,
-                                   _IntrusiveMixin, _AffineMixin):
-    """Reduced order model for a system of high-dimensional ODEs of the form
+    def fit(self, ModelClass, µs, Xs, Xdots, Vr, Us=None, P=0):
+        """Solve for the reduced model operators via ordinary least squares,
+        contructing one ROM per parameter value.
 
-        dx / dt = f(t, x(t), u(t); µ),          x(0;µ) = x0(µ),
+        Parameters
+        ----------
+        µs : (s,) ndarray
+            Parameter values at which the snapshot data is collected.
 
-    where one or more of the operators that compose f have an affine
-    dependence on the parameter, e.g., A(µ) = θ1(µ)A1 + θ2(µ)A2 + θ3(µ)A3.
-    The user must specify the model form of the full-order model (FOM)
-    operator f and the associated operators; the operators for the reduced
-    model (ROM) are explicitly computed by projecting the full-order operators.
+        Xs : list of s (n,k) ndarrays (or (s,n,k) ndarray)
+            Column-wise snapshot training data (each column is a snapshot).
+            The ith array Xs[i] corresponds to the ith parameter, µs[i].
 
-    Parameters
-    ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        * 'c' : Constant term c(µ).
-        * 'A' : Linear state term A(µ)x(t).
-        * 'H' : Quadratic state term H(µ)(x⊗x)(t).
-        * 'B' : Linear input term B(µ)u(t).
-        For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
+        Xdots : list of s (n,k) ndarrays (or (s,n,k) ndarray)
+            Column-wise velocity training data. The ith array Xdots[i]
+            corresponds to the ith parameter, µs[i].
 
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c(µ).
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
 
-    has_linear : bool
-        Whether or not there is a linear term A(µ)x(t).
+        Us : list of s (m,k) or (k,) ndarrays or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
 
-    has_quadratic : bool
-        Whether or not there is a quadratic term H(µ)(x⊗x)(t).
+        P : (d,d) ndarray or float
+            Tikhonov regularization matrix. If nonzero, the least-squares
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
+            If a nonzero number is provided, the regularization matrix is
+            P * I (a scaled identity matrix). Here d is the dimension of the
+            data matrix for the least-squares problem, e.g., d = r + m for a
+            linear model with inputs.
 
-    has_inputs : bool
-        Whether or not there is an input term B(µ)u(t).
+        Returns
+        -------
+        self
+        """
+        # Check modelform and inputs.
+        self._check_modelform()
+        self._check_inputargs(Us, 'Us')
+        is_continuous = issubclass(ModelClass, _ContinuousROM)
 
-    n : int
-        The dimension of the original full-order model (x.size).
+        # Check that parameters are one-dimensional.
+        if not np.isscalar(µs[0]):
+            raise ValueError("only scalar parameter values are supported")
 
-    r : int
-        The dimension of the projected reduced-order model (x_.size).
+        # Check that the number of params matches the number of snapshot sets.
+        s = len(µs)
+        if len(Xs) != s:
+            raise ValueError("num parameter samples != num state snapshot "
+                             f"sets ({s} != {len(Xs)})")
+        if is_continuous and len(Xdots) != s:
+            raise ValueError("num parameter samples != num velocity snapshot "
+                             f"sets ({s} != {len(Xdots)})")
+        elif not is_continuous:
+            Xdots = [None for _ in range(s)]
 
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
+        # Check and store dimensions.
+        for X, Xdot in zip(Xs, Xdots):
+            self._check_training_data_shapes(X, Xdot, Vr)
+        n,k = Xs[0].shape       # Dimension of system, number of shapshots.
+        r = Vr.shape[1]         # Number of basis vectors.
+        self.n, self.r, self.m = n, r, None
 
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
+        # Check that all arrays in each list of arrays are the same sizes.
+        _tocheck = [(Xs, "X")]
+        if is_continuous:
+            _tocheck += [(Xdots, "Xdot")]
+        if self.has_inputs:
+            _tocheck += [(Us, "U")]
+            self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
+        else:
+            Us = [None]*s
+        for dataset, label in _tocheck:
+            self._check_dataset_consistency(dataset, label)
 
-    c : func(µ) -> (n,) ndarray; (n,) ndarray; or None
-        FOM constant term, or None if 'c' is not in `modelform`.
+        # TODO: figure out how to handle P (scalar, array, list(arrays)).
 
-    A : func(µ) -> (n,n) ndarray; (n,n) ndarray; or None
-        FOM linear state matrix, or None if 'A' is not in `modelform`.
+        # Train one model per parameter sample.
+        self.Vr = Vr
+        self.models_ = []
+        for µ, X, Xdot, U in zip(µs, Xs, Xdots, Us):
+            model = ModelClass(self.modelform)
+            if is_continuous:
+                model.fit(X, Xdot, Vr, U, P)
+            else:
+                model.fit(X, Vr, U, P)
+            model.parameter = µ
+            self.models_.append(model)
 
-    Hc : func(µ) -> (n,n(n+1)//2) ndarray; (n,n(n+1)//2) ndarray; or None
-        FOM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`.
+        # Construct interpolators.
+        self.A_ = CubicSpline(µs, self.As_)  if self.has_linear    else None
+        self.Hc_= CubicSpline(µs, self.Hcs_) if self.has_quadratic else None
+        self.H_ = CubicSpline(µs, self.Hs_)  if self.has_quadratic else None
+        self.c_ = CubicSpline(µs, self.cs_)  if self.has_constant  else None
+        self.B_ = CubicSpline(µs, self.Bs_)  if self.has_inputs    else None
 
-    H : func(µ) -> (n,n**2) ndarray; (n,n**2) ndarray; or None
-        FOM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`.
+        return self
 
-    B : func(µ) -> (n,m) ndarray; (n,m) ndarray; or None
-        FOM input matrix, or None if 'B' is not in `modelform`.
 
-    c_ : func(µ) -> (r,) ndarray; (r,) ndarray; or None
-        Computed ROM constant term, or None if 'c' is not in `modelform`.
+class _AffineMixin(_ParametricMixin):
+    """Mixin class for affinely parametric reduced model classes."""
 
-    A_ : func(µ) -> (r,r) ndarray; (r,r) ndarray; or None
-        Computed ROM linear state matrix, or None if 'A' is not in `modelform`.
+    def _check_affines(self, affines, µ=None):
+        """Check the keys of the affines argument."""
+        # Check for unnecessary affine keys.
+        surplus = [repr(key) for key in affines if key not in self.modelform]
+        if surplus:
+            _noun = "key" + ('' if len(surplus) == 1 else 's')
+            raise KeyError(f"invalid affine {_noun} {', '.join(surplus)}")
 
-    Hc_ : func(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
-        Computed ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+        if µ is not None:
+            for a in affines.values():
+                AffineOperator(a).validate_coeffs(µ)
 
-    H_ : func(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
-        Computed ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
+    def __call__(self, µ, discrete=False):
+        """Construct the reduced model corresponding to the parameter µ."""
+        c_ = self.c_(µ) if isinstance(self.c_, AffineOperator) else self.c_
+        A_ = self.A_(µ) if isinstance(self.A_, AffineOperator) else self.A_
+        Hc_ = self.Hc_(µ) if isinstance(self.Hc_, AffineOperator) \
+                                                             else self.Hc_
+        B_ = self.B_(µ) if isinstance(self.B_, AffineOperator) else self.B_
+        return trained_model_from_operators(
+                    modelclass=_DiscreteROM if discrete else _ContinuousROM,
+                    modelform=self.modelform,
+                    Vr=self.Vr, c_=c_, A_=A_, Hc_=Hc_, B_=B_)
 
-    B_ : func(µ) -> (r,m) ndarray; (r,m) ndarray; or None
-        Computed ROM input matrix, or None if 'B' is not in `modelform`.
 
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
-    """
+class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
     def fit(self, affines, operators, Vr):
         """Solve for the reduced model operators via intrusive projection.
 
@@ -1863,11 +1089,1062 @@ class AffineIntrusiveContinuousROM(_AffineContinuousROM,
         return self
 
 
+# Useable classes =============================================================
+# Discrete models (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
+class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
+    """Reduced order model for a discrete dynamical system of
+    the form
+
+        x_{k+1} = f(x_{k}, u_{k}),              x_{0} = x0.
+
+    The model form (structure) of the desired reduced model is user specified,
+    and the operators of the reduced model are inferred by solving an ordinary
+    least-squares problem.
+
+    Parameters
+    ----------
+    modelform : str containing 'c', 'A', 'H', and/or 'B'
+        The structure of the desired reduced-order model. Each character
+        indicates the presence of a different term in the model:
+        'c' : Constant term c
+        'A' : Linear state term Ax.
+        'H' : Quadratic state term H(x⊗x).
+        'B' : Input term Bu.
+        For example, modelform=="AB" means f(x,u) = Ax + Bu.
+
+    Attributes
+    ----------
+    has_consant : bool
+        Whether or not there is a constant term c.
+
+    has_linear : bool
+        Whether or not there is a linear state term Ax.
+
+    has_quadratic : bool
+        Whether or not there is a quadratic state term H(x⊗x).
+
+    has_inputs : bool
+        Whether or not there is a linear input term Bu.
+
+    n : int
+        The dimension of the original full-order model (x.size).
+
+    r : int
+        The dimension of the learned reduced-order model (x_.size).
+
+    m : int or None
+        The dimension of the input u(t), or None if 'B' is not in `modelform`.
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    datacond_ : float
+        Condition number of the data matrix for the least-squares problem.
+
+    residual_ : float
+        The squared Frobenius-norm residual of the least-squares problem for
+        computing the reduced-order model operators.
+
+    c_ : (r,) ndarray or None
+        Learned ROM constant term, or None if 'c' is not in `modelform`.
+
+    A_ : (r,r) ndarray or None
+        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc_ : (r,r(r+1)//2) ndarray or None
+        Learned ROM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`. Used internally instead of the larger H_.
+
+    H_ : (r,r**2) ndarray or None
+        Learned ROM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hc_ if desired; not used
+        directly in solving the ROM.
+
+    B_ : (r,m) ndarray or None
+        Learned ROM input matrix, or None if 'B' is not in `modelform`.
+
+    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
+        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
+        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
+        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
+        (and inputs if appropriate) to reduced state. Calculated in fit().
+    """
+    def fit(self, X, Vr, U=None, P=0):
+        """Solve for the reduced model operators via ordinary least squares.
+
+        Parameters
+        ----------
+        X : (n,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot).
+
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
+        U : (m,k-1) or (k-1,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
+
+        P : (d,d) ndarray or float
+            Tikhonov regularization matrix. If nonzero, the least-squares
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
+            If a nonzero number is provided, the regularization matrix is
+            P * I (a scaled identity matrix). Here d is the dimension of the
+            data matrix for the least-squares problem, e.g., d = r + m for a
+            linear model with inputs.
+
+        Returns
+        -------
+        self
+        """
+        _InferredMixin.fit(self,
+                           X[:,:-1], X[:,1:],       # x_{j}'s and x_{j+1}'s.
+                           Vr,
+                           U[...,:X.shape[1]-1] if U is not None else U,
+                           P)
+        self._construct_f_()
+        return self
+
+
+class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
+    """Reduced order model for a discrete dynamical system of the form
+
+        x_{k+1} = f(x_{k}, u_{k}),              x_{0} = x0.
+
+    The user must specify the model form of the full-order model (FOM)
+    operator f and the associated operators; the operators for the reduced
+    model (ROM) are computed explicitly by projecting the full-order operators.
+
+    Parameters
+    ----------
+    modelform : str containing 'c', 'A', 'H', and/or 'B'
+        The structure of the desired reduced-order model. Each character
+        indicates the presence of a different term in the model:
+        'c' : Constant term c
+        'A' : Linear state term Ax.
+        'H' : Quadratic state term H(x⊗x).
+        'B' : Input term Bu.
+        For example, modelform=="AB" means f(x,u) = Ax + Bu.
+
+    Attributes
+    ----------
+    has_consant : bool
+        Whether or not there is a constant term c.
+
+    has_linear : bool
+        Whether or not there is a linear state term Ax.
+
+    has_quadratic : bool
+        Whether or not there is a quadratic state term H(x⊗x).
+
+    has_inputs : bool
+        Whether or not there is a linear input term Bu.
+
+    n : int
+        The dimension of the original full-order model (x.size).
+
+    r : int
+        The dimension of the learned reduced-order model (x_.size).
+
+    m : int or None
+        The dimension of the input u(t), or None if 'B' is not in `modelform`.
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    datacond_ : float
+        Condition number of the data matrix for the least-squares problem.
+
+    residual_ : float
+        The squared Frobenius-norm residual of the least-squares problem for
+        computing the reduced-order model operators.
+
+    c_ : (r,) ndarray or None
+        Learned ROM constant term, or None if 'c' is not in `modelform`.
+
+    A_ : (r,r) ndarray or None
+        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc_ : (r,r(r+1)//2) ndarray or None
+        Learned ROM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`. Used internally instead of the larger H_.
+
+    H_ : (r,r**2) ndarray or None
+        Learned ROM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hc_ if desired; not used
+        directly in solving the ROM.
+
+    B_ : (r,m) ndarray or None
+        Learned ROM input matrix, or None if 'B' is not in `modelform`.
+
+    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
+        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
+        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
+        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
+        (and inputs if appropriate) to reduced state. Calculated in fit().
+    """
+    def fit(self, operators, Vr):
+        """Compute the reduced model operators via intrusive projection.
+
+        Parameters
+        ----------
+        operators: dict(str -> ndarray)
+            The operators that define the full-order model f.
+            Keys must match the modelform:
+            * 'c': constant term c.
+            * 'A': linear state matrix A.
+            * 'H': quadratic state matrix H (either full H or compact Hc).
+            * 'B': input matrix B.
+
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
+        Returns
+        -------
+        self
+        """
+        _IntrusiveMixin.fit(self, operators, Vr)
+        self._construct_f_()
+        return self
+
+
+class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
+    """Reduced order model for a high-dimensional discrete dynamical system,
+    parametrized by a scalar µ, of the form
+
+        x_{k+1}(µ) = f(x_{k}(µ), u_{k}; µ),     x_{0}(µ) = x0(µ).
+
+    The model form (structure) of the desired reduced model is user specified,
+    and the operators of the reduced model are inferred by solving several
+    ordinary least-squares problems, then interpolating those models with
+    respect to the scalar parameter µ.
+
+    Parameters
+    ----------
+    modelform : str containing 'c', 'A', 'H', and/or 'B'
+        The structure of the desired reduced-order model. Each character
+        indicates the presence of a different term in the model:
+        'c' : Constant term c
+        'A' : Linear state term Ax.
+        'H' : Quadratic state term H(x⊗x).
+        'B' : Input term Bu.
+        For example, modelform=="AB" means f(x,u) = Ax + Bu.
+
+    Attributes
+    ----------
+    has_consant : bool
+        Whether or not there is a constant term c.
+
+    has_linear : bool
+        Whether or not there is a linear state term Ax.
+
+    has_quadratic : bool
+        Whether or not there is a quadratic state term H(x⊗x).
+
+    has_inputs : bool
+        Whether or not there is a linear input term Bu.
+
+    n : int
+        The dimension of the original full-order model (x.size).
+
+    r : int
+        The dimension of the learned reduced-order model (x_.size).
+
+    m : int or None
+        The dimension of the input u(t), or None if 'B' is not in `modelform`.
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    dataconds_ : (s,) ndarray
+        Condition number of the data matrix for each least-squares problem.
+
+    residuals_ : (s,) ndarray
+        The squared Frobenius-norm residual of each least-squares problem for
+        computing the reduced-order model operators.
+
+    c_ : (r,) ndarray or None
+        Learned ROM constant term, or None if 'c' is not in `modelform`.
+
+    A_ : (r,r) ndarray or None
+        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc_ : (r,r(r+1)//2) ndarray or None
+        Learned ROM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`. Used internally instead of the larger H_.
+
+    H_ : (r,r**2) ndarray or None
+        Learned ROM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hc_ if desired; not used
+        directly in solving the ROM.
+
+    B_ : (r,m) ndarray or None
+        Learned ROM input matrix, or None if 'B' is not in `modelform`.
+
+    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
+        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
+        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
+        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
+        (and inputs if appropriate) to reduced state. Calculated in fit().
+    """
+    def __call__(self, µ):
+        """Construct the reduced model corresponding to the parameter µ."""
+        return _InterpolatedMixin.__call__(self, µ, discrete=True)
+
+    def fit(self, µs, Xs, Vr, Us=None, P=0):
+        """Solve for the reduced model operators via ordinary least squares,
+        contructing one ROM per parameter value.
+
+        Parameters
+        ----------
+        µs : (s,) ndarray
+            Parameter values at which the snapshot data is collected.
+
+        Xs : list of s (n,k) ndarrays (or (s,n,k) ndarray)
+            Column-wise snapshot training data (each column is a snapshot).
+            The ith array Xs[i] corresponds to the ith parameter, µs[i].
+
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
+        Us : list of s (m,k-1) or (k-1,) ndarrays or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
+
+        P : (d,d) ndarray or float
+            Tikhonov regularization matrix. If nonzero, the least-squares
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
+            If a nonzero number is provided, the regularization matrix is
+            P * I (a scaled identity matrix). Here d is the dimension of the
+            data matrix for the least-squares problem, e.g., d = r + m for a
+            linear model with inputs.
+
+        Returns
+        -------
+        self
+        """
+        _InterpolatedMixin.fit(self, InferredDiscreteROM,
+                               µs, Xs, None, Vr, Us, P)
+        return self
+
+    def predict(self, µ, x0, niters, U=None):
+        """Construct a ROM for the parameter µ by interolating the entries of
+        the learned models, then step forward this new ROM `niters` steps.
+
+        Parameters
+        ----------
+        µ : float
+            The parameter of interest for the prediction.
+
+        x0 : (n,) ndarray
+            The initial (high-dimensional) state vector to begin a simulation.
+
+        niters : int
+            The number of times to step the system forward.
+
+        U : (m,niters-1) ndarray
+            The inputs for the next niters-1 time steps.
+
+        Returns
+        -------
+        X_ROM: (n,niters) ndarray
+            The reduced-order solutions to the full-order system, including
+            the (projected) given initial condition.
+        """
+        # Check modelform and inputs.
+        self._check_modelform(trained=True)
+        self._check_inputargs(U, 'U')
+
+        model = self(µ)     # See __call__().
+        return model.predict(x0, niters, U)
+
+
+class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
+    """Reduced order model for a high-dimensional discrete dynamical system,
+    parametrized by a scalar µ, of the form
+
+        x_{k+1}(µ) = f(x_{k}(µ), u_{k}; µ),     x_{0}(µ) = x0(µ),
+
+    where one or more of the operators that compose f have an affine
+    dependence on the parameter, e.g., A(µ) = θ1(µ)A1 + θ2(µ)A2 + θ3(µ)A3.
+    The user must specify the model form of the full-order model (FOM)
+    operator f and the associated operators; the operators for the reduced
+    model (ROM) are explicitly computed by projecting the full-order operators.
+
+    Parameters
+    ----------
+    modelform : str containing 'c', 'A', 'H', and/or 'B'
+        The structure of the desired reduced-order model. Each character
+        indicates the presence of a different term in the model:
+        'c' : Constant term c
+        'A' : Linear state term Ax.
+        'H' : Quadratic state term H(x⊗x).
+        'B' : Input term Bu.
+        For example, modelform=="AB" means f(x,u) = Ax + Bu.
+
+    Attributes
+    ----------
+    has_consant : bool
+        Whether or not there is a constant term c.
+
+    has_linear : bool
+        Whether or not there is a linear state term Ax.
+
+    has_quadratic : bool
+        Whether or not there is a quadratic state term H(x⊗x).
+
+    has_inputs : bool
+        Whether or not there is a linear input term Bu.
+
+    n : int
+        The dimension of the original full-order model (x.size).
+
+    r : int
+        The dimension of the learned reduced-order model (x_.size).
+
+    m : int or None
+        The dimension of the input u(t), or None if 'B' is not in `modelform`.
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    c_ : (r,) ndarray or None
+        Learned ROM constant term, or None if 'c' is not in `modelform`.
+
+    A_ : (r,r) ndarray or None
+        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc_ : (r,r(r+1)//2) ndarray or None
+        Learned ROM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`. Used internally instead of the larger H_.
+
+    H_ : (r,r**2) ndarray or None
+        Learned ROM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hc_ if desired; not used
+        directly in solving the ROM.
+
+    B_ : (r,m) ndarray or None
+        Learned ROM input matrix, or None if 'B' is not in `modelform`.
+
+    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
+        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
+        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
+        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
+        (and inputs if appropriate) to reduced state. Calculated in fit().
+    """
+    def __call__(self, µ):
+        """Construct the reduced model corresponding to the parameter µ."""
+        return _AffineMixin.__call__(self, µ, discrete=True)
+
+    def predict(self, µ, x0, niters, U=None):
+        """Construct a ROM for the parameter µ by exploiting the affine
+        structure of the ROM operators, then step the resulting ROM forward
+        `niters` steps.
+
+        Parameters
+        ----------
+        µ : (p,) ndarray
+            The parameter of interest for the prediction.
+
+        x0 : (n,) ndarray
+            The initial (high-dimensional) state vector to begin a simulation.
+
+        niters : int
+            The number of times to step the system forward.
+
+        U : (m,niters-1) ndarray
+            The inputs for the next niters-1 time steps.
+
+        Returns
+        -------
+        X_ROM: (n,niters) ndarray
+            The reduced-order solutions to the full-order system, including
+            the (projected) given initial condition.
+        """
+        # Check modelform and inputs.
+        self._check_modelform(trained=True)
+        self._check_inputargs(U, 'U')
+
+        # TODO: Make sure the parameter µ has the correct dimension.
+        # Use the affine structure of the operators to construct a new model.
+        model = self(µ)
+        return model.predict(x0, niters, U)
+
+
+# Continuous models (i.e., solving dx / dt = f(t,x(t),u(t))) ------------------
+class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
+                            _ContinuousROM):
+    """Reduced order model for a system of high-dimensional ODEs of the form
+
+        dx / dt = f(t, x(t), u(t)),             x(0) = x0.
+
+    The model form (structure) of the desired reduced model is user specified,
+    and the operators of the reduced model are inferred by solving an ordinary
+    least-squares problem.
+
+    Parameters
+    ----------
+    modelform : str containing 'c', 'A', 'H', and/or 'B'
+        The structure of the desired reduced-order model. Each character
+        indicates the presence of a different term in the model:
+        'c' : Constant term c
+        'A' : Linear state term Ax(t).
+        'H' : Quadratic state term H(x⊗x)(t).
+        'B' : Input term Bu(t).
+        For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
+
+    Attributes
+    ----------
+    has_consant : bool
+        Whether or not there is a constant term c.
+
+    has_linear : bool
+        Whether or not there is a linear state term Ax(t).
+
+    has_quadratic : bool
+        Whether or not there is a quadratic state term H(x⊗x)(t).
+
+    has_inputs : bool
+        Whether or not there is a linear input term Bu(t).
+
+    n : int
+        The dimension of the original full-order model (x.size).
+
+    r : int
+        The dimension of the learned reduced-order model (x_.size).
+
+    m : int or None
+        The dimension of the input u(t), or None if 'B' is not in `modelform`.
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    datacond_ : float
+        Condition number of the data matrix for the least-squares problem.
+
+    residual_ : float
+        The squared Frobenius-norm residual of the least-squares problem for
+        computing the reduced-order model operators.
+
+    c_ : (r,) ndarray or None
+        Learned ROM constant term, or None if 'c' is not in `modelform`.
+
+    A_ : (r,r) ndarray or None
+        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc_ : (r,r(r+1)//2) ndarray or None
+        Learned ROM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`. Used internally instead of the larger H_.
+
+    H_ : (r,r**2) ndarray or None
+        Learned ROM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hc_ if desired; not used
+        directly in solving the ROM.
+
+    B_ : (r,m) ndarray or None
+        Learned ROM input matrix, or None if 'B' is not in `modelform`.
+
+    f_ : func(float, (r,) ndarray) -> (r,) ndarray
+        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
+        Note the signature is f_(t, x_); that is, f_ maps time and reduced
+        state to reduced state. Calculated in fit() if 'B' is not in
+        `modelform`, and in predict() otherwise.
+
+    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
+        of integrating the learned ROM in predict(). For more details, see
+        https://docs.scipy.org/doc/scipy/reference/integrate.html.
+    """
+    def fit(self, X, Xdot, Vr, U=None, P=0):
+        """Solve for the reduced model operators via ordinary least squares.
+
+        Parameters
+        ----------
+        X : (n,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot).
+
+        Xdot : (n,k) ndarray
+            Column-wise velocity training data.
+
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
+        U : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
+
+        P : (d,d) ndarray or float
+            Tikhonov regularization matrix. If nonzero, the least-squares
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
+            If a nonzero number is provided, the regularization matrix is
+            P * I (a scaled identity matrix). Here d is the dimension of the
+            data matrix for the least-squares problem, e.g., d = r + m for a
+            linear model with inputs.
+
+        Returns
+        -------
+        self
+        """
+        _InferredMixin.fit(self, X, Xdot, Vr, U, P)
+        if not self.has_inputs:
+            self._construct_f_()
+        return self
+
+
+class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
+                             _ContinuousROM):
+    """Reduced order model for a system of high-dimensional ODEs of the form
+
+        dx / dt = f(t, x(t), u(t)),             x(0) = x0.
+
+    The user must specify the model form of the full-order model (FOM)
+    operator f and the associated operators; the operators for the reduced
+    model (ROM) are computed explicitly by projecting the full-order operators.
+
+    Parameters
+    ----------
+    modelform : str containing 'c', 'A', 'H', and/or 'B'
+        The structure of the desired reduced-order model. Each character
+        indicates the presence of a different term in the model:
+        'c' : Constant term c
+        'A' : Linear state term Ax(t).
+        'H' : Quadratic state term H(x⊗x)(t).
+        'B' : Input term Bu(t).
+        For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
+
+    Attributes
+    ----------
+    has_consant : bool
+        Whether or not there is a constant term c.
+
+    has_linear : bool
+        Whether or not there is a linear state term Ax(t).
+
+    has_quadratic : bool
+        Whether or not there is a quadratic state term H(x⊗x)(t).
+
+    has_inputs : bool
+        Whether or not there is a linear input term Bu(t).
+
+    n : int
+        The dimension of the original full-order model (x.size).
+
+    r : int
+        The dimension of the projected reduced-order model (x_.size).
+
+    m : int or None
+        The dimension of the input u(t), or None if 'B' is not in `modelform`.
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    c : (n,) ndarray or None
+        FOM constant term, or None if 'c' is not in `modelform`.
+
+    A : (n,n) ndarray or None
+        FOM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc : (n,n(n+1)//2) ndarray or None
+        FOM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`.
+
+    H : (n,n**2) ndarray or None
+        FOM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`.
+
+    B : (n,m) ndarray or None
+        Learned ROM input matrix, or None if 'B' is not in `modelform`.
+
+    c_ : (r,) ndarray or None
+        Learned ROM constant term, or None if 'c' is not in `modelform`.
+
+    A_ : (r,r) ndarray or None
+        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc_ : (r,r(r+1)//2) ndarray or None
+        Learned ROM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`. Used internally instead of the larger H_.
+
+    H_ : (r,r**2) ndarray or None
+        Learned ROM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hc_ if desired; not used in
+        solving the ROM.
+
+    B_ : (r,m) ndarray or None
+        Learned ROM input matrix, or None if 'B' is not in `modelform`.
+
+    f_ : func(float, (r,) ndarray) -> (r,) ndarray
+        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
+        Note the signature is f_(t, x_); that is, f_ maps time and reduced
+        state to reduced state. Calculated in fit() if 'B' is not in
+        `modelform`, and in predict() otherwise.
+
+    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
+        of integrating the learned ROM in predict(). For more details, see
+        https://docs.scipy.org/doc/scipy/reference/integrate.html.
+    """
+    def fit(self, operators, Vr):
+        """Compute the reduced model operators via intrusive projection.
+
+        Parameters
+        ----------
+        operators: dict(str -> ndarray)
+            The operators that define the full-order model f(t,x).
+            Keys must match the modelform:
+            * 'c': constant term c.
+            * 'A': linear state matrix A.
+            * 'H': quadratic state matrix H (either full H or compact Hc).
+            * 'B': input matrix B.
+
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
+        Returns
+        -------
+        self
+        """
+        _IntrusiveMixin.fit(self, operators, Vr)
+        if not self.has_inputs:
+            self._construct_f_()
+        return self
+
+
+class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
+    """Reduced order model for a system of high-dimensional ODEs, parametrized
+    by a scalar µ, of the form
+
+         dx / dt = f(t, x(t;µ), u(t); µ),       x(0;µ) = x0(µ).
+
+    The model form (structure) of the desired reduced model is user specified,
+    and the operators of the reduced model are inferred by solving several
+    ordinary least-squares problems, then interpolating those models with
+    respect to the scalar parameter µ.
+
+    Parameters
+    ----------
+    modelform : str containing 'c', 'A', 'H', and/or 'B'
+        The structure of the desired reduced-order model. Each character
+        indicates the presence of a different term in the model:
+        'c' : Constant term c(µ)
+        'A' : Linear state term A(µ)x(t).
+        'H' : Quadratic state term H(µ)(x⊗x)(t).
+        'B' : Input term B(µ)u(t).
+        For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
+
+    Attributes
+    ----------
+    has_consant : bool
+        Whether or not there is a constant term c(µ).
+
+    has_linear : bool
+        Whether or not there is a linear state term A(µ)x(t).
+
+    has_quadratic : bool
+        Whether or not there is a quadratic state term H(µ)(x⊗x)(t).
+
+    has_inputs : bool
+        Whether or not there is a linear input term B(µ)u(t).
+
+    n : int
+        The dimension of the original model.
+
+    r : int
+        The dimension of the learned reduced-order model (x_.size).
+
+    m : int or None
+        The dimension of the input u(t), or None if 'B' is not in `modelform`.
+
+    s : int
+        The number of training parameter samples, so also the number of reduced
+        models computed via inference and used in the interpolation.
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    dataconds_ : (s,) ndarray
+        Condition number of the data matrix for each least-squares problem.
+
+    residuals_ : (s,) ndarray
+        The squared Frobenius-norm residual of each least-squares problem (one
+        per parameter) for computing the reduced-order model operators.
+
+    As_ : list of s (r,r) ndarrays or None
+        Learned ROM linear state matrices, or None if 'A' not in `modelform`.
+
+    Hcs_ : list of s (r,r(r+1)//2) ndarrays or None
+        Learned ROM quadratic state matrices (compact), or None if 'H' is not
+        in `modelform`. Used internally instead of the larger H_.
+
+    Hs_ : list of s (r,r**2) ndarrays or None
+        Learned ROM quadratic state matrices (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hcs_ if desired; not used in
+        solving the ROM.
+
+    cs_ : list of s (r,) ndarrays or None
+        Learned ROM constant terms, or None if 'c' is not in `modelform`.
+
+    Bs_ : list of s (r,m) ndarrays or None
+        Learned ROM input matrices, or None if 'B' not in `modelform`.
+
+    fs_ : list of func(float, (r,) ndarray) -> (r,) ndarray
+        The complete ROM operators for each parameter sample, defined by
+        cs_, As_, and/or Hcs_. Only available after calling fit() and only if
+        there are no inputs ('B' is not in the modelform).
+
+    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
+        of integrating the learned ROM in predict(). For more details, see
+        https://docs.scipy.org/doc/scipy/reference/integrate.html.
+    """
+    def __call__(self, µ):
+        """Construct the reduced model corresponding to the parameter µ."""
+        return _InterpolatedMixin.__call__(self, µ, discrete=False)
+
+    def fit(self, µs, Xs, Xdots, Vr, Us=None, P=0):
+        """Solve for the reduced model operators via ordinary least squares,
+        contructing one ROM per parameter value.
+
+        Parameters
+        ----------
+        µs : (s,) ndarray
+            Parameter values at which the snapshot data is collected.
+
+        Xs : list of s (n,k) ndarrays (or (s,n,k) ndarray)
+            Column-wise snapshot training data (each column is a snapshot).
+            The ith array Xs[i] corresponds to the ith parameter, µs[i].
+
+        Xdots : list of s (n,k) ndarrays (or (s,n,k) ndarray)
+            Column-wise velocity training data. The ith array Xdots[i]
+            corresponds to the ith parameter, µs[i].
+
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
+        Us : list of s (m,k) or (k,) ndarrays or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
+
+        P : (d,d) ndarray or float
+            Tikhonov regularization matrix. If nonzero, the least-squares
+            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
+            If a nonzero number is provided, the regularization matrix is
+            P * I (a scaled identity matrix). Here d is the dimension of the
+            data matrix for the least-squares problem, e.g., d = r + m for a
+            linear model with inputs.
+
+        Returns
+        -------
+        self
+        """
+        _InterpolatedMixin.fit(self, InferredContinuousROM,
+                               µs, Xs, Xdots, Vr, Us, P)
+        return self
+
+    def predict(self, µ, x0, t, u=None, **options):
+        """Construct a ROM for the parameter µ by interolating the entries of
+        the learned models, then simulate this interpolated ROM with
+        scipy.integrate.solve_ivp().
+
+        Parameters
+        ----------
+        µ : float
+            The parameter of interest for the prediction.
+
+        x0 : (n,) ndarray
+            The initial (high-dimensional) state vector to begin a simulation.
+
+        t : (nt,) ndarray
+            The time domain over which to integrate the reduced-order system.
+
+        u : callable or (m,nt) ndarray
+            The input as a function of time (preferred) or the input at the
+            times `t`. If given as an array, u(t) is approximated by a cubic
+            spline interpolating the known data points.
+
+        options
+            Arguments for solver.integrate.solve_ivp(), such as the following:
+            method : str
+                The ODE solver for the reduced-order system.
+                * 'RK45' (default): Explicit Runge-Kutta method of order 5(4).
+                * 'RK23': Explicit Runge-Kutta method of order 3(2).
+                * 'Radau': Implicit Runge-Kutta method of the Radau IIA family
+                    of order 5.
+                * 'BDF': Implicit multi-step variable-order (1 to 5) method
+                    based on a backward differentiation formula for the
+                    derivative.
+                * 'LSODA': Adams/BDF method with automatic stiffness detection
+                    and switching. This wraps the Fortran solver from ODEPACK.
+            max_step : float
+                The maximimum allowed integration step size.
+            See https://docs.scipy.org/doc/scipy/reference/integrate.html.
+
+        Returns
+        -------
+        X_ROM: (n,nt) ndarray
+            The reduced-order approximation to the full-order system over `t`.
+        """
+        # Check modelform and inputs.
+        self._check_modelform(trained=True)
+        self._check_inputargs(u, 'u')
+
+        model = self(µ)     # See __call__().
+        out = model.predict(x0, t, u, **options)
+        self.sol_ = model.sol_
+        return out
+
+
+class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
+    """Reduced order model for a system of high-dimensional ODEs of the form
+
+        dx / dt = f(t, x(t), u(t); µ),          x(0;µ) = x0(µ),
+
+    where one or more of the operators that compose f have an affine
+    dependence on the parameter, e.g., A(µ) = θ1(µ)A1 + θ2(µ)A2 + θ3(µ)A3.
+    The user must specify the model form of the full-order model (FOM)
+    operator f and the associated operators; the operators for the reduced
+    model (ROM) are explicitly computed by projecting the full-order operators.
+
+    Parameters
+    ----------
+    modelform : str containing 'c', 'A', 'H', and/or 'B'
+        The structure of the desired reduced-order model. Each character
+        indicates the presence of a different term in the model:
+        * 'c' : Constant term c(µ).
+        * 'A' : Linear state term A(µ)x(t).
+        * 'H' : Quadratic state term H(µ)(x⊗x)(t).
+        * 'B' : Linear input term B(µ)u(t).
+        For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
+
+    Attributes
+    ----------
+    has_consant : bool
+        Whether or not there is a constant term c(µ).
+
+    has_linear : bool
+        Whether or not there is a linear term A(µ)x(t).
+
+    has_quadratic : bool
+        Whether or not there is a quadratic term H(µ)(x⊗x)(t).
+
+    has_inputs : bool
+        Whether or not there is an input term B(µ)u(t).
+
+    n : int
+        The dimension of the original full-order model (x.size).
+
+    r : int
+        The dimension of the projected reduced-order model (x_.size).
+
+    m : int or None
+        The dimension of the input u(t), or None if 'B' is not in `modelform`.
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    c : func(µ) -> (n,) ndarray; (n,) ndarray; or None
+        FOM constant term, or None if 'c' is not in `modelform`.
+
+    A : func(µ) -> (n,n) ndarray; (n,n) ndarray; or None
+        FOM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc : func(µ) -> (n,n(n+1)//2) ndarray; (n,n(n+1)//2) ndarray; or None
+        FOM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`.
+
+    H : func(µ) -> (n,n**2) ndarray; (n,n**2) ndarray; or None
+        FOM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`.
+
+    B : func(µ) -> (n,m) ndarray; (n,m) ndarray; or None
+        FOM input matrix, or None if 'B' is not in `modelform`.
+
+    c_ : func(µ) -> (r,) ndarray; (r,) ndarray; or None
+        Computed ROM constant term, or None if 'c' is not in `modelform`.
+
+    A_ : func(µ) -> (r,r) ndarray; (r,r) ndarray; or None
+        Computed ROM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc_ : func(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
+        Computed ROM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`. Used internally instead of the larger H_.
+
+    H_ : func(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
+        Computed ROM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hc_ if desired; not used in
+        solving the ROM.
+
+    B_ : func(µ) -> (r,m) ndarray; (r,m) ndarray; or None
+        Computed ROM input matrix, or None if 'B' is not in `modelform`.
+
+    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
+        of integrating the learned ROM in predict(). For more details, see
+        https://docs.scipy.org/doc/scipy/reference/integrate.html.
+    """
+    def __call__(self, µ):
+        """Construct the reduced model corresponding to the parameter µ."""
+        return _AffineMixin.__call__(self, µ, discrete=False)
+
+    def predict(self, µ, x0, t, u=None, **options):
+        """Construct a ROM for the parameter µ by exploiting the affine
+        structure of the ROM operators, then simulate the resulting ROM with
+        scipy.integrate.solve_ivp().
+
+        Parameters
+        ----------
+        µ : (p,) ndarray
+            The parameter of interest for the prediction.
+
+        x0 : (n,) ndarray
+            The initial (high-dimensional) state vector to begin a simulation.
+
+        t : (nt,) ndarray
+            The time domain over which to integrate the reduced-order system.
+
+        u : callable or (m,nt) ndarray
+            The input as a function of time (preferred) or the input at the
+            times `t`. If given as an array, u(t) is approximated by a cubic
+            spline interpolating the known data points.
+
+        options
+            Arguments for solver.integrate.solve_ivp(), such as the following:
+            method : str
+                The ODE solver for the reduced-order system.
+                * 'RK45' (default): Explicit Runge-Kutta method of order 5(4).
+                * 'RK23': Explicit Runge-Kutta method of order 3(2).
+                * 'Radau': Implicit Runge-Kutta method of the Radau IIA family
+                    of order 5.
+                * 'BDF': Implicit multi-step variable-order (1 to 5) method
+                    based on a backward differentiation formula for the
+                    derivative.
+                * 'LSODA': Adams/BDF method with automatic stiffness detection
+                    and switching. This wraps the Fortran solver from ODEPACK.
+            max_step : float
+                The maximimum allowed integration step size.
+            See https://docs.scipy.org/doc/scipy/reference/integrate.html.
+
+        Returns
+        -------
+        X_ROM: (n,nt) ndarray
+            The reduced-order approximation to the full-order system over `t`.
+        """
+        # Check modelform and inputs.
+        self._check_modelform(trained=True)
+        self._check_inputargs(u, 'u')
+
+        # TODO: Make sure the parameter µ has the correct dimension.
+        # Use the affine structure of the operators to construct a new model.
+        model = self(µ)
+        out = model.predict(x0, t, u, **options)
+        self.sol_ = model.sol_
+        return out
+
 
 __all__ = [
-            "InferredContinuousROM",
-            "IntrusiveContinuousROM",
-            "AffineIntrusiveContinuousROM",
+            "InferredDiscreteROM", "InferredContinuousROM",
+            "IntrusiveDiscreteROM", "IntrusiveContinuousROM",
+            "AffineIntrusiveDiscreteROM", "AffineIntrusiveContinuousROM",
+            "InterpolatedInferredDiscreteROM",
             "InterpolatedInferredContinuousROM",
           ]
 
