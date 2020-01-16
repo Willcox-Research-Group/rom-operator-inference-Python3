@@ -17,7 +17,7 @@ from . import utils, pre, post
 __all__ = [
             "InferredDiscreteROM", "InferredContinuousROM",
             "IntrusiveDiscreteROM" "IntrusiveContinuousROM",
-            "AffineIntrusiveContinuousROM", # AffineIntrusiveDiscreteROM",
+            "AffineIntrusiveContinuousROM", "AffineIntrusiveDiscreteROM",
             "InterpolatedInferredDiscreteROM",
             "InterpolatedInferredContinuousROM",
             "utils",

@@ -291,13 +291,13 @@ class TestDiscreteROM:
         model = roi._core._DiscreteROM('')
         model.modelform = "A"
         assert str(model) == \
-            "Reduced-order model structure: x_{k+1} = Ax_{k}"
+            "Reduced-order model structure: x_{j+1} = Ax_{j}"
         model.modelform = "cB"
         assert str(model) == \
-            "Reduced-order model structure: x_{k+1} = c + Bu_{k}"
+            "Reduced-order model structure: x_{j+1} = c + Bu_{j}"
         model.modelform = "H"
         assert str(model) == \
-            "Reduced-order model structure: x_{k+1} = H(x_{k} ⊗ x_{k})"
+            "Reduced-order model structure: x_{j+1} = H(x_{j} ⊗ x_{j})"
 
     def test_fit(self):
         """Test _core._DiscreteROM.fit()."""
@@ -911,7 +911,7 @@ class TestAffineIntrusiveMixin:
 
 
 # Useable classes =============================================================
-# Discrete ROMs (i.e., solving x_{k+1} = f(x_{k},u_{k})) ----------------------
+# Discrete ROMs (i.e., solving x_{j+1} = f(x_{j},u_{j})) ----------------------
 class TestInferredDiscreteROM:
     """Test _core.InferredDiscreteROM."""
     def test_fit(self):

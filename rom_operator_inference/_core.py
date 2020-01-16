@@ -229,7 +229,7 @@ class _BaseROM:
 class _DiscreteROM(_BaseROM):
     """Base class for models that solve the discrete ROM problem,
 
-        x_{k+1} = f(x_{k}, u_{k}),         x_{0} = x0.
+        x_{j+1} = f(x_{j}, u_{j}),         x_{0} = x0.
 
     The problem may also be parametric, i.e., x and f may depend on an
     independent parameter µ.
@@ -278,11 +278,11 @@ class _DiscreteROM(_BaseROM):
         self._check_modelform()
         out = []
         if self.has_constant:  out.append("c")
-        if self.has_linear:    out.append("Ax_{k}")
-        if self.has_quadratic: out.append("H(x_{k} ⊗ x_{k})")
-        if self.has_inputs:    out.append("Bu_{k}")
+        if self.has_linear:    out.append("Ax_{j}")
+        if self.has_quadratic: out.append("H(x_{j} ⊗ x_{j})")
+        if self.has_inputs:    out.append("Bu_{j}")
 
-        return "Reduced-order model structure: x_{k+1} = " + " + ".join(out)
+        return "Reduced-order model structure: x_{j+1} = " + " + ".join(out)
 
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
@@ -1090,12 +1090,12 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
 
 
 # Useable classes =============================================================
-# Discrete models (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
+# Discrete models (i.e., solving x_{j+1} = f(x_{j},u_{j})) --------------------
 class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
     """Reduced order model for a discrete dynamical system of
     the form
 
-        x_{k+1} = f(x_{k}, u_{k}),              x_{0} = x0.
+        x_{j+1} = f(x_{j}, u_{j}),              x_{0} = x0.
 
     The model form (structure) of the desired reduced model is user specified,
     and the operators of the reduced model are inferred by solving an ordinary
@@ -1209,7 +1209,7 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
 class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
     """Reduced order model for a discrete dynamical system of the form
 
-        x_{k+1} = f(x_{k}, u_{k}),              x_{0} = x0.
+        x_{j+1} = f(x_{j}, u_{j}),              x_{0} = x0.
 
     The user must specify the model form of the full-order model (FOM)
     operator f and the associated operators; the operators for the reduced
@@ -1312,7 +1312,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
     """Reduced order model for a high-dimensional discrete dynamical system,
     parametrized by a scalar µ, of the form
 
-        x_{k+1}(µ) = f(x_{k}(µ), u_{k}; µ),     x_{0}(µ) = x0(µ).
+        x_{j+1}(µ) = f(x_{j}(µ), u_{j}; µ),     x_{0}(µ) = x0(µ).
 
     The model form (structure) of the desired reduced model is user specified,
     and the operators of the reduced model are inferred by solving several
@@ -1464,7 +1464,7 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
     """Reduced order model for a high-dimensional discrete dynamical system,
     parametrized by a scalar µ, of the form
 
-        x_{k+1}(µ) = f(x_{k}(µ), u_{k}; µ),     x_{0}(µ) = x0(µ),
+        x_{j+1}(µ) = f(x_{j}(µ), u_{j}; µ),     x_{0}(µ) = x0(µ),
 
     where one or more of the operators that compose f have an affine
     dependence on the parameter, e.g., A(µ) = θ1(µ)A1 + θ2(µ)A2 + θ3(µ)A3.
