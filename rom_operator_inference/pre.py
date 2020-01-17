@@ -279,6 +279,107 @@ def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
     return ranks[0] if one_eps else ranks
 
 
+# Reprojection schemes ========================================================
+def reproject_discrete(f, Vr, x0, niters, U=None):
+    """Sample re-projected trajectories of the discrete dynamical system
+
+        x_{j+1} = f(x_{j}, u_{j}),  x_{0} = x0.
+
+    Parameters
+    ----------
+    f : callable mapping (n,) ndarray to (n,) ndarray
+        Function defining the (full-order) discrete dynamical system.
+
+    Vr : (n,r) ndarray
+        Basis for the low-dimensional linear subspace (e.g., POD basis).
+
+    x0 : (n,) ndarray
+        Initial condition for the iteration in the high-dimensional space.
+
+    niters : int
+        The number of iterations to do.
+
+    U : (m,niters-1) ndarray
+        Control inputs, one for each iteration beyond the initial condition.
+
+    Returns
+    -------
+    X_reprojected : (n,niters) ndarray
+        Re-projected state trajectories in the original high-dimensional space.
+    """
+    # Validate and extract dimensions.
+    n,_ = Vr.shape
+    if x0.shape != (n,):
+        raise ValueError("basis Vr and initial condition x0 not aligned")
+
+    # Create the solution array and fill in the initial condition.
+    Pr = Vr @ Vr.T                          # Projector onto linear subspace.
+    X_rp = _np.empty((n,niters))
+    X_rp[:,0] = Pr @ x0
+
+    # Run the re-projection iteration.
+    if U is None:
+        for j in range(niters-1):
+            X_rp[:,j+1] = Pr @ f(X_rp[:,j])
+    elif U.ndim == 1:
+        for j in range(niters-1):
+            X_rp[:,j+1] = Pr @ f(X_rp[:,j], U[j])
+    else:
+        for j in range(niters-1):
+            X_rp[:,j+1] = Pr @ f(X_rp[:,j], U[:,j])
+
+    return X_rp
+
+
+def reproject_continuous(f, Vr, X, U=None):
+    """Sample with re-projection trajectories of the continuous system of ODEs
+
+        dx / dt = f(t, x(t), u(t)),     x(0) = x0.
+
+    Parameters
+    ----------
+    f : callable mapping (n,) ndarray to (n,) ndarray
+        Function defining the differential equation.
+
+    Vr : (n,r) ndarray
+        Basis for the low-dimensional linear subspace.
+
+    X : (n,k) ndarray
+        State trajectories (training data).
+
+    Returns
+    -------
+    X_reprojected : (n,k) ndarray
+        Re-projected state trajectories in the original high-dimensional space.
+
+    Xdot_reprojected : (n,k) ndarray
+        Re-projected velocities in the original high-dimensional space.
+    """
+    # Validate and extract dimensions.
+    if X.shape[0] != Vr.shape[0]:
+        raise ValueError("X and Vr not aligned, first dimension "
+                         f"{X.shape[0]} != {Vr.shape[0]}")
+    n,_ = Vr.shape
+    _,k = X.shape
+
+    # Create the solution arrays.
+    X_rp = Vr @ Vr.T @ X
+    Xdot_rp = _np.empty_like(X)
+
+    # Run the re-projection iteration.
+    if U is None:
+        for j in range(k):
+            Xdot_rp[:,j] = f(X_rp[:,j])
+    elif U.ndim == 1:
+        for j in range(k):
+            Xdot_rp[:,j] = f(X_rp[:,j], U[j])
+    else:
+        for j in range(k):
+            Xdot_rp[:,j] = f(X_rp[:,j], U[:,j])
+
+    return X_rp, Xdot_rp
+
+
 # Derivative approximation ====================================================
 def _fwd4(y, dt):                                           # pragma: no cover
     """Compute the first derivative of a uniformly-spaced-in-time array with a

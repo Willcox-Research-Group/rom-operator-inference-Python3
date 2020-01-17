@@ -168,6 +168,133 @@ def test_minimal_projection_error(set_up_basis_data):
     plt.close("all")
 
 
+# Reprojection schemes ========================================================
+def test_reproject_discrete(n=50, m=5, r=3):
+    """Test pre.reproject_discrete()."""
+    # Construct dummy operators.
+    k = 1 + r + r*(r+1)//2
+    I = np.eye(n)
+    D = np.diag(1 - np.logspace(-1, -2, n))
+    W = la.qr(np.random.normal(size=(n,n)))[0]
+    A = W.T @ D @ W
+    Ht = np.random.random((n,n,n))
+    H = (Ht + Ht.T) / 20
+    H = H.reshape((n, n**2))
+    B = np.random.random((n,m))
+    U = np.random.random((m,k))
+    B1d = np.random.random(n)
+    U1d = np.random.random(k)
+    Vr = np.eye(n)[:,:r]
+    x0 = np.zeros(n)
+    x0[0] = 1
+
+    # Try with bad initial condition shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.reproject_discrete(lambda x:x, Vr, x0[:-1], k)
+    assert exc.value.args[0] == "basis Vr and initial condition x0 not aligned"
+
+    # Linear case, no inputs.
+    f = lambda x: A @ x
+    X = roi.pre.reproject_discrete(f, Vr, x0, k)
+    assert X.shape == (n,k)
+    assert np.allclose(Vr @ Vr.T @ X, X)
+    model = roi.InferredDiscreteROM("A").fit(X, Vr)
+    assert np.allclose(X, model.predict(X[:,0], k))
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+
+    # Linear case, 1D inputs.
+    f = lambda x, u: A @ x + B1d * u
+    X = roi.pre.reproject_discrete(f, Vr, x0, k, U1d)
+    assert X.shape == (n,k)
+    assert np.allclose(Vr @ Vr.T @ X, X)
+    model = roi.InferredDiscreteROM("AB").fit(X, Vr, U1d)
+    assert np.allclose(X, model.predict(X[:,0], k, U1d))
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    assert np.allclose(model.B_.flatten(), Vr.T @ B1d)
+
+    # Linear case, 2D inputs.
+    f = lambda x, u: A @ x + B @ u
+    X = roi.pre.reproject_discrete(f, Vr, x0, k, U)
+    assert X.shape == (n,k)
+    assert np.allclose(Vr @ Vr.T @ X, X)
+    model = roi.InferredDiscreteROM("AB").fit(X, Vr, U)
+    assert np.allclose(X, model.predict(X[:,0], k, U))
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    assert np.allclose(model.B_, Vr.T @ B)
+
+    # Quadratic case, no inputs.
+    f = lambda x: A @ x + H @ np.kron(x,x)
+    X = roi.pre.reproject_discrete(f, Vr, x0, k)
+    assert X.shape == (n,k)
+    assert np.allclose(Vr @ Vr.T @ X, X)
+    model = roi.InferredDiscreteROM("AH").fit(X, Vr)
+    assert np.allclose(X, model.predict(X[:,0], k))
+    assert np.allclose(model.A_, Vr.T @ A @ Vr, atol=1e-6)
+    assert np.allclose(model.H_, Vr.T @ H @ np.kron(Vr, Vr), atol=1e-1, rtol=1)
+
+
+def test_reproject_continuous(n=100, m=20, r=10):
+    """Test pre.reproject_continuous()."""
+    # Construct dummy operators.
+    k = 1 + r + r*(r+1)//2
+    I = np.eye(n)
+    D = np.diag(1 - np.logspace(-1, -2, n))
+    W = la.qr(np.random.normal(size=(n,n)))[0]
+    A = W.T @ D @ W
+    Ht = np.random.random((n,n,n))
+    H = (Ht + Ht.T) / 20
+    H = H.reshape((n, n**2))
+    B = np.random.random((n,m))
+    U = np.random.random((m,k))
+    B1d = np.random.random(n)
+    U1d = np.random.random(k)
+    Vr = np.eye(n)[:,:r]
+    X = np.random.random((n,k))
+
+    # Try with bad initial condition shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.reproject_continuous(lambda x:x, Vr, X[:-1,:])
+    assert exc.value.args[0] == \
+        f"X and Vr not aligned, first dimension {n-1} != {n}"
+
+    # Linear case, no inputs.
+    f = lambda x: A @ x
+    X, Xdot = roi.pre.reproject_continuous(f, Vr, X)
+    assert X.shape == (n,k)
+    assert Xdot.shape == (n,k)
+    assert np.allclose(Vr @ Vr.T @ X, X)
+    model = roi.InferredContinuousROM("A").fit(X, Xdot, Vr)
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+
+    # Linear case, 1D inputs.
+    f = lambda x, u: A @ x + B1d * u
+    X, Xdot = roi.pre.reproject_continuous(f, Vr, X, U1d)
+    assert X.shape == (n,k)
+    assert Xdot.shape == (n,k)
+    model = roi.InferredContinuousROM("AB").fit(X, Xdot, Vr, U1d)
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    assert np.allclose(model.B_.flatten(), Vr.T @ B1d)
+
+    # Linear case, 2D inputs.
+    f = lambda x, u: A @ x + B @ u
+    X, Xdot = roi.pre.reproject_continuous(f, Vr, X, U)
+    assert X.shape == (n,k)
+    assert Xdot.shape == (n,k)
+    model = roi.InferredContinuousROM("AB").fit(X, Xdot, Vr, U)
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    assert np.allclose(model.B_, Vr.T @ B)
+
+    # Quadratic case, no inputs.
+    f = lambda x: A @ x + H @ np.kron(x,x)
+    X, Xdot = roi.pre.reproject_continuous(f, Vr, X)
+    assert X.shape == (n,k)
+    assert Xdot.shape == (n,k)
+    assert np.allclose(Vr @ Vr.T @ X, X)
+    model = roi.InferredContinuousROM("AH").fit(X, Xdot, Vr)
+    assert np.allclose(model.A_, Vr.T @ A @ Vr, atol=1e-6)
+    assert np.allclose(model.H_, Vr.T @ H @ np.kron(Vr, Vr), atol=1e-1, rtol=1)
+
+
 # Derivative approximation ====================================================
 DynamicState = namedtuple("DynamicState", ["time", "state", "derivative"])
 
