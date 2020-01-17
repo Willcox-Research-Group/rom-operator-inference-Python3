@@ -91,14 +91,14 @@ class AffineOperator:
                                                  self.matrices)], axis=0)
 
 
-def trained_model_from_operators(modelclass, modelform, Vr,
+def trained_model_from_operators(ModelClass, modelform, Vr,
                                  c_=None, A_=None, H_=None, Hc_=None, B_=None):
     """Construct a prediction-capable ROM object from the operators of
     the reduced model.
 
     Parameters
     ----------
-    modelclass : type
+    ModelClass : type
         One of the ROM classes (e.g., IntrusiveContinuousROM).
 
     modelform : str
@@ -126,15 +126,15 @@ def trained_model_from_operators(modelclass, modelform, Vr,
 
     Returns
     -------
-    model : modelclass object
+    model : ModelClass object
         A new model, ready for predict() calls.
     """
-    # Check that the modelclass is valid.
-    if not issubclass(modelclass, _BaseROM):
-        raise TypeError("modelclass must be derived from _BaseROM")
+    # Check that the ModelClass is valid.
+    if not issubclass(ModelClass, _BaseROM):
+        raise TypeError("ModelClass must be derived from _BaseROM")
 
     # Construct the new model object.
-    model = modelclass(modelform)
+    model = ModelClass(modelform)
     model._check_modelform(trained=False)
 
     # Insert the attributes.
@@ -144,14 +144,8 @@ def trained_model_from_operators(modelclass, modelform, Vr,
     model.c_, model.A_, model.B_ = c_, A_, B_
     model.Hc_ = H2Hc(H_) if H_ else Hc_
 
-    # Check that the attributes match the modelform.
-    model._check_modelform(trained=True)
-
-    # Construct the ROM operator f_() if there are no system inputs.
-    if not model.has_inputs and issubclass(modelclass, _ContinuousROM):
-        model._construct_f_()
-    elif issubclass(modelclass, _DiscreteROM):
-        model._construct_f_()
+    # Construct the complete reduced model operator from the arguments.
+    model._construct_f_()
 
     return model
 
@@ -354,15 +348,11 @@ class _ContinuousROM(_BaseROM):
     The problem may also be parametric, i.e., x and f may depend on an
     independent parameter µ.
     """
-    def _construct_f_(self, u=None):
-        """Define the attribute self.f_ based on the computed operators and,
-        if appropriate, the input function u(t).
-        """
+    def _construct_f_(self):
+        """Define the attribute self.f_ based on the computed operators."""
         self._check_modelform(trained=True)
-        self._check_inputargs(u, 'u')
 
-        self._jac = None
-        u_ = u
+        # self._jac = None
         # No control inputs.
         if self.modelform == "c":
             f_ = lambda t,x_: self.c_
@@ -383,25 +373,25 @@ class _ContinuousROM(_BaseROM):
             f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_)
         # Has control inputs.
         elif self.modelform == "B":
-            f_ = lambda t,x_: self.B_@u_(t)
+            f_ = lambda t,x_,u: self.B_@u(t)
             # self._jac = np.zeros((self.r, self.r))
         elif self.modelform == "cB":
-            f_ = lambda t,x_: self.c_ + self.B_@u_(t)
+            f_ = lambda t,x_,u: self.c_ + self.B_@u(t)
             # self._jac = np.zeros((self.r, self.r))
         elif self.modelform == "AB":
-            f_ = lambda t,x_: self.A_@x_ + self.B_@u_(t)
+            f_ = lambda t,x_,u: self.A_@x_ + self.B_@u(t)
             # self._jac = self.A_
         elif self.modelform == "cAB":
-            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.B_@u_(t)
+            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.B_@u(t)
             # self._jac = self.A_
         elif self.modelform == "HB":
-            f_ = lambda t,x_: self.Hc_@kron2(x_) + self.B_@u_(t)
+            f_ = lambda t,x_,u: self.Hc_@kron2(x_) + self.B_@u(t)
         elif self.modelform == "cHB":
-            f_ = lambda t,x_: self.c_ + self.Hc_@kron2(x_) + self.B_@u_(t)
+            f_ = lambda t,x_,u: self.c_ + self.Hc_@kron2(x_) + self.B_@u(t)
         elif self.modelform == "AHB":
-            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u_(t)
+            f_ = lambda t,x_,u: self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u(t)
         elif self.modelform == "cAHB":
-            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u_(t)
+            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u(t)
         self.f_ = f_
 
     def __str__(self):
@@ -499,11 +489,9 @@ class _ContinuousROM(_BaseROM):
                                      f"({U.shape} != {(self.m,nt)}")
                 u = CubicSpline(t, U, axis=1)
 
-            # Construct the ROM operator if needed (deferred due to u(t)).
-            self._construct_f_(u)
-
         # Integrate the reduced-order model.
-        self.sol_ = solve_ivp(self.f_,          # Integrate f_(t,x_)
+        fun = (lambda t,x_: self.f_(t, x_, u)) if self.has_inputs else self.f_
+        self.sol_ = solve_ivp(fun,              # Integrate f_(t, x_, u)
                               [t[0], t[-1]],    # over this time interval
                               x0_,              # with this initial condition
                               t_eval=t,         # evaluated at these points
@@ -644,8 +632,8 @@ class _InferredMixin:
             i += self.m
         else:
             self.B_ = None
-            self._construct_f_()
 
+        self._construct_f_()
         return self
 
 
@@ -740,6 +728,7 @@ class _IntrusiveMixin:
         else:
             self.B, self.B_, self.m = None, None, None
 
+        self._construct_f_()
         return self
 
 
@@ -811,7 +800,7 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
         c_  = self.c_(µ)  if self.c_  is not None else None
         B_  = self.B_(µ)  if self.B_  is not None else None
         return trained_model_from_operators(
-                    modelclass=_DiscreteROM if discrete else _ContinuousROM,
+                    ModelClass=_DiscreteROM if discrete else _ContinuousROM,
                     modelform=self.modelform,
                     Vr=self.Vr, A_=A_, Hc_=Hc_, c_=c_, B_=B_)
 
@@ -821,6 +810,10 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
 
         Parameters
         ----------
+        ModelClass: class
+            ROM class, either _ContinuousROM or _DiscreteROM, to use for the
+            newly constructed model.
+
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
@@ -938,7 +931,7 @@ class _AffineMixin(_ParametricMixin):
                                                              else self.Hc_
         B_ = self.B_(µ) if isinstance(self.B_, AffineOperator) else self.B_
         return trained_model_from_operators(
-                    modelclass=_DiscreteROM if discrete else _ContinuousROM,
+                    ModelClass=_DiscreteROM if discrete else _ContinuousROM,
                     modelform=self.modelform,
                     Vr=self.Vr, c_=c_, A_=A_, Hc_=Hc_, B_=B_)
 
@@ -1197,13 +1190,11 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         -------
         self
         """
-        _InferredMixin.fit(self,
-                           X[:,:-1], X[:,1:],       # x_{j}'s and x_{j+1}'s.
-                           Vr,
-                           U[...,:X.shape[1]-1] if U is not None else U,
-                           P)
-        self._construct_f_()
-        return self
+        return _InferredMixin.fit(self,
+                                  X[:,:-1], X[:,1:],    # x_j's and x_{j+1}'s.
+                                  Vr,
+                                  U[...,:X.shape[1]-1] if U is not None else U,
+                                  P)
 
 
 class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
@@ -1303,9 +1294,7 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
         -------
         self
         """
-        _IntrusiveMixin.fit(self, operators, Vr)
-        self._construct_f_()
-        return self
+        return _IntrusiveMixin.fit(self, operators, Vr)
 
 
 class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
@@ -1353,6 +1342,10 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
     m : int or None
         The dimension of the input u(t), or None if 'B' is not in `modelform`.
 
+    s : int
+        The number of training parameter samples, hence also the number of
+        reduced models computed via inference and used in the interpolation.
+
     Vr : (n,r) ndarray
         The basis for the linear reduced space (e.g., POD basis matrix).
 
@@ -1363,29 +1356,31 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         The squared Frobenius-norm residual of each least-squares problem for
         computing the reduced-order model operators.
 
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
+    cs_ : list of s (r,) ndarrays or None
+        Learned ROM constant terms, or None if 'c' is not in `modelform`.
 
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
+    As_ : list of s (r,r) ndarrays or None
+        Learned ROM linear state matrices, or None if 'A' not in `modelform`.
 
-    Hc_ : (r,r(r+1)//2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
+    Hcs_ : list of s (r,r(r+1)//2) ndarrays or None
+        Learned ROM quadratic state matrices (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
+    Hs_ : list of s (r,r**2) ndarrays or None
+        Learned ROM quadratic state matrices (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hcs_ if desired; not used in
+        solving the ROM.
 
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
+    Bs_ : list of s (r,m) ndarrays or None
+        Learned ROM input matrices, or None if 'B' not in `modelform`.
 
-    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
-        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and inputs if appropriate) to reduced state. Calculated in fit().
+    fs_ : list of func(float, (r,) ndarray) -> (r,) ndarray
+        The complete ROM operators for each parameter sample, defined by
+        cs_, As_, and/or Hcs_.
+
+    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
+        of integrating the learned ROM in predict(). For more details, see
+        https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
     def __call__(self, µ):
         """Construct the reduced model corresponding to the parameter µ."""
@@ -1424,9 +1419,8 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         -------
         self
         """
-        _InterpolatedMixin.fit(self, InferredDiscreteROM,
-                               µs, Xs, None, Vr, Us, P)
-        return self
+        return _InterpolatedMixin.fit(self, InferredDiscreteROM,
+                                      µs, Xs, None, Vr, Us, P)
 
     def predict(self, µ, x0, niters, U=None):
         """Construct a ROM for the parameter µ by interolating the entries of
@@ -1461,8 +1455,8 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
 
 
 class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
-    """Reduced order model for a high-dimensional discrete dynamical system,
-    parametrized by a scalar µ, of the form
+    """Reduced order model for a high-dimensional, parametrized discrete
+    dynamical system of the form
 
         x_{j+1}(µ) = f(x_{j}(µ), u_{j}; µ),     x_{0}(µ) = x0(µ),
 
@@ -1509,29 +1503,44 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
     Vr : (n,r) ndarray
         The basis for the linear reduced space (e.g., POD basis matrix).
 
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
+    c : func(µ) -> (n,) ndarray; (n,) ndarray; or None
+        FOM constant term, or None if 'c' is not in `modelform`.
 
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
+    A : func(µ) -> (n,n) ndarray; (n,n) ndarray; or None
+        FOM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : (r,r(r+1)//2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
+    Hc : func(µ) -> (n,n(n+1)//2) ndarray; (n,n(n+1)//2) ndarray; or None
+        FOM quadratic state matrix (compact), or None if 'H' is not
+        in `modelform`.
+
+    H : func(µ) -> (n,n**2) ndarray; (n,n**2) ndarray; or None
+        FOM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`.
+
+    B : func(µ) -> (n,m) ndarray; (n,m) ndarray; or None
+        FOM input matrix, or None if 'B' is not in `modelform`.
+
+    c_ : func(µ) -> (r,) ndarray; (r,) ndarray; or None
+        Computed ROM constant term, or None if 'c' is not in `modelform`.
+
+    A_ : func(µ) -> (r,r) ndarray; (r,r) ndarray; or None
+        Computed ROM linear state matrix, or None if 'A' is not in `modelform`.
+
+    Hc_ : func(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
+        Computed ROM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
+    H_ : func(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
+        Computed ROM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`. Computed on the fly from Hc_ if desired; not used in
+        solving the ROM.
 
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
+    B_ : func(µ) -> (r,m) ndarray; (r,m) ndarray; or None
+        Computed ROM input matrix, or None if 'B' is not in `modelform`.
 
-    f_ : func((r,) ndarray, (m,) ndarray) -> (r,)
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
-        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and inputs if appropriate) to reduced state. Calculated in fit().
+    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
+        of integrating the learned ROM in predict(). For more details, see
+        https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
     def __call__(self, µ):
         """Construct the reduced model corresponding to the parameter µ."""
@@ -1645,11 +1654,11 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
     B_ : (r,m) ndarray or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
 
-    f_ : func(float, (r,) ndarray) -> (r,) ndarray
+    f_ : func(float, (r,) ndarray, func?) -> (r,) ndarray
         The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        Note the signature is f_(t, x_); that is, f_ maps time and reduced
-        state to reduced state. Calculated in fit() if 'B' is not in
-        `modelform`, and in predict() otherwise.
+        The signature is f_(t, x_) if 'B' is not in `modelform` (no inputs) and
+        f_(t, x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
+        (and possibly an input function) to reduced state. Calculated in fit().
 
     sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
         of integrating the learned ROM in predict(). For more details, see
@@ -1686,10 +1695,7 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         -------
         self
         """
-        _InferredMixin.fit(self, X, Xdot, Vr, U, P)
-        if not self.has_inputs:
-            self._construct_f_()
-        return self
+        return _InferredMixin.fit(self, X, Xdot, Vr, U, P)
 
 
 class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
@@ -1774,11 +1780,11 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
     B_ : (r,m) ndarray or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
 
-    f_ : func(float, (r,) ndarray) -> (r,) ndarray
+    f_ : func(float, (r,) ndarray, func?) -> (r,) ndarray
         The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        Note the signature is f_(t, x_); that is, f_ maps time and reduced
-        state to reduced state. Calculated in fit() if 'B' is not in
-        `modelform`, and in predict() otherwise.
+        The signature is f_(t, x_) if 'B' is not in `modelform` (no inputs) and
+        f_(t, x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
+        (and possibly an input function) to reduced state. Calculated in fit().
 
     sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
         of integrating the learned ROM in predict(). For more details, see
@@ -1804,10 +1810,7 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
         -------
         self
         """
-        _IntrusiveMixin.fit(self, operators, Vr)
-        if not self.has_inputs:
-            self._construct_f_()
-        return self
+        return _IntrusiveMixin.fit(self, operators, Vr)
 
 
 class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
@@ -1856,8 +1859,8 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         The dimension of the input u(t), or None if 'B' is not in `modelform`.
 
     s : int
-        The number of training parameter samples, so also the number of reduced
-        models computed via inference and used in the interpolation.
+        The number of training parameter samples, hence also the number of
+        reduced models computed via inference and used in the interpolation.
 
     Vr : (n,r) ndarray
         The basis for the linear reduced space (e.g., POD basis matrix).
@@ -1868,6 +1871,9 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
     residuals_ : (s,) ndarray
         The squared Frobenius-norm residual of each least-squares problem (one
         per parameter) for computing the reduced-order model operators.
+
+    cs_ : list of s (r,) ndarrays or None
+        Learned ROM constant terms, or None if 'c' is not in `modelform`.
 
     As_ : list of s (r,r) ndarrays or None
         Learned ROM linear state matrices, or None if 'A' not in `modelform`.
@@ -1881,16 +1887,12 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         in `modelform`. Computed on the fly from Hcs_ if desired; not used in
         solving the ROM.
 
-    cs_ : list of s (r,) ndarrays or None
-        Learned ROM constant terms, or None if 'c' is not in `modelform`.
-
     Bs_ : list of s (r,m) ndarrays or None
         Learned ROM input matrices, or None if 'B' not in `modelform`.
 
     fs_ : list of func(float, (r,) ndarray) -> (r,) ndarray
         The complete ROM operators for each parameter sample, defined by
-        cs_, As_, and/or Hcs_. Only available after calling fit() and only if
-        there are no inputs ('B' is not in the modelform).
+        cs_, As_, and/or Hcs_.
 
     sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
         of integrating the learned ROM in predict(). For more details, see
@@ -1937,9 +1939,8 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         -------
         self
         """
-        _InterpolatedMixin.fit(self, InferredContinuousROM,
-                               µs, Xs, Xdots, Vr, Us, P)
-        return self
+        return _InterpolatedMixin.fit(self, InferredContinuousROM,
+                                      µs, Xs, Xdots, Vr, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by interolating the entries of
@@ -1995,7 +1996,8 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
 
 
 class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
-    """Reduced order model for a system of high-dimensional ODEs of the form
+    """Reduced order model for a high-dimensional, parametrized system of ODEs
+    of the form
 
         dx / dt = f(t, x(t), u(t); µ),          x(0;µ) = x0(µ),
 

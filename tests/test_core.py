@@ -36,9 +36,9 @@ def _get_operators(n=200, m=20):
 def _trainedmodel(continuous, modelform, Vr, m=20):
     """Construct a base class with model operators already constructed."""
     if continuous:
-        modelclass = roi._core._ContinuousROM
+        ModelClass = roi._core._ContinuousROM
     else:
-        modelclass = roi._core._DiscreteROM
+        ModelClass = roi._core._DiscreteROM
 
     n,r = Vr.shape
     c, A, H, Hc, B = _get_operators(r, m)
@@ -52,7 +52,7 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
     if "B" in modelform:
         operators['B_'] = B
 
-    return roi._core.trained_model_from_operators(modelclass, modelform,
+    return roi._core.trained_model_from_operators(ModelClass, modelform,
                                                   Vr, **operators)
 
 
@@ -132,10 +132,10 @@ def testtrained_model_from_operators():
     Vr = np.random.random((n, r))
     c, A, H, Hc, B = _get_operators(n=n, m=m)
 
-    # Try with bad modelclass argument.
+    # Try with bad ModelClass argument.
     with pytest.raises(TypeError) as ex:
         roi._core.trained_model_from_operators(str, "cAH", Vr)
-    assert ex.value.args[0] == "modelclass must be derived from _BaseROM"
+    assert ex.value.args[0] == "ModelClass must be derived from _BaseROM"
 
     # Correct usage.
     roi._core.trained_model_from_operators(roi._core._ContinuousROM,
