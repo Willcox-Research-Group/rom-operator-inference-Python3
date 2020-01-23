@@ -347,6 +347,9 @@ def reproject_continuous(f, Vr, X, U=None):
     X : (n,k) ndarray
         State trajectories (training data).
 
+    U : (m,k) ndarray
+        Control inputs corresponding to the state trajectories.
+
     Returns
     -------
     X_reprojected : (n,k) ndarray
@@ -583,6 +586,8 @@ __all__ = [
             "energy_capture",
             "projection_error",
             "minimal_projection_error",
+            "reproject_discrete",
+            "reproject_continuous",
             "xdot_uniform",
             "xdot_nonuniform",
             "xdot",
