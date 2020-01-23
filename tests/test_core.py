@@ -101,7 +101,6 @@ def test_select_model():
                                         roi.InterpolatedInferredContinuousROM
 
 
-
 def test_trained_model_from_operators():
     """Test _core.trained_model_from_operators()."""
     n, m, r = 200, 20, 30
@@ -189,7 +188,7 @@ class TestAffineOperator:
                                np.cos(10)*As[1] + np.exp(10)*As[2])
 
 
-# Base classes ================================================================
+# Base classes (private) ======================================================
 class TestBaseROM:
     """Test _core._BaseROM."""
     def test_init(self):
@@ -574,7 +573,7 @@ class TestContinuousROM:
                 assert out.shape == (n,nt)
 
 
-# Basic mixins ================================================================
+# Basic mixins (private) ======================================================
 class TestInferredMixin:
     """Test _core._InferredMixin."""
     def test_check_training_data_shapes(self):
@@ -766,7 +765,7 @@ class TestParametricMixin:
     pass
 
 
-# Specialized mixins ==========================================================
+# Specialized mixins (private) ================================================
 class TestInterpolatedMixin:
     """Test _core._InterpolatedMixin."""
     pass
@@ -955,14 +954,22 @@ class TestAffineIntrusiveMixin:
             model.predict(1, X[:,0], 100)
 
 
-# Useable classes =============================================================
-# Discrete ROMs (i.e., solving x_{j+1} = f(x_{j},u_{j})) ----------------------
+# Useable classes (public) ====================================================
+# Nonparametric operator inference models -------------------------------------
 class TestInferredDiscreteROM:
     """Test _core.InferredDiscreteROM."""
     def test_fit(self):
         TestInferredMixin()._test_fit(roi.InferredDiscreteROM)
 
 
+class TestInferredContinuousROM:
+    """Test _core.InferredContinuousROM."""
+    def test_fit(self):
+        """Test _core.InferredContinuousROM.fit()."""
+        TestInferredMixin()._test_fit(roi.InferredContinuousROM)
+
+
+# Nonparametric intrusive models ----------------------------------------------
 class TestIntrusiveDiscreteROM:
     """Test _core.IntrusiveDiscreteROM."""
     def test_fit(self):
@@ -970,6 +977,14 @@ class TestIntrusiveDiscreteROM:
         TestIntrusiveMixin()._test_fit(roi.IntrusiveDiscreteROM)
 
 
+class TestIntrusiveContinuousROM:
+    """Test _core.IntrusiveContinuousROM."""
+    def test_fit(self):
+        """Test _core.IntrusiveContinuousROM.fit()."""
+        TestIntrusiveMixin()._test_fit(roi.IntrusiveContinuousROM)
+
+
+# Interpolated operator inference models --------------------------------------
 class TestInterpolatedInferredDiscreteROM:
     """Test _core.InterpolatedInferredDiscreteROM."""
     def test_fit(self):
@@ -1044,32 +1059,6 @@ class TestInterpolatedInferredDiscreteROM:
         model.fit(ps, Xs, Vr, Us)
         model.predict(1, x0, niters, U)
         model.predict(1.5, x0, niters, U)
-
-
-class TestAffineIntrusiveDiscreteROM:
-    """Test _core.AffineIntrusiveDiscreteROM."""
-    def test_fit(self):
-        """Test _core.AffineIntrusiveDiscreteROM.fit()."""
-        TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveDiscreteROM)
-
-    def test_predict(self):
-        """Test _core.AffineIntrusiveDiscreteROM.predict()."""
-        TestAffineIntrusiveMixin()._test_predict(
-            roi.AffineIntrusiveDiscreteROM)
-
-# Continuous models (i.e., solving dx / dt = f(t,x(t),u(t))) ------------------
-class TestInferredContinuousROM:
-    """Test _core.InferredContinuousROM."""
-    def test_fit(self):
-        """Test _core.InferredContinuousROM.fit()."""
-        TestInferredMixin()._test_fit(roi.InferredContinuousROM)
-
-
-class TestIntrusiveContinuousROM:
-    """Test _core.IntrusiveContinuousROM."""
-    def test_fit(self):
-        """Test _core.IntrusiveContinuousROM.fit()."""
-        TestIntrusiveMixin()._test_fit(roi.IntrusiveContinuousROM)
 
 
 class TestInterpolatedInferredContinuousROM:
@@ -1155,6 +1144,19 @@ class TestInterpolatedInferredContinuousROM:
         model.fit(ps, Xs, Xdots, Vr, Us)
         model.predict(1, x0, t, u)
         model.predict(1.5, x0, t, u)
+
+
+# Affine intrusive models -----------------------------------------------------
+class TestAffineIntrusiveDiscreteROM:
+    """Test _core.AffineIntrusiveDiscreteROM."""
+    def test_fit(self):
+        """Test _core.AffineIntrusiveDiscreteROM.fit()."""
+        TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveDiscreteROM)
+
+    def test_predict(self):
+        """Test _core.AffineIntrusiveDiscreteROM.predict()."""
+        TestAffineIntrusiveMixin()._test_predict(
+            roi.AffineIntrusiveDiscreteROM)
 
 
 class TestAffineIntrusiveContinuousROM:
