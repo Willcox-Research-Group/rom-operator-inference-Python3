@@ -56,7 +56,70 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
                                                   Vr, **operators)
 
 
-# Helper classes and functions ================================================
+# Helper functions and classes ================================================
+def test_select_model():
+    """Test _core.select_model()."""
+    # Try with bad `time` argument.
+    with pytest.raises(ValueError) as ex:
+        roi.select_model("semidiscrete", "inferred", False)
+    assert "input `time` must be one of " in ex.value.args[0]
+
+
+    # Try with bad `rom_strategy` argument.
+    with pytest.raises(ValueError) as ex:
+        roi.select_model("discrete", "opinf", False)
+    assert "input `rom_strategy` must be one of " in ex.value.args[0]
+
+
+    # Try with bad `parametric` argument.
+    with pytest.raises(ValueError) as ex:
+        roi.select_model("discrete", "inferred", True)
+    assert "input `parametric` must be one of " in ex.value.args[0]
+
+
+    # Try with bad combination.
+    with pytest.raises(NotImplementedError) as ex:
+        roi.select_model("discrete", "intrusive", "interpolated")
+    assert ex.value.args[0] == "model type invalid or not implemented"
+
+    # Valid cases.
+    assert roi.select_model("discrete", "inferred") is  \
+                                        roi.InferredDiscreteROM
+    assert roi.select_model("continuous", "inferred") is \
+                                        roi.InferredContinuousROM
+    assert roi.select_model("discrete", "intrusive") is \
+                                        roi.IntrusiveDiscreteROM
+    assert roi.select_model("continuous", "intrusive") is \
+                                        roi.IntrusiveContinuousROM
+    assert roi.select_model("discrete", "intrusive", "affine") is \
+                                        roi.AffineIntrusiveDiscreteROM
+    assert roi.select_model("continuous", "intrusive", "affine") is \
+                                        roi.AffineIntrusiveContinuousROM
+    assert roi.select_model("discrete", "inferred", "interpolated") is \
+                                        roi.InterpolatedInferredDiscreteROM
+    assert roi.select_model("continuous", "inferred", "interpolated") is \
+                                        roi.InterpolatedInferredContinuousROM
+
+
+
+def test_trained_model_from_operators():
+    """Test _core.trained_model_from_operators()."""
+    n, m, r = 200, 20, 30
+    Vr = np.random.random((n, r))
+    c, A, H, Hc, B = _get_operators(n=n, m=m)
+
+    # Try with bad ModelClass argument.
+    with pytest.raises(TypeError) as ex:
+        roi.trained_model_from_operators(str, "cAH", Vr)
+    assert ex.value.args[0] == "ModelClass must be derived from _BaseROM"
+
+    # Correct usage.
+    roi.trained_model_from_operators(roi._core._ContinuousROM,
+                                     "cAH", Vr, A_=A, Hc_=Hc, c_=c)
+    roi.trained_model_from_operators(roi._core._ContinuousROM,
+                                     "AB", Vr, A_=A, B_=B)
+
+
 class TestAffineOperator:
     """Test _core.AffineOperator."""
     @staticmethod
@@ -124,24 +187,6 @@ class TestAffineOperator:
         assert Ap.shape == (5,5)
         assert np.allclose(Ap, np.sin(10)*As[0] + \
                                np.cos(10)*As[1] + np.exp(10)*As[2])
-
-
-def testtrained_model_from_operators():
-    """Test _core.trained_model_from_operators()."""
-    n, m, r = 200, 20, 30
-    Vr = np.random.random((n, r))
-    c, A, H, Hc, B = _get_operators(n=n, m=m)
-
-    # Try with bad ModelClass argument.
-    with pytest.raises(TypeError) as ex:
-        roi._core.trained_model_from_operators(str, "cAH", Vr)
-    assert ex.value.args[0] == "ModelClass must be derived from _BaseROM"
-
-    # Correct usage.
-    roi._core.trained_model_from_operators(roi._core._ContinuousROM,
-                                "cAH", Vr, A_=A, Hc_=Hc, c_=c)
-    roi._core.trained_model_from_operators(roi._core._ContinuousROM,
-                                "AB", Vr, A_=A, B_=B)
 
 
 # Base classes ================================================================

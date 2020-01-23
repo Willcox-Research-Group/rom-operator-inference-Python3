@@ -14,7 +14,146 @@ from .utils import (lstsq_reg,
                     kron_compact as kron2)
 
 
-# Helper classes and functions ================================================
+# Helper functions and classes ================================================
+def select_model(time, rom_strategy, parametric=False):
+    """Select the appropriate ROM model class for the situation.
+
+    Parameters
+    ----------
+    time : str {"discrete", "continuous"}
+        The type of full-order model to be reduced. Options:
+        * "discrete": solve a discrete dynamical system,
+          x_{j+1} = f(x_{j}, u_{j}), x_{0} = x0.
+        * "continuous": solve an ordinary differential equation,
+          dx / dt = f(t, x(t), u(t)), x(0) = x0.
+
+    rom_strategy : str {"inferred", "intrusive"}
+        Whether to use operator inference or intrusive projection to compute
+        the operators of the intrusive model. Options:
+        * "inferred": use operator inference, i.e., solve a least-squares
+          problem based on snapshot data.
+        * "intrusive": use intrusive projection, i.e., project known full-order
+          operators to the reduced space.
+
+    parametric : str {"affine", "interpolated"} or False
+        Whether or not the model depends on an external parameter, and how to
+        handle the parametric dependence. Options:
+        * False (default): the problem is nonparametric.
+        * "affine": one or more operators in the problem depends affinely on
+          the parameter, i.e., A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i}.
+          Only valid for rom_strategy="intrusive".
+        * "interpolated": construct individual models for each sample parameter
+          and interpolate them for general paramter inputs. Only valid for
+          rom_strategy="inferred".
+
+    Returns
+    -------
+    ModelClass : type
+        One of the ROM classes derived from _BaseROM:
+        * InferredDiscreteROM
+        * InferredContinuousROM
+        * IntrusiveDiscreteROM
+        * IntrusiveContinuousROM
+        * AffineIntrusiveDiscreteROM
+        * AffineIntrusiveContinuousROM
+        * InterpolatedInferredDiscreteROM
+        * InterpolatedInferredContinuousROM
+    """
+    # Validate parameters.
+    time_options = {"discrete", "continuous"}
+    rom_strategy_options = {"inferred", "intrusive"}
+    parametric_options = {False, "affine", "interpolated"}
+
+    if time not in time_options:
+        raise ValueError(f"input `time` must be one of {time_options}")
+    if rom_strategy not in rom_strategy_options:
+        raise ValueError(
+                f"input `rom_strategy` must be one of {rom_strategy_options}")
+    if parametric not in parametric_options:
+        raise ValueError(
+                f"input `parametric` must be one of {parametric_options}")
+
+    t, r, p = time, rom_strategy, parametric
+
+    if t == "discrete" and r == "inferred" and not p:
+        return InferredDiscreteROM
+    elif t == "continuous" and r == "inferred" and not p:
+        return InferredContinuousROM
+    elif t == "discrete" and r == "intrusive" and not p:
+        return IntrusiveDiscreteROM
+    elif t == "continuous" and r == "intrusive" and not p:
+        return IntrusiveContinuousROM
+    elif t == "discrete" and r == "intrusive" and p == "affine":
+        return AffineIntrusiveDiscreteROM
+    elif t == "continuous" and r == "intrusive" and p == "affine":
+        return AffineIntrusiveContinuousROM
+    elif t == "discrete" and r == "inferred" and p == "interpolated":
+        return InterpolatedInferredDiscreteROM
+    elif t == "continuous" and r == "inferred" and p == "interpolated":
+        return InterpolatedInferredContinuousROM
+    else:
+        raise NotImplementedError("model type invalid or not implemented")
+
+
+def trained_model_from_operators(ModelClass, modelform, Vr,
+                                 c_=None, A_=None, H_=None, Hc_=None, B_=None):
+    """Construct a prediction-capable ROM object from the operators of
+    the reduced model.
+
+    Parameters
+    ----------
+    ModelClass : type
+        One of the ROM classes (e.g., IntrusiveContinuousROM).
+
+    modelform : str
+        The structure of the model, a substring of "cAHB".
+
+    Vr : (n,r) ndarray
+        The basis for the linear reduced space (e.g., POD basis matrix).
+
+    c_ : (r,) ndarray or None
+        Reduced constant term, or None if 'c' is not in `modelform`.
+
+    A_ : (r,r) ndarray or None
+        Reduced linear state matrix, or None if 'c' is not in `modelform`.
+
+    H_ : (r,r**2) ndarray or None
+        Reduced quadratic state matrix (full size), or None if 'H' is not in
+        `modelform`.
+
+    Hc_ : (r,r(r+1)/2) ndarray or None
+        Reduced quadratic state matrix (compact), or None if 'H' is not in
+        `modelform`. Only used if `H_` is also None.
+
+    B_ : (r,m) ndarray or None
+        Reduced input matrix, or None if 'B' is not in `modelform`.
+
+    Returns
+    -------
+    model : ModelClass object
+        A new model, ready for predict() calls.
+    """
+    # Check that the ModelClass is valid.
+    if not issubclass(ModelClass, _BaseROM):
+        raise TypeError("ModelClass must be derived from _BaseROM")
+
+    # Construct the new model object.
+    model = ModelClass(modelform)
+    model._check_modelform(trained=False)
+
+    # Insert the attributes.
+    model.Vr = Vr
+    model.n, model.r = Vr.shape
+    model.m = None if B_ is None else 1 if B_.ndim == 1 else B_.shape[1]
+    model.c_, model.A_, model.B_ = c_, A_, B_
+    model.Hc_ = H2Hc(H_) if H_ else Hc_
+
+    # Construct the complete reduced model operator from the arguments.
+    model._construct_f_()
+
+    return model
+
+
 class AffineOperator:
     """Class for representing a linear operator with affine structure, i.e.,
 
@@ -89,65 +228,6 @@ class AffineOperator:
             raise RuntimeError("constituent matrices not initialized!")
         return np.sum([θi(µ)*Ai for θi,Ai in zip(self.coefficient_functions,
                                                  self.matrices)], axis=0)
-
-
-def trained_model_from_operators(ModelClass, modelform, Vr,
-                                 c_=None, A_=None, H_=None, Hc_=None, B_=None):
-    """Construct a prediction-capable ROM object from the operators of
-    the reduced model.
-
-    Parameters
-    ----------
-    ModelClass : type
-        One of the ROM classes (e.g., IntrusiveContinuousROM).
-
-    modelform : str
-        The structure of the model, a substring of "cAHB".
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    c_ : (r,) ndarray or None
-        Reduced constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Reduced linear state matrix, or None if 'c' is not in `modelform`.
-
-    H_ : (r,r**2) ndarray or None
-        Reduced quadratic state matrix (full size), or None if 'H' is not in
-        `modelform`.
-
-    Hc_ : (r,r(r+1)/2) ndarray or None
-        Reduced quadratic state matrix (compact), or None if 'H' is not in
-        `modelform`. Only used if `H_` is also None.
-
-    B_ : (r,m) ndarray or None
-        Reduced input matrix, or None if 'B' is not in `modelform`.
-
-    Returns
-    -------
-    model : ModelClass object
-        A new model, ready for predict() calls.
-    """
-    # Check that the ModelClass is valid.
-    if not issubclass(ModelClass, _BaseROM):
-        raise TypeError("ModelClass must be derived from _BaseROM")
-
-    # Construct the new model object.
-    model = ModelClass(modelform)
-    model._check_modelform(trained=False)
-
-    # Insert the attributes.
-    model.Vr = Vr
-    model.n, model.r = Vr.shape
-    model.m = None if B_ is None else 1 if B_.ndim == 1 else B_.shape[1]
-    model.c_, model.A_, model.B_ = c_, A_, B_
-    model.Hc_ = H2Hc(H_) if H_ else Hc_
-
-    # Construct the complete reduced model operator from the arguments.
-    model._construct_f_()
-
-    return model
 
 
 # Base classes ================================================================
