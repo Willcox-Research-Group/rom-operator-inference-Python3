@@ -56,7 +56,7 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
                                                   Vr, **operators)
 
 
-# Helper functions and classes ================================================
+# Helper functions and classes (public) =======================================
 def test_select_model():
     """Test _core.select_model()."""
     # Try with bad `time` argument.
@@ -609,7 +609,8 @@ class TestInferredMixin:
 
     def _test_fit(self, ModelClass):
         """Test _core._InferredMixin.fit(), the parent method for
-        _core.InferredDiscreteROM.fit(), _core.InferredContinuousROM.fit()."""
+        _core.InferredDiscreteROM.fit(), _core.InferredContinuousROM.fit().
+        """
         model = ModelClass("cAH")
 
         # Get test data.
@@ -620,39 +621,33 @@ class TestInferredMixin:
         if issubclass(ModelClass, roi._core._ContinuousROM):
             args.insert(1, Xdot)
 
-        # Fit the model with each possible modelform.
+        # Fit the model with each possible non-input modelform.
         for form in _MODEL_FORMS:
             if "B" not in form:
                 model.modelform = form
                 model.fit(*args)
 
-        # Test fit output sizes.
+        def _test_output_shapes(model):
+            """Test shapes of output operators for modelform="cAHB"."""
+            assert model.n == n
+            assert model.r == r
+            assert model.m == m
+            assert model.A_.shape == (r,r)
+            assert model.Hc_.shape == (r,r*(r+1)//2)
+            assert model.H_.shape == (r,r**2)
+            assert model.c_.shape == (r,)
+            assert model.B_.shape == (r,m)
+            assert hasattr(model, "residual_")
+
+        # Test with high-dimensional inputs.
         model.modelform = "cAHB"
         model.fit(*args, U=U)
-        assert model.n == n
-        assert model.r == r
-        assert model.m == m
-        assert model.A_.shape == (r,r)
-        assert model.Hc_.shape == (r,r*(r+1)//2)
-        assert model.H_.shape == (r,r**2)
-        assert model.c_.shape == (r,)
-        assert model.B_.shape == (r,m)
-        assert hasattr(model, "residual_")
+        _test_output_shapes(model)
 
-        # Try again with one-dimensional inputs.
+        # Test again with one-dimensional inputs.
         m = 1
-        U = np.ones(k)
-        model.fit(*args, U=U)
-        n, r, m = model.n, model.r, model.m
-        assert model.n == n
-        assert model.r == r
-        assert model.m == 1
-        assert model.A_.shape == (r,r)
-        assert model.Hc_.shape == (r,r*(r+1)//2)
-        assert model.H_.shape == (r,r**2)
-        assert model.c_.shape == (r,)
-        assert model.B_.shape == (r,1)
-        assert hasattr(model, "residual_")
+        model.fit(*args, U=np.ones(k))
+        _test_output_shapes(model)
 
 
 class TestIntrusiveMixin:
@@ -793,6 +788,104 @@ class TestAffineMixin:
         model._check_affines({"c":v, "H":v}, 0)     # OK to be missing some.
         model._check_affines({"c":v, "A":v, "H":v, "B":v}, 0)
 
+    def _test_predict(self, ModelClass):
+        """Test predict() methods for Affine classes:
+        * _core.AffineInferredDiscreteROM.predict()
+        * _core.AffineInferredContinuousROM.predict()
+        * _core.AffineIntrusiveDiscreteROM.predict()
+        * _core.AffineIntrusiveContinuousROM.predict()
+        """
+        model = ModelClass("cAH")
+
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X = _get_data(n, k, m)[0]
+        Vr = la.svd(X)[0][:,:r]
+
+        # Get test operators.
+        ident = lambda a: a
+        c, A, H, Hc, B = _get_operators(r, m)
+        model.c_ = roi._core.AffineOperator([ident, ident], [c,c])
+        model.A_ = roi._core.AffineOperator([ident, ident, ident], [A,A,A])
+        model.Hc_ = roi._core.AffineOperator([ident], [Hc])
+        model.B_ = None
+        model.Vr = Vr
+
+        # Predict.
+        if issubclass(ModelClass, roi._core._ContinuousROM):
+            model.predict(1, X[:,0], np.linspace(0, 1, 100))
+        else:
+            model.predict(1, X[:,0], 100)
+
+
+class TestAffineInferredMixin:
+    """Test _core._AffineInferredMixin."""
+    def _test_fit(self, ModelClass):
+        """Test _core._AffineInferredMixin.fit(), parent method of
+        _core.AffineInferredDiscreteROM.fit() and
+        _core.AffineInferredContinuousROM.fit().
+        """
+        model = ModelClass("cAHB")
+        is_continuous = issubclass(ModelClass, roi._core._ContinuousROM)
+
+        # Get test data.
+        n, k, m, r, s = 200, 100, 20, 10, 3
+        X, Xdot, U = _get_data(n, k, m)
+        Vr = la.svd(X)[0][:,:r]
+        θs = [lambda µ: µ, lambda µ: µ**2, lambda µ: µ**3, lambda µ: µ**4]
+        µs = np.arange(1, s+1)
+        affines = {"c": θs[:2],
+                   "A": θs,
+                   "H": θs[:1],
+                   "B": θs[:3]}
+        Xs, Xdots, Us = [X]*s, [Xdot]*s, [U]*s
+        args = [µs, affines, Xs, Vr]
+        if is_continuous:
+            args.insert(3, Xdots)
+
+        # Try with bad number of parameters.
+        model.modelform = "cAHB"
+        with pytest.raises(ValueError) as ex:
+            model.fit(µs[:-1], *args[1:], Us)
+        assert ex.value.args[0] == \
+            f"num parameter samples != num state snapshot sets ({s-1} != {s})"
+
+        if is_continuous:
+            with pytest.raises(ValueError) as ex:
+                model.fit(µs, affines, Xs, Xdots[:-1], Vr, Us)
+            assert ex.value.args[0] == \
+                f"num parameter samples != num rhs sets ({s} != {s-1})"
+
+        for form in _MODEL_FORMS:
+            args[1] = {key:val for key,val in affines.items() if key in form}
+            model.modelform = form
+            model.fit(*args, Us=Us if "B" in form else None)
+
+            args[1] = {} # Non-affine case.
+            model.fit(*args, Us=Us if "B" in form else None)
+
+        def _test_output_shapes(model):
+            """Test shapes of output operators for modelform="cAHB"."""
+            assert model.n == n
+            assert model.r == r
+            assert model.m == m
+            assert model.A_.shape == (r,r)
+            assert model.Hc_.shape == (r,r*(r+1)//2)
+            assert model.H_.shape == (r,r**2)
+            assert model.c_.shape == (r,)
+            assert model.B_.shape == (r,m)
+            assert hasattr(model, "residual_")
+
+        model.modelform = "cAHB"
+        model.fit(*args, Us=Us)
+        _test_output_shapes(model)
+
+        # Fit the model with 1D inputs (1D array for B)
+        model.modelform = "cAHB"
+        model.fit(*args, Us=np.ones((s,k)))
+        m = 1
+        _test_output_shapes(model)
+
 
 class TestAffineIntrusiveMixin:
     """Test _core._AffineIntrusiveMixin."""
@@ -924,34 +1017,6 @@ class TestAffineIntrusiveMixin:
                   Vr)
         assert model.B.shape == (n,1)
         assert model.B_.shape == (r,1)
-
-
-    def _test_predict(self, ModelClass):
-        """Test _core._AffineIntrusiveMixin.predict(), parent method of
-        _core.AffineIntrusiveDiscreteROM.predict() and
-        _core.AffineIntrusiveContinuousROM.predict().
-        """
-        model = ModelClass("cAH")
-
-        # Get test data.
-        n, k, m, r = 200, 100, 20, 10
-        X = _get_data(n, k, m)[0]
-        Vr = la.svd(X)[0][:,:r]
-
-        # Get test operators.
-        ident = lambda a: a
-        c, A, H, Hc, B = _get_operators(r, m)
-        model.c_ = roi._core.AffineOperator([ident, ident], [c,c])
-        model.A_ = roi._core.AffineOperator([ident, ident, ident], [A,A,A])
-        model.Hc_ = roi._core.AffineOperator([ident], [Hc])
-        model.B_ = None
-        model.Vr = Vr
-
-        # Predict.
-        if issubclass(ModelClass, roi._core._ContinuousROM):
-            model.predict(1, X[:,0], np.linspace(0, 1, 100))
-        else:
-            model.predict(1, X[:,0], 100)
 
 
 # Useable classes (public) ====================================================
@@ -1146,6 +1211,29 @@ class TestInterpolatedInferredContinuousROM:
         model.predict(1.5, x0, t, u)
 
 
+# Affine inferred models ------------------------------------------------------
+class TestAffineInferredDiscreteROM:
+    """Test _core.AffineInferredDiscreteROM."""
+    def test_fit(self):
+        """Test _core.AffineInferredDiscreteROM.fit()."""
+        TestAffineInferredMixin()._test_fit(roi.AffineInferredDiscreteROM)
+
+    def test_predict(self):
+        """Test _core.AffineInferredDiscreteROM.predict()."""
+        TestAffineMixin()._test_predict(roi.AffineInferredDiscreteROM)
+
+
+class TestAffineInferredContinuousROM:
+    """Test _core.AffineInferredContinuousROM."""
+    def test_fit(self):
+        """Test _core.AffineInferredContinuousROM.fit()."""
+        TestAffineInferredMixin()._test_fit(roi.AffineInferredContinuousROM)
+
+    def test_predict(self):
+        """Test _core.AffineInferredContinuousROM.predict()."""
+        TestAffineMixin()._test_predict(roi.AffineInferredContinuousROM)
+
+
 # Affine intrusive models -----------------------------------------------------
 class TestAffineIntrusiveDiscreteROM:
     """Test _core.AffineIntrusiveDiscreteROM."""
@@ -1155,8 +1243,7 @@ class TestAffineIntrusiveDiscreteROM:
 
     def test_predict(self):
         """Test _core.AffineIntrusiveDiscreteROM.predict()."""
-        TestAffineIntrusiveMixin()._test_predict(
-            roi.AffineIntrusiveDiscreteROM)
+        TestAffineMixin()._test_predict(roi.AffineIntrusiveDiscreteROM)
 
 
 class TestAffineIntrusiveContinuousROM:
@@ -1167,5 +1254,4 @@ class TestAffineIntrusiveContinuousROM:
 
     def test_predict(self):
         """Test _core.AffineIntrusiveContinuousROM.predict()."""
-        TestAffineIntrusiveMixin()._test_predict(
-            roi.AffineIntrusiveContinuousROM)
+        TestAffineMixin()._test_predict(roi.AffineIntrusiveContinuousROM)
