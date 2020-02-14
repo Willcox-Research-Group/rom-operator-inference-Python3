@@ -1,11 +1,14 @@
 .PHONY: test clean
 
 REMOVE = rm -rfv
+PYTHON = python3
+PYTEST = pytest --cov --cov-report html
 TARGET = tests/*.py # test_core.py
 
+
 test:
-	python check_docs.py
-	pytest --cov --cov-report html $(TARGET)
+	$(PYTHON) check_docs.py
+	$(PYTEST) $(TARGET)
 	open htmlcov/index.html
 
 clean:

@@ -2,6 +2,7 @@
 """Utility functions for the operator inference."""
 
 import numpy as _np
+import warnings as _warnings
 from scipy import linalg as _la
 
 
@@ -28,7 +29,7 @@ def lstsq_reg(A, b, P=0):
         The "right-hand side" vector. If a two-dimensional array, then r
         independent least squares problems are solved.
 
-    P : float > 0, (d,d) ndarray, or list of r (d,d) ndarrays
+    P : float >= 0, (d,d) ndarray, or list of r (d,d) ndarrays
         The Tikhonov regularization matrix or matrices, in one of the
         following formats:
         * float > 0: P * I (a scaled identity matrix) is the regularization
@@ -58,7 +59,10 @@ def lstsq_reg(A, b, P=0):
     # Check dimensions.
     if b.ndim not in {1,2}:
         raise ValueError("`b` must be one- or two-dimensional")
-    d = A.shape[1]
+    k,d = A.shape
+    if k < d:
+        _warnings.warn("least squares system is underdetermined",
+                       _la.LinAlgWarning)
 
     # If P is a list of ndarrays, decouple the problem by column.
     if isinstance(P, list) or isinstance(P, tuple):
@@ -78,6 +82,7 @@ def lstsq_reg(A, b, P=0):
     # If P is a scalar, construct the default regularization matrix P*I.
     if _np.isscalar(P):
         if P == 0:
+            # Default case: fall back to default scipy.linalg.lstsq().
             return _la.lstsq(A, b)
         elif P < 0:
             raise ValueError("regularization parameter must be nonnegative")

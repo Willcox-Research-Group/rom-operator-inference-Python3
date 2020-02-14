@@ -1057,7 +1057,7 @@ class TestInterpolatedInferredDiscreteROM:
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
         # Get data for fitting.
-        n, m, k, r = 50, 10, 20, 5
+        n, m, k, r = 50, 10, 100, 5
         X1, _, U1 = _get_data(n, k, m)
         X2, U2 = X1+1, U1+1
         Xs = [X1, X2]
@@ -1101,7 +1101,7 @@ class TestInterpolatedInferredDiscreteROM:
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
         # Get data for fitting.
-        n, m, k, r = 50, 10, 20, 5
+        n, m, k, r = 50, 10, 100, 5
         X1, _, U1 = _get_data(n, k, m)
         X2, U2 = X1+1, U1+1
         Xs = [X1, X2]
@@ -1133,7 +1133,7 @@ class TestInterpolatedInferredContinuousROM:
         model = roi.InterpolatedInferredContinuousROM("cAH")
 
         # Get data for fitting.
-        n, m, k, r = 50, 10, 20, 5
+        n, m, k, r = 50, 10, 100, 5
         X1, Xdot1, U1 = _get_data(n, k, m)
         X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
         Xs = [X1, X2]
@@ -1184,7 +1184,7 @@ class TestInterpolatedInferredContinuousROM:
         model = roi.InterpolatedInferredContinuousROM("cAH")
 
         # Get data for fitting.
-        n, m, k, r = 50, 10, 20, 5
+        n, m, k, r = 50, 10, 100, 5
         X1, Xdot1, U1 = _get_data(n, k, m)
         X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
         Xs = [X1, X2]
