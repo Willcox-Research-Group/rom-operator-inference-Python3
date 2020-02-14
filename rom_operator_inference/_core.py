@@ -160,7 +160,7 @@ class AffineOperator:
         A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i}.
 
     The matrix A(µ) is constructed by calling the object once the coefficient
-    functions and constituent matrices are set.
+    functions and component matrices are set.
 
     Attributes
     ----------
@@ -171,25 +171,42 @@ class AffineOperator:
         The coefficient scalar-valued functions that define the operator.
         Each must take the same sized input and return a scalar.
 
-    matrices : list of nterms ndarrays of the same shape
-        The constituent matrices defining the linear operator.
+    matrices : list of `nterms` ndarrays of the same shape
+        The component matrices defining the linear operator.
     """
     def __init__(self, coeffs, matrices=None):
+        """Save the coefficient functions and component matrices (optional).
+
+        Parameters
+        ----------
+        coeffs : list of `nterms` callables
+            The coefficient scalar-valued functions that define the operator.
+            Each must take the same sized input and return a scalar.
+
+        matrices : list of `nterms` ndarrays of the same shape
+            The component matrices defining the linear operator.
+            Can also be assigned later by setting the `matrices` attribute.
+        """
         self.coefficient_functions = coeffs
-        self.nterms = len(coeffs)
+        self._nterms = len(coeffs)
         if matrices:
             self.matrices = matrices
         else:
             self._ready = False
 
     @property
+    def nterms(self):
+        """The number of component matrices."""
+        return self._nterms
+
+    @property
     def matrices(self):
-        """Get the constituent matrices."""
+        """The component matrices."""
         return self._matrices
 
     @matrices.setter
     def matrices(self, ms):
-        """Set the constituent matrices, checking that the shapes are equal."""
+        """Set the component matrices, checking that the shapes are equal."""
         if len(ms) != self.nterms:
             _noun = "matrix" if self.nterms == 1 else "matrices"
             raise ValueError(f"expected {self.nterms} {_noun}, got {len(ms)}")
@@ -224,10 +241,24 @@ class AffineOperator:
                                  "must return a scalar")
 
     def __call__(self, µ):
+        """Evaluate the affine operator at the given parameter."""
         if not self._ready:
-            raise RuntimeError("constituent matrices not initialized!")
+            raise RuntimeError("component matrices not initialized!")
         return np.sum([θi(µ)*Ai for θi,Ai in zip(self.coefficient_functions,
                                                  self.matrices)], axis=0)
+
+    def __eq__(self, other):
+        """Test whether the component matrices of two AffineOperator objects
+        are numerically equal. The coefficient functions are *NOT* compared.
+        """
+        if not isinstance(other, AffineOperator):
+            return False
+        if self.nterms != other.nterms:
+            return False
+        if not (self._ready and other._ready):
+            return False
+        return all([np.allclose(self.matrices[l], other.matrices[l])
+                                            for l in range(self.nterms)])
 
 
 # Base classes (private) ======================================================
@@ -1020,7 +1051,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
     """Mixin class for affinely parametric inferred reduced model classes."""
     def fit(self, ModelClass, µs, affines, Xs, rhss, Vr, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
-        For terms with affine structure, solve for the constituent operators.
+        For terms with affine structure, solve for the component operators.
 
         Parameters
         ----------
@@ -1242,7 +1273,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
             * 'H': quadratic state matrix H(µ).
             * 'B': input matrix B(µ).
             Terms with affine structure should be given as a list of the
-            constituent matrices. For example, if the linear state matrix has
+            component matrices. For example, if the linear state matrix has
             the form A(µ) = θ1(µ)A1 + θ2(µ)A2, then 'A' -> [A1, A2].
 
         Vr : (n,r) ndarray

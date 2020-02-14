@@ -178,7 +178,7 @@ class TestAffineOperator:
         affop = roi._core.AffineOperator(fs)
         with pytest.raises(RuntimeError) as ex:
             affop(10)
-        assert ex.value.args[0] == "constituent matrices not initialized!"
+        assert ex.value.args[0] == "component matrices not initialized!"
 
         # Correct usage.
         affop.matrices = As
@@ -186,6 +186,19 @@ class TestAffineOperator:
         assert Ap.shape == (5,5)
         assert np.allclose(Ap, np.sin(10)*As[0] + \
                                np.cos(10)*As[1] + np.exp(10)*As[2])
+
+    def test_eq(self):
+        """Test _core.AffineOperator.__eq__()."""
+        fs, As = self._set_up_affine_attributes()
+        affop1 = roi._core.AffineOperator(fs[:-1])
+        affop2 = roi._core.AffineOperator(fs, As)
+
+        assert affop1 != 1
+        assert affop1 != affop2
+        affop1 = roi._core.AffineOperator(fs)
+        assert affop1 != affop2
+        affop1.matrices = As
+        assert affop1 == affop2
 
 
 # Base classes (private) ======================================================
