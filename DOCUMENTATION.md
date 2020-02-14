@@ -96,7 +96,7 @@ This class constructs a reduced-order model for the continuous, nonparametric sy
   <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t)),\qquad%20\mathbf{x}(0)=\mathbf{x}_0,"/>
 </p>
 
-via operator inference [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
+via Operator Inference [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 That is, given snapshot data, a basis, and a form for a reduced model, it computes the reduced model operators by solving a least squares problem.
 
 #### Methods
@@ -125,8 +125,8 @@ This class constructs a reduced-order model for the continuous, parametric syste
   <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t;\mu)=\mathbf{f}(t,\mathbf{x}(t;\mu),\mathbf{u}(t);\mu),\qquad%20\mathbf{x}(0;\mu)=\mathbf{x}_0(\mu),\qquad\mu\in\mathbb{R},"/>
 </p>
 
-via operator inference.
-The strategy is to take snapshot data for several parameter samples and a global basis, compute a reduced model for each parameter sample via operator inference, then construct a general parametric model by interpolating the entries of the inferred operators [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
+via Operator Inference.
+The strategy is to take snapshot data for several parameter samples and a global basis, compute a reduced model for each parameter sample via Operator Inference, then construct a general parametric model by interpolating the entries of the inferred operators [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 
 #### Methods
 
@@ -360,10 +360,10 @@ t\ge 0 &= \text{time}\\
 
 ## References
 
-- \[1\] Peherstorfer, B. and Willcox, K.
+- \[1\] Peherstorfer, B. and Willcox, K.,
 [Data-driven operator inference for non-intrusive projection-based model reduction.](https://www.sciencedirect.com/science/article/pii/S0045782516301104)
-Computer Methods in Applied Mechanics and Engineering, 306:196-215, 2016.
-([Download](https://cims.nyu.edu/~pehersto/preprints/Non-intrusive-model-reduction-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+_Computer Methods in Applied Mechanics and Engineering_, Vol. 306, pp. 196-215, 2016.
+([Download](https://kiwi.oden.utexas.edu/papers/Non-intrusive-model-reduction-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
 @article{Peherstorfer16DataDriven,
     title     = {Data-driven operator inference for nonintrusive projection-based model reduction},
     author    = {Peherstorfer, B. and Willcox, K.},
@@ -374,49 +374,46 @@ Computer Methods in Applied Mechanics and Engineering, 306:196-215, 2016.
     publisher = {Elsevier}
 }</pre></details>
 
-- \[2\] Qian, E., Kramer, B., Marques, A., and Willcox, K.
+- \[2\] Qian, E., Kramer, B., Marques, A., and Willcox, K.,
 [Transform & Learn: A data-driven approach to nonlinear model reduction](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
-In the AIAA Aviation 2019 Forum, June 17-21, Dallas, TX. ([Download](https://www.dropbox.com/s/5znea6z1vntby3d/QKMW_aviation19.pdf?dl=0))<details><summary>BibTeX</summary><pre>
+In the AIAA Aviation 2019 Forum & Exhibition, Dallas, TX, June 2019. ([Download](https://kiwi.oden.utexas.edu/papers/learn-data-driven-nonlinear-reduced-model-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
 @inbook{QKMW2019aviation,
     author    = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
-    title     = {Transform \&amp; Learn: A data-driven approach to nonlinear model reduction},
+    title     = {Transform \&; Learn: A data-driven approach to nonlinear model reduction},
     booktitle = {AIAA Aviation 2019 Forum},
     doi       = {10.2514/6.2019-3707},
     URL       = {https://arc.aiaa.org/doi/abs/10.2514/6.2019-3707},
     eprint    = {https://arc.aiaa.org/doi/pdf/10.2514/6.2019-3707}
 }</pre></details>
 
-- \[3\] Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.
+- \[3\] Swischuk, R., Mainini, L., Peherstorfer, B., and Willcox, K.,
 [Projection-based model reduction: Formulations for physics-based machine learning.](https://www.sciencedirect.com/science/article/pii/S0045793018304250)
-Computers & Fluids 179:704-717, 2019.
+_Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 ([Download](https://kiwi.oden.utexas.edu/papers/Physics-based-machine-learning-swischuk-willcox.pdf))<details><summary>BibTeX</summary><pre>
 @article{swischuk2019projection,
-  title    = {Projection-based model reduction: Formulations for physics-based machine learning},
-  author   = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
-  journal  = {Computers \& Fluids},
-  volume   = {179},
-  pages    = {704--717},
-  year     = {2019},
-  publisher={Elsevier}
+  title     = {Projection-based model reduction: Formulations for physics-based machine learning},
+  author    = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
+  journal   = {Computers \& Fluids},
+  volume    = {179},
+  pages     = {704--717},
+  year      = {2019},
+  publisher = {Elsevier}
 }</pre></details>
 
-- \[4\] Swischuk, R. Physics-based machine learning and data-driven reduced-order modeling, Master's thesis, Massachusetts Institute of Technology, 2019.
-<!-- TODO: link -->
+- \[4\] Swischuk, R., Physics-based machine learning and data-driven reduced-order modeling. Master's thesis, Massachusetts Institute of Technology, 2019.
+<!-- TODO: Link, BibTeX when published <details><summary>BibTeX</summary><pre>@article{CITATION}</pre></details> -->
 
-- \[5\] Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K. [Learning physics-based reduced-order models for a single-injector combustion process](https://arxiv.org/abs/1908.03620). ArXiv preprint arXiv:1908.03620.
-([Download](https://arxiv.org/pdf/1908.03620.pdf))<details><summary>BibTeX</summary><pre>
-@article{swischuk2019learning,
-  title={Learning physics-based reduced-order models for a single-injector combustion process},
-  author={Swischuk, Renee and Kramer, Boris and Huang, Cheng and Willcox, Karen},
-  journal={arXiv preprint arXiv:1908.03620},
-  year={2019}
-}</pre></details>
-
-- \[6\] Peherstorfer, B. [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). ArXiv preprint arXiv:1908.11233.
+- \[5\] Peherstorfer, B. [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). arXiv:1908.11233.
 ([Download](https://arxiv.org/pdf/1908.11233.pdf))<details><summary>BibTeX</summary><pre>
 @article{peherstorfer2019sampling,
-  title={Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
-  author={Peherstorfer, Benjamin},
-  journal={arXiv preprint arXiv:1908.11233},
-  year={2019}
+  title   = {Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
+  author  = {Peherstorfer, Benjamin},
+  journal = {arXiv preprint arXiv:1908.11233},
+  year    = {2019}
 }</pre></details>
+
+- \[6\] Swischuk, R., Kramer, B., Huang, C., and Willcox, K., Learning physics-based reduced-order models for a single-injector combustion process. _AIAA Journal_, to appear, 2020. Also in Proceedings of 2020 AIAA SciTech Forum & Exhibition, Orlando FL, January, 2020. Also Oden Institute Report 19-13. ([Download](https://kiwi.oden.utexas.edu/papers/learning-reduced-model-combustion-Swischuk-Kramer-Huang-Willcox.pdf))
+<!-- TODO: new BibTeX when published <details><summary>BibTeX</summary><pre>@article{swischuk2019learning, title={Learning physics-based reduced-order models for a single-injector combustion process}, author={Swischuk, Renee and Kramer, Boris and Huang, Cheng and Willcox, Karen}, journal={arXiv preprint arXiv:1908.03620}, year={2019}}</pre></details> -->
+
+- \[7\] Qian, E., Kramer, B., Peherstorfer, B., and Willcox, K. Lift & Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems. _Physica D: Nonlinear Phenomena_, to appear, 2020. ([Download](https://kiwi.oden.utexas.edu/papers/lift-learn-scientific-machine-learning-Qian-Willcox.pdf))
+<!-- TODO: Link, BibTeX when published <details><summary>BibTeX</summary><pre>@article{CITATION}</pre></details> -->
