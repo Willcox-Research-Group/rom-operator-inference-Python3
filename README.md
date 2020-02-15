@@ -7,7 +7,7 @@ See [**References**](#references) for more papers that use or build on Operator 
 
 **Contributors**: [Renee Swischuk](https://github.com/swischuk), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Qian](https://github.com/elizqian), [Boris Kramer](https://github.com/bokramer).
 
-See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inference-MATLAB) for a MATLAB implementation and [DOCS.md](DOCS.md) for the documentation.
+See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inference-MATLAB) for a MATLAB implementation and [DOCUMENTATION.md](DOCUMENTATION.md) for the documentation.
 
 ## Problem Statement
 
