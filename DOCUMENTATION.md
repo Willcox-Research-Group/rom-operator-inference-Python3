@@ -96,17 +96,17 @@ This class constructs a reduced-order model for the continuous, nonparametric sy
   <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t)),\qquad%20\mathbf{x}(0)=\mathbf{x}_0,"/>
 </p>
 
-via operator inference [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
+via Operator Inference [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 That is, given snapshot data, a basis, and a form for a reduced model, it computes the reduced model operators by solving a least squares problem.
 
 #### Methods
 
-- `InferredContinuousROM.fit(X, Xdot, Vr, U=None, P=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
+- `InferredContinuousROM.fit(Vr, X, Xdot, U=None, P=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
     squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
 Parameters:
+    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `X`: Snapshot matrix of solutions to the full-order model. Each column is one snapshot.
     - `Xdot`: Snapshot velocity of solutions to the full-order model. Each column is the velocity _d**x**/dt_ for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
-    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `U`: Input matrix. Each column is the input for the corresponding column of `X`. Only required when `'B'` is in `modelform`.
     - `P`: Tikhonov regularization matrix for the least squares problem.
 
@@ -125,18 +125,18 @@ This class constructs a reduced-order model for the continuous, parametric syste
   <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t;\mu)=\mathbf{f}(t,\mathbf{x}(t;\mu),\mathbf{u}(t);\mu),\qquad%20\mathbf{x}(0;\mu)=\mathbf{x}_0(\mu),\qquad\mu\in\mathbb{R},"/>
 </p>
 
-via operator inference.
-The strategy is to take snapshot data for several parameter samples and a global basis, compute a reduced model for each parameter sample via operator inference, then construct a general parametric model by interpolating the entries of the inferred operators [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
+via Operator Inference.
+The strategy is to take snapshot data for several parameter samples and a global basis, compute a reduced model for each parameter sample via Operator Inference, then construct a general parametric model by interpolating the entries of the inferred operators [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 
 #### Methods
 
-- `InterpolatedInferredContinuousROM.fit(µs, Xs, Xdots, Vr, Us=None, P=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
+- `InterpolatedInferredContinuousROM.fit(Vr, µs, Xs, Xdots, Us=None, P=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
     squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
 Parameters:
+    - `Vr`: The (global) basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the matrices `Xs`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `µs`: Parameter samples at which the snapshot data are collected.
     - `Xs`: List of snapshot matrices (solutions to the full-order model). The _i_th array `Xs[i]` corresponds to the _i_th parameter, `µs[i]`.
     - `Xdots`: List of snapshot velocity matrices.  The _i_th array `Xdots[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Xdots[i][:,j]`, is the velocity _d**x**/dt_ for the corresponding snapshot column `Xs[i][:,j]`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
-    - `Vr`: The (global) basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the matrices `Xs`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `Us`: List of input matrices. The _i_th array corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Us[i][:,j]`, is the input for the corresponding snapshot `Xs[i][:,j]`. Only required when `'B'` is in `modelform`.
     - `P`: Tikhonov regularization matrix for the least squares problem.
 
@@ -166,10 +166,10 @@ The class requires the actual full-order operators (_**c**_, _A_, _H_, and/or _B
 
 #### Methods
 
-- `IntrusiveContinuousROM.fit(operators, Vr)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
+- `IntrusiveContinuousROM.fit(Vr, operators)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
 Parameters:
-    - `operators`: A dictionary mapping labels to the full-order operators that define **f**(_t_,**x**). The operators are indexed by the entries of `modelform`; for example, if `modelform="cHB"`, then `operators={'c':c, 'H':H, 'B':B}`.
     - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
+    - `operators`: A dictionary mapping labels to the full-order operators that define **f**(_t_,**x**). The operators are indexed by the entries of `modelform`; for example, if `modelform="cHB"`, then `operators={'c':c, 'H':H, 'B':B}`.
 
 - `IntrusiveContinuousROM.predict(x0, t, u=None, **options)`: Simulate the learned reduced-order model with `scipy.integrate.solve_ivp()`. Parameters:
     - `x0`: The initial condition, given in the original (high-dimensional) space.
@@ -202,11 +202,11 @@ The class requires the actual full-order operators (_**c**_, _A_, _H_, and/or _B
 
 #### Methods
 
-- `AffineIntrusiveContinuousROM.fit(affines, operators, Vr)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
+- `AffineIntrusiveContinuousROM.fit(Vr, affines, operators)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
 Parameters:
+    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `affines` A dictionary mapping labels of the operators that depend affinely on the parameter to the list of functions that define that affine dependence. The keys are entries of `modelform`. For example, if the constant term has the affine structure _c_(_**µ**_) = _θ_<sub>1</sub>(_**µ**_)_c_<sub>1</sub> + _θ_<sub>2</sub>(_**µ**_)_c_<sub>2</sub> + _θ_<sub>3</sub>(_**µ**_)_c_<sub>3</sub>, then `'c'` -> `[θ1, θ2, θ3]`.
     - `operators`: A dictionary mapping labels to the full-order operators that define **f**(_t_,**x**). The keys are entries of `modelform`. Terms with affine structure should be given as a list of the constituent matrices. For example, suppose `modelform="cA"`. If _A_ has the affine structure _A_(_**µ**_) = _θ_<sub>1</sub>(_**µ**_)_A_<sub>1</sub> + _θ_<sub>2</sub>(_**µ**_)_A_<sub>2</sub>, then `'A' -> [A1, A2]`. If _**c**_ does not vary with the parameter, then `'c' -> c`, the complete full-order order.
-    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
 
 - `AffineIntrusiveContinuousROM.predict(µ, x0, t, u=None, **options)`: Simulate the learned reduced-order model at the given parameter value with `scipy.integrate.solve_ivp()`. Parameters:
     - `µ`: The parameter value at which to simulate the model.
@@ -322,8 +322,8 @@ t\ge 0 &= \text{time}\\
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_\text{ROM}"/> | `x_ROM` | <img src="https://latex.codecogs.com/svg.latex?n"/> | Approximation to **x** produced by ROM |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{c}}"/> | `c_` | <img src="https://latex.codecogs.com/svg.latex?m"/> | Learned constant term  |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{u}"/> | `u` | <img src="https://latex.codecogs.com/svg.latex?m"/> | Input vector  |
-| <img src="https://latex.codecogs.com/svg.latex?\mathbf{f}"/> | `f(t,x)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | Full-order system operator |
-| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_(t,x_)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | Reduced-order system operator |
+| <img src="https://latex.codecogs.com/svg.latex?\mathbf{f}"/> | `f(t,x,u)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | Full-order system operator |
+| <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{f}}"/> | `f_(t,x_,u)` | <img src="https://latex.codecogs.com/svg.latex?n"/>  | Reduced-order system operator |
 | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}\otimes\mathbf{x}"/> | `np.kron(x,x)` | <img src="https://latex.codecogs.com/svg.latex?n^2"/> | Kronecker product of full state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}"/> | `np.kron(x_,x_)` | <img src="https://latex.codecogs.com/svg.latex?r^2"/>  | Kronecker product of reduced state (quadratic terms) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}\,\widetilde{\otimes}\,\hat{\mathbf{x}}"/> | `kron_compact(x_)` | <img src="https://latex.codecogs.com/svg.latex?\frac{r(r+1)}{2}"/>  | Compact Kronecker product of reduced state (quadratic terms) |
@@ -336,9 +336,9 @@ t\ge 0 &= \text{time}\\
 
 | Symbol | Code | Shape | Description |
 | :----: | :--- | :---: | :---------- |
+| <img src="https://latex.codecogs.com/svg.latex?V_r"/> | `Vr` | <img src="https://latex.codecogs.com/svg.latex?n\times%20r"/> | low-rank basis of rank _r_ (usually the POD basis) |
 | <img src="https://latex.codecogs.com/svg.latex?X"/> | `X` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\dot{X}"/> | `Xdot` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot velocity matrix |
-| <img src="https://latex.codecogs.com/svg.latex?V_r"/> | `Vr` | <img src="https://latex.codecogs.com/svg.latex?n\times%20r"/> | low-rank basis of rank _r_ (usually the POD basis) |
 | <img src="https://latex.codecogs.com/svg.latex?U"/> | `U` | <img src="https://latex.codecogs.com/svg.latex?m\times%20k"/> | Input matrix (inputs corresonding to the snapshots) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{X}"/> | `X_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{X}}"/> | `Xdot_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot velocity matrix |
@@ -360,10 +360,10 @@ t\ge 0 &= \text{time}\\
 
 ## References
 
-- \[1\] Peherstorfer, B. and Willcox, K.
+- \[1\] Peherstorfer, B. and Willcox, K.,
 [Data-driven operator inference for non-intrusive projection-based model reduction.](https://www.sciencedirect.com/science/article/pii/S0045782516301104)
-Computer Methods in Applied Mechanics and Engineering, 306:196-215, 2016.
-([Download](https://cims.nyu.edu/~pehersto/preprints/Non-intrusive-model-reduction-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+_Computer Methods in Applied Mechanics and Engineering_, Vol. 306, pp. 196-215, 2016.
+([Download](https://kiwi.oden.utexas.edu/papers/Non-intrusive-model-reduction-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
 @article{Peherstorfer16DataDriven,
     title     = {Data-driven operator inference for nonintrusive projection-based model reduction},
     author    = {Peherstorfer, B. and Willcox, K.},
@@ -374,49 +374,46 @@ Computer Methods in Applied Mechanics and Engineering, 306:196-215, 2016.
     publisher = {Elsevier}
 }</pre></details>
 
-- \[2\] Qian, E., Kramer, B., Marques, A., and Willcox, K.
+- \[2\] Qian, E., Kramer, B., Marques, A., and Willcox, K.,
 [Transform & Learn: A data-driven approach to nonlinear model reduction](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
-In the AIAA Aviation 2019 Forum, June 17-21, Dallas, TX. ([Download](https://www.dropbox.com/s/5znea6z1vntby3d/QKMW_aviation19.pdf?dl=0))<details><summary>BibTeX</summary><pre>
+In the AIAA Aviation 2019 Forum & Exhibition, Dallas, TX, June 2019. ([Download](https://kiwi.oden.utexas.edu/papers/learn-data-driven-nonlinear-reduced-model-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
 @inbook{QKMW2019aviation,
     author    = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
-    title     = {Transform \&amp; Learn: A data-driven approach to nonlinear model reduction},
+    title     = {Transform \&; Learn: A data-driven approach to nonlinear model reduction},
     booktitle = {AIAA Aviation 2019 Forum},
     doi       = {10.2514/6.2019-3707},
     URL       = {https://arc.aiaa.org/doi/abs/10.2514/6.2019-3707},
     eprint    = {https://arc.aiaa.org/doi/pdf/10.2514/6.2019-3707}
 }</pre></details>
 
-- \[3\] Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.
+- \[3\] Swischuk, R., Mainini, L., Peherstorfer, B., and Willcox, K.,
 [Projection-based model reduction: Formulations for physics-based machine learning.](https://www.sciencedirect.com/science/article/pii/S0045793018304250)
-Computers & Fluids 179:704-717, 2019.
+_Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 ([Download](https://kiwi.oden.utexas.edu/papers/Physics-based-machine-learning-swischuk-willcox.pdf))<details><summary>BibTeX</summary><pre>
 @article{swischuk2019projection,
-  title    = {Projection-based model reduction: Formulations for physics-based machine learning},
-  author   = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
-  journal  = {Computers \& Fluids},
-  volume   = {179},
-  pages    = {704--717},
-  year     = {2019},
-  publisher={Elsevier}
+  title     = {Projection-based model reduction: Formulations for physics-based machine learning},
+  author    = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
+  journal   = {Computers \& Fluids},
+  volume    = {179},
+  pages     = {704--717},
+  year      = {2019},
+  publisher = {Elsevier}
 }</pre></details>
 
-- \[4\] Swischuk, R. Physics-based machine learning and data-driven reduced-order modeling, Master's thesis, Massachusetts Institute of Technology, 2019.
-<!-- TODO: link -->
+- \[4\] Swischuk, R., Physics-based machine learning and data-driven reduced-order modeling. Master's thesis, Massachusetts Institute of Technology, 2019.
+<!-- TODO: Link, BibTeX when published <details><summary>BibTeX</summary><pre>@article{CITATION}</pre></details> -->
 
-- \[5\] Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K. [Learning physics-based reduced-order models for a single-injector combustion process](https://arxiv.org/abs/1908.03620). ArXiv preprint arXiv:1908.03620.
-([Download](https://arxiv.org/pdf/1908.03620.pdf))<details><summary>BibTeX</summary><pre>
-@article{swischuk2019learning,
-  title={Learning physics-based reduced-order models for a single-injector combustion process},
-  author={Swischuk, Renee and Kramer, Boris and Huang, Cheng and Willcox, Karen},
-  journal={arXiv preprint arXiv:1908.03620},
-  year={2019}
-}</pre></details>
-
-- \[6\] Peherstorfer, B. [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). ArXiv preprint arXiv:1908.11233.
+- \[5\] Peherstorfer, B. [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). arXiv:1908.11233.
 ([Download](https://arxiv.org/pdf/1908.11233.pdf))<details><summary>BibTeX</summary><pre>
 @article{peherstorfer2019sampling,
-  title={Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
-  author={Peherstorfer, Benjamin},
-  journal={arXiv preprint arXiv:1908.11233},
-  year={2019}
+  title   = {Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
+  author  = {Peherstorfer, Benjamin},
+  journal = {arXiv preprint arXiv:1908.11233},
+  year    = {2019}
 }</pre></details>
+
+- \[6\] Swischuk, R., Kramer, B., Huang, C., and Willcox, K., Learning physics-based reduced-order models for a single-injector combustion process. _AIAA Journal_, to appear, 2020. Also in Proceedings of 2020 AIAA SciTech Forum & Exhibition, Orlando FL, January, 2020. Also Oden Institute Report 19-13. ([Download](https://kiwi.oden.utexas.edu/papers/learning-reduced-model-combustion-Swischuk-Kramer-Huang-Willcox.pdf))
+<!-- TODO: new BibTeX when published <details><summary>BibTeX</summary><pre>@article{swischuk2019learning, title={Learning physics-based reduced-order models for a single-injector combustion process}, author={Swischuk, Renee and Kramer, Boris and Huang, Cheng and Willcox, Karen}, journal={arXiv preprint arXiv:1908.03620}, year={2019}}</pre></details> -->
+
+- \[7\] Qian, E., Kramer, B., Peherstorfer, B., and Willcox, K. Lift & Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems. _Physica D: Nonlinear Phenomena_, to appear, 2020. ([Download](https://kiwi.oden.utexas.edu/papers/lift-learn-scientific-machine-learning-Qian-Willcox.pdf))
+<!-- TODO: Link, BibTeX when published <details><summary>BibTeX</summary><pre>@article{CITATION}</pre></details> -->

@@ -2,7 +2,6 @@
 """Tools for preprocessing data."""
 
 import numpy as _np
-import numba as _numba
 from scipy import linalg as _la
 from scipy.linalg import svd as _svd
 from scipy.sparse import linalg as _spla
@@ -123,7 +122,8 @@ def significant_svdvals(X, eps, plot=False):
         ylim = ax.get_ylim()
         for ep,r in zip(eps, ranks):
             ax.hlines(ep, 0, r+1, color="black", linewidth=1)
-            ax.vlines(r, ylim[0], ep, color="black", linewidth=1)
+            ax.vlines(r, ylim[0], singular_values[r-1] if r > 0 else ep,
+                      color="black", linewidth=1)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index $j$")
         ax.set_ylabel(r"Singular value $\sigma_j$")
@@ -179,9 +179,10 @@ def energy_capture(X, thresh, plot=False):
         ylim = ax.get_ylim()
         for th,r in zip(thresh, ranks):
             ax.hlines(th, 0, r+1, color="black", linewidth=1)
-            ax.vlines(r, ylim[0], th, color="black", linewidth=1)
+            ax.vlines(r, ylim[0], cumulative_energy[r-1] if r > 0 else th,
+                      color="black", linewidth=1)
         ax.set_ylim(ylim)
-        ax.set_xlabel(r"Singular value index $j$")
+        ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Cumulative energy")
 
     return ranks[0] if one_thresh else ranks
@@ -280,8 +281,111 @@ def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
     return ranks[0] if one_eps else ranks
 
 
+# Reprojection schemes ========================================================
+def reproject_discrete(f, Vr, x0, niters, U=None):
+    """Sample re-projected trajectories of the discrete dynamical system
+
+        x_{j+1} = f(x_{j}, u_{j}),  x_{0} = x0.
+
+    Parameters
+    ----------
+    f : callable mapping (n,) ndarray to (n,) ndarray
+        Function defining the (full-order) discrete dynamical system.
+
+    Vr : (n,r) ndarray
+        Basis for the low-dimensional linear subspace (e.g., POD basis).
+
+    x0 : (n,) ndarray
+        Initial condition for the iteration in the high-dimensional space.
+
+    niters : int
+        The number of iterations to do.
+
+    U : (m,niters-1) ndarray
+        Control inputs, one for each iteration beyond the initial condition.
+
+    Returns
+    -------
+    X_reprojected : (n,niters) ndarray
+        Re-projected state trajectories in the original high-dimensional space.
+    """
+    # Validate and extract dimensions.
+    n,_ = Vr.shape
+    if x0.shape != (n,):
+        raise ValueError("basis Vr and initial condition x0 not aligned")
+
+    # Create the solution array and fill in the initial condition.
+    Pr = Vr @ Vr.T                          # Projector onto linear subspace.
+    X_rp = _np.empty((n,niters))
+    X_rp[:,0] = Pr @ x0
+
+    # Run the re-projection iteration.
+    if U is None:
+        for j in range(niters-1):
+            X_rp[:,j+1] = Pr @ f(X_rp[:,j])
+    elif U.ndim == 1:
+        for j in range(niters-1):
+            X_rp[:,j+1] = Pr @ f(X_rp[:,j], U[j])
+    else:
+        for j in range(niters-1):
+            X_rp[:,j+1] = Pr @ f(X_rp[:,j], U[:,j])
+
+    return X_rp
+
+
+def reproject_continuous(f, Vr, X, U=None):
+    """Sample with re-projection trajectories of the continuous system of ODEs
+
+        dx / dt = f(t, x(t), u(t)),     x(0) = x0.
+
+    Parameters
+    ----------
+    f : callable mapping (n,) ndarray to (n,) ndarray
+        Function defining the differential equation.
+
+    Vr : (n,r) ndarray
+        Basis for the low-dimensional linear subspace.
+
+    X : (n,k) ndarray
+        State trajectories (training data).
+
+    U : (m,k) ndarray
+        Control inputs corresponding to the state trajectories.
+
+    Returns
+    -------
+    X_reprojected : (n,k) ndarray
+        Re-projected state trajectories in the original high-dimensional space.
+
+    Xdot_reprojected : (n,k) ndarray
+        Re-projected velocities in the original high-dimensional space.
+    """
+    # Validate and extract dimensions.
+    if X.shape[0] != Vr.shape[0]:
+        raise ValueError("X and Vr not aligned, first dimension "
+                         f"{X.shape[0]} != {Vr.shape[0]}")
+    n,_ = Vr.shape
+    _,k = X.shape
+
+    # Create the solution arrays.
+    X_rp = Vr @ Vr.T @ X
+    Xdot_rp = _np.empty_like(X)
+
+    # Run the re-projection iteration.
+    if U is None:
+        for j in range(k):
+            Xdot_rp[:,j] = f(X_rp[:,j])
+    elif U.ndim == 1:
+        for j in range(k):
+            Xdot_rp[:,j] = f(X_rp[:,j], U[j])
+    else:
+        for j in range(k):
+            Xdot_rp[:,j] = f(X_rp[:,j], U[:,j])
+
+    return X_rp, Xdot_rp
+
+
 # Derivative approximation ====================================================
-@_numba.jit(nopython=True)
 def _fwd4(y, dt):                                           # pragma: no cover
     """Compute the first derivative of a uniformly-spaced-in-time array with a
     fourth-order forward difference scheme.
@@ -299,7 +403,6 @@ def _fwd4(y, dt):                                           # pragma: no cover
     return (-25*y[0] + 48*y[1] - 36*y[2] + 16*y[3] - 3*y[4]) / (12*dt)
 
 
-@_numba.jit(nopython=True)
 def _fwd6(y, dt):                                           # pragma: no cover
     """Compute the first derivative of a uniformly-spaced-in-time array with a
     sixth-order forward difference scheme.
@@ -485,6 +588,8 @@ __all__ = [
             "energy_capture",
             "projection_error",
             "minimal_projection_error",
+            "reproject_discrete",
+            "reproject_continuous",
             "xdot_uniform",
             "xdot_nonuniform",
             "xdot",

@@ -70,6 +70,11 @@ def test_lstsq_reg(n_tests=5):
         roi.utils.lstsq_reg(A, B, -1)
     assert exc.value.args[0] == "regularization parameter must be nonnegative"
 
+    # Try with underdetermined system.
+    with pytest.warns(la.LinAlgWarning) as exc:
+        roi.utils.lstsq_reg(A[:8,:], B[:8,:])
+    assert exc[0].message.args[0] == "least squares system is underdetermined"
+
     # b must be one- or two-dimensional
     with pytest.raises(ValueError) as exc:
         roi.utils.lstsq_reg(A, np.random.random((2,2,2)))
@@ -99,8 +104,7 @@ def test_lstsq_reg(n_tests=5):
     # Do individual tests.
     k, m = 200, 20
     for r in np.random.randint(4, 50, n_tests):
-        s = r*(r+1)//2
-        _test_lstq_reg_single(k, r+s+m+1, r)
+        _test_lstq_reg_single(k, min(k, 1 + r + r*(r+1)//2 + m), r)
 
 
 # utils.kron_compact() --------------------------------------------------------

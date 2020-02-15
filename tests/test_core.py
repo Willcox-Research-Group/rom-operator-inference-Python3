@@ -36,9 +36,9 @@ def _get_operators(n=200, m=20):
 def _trainedmodel(continuous, modelform, Vr, m=20):
     """Construct a base class with model operators already constructed."""
     if continuous:
-        modelclass = roi._core._ContinuousROM
+        ModelClass = roi._core._ContinuousROM
     else:
-        modelclass = roi._core._DiscreteROM
+        ModelClass = roi._core._DiscreteROM
 
     n,r = Vr.shape
     c, A, H, Hc, B = _get_operators(r, m)
@@ -52,11 +52,73 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
     if "B" in modelform:
         operators['B_'] = B
 
-    return roi._core.trained_model_from_operators(modelclass, modelform,
+    return roi._core.trained_model_from_operators(ModelClass, modelform,
                                                   Vr, **operators)
 
 
-# Helper classes and functions ================================================
+# Helper functions and classes (public) =======================================
+def test_select_model():
+    """Test _core.select_model()."""
+    # Try with bad `time` argument.
+    with pytest.raises(ValueError) as ex:
+        roi.select_model("semidiscrete", "inferred", False)
+    assert "input `time` must be one of " in ex.value.args[0]
+
+
+    # Try with bad `rom_strategy` argument.
+    with pytest.raises(ValueError) as ex:
+        roi.select_model("discrete", "opinf", False)
+    assert "input `rom_strategy` must be one of " in ex.value.args[0]
+
+
+    # Try with bad `parametric` argument.
+    with pytest.raises(ValueError) as ex:
+        roi.select_model("discrete", "inferred", True)
+    assert "input `parametric` must be one of " in ex.value.args[0]
+
+
+    # Try with bad combination.
+    with pytest.raises(NotImplementedError) as ex:
+        roi.select_model("discrete", "intrusive", "interpolated")
+    assert ex.value.args[0] == "model type invalid or not implemented"
+
+    # Valid cases.
+    assert roi.select_model("discrete", "inferred") is  \
+                                        roi.InferredDiscreteROM
+    assert roi.select_model("continuous", "inferred") is \
+                                        roi.InferredContinuousROM
+    assert roi.select_model("discrete", "intrusive") is \
+                                        roi.IntrusiveDiscreteROM
+    assert roi.select_model("continuous", "intrusive") is \
+                                        roi.IntrusiveContinuousROM
+    assert roi.select_model("discrete", "intrusive", "affine") is \
+                                        roi.AffineIntrusiveDiscreteROM
+    assert roi.select_model("continuous", "intrusive", "affine") is \
+                                        roi.AffineIntrusiveContinuousROM
+    assert roi.select_model("discrete", "inferred", "interpolated") is \
+                                        roi.InterpolatedInferredDiscreteROM
+    assert roi.select_model("continuous", "inferred", "interpolated") is \
+                                        roi.InterpolatedInferredContinuousROM
+
+
+def test_trained_model_from_operators():
+    """Test _core.trained_model_from_operators()."""
+    n, m, r = 200, 20, 30
+    Vr = np.random.random((n, r))
+    c, A, H, Hc, B = _get_operators(n=n, m=m)
+
+    # Try with bad ModelClass argument.
+    with pytest.raises(TypeError) as ex:
+        roi.trained_model_from_operators(str, "cAH", Vr)
+    assert ex.value.args[0] == "ModelClass must be derived from _BaseROM"
+
+    # Correct usage.
+    roi.trained_model_from_operators(roi._core._ContinuousROM,
+                                     "cAH", Vr, A_=A, Hc_=Hc, c_=c)
+    roi.trained_model_from_operators(roi._core._ContinuousROM,
+                                     "AB", Vr, A_=A, B_=B)
+
+
 class TestAffineOperator:
     """Test _core.AffineOperator."""
     @staticmethod
@@ -116,7 +178,7 @@ class TestAffineOperator:
         affop = roi._core.AffineOperator(fs)
         with pytest.raises(RuntimeError) as ex:
             affop(10)
-        assert ex.value.args[0] == "constituent matrices not initialized!"
+        assert ex.value.args[0] == "component matrices not initialized!"
 
         # Correct usage.
         affop.matrices = As
@@ -125,26 +187,21 @@ class TestAffineOperator:
         assert np.allclose(Ap, np.sin(10)*As[0] + \
                                np.cos(10)*As[1] + np.exp(10)*As[2])
 
+    def test_eq(self):
+        """Test _core.AffineOperator.__eq__()."""
+        fs, As = self._set_up_affine_attributes()
+        affop1 = roi._core.AffineOperator(fs[:-1])
+        affop2 = roi._core.AffineOperator(fs, As)
 
-def testtrained_model_from_operators():
-    """Test _core.trained_model_from_operators()."""
-    n, m, r = 200, 20, 30
-    Vr = np.random.random((n, r))
-    c, A, H, Hc, B = _get_operators(n=n, m=m)
-
-    # Try with bad modelclass argument.
-    with pytest.raises(TypeError) as ex:
-        roi._core.trained_model_from_operators(str, "cAH", Vr)
-    assert ex.value.args[0] == "modelclass must be derived from _BaseROM"
-
-    # Correct usage.
-    roi._core.trained_model_from_operators(roi._core._ContinuousROM,
-                                "cAH", Vr, A_=A, Hc_=Hc, c_=c)
-    roi._core.trained_model_from_operators(roi._core._ContinuousROM,
-                                "AB", Vr, A_=A, B_=B)
+        assert affop1 != 1
+        assert affop1 != affop2
+        affop1 = roi._core.AffineOperator(fs)
+        assert affop1 != affop2
+        affop1.matrices = As
+        assert affop1 == affop2
 
 
-# Base classes ================================================================
+# Base classes (private) ======================================================
 class TestBaseROM:
     """Test _core._BaseROM."""
     def test_init(self):
@@ -261,24 +318,142 @@ class TestBaseROM:
             "argument 'u' invalid since 'B' in modelform"
 
 
+class TestDiscreteROM:
+    """Test _core._DiscreteROM."""
+    def test_construct_f_(self):
+        """Test _core.DiscreteROM._construct_f_()."""
+        model = roi._core._DiscreteROM('')
+
+        # Check that the constructed f takes the right number of arguments.
+        model.modelform = "cA"
+        model.c_, model.A_ = 1, 1
+        model.Hc_, model.B_ = None, None
+        model._construct_f_()
+        with pytest.raises(TypeError) as ex:
+            model.f_(1, 2)
+        assert ex.value.args[0] == \
+            "<lambda>() takes 1 positional argument but 2 were given"
+
+        model.modelform = "HB"
+        model.Hc_, model.B_ = 1, 1
+        model.c_, model.A_, = None, None
+        model._construct_f_()
+        with pytest.raises(TypeError) as ex:
+            model.f_(1)
+        assert ex.value.args[0] == \
+            "<lambda>() missing 1 required positional argument: 'u'"
+
+    def test_str(self):
+        """Test _core.DiscreteROM.__str__()."""
+        model = roi._core._DiscreteROM('')
+        model.modelform = "A"
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = Ax_{j}"
+        model.modelform = "cB"
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = c + Bu_{j}"
+        model.modelform = "H"
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = H(x_{j} ⊗ x_{j})"
+
+    def test_fit(self):
+        """Test _core._DiscreteROM.fit()."""
+        model = roi._core._DiscreteROM("A")
+        with pytest.raises(NotImplementedError) as ex:
+            model.fit()
+        assert ex.value.args[0] == \
+            "fit() must be implemented by child classes"
+
+        with pytest.raises(NotImplementedError) as ex:
+            model.fit(1, 2, 3, 4, 5, 6, 7, a=8)
+        assert ex.value.args[0] == \
+            "fit() must be implemented by child classes"
+
+    def test_predict(self):
+        """Test _core._DiscreteROM.predict()."""
+        model = roi._core._DiscreteROM('')
+
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X = _get_data(n, k, m)[0]
+        Vr = la.svd(X)[0][:,:r]
+
+        # Get test (reduced) operators.
+        c, A, H, Hc, B = _get_operators(r, m)
+
+        niters = 5
+        x0 = X[:,0]
+        U = np.ones((m, niters-1))
+
+        # Try to predict with invalid initial condition.
+        x0_ = Vr.T @ x0
+        model = _trainedmodel(False, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0_, niters, U)
+        assert ex.value.args[0] == \
+            f"invalid initial state shape ({(r,)} != {(n,)})"
+
+        # Try to predict with bad niters argument.
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, -18, U)
+        assert ex.value.args[0] == \
+            "argument 'niters' must be a nonnegative integer"
+
+        # Try to predict with badly-shaped discrete inputs.
+        model = _trainedmodel(False, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, niters, np.random.random((m-1, niters-1)))
+        assert ex.value.args[0] == \
+            f"invalid input shape ({(m-1,niters-1)} != {(m,niters-1)}"
+
+        model = _trainedmodel(False, "cAHB", Vr, m=1)
+        with pytest.raises(ValueError) as ex:
+            model.predict(x0, niters, np.random.random((2, niters-1)))
+        assert ex.value.args[0] == \
+            f"invalid input shape ({(2,niters-1)} != {(1,niters-1)}"
+
+        # Try to predict with continuous inputs.
+        model = _trainedmodel(False, "cAHB", Vr, m)
+        with pytest.raises(TypeError) as ex:
+            model.predict(x0, niters, lambda t: np.ones(m-1))
+        assert ex.value.args[0] == "input U must be an array, not a callable"
+
+        for form in _MODEL_FORMS:
+            if "B" not in form:             # No control inputs.
+                model = _trainedmodel(False, form, Vr, None)
+                model.predict(x0, niters)
+            else:                           # Has Control inputs.
+                # Predict with 2D inputs.
+                model = _trainedmodel(False, form, Vr, m)
+                out = model.predict(x0, niters, U)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,niters)
+
+                # Predict with 1D inputs.
+                model = _trainedmodel(False, form, Vr, 1)
+                out = model.predict(x0, niters, np.ones(niters))
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,niters)
+
+
 class TestContinuousROM:
     """Test _core._ContinuousROM."""
     def test_construct_f_(self):
-        """Test incorrect usage of BaseContinuousROM._construct_f_()."""
+        """Test incorrect usage of _core.ContinuousROM._construct_f_()."""
         model = roi._core._ContinuousROM('')
 
+        # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
-        with pytest.raises(RuntimeError) as ex:
-            model._construct_f_(lambda t: 1)
-        assert ex.value.args[0] == "improper use of _construct_f_()!"
-
-        model.modelform = "cHB"
-        with pytest.raises(RuntimeError) as ex:
-            model._construct_f_()
-        assert ex.value.args[0] == "improper use of _construct_f_()!"
+        model.c_, model.A_ = 1, 1
+        model.Hc_, model.B_ = None, None
+        model._construct_f_()
+        with pytest.raises(TypeError) as ex:
+            model.f_(1)
+        assert ex.value.args[0] == \
+            "<lambda>() missing 1 required positional argument: 'x_'"
 
     def test_str(self):
-        """Test BaseContinuousROM.__str__() (string representation)."""
+        """Test _core.ContinuousROM.__str__() (string representation)."""
         model = roi._core._ContinuousROM('')
 
         model.modelform = "A"
@@ -330,7 +505,8 @@ class TestContinuousROM:
         model = _trainedmodel(True, "cAHB", Vr, m)
         with pytest.raises(ValueError) as ex:
             model.predict(x0_, t, u)
-        assert ex.value.args[0] == f"invalid initial state size ({r} != {n})"
+        assert ex.value.args[0] == \
+            f"invalid initial state shape ({(r,)} != {(n,)})"
 
         # Try to predict with bad time array.
         with pytest.raises(ValueError) as ex:
@@ -410,31 +586,7 @@ class TestContinuousROM:
                 assert out.shape == (n,nt)
 
 
-class TestAffineContinuousROM:
-    """Test _core._AffineContinuousROM"""
-    def test_predict(self):
-        """Test _core._AffineContinuousROM.predict()."""
-        model = roi._core._AffineContinuousROM("cAH")
-
-        # Get test data.
-        n, k, m, r = 200, 100, 20, 10
-        X = _get_data(n, k, m)[0]
-        Vr = la.svd(X)[0][:,:r]
-
-        # Get test operators.
-        ident = lambda a: a
-        c, A, H, Hc, B = _get_operators(r, m)
-        model.c_ = roi._core.AffineOperator([ident, ident], [c,c])
-        model.A_ = roi._core.AffineOperator([ident, ident, ident], [A,A,A])
-        model.Hc_ = roi._core.AffineOperator([ident], [Hc])
-        model.B_ = None
-        model.Vr = Vr
-
-        # Predict.
-        model.predict(1, X[:,0], np.linspace(0, 1, 100))
-
-
-# Mixin classes ===============================================================
+# Basic mixins (private) ======================================================
 class TestInferredMixin:
     """Test _core._InferredMixin."""
     def test_check_training_data_shapes(self):
@@ -447,19 +599,68 @@ class TestInferredMixin:
 
         # Try to fit the model with misaligned X and Xdot.
         with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes(X, Xdot[:,1:-1], Vr)
+            model._check_training_data_shapes(Vr, X, Xdot[:,1:-1])
         assert ex.value.args[0] == \
             f"shape of X != shape of Xdot ({(n,k)} != {(n,k-2)})"
 
         # Try to fit the model with misaligned X and Vr.
         with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes(X, Xdot, Vr[1:-1,:])
+            model._check_training_data_shapes(Vr[1:-1,:], X, Xdot)
         assert ex.value.args[0] == \
             f"X and Vr not aligned, first dimension {n} != {n-2}"
 
         # Try to fit the model with misaligned X and U.
         with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes(X, Xdot, Vr, U=U[:,:-1])
+            model._check_training_data_shapes(Vr, X, Xdot, U=U[:,:-1])
+
+    def test_check_dataset_consistency(self):
+        """Test _core._InferredMixin._check_dataset_consistency()."""
+        X, Y = np.random.random((3,3)), np.random.random((3,4))
+        with pytest.raises(ValueError) as ex:
+            roi._core._InferredMixin._check_dataset_consistency([X,Y], 'xx')
+        assert ex.value.args[0] == "shape of 'xx' inconsistent across samples"
+
+    def _test_fit(self, ModelClass):
+        """Test _core._InferredMixin.fit(), the parent method for
+        _core.InferredDiscreteROM.fit(), _core.InferredContinuousROM.fit().
+        """
+        model = ModelClass("cAH")
+
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X, Xdot, U = _get_data(n, k, m)
+        Vr = la.svd(X)[0][:,:r]
+        args = [Vr, X]
+        if issubclass(ModelClass, roi._core._ContinuousROM):
+            args.insert(1, Xdot)
+
+        # Fit the model with each possible non-input modelform.
+        for form in _MODEL_FORMS:
+            if "B" not in form:
+                model.modelform = form
+                model.fit(*args)
+
+        def _test_output_shapes(model):
+            """Test shapes of output operators for modelform="cAHB"."""
+            assert model.n == n
+            assert model.r == r
+            assert model.m == m
+            assert model.A_.shape == (r,r)
+            assert model.Hc_.shape == (r,r*(r+1)//2)
+            assert model.H_.shape == (r,r**2)
+            assert model.c_.shape == (r,)
+            assert model.B_.shape == (r,m)
+            assert hasattr(model, "residual_")
+
+        # Test with high-dimensional inputs.
+        model.modelform = "cAHB"
+        model.fit(*args, U=U)
+        _test_output_shapes(model)
+
+        # Test again with one-dimensional inputs.
+        m = 1
+        model.fit(*args, U=np.ones(k))
+        _test_output_shapes(model)
 
 
 class TestIntrusiveMixin:
@@ -492,6 +693,91 @@ class TestIntrusiveMixin:
         # Correct usage.
         model._check_operators({"c":v, "A":v, "H":v, "B":v})
 
+    def _test_fit(self, ModelClass):
+        """Test _core._IntrusiveMixin.fit(), the parent method for
+        _core.IntrusiveDiscreteROM.fit(), _core.IntrusiveContinuousROM.fit().
+        """
+        model = ModelClass("cAHB")
+
+        # Get test data.
+        n, k, m, r = 200, 100, 20, 10
+        X = _get_data(n, k, m)[0]
+        Vr = la.svd(X)[0][:,:r]
+
+        # Get test operators.
+        c, A, H, Hc, B = _get_operators(n, m)
+        B1d = B[:,0]
+        operators = {"c":c, "A":A, "H":H, "B":B}
+
+        # Try to fit the model with misaligned operators and Vr.
+        Abad = A[:,:-2]
+        Hbad = H[:,1:]
+        cbad = c[::2]
+        Bbad = B[1:,:]
+
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, {"c":cbad, "A":A, "H":H, "B":B})
+        assert ex.value.args[0] == "basis Vr and FOM operator c not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, {"c":c, "A":Abad, "H":H, "B":B})
+        assert ex.value.args[0] == "basis Vr and FOM operator A not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, {"c":c, "A":A, "H":Hbad, "B":B})
+        assert ex.value.args[0] == \
+            "basis Vr and FOM operator H not aligned"
+
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, {"c":c, "A":A, "H":H, "B":Bbad})
+        assert ex.value.args[0] == "basis Vr and FOM operator B not aligned"
+
+        # Fit the model with each possible modelform.
+        for form in ["A", "cA", "H", "cH", "AH", "cAH", "cAHB"]:
+            model.modelform = form
+            ops = {key:val for key,val in operators.items() if key in form}
+            model.fit(Vr, ops)
+
+        model.modelform = "cAHB"
+        model.fit(Vr, {"c":c, "A":A, "H":Hc, "B":B})
+
+        # Test fit output sizes.
+        assert model.n == n
+        assert model.r == r
+        assert model.m == m
+        assert model.A.shape == (n,n)
+        assert model.Hc.shape == (n,n*(n+1)//2)
+        assert model.H.shape == (n,n**2)
+        assert model.c.shape == (n,)
+        assert model.B.shape == (n,m)
+        assert model.A_.shape == (r,r)
+        assert model.Hc_.shape == (r,r*(r+1)//2)
+        assert model.H_.shape == (r,r**2)
+        assert model.c_.shape == (r,)
+        assert model.B_.shape == (r,m)
+
+        # Fit the model with 1D inputs (1D array for B)
+        model.modelform = "cAHB"
+        model.fit(Vr, {"c":c, "A":A, "H":H, "B":B1d})
+        assert model.B.shape == (n,1)
+        assert model.B_.shape == (r,1)
+
+
+class TestNonparametricMixin:
+    """Test _core._NonparametricMixin."""
+    pass
+
+
+class TestParametricMixin:
+    """Test _core._ParametricMixin."""
+    pass
+
+
+# Specialized mixins (private) ================================================
+class TestInterpolatedMixin:
+    """Test _core._InterpolatedMixin."""
+    pass
+
 
 class TestAffineMixin:
     """Test _core._AffineMixin."""
@@ -515,61 +801,14 @@ class TestAffineMixin:
         model._check_affines({"c":v, "H":v}, 0)     # OK to be missing some.
         model._check_affines({"c":v, "A":v, "H":v, "B":v}, 0)
 
-
-# Useable classes =============================================================
-
-# Continuous models (i.e., solving dx/dt = f(t,x,u)) --------------------------
-class TestInferredContinuousROM:
-    """Test _core.InferredContinuousROM."""
-    def test_fit(self):
-        """Test _core.InferredContinuousROM.fit()."""
-        model = roi.InferredContinuousROM("cAH")
-
-        # Get test data.
-        n, k, m, r = 200, 100, 20, 10
-        X, Xdot, U = _get_data(n, k, m)
-        Vr = la.svd(X)[0][:,:r]
-
-        # Fit the model with each possible modelform.
-        for form in _MODEL_FORMS:
-            if "B" not in form:
-                model.modelform = form
-                model.fit(X, Xdot, Vr)
-
-        # Test fit output sizes.
-        model.modelform = "cAHB"
-        model.fit(X, Xdot, Vr, U=U)
-        assert model.n == n
-        assert model.r == r
-        assert model.m == m
-        assert model.A_.shape == (r,r)
-        assert model.Hc_.shape == (r,r*(r+1)//2)
-        assert model.H_.shape == (r,r**2)
-        assert model.c_.shape == (r,)
-        assert model.B_.shape == (r,m)
-        assert hasattr(model, "residual_")
-
-        # Try again with one-dimensional inputs.
-        m = 1
-        U = np.ones(k)
-        model.fit(X, Xdot, Vr, U=U)
-        n, r, m = model.n, model.r, model.m
-        assert model.n == n
-        assert model.r == r
-        assert model.m == 1
-        assert model.A_.shape == (r,r)
-        assert model.Hc_.shape == (r,r*(r+1)//2)
-        assert model.H_.shape == (r,r**2)
-        assert model.c_.shape == (r,)
-        assert model.B_.shape == (r,1)
-        assert hasattr(model, "residual_")
-
-
-class TestIntrusiveContinuousROM:
-    """Test _core.IntrusiveContinuousROM."""
-    def test_fit(self):
-        """Test _core.IntrusiveContinuousROM.fit()."""
-        model = roi.IntrusiveContinuousROM("cAHB")
+    def _test_predict(self, ModelClass):
+        """Test predict() methods for Affine classes:
+        * _core.AffineInferredDiscreteROM.predict()
+        * _core.AffineInferredContinuousROM.predict()
+        * _core.AffineIntrusiveDiscreteROM.predict()
+        * _core.AffineIntrusiveContinuousROM.predict()
+        """
+        model = ModelClass("cAH")
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
@@ -577,154 +816,29 @@ class TestIntrusiveContinuousROM:
         Vr = la.svd(X)[0][:,:r]
 
         # Get test operators.
-        c, A, H, Hc, B = _get_operators(n, m)
-        B1d = B[:,0]
-        operators = {"c":c, "A":A, "H":H, "B":B}
+        ident = lambda a: a
+        c, A, H, Hc, B = _get_operators(r, m)
+        model.Vr = Vr
+        model.c_ = roi._core.AffineOperator([ident, ident], [c,c])
+        model.A_ = roi._core.AffineOperator([ident, ident, ident], [A,A,A])
+        model.Hc_ = roi._core.AffineOperator([ident], [Hc])
+        model.B_ = None
 
-        # Try to fit the model with misaligned operators and Vr.
-        Abad = A[:,:-2]
-        Hbad = H[:,1:]
-        cbad = c[::2]
-        Bbad = B[1:,:]
-
-        with pytest.raises(ValueError) as ex:
-            model.fit({"c":cbad, "A":A, "H":H, "B":B}, Vr)
-        assert ex.value.args[0] == "basis Vr and FOM operator c not aligned"
-
-        with pytest.raises(ValueError) as ex:
-            model.fit({"c":c, "A":Abad, "H":H, "B":B}, Vr)
-        assert ex.value.args[0] == "basis Vr and FOM operator A not aligned"
-
-        with pytest.raises(ValueError) as ex:
-            model.fit({"c":c, "A":A, "H":Hbad, "B":B}, Vr)
-        assert ex.value.args[0] == \
-            "basis Vr and FOM operator H not aligned"
-
-        with pytest.raises(ValueError) as ex:
-            model.fit({"c":c, "A":A, "H":H, "B":Bbad}, Vr)
-        assert ex.value.args[0] == "basis Vr and FOM operator B not aligned"
-
-        # Fit the model with each possible modelform.
-        for form in ["A", "cA", "H", "cH", "AH", "cAH", "cAHB"]:
-            model.modelform = form
-            ops = {key:val for key,val in operators.items() if key in form}
-            model.fit(ops, Vr)
-
-        model.modelform = "cAHB"
-        model.fit({"c":c, "A":A, "H":Hc, "B":B}, Vr)
-
-        # Test fit output sizes.
-        assert model.n == n
-        assert model.r == r
-        assert model.m == m
-        assert model.A.shape == (n,n)
-        assert model.Hc.shape == (n,n*(n+1)//2)
-        assert model.H.shape == (n,n**2)
-        assert model.c.shape == (n,)
-        assert model.B.shape == (n,m)
-        assert model.A_.shape == (r,r)
-        assert model.Hc_.shape == (r,r*(r+1)//2)
-        assert model.H_.shape == (r,r**2)
-        assert model.c_.shape == (r,)
-        assert model.B_.shape == (r,m)
-
-        # Fit the model with 1D inputs (1D array for B)
-        model.modelform = "cAHB"
-        model.fit({"c":c, "A":A, "H":H, "B":B1d}, Vr)
-        assert model.B.shape == (n,1)
-        assert model.B_.shape == (r,1)
+        # Predict.
+        if issubclass(ModelClass, roi._core._ContinuousROM):
+            model.predict(1, X[:,0], np.linspace(0, 1, 100))
+        else:
+            model.predict(1, X[:,0], 100)
 
 
-class TestInterpolatedInferredContinuousROM:
-    """Test _core.InterpolatedInferredContinuousROM."""
-    def test_fit(self):
-        """Test _core.InterpolatedInferredContinuousROM.fit()."""
-        model = roi.InterpolatedInferredContinuousROM("cAH")
-
-        # Get data for fitting.
-        n, m, k, r = 50, 10, 20, 5
-        X1, Xdot1, U1 = _get_data(n, k, m)
-        X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
-        Xs = [X1, X2]
-        Xdots = [Xdot1, Xdot2]
-        Us = [U1, U2]
-        ps = [1, 2]
-        Vr = la.svd(np.hstack(Xs))[0][:,:r]
-
-        # Try with non-scalar parameters.
-        with pytest.raises(ValueError) as ex:
-            model.fit([np.array([1,1]), np.array([2,2])], Xs, Xdots, Vr)
-        assert ex.value.args[0] == "only scalar parameter values are supported"
-
-        # Try with bad number of Xs.
-        with pytest.raises(ValueError) as ex:
-            model.fit(ps, [X1, X2, X2+1], Xdots, Vr)
-        assert ex.value.args[0] == \
-            "num parameter samples != num state snapshot sets (2 != 3)"
-
-        # Try with bad number of Xdots.
-        with pytest.raises(ValueError) as ex:
-            model.fit(ps, Xs, Xdots + [Xdot1], Vr)
-        assert ex.value.args[0] == \
-            "num parameter samples != num velocity snapshot sets (2 != 3)"
-
-        # Try with varying input sizes.
-        model.modelform = "cAHB"
-        with pytest.raises(ValueError) as ex:
-            model.fit(ps, Xs, Xdots, Vr, [U1, U2[:-1]])
-        assert ex.value.args[0] == \
-            "shape of 'U' inconsistent across samples"
-
-        # Fit correctly with no inputs.
-        model.modelform = "cAH"
-        model.fit(ps, Xs, Xdots, Vr)
-        for attr in ["models_", "dataconds_", "residuals_", "fs_"]:
-            assert hasattr(model, attr)
-            assert len(getattr(model, attr)) == len(model.models_)
-
-        # Fit correctly with inputs.
-        model.modelform = "cAHB"
-        model.fit(ps, Xs, Xdots, Vr, Us)
-
-        assert len(model) == len(ps)
-
-    def test_predict(self):
-        """Test _core.InterpolatedInferredContinuousROM.predict()."""
-        model = roi.InterpolatedInferredContinuousROM("cAH")
-
-        # Get data for fitting.
-        n, m, k, r = 50, 10, 20, 5
-        X1, Xdot1, U1 = _get_data(n, k, m)
-        X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
-        Xs = [X1, X2]
-        Xdots = [Xdot1, Xdot2]
-        Us = [U1, U2]
-        ps = [1, 2]
-        Vr = la.svd(np.hstack(Xs))[0][:,:r]
-
-        # Parameters for predicting.
-        x0 = np.random.random(n)
-        nt = 5
-        t = np.linspace(0, .01*nt, nt)
-        u = lambda t: np.ones(10)
-
-        # Fit / predict with no inputs.
-        model.fit(ps, Xs, Xdots, Vr)
-        model.predict(1, x0, t)
-        model.predict(1.5, x0, t)
-
-        # Fit / predict with inputs.
-        model.modelform = "cAHB"
-        model.fit(ps, Xs, Xdots, Vr, Us)
-        model.predict(1, x0, t, u)
-        model.predict(1.5, x0, t, u)
-
-
-class TestAffineIntrusiveContinuousROM:
-    """Test _core.AffineIntrusiveContinuousROM."""
-    def test_fit(self):
-        """Test _core.InterpolatedInferredContinuousROM.fit()."""
-        model = roi.AffineIntrusiveContinuousROM("cAHB")
+class TestAffineIntrusiveMixin:
+    """Test _core._AffineIntrusiveMixin."""
+    def _test_fit(self, ModelClass):
+        """Test _core._AffineIntrusiveMixin.fit(), parent method of
+        _core.AffineIntrusiveDiscreteROM.fit() and
+        _core.AffineIntrusiveContinuousROM.fit().
+        """
+        model = ModelClass("cAHB")
 
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
@@ -751,56 +865,52 @@ class TestAffineIntrusiveContinuousROM:
         Bbad = B[1:,:]
 
         with pytest.raises(ValueError) as ex:
-            model.fit(affines,
+            model.fit(Vr, affines,
                       {"c":[cbad, cbad],
                        "A": [A, A, A],
                        "H": [H],
-                       "B": [B, B]},
-                      Vr)
+                       "B": [B, B]})
         assert ex.value.args[0] == "basis Vr and FOM operator c not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit(affines,
+            model.fit(Vr, affines,
                       {"c":[c, c],
                        "A": [Abad, Abad, Abad],
                        "H": [H],
-                       "B": [B, B]},
-                      Vr)
+                       "B": [B, B]})
         assert ex.value.args[0] == "basis Vr and FOM operator A not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit(affines,
+            model.fit(Vr, affines,
                       {"c":[c, c],
                        "A": [A, A, A],
                        "H": [Hbad],
-                       "B": [B, B]},
-                      Vr)
+                       "B": [B, B]})
         assert ex.value.args[0] == \
             "basis Vr and FOM operator H not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit(affines,
+            model.fit(Vr, affines,
                       {"c":[c, c],
                        "A": [A, A, A],
                        "H": [H],
-                       "B": [Bbad, Bbad]},
-                      Vr)
+                       "B": [Bbad, Bbad]})
         assert ex.value.args[0] == "basis Vr and FOM operator B not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit({}, {"c":cbad, "A":A, "H":H, "B":B}, Vr)
+            model.fit(Vr, {}, {"c":cbad, "A":A, "H":H, "B":B})
         assert ex.value.args[0] == "basis Vr and FOM operator c not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit({}, {"c":c, "A":Abad, "H":H, "B":B}, Vr)
+            model.fit(Vr, {}, {"c":c, "A":Abad, "H":H, "B":B})
         assert ex.value.args[0] == "basis Vr and FOM operator A not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit({}, {"c":c, "A":A, "H":Hbad, "B":B}, Vr)
+            model.fit(Vr, {}, {"c":c, "A":A, "H":Hbad, "B":B})
         assert ex.value.args[0] == "basis Vr and FOM operator H not aligned"
 
         with pytest.raises(ValueError) as ex:
-            model.fit({}, {"c":c, "A":A, "H":H, "B":Bbad}, Vr)
+            model.fit(Vr, {}, {"c":c, "A":A, "H":H, "B":Bbad})
         assert ex.value.args[0] == "basis Vr and FOM operator B not aligned"
 
         # Fit the model correctly with each possible modelform.
@@ -808,19 +918,18 @@ class TestAffineIntrusiveContinuousROM:
             model.modelform = form
             afs = {key:val for key,val in affines.items() if key in form}
             ops = {key:val for key,val in operators.items() if key in form}
-            model.fit(afs, ops, Vr)
+            model.fit(Vr, afs, ops)
 
         model.modelform = "cAHB"
-        model.fit({}, {"c":c, "A":A, "H":H, "B":B}, Vr)
-        model.fit({}, {"c":c, "A":A, "H":Hc, "B":B}, Vr)
-        model.fit({}, {"c":c, "A":A, "H":H, "B":B1d}, Vr)
-        model.fit(affines,
+        model.fit(Vr, {}, {"c":c, "A":A, "H":H, "B":B})
+        model.fit(Vr, {}, {"c":c, "A":A, "H":Hc, "B":B})
+        model.fit(Vr, {}, {"c":c, "A":A, "H":H, "B":B1d})
+        model.fit(Vr, affines,
                   {"c":[c, c],
                    "A": [A, A, A],
                    "H": [Hc],
-                   "B": [B, B]},
-                  Vr)
-        model.fit(affines, operators, Vr)
+                   "B": [B, B]})
+        model.fit(Vr, affines, operators)
 
         # Test fit output sizes.
         assert model.n == n
@@ -839,15 +948,225 @@ class TestAffineIntrusiveContinuousROM:
 
         # Fit the model with 1D inputs (1D array for B)
         model.modelform = "cAHB"
-        model.fit(affines,
+        model.fit(Vr, affines,
                   {"c":[c, c],
                    "A": [A, A, A],
                    "H": [H],
-                   "B": [B1d, B1d]},
-                  Vr)
+                   "B": [B1d, B1d]})
         assert model.B.shape == (n,1)
         assert model.B_.shape == (r,1)
 
 
+# Useable classes (public) ====================================================
+# Nonparametric operator inference models -------------------------------------
+class TestInferredDiscreteROM:
+    """Test _core.InferredDiscreteROM."""
+    def test_fit(self):
+        TestInferredMixin()._test_fit(roi.InferredDiscreteROM)
 
-# Discrete ROMs (i.e., solving x_{k+1} = f(x_{k},u_{k})) --------------------
+
+class TestInferredContinuousROM:
+    """Test _core.InferredContinuousROM."""
+    def test_fit(self):
+        """Test _core.InferredContinuousROM.fit()."""
+        TestInferredMixin()._test_fit(roi.InferredContinuousROM)
+
+
+# Nonparametric intrusive models ----------------------------------------------
+class TestIntrusiveDiscreteROM:
+    """Test _core.IntrusiveDiscreteROM."""
+    def test_fit(self):
+        """Test _core.IntrusiveDiscreteROM.fit()."""
+        TestIntrusiveMixin()._test_fit(roi.IntrusiveDiscreteROM)
+
+
+class TestIntrusiveContinuousROM:
+    """Test _core.IntrusiveContinuousROM."""
+    def test_fit(self):
+        """Test _core.IntrusiveContinuousROM.fit()."""
+        TestIntrusiveMixin()._test_fit(roi.IntrusiveContinuousROM)
+
+
+# Interpolated operator inference models --------------------------------------
+class TestInterpolatedInferredDiscreteROM:
+    """Test _core.InterpolatedInferredDiscreteROM."""
+    def test_fit(self):
+        """Test _core.InterpolatedInferredDiscreteROM.fit()."""
+        model = roi.InterpolatedInferredDiscreteROM("cAH")
+
+        # Get data for fitting.
+        n, m, k, r = 50, 10, 100, 5
+        X1, _, U1 = _get_data(n, k, m)
+        X2, U2 = X1+1, U1+1
+        Xs = [X1, X2]
+        Us = [U1, U2]
+        ps = [1, 2]
+        Vr = la.svd(np.hstack(Xs))[0][:,:r]
+
+        # Try with non-scalar parameters.
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, [np.array([1,1]), np.array([2,2])], Xs)
+        assert ex.value.args[0] == "only scalar parameter values are supported"
+
+        # Try with bad number of Xs.
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, ps, [X1, X2, X2+1])
+        assert ex.value.args[0] == \
+            "num parameter samples != num state snapshot sets (2 != 3)"
+
+        # Try with varying input sizes.
+        model.modelform = "cAHB"
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, ps, Xs, [U1, U2[:-1]])
+        assert ex.value.args[0] == \
+            "shape of 'U' inconsistent across samples"
+
+        # Fit correctly with no inputs.
+        model.modelform = "cAH"
+        model.fit(Vr, ps, Xs)
+        for attr in ["models_", "dataconds_", "residuals_", "fs_"]:
+            assert hasattr(model, attr)
+            assert len(getattr(model, attr)) == len(model.models_)
+
+        # Fit correctly with inputs.
+        model.modelform = "cAHB"
+        model.fit(Vr, ps, Xs, Us)
+
+        assert len(model) == len(ps)
+
+    def test_predict(self):
+        """Test _core.InterpolatedInferredDiscreteROM.predict()."""
+        model = roi.InterpolatedInferredDiscreteROM("cAH")
+
+        # Get data for fitting.
+        n, m, k, r = 50, 10, 100, 5
+        X1, _, U1 = _get_data(n, k, m)
+        X2, U2 = X1+1, U1+1
+        Xs = [X1, X2]
+        Us = [U1, U2]
+        ps = [1, 2]
+        Vr = la.svd(np.hstack(Xs))[0][:,:r]
+
+        # Parameters for predicting.
+        x0 = np.random.random(n)
+        niters = 5
+        U = np.ones((m,niters))
+
+        # Fit / predict with no inputs.
+        model.fit(Vr, ps, Xs)
+        model.predict(1, x0, niters)
+        model.predict(1.5, x0, niters)
+
+        # Fit / predict with inputs.
+        model.modelform = "cAHB"
+        model.fit(Vr, ps, Xs, Us)
+        model.predict(1, x0, niters, U)
+        model.predict(1.5, x0, niters, U)
+
+
+class TestInterpolatedInferredContinuousROM:
+    """Test _core.InterpolatedInferredContinuousROM."""
+    def test_fit(self):
+        """Test _core.InterpolatedInferredContinuousROM.fit()."""
+        model = roi.InterpolatedInferredContinuousROM("cAH")
+
+        # Get data for fitting.
+        n, m, k, r = 50, 10, 100, 5
+        X1, Xdot1, U1 = _get_data(n, k, m)
+        X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
+        Xs = [X1, X2]
+        Xdots = [Xdot1, Xdot2]
+        Us = [U1, U2]
+        ps = [1, 2]
+        Vr = la.svd(np.hstack(Xs))[0][:,:r]
+
+        # Try with non-scalar parameters.
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, [np.array([1,1]), np.array([2,2])], Xs, Xdots)
+        assert ex.value.args[0] == "only scalar parameter values are supported"
+
+        # Try with bad number of Xs.
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, ps, [X1, X2, X2+1], Xdots)
+        assert ex.value.args[0] == \
+            "num parameter samples != num state snapshot sets (2 != 3)"
+
+        # Try with bad number of Xdots.
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, ps, Xs, Xdots + [Xdot1])
+        assert ex.value.args[0] == \
+            "num parameter samples != num velocity snapshot sets (2 != 3)"
+
+        # Try with varying input sizes.
+        model.modelform = "cAHB"
+        with pytest.raises(ValueError) as ex:
+            model.fit(Vr, ps, Xs, Xdots, [U1, U2[:-1]])
+        assert ex.value.args[0] == \
+            "shape of 'U' inconsistent across samples"
+
+        # Fit correctly with no inputs.
+        model.modelform = "cAH"
+        model.fit(Vr, ps, Xs, Xdots)
+        for attr in ["models_", "dataconds_", "residuals_", "fs_"]:
+            assert hasattr(model, attr)
+            assert len(getattr(model, attr)) == len(model.models_)
+
+        # Fit correctly with inputs.
+        model.modelform = "cAHB"
+        model.fit(Vr, ps, Xs, Xdots, Us)
+
+        assert len(model) == len(ps)
+
+    def test_predict(self):
+        """Test _core.InterpolatedInferredContinuousROM.predict()."""
+        model = roi.InterpolatedInferredContinuousROM("cAH")
+
+        # Get data for fitting.
+        n, m, k, r = 50, 10, 100, 5
+        X1, Xdot1, U1 = _get_data(n, k, m)
+        X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
+        Xs = [X1, X2]
+        Xdots = [Xdot1, Xdot2]
+        Us = [U1, U2]
+        ps = [1, 2]
+        Vr = la.svd(np.hstack(Xs))[0][:,:r]
+
+        # Parameters for predicting.
+        x0 = np.random.random(n)
+        nt = 5
+        t = np.linspace(0, .01*nt, nt)
+        u = lambda t: np.ones(10)
+
+        # Fit / predict with no inputs.
+        model.fit(Vr, ps, Xs, Xdots)
+        model.predict(1, x0, t)
+        model.predict(1.5, x0, t)
+
+        # Fit / predict with inputs.
+        model.modelform = "cAHB"
+        model.fit(Vr, ps, Xs, Xdots, Us)
+        model.predict(1, x0, t, u)
+        model.predict(1.5, x0, t, u)
+
+
+# Affine intrusive models -----------------------------------------------------
+class TestAffineIntrusiveDiscreteROM:
+    """Test _core.AffineIntrusiveDiscreteROM."""
+    def test_fit(self):
+        """Test _core.AffineIntrusiveDiscreteROM.fit()."""
+        TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveDiscreteROM)
+
+    def test_predict(self):
+        """Test _core.AffineIntrusiveDiscreteROM.predict()."""
+        TestAffineMixin()._test_predict(roi.AffineIntrusiveDiscreteROM)
+
+
+class TestAffineIntrusiveContinuousROM:
+    """Test _core.AffineIntrusiveContinuousROM."""
+    def test_fit(self):
+        """Test _core.AffineIntrusiveContinuousROM.fit()."""
+        TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveContinuousROM)
+
+    def test_predict(self):
+        """Test _core.AffineIntrusiveContinuousROM.predict()."""
+        TestAffineMixin()._test_predict(roi.AffineIntrusiveContinuousROM)

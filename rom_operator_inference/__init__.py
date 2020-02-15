@@ -1,26 +1,29 @@
-"""Operator inference for data-driven, non-intrusive model reduction of
-dynamical systems.
+# __init__.py
+"""Operator inference for data-driven model reduction of dynamical systems.
 
-Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
+Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer, et al.
 """
 
 from ._core import (
-                        InferredContinuousROM,
-                        IntrusiveContinuousROM,
-                        AffineIntrusiveContinuousROM,
-                        InterpolatedInferredContinuousROM,
+                    select_model, trained_model_from_operators,
+                    InferredDiscreteROM, InferredContinuousROM,
+                    IntrusiveDiscreteROM, IntrusiveContinuousROM,
+                    AffineIntrusiveDiscreteROM, AffineIntrusiveContinuousROM,
+                    InterpolatedInferredDiscreteROM,
+                    InterpolatedInferredContinuousROM,
                     )
 from . import utils, pre, post
 
 
 __all__ = [
-            "InferredContinuousROM",
-            "IntrusiveContinuousROM",
-            "AffineIntrusiveContinuousROM",
+            "InferredDiscreteROM", "InferredContinuousROM",
+            "IntrusiveDiscreteROM" "IntrusiveContinuousROM",
+            "AffineIntrusiveDiscreteROM", "AffineIntrusiveContinuousROM",
+            "InterpolatedInferredDiscreteROM",
             "InterpolatedInferredContinuousROM",
             "utils",
             "pre",
             "post",
           ]
 
-__version__ = "0.6.2"
+__version__ = "0.7.0"

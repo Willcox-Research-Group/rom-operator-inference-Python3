@@ -7,7 +7,7 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="rom_operator_inference",
-    version="0.6.2",
+    version="0.7.0",
 
     # Package description, license, and keywords.
     description="Operator inference for data-driven, non-intrusive model reduction of dynamical systems.",
@@ -26,8 +26,8 @@ setuptools.setup(
     ],
 
     # Humans to contact about this code.
-    author="Renee Swischuk et al.",
-    author_email="swischuk@mit.edu",
+    author="Renee Swischuk, Shane McQuarrie",
+    author_email="shanemcq@utexas.edu",
     maintainer="Shane McQuarrie",
     maintainer_email="shanemcq@utexas.edu",
 
@@ -37,8 +37,8 @@ setuptools.setup(
         "numpy>=1.16",
         "scipy>=1.3",
         "scikit-learn>=0.18",
-        "numba>=0.45",
         "matplotlib>=3.1",
+        "python>=3.7",
       ],
     setup_requires=["pytest-runner"],
     test_suite="pytest",
