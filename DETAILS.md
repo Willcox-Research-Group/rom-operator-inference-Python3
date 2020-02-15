@@ -255,9 +255,9 @@ t\ge 0 &= \text{time}\\
 
 | Symbol | Code | Shape | Description |
 | :----: | :--- | :---: | :---------- |
+| <img src="https://latex.codecogs.com/svg.latex?V_r"/> | `Vr` | <img src="https://latex.codecogs.com/svg.latex?n\times%20r"/> | low-rank basis of rank _r_ (usually the POD basis) |
 | <img src="https://latex.codecogs.com/svg.latex?X"/> | `X` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\dot{X}"/> | `Xdot` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot velocity matrix |
-| <img src="https://latex.codecogs.com/svg.latex?V_r"/> | `Vr` | <img src="https://latex.codecogs.com/svg.latex?n\times%20r"/> | low-rank basis of rank _r_ (usually the POD basis) |
 | <img src="https://latex.codecogs.com/svg.latex?U"/> | `U` | <img src="https://latex.codecogs.com/svg.latex?m\times%20k"/> | Input matrix (inputs corresonding to the snapshots) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{X}"/> | `X_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{X}}"/> | `Xdot_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot velocity matrix |

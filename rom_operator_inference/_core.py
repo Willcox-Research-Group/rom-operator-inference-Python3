@@ -621,15 +621,15 @@ class _ContinuousROM(_BaseROM):
 class _InferredMixin:
     """Mixin class for reduced model classes that use operator inference."""
     @staticmethod
-    def _check_training_data_shapes(X, Xdot, Vr, U=None):
-        """Ensure that X, Xdot, Vr, and U are aligned."""
-        if Xdot is not None and X.shape != Xdot.shape:
-            raise ValueError(f"shape of X != shape of Xdot "
-                             f"({X.shape} != {Xdot.shape})")
-
+    def _check_training_data_shapes(Vr, X, Xdot, U=None):
+        """Ensure that Vr, X, Xdot, and U are aligned."""
         if X.shape[0] != Vr.shape[0]:
             raise ValueError("X and Vr not aligned, first dimension "
                              f"{X.shape[0]} != {Vr.shape[0]}")
+
+        if Xdot is not None and X.shape != Xdot.shape:
+            raise ValueError(f"shape of X != shape of Xdot "
+                             f"({X.shape} != {Xdot.shape})")
 
         if U is not None and X.shape[-1] != U.shape[-1]:
             raise ValueError("X and U not aligned, last dimension "
@@ -644,20 +644,20 @@ class _InferredMixin:
                 raise ValueError(f"shape of '{label}'"
                                  " inconsistent across samples")
 
-    def fit(self, X, rhs, Vr, U=None, P=0):
+    def fit(self, Vr, X, rhs, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
         ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
         X : (n,k) ndarray
             Column-wise snapshot training data (each column is a snapshot).
 
         rhs : (n,k) ndarray
             Column-wise next-iteration (discrete model) or velocity
             (continuous model) training data.
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
 
         U : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -681,7 +681,7 @@ class _InferredMixin:
         self._check_inputargs(U, 'U')
 
         # Check and store dimensions.
-        self._check_training_data_shapes(X, rhs, Vr, U)
+        self._check_training_data_shapes(Vr, X, rhs, U)
         n,k = X.shape           # Dimension of system, number of shapshots.
         r = Vr.shape[1]         # Number of basis vectors.
         self.n, self.r, self.m = n, r, None
@@ -764,11 +764,14 @@ class _IntrusiveMixin:
             _noun = "key" + ('' if len(surplus) == 1 else 's')
             raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
 
-    def fit(self, operators, Vr):
+    def fit(self, Vr, operators):
         """Compute the reduced model operators via intrusive projection.
 
         Parameters
         ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
         operators: dict(str -> ndarray)
             The operators that define the full-order model f.
             Keys must match the modelform:
@@ -776,9 +779,6 @@ class _IntrusiveMixin:
             * 'A': linear state matrix A.
             * 'H': quadratic state matrix H (either full H or compact Hc).
             * 'B': input matrix B.
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
 
         Returns
         -------
@@ -915,7 +915,7 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
                     modelform=self.modelform,
                     Vr=self.Vr, A_=A_, Hc_=Hc_, c_=c_, B_=B_)
 
-    def fit(self, ModelClass, µs, Xs, Xdots, Vr, Us=None, P=0):
+    def fit(self, ModelClass, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
 
@@ -924,6 +924,9 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
         ModelClass: class
             ROM class, either _ContinuousROM or _DiscreteROM, to use for the
             newly constructed model.
+
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
 
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
@@ -936,9 +939,6 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
             Column-wise velocity training data. The ith array Xdots[i]
             corresponds to the ith parameter, µs[i]. This argument is
             ignored if the model is discrete (according to `ModelClass`).
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
 
         Us : list of s (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -979,7 +979,7 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
 
         # Check and store dimensions.
         for X, Xdot in zip(Xs, Xdots):
-            self._check_training_data_shapes(X, Xdot, Vr)
+            self._check_training_data_shapes(Vr, X, Xdot)
         n,k = Xs[0].shape       # Dimension of system, number of shapshots.
         r = Vr.shape[1]         # Number of basis vectors.
         self.n, self.r, self.m = n, r, None
@@ -1004,9 +1004,9 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
         for µ, X, Xdot, U in zip(µs, Xs, Xdots, Us):
             model = ModelClass(self.modelform)
             if is_continuous:
-                model.fit(X, Xdot, Vr, U, P)
+                model.fit(Vr, X, Xdot, U, P)
             else:
-                model.fit(X, Vr, U, P)
+                model.fit(Vr, X, U, P)
             model.parameter = µ
             self.models_.append(model)
 
@@ -1049,7 +1049,7 @@ class _AffineMixin(_ParametricMixin):
 
 class _AffineInferredMixin(_InferredMixin, _AffineMixin):
     """Mixin class for affinely parametric inferred reduced model classes."""
-    def fit(self, ModelClass, µs, affines, Xs, rhss, Vr, Us=None, P=0):
+    def fit(self, ModelClass, Vr, µs, affines, Xs, rhss, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
         For terms with affine structure, solve for the component operators.
 
@@ -1058,6 +1058,9 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         ModelClass: class
             ROM class, either _ContinuousROM or _DiscreteROM, to use for the
             newly constructed model.
+
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
 
         µs : list of s scalars or (p,) ndarrays
             Parameter values at which the snapshot data is collected.
@@ -1080,9 +1083,6 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             Column-wise next-iteration (discrete model) or velocity
             (continuous model) training data. The ith array, rhss[i],
             corresponds to the ith parameter, µs[i].
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
 
         Us : list of s (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -1123,7 +1123,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             self.m = None
             Us = [None]*s
         for X, rhs, U in zip(Xs, rhss, Us):
-            self._check_training_data_shapes(X, rhs, Vr, U)
+            self._check_training_data_shapes(Vr, X, rhs, U)
         n,k = Xs[0].shape       # Dimension of system, number of shapshots.
         r = Vr.shape[1]         # Number of basis vectors.
         self.n, self.r = n, r
@@ -1250,11 +1250,14 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
 
 class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
     """Mixin class for affinely parametric intrusive reduced model classes."""
-    def fit(self, affines, operators, Vr):
+    def fit(self, Vr, affines, operators):
         """Solve for the reduced model operators via intrusive projection.
 
         Parameters
         ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
         affines : dict(str -> list(callables))
             Functions that define the structures of the affine operators.
             Keys must match the modelform:
@@ -1275,9 +1278,6 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
             Terms with affine structure should be given as a list of the
             component matrices. For example, if the linear state matrix has
             the form A(µ) = θ1(µ)A1 + θ2(µ)A2, then 'A' -> [A1, A2].
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
 
         Returns
         -------
@@ -1475,16 +1475,16 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
         (and inputs if appropriate) to reduced state. Calculated in fit().
     """
-    def fit(self, X, Vr, U=None, P=0):
+    def fit(self, Vr, X, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
         ----------
-        X : (n,k) ndarray
-            Column-wise snapshot training data (each column is a snapshot).
-
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
+
+        X : (n,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot).
 
         U : (m,k-1) or (k-1,) ndarray or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -1503,9 +1503,8 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         -------
         self
         """
-        return _InferredMixin.fit(self,
+        return _InferredMixin.fit(self, Vr,
                                   X[:,:-1], X[:,1:],    # x_j's and x_{j+1}'s.
-                                  Vr,
                                   U[...,:X.shape[1]-1] if U is not None else U,
                                   P)
 
@@ -1592,19 +1591,19 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def fit(self, X, Xdot, Vr, U=None, P=0):
+    def fit(self, Vr, X, Xdot, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
         ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
         X : (n,k) ndarray
             Column-wise snapshot training data (each column is a snapshot).
 
         Xdot : (n,k) ndarray
             Column-wise velocity training data.
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
 
         U : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -1623,7 +1622,7 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         -------
         self
         """
-        return _InferredMixin.fit(self, X, Xdot, Vr, U, P)
+        return _InferredMixin.fit(self, Vr, X, Xdot, U, P)
 
 
 # Nonparametric intrusive models ----------------------------------------------
@@ -1892,21 +1891,21 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         """Construct the reduced model corresponding to the parameter µ."""
         return _InterpolatedMixin.__call__(self, µ, discrete=True)
 
-    def fit(self, µs, Xs, Vr, Us=None, P=0):
+    def fit(self, Vr, µs, Xs, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
 
         Parameters
         ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
         Xs : list of s (n,k) ndarrays (or (s,n,k) ndarray)
             Column-wise snapshot training data (each column is a snapshot).
             The ith array Xs[i] corresponds to the ith parameter, µs[i].
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
 
         Us : list of s (m,k-1) or (k-1,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -1926,7 +1925,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         self
         """
         return _InterpolatedMixin.fit(self, InferredDiscreteROM,
-                                      µs, Xs, None, Vr, Us, P)
+                                      Vr, µs, Xs, None, Us, P)
 
     def predict(self, µ, x0, niters, U=None):
         """Construct a ROM for the parameter µ by interolating the entries of
@@ -2049,12 +2048,15 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         """Construct the reduced model corresponding to the parameter µ."""
         return _InterpolatedMixin.__call__(self, µ, discrete=False)
 
-    def fit(self, µs, Xs, Xdots, Vr, Us=None, P=0):
+    def fit(self, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
 
         Parameters
         ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
@@ -2065,9 +2067,6 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         Xdots : list of s (n,k) ndarrays (or (s,n,k) ndarray)
             Column-wise velocity training data. The ith array Xdots[i]
             corresponds to the ith parameter, µs[i].
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
 
         Us : list of s (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -2087,7 +2086,7 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         self
         """
         return _InterpolatedMixin.fit(self, InferredContinuousROM,
-                                      µs, Xs, Xdots, Vr, Us, P)
+                                      Vr, µs, Xs, Xdots, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by interolating the entries of
@@ -2214,12 +2213,15 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         """Construct the reduced model corresponding to the parameter µ."""
         return _AffineMixin.__call__(self, µ, discrete=True)
 
-    def fit(self, µs, affines, Xs, Vr, Us=None, P=0):
+    def fit(self, Vr, µs, affines, Xs, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         using solution trajectories from multiple examples.
 
         Parameters
         ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
@@ -2236,9 +2238,6 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         Xs : list of s (n,k) ndarrays (or (s,n,k) ndarray)
             Column-wise snapshot training data (each column is a snapshot).
             The ith array Xs[i] corresponds to the ith parameter, µs[i].
-
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
 
         Us : list of s (m,k-1) or (k-1,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -2262,10 +2261,10 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
             Us = [U[...,:X.shape[1]-1] for U,X in zip(Us, Xs)]
 
         return _AffineInferredMixin.fit(self, InferredDiscreteROM,
-                                        µs, affines,
+                                        Vr, µs, affines,
                                         [X[:,:-1] for X in Xs],
                                         [X[:,1:]  for X in Xs],
-                                        Vr, Us, P)
+                                        Us, P)
 
     def predict(self, µ, x0, niters, U=None):
         """Construct a ROM for the parameter µ by exploiting the affine
@@ -2376,12 +2375,15 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         """Construct the reduced model corresponding to the parameter µ."""
         return _AffineMixin.__call__(self, µ, discrete=False)
 
-    def fit(self, µs, affines, Xs, Xdots, Vr, Us=None, P=0):
+    def fit(self, Vr, µs, affines, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         using solution trajectories from multiple examples.
 
         Parameters
         ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
@@ -2403,9 +2405,6 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
             Column-wise velocity training data. The ith array, Xdots[i],
             corresponds to the ith parameter, µs[i].
 
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
-
         Us : list of s (m,k-1) or (k-1,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
             input), then U may be a one-dimensional array. Required if 'B' is
@@ -2424,7 +2423,7 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         self
         """
         return _AffineInferredMixin.fit(self, InferredContinuousROM,
-                                        µs, affines, Xs, Xdots, Vr, Us, P)
+                                        Vr, µs, affines, Xs, Xdots, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by exploiting the affine

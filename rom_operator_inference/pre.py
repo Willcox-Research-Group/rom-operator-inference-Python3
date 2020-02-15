@@ -122,7 +122,8 @@ def significant_svdvals(X, eps, plot=False):
         ylim = ax.get_ylim()
         for ep,r in zip(eps, ranks):
             ax.hlines(ep, 0, r+1, color="black", linewidth=1)
-            ax.vlines(r, ylim[0], ep, color="black", linewidth=1)
+            ax.vlines(r, ylim[0], singular_values[r-1] if r > 0 else ep,
+                      color="black", linewidth=1)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index $j$")
         ax.set_ylabel(r"Singular value $\sigma_j$")
@@ -178,9 +179,10 @@ def energy_capture(X, thresh, plot=False):
         ylim = ax.get_ylim()
         for th,r in zip(thresh, ranks):
             ax.hlines(th, 0, r+1, color="black", linewidth=1)
-            ax.vlines(r, ylim[0], th, color="black", linewidth=1)
+            ax.vlines(r, ylim[0], cumulative_energy[r-1] if r > 0 else th,
+                      color="black", linewidth=1)
         ax.set_ylim(ylim)
-        ax.set_xlabel(r"Singular value index $j$")
+        ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Cumulative energy")
 
     return ranks[0] if one_thresh else ranks

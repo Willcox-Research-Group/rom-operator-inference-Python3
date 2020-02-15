@@ -101,12 +101,12 @@ That is, given snapshot data, a basis, and a form for a reduced model, it comput
 
 #### Methods
 
-- `InferredContinuousROM.fit(X, Xdot, Vr, U=None, P=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
+- `InferredContinuousROM.fit(Vr, X, Xdot, U=None, P=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
     squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
 Parameters:
+    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `X`: Snapshot matrix of solutions to the full-order model. Each column is one snapshot.
     - `Xdot`: Snapshot velocity of solutions to the full-order model. Each column is the velocity _d**x**/dt_ for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
-    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `U`: Input matrix. Each column is the input for the corresponding column of `X`. Only required when `'B'` is in `modelform`.
     - `P`: Tikhonov regularization matrix for the least squares problem.
 
@@ -130,13 +130,13 @@ The strategy is to take snapshot data for several parameter samples and a global
 
 #### Methods
 
-- `InterpolatedInferredContinuousROM.fit(µs, Xs, Xdots, Vr, Us=None, P=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
+- `InterpolatedInferredContinuousROM.fit(Vr, µs, Xs, Xdots, Us=None, P=0)`: Compute the operators of the reduced-order model that best fit the data by solving a regularized least
     squares problem. See [DETAILS.md](DETAILS.md) for more explanation.
 Parameters:
+    - `Vr`: The (global) basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the matrices `Xs`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `µs`: Parameter samples at which the snapshot data are collected.
     - `Xs`: List of snapshot matrices (solutions to the full-order model). The _i_th array `Xs[i]` corresponds to the _i_th parameter, `µs[i]`.
     - `Xdots`: List of snapshot velocity matrices.  The _i_th array `Xdots[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Xdots[i][:,j]`, is the velocity _d**x**/dt_ for the corresponding snapshot column `Xs[i][:,j]`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
-    - `Vr`: The (global) basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the matrices `Xs`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `Us`: List of input matrices. The _i_th array corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Us[i][:,j]`, is the input for the corresponding snapshot `Xs[i][:,j]`. Only required when `'B'` is in `modelform`.
     - `P`: Tikhonov regularization matrix for the least squares problem.
 
@@ -166,10 +166,10 @@ The class requires the actual full-order operators (_**c**_, _A_, _H_, and/or _B
 
 #### Methods
 
-- `IntrusiveContinuousROM.fit(operators, Vr)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
+- `IntrusiveContinuousROM.fit(Vr, operators)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
 Parameters:
-    - `operators`: A dictionary mapping labels to the full-order operators that define **f**(_t_,**x**). The operators are indexed by the entries of `modelform`; for example, if `modelform="cHB"`, then `operators={'c':c, 'H':H, 'B':B}`.
     - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
+    - `operators`: A dictionary mapping labels to the full-order operators that define **f**(_t_,**x**). The operators are indexed by the entries of `modelform`; for example, if `modelform="cHB"`, then `operators={'c':c, 'H':H, 'B':B}`.
 
 - `IntrusiveContinuousROM.predict(x0, t, u=None, **options)`: Simulate the learned reduced-order model with `scipy.integrate.solve_ivp()`. Parameters:
     - `x0`: The initial condition, given in the original (high-dimensional) space.
@@ -202,11 +202,11 @@ The class requires the actual full-order operators (_**c**_, _A_, _H_, and/or _B
 
 #### Methods
 
-- `AffineIntrusiveContinuousROM.fit(affines, operators, Vr)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
+- `AffineIntrusiveContinuousROM.fit(Vr, affines, operators)`: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
 Parameters:
+    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
     - `affines` A dictionary mapping labels of the operators that depend affinely on the parameter to the list of functions that define that affine dependence. The keys are entries of `modelform`. For example, if the constant term has the affine structure _c_(_**µ**_) = _θ_<sub>1</sub>(_**µ**_)_c_<sub>1</sub> + _θ_<sub>2</sub>(_**µ**_)_c_<sub>2</sub> + _θ_<sub>3</sub>(_**µ**_)_c_<sub>3</sub>, then `'c'` -> `[θ1, θ2, θ3]`.
     - `operators`: A dictionary mapping labels to the full-order operators that define **f**(_t_,**x**). The keys are entries of `modelform`. Terms with affine structure should be given as a list of the constituent matrices. For example, suppose `modelform="cA"`. If _A_ has the affine structure _A_(_**µ**_) = _θ_<sub>1</sub>(_**µ**_)_A_<sub>1</sub> + _θ_<sub>2</sub>(_**µ**_)_A_<sub>2</sub>, then `'A' -> [A1, A2]`. If _**c**_ does not vary with the parameter, then `'c' -> c`, the complete full-order order.
-    - `Vr`: The basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of `X`. See [`pre.pod_basis()`](#preprocessing-tools) for an example of computing the POD basis.
 
 - `AffineIntrusiveContinuousROM.predict(µ, x0, t, u=None, **options)`: Simulate the learned reduced-order model at the given parameter value with `scipy.integrate.solve_ivp()`. Parameters:
     - `µ`: The parameter value at which to simulate the model.
@@ -336,9 +336,9 @@ t\ge 0 &= \text{time}\\
 
 | Symbol | Code | Shape | Description |
 | :----: | :--- | :---: | :---------- |
+| <img src="https://latex.codecogs.com/svg.latex?V_r"/> | `Vr` | <img src="https://latex.codecogs.com/svg.latex?n\times%20r"/> | low-rank basis of rank _r_ (usually the POD basis) |
 | <img src="https://latex.codecogs.com/svg.latex?X"/> | `X` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\dot{X}"/> | `Xdot` | <img src="https://latex.codecogs.com/svg.latex?n\times%20k"/> | Snapshot velocity matrix |
-| <img src="https://latex.codecogs.com/svg.latex?V_r"/> | `Vr` | <img src="https://latex.codecogs.com/svg.latex?n\times%20r"/> | low-rank basis of rank _r_ (usually the POD basis) |
 | <img src="https://latex.codecogs.com/svg.latex?U"/> | `U` | <img src="https://latex.codecogs.com/svg.latex?m\times%20k"/> | Input matrix (inputs corresonding to the snapshots) |
 | <img src="https://latex.codecogs.com/svg.latex?\hat{X}"/> | `X_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot matrix |
 | <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{X}}"/> | `Xdot_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20k"/> | Projected snapshot velocity matrix |

@@ -66,7 +66,7 @@ $ pip3 install git+https://github.com/Willcox-Research-Group/rom-operator-infere
 
 #### Usage
 
-Given snapshot data `X`, snapshot velocities `Xdot`, and a linear basis `Vr`, the following code learns a reduced model for a problem of the form _d**x**/dt = **c** + A**x**(t)_, then runs the reduced system for _0 ≤ t ≤ 1_.
+Given a linear basis `Vr`, snapshot data `X`, and snapshot velocities `Xdot`, the following code learns a reduced model for a problem of the form _d**x**/dt = **c** + A**x**(t)_, then solves the reduced system for _0 ≤ t ≤ 1_.
 
 ```python
 import numpy as np
@@ -77,7 +77,7 @@ import rom_operator_inference as roi
 
 # Fit the model to snapshot data X, the snapshot derivative Xdot,
 # and the linear basis Vr by solving for the operators c_ and A_.
->>> model.fit(X, Xdot, Vr)
+>>> model.fit(Vr, X, Xdot)
 
 # Simulate the learned model over the time domain [0,1] with 100 timesteps.
 >>> t = np.linspace(0, 1, 100)
