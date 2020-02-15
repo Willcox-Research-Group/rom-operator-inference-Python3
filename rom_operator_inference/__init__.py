@@ -8,7 +8,6 @@ from ._core import (
                     select_model, trained_model_from_operators,
                     InferredDiscreteROM, InferredContinuousROM,
                     IntrusiveDiscreteROM, IntrusiveContinuousROM,
-                    AffineInferredDiscreteROM, AffineInferredContinuousROM,
                     AffineIntrusiveDiscreteROM, AffineIntrusiveContinuousROM,
                     InterpolatedInferredDiscreteROM,
                     InterpolatedInferredContinuousROM,
@@ -19,7 +18,6 @@ from . import utils, pre, post
 __all__ = [
             "InferredDiscreteROM", "InferredContinuousROM",
             "IntrusiveDiscreteROM" "IntrusiveContinuousROM",
-            "AffineInferredDiscreteROM", "AffineInferredContinuousROM",
             "AffineIntrusiveDiscreteROM", "AffineIntrusiveContinuousROM",
             "InterpolatedInferredDiscreteROM",
             "InterpolatedInferredContinuousROM",
@@ -28,4 +26,4 @@ __all__ = [
             "post",
           ]
 
-__version__ = "0.6.8"
+__version__ = "0.7.0"
