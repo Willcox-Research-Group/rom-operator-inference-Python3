@@ -17,7 +17,7 @@ DOCFILES = [DETAILS, DOCS]
 VNFILES = [SETUP, INIT]
 
 REDSPACE = '\x1b[41m \x1b[49m'
-VERSION = re.compile(r'_{0,2}?version_{0,2}?\s*=\s*"([\d\.]+?)"',
+VERSION = re.compile(r'_{0,2}?version_{0,2}?\s*=\s*"([\d\.]+?-?\w+?)"',
                      re.MULTILINE)
 TEX = re.compile(
                 r'''<p\ align="center">                 # begin outer tag
