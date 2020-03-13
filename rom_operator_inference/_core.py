@@ -290,6 +290,10 @@ class _BaseROM:
     def has_quadratic(self):
         return "H" in self.modelform
 
+    # @property
+    # def has_cubic(self):
+    #     return "G" in self.modelform
+
     @property
     def has_inputs(self):
         return "B" in self.modelform
@@ -1415,7 +1419,7 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
             If a nonzero number is provided, the regularization matrix is
             P * I (a scaled identity matrix). Here d is the dimension of the
             data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+            linear model with inputs (modelform="AB").
 
         Returns
         -------

@@ -7,6 +7,60 @@ from scipy import linalg as _la
 
 
 # Least squares solver ========================================================
+def get_least_squares_size(modelform, r, m=0, affines=None):
+    """Calculate the number of columns in the data matrix D in the Operator
+    Inference least squares problem.
+
+    Parameters
+    ---------
+    modelform : str containing 'c', 'A', 'H', and/or 'B'
+        The structure of the desired reduced-order model. Each character
+        indicates the presence of a different term in the model:
+        'c' : Constant term c
+        'A' : Linear state term Ax.
+        'H' : Quadratic state term H(x⊗x).
+        'B' : Input term Bu.
+        For example, modelform=="AB" means f(x,u) = Ax + Bu.
+
+    r : int
+        The dimension of the reduced order model.
+
+    m : int
+        The dimension of the inputs of the model.
+        Must be zero unless 'B' is in `modelform`.
+
+    affines : dict(str -> list(callables))
+        Functions that define the structures of the affine operators.
+        Keys must match the modelform:
+        * 'c': Constant term c(µ).
+        * 'A': Linear state matrix A(µ).
+        * 'H': Quadratic state matrix H(µ).
+        * 'B': linear Input matrix B(µ).
+        For example, if the constant term has the affine structure
+        c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
+
+    Returns
+    -------
+    ncols : int
+        The number of columns in the Operator Inference least squares problem.
+    """
+    has_inputs = 'B' in modelform
+    if has_inputs and m == 0:
+        raise ValueError(f"argument m > 0 required since 'B' in modelform")
+    if not has_inputs and u is not None:
+        raise ValueError(f"argument m={m} invalid since 'B' in modelform")
+
+    if affines is None:
+        affines = {}
+
+    qc = len(affines['c']) if 'c' in affines else 1 if 'c' in modelform else 0
+    qA = len(affines['A']) if 'A' in affines else 1 if 'A' in modelform else 0
+    qH = len(affines['H']) if 'H' in affines else 1 if 'H' in modelform else 0
+    qB = len(affines['B']) if 'B' in affines else 1 if 'B' in modelform else 0
+
+    return qc + qA*r + qH*r*(r+1)//2 + qB*m
+
+
 def lstsq_reg(A, b, P=0):
     """Solve the l2- (Tikhonov)-regularized ordinary least squares problem
 
@@ -73,11 +127,10 @@ def lstsq_reg(A, b, P=0):
             raise ValueError(
                 "list P must have r entries with r = number of columns of b")
         X = _np.empty((d,r))
-        residuals = []
+        residuals = _np.empty(r)
         for j in range(r):
-            X[:,j], res, rank, s = lstsq_reg(A, b[:,j], P[j])
-            residuals.append(res)
-        return X, _np.array(residuals), rank, s
+            X[:,j], residuals[j], rank, s = lstsq_reg(A, b[:,j], P[j])
+        return X, residuals, rank, s
 
     # If P is a scalar, construct the default regularization matrix P*I.
     if _np.isscalar(P):
