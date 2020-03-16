@@ -624,29 +624,20 @@ class _ContinuousROM(_BaseROM):
 # Basic mixins (private) ======================================================
 class _InferredMixin:
     """Mixin class for reduced model classes that use operator inference."""
-    @staticmethod
-    def _check_training_data_shapes(Vr, X, Xdot, U=None):
-        """Ensure that Vr, X, Xdot, and U are aligned."""
-        if X.shape[0] != Vr.shape[0]:
-            raise ValueError("X and Vr not aligned, first dimension "
-                             f"{X.shape[0]} != {Vr.shape[0]}")
 
-        if Xdot is not None and X.shape != Xdot.shape:
-            raise ValueError(f"shape of X != shape of Xdot "
-                             f"({X.shape} != {Xdot.shape})")
-
-        if U is not None and X.shape[-1] != U.shape[-1]:
-            raise ValueError("X and U not aligned, last dimension "
-                             f"{X.shape[-1]} != {U.shape[-1]}")
+    def _project(self, S, label):
+        """Check the dimensions of S and project it if needed."""
+        if S.shape[0] not in {self.r, self.n}:
+            raise ValueError(f"Vr and {label} not aligned, first dimension")
+        return self.Vr.T @ S if S.shape[0] == self.n else S
 
     @staticmethod
-    def _check_dataset_consistency(arrlist, label):
-        """Ensure that each array in the list of arrays is the same shape."""
-        shape = arrlist[0].shape
-        for arr in arrlist:
-            if arr.shape != shape:
-                raise ValueError(f"shape of '{label}'"
-                                 " inconsistent across samples")
+    def _check_training_data_shapes(datasets):
+        """Ensure that each data set has the same number of columns."""
+        k = datasets[0].shape[1]
+        for data in datasets:
+            if data.shape[1] != k:
+                raise ValueError("data sets not aligned, second dimension")
 
     def fit(self, Vr, X, rhs, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
@@ -684,16 +675,25 @@ class _InferredMixin:
         self._check_modelform()
         self._check_inputargs(U, 'U')
 
-        # Check and store dimensions.
-        self._check_training_data_shapes(Vr, X, rhs, U)
-        n,k = X.shape           # Dimension of system, number of shapshots.
-        r = Vr.shape[1]         # Number of basis vectors.
-        self.n, self.r, self.m = n, r, None
+        # Store dimensions and check that number of samples is consistent.
+        self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
+        _tocheck = [X, rhs]
+        if self.has_inputs:         # Input dimension.
+            if U.ndim == 1:
+                U = U.reshape((1,-1))
+                self.m = 1
+            else:
+                self.m = U.shape[0]
+            _tocheck.append(U)
+        else:
+            self.m = None
+        self._check_training_data_shapes(_tocheck)
+        k = X.shape[1]
 
-        # Project states and rhs to the reduced subspace.
-        X_ = Vr.T @ X
-        rhs_ = Vr.T @ rhs
+        # Project states and rhs to the reduced subspace (if not done already).
         self.Vr = Vr
+        X_ = self._project(X, 'X')
+        rhs_ = self._project(rhs, 'rhs')
 
         # Construct the "Data matrix" D = [X^T, (X ⊗ X)^T, U^T, 1].
         D_blocks = []
@@ -709,8 +709,6 @@ class _InferredMixin:
             _r2 = X2_.shape[0]   # = r(r+1)//2, size of the compact Kronecker.
 
         if self.has_inputs:
-            if U.ndim == 1:
-                U = U.reshape((1,k))
             D_blocks.append(U.T)
             m = U.shape[0]
             self.m = m
@@ -982,23 +980,25 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
             Xdots = [None] * s
 
         # Check and store dimensions.
-        for X, Xdot in zip(Xs, Xdots):
-            self._check_training_data_shapes(Vr, X, Xdot)
-        n,k = Xs[0].shape       # Dimension of system, number of shapshots.
-        r = Vr.shape[1]         # Number of basis vectors.
-        self.n, self.r, self.m = n, r, None
+        self.n, self.r = Vr.shape
+        self.m = None
 
-        # Check that all arrays in each list of arrays are the same sizes.
-        _tocheck = [(Xs, "X")]
+        # Check that the arrays in each list have the same number of columns.
+        _tocheck = [Xs]
         if is_continuous:
-            _tocheck += [(Xdots, "Xdot")]
+            _tocheck.append(Xdots)
         if self.has_inputs:
-            _tocheck += [(Us, "U")]
+            _tocheck.append(Us)
             self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
+            # Check that the input dimension is the same in each data set.
+            for U in Us:
+                m = U.shape[0] if U.ndim == 2 else 1
+                if m != self.m:
+                    raise ValueError("control inputs not aligned")
         else:
             Us = [None]*s
-        for dataset, label in _tocheck:
-            self._check_dataset_consistency(dataset, label)
+        for dataset in _tocheck:
+            self._check_training_data_shapes(dataset)
 
         # TODO: figure out how to handle P (scalar, array, list(arrays)).
 
