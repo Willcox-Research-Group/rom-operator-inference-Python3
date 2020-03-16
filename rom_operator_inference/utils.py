@@ -47,7 +47,7 @@ def get_least_squares_size(modelform, r, m=0, affines=None):
     has_inputs = 'B' in modelform
     if has_inputs and m == 0:
         raise ValueError(f"argument m > 0 required since 'B' in modelform")
-    if not has_inputs and u is not None:
+    if not has_inputs and m != 0:
         raise ValueError(f"argument m={m} invalid since 'B' in modelform")
 
     if affines is None:
