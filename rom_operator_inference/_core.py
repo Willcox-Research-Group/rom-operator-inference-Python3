@@ -334,6 +334,12 @@ class _BaseROM:
             raise ValueError(f"argument '{argname}' invalid"
                              " since 'B' in modelform")
 
+    def project(self, S, label="input"):
+        """Check the dimensions of S and project it if needed."""
+        if S.shape[0] not in {self.r, self.n}:
+            raise ValueError(f"{label} not aligned with Vr, dimension 0")
+        return self.Vr.T @ S if S.shape[0] == self.n else S
+
 
 class _DiscreteROM(_BaseROM):
     """Base class for models that solve the discrete ROM problem,
@@ -420,17 +426,12 @@ class _DiscreteROM(_BaseROM):
         self._check_modelform(trained=True)
         self._check_inputargs(U, 'U')
 
-        # Check dimensions.
-        if x0.shape != (self.n,):
-            raise ValueError("invalid initial state shape "
-                             f"({x0.shape} != {(self.n,)})")
+        # Project initial conditions (if needed).
+        x0_ = self.project(x0, 'x0')
 
         # Verify iteration argument.
         if not isinstance(niters, int) or niters < 0:
             raise ValueError("argument 'niters' must be a nonnegative integer")
-
-        # Project initial conditions.
-        x0_ = self.Vr.T @ x0
 
         # Create the solution array and fill in the initial condition.
         X_ = np.empty((self.Vr.shape[1],niters))
@@ -565,17 +566,13 @@ class _ContinuousROM(_BaseROM):
         self._check_modelform(trained=True)
         self._check_inputargs(u, 'u')
 
-        # Check dimensions.
-        if x0.shape != (self.n,):
-            raise ValueError("invalid initial state shape "
-                             f"({x0.shape} != {(self.n,)})")
+        # Project initial conditions (if needed).
+        x0_ = self.project(x0, 'x0')
 
+        # Verify time domain.
         if t.ndim != 1:
             raise ValueError("time 't' must be one-dimensional")
         nt = t.shape[0]
-
-        # Project initial conditions.
-        x0_ = self.Vr.T @ x0
 
         # Interpret control input argument `u`.
         if self.has_inputs:
@@ -625,19 +622,13 @@ class _ContinuousROM(_BaseROM):
 class _InferredMixin:
     """Mixin class for reduced model classes that use operator inference."""
 
-    def _project(self, S, label):
-        """Check the dimensions of S and project it if needed."""
-        if S.shape[0] not in {self.r, self.n}:
-            raise ValueError(f"Vr and {label} not aligned, first dimension")
-        return self.Vr.T @ S if S.shape[0] == self.n else S
-
     @staticmethod
     def _check_training_data_shapes(datasets):
         """Ensure that each data set has the same number of columns."""
         k = datasets[0].shape[1]
         for data in datasets:
             if data.shape[1] != k:
-                raise ValueError("data sets not aligned, second dimension")
+                raise ValueError("data sets not aligned, dimension 1")
 
     def fit(self, Vr, X, rhs, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
@@ -647,12 +638,14 @@ class _InferredMixin:
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
-        X : (n,k) ndarray
-            Column-wise snapshot training data (each column is a snapshot).
+        X : (n,k) or (r,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
 
-        rhs : (n,k) ndarray
+        rhs : (n,k) or (r,k) ndarray
             Column-wise next-iteration (discrete model) or velocity
-            (continuous model) training data.
+            (continuous model) training data. Each column is a snapshot, and
+            either full order (n rows) or projected to reduced order (r rows).
 
         U : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -692,8 +685,8 @@ class _InferredMixin:
 
         # Project states and rhs to the reduced subspace (if not done already).
         self.Vr = Vr
-        X_ = self._project(X, 'X')
-        rhs_ = self._project(rhs, 'rhs')
+        X_ = self.project(X, 'X')
+        rhs_ = self.project(rhs, 'rhs')
 
         # Construct the "Data matrix" D = [X^T, (X ⊗ X)^T, U^T, 1].
         D_blocks = []
@@ -933,14 +926,16 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
-        Xs : list of s (n,k) ndarrays (or (s,n,k) ndarray)
-            Column-wise snapshot training data (each column is a snapshot).
+        Xs : list of s (n,k) or (r,k) ndarrays
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
             The ith array Xs[i] corresponds to the ith parameter, µs[i].
 
-        Xdots : list of s (n,k) ndarrays (or (s,n,k) ndarray) or None
-            Column-wise velocity training data. The ith array Xdots[i]
-            corresponds to the ith parameter, µs[i]. This argument is
-            ignored if the model is discrete (according to `ModelClass`).
+        Xdots : list of s (n,k) or (r,k) ndarrays or None
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
+            The ith array Xs[i] corresponds to the ith parameter, µs[i].
+            Igored if the model is discrete (according to `ModelClass`).
 
         Us : list of s (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -1286,8 +1281,9 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
-        X : (n,k) ndarray
-            Column-wise snapshot training data (each column is a snapshot).
+        X : (n,k) or (r,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
 
         U : (m,k-1) or (k-1,) ndarray or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -1402,11 +1398,13 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
-        X : (n,k) ndarray
-            Column-wise snapshot training data (each column is a snapshot).
+        X : (n,k) or (r,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
 
-        Xdot : (n,k) ndarray
-            Column-wise velocity training data.
+        Xdot : (n,k) or (r,k) ndarray
+            Column-wise velocity training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
 
         U : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -1706,8 +1704,9 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
-        Xs : list of s (n,k) ndarrays (or (s,n,k) ndarray)
-            Column-wise snapshot training data (each column is a snapshot).
+        Xs : list of s (n,k) or (r,k) ndarrays
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
             The ith array Xs[i] corresponds to the ith parameter, µs[i].
 
         Us : list of s (m,k-1) or (k-1,) ndarrays or None
@@ -1863,13 +1862,15 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
-        Xs : list of s (n,k) ndarrays (or (s,n,k) ndarray)
-            Column-wise snapshot training data (each column is a snapshot).
+        Xs : list of s (n,k) or (r,k) ndarrays
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
             The ith array Xs[i] corresponds to the ith parameter, µs[i].
 
-        Xdots : list of s (n,k) ndarrays (or (s,n,k) ndarray)
-            Column-wise velocity training data. The ith array Xdots[i]
-            corresponds to the ith parameter, µs[i].
+        Xdots : list of s (n,k) or (r,k) ndarrays
+            Column-wise velocity training data (each column is a snapshot),
+            either full order (n rows) ro projected to reduced order (r rows).
+            The ith array Xdots[i] corresponds to the ith parameter, µs[i].
 
         Us : list of s (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
