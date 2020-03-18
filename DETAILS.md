@@ -60,9 +60,9 @@ This reduced low-dimensional system approximates the original high-dimensional s
 ## Projection-based Model Reduction
 
 Model reduction via projection occurs in three steps:
-1. (**Data Collection**) Gather snapshot data, i.e., solutions to the full-order model (FOM) at various times / parameters.
-2. (**Compression**) Compute a low-rank basis (which defines a low-dimensional linear subspace) that captures most of the behavior of the snapshots.
-3. (**Projection**) Use the low-rank basis to construct a low-dimensional ODE (the ROM) that approximates the FOM.
+1. **Data Collection**: Gather snapshot data, i.e., solutions to the full-order model (the FOM) at various times / parameters.
+2. **Compression**: Compute a low-rank basis (which defines a low-dimensional linear subspace) that captures most of the behavior of the snapshots.
+3. **Projection**: Use the low-rank basis to construct a low-dimensional ODE (the ROM) that approximates the FOM.
 
 <!-- These steps comprise what is called the _offline phase_ in the literature, since they can all be done before the resulting ROM is simulated. -->
 

@@ -1,11 +1,11 @@
 # Operator Inference
 
-This is a Python implementation of Operator Inference for constructing projection-based reduced-order models of dynamical systems.
+This is a Python implementation of Operator Inference for constructing projection-based reduced-order models of dynamical systems with a polynomial form.
 The procedure is **data-driven** and **non-intrusive**, making it a viable candidate for model reduction of black-box or complex systems.
 The methodology was introduced in [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 See [**References**](#references) for more papers that use or build on Operator Inference.
 
-**Contributors**: [Renee Swischuk](https://github.com/swischuk), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Qian](https://github.com/elizqian), [Boris Kramer](https://github.com/bokramer).
+**Contributors**: [Renee Swischuk](https://github.com/swischuk), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Qian](https://github.com/elizqian), [Boris Kramer](https://github.com/bokramer), [Karen Willcox](https://kiwi.oden.utexas.edu/).
 
 See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inference-MATLAB) for a MATLAB implementation and [DOCUMENTATION.md](DOCUMENTATION.md) for the documentation.
 
@@ -27,7 +27,7 @@ This system is called the _full-order model_ (FOM).
 If _n_ is large, as it often is in high-consequence engineering applications, it is computationally expensive to numerically solve the FOM.
 This package provides tools for constructing a _reduced-order model_ (ROM) that is up to quadratic in the state **x** with optional linear control inputs **u**.
 The procedure is data-driven, non-intrusive, and relatively inexpensive.
-In the most general case, the code can construct and solve a reduced-order system of the form
+In the most general case, the code can construct and solve a reduced-order system with the polynomial form
 
 <p align="center">
   <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t),"/>
@@ -61,7 +61,7 @@ See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notat
 
 Install from the command line with the following single command (requires [`pip`](https://pypi.org/project/pip/) and [`git`](https://git-scm.com/)).
 ```bash
-$ pip3 install git+https://github.com/Willcox-Research-Group/rom-operator-inference-Python3.git
+$ pip3 install git+https://github.com/shanemcq18/rom-operator-inference-Python3.git
 ```
 
 #### Usage

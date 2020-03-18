@@ -28,9 +28,9 @@ def select_model(time, rom_strategy, parametric=False):
           dx / dt = f(t, x(t), u(t)), x(0) = x0.
 
     rom_strategy : str {"inferred", "intrusive"}
-        Whether to use operator inference or intrusive projection to compute
-        the operators of the intrusive model. Options:
-        * "inferred": use operator inference, i.e., solve a least-squares
+        Whether to use Operator Inference or intrusive projection to compute
+        the operators of the reduced model. Options:
+        * "inferred": use Operator Inference, i.e., solve a least-squares
           problem based on snapshot data.
         * "intrusive": use intrusive projection, i.e., project known full-order
           operators to the reduced space.
@@ -43,7 +43,7 @@ def select_model(time, rom_strategy, parametric=False):
           the parameter, i.e., A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i}.
           Only valid for rom_strategy="intrusive".
         * "interpolated": construct individual models for each sample parameter
-          and interpolate them for general paramter inputs. Only valid for
+          and interpolate them for general parameter inputs. Only valid for
           rom_strategy="inferred", and only when the parameter is a scalar.
 
     Returns
@@ -620,7 +620,7 @@ class _ContinuousROM(_BaseROM):
 
 # Basic mixins (private) ======================================================
 class _InferredMixin:
-    """Mixin class for reduced model classes that use operator inference."""
+    """Mixin class for reduced model classes that use Operator Inference."""
 
     @staticmethod
     def _check_training_data_shapes(datasets):
@@ -1194,7 +1194,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
 
 
 # Useable classes (public) ====================================================
-# Nonparametric operator inference models -------------------------------------
+# Nonparametric Operator Inference models -------------------------------------
 class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
     """Reduced order model for a discrete dynamical system of
     the form
@@ -1602,7 +1602,7 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
     pass
 
 
-# Interpolated operator inference models --------------------------------------
+# Interpolated Operator Inference models --------------------------------------
 class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
     """Reduced order model for a high-dimensional discrete dynamical system,
     parametrized by a scalar µ, of the form
