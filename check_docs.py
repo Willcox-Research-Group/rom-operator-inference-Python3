@@ -20,14 +20,10 @@ REDSPACE = '\x1b[41m \x1b[49m'
 VERSION = re.compile(r'_{0,2}?version_{0,2}?\s*=\s*"([\d\.]+?)"',
                      re.MULTILINE)
 TEX = re.compile(
-                r'''<p\ align="center">                 # begin outer tag
-                \s*                                     #  optional space
-                <img\ src=                              #  begin inner tag
+                r'''<img\ src=                          #  begin image tag
                 "https://latex.codecogs.com/svg.latex\? #   LaTeX web prefix
-                (.+)                                    #   LATEX CODE
-                "/>                                     #  end inner tag
-                \s*                                     #  optional space
-                </p>                                    # end outer tag
+                (.+?)                                   #   LATEX CODE
+                "/>                                     #  end image tag
                 ''',
                 re.VERBOSE | re.MULTILINE)
 

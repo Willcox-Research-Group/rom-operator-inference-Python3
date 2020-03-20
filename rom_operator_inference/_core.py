@@ -402,13 +402,14 @@ class _DiscreteROM(_BaseROM):
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
 
-    def predict(self, x0, niters, U=None, **options):
+    def predict(self, x0, niters, U=None):
         """Step forward the learned ROM `niters` steps.
 
         Parameters
         ----------
-        x0 : (n,) ndarray
-            The initial (high-dimensional) state vector to begin a simulation.
+        x0 : (n,) or (r,) ndarray
+            The initial state vector, either full order (n-vector) or projected
+            to reduced order (r-vector).
 
         niters : int
             The number of times to step the system forward.
@@ -418,9 +419,9 @@ class _DiscreteROM(_BaseROM):
 
         Returns
         -------
-        X_ROM: (n,niters) ndarray
-            The reduced-order solutions to the full-order system, including
-            the (projected) given initial condition.
+        X_ROM : (n,niters) ndarray
+            The approximate solutions to the full-order system, including the
+            given initial condition.
         """
         # Verify modelform.
         self._check_modelform(trained=True)
@@ -529,8 +530,9 @@ class _ContinuousROM(_BaseROM):
 
         Parameters
         ----------
-        x0 : (n,) ndarray
-            The initial (high-dimensional) state vector to begin a simulation.
+        x0 : (n,) or (r,) ndarray
+            The initial state vector, either full order (n-vector) or projected
+            to reduced order (r-vector).
 
         t : (nt,) ndarray
             The time domain over which to integrate the reduced-order system.
@@ -559,8 +561,8 @@ class _ContinuousROM(_BaseROM):
 
         Returns
         -------
-        X_ROM: (n,nt) ndarray
-            The reduced-order approximation to the full-order system over `t`.
+        X_ROM : (n,nt) ndarray
+            The approximate solution to the full-order system over `t`.
         """
         # Verify modelform.
         self._check_modelform(trained=True)
@@ -1738,8 +1740,9 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         µ : float
             The parameter of interest for the prediction.
 
-        x0 : (n,) ndarray
-            The initial (high-dimensional) state vector to begin a simulation.
+        x0 : (n,) or (r,) ndarray
+            The initial state vector, either full order (n-vector) or projected
+            to reduced order (r-vector).
 
         niters : int
             The number of times to step the system forward.
@@ -1749,9 +1752,9 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
 
         Returns
         -------
-        X_ROM: (n,niters) ndarray
-            The reduced-order solutions to the full-order system, including
-            the (projected) given initial condition.
+        X_ROM : (n,niters) ndarray
+            The approximate solutions to the full-order system, including the
+            given initial condition.
         """
         # Check modelform and inputs.
         self._check_modelform(trained=True)
@@ -1902,8 +1905,9 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         µ : float
             The parameter of interest for the prediction.
 
-        x0 : (n,) ndarray
-            The initial (high-dimensional) state vector to begin a simulation.
+        x0 : (n,) or (r,) ndarray
+            The initial state vector, either full order (n-vector) or projected
+            to reduced order (r-vector).
 
         t : (nt,) ndarray
             The time domain over which to integrate the reduced-order system.
@@ -1932,8 +1936,8 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
 
         Returns
         -------
-        X_ROM: (n,nt) ndarray
-            The reduced-order approximation to the full-order system over `t`.
+        X_ROM : (n,nt) ndarray
+            The approximate solution to the full-order system over `t`.
         """
         # Check modelform and inputs.
         self._check_modelform(trained=True)
@@ -2048,8 +2052,9 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
         µ : (p,) ndarray
             The parameter of interest for the prediction.
 
-        x0 : (n,) ndarray
-            The initial (high-dimensional) state vector to begin a simulation.
+        x0 : (n,) or (r,) ndarray
+            The initial state vector, either full order (n-vector) or projected
+            to reduced order (r-vector).
 
         niters : int
             The number of times to step the system forward.
@@ -2059,9 +2064,9 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
 
         Returns
         -------
-        X_ROM: (n,niters) ndarray
-            The reduced-order solutions to the full-order system, including
-            the (projected) given initial condition.
+        X_ROM : (n,niters) ndarray
+            The approximate solutions to the full-order system, including the
+            given initial condition.
         """
         # Check modelform and inputs.
         self._check_modelform(trained=True)
@@ -2175,8 +2180,9 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
         µ : (p,) ndarray
             The parameter of interest for the prediction.
 
-        x0 : (n,) ndarray
-            The initial (high-dimensional) state vector to begin a simulation.
+        x0 : (n,) or (r,) ndarray
+            The initial state vector, either full order (n-vector) or projected
+            to reduced order (r-vector).
 
         t : (nt,) ndarray
             The time domain over which to integrate the reduced-order system.
@@ -2205,8 +2211,8 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
 
         Returns
         -------
-        X_ROM: (n,nt) ndarray
-            The reduced-order approximation to the full-order system over `t`.
+        X_ROM : (n,nt) ndarray
+            The approximate solution to the full-order system over `t`.
         """
         # Check modelform and inputs.
         self._check_modelform(trained=True)
