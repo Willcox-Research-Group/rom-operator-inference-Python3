@@ -47,7 +47,7 @@ In the following table, only those with "Operator Inference" as the strategy are
 <!-- More classes will be added in the future. -->
 The following function may be helpful for selecting an appropriate class.
 
-`select_model(time, rom_strategy, parametric=False)`: select the appropriate ROM model class for the situation.
+`**select_model(time, rom_strategy, parametric=False)**`: select the appropriate ROM model class for the situation.
 Parameters:
 - `time`: The type of full-order model to be reduced, either `"continuous"` or `"discrete"`.
 - `rom_strategy`: Whether to use Operator Inference (`"inferred"`) or intrusive projection (`"intrusive"`) to compute the operators of the reduced model.
@@ -387,24 +387,24 @@ The class requires the actual full-order operators (_**c**_, _A_, _H_, and/or _B
 The `pre` submodule is a collection of common routines for preparing data to be used by the `ROM` classes.
 None of these routines are novel, but they may be instructive for new Python users.
 
-- `pre.mean_shift(X)`: Compute the mean of the columns of `X` and shift `X` by that mean so that the result has mean column of zero.
+**`pre.mean_shift(X)`**: Compute the mean of the columns of `X` and shift `X` by that mean so that the result has mean column of zero.
 
-- `pre.pod_basis(X, r, mode="arpack", **options)`: Compute the POD basis of rank `r` for a snapshot matrix `X`.
+**`pre.pod_basis(X, r, mode="arpack", **options)`**: Compute the POD basis of rank `r` for a snapshot matrix `X`.
 
-- `pre.significant_svdvals(X, eps, plot=False)`: Count the number of singular values of `X` that are greater than `eps`.
+**`pre.significant_svdvals(X, eps, plot=False)`**: Count the number of singular values of `X` that are greater than `eps`.
 
-- `pre.energy_capture(X, thresh, plot=False)`: Compute the number of singular values of `X` needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>
+**`pre.energy_capture(X, thresh, plot=False)`**: Compute the number of singular values of `X` needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>
 
-- `pre.projection_error(X, Vr)`: Compute the relative projection error on _X_ induced by the basis matrix _V<sub>r</sub>_, <p align="center"><img src="img/doc/proj_err.svg"/></p>
+**`pre.projection_error(X, Vr)`**: Compute the relative projection error on _X_ induced by the basis matrix _V<sub>r</sub>_, <p align="center"><img src="img/doc/proj_err.svg"/></p>
 
-- `pre.minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options)`: Compute the number of POD basis vectors required to obtain a projection
+**`pre.minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options)`**: Compute the number of POD basis vectors required to obtain a projection
 error less than `eps`, capped at `rmax`.
 
-- `pre.xdot_uniform(X, dt, order=2)`: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are evenly spaced in time.
+**`pre.xdot_uniform(X, dt, order=2)`**: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are evenly spaced in time.
 
-- `pre.xdot_nonuniform(X, t)`: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are **not** evenly spaced in time.
+**`pre.xdot_nonuniform(X, t)`**: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are **not** evenly spaced in time.
 
-- `pre.xdot(X, *args, **kwargs)`: Call `pre.xdot_uniform()` or `pre.xdot_nonuniform()`, depending on the arguments.
+**`pre.xdot(X, *args, **kwargs)`**: Call `pre.xdot_uniform()` or `pre.xdot_nonuniform()`, depending on the arguments.
 
 
 ## Postprocessing Tools
@@ -412,16 +412,16 @@ error less than `eps`, capped at `rmax`.
 The `post` submodule is a collection of common routines for computing the absolute and relative errors produced by a ROM approximation.
 Given a norm, "true" data _X_, and an approximation _Y_ to _X_, these errors are defined by <p align="center"><img src="img/doc/errors.svg"/></p>
 
-- `post.frobenius_error(X, Y)`: Compute the absolute and relative Frobenius-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
+**`post.frobenius_error(X, Y)`**: Compute the absolute and relative Frobenius-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
 The [Frobenius matrix norm](https://en.wikipedia.org/wiki/Matrix_norm#Frobenius_norm) is defined by <p align="center"><img src="img/doc/frobenius.svg"></p>
 
-- `post.lp_error(X, Y, p=2, normalize=False)`: Compute the absolute and relative _l_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
+**`post.lp_error(X, Y, p=2, normalize=False)`**: Compute the absolute and relative _l_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
 The [_l_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#The_p-norm_in_finite_dimensions) is defined by <p align="center"><img src="img/doc/vlpnorm.svg"/></p>
 With _p=2_ this is the usual Euclidean norm.
 The errors are calculated for each pair of columns of `X` and `Y`.
 If `normalize=True`, then the _normalized absolute error_ is computed instead of the relative error: <p align="center"><img src="img/doc/normabserr.svg"></p>
 
-- `post.Lp_error(X, Y, t=None, p=2)`: Approximate the absolute and relative _L_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y` corresponding to times `t`, assuming `Y` is an approximation to `X`.
+**`post.Lp_error(X, Y, t=None, p=2)`**: Approximate the absolute and relative _L_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y` corresponding to times `t`, assuming `Y` is an approximation to `X`.
 The [_L_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#Lp_spaces) for vector-valued functions is defined by <p align="center"><img src="img/doc/fLpnorm.svg"/></p>
 For finite _p_, the integrals are approximated by the trapezoidal rule: <p align="center"><img src="img/doc/trap.svg"/></p>
 The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
@@ -432,18 +432,18 @@ The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
 These functions are helper routines that are used internally for `fit()` or `predict()` methods.
 See [DETAILS.md](DETAILS.md) for more mathematical explanation.
 
-- `utils.lstsq_reg(A, b, P=0)`: Solve the Tikhonov-regularized ordinary least-squares problem
+**`utils.lstsq_reg(A, b, P=0)`**: Solve the Tikhonov-regularized ordinary least-squares problem
 <p align="center"><img src="img/doc/reg.svg"/></p>
 
   where _P_ is the regularization matrix. If `b` is a matrix, solve the above problem for each column of `b`. If `P` is a scalar, use the identity matrix times that scalar for the regularization matrix _P_.
 
-- `utils.kron_compact(x)`: Compute the compact column-wise (Khatri-Rao) Kronecker product of `x` with itself.
+**`utils.kron_compact(x)`**: Compute the compact column-wise (Khatri-Rao) Kronecker product of `x` with itself.
 
-- `utils.kron_col(x, y)`: Compute the full column-wise (Khatri-Rao) Kronecker product of `x` and `y`.
+**`utils.kron_col(x, y)`**: Compute the full column-wise (Khatri-Rao) Kronecker product of `x` and `y`.
 
-- `utils.compress_H(H)`: Convert the full matricized quadratic operator `H` to the compact matricized quadratic operator `Hc`.
+**`utils.compress_H(H)`**: Convert the full matricized quadratic operator `H` to the compact matricized quadratic operator `Hc`.
 
-- `utils.expand_Hc(Hc)`: Convert the compact matricized quadratic operator `Hc` to the full, symmetric, matricized quadratic operator `H`.
+**`utils.expand_Hc(Hc)`**: Convert the compact matricized quadratic operator `Hc` to the full, symmetric, matricized quadratic operator `H`.
 
 
 ## Index of Notation
