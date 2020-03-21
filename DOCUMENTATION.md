@@ -47,7 +47,7 @@ In the following table, only those with "Operator Inference" as the strategy are
 <!-- More classes will be added in the future. -->
 The following function may be helpful for selecting an appropriate class.
 
-`**select_model(time, rom_strategy, parametric=False)**`: select the appropriate ROM model class for the situation.
+**`select_model(time, rom_strategy, parametric=False)`**: select the appropriate ROM model class for the situation.
 Parameters:
 - `time`: The type of full-order model to be reduced, either `"continuous"` or `"discrete"`.
 - `rom_strategy`: Whether to use Operator Inference (`"inferred"`) or intrusive projection (`"intrusive"`) to compute the operators of the reduced model.
