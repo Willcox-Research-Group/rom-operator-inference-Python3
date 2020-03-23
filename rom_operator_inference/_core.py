@@ -985,7 +985,6 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
         if is_continuous:
             _tocheck.append(Xdots)
         if self.has_inputs:
-            _tocheck.append(Us)
             self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
             # Check that the input dimension is the same in each data set.
             for U in Us:
