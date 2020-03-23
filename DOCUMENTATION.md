@@ -400,6 +400,10 @@ None of these routines are novel, but they may be instructive for new Python use
 **`pre.minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options)`**: Compute the number of POD basis vectors required to obtain a projection
 error less than `eps`, capped at `rmax`.
 
+**`pre.reproject_continuous(f, Vr, X, U=None)`**: Sample re-projected trajectories of the continuous system of ODEs defined by `f`.
+
+**`pre.reproject_discrete(f, Vr, x0, niters, U=None)`**: Sample re-projected trajectories of the discrete dynamical system defined by `f`.
+
 **`pre.xdot_uniform(X, dt, order=2)`**: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are evenly spaced in time.
 
 **`pre.xdot_nonuniform(X, t)`**: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are **not** evenly spaced in time.

@@ -335,14 +335,16 @@ def reproject_discrete(f, Vr, x0, niters, U=None):
 
 
 def reproject_continuous(f, Vr, X, U=None):
-    """Sample with re-projection trajectories of the continuous system of ODEs
+    """Sample re-projected trajectories of the continuous system of ODEs
 
         dx / dt = f(t, x(t), u(t)),     x(0) = x0.
 
     Parameters
     ----------
-    f : callable mapping (n,) ndarray to (n,) ndarray
-        Function defining the differential equation.
+    f : callable mapping (n,) ndarray (and (m,) ndarray) to (n,) ndarray
+        Function defining the (full-order) differential equation. Accepts a
+        full-order state vector and (optionally) an input vector and returns
+        another full-order state vector.
 
     Vr : (n,r) ndarray
         Basis for the low-dimensional linear subspace.
