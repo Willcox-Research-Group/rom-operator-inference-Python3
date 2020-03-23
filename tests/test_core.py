@@ -317,6 +317,24 @@ class TestBaseROM:
         assert ex.value.args[0] == \
             "argument 'u' invalid since 'B' in modelform"
 
+    def test_project(self):
+        """Test _core._BaseROM.project()."""
+        n, k, m, r = 200, 100, 20, 10
+        X, Xdot, U = _get_data(n, k, m)
+        model = roi._core._BaseROM("c")
+        model.n, model.r, model.m = n, r, m
+        model.Vr = la.svd(X)[0][:,:r]
+
+        with pytest.raises(ValueError) as ex:
+            model.project(X[:-1,:], 'X')
+        assert ex.value.args[0] == "X not aligned with Vr, dimension 0"
+
+        for S, label in [(X, 'X'), (Xdot, 'Xdot')]:
+            S_ = model.project(S, label)
+            assert S_.shape == (r,k)
+            S_ = model.project(model.Vr.T @ S, label)
+            assert S_.shape == (r,k)
+
 
 class TestDiscreteROM:
     """Test _core._DiscreteROM."""
@@ -389,9 +407,8 @@ class TestDiscreteROM:
         x0_ = Vr.T @ x0
         model = _trainedmodel(False, "cAHB", Vr, m)
         with pytest.raises(ValueError) as ex:
-            model.predict(x0_, niters, U)
-        assert ex.value.args[0] == \
-            f"invalid initial state shape ({(r,)} != {(n,)})"
+            model.predict(x0_[:-1], niters, U)
+        assert ex.value.args[0] == "x0 not aligned with Vr, dimension 0"
 
         # Try to predict with bad niters argument.
         with pytest.raises(ValueError) as ex:
@@ -504,9 +521,8 @@ class TestContinuousROM:
         x0_ = Vr.T @ x0
         model = _trainedmodel(True, "cAHB", Vr, m)
         with pytest.raises(ValueError) as ex:
-            model.predict(x0_, t, u)
-        assert ex.value.args[0] == \
-            f"invalid initial state shape ({(r,)} != {(n,)})"
+            model.predict(x0_[1:], t, u)
+        assert ex.value.args[0] == "x0 not aligned with Vr, dimension 0"
 
         # Try to predict with bad time array.
         with pytest.raises(ValueError) as ex:
@@ -594,31 +610,20 @@ class TestInferredMixin:
         # Get test data.
         n, k, m, r = 200, 100, 20, 10
         X, Xdot, U = _get_data(n, k, m)
-        Vr = la.svd(X)[0][:,:r]
         model = roi._core._InferredMixin()
 
         # Try to fit the model with misaligned X and Xdot.
         with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes(Vr, X, Xdot[:,1:-1])
-        assert ex.value.args[0] == \
-            f"shape of X != shape of Xdot ({(n,k)} != {(n,k-2)})"
-
-        # Try to fit the model with misaligned X and Vr.
-        with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes(Vr[1:-1,:], X, Xdot)
-        assert ex.value.args[0] == \
-            f"X and Vr not aligned, first dimension {n} != {n-2}"
+            model._check_training_data_shapes([X, Xdot[:,1:-1]])
+        assert ex.value.args[0] == "data sets not aligned, dimension 1"
 
         # Try to fit the model with misaligned X and U.
         with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes(Vr, X, Xdot, U=U[:,:-1])
+            model._check_training_data_shapes([X, Xdot, U[:,:-1]])
+        assert ex.value.args[0] == "data sets not aligned, dimension 1"
 
-    def test_check_dataset_consistency(self):
-        """Test _core._InferredMixin._check_dataset_consistency()."""
-        X, Y = np.random.random((3,3)), np.random.random((3,4))
-        with pytest.raises(ValueError) as ex:
-            roi._core._InferredMixin._check_dataset_consistency([X,Y], 'xx')
-        assert ex.value.args[0] == "shape of 'xx' inconsistent across samples"
+        model._check_training_data_shapes([X, Xdot])
+        model._check_training_data_shapes([X, Xdot, U])
 
     def _test_fit(self, ModelClass):
         """Test _core._InferredMixin.fit(), the parent method for
@@ -1018,8 +1023,7 @@ class TestInterpolatedInferredDiscreteROM:
         model.modelform = "cAHB"
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, ps, Xs, [U1, U2[:-1]])
-        assert ex.value.args[0] == \
-            "shape of 'U' inconsistent across samples"
+        assert ex.value.args[0] == "control inputs not aligned"
 
         # Fit correctly with no inputs.
         model.modelform = "cAH"
@@ -1101,8 +1105,7 @@ class TestInterpolatedInferredContinuousROM:
         model.modelform = "cAHB"
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, ps, Xs, Xdots, [U1, U2[:-1]])
-        assert ex.value.args[0] == \
-            "shape of 'U' inconsistent across samples"
+        assert ex.value.args[0] == "control inputs not aligned"
 
         # Fit correctly with no inputs.
         model.modelform = "cAH"

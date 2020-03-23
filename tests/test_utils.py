@@ -8,6 +8,36 @@ from scipy import linalg as la
 import rom_operator_inference as roi
 
 
+def test_get_least_squares_size():
+    """Test utils.get_least_squares_size()."""
+    m, r = 3, 7
+
+    # Try with bad input combinations.
+    with pytest.raises(ValueError) as ex:
+        roi.utils.get_least_squares_size("cAHB", r)
+    assert ex.value.args[0] == "argument m > 0 required since 'B' in modelform"
+
+    with pytest.raises(ValueError) as ex:
+        roi.utils.get_least_squares_size("cAH", r, m=10)
+    assert ex.value.args[0] == "argument m=10 invalid since 'B' in modelform"
+
+    # Test without inputs.
+    assert roi.utils.get_least_squares_size("c", r) == 1
+    assert roi.utils.get_least_squares_size("A", r) == r
+    assert roi.utils.get_least_squares_size("cA", r) == 1 + r
+    assert roi.utils.get_least_squares_size("cAH", r) == 1 + r + r*(r+1)//2
+
+    # Test with inputs.
+    assert roi.utils.get_least_squares_size("cB", r, m) == 1 + m
+    assert roi.utils.get_least_squares_size("AB", r, m) == r + m
+    assert roi.utils.get_least_squares_size("cAB", r, m) == 1 + r + m
+    assert roi.utils.get_least_squares_size("AHB", r, m) == r + r*(r+1)//2 + m
+
+    # Test with affines.
+    assert roi.utils.get_least_squares_size("c", r, affines={"c":[0,0]}) == 2
+    assert roi.utils.get_least_squares_size("A", r, affines={"A":[0,0]}) == 2*r
+
+
 # utils.lstsq_reg() -----------------------------------------------------------
 def _test_lstq_reg_single(k,d,r):
     """Do one test of utils.lstsq_reg()."""

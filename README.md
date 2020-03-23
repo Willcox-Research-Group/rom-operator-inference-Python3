@@ -1,37 +1,31 @@
 # Operator Inference
 
-This is a Python implementation of Operator Inference for constructing projection-based reduced-order models of dynamical systems.
+This is a Python implementation of Operator Inference for constructing projection-based reduced-order models of dynamical systems with a polynomial form.
 The procedure is **data-driven** and **non-intrusive**, making it a viable candidate for model reduction of black-box or complex systems.
 The methodology was introduced in [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 See [**References**](#references) for more papers that use or build on Operator Inference.
 
-**Contributors**: [Renee Swischuk](https://github.com/swischuk), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Qian](https://github.com/elizqian), [Boris Kramer](https://github.com/bokramer).
+**Contributors**: [Renee Swischuk](https://github.com/swischuk), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Qian](https://github.com/elizqian), [Boris Kramer](https://github.com/bokramer), [Karen Willcox](https://kiwi.oden.utexas.edu/).
 
-See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inference-MATLAB) for a MATLAB implementation and [DOCUMENTATION.md](DOCUMENTATION.md) for the documentation.
+See [this repository](https://github.com/elizqian/operator-inference) for a MATLAB implementation and [DOCUMENTATION.md](DOCUMENTATION.md) for the code documentation.
 
 ## Problem Statement
 
 Consider the (possibly nonlinear) system of _n_ ordinary differential equations with state variable **x**, input (control) variable **u**, and independent variable _t_:
 
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t)),\qquad%20\mathbf{x}(0)=\mathbf{x}_0,"/>
-</p>
+<p align="center"><img src="img/prb/eq1.svg"/></p>
 
 where
 
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}:\mathbb{R}\to\mathbb{R}^n,\qquad\mathbf{u}:\mathbb{R}\to\mathbb{R}^m,\qquad\mathbf{f}:\mathbb{R}\times\mathbb{R}^n\times\mathbb{R}^m\to\mathbb{R}^n."/>
-</p>
+<p align="center"><img src="img/prb/eq2.svg"/></p>
 
 This system is called the _full-order model_ (FOM).
 If _n_ is large, as it often is in high-consequence engineering applications, it is computationally expensive to numerically solve the FOM.
 This package provides tools for constructing a _reduced-order model_ (ROM) that is up to quadratic in the state **x** with optional linear control inputs **u**.
 The procedure is data-driven, non-intrusive, and relatively inexpensive.
-In the most general case, the code can construct and solve a reduced-order system of the form
+In the most general case, the code can construct and solve a reduced-order system with the polynomial form
 
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t),"/>
-</p>
+<p align="center"><img src="img/prb/eq3.svg"/></p>
 
 <!-- <p align="center">
   <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\sum_{i=1}^m\hat{N}_{i}\hat{\mathbf{x}}(t)u_{i}(t)+\hat{\mathbf{c}},"/>
@@ -39,12 +33,8 @@ In the most general case, the code can construct and solve a reduced-order syste
 
 where now
 
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}:\mathbb{R}\to\mathbb{R}^r,\qquad\mathbf{u}:\mathbb{R}\to\mathbb{R}^m,\qquad\hat{\mathbf{c}}\in\mathbb{R}^r,\qquad%20r\ll%20n,"/>
-</p>
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{B}\in\mathbb{R}^{r\times%20m}."/>
-</p>
+<p align="center"><img src="img/prb/eq4.svg"/></p>
+<p align="center"><img src="img/prb/eq5.svg"/></p>
 
 <!-- <p align="center">
   <img src="https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{B}\in\mathbb{R}^{r\times%20m},\qquad\hat{N}_{i}\in\mathbb{R}^{r\times%20r}."/>
@@ -61,7 +51,7 @@ See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notat
 
 Install from the command line with the following single command (requires [`pip`](https://pypi.org/project/pip/) and [`git`](https://git-scm.com/)).
 ```bash
-$ pip3 install git+https://github.com/Willcox-Research-Group/rom-operator-inference-Python3.git
+$ pip3 install git+https://github.com/shanemcq18/rom-operator-inference-Python3.git
 ```
 
 #### Usage
