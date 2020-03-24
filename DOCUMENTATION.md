@@ -400,6 +400,10 @@ None of these routines are novel, but they may be instructive for new Python use
 **`pre.minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options)`**: Compute the number of POD basis vectors required to obtain a projection
 error less than `eps`, capped at `rmax`.
 
+**`pre.reproject_continuous(f, Vr, X, U=None)`**: Sample re-projected trajectories of the continuous system of ODEs defined by `f`.
+
+**`pre.reproject_discrete(f, Vr, x0, niters, U=None)`**: Sample re-projected trajectories of the discrete dynamical system defined by `f`.
+
 **`pre.xdot_uniform(X, dt, order=2)`**: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are evenly spaced in time.
 
 **`pre.xdot_nonuniform(X, t)`**: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are **not** evenly spaced in time.
@@ -545,8 +549,8 @@ _Computer Methods in Applied Mechanics and Engineering_, Vol. 306, pp. 196-215, 
 [Transform & Learn: A data-driven approach to nonlinear model reduction](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 In the AIAA Aviation 2019 Forum & Exhibition, Dallas, TX, June 2019. ([Download](https://kiwi.oden.utexas.edu/papers/learn-data-driven-nonlinear-reduced-model-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
 @inbook{QKMW2019aviation,
-    author    = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
     title     = {Transform \&; Learn: A data-driven approach to nonlinear model reduction},
+    author    = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
     booktitle = {AIAA Aviation 2019 Forum},
     doi       = {10.2514/6.2019-3707},
     URL       = {https://arc.aiaa.org/doi/abs/10.2514/6.2019-3707},
@@ -558,29 +562,51 @@ In the AIAA Aviation 2019 Forum & Exhibition, Dallas, TX, June 2019. ([Download]
 _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 ([Download](https://kiwi.oden.utexas.edu/papers/Physics-based-machine-learning-swischuk-willcox.pdf))<details><summary>BibTeX</summary><pre>
 @article{swischuk2019projection,
-  title     = {Projection-based model reduction: Formulations for physics-based machine learning},
-  author    = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
-  journal   = {Computers \& Fluids},
-  volume    = {179},
-  pages     = {704--717},
-  year      = {2019},
-  publisher = {Elsevier}
+    title     = {Projection-based model reduction: Formulations for physics-based machine learning},
+    author    = {Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.},
+    journal   = {Computers \& Fluids},
+    volume    = {179},
+    pages     = {704--717},
+    year      = {2019},
+    publisher = {Elsevier}
 }</pre></details>
 
-- \[4\] Swischuk, R., Physics-based machine learning and data-driven reduced-order modeling. Master's thesis, Massachusetts Institute of Technology, 2019.
-<!-- TODO: Link, BibTeX when published <details><summary>BibTeX</summary><pre>@article{CITATION}</pre></details> -->
+- \[4\] Swischuk, R., [Physics-based machine learning and data-driven reduced-order modeling](https://dspace.mit.edu/handle/1721.1/122682). Master's thesis, Massachusetts Institute of Technology, 2019. ([Download](https://dspace.mit.edu/bitstream/handle/1721.1/122682/1123218324-MIT.pdf))<details><summary>BibTeX</summary><pre>
+@phdthesis{swischuk2019physics,
+    title  = {Physics-based machine learning and data-driven reduced-order modeling},
+    author = {Swischuk, Renee},
+    year   = {2019},
+    school = {Massachusetts Institute of Technology}
+}
+}</pre></details>
 
 - \[5\] Peherstorfer, B. [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). arXiv:1908.11233.
 ([Download](https://arxiv.org/pdf/1908.11233.pdf))<details><summary>BibTeX</summary><pre>
 @article{peherstorfer2019sampling,
-  title   = {Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
-  author  = {Peherstorfer, Benjamin},
-  journal = {arXiv preprint arXiv:1908.11233},
-  year    = {2019}
+    title   = {Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
+    author  = {Peherstorfer, Benjamin},
+    journal = {arXiv preprint arXiv:1908.11233},
+    year    = {2019}
 }</pre></details>
 
-- \[6\] Swischuk, R., Kramer, B., Huang, C., and Willcox, K., Learning physics-based reduced-order models for a single-injector combustion process. _AIAA Journal_, to appear, 2020. Also in Proceedings of 2020 AIAA SciTech Forum & Exhibition, Orlando FL, January, 2020. Also Oden Institute Report 19-13. ([Download](https://kiwi.oden.utexas.edu/papers/learning-reduced-model-combustion-Swischuk-Kramer-Huang-Willcox.pdf))
-<!-- TODO: new BibTeX when published <details><summary>BibTeX</summary><pre>@article{swischuk2019learning, title={Learning physics-based reduced-order models for a single-injector combustion process}, author={Swischuk, Renee and Kramer, Boris and Huang, Cheng and Willcox, Karen}, journal={arXiv preprint arXiv:1908.03620}, year={2019}}</pre></details> -->
+- \[6\] Swischuk, R., Kramer, B., Huang, C., and Willcox, K., [Learning physics-based reduced-order models for a single-injector combustion process](https://arc.aiaa.org/doi/10.2514/1.J058943). _AIAA Journal_, published online March 2020. Also in Proceedings of 2020 AIAA SciTech Forum & Exhibition, Orlando FL, January, 2020. Also Oden Institute Report 19-13. ([Download](https://kiwi.oden.utexas.edu/papers/learning-reduced-model-combustion-Swischuk-Kramer-Huang-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{SKHW2019_learning_ROMs_combustor,
+    title   = {Learning physics-based reduced-order models for a single-injector combustion process},
+    author  = {Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K.},
+    journal = {AIAA Journal},
+    volume  = {},
+    pages   = {Published Online: 19 Mar 2020},
+    url     = {},
+    year    = {2020}
+}</pre></details>
 
-- \[7\] Qian, E., Kramer, B., Peherstorfer, B., and Willcox, K. Lift & Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems. _Physica D: Nonlinear Phenomena_, to appear, 2020. ([Download](https://kiwi.oden.utexas.edu/papers/lift-learn-scientific-machine-learning-Qian-Willcox.pdf))
-<!-- TODO: Link, BibTeX when published <details><summary>BibTeX</summary><pre>@article{CITATION}</pre></details> -->
+- \[7\] Qian, E., Kramer, B., Peherstorfer, B., and Willcox, K. [Lift & Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems](https://www.sciencedirect.com/science/article/abs/pii/S0167278919307651). _Physica D: Nonlinear Phenomena_, Volume 406, May 2020, 132401. ([Download](https://kiwi.oden.utexas.edu/papers/lift-learn-scientific-machine-learning-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{QKPW2020_lift_and_learn,
+    title = {Lift \& Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems.},
+    author = {Qian, E. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
+    journal = {Physica {D}: {N}onlinear {P}henomena},
+    volume = {406},
+    pages = {132401},
+    url = {https://doi.org/10.1016/j.physd.2020.132401},
+    year = {2020}
+}</pre></details>

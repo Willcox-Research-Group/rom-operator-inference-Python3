@@ -7,7 +7,7 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="rom_operator_inference",
-    version="0.7.3",
+    version="0.7.5",
 
     # Package description, license, and keywords.
     description="Operator inference for data-driven, non-intrusive model reduction of dynamical systems.",
@@ -26,9 +26,8 @@ setuptools.setup(
     ],
 
     # Humans to contact about this code.
-    author="Renee Swischuk, Shane McQuarrie",
-    author_email="shanemcq@utexas.edu",
-    maintainer="Shane McQuarrie",
+    author="Renee C. Swischuk et al.",
+    maintainer="Shane A. McQuarrie",
     maintainer_email="shanemcq@utexas.edu",
 
     # Technical details: source code, dependencies, test suite.
