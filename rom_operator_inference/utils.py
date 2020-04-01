@@ -8,7 +8,7 @@ from scipy import linalg as _la
 
 # Least squares solver ========================================================
 def get_least_squares_size(modelform, r, m=0, affines=None):
-    """Calculate the number of columns in the data matrix D in the Operator
+    """Calculate the number of columns in the operator matrix O in the Operator
     Inference least squares problem.
 
     Parameters

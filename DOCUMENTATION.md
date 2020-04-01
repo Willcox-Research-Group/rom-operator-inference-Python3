@@ -53,8 +53,8 @@ Parameters:
 - `rom_strategy`: Whether to use Operator Inference (`"inferred"`) or intrusive projection (`"intrusive"`) to compute the operators of the reduced model.
 - `parametric`: Whether or not the model depends on an external parameter, and how to handle the parametric dependence. Options:
     - `False` (default): the problem is nonparametric.
-    - `"affine"`: one or more operators in the problem depends affinely on the parameter (see SECTION). Only valid for `rom_strategy="intrusive"`.
-    - `"interpolated"`: construct individual models for each sample parameter and interpolate them for general parameter inputs. Only valid for rom_strategy="inferred", and only when the parameter is a scalar.
+    - `"interpolated"`: construct individual models for each sample parameter and [interpolate them](#interpolatedinferredcontinuousrom) for general parameter inputs. Only valid for `rom_strategy="inferred"`, and only when the parameter is a scalar.
+    - `"affine"`: one or more operators in the problem [depends affinely](#affineintrusivecontinuousrom) on the parameter. Only valid for `rom_strategy="intrusive"`.
 
 The return value is the class type for the situation, e.g., `InferredContinuousROM`.
 
@@ -70,7 +70,8 @@ Each character in the string corresponds to a single term of the operator, given
 | `H` | Quadratic | <img src="img/doc/Hhatkronx(t).svg"> | <img src="img/doc/Hhatkronxk.svg"> |
 | `B` | Input | <img src="img/doc/Bhatu(t).svg"/> | <img src="img/doc/Bhatuk.svg"/> |
 
-<!-- | `O` | **O**utput | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}(t)=\hat{C}\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}_{k}=\hat{C}\hat{\mathbf{x}}_{k}"/> | -->
+<!-- | `G` | Cubic | <img src="https://latex.codecogs.com/svg.latex?\hat{G}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{G}(\hat{\mathbf{x}}_k\otimes\hat{\mathbf{x}}_k\otimes\hat{\mathbf{x}}_k)"/> | -->
+<!-- | `C` | Output | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}(t)=\hat{C}\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}_{k}=\hat{C}\hat{\mathbf{x}}_{k}"/> | -->
 
 These are all input as a single string.
 Examples:
@@ -434,20 +435,46 @@ The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
 ## Utility Functions
 
 These functions are helper routines that are used internally for `fit()` or `predict()` methods.
-See [DETAILS.md](DETAILS.md) for more mathematical explanation.
+See [DETAILS.md](DETAILS.md) for additional mathematical explanation.
+
+**`utils.get_least_squares_size(modelform, r, m=0, affines=None)`**: Calculate the number of columns of the operator matrix _O_ in the Operator Inference least squares problem.
+- **Parameters**
+    - `modelform`: the structure of the [desired model](#constructor).
+    - `r`: The dimension of the reduced order model.
+    - `m`: The dimension of the inputs of the model. Must be zero unless `'B'` is in `modelform`.
+    - `affines`: A dictionary mapping labels of the operators that depend affinely on the parameter to the list of functions that define that affine dependence. The keys are entries of `modelform`. For example, if the constant term has the affine structure _c_(_**µ**_) = _θ_<sub>1</sub>(_**µ**_)_c_<sub>1</sub> + _θ_<sub>2</sub>(_**µ**_)_c_<sub>2</sub> + _θ_<sub>3</sub>(_**µ**_)_c_<sub>3</sub>, then `'c' -> [θ1, θ2, θ3]`.
+- **Returns**
+    - The number of columns of the unknown matrix in the Operator Inference least squares problem.
 
 **`utils.lstsq_reg(A, b, P=0)`**: Solve the Tikhonov-regularized ordinary least-squares problem
 <p align="center"><img src="img/doc/reg.svg"/></p>
 
-  where _P_ is the regularization matrix. If `b` is a matrix, solve the above problem for each column of `b`. If `P` is a scalar, use the identity matrix times that scalar for the regularization matrix _P_.
+  via [`scipy.linalg.lstsq()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html).
+- **Parameters**
+    - `A`: The data matrix. In the context of Operator Inference, this is the data matrix _D_ of projected snapshot data.
+    - `b`: The right-hand side vector. If `b` is a matrix, solve the least squares problem for each column of `b`. In the context of Operator Inference, this is the right-hand side matrix _R_ of projected velocity data.
+    - `P`: Tikhonov regularization factor. There are three options:
+        - If `P` is a scalar, use the identity matrix times that scalar for the regularization matrix _P_.
+        - If `P` is a single matrix, use that matrix for _P_ in the problem described above.
+        - If `P` is a list of scalars or matrices, use entry _j_ as the regularization factor for column _j_ of `b`.
+- **Returns** (see [`scipy.linalg.lstsq()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html) for more details)
+    - The least squares solution. In the context of Operator Inference, this is operator matrix _O_<sup>T</sup>.
+    - The residual of the regularized least squares problem.
+    - The effective rank of `A`.
+    - The singular values of `A`.
+
+Note that _P_ must match the size of the unknown vector **x**.
+For Operator Inference, this means _P_ is _d_ x _d_ where the unknown operator matrix _O_ is _r_ x _d_.
+To calculate _d_ for a specific model, see `utils.get_least_squares_size()`.
 
 **`utils.kron_compact(x)`**: Compute the compact column-wise (Khatri-Rao) Kronecker product of `x` with itself.
 
 **`utils.kron_col(x, y)`**: Compute the full column-wise (Khatri-Rao) Kronecker product of `x` and `y`.
+Same as `np.kron()` if `x` and `y` are both one-dimensional.
 
-**`utils.compress_H(H)`**: Convert the full matricized quadratic operator `H` to the compact matricized quadratic operator `Hc`.
+**`utils.compress_H(H)`**: Convert the full _r_ x _r_<sup>2</sup> matricized quadratic operator `H` to the compact _r_ x (_r_(_r_+1)/2) matricized quadratic operator `Hc`.
 
-**`utils.expand_Hc(Hc)`**: Convert the compact matricized quadratic operator `Hc` to the full, symmetric, matricized quadratic operator `H`.
+**`utils.expand_Hc(Hc)`**: Convert the compact _r_ x (_r_(_r_+1)/2) matricized quadratic operator `Hc` to the full, symmetric, _r_ x _r_<sup>2</sup> matricized quadratic operator `H`.
 
 
 ## Index of Notation

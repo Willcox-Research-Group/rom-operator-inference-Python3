@@ -16,7 +16,7 @@ def _absolute_and_relative_error(X, Y, norm):
     """
     norm_of_data = norm(X)
     absolute_error = norm(X - Y)
-    return absolute_error, absolute_error / norm(X)
+    return absolute_error, absolute_error / norm_of_data
 
 
 def frobenius_error(X, Y):
