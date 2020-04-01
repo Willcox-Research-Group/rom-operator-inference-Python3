@@ -140,6 +140,9 @@ The resulting reduced-order model has the form
 <p align="center"><img src="img/dtl/eq15.svg"><p>
 
 
+<!-- TODO: #### Re-projection and Recovering Intrusive Models -->
+
+
 #### Implementation Note: The Kronecker Product
 
 The vector [Kronecker product](https://en.wikipedia.org/wiki/Kronecker_product) ⊗ introduces some redundancies.

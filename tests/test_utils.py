@@ -86,6 +86,9 @@ def _test_lstq_reg_single(k,d,r):
     X_ = roi.utils.lstsq_reg(A, B, P=2)[0]
     assert la.norm(X_) <= la.norm(X)
 
+    X_ = roi.utils.lstsq_reg(A, B, P=[2]*r)[0]
+    assert la.norm(X_) <= la.norm(X)
+
     X_ = roi.utils.lstsq_reg(A, B, P=[2*I]*r)[0]
     assert la.norm(X_) <= la.norm(X)
 

@@ -159,7 +159,7 @@ That is, given snapshot data, a basis, and a form for a reduced model, it comput
     - `X`: An _n_ x _k_ snapshot matrix of solutions to the full-order model, or the _r_ x _k_ projected snapshot matrix _V_<sub>_r_</sub><sup>T</sup>_X_. Each column is one snapshot.
     - `Xdot`: The _n_ x _k_ snapshot velocity matrix for the full-order model, or the _r_ x _k_ projected snapshot velocity matrix. Each column is the velocity _d**x**/dt_ for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
     - `U`: The _m_ x _k_ input matrix (or a _k_-vector if _m_ = 1). Each column is the input vector for the corresponding column of `X`. Only required when `'B'` is in `modelform`.
-    - `P`: Tikhonov regularization matrix for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
+    - `P`: Tikhonov regularization factor for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
 - **Returns**
     - The trained `InferredContinuousROM` object.
 
@@ -186,7 +186,7 @@ via Operator Inference.
     - `Vr`: The _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected. Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrix `X`.
     - `X`: An _n_ x _k_ snapshot matrix of solutions to the full-order model, or the _r_ x _k_ projected snapshot matrix _V_<sub>_r_</sub><sup>T</sup>_X_. Each column is one snapshot.
     - `U`: The _m_ x _k-1_ input matrix (or a (_k_-1)-vector if _m_ = 1). Each column is the input for the corresponding column of `X`. Only required when `'B'` is in `modelform`.
-    - `P`: Tikhonov regularization matrix for the least-squares problem.
+    - `P`: Tikhonov regularization factor for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
 - **Returns**
     - The trained `InferredDiscreteROM` object.
 
@@ -214,7 +214,7 @@ The strategy is to take snapshot data for several parameter samples and a global
     - `Xs`: List of _s_ snapshot matrices, each _n_ x _k_ (full-order solutions) or _r_ x _k_ (projected solutions). The _i_th array `Xs[i]` corresponds to the _i_th parameter, `µs[i]`; each column each of array is one snapshot.
     - `Xdots`: List of _s_ snapshot velocity matrices, each _n_ x _k_ (full-order velocities) or _r_ x _k_ (projected velocities).  The _i_th array `Xdots[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Xdots[i][:,j]`, is the velocity _d**x**/dt_ for the corresponding snapshot column `Xs[i][:,j]`.
     - `Us`: List of _s_ input matrices, each _m_ x _k_ (or a _k_-vector if _m_=1). The _i_th array `Us[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Us[i][:,j]`, is the input for the corresponding snapshot `Xs[i][:,j]`. Only required when `'B'` is in `modelform`.
-    - `P`: Tikhonov regularization matrix for the least-squares problem.
+    - `P`: Tikhonov regularization factor for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
 - **Returns**
     - The trained `InterpolatedInferredContinuousROM` object.
 
@@ -243,7 +243,7 @@ The strategy is to take snapshot data for several parameter samples and a global
     - `µs`: The _s_ parameter values corresponding to the snapshot sets.
     - `Xs`: List of _s_ snapshot matrices, each _n_ x _k_ (full-order solutions) or _r_ x _k_ (projected solutions). The _i_th array `Xs[i]` corresponds to the _i_th parameter, `µs[i]`; each column each of array is one snapshot.
     - `Us`: List of _s_ input matrices, each _m_ x _k_ (or a _k_-vector if _m_=1). The _i_th array `Us[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Us[i][:,j]`, is the input for the corresponding snapshot `Xs[i][:,j]`. Only required when `'B'` is in `modelform`.
-    - `P`: Tikhonov regularization matrix for the least-squares problem.
+    - `P`: Tikhonov regularization factor for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
 - **Returns**
     - The trained `InterpolatedInferredDiscreteROM` object.
 
@@ -438,6 +438,7 @@ These functions are helper routines that are used internally for `fit()` or `pre
 See [DETAILS.md](DETAILS.md) for additional mathematical explanation.
 
 **`utils.get_least_squares_size(modelform, r, m=0, affines=None)`**: Calculate the number of columns of the operator matrix _O_ in the Operator Inference least squares problem.
+Useful for determining the dimensions of the regularization matrix _P_ (see `utils.lstsq_reg()`).
 - **Parameters**
     - `modelform`: the structure of the [desired model](#constructor).
     - `r`: The dimension of the reduced order model.
@@ -464,8 +465,8 @@ See [DETAILS.md](DETAILS.md) for additional mathematical explanation.
     - The singular values of `A`.
 
 Note that _P_ must match the size of the unknown vector **x**.
-For Operator Inference, this means _P_ is _d_ x _d_ where the unknown operator matrix _O_ is _r_ x _d_.
-To calculate _d_ for a specific model, see `utils.get_least_squares_size()`.
+For Operator Inference, this means _P_ is _d_ x _d_ where the data matrix _D_ is _k_ x _d_ and the unknown operator matrix _O_<sup>T</sup> is _d_ x _r_.
+To calculate _d_ for a specific model, use `utils.get_least_squares_size()`.
 
 **`utils.kron_compact(x)`**: Compute the compact column-wise (Khatri-Rao) Kronecker product of `x` with itself.
 

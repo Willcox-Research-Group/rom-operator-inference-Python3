@@ -654,13 +654,10 @@ class _InferredMixin:
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -944,13 +941,10 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -1291,13 +1285,10 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -1412,13 +1403,10 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs (modelform="AB").
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -1715,13 +1703,10 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -1879,13 +1864,10 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------

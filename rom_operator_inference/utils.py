@@ -9,7 +9,7 @@ from scipy import linalg as _la
 # Least squares solver ========================================================
 def get_least_squares_size(modelform, r, m=0, affines=None):
     """Calculate the number of columns in the operator matrix O in the Operator
-    Inference least squares problem.
+    Inference least-squares problem.
 
     Parameters
     ---------
@@ -42,7 +42,7 @@ def get_least_squares_size(modelform, r, m=0, affines=None):
     Returns
     -------
     ncols : int
-        The number of columns in the Operator Inference least squares problem.
+        The number of columns in the Operator Inference least-squares problem.
     """
     has_inputs = 'B' in modelform
     if has_inputs and m == 0:
@@ -62,11 +62,11 @@ def get_least_squares_size(modelform, r, m=0, affines=None):
 
 
 def lstsq_reg(A, b, P=0):
-    """Solve the l2- (Tikhonov)-regularized ordinary least squares problem
+    """Solve the l2-norm Tikhonov-regularized ordinary least-squares problem
 
         min_{x} ||Ax - b||_2^2 + ||Px||_2^2
 
-    by solving the equivalent ordinary least squares problem
+    by solving the equivalent ordinary least-squares problem
 
                 || [ A ]    _  [ b ] ||^2
         min_{x} || [ P ] x     [ 0 ] ||_2,
@@ -81,26 +81,26 @@ def lstsq_reg(A, b, P=0):
 
     b : (k,) or (k,r) ndarray
         The "right-hand side" vector. If a two-dimensional array, then r
-        independent least squares problems are solved.
+        independent least-squares problems are solved.
 
-    P : float >= 0, (d,d) ndarray, or list of r (d,d) ndarrays
-        The Tikhonov regularization matrix or matrices, in one of the
-        following formats:
-        * float > 0: P * I (a scaled identity matrix) is the regularization
-            matrix.
-        * (d,d) ndarray: P is the regularization matrix.
-        * list of r (d,d) ndarrays: the jth matrix in the list is the regularization
-          matrix for the jth column of b. Only valid if b is two-dimensional.
+    P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+        Tikhonov regularization factor(s). The regularization matrix in the
+        least-squares problem depends on the format of the argument:
+        * float >= 0: `P`*I, a scaled identity matrix.
+        * (d,d) ndarray: the matrix `P`.
+        * list of r floats or (d,d) ndarrays: the jth entry in the list is the
+            regularization factor for the jth column of `b`. Only valid if `b`
+            is two-dimensional and has r columns.
 
     Returns
     -------
     x : (d,) or (d,r) ndarray
-        The least squares solution. If `b` is a two-dimensional array, then
-        each column is a solution to the regularized least squares problem with
+        The least-squares solution. If `b` is a two-dimensional array, then
+        each column is a solution to the regularized least-squares problem with
         the corresponding column of b.
 
     residual : float or (r,) ndarray
-        The residual of the regularized least squares problem. If `b` is a
+        The residual of the regularized least-squares problem. If `b` is a
         two-dimensional array, then an array of residuals are returned that
         correspond to the columns of b.
 
