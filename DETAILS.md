@@ -207,7 +207,7 @@ t\ge 0 &= \text{time}\\
 | <img src="img/ntn/fhat.svg"/> | `f_(t,x_,u)` | <img src="img/ntn/n.svg"/>  | Reduced-order system operator |
 | <img src="img/ntn/kronx.svg"/> | `np.kron(x,x)` | <img src="img/ntn/n2.svg"/> | Kronecker product of full state (quadratic terms) |
 | <img src="img/ntn/kronxhat.svg"/> | `np.kron(x_,x_)` | <img src="img/ntn/r2.svg"/>  | Kronecker product of reduced state (quadratic terms) |
-| <img src="img/ntn/kronxhatc.svg"/> | `kron_compact(x_)` | <img src="img/ntn/r2c.svg"/>  | Compact Kronecker product of reduced state (quadratic terms) |
+| <img src="img/ntn/kronxhatc.svg"/> | `kron2c(x_)` | <img src="img/ntn/r2c.svg"/>  | Compact Kronecker product of reduced state (quadratic terms) |
 | <img src="img/ntn/vj.svg"/> | `vj` | <img src="img/ntn/n.svg"/> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
 
 <!-- | **y**  | `y`             | Output vector | -->

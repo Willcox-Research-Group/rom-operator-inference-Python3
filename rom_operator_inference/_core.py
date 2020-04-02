@@ -11,7 +11,7 @@ from scipy.integrate import solve_ivp, IntegrationWarning
 from .utils import (lstsq_reg,
                     expand_Hc as Hc2H,
                     compress_H as H2Hc,
-                    kron_compact as kron2)
+                    kron2c)
 
 
 # Helper functions and classes (public) =======================================
@@ -361,13 +361,13 @@ class _DiscreteROM(_BaseROM):
         elif self.modelform == "cA":
             f_ = lambda x_: self.c_ + self.A_@x_
         elif self.modelform == "H":
-            f_ = lambda x_: self.Hc_@kron2(x_)
+            f_ = lambda x_: self.Hc_@kron2c(x_)
         elif self.modelform == "cH":
-            f_ = lambda x_: self.c_ + self.Hc_@kron2(x_)
+            f_ = lambda x_: self.c_ + self.Hc_@kron2c(x_)
         elif self.modelform == "AH":
-            f_ = lambda x_: self.A_@x_ + self.Hc_@kron2(x_)
+            f_ = lambda x_: self.A_@x_ + self.Hc_@kron2c(x_)
         elif self.modelform == "cAH":
-            f_ = lambda x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_)
+            f_ = lambda x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_)
         # Has control inputs, so f = f(x, u).
         elif self.modelform == "B":
             f_ = lambda x_,u: self.B_@u
@@ -378,13 +378,13 @@ class _DiscreteROM(_BaseROM):
         elif self.modelform == "cAB":
             f_ = lambda x_,u: self.c_ + self.A_@x_ + self.B_@u
         elif self.modelform == "HB":
-            f_ = lambda x_,u: self.Hc_@kron2(x_) + self.B_@u
+            f_ = lambda x_,u: self.Hc_@kron2c(x_) + self.B_@u
         elif self.modelform == "cHB":
-            f_ = lambda x_,u: self.c_ + self.Hc_@kron2(x_) + self.B_@u
+            f_ = lambda x_,u: self.c_ + self.Hc_@kron2c(x_) + self.B_@u
         elif self.modelform == "AHB":
-            f_ = lambda x_,u: self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u
+            f_ = lambda x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u
         elif self.modelform == "cAHB":
-            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u
+            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u
 
         self.f_ = f_
 
@@ -481,13 +481,13 @@ class _ContinuousROM(_BaseROM):
             f_ = lambda t,x_: self.c_ + self.A_@x_
             # self._jac = self.A_
         elif self.modelform == "H":
-            f_ = lambda t,x_: self.Hc_@kron2(x_)
+            f_ = lambda t,x_: self.Hc_@kron2c(x_)
         elif self.modelform == "cH":
-            f_ = lambda t,x_: self.c_ + self.Hc_@kron2(x_)
+            f_ = lambda t,x_: self.c_ + self.Hc_@kron2c(x_)
         elif self.modelform == "AH":
-            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2(x_)
+            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2c(x_)
         elif self.modelform == "cAH":
-            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_)
+            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_)
         # Has control inputs.
         elif self.modelform == "B":
             f_ = lambda t,x_,u: self.B_@u(t)
@@ -502,13 +502,13 @@ class _ContinuousROM(_BaseROM):
             f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.B_@u(t)
             # self._jac = self.A_
         elif self.modelform == "HB":
-            f_ = lambda t,x_,u: self.Hc_@kron2(x_) + self.B_@u(t)
+            f_ = lambda t,x_,u: self.Hc_@kron2c(x_) + self.B_@u(t)
         elif self.modelform == "cHB":
-            f_ = lambda t,x_,u: self.c_ + self.Hc_@kron2(x_) + self.B_@u(t)
+            f_ = lambda t,x_,u: self.c_ + self.Hc_@kron2c(x_) + self.B_@u(t)
         elif self.modelform == "AHB":
-            f_ = lambda t,x_,u: self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u(t)
+            f_ = lambda t,x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u(t)
         elif self.modelform == "cAHB":
-            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u(t)
+            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u(t)
         self.f_ = f_
 
     def __str__(self):
@@ -696,7 +696,7 @@ class _InferredMixin:
             D_blocks.append(X_.T)
 
         if self.has_quadratic:
-            X2_ = kron2(X_)
+            X2_ = kron2c(X_)
             D_blocks.append(X2_.T)
             _r2 = X2_.shape[0]   # = r(r+1)//2, size of the compact Kronecker.
 

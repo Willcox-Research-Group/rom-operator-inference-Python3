@@ -4,6 +4,7 @@
 import numpy as _np
 import warnings as _warnings
 from scipy import linalg as _la
+from scipy.special import binom as _binom
 
 
 # Least squares solver ========================================================
@@ -150,9 +151,9 @@ def lstsq_reg(A, b, P=0):
     return _la.lstsq(lhs, rhs)
 
 
-# Kronecker products ==========================================================
-def kron_compact(x):
-    """Calculate the unique terms of the Kronecker product x ⊗ x.
+# Kronecker (Khatri-Rao) products =============================================
+def kron2c(x):
+    """Calculate the unique terms of the quadratic Kronecker product x ⊗ x.
 
     Parameters
     ----------
@@ -166,37 +167,28 @@ def kron_compact(x):
     """
     if x.ndim not in (1,2):
         raise ValueError("x must be one- or two-dimensional")
-    return _np.concatenate([x[i]*x[:i+1] for i in range(x.shape[0])], axis=0)
+    return _np.concatenate([x[i] * x[:i+1] for i in range(x.shape[0])], axis=0)
 
 
-def kron_col(x, y):
-    """Calculate the full column-wise Kronecker (Khatri-Rao) product x ⊗ y.
+def kron3c(x):
+    """Calculate the unique terms of the cubic Kronecker product x ⊗ x ⊗ x.
 
     Parameters
     ----------
     x : (n,) or (n,k) ndarray
         If two-dimensional, the product is computed column-wise (Khatri-Rao).
 
-    y : (m,) or (m,k) ndarray
-        Must have the same number of dimensions as x. If two-dimensional, must
-        have the same number of columns as x.
-
     Returns
     -------
-    x ⊗ y : (nm,) or (nm,k) ndarray
-        The full Kronecker product of x and y, by column if two-dimensional.
+    x ⊗ x : (n(n+1)(n+2)/6,) or (n(n+1)(n+2)/6,k) ndarray
+        The "compact" Kronecker product of x with itself three times.
     """
-    if x.ndim != y.ndim:
-        raise ValueError("x and y must have the same number of dimensions")
-    if x.ndim == 1:
-        return _np.kron(x,y)
-    elif x.ndim == 2:
-        if x.shape[1] != y.shape[1]:
-            raise ValueError("x and y must have the same number of columns")
-        return _np.column_stack([_np.kron(xcol,ycol)
-                                 for xcol,ycol in zip(x.T, y.T)])
-    else:
-        raise ValueError("x and y must be one- or two-dimensional")
+    if x.ndim not in (1,2):
+        raise ValueError("x must be one- or two-dimensional")
+    x2 = kron2c(x)
+    lens = _binom(_np.arange(2, len(x)+2), 2).astype(int)
+    return _np.concatenate([x[i] * x2[:lens[i]]
+                           for i in range(x.shape[0])], axis=0)
 
 
 # Matricized tensor management ================================================

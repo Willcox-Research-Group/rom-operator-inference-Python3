@@ -468,10 +468,9 @@ Note that _P_ must match the size of the unknown vector **x**.
 For Operator Inference, this means _P_ is _d_ x _d_ where the data matrix _D_ is _k_ x _d_ and the unknown operator matrix _O_<sup>T</sup> is _d_ x _r_.
 To calculate _d_ for a specific model, use `utils.get_least_squares_size()`.
 
-**`utils.kron_compact(x)`**: Compute the compact column-wise (Khatri-Rao) Kronecker product of `x` with itself.
+**`utils.kron2c(x)`**: Compute the compact, quadratic, column-wise (Khatri-Rao) Kronecker product of `x` with itself.
 
-**`utils.kron_col(x, y)`**: Compute the full column-wise (Khatri-Rao) Kronecker product of `x` and `y`.
-Same as `np.kron()` if `x` and `y` are both one-dimensional.
+**`utils.kron3c(x)`**: Compute the compact, cubic, column-wise (Khatri-Rao) Kronecker product of `x` with itself three times.
 
 **`utils.compress_H(H)`**: Convert the full _r_ x _r_<sup>2</sup> matricized quadratic operator `H` to the compact _r_ x (_r_(_r_+1)/2) matricized quadratic operator `Hc`.
 
@@ -524,7 +523,7 @@ t\ge 0 &= \text{time}\\
 | <img src="img/ntn/fhat.svg"/> | `f_(t,x_,u)` | <img src="img/ntn/n.svg"/>  | Reduced-order system operator |
 | <img src="img/ntn/kronx.svg"/> | `np.kron(x,x)` | <img src="img/ntn/n2.svg"/> | Kronecker product of full state (quadratic terms) |
 | <img src="img/ntn/kronxhat.svg"/> | `np.kron(x_,x_)` | <img src="img/ntn/r2.svg"/>  | Kronecker product of reduced state (quadratic terms) |
-| <img src="img/ntn/kronxhatc.svg"/> | `kron_compact(x_)` | <img src="img/ntn/r2c.svg"/>  | Compact Kronecker product of reduced state (quadratic terms) |
+| <img src="img/ntn/kronxhatc.svg"/> | `kron2c(x_)` | <img src="img/ntn/r2c.svg"/>  | Compact Kronecker product of reduced state (quadratic terms) |
 | <img src="img/ntn/vj.svg"/> | `vj` | <img src="img/ntn/n.svg"/> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
 
 <!-- | **y**  | `y`             | Output vector | -->
