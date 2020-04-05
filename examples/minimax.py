@@ -1,4 +1,4 @@
-# projection_helpers.py
+# minimax.py
 
 import os
 import sys
@@ -8,14 +8,15 @@ import numpy as np
 from sklearn.utils.extmath import randomized_svd
 
 
-def offdiag_penalizer(reg, r, m):
+def offdiag_penalizers(reg, r, m):
     """Construct a list of regularization matrices that penalize the
-    off-diagonal elements of A and all elements of the remaining operators.
+    off-diagonal elements of A and all elements of the remaining operators,
+    where the model has the form dx / dt = c + Ax + H(x⊗x) + Bu.
     """
-    regI = _np.sqrt(reg) * _np.eye(r + r**2 + m + 1)
+    regI = np.sqrt(reg) * np.eye(1 + r + r*(r+1)//2 + m)
     Gs = [regI] * r
-    for i in range(r):
-        Gs[r][r,r] = 0
+    for i in range(1, r+1):
+        Gs[i][i,i] = 0
     return Gs
 
 

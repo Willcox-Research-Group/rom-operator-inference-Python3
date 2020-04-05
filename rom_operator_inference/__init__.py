@@ -1,11 +1,38 @@
-"""Operator Inference for Data-Driven, Non-intrusive, Projection-based Model Reduction.
+# __init__.py
+"""Operator inference for data-driven model reduction of dynamical systems.
 
-Authors: Renee Swischuk, Shane McQuarrie, Elizabeth Qian, Boris Kramer
+Author: Renee C. Swischuk et al.
+Maintainer: Shane A. McQuarrie
+Github: https://github.com/shanemcq18/rom-operator-inference-Python3
 """
 
-from ._core import ReducedModel
+from ._core import (
+                    select_model,
+                    trained_model_from_operators,
+                    InferredDiscreteROM,
+                    InferredContinuousROM,
+                    IntrusiveDiscreteROM,
+                    IntrusiveContinuousROM,
+                    AffineIntrusiveDiscreteROM,
+                    AffineIntrusiveContinuousROM,
+                    InterpolatedInferredDiscreteROM,
+                    InterpolatedInferredContinuousROM,
+                    )
 from . import utils, pre, post
 
 
-__all__ = ["ReducedModel", "utils", "pre", "post"]
-__version__ = "0.3.5"
+__all__ = [
+            "InferredDiscreteROM",
+            "InferredContinuousROM",
+            "IntrusiveDiscreteROM"
+            "IntrusiveContinuousROM",
+            "AffineIntrusiveDiscreteROM",
+            "AffineIntrusiveContinuousROM",
+            "InterpolatedInferredDiscreteROM",
+            "InterpolatedInferredContinuousROM",
+            "utils",
+            "pre",
+            "post",
+          ]
+
+__version__ = "0.7.5"

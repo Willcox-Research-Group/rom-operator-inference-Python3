@@ -10,12 +10,44 @@ from matplotlib import pyplot as plt
 import rom_operator_inference as roi
 
 
-# Basis calculation ===========================================================
+# Basis computation ===========================================================
 @pytest.fixture
 def set_up_basis_data():
     n = 2000
     k = 500
     return np.random.random((n,k)) - .5
+
+
+def test_pod_basis(set_up_basis_data):
+    """Test pre.pod_basis() on a small case with the ARPACK solver."""
+    X = set_up_basis_data
+    n,k = X.shape
+    r = k // 10
+
+    # Try with an invalid mode.
+    with pytest.raises(NotImplementedError) as exc:
+        roi.pre.pod_basis(X, r, mode="dense")
+    assert exc.value.args[0] == "invalid mode 'dense'"
+
+    Ur = la.svd(X)[0][:,:r]
+
+    # Via scipy.linalg.svd().
+    Vr = roi.pre.pod_basis(X, r, mode="simple")
+    assert Vr.shape == (n,r)
+    assert np.allclose(Vr, Ur)
+
+    # Via scipy.sparse.linalg.svds() (ARPACK).
+    Vr = roi.pre.pod_basis(X, r, mode="arpack")
+    assert Vr.shape == (n,r)
+    for j in range(r):              # Make sure the columns have the same sign.
+        if not np.isclose(Ur[0,j], Vr[0,j]):
+            Vr[:,j] = -Vr[:,j]
+    assert np.allclose(Vr, Ur)
+
+    # Via sklearn.utils.extmath.randomized_svd().
+    Vr = roi.pre.pod_basis(X, r, mode="randomized")
+    assert Vr.shape == (n,r)
+    # No accuracy test, since that is not guaranteed by randomized SVD.
 
 
 def test_mean_shift(set_up_basis_data):
@@ -33,6 +65,7 @@ def test_mean_shift(set_up_basis_data):
     assert exc.value.args[0] == "data X must be two-dimensional"
 
 
+# Reduced dimension selection =================================================
 def test_significant_svdvals(set_up_basis_data):
     """Test pre.significant_svdvals()."""
     X = set_up_basis_data
@@ -95,39 +128,176 @@ def test_energy_capture(set_up_basis_data):
     plt.close("all")
 
 
-def test_pod_basis(set_up_basis_data):
-    """Test pre.pod_basis() on a small case with the ARPACK solver."""
+def test_projection_error(set_up_basis_data):
+    """Test pre.projection_error()."""
     X = set_up_basis_data
-    n,k = X.shape
-    r = k // 10
+    Vr = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
 
-    # Try with an invalid mode.
-    with pytest.raises(NotImplementedError) as exc:
-        roi.pre.pod_basis(X, r, mode="dense")
-    assert exc.value.args[0] == "invalid mode 'dense'"
-
-    Ur = la.svd(X)[0][:,:r]
-
-    # Via scipy.linalg.svd().
-    Vr = roi.pre.pod_basis(X, r, mode="simple")
-    assert Vr.shape == (n,r)
-    assert np.allclose(Vr, Ur)
-
-    # Via scipy.sparse.linalg.svds() (ARPACK).
-    Vr = roi.pre.pod_basis(X, r, mode="arpack")
-    assert Vr.shape == (n,r)
-    for j in range(r):              # Make sure the columns have the same sign.
-        if not np.isclose(Ur[0,j], Vr[0,j]):
-            Vr[:,j] = -Vr[:,j]
-    assert np.allclose(Vr, Ur)
-
-    # Via sklearn.utils.extmath.randomized_svd().
-    Vr = roi.pre.pod_basis(X, r, mode="randomized")
-    assert Vr.shape == (n,r)
-    # No accuracy test, since that is not guaranteed by randomized SVD.
+    err = roi.pre.projection_error(X, Vr)
+    assert np.isscalar(err) and err >= 0
 
 
-# Differentiation routines ====================================================
+def test_minimal_projection_error(set_up_basis_data):
+    """Test pre.minimal_projection_error()."""
+    X = set_up_basis_data
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.minimal_projection_error(np.ravel(X), 1e-14, plot=False)
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Single cutoffs.
+    r = roi.pre.minimal_projection_error(X, 1e-14, 10, plot=False)
+    assert isinstance(r, int) and r >= 1
+
+    # Multiple cutoffs.
+    rs = roi.pre.minimal_projection_error(X, [1e-10, 1e-12], 10, plot=False)
+    assert isinstance(rs, list)
+    for r in rs:
+        assert isinstance(r, int) and r >= 1
+    assert rs == sorted(rs)
+
+    # Plotting
+    status = plt.isinteractive()
+    plt.ion()
+    roi.pre.minimal_projection_error(X, .0001, 10, plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    roi.pre.minimal_projection_error(X, [1e-4, 1e-6, 1e-10], 10, plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    plt.interactive(status)
+    plt.close("all")
+
+
+# Reprojection schemes ========================================================
+def test_reproject_discrete(n=50, m=5, r=3):
+    """Test pre.reproject_discrete()."""
+    # Construct dummy operators.
+    k = 1 + r + r*(r+1)//2
+    I = np.eye(n)
+    D = np.diag(1 - np.logspace(-1, -2, n))
+    W = la.qr(np.random.normal(size=(n,n)))[0]
+    A = W.T @ D @ W
+    Ht = np.random.random((n,n,n))
+    H = (Ht + Ht.T) / 20
+    H = H.reshape((n, n**2))
+    B = np.random.random((n,m))
+    U = np.random.random((m,k))
+    B1d = np.random.random(n)
+    U1d = np.random.random(k)
+    Vr = np.eye(n)[:,:r]
+    x0 = np.zeros(n)
+    x0[0] = 1
+
+    # Try with bad initial condition shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.reproject_discrete(lambda x:x, Vr, x0[:-1], k)
+    assert exc.value.args[0] == "basis Vr and initial condition x0 not aligned"
+
+    # Linear case, no inputs.
+    f = lambda x: A @ x
+    X_ = roi.pre.reproject_discrete(f, Vr, x0, k)
+    assert X_.shape == (r,k)
+    model = roi.InferredDiscreteROM("A").fit(Vr, X_)
+    assert np.allclose(Vr @ X_, model.predict(X_[:,0], k))
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+
+    # Linear case, 1D inputs.
+    f = lambda x, u: A @ x + B1d * u
+    X_ = roi.pre.reproject_discrete(f, Vr, x0, k, U1d)
+    assert X_.shape == (r,k)
+    model = roi.InferredDiscreteROM("AB").fit(Vr, X_, U1d)
+    assert np.allclose(X_, Vr.T @ model.predict(X_[:,0], k, U1d))
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    assert np.allclose(model.B_.flatten(), Vr.T @ B1d)
+
+    # Linear case, 2D inputs.
+    f = lambda x, u: A @ x + B @ u
+    X_ = roi.pre.reproject_discrete(f, Vr, x0, k, U)
+    assert X_.shape == (r,k)
+    model = roi.InferredDiscreteROM("AB").fit(Vr, X_, U)
+    assert np.allclose(X_, Vr.T @ model.predict(X_[:,0], k, U))
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    assert np.allclose(model.B_, Vr.T @ B)
+
+    # Quadratic case, no inputs.
+    f = lambda x: A @ x + H @ np.kron(x,x)
+    X_ = roi.pre.reproject_discrete(f, Vr, x0, k)
+    assert X_.shape == (r,k)
+    model = roi.InferredDiscreteROM("AH").fit(Vr, X_)
+    assert np.allclose(X_, Vr.T @ model.predict(X_[:,0], k))
+    assert np.allclose(model.A_, Vr.T @ A @ Vr, atol=1e-6, rtol=1e-6)
+    H_ = Vr.T @ H @ np.kron(Vr, Vr)
+    for _ in range(10):
+        x_ = np.random.random(r)
+        x2_ = np.kron(x_, x_)
+        assert np.allclose(model.H_ @ x2_, H_ @ x2_)
+
+
+def test_reproject_continuous(n=100, m=20, r=10):
+    """Test pre.reproject_continuous()."""
+    # Construct dummy operators.
+    k = 1 + r + r*(r+1)//2
+    I = np.eye(n)
+    D = np.diag(1 - np.logspace(-1, -2, n))
+    W = la.qr(np.random.normal(size=(n,n)))[0]
+    A = W.T @ D @ W
+    Ht = np.random.random((n,n,n))
+    H = (Ht + Ht.T) / 20
+    H = H.reshape((n, n**2))
+    B = np.random.random((n,m))
+    U = np.random.random((m,k))
+    B1d = np.random.random(n)
+    U1d = np.random.random(k)
+    Vr = np.eye(n)[:,:r]
+    X = np.random.random((n,k))
+
+    # Try with bad initial condition shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.reproject_continuous(lambda x:x, Vr, X[:-1,:])
+    assert exc.value.args[0] == \
+        f"X and Vr not aligned, first dimension {n-1} != {n}"
+
+    # Linear case, no inputs.
+    f = lambda x: A @ x
+    X_, Xdot_ = roi.pre.reproject_continuous(f, Vr, X)
+    assert X_.shape == (r,k)
+    assert Xdot_.shape == (r,k)
+    model = roi.InferredContinuousROM("A").fit(Vr, X_, Xdot_)
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+
+    # Linear case, 1D inputs.
+    f = lambda x, u: A @ x + B1d * u
+    X_, Xdot_ = roi.pre.reproject_continuous(f, Vr, X, U1d)
+    assert X_.shape == (r,k)
+    assert Xdot_.shape == (r,k)
+    model = roi.InferredContinuousROM("AB").fit(Vr, X_, Xdot_, U1d)
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    assert np.allclose(model.B_.flatten(), Vr.T @ B1d)
+
+    # Linear case, 2D inputs.
+    f = lambda x, u: A @ x + B @ u
+    X_, Xdot_ = roi.pre.reproject_continuous(f, Vr, X, U)
+    assert X_.shape == (r,k)
+    assert Xdot_.shape == (r,k)
+    model = roi.InferredContinuousROM("AB").fit(Vr, X_, Xdot_, U)
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    assert np.allclose(model.B_, Vr.T @ B)
+
+    # Quadratic case, no inputs.
+    f = lambda x: A @ x + H @ np.kron(x,x)
+    X_, Xdot_ = roi.pre.reproject_continuous(f, Vr, X)
+    assert X_.shape == (r,k)
+    assert Xdot_.shape == (r,k)
+    model = roi.InferredContinuousROM("AH").fit(Vr, X_, Xdot_)
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    H_ = Vr.T @ H @ np.kron(Vr, Vr)
+    for _ in range(10):
+        x_ = np.random.random(r)
+        x2_ = np.kron(x_, x_)
+        assert np.allclose(model.H_ @ x2_, H_ @ x2_)
+
+
+# Derivative approximation ====================================================
 DynamicState = namedtuple("DynamicState", ["time", "state", "derivative"])
 
 def _difference_data(t):

@@ -2,12 +2,11 @@
 """Tools for preprocessing data."""
 
 import numpy as _np
-import numba as _numba
-from matplotlib import pyplot as _plt
-
+from scipy import linalg as _la
 from scipy.linalg import svd as _svd
-from scipy.sparse.linalg import svds as _svds
-from sklearn.utils.extmath import randomized_svd as _rsvd
+from scipy.sparse import linalg as _spla
+from sklearn.utils import extmath as _sklmath
+from matplotlib import pyplot as _plt
 
 
 # Basis computation ===========================================================
@@ -38,6 +37,51 @@ def mean_shift(X):
     return xbar, Xshifted
 
 
+def pod_basis(X, r, mode="simple", **options):
+    """Compute the POD basis of rank r corresponding to the data in X.
+    This function does NOT shift or scale the data before computing the basis.
+
+    Parameters
+    ----------
+    X : (n,k) ndarray
+        A matrix of k snapshots. Each column is a single snapshot.
+
+    r : int
+        The number of POD basis vectors to compute.
+
+    mode : str
+        The strategy to use for computing the truncated SVD of X. Options:
+        * "simple" (default): Use scipy.linalg.svd() to compute the entire SVD
+            of X, then truncate it to get the first r left singular vectors of
+            X. May be inefficient for very large matrices.
+        * "arpack": Use scipy.sparse.linalg.svds() to compute only the first r
+            left singular vectors of X. This uses ARPACK for the eigensolver.
+        * "randomized": Compute an approximate SVD with a randomized approach
+            using sklearn.utils.extmath.randomized_svd(). This gives faster
+            results at the cost of some accuracy.
+
+    options
+        Additional parameters for the SVD solver, which depends on `mode`:
+        * "simple": scipy.linalg.svd()
+        * "arpack": scipy.sparse.linalg.svds()
+        * "randomized": sklearn.utils.extmath.randomized_svd()
+
+    Returns
+    -------
+    Vr : (n,r) ndarray
+        The first r POD basis vectors of X. Each column is one basis vector.
+    """
+    if mode == "simple":
+        return _la.svd(X, full_matrices=False, **options)[0][:,:r]
+    if mode == "arpack":
+        return _spla.svds(X, r, which="LM", **options)[0][:,::-1]
+    elif mode == "randomized":
+        return _sklmath.randomized_svd(X, r, **options)[0][:,::-1]
+    else:
+        raise NotImplementedError(f"invalid mode '{mode}'")
+
+
+# Reduced dimension selection =================================================
 def significant_svdvals(X, eps, plot=False):
     """Count the number of singular values of X that are greater than eps.
 
@@ -63,33 +107,35 @@ def significant_svdvals(X, eps, plot=False):
         raise ValueError("data X must be two-dimensional")
 
     # Calculate the number of singular values above the cutoff value(s).
-    singular_values = _svd(X, compute_uv=False)
+    singular_values = _la.svdvals(X)
     one_eps = _np.isscalar(eps)
     if one_eps:
         eps = [eps]
-    barriers = [_np.count_nonzero(singular_values > ep) for ep in eps]
+    ranks = [_np.count_nonzero(singular_values > ep) for ep in eps]
 
     if plot:
         # Visualize singular values and cutoff value(s).
-        fig, ax = _plt.subplots(1, 1, sharex=True, figsize=(12,4))
+        fig, ax = _plt.subplots(1, 1, figsize=(12,4))
         j = _np.arange(1, singular_values.size + 1)
         ax.semilogy(j, singular_values, 'C0*', ms=4, zorder=3)
+        ax.set_xlim((0,j.size))
         ylim = ax.get_ylim()
-        for ep,br in zip(eps, barriers):
-            ax.hlines(ep, 1, br, color="black", linewidth=1)
-            ax.vlines(br, ylim[0], ep, color="black", linewidth=1)
-        ax.axis((1,j.size) + ylim)
+        for ep,r in zip(eps, ranks):
+            ax.hlines(ep, 0, r+1, color="black", linewidth=1)
+            ax.vlines(r, ylim[0], singular_values[r-1] if r > 0 else ep,
+                      color="black", linewidth=1)
+        ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index $j$")
         ax.set_ylabel(r"Singular value $\sigma_j$")
 
-    return barriers[0] if one_eps else barriers
+    return ranks[0] if one_eps else ranks
 
 
 def energy_capture(X, thresh, plot=False):
     """Compute the number of singular values of X needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
-        energy_j = sum(singular_values[:j]) / sum(singular_values).
+        energy_j = sum(singular_values[:j]**2) / sum(singular_values**2).
 
     Parameters
     ----------
@@ -114,78 +160,235 @@ def energy_capture(X, thresh, plot=False):
         raise ValueError("data X must be two-dimensional")
 
     # Calculate singular values and cumulative energy.
-    singular_values = _svd(X, compute_uv=False)
+    singular_values = _la.svdvals(X)
     svdvals2 = singular_values**2
     cumulative_energy = _np.cumsum(svdvals2) / _np.sum(svdvals2)
 
-    # Determine the points at which the cumulative energy is
+    # Determine the points at which the cumulative energy passes the threshold.
     one_thresh = _np.isscalar(thresh)
     if one_thresh:
         thresh = [thresh]
-    barriers = [_np.searchsorted(cumulative_energy, th) + 1 for th in thresh]
+    ranks = [_np.searchsorted(cumulative_energy, th) + 1 for th in thresh]
 
     if plot:
         # Visualize cumulative energy and threshold value(s).
-        fig, ax = _plt.subplots(1, 1, sharex=True, figsize=(12,4))
+        fig, ax = _plt.subplots(1, 1, figsize=(12,4))
         j = _np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, cumulative_energy, 'C1.-', ms=4, zorder=3)
+        ax.semilogy(j, cumulative_energy, 'C2.-', ms=4, zorder=3)
+        ax.set_xlim(0, j.size)
         ylim = ax.get_ylim()
-        for th,br in zip(thresh, barriers):
-            ax.hlines(th, 1, br, color="black", linewidth=1)
-            ax.vlines(br, ylim[0], th, color="black", linewidth=1)
-        ax.axis((1,j.size) + ylim)
-        ax.set_xlabel(r"Singular value index $j$")
+        for th,r in zip(thresh, ranks):
+            ax.hlines(th, 0, r+1, color="black", linewidth=1)
+            ax.vlines(r, ylim[0], cumulative_energy[r-1] if r > 0 else th,
+                      color="black", linewidth=1)
+        ax.set_ylim(ylim)
+        ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Cumulative energy")
 
-    return barriers[0] if one_thresh else barriers
+    return ranks[0] if one_thresh else ranks
 
 
-def pod_basis(X, r, mode="simple", **options):
-    """Compute the POD basis of rank r corresponding to the data in X.
-    This function does NOT shift or scale the data before computing the basis.
+def projection_error(X, Vr):
+    """Calculate the projection error induced by the reduced basis Vr, given by
+
+        err = ||X - Vr Vr^T X|| / ||X||,
+
+    since (Vr Vr^T) is the orthogonal projector onto the range of Vr.
+
+    Parameters
+    ----------
+    X : (n,k) or (k,) ndarray
+        A 2D matrix of k snapshots where each column is a single snapshot, or a
+        single 1D snapshot. If 2D, use the Frobenius norm; if 1D, the l2 norm.
+
+    Vr : (n,r) ndarray
+        The reduced basis of rank r. Each column is one basis vector.
+
+    Returns
+    -------
+    error : float
+        The projection error.
+    """
+    return _la.norm(X - Vr @ Vr.T @ X) / _la.norm(X)
+
+
+def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
+    """Compute the number of POD basis vectors required to obtain a projection
+    error less than eps. The projection error is defined by
+
+        err = ||X - Vr Vr^T X||_F / ||X||_F,
+
+    since (Vr Vr^T) is the orthogonal projection onto the range of Vr.
 
     Parameters
     ----------
     X : (n,k) ndarray
         A matrix of k snapshots. Each column is a single snapshot.
 
-    r : int
-        The number of POD basis vectors to compute.
+    eps : float or list(floats)
+        Cutoff value(s) for the projection error.
 
-    mode : str
-        The strategy to use for computing the truncated SVD of X. Options:
-        * "simple" (default): Use scipy.linalg.svd() to compute the entire SVD
-            of X, then truncate it to get the first r left singular vectors of
-            X. May be inefficient for very large matrices.
-        * "arpack": Use scipy.sparse.linalg.svds() to compute only the first r
-            left singular vectors of X. This uses ARPACK for the eigensolver.
-        * "randomized": Compute an approximate SVD with a randomized approach
-            using sklearn.utils.extmath.randomized_svd(). This gives faster
-            results at the cost of some accuracy.
+    rmax : int
+        The maximal number of basis vectors to check the projection error for.
+
+    plot : bool
+        If True, plot the POD basis rank r against the projection error.
 
     options
-        Additional paramters for the SVD solver, which depends on `mode`:
-        * "simple": scipy.linalg.svd()
-        * "arpack": scipy.sparse.linalg.svds()
-        * "randomized": sklearn.utils.extmath.randomized_svd()
+        Additional parameters for pre.pod_basis().
 
     Returns
     -------
-    Vr : (n,r) ndarray
-        The first r POD basis vectors of X. Each column is one basis vector.
+    ranks : int or list(int)
+        The number of POD basis vectors required to obtain a projection error
+        less than each cutoff value.
     """
-    if mode == "simple":
-        return _svd(X, full_matrices=False, **options)[0][:,:r]
-    if mode == "arpack":
-        return _svds(X, r, which="LM", **options)[0][:,::-1]
-    elif mode == "randomized":
-        return _rsvd(X, r, **options)[0][:,::-1]
+    # Check dimensions.
+    if X.ndim != 2:
+        raise ValueError("data X must be two-dimensional")
+
+    # Get the largest POD basis and calculate the norm ||X||_F.
+    rmax = min(min(X.shape), rmax)
+    V = pod_basis(X, rmax, **options)
+    X_norm = _la.norm(X, ord="fro")
+
+    one_eps = _np.isscalar(eps)
+    if one_eps:
+        eps = [eps]
+
+    errors = []
+    rs = _np.arange(1, rmax)
+    for j,r in enumerate(rs):
+        # Get the POD basis of rank r and calculate the projection error.
+        Vr = V[:,:r]
+        errors.append(_la.norm(X - Vr @ Vr.T @ X, ord="fro") / X_norm)
+    # Calculate the ranks needed to get under each cutoff value.
+    errors = _np.array(errors)
+    ranks = [_np.count_nonzero(errors > ep)+1 for ep in eps]
+
+    if plot:
+        fig, ax = _plt.subplots(1, 1, figsize=(12,4))
+        ax.semilogy(rs, errors, 'C1.-', ms=4, zorder=3)
+        ax.set_xlim((0,rs.size))
+        ylim = ax.get_ylim()
+        for ep,r in zip(eps, ranks):
+            ax.hlines(ep, 0, r+1, color="black", linewidth=1)
+            ax.vlines(r, ylim[0], ep, color="black", linewidth=1)
+        ax.set_ylim(ylim)
+        ax.set_xlabel(r"POD basis rank $r$")
+        ax.set_ylabel(r"Projection error")
+
+    return ranks[0] if one_eps else ranks
+
+
+# Reprojection schemes ========================================================
+def reproject_discrete(f, Vr, x0, niters, U=None):
+    """Sample re-projected trajectories of the discrete dynamical system
+
+        x_{j+1} = f(x_{j}, u_{j}),  x_{0} = x0.
+
+    Parameters
+    ----------
+    f : callable mapping (n,) ndarray (and (m,) ndarray) to (n,) ndarray
+        Function defining the (full-order) discrete dynamical system. Accepts
+        a full-order state vector and (optionally) an input vector and returns
+        another full-order state vector.
+
+    Vr : (n,r) ndarray
+        Basis for the low-dimensional linear subspace (e.g., POD basis).
+
+    x0 : (n,) ndarray
+        Initial condition for the iteration in the high-dimensional space.
+
+    niters : int
+        The number of iterations to do.
+
+    U : (m,niters-1) or (niters-1) ndarray
+        Control inputs, one for each iteration beyond the initial condition.
+
+    Returns
+    -------
+    X_reprojected : (r,niters) ndarray
+        Re-projected state trajectories in the projected low-dimensional space.
+    """
+    # Validate and extract dimensions.
+    n,r = Vr.shape
+    if x0.shape != (n,):
+        raise ValueError("basis Vr and initial condition x0 not aligned")
+
+    # Create the solution array and fill in the initial condition.
+    X_ = _np.empty((r,niters))
+    X_[:,0] = Vr.T @ x0
+
+    # Run the re-projection iteration.
+    if U is None:
+        for j in range(niters-1):
+            X_[:,j+1] = Vr.T @ f(Vr @ X_[:,j])
+    elif U.ndim == 1:
+        for j in range(niters-1):
+            X_[:,j+1] = Vr.T @ f(Vr @ X_[:,j], U[j])
     else:
-        raise NotImplementedError(f"invalid mode '{mode}'")
+        for j in range(niters-1):
+            X_[:,j+1] = Vr.T @ f(Vr @ X_[:,j], U[:,j])
+
+    return X_
+
+
+def reproject_continuous(f, Vr, X, U=None):
+    """Sample re-projected trajectories of the continuous system of ODEs
+
+        dx / dt = f(t, x(t), u(t)),     x(0) = x0.
+
+    Parameters
+    ----------
+    f : callable mapping (n,) ndarray (and (m,) ndarray) to (n,) ndarray
+        Function defining the (full-order) differential equation. Accepts a
+        full-order state vector and (optionally) an input vector and returns
+        another full-order state vector.
+
+    Vr : (n,r) ndarray
+        Basis for the low-dimensional linear subspace.
+
+    X : (n,k) ndarray
+        State trajectories (training data).
+
+    U : (m,k) or (k,) ndarray
+        Control inputs corresponding to the state trajectories.
+
+    Returns
+    -------
+    X_reprojected : (r,k) ndarray
+        Re-projected state trajectories in the projected low-dimensional space.
+
+    Xdot_reprojected : (r,k) ndarray
+        Re-projected velocities in the projected low-dimensional space.
+    """
+    # Validate and extract dimensions.
+    if X.shape[0] != Vr.shape[0]:
+        raise ValueError("X and Vr not aligned, first dimension "
+                         f"{X.shape[0]} != {Vr.shape[0]}")
+    n,r = Vr.shape
+    _,k = X.shape
+
+    # Create the solution arrays.
+    X_ = Vr.T @ X
+    Xdot_ = _np.empty((r,k))
+
+    # Run the re-projection iteration.
+    if U is None:
+        for j in range(k):
+            Xdot_[:,j] = Vr.T @ f(Vr @ X_[:,j])
+    elif U.ndim == 1:
+        for j in range(k):
+            Xdot_[:,j] = Vr.T @ f(Vr @ X_[:,j], U[j])
+    else:
+        for j in range(k):
+            Xdot_[:,j] = Vr.T @ f(Vr @ X_[:,j], U[:,j])
+
+    return X_, Xdot_
 
 
 # Derivative approximation ====================================================
-@_numba.jit(nopython=True)
 def _fwd4(y, dt):                                           # pragma: no cover
     """Compute the first derivative of a uniformly-spaced-in-time array with a
     fourth-order forward difference scheme.
@@ -203,7 +406,6 @@ def _fwd4(y, dt):                                           # pragma: no cover
     return (-25*y[0] + 48*y[1] - 36*y[2] + 16*y[3] - 3*y[4]) / (12*dt)
 
 
-@_numba.jit(nopython=True)
 def _fwd6(y, dt):                                           # pragma: no cover
     """Compute the first derivative of a uniformly-spaced-in-time array with a
     sixth-order forward difference scheme.
@@ -384,8 +586,13 @@ def xdot(X, *args, **kwargs):
 
 __all__ = [
             "mean_shift",
-            "energy_capture",
             "pod_basis",
+            "significant_svdvals",
+            "energy_capture",
+            "projection_error",
+            "minimal_projection_error",
+            "reproject_discrete",
+            "reproject_continuous",
             "xdot_uniform",
             "xdot_nonuniform",
             "xdot",
