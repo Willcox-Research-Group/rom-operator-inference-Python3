@@ -576,7 +576,7 @@ _Computer Methods in Applied Mechanics and Engineering_, Vol. 306, pp. 196-215, 
 [Transform & Learn: A data-driven approach to nonlinear model reduction](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 In the AIAA Aviation 2019 Forum & Exhibition, Dallas, TX, June 2019. ([Download](https://kiwi.oden.utexas.edu/papers/learn-data-driven-nonlinear-reduced-model-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
 @inbook{QKMW2019aviation,
-    title     = {Transform \&; Learn: A data-driven approach to nonlinear model reduction},
+    title     = {Transform \\& Learn: A data-driven approach to nonlinear model reduction},
     author    = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
     booktitle = {AIAA Aviation 2019 Forum},
     doi       = {10.2514/6.2019-3707},
@@ -591,7 +591,7 @@ _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 @article{swischuk2019projection,
     title     = {Projection-based model reduction: Formulations for physics-based machine learning},
     author    = {Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.},
-    journal   = {Computers \& Fluids},
+    journal   = {Computers \\& Fluids},
     volume    = {179},
     pages     = {704--717},
     year      = {2019},
@@ -604,7 +604,6 @@ _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
     author = {Swischuk, Renee},
     year   = {2019},
     school = {Massachusetts Institute of Technology}
-}
 }</pre></details>
 
 - \[5\] Peherstorfer, B. [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). arXiv:1908.11233.
@@ -629,11 +628,11 @@ _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 
 - \[7\] Qian, E., Kramer, B., Peherstorfer, B., and Willcox, K. [Lift & Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems](https://www.sciencedirect.com/science/article/abs/pii/S0167278919307651). _Physica D: Nonlinear Phenomena_, Volume 406, May 2020, 132401. ([Download](https://kiwi.oden.utexas.edu/papers/lift-learn-scientific-machine-learning-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
 @article{QKPW2020_lift_and_learn,
-    title = {Lift \& Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems.},
-    author = {Qian, E. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
+    title   = {Lift \\& Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems.},
+    author  = {Qian, E. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
     journal = {Physica {D}: {N}onlinear {P}henomena},
-    volume = {406},
-    pages = {132401},
-    url = {https://doi.org/10.1016/j.physd.2020.132401},
-    year = {2020}
+    volume  = {406},
+    pages   = {132401},
+    url     = {https://doi.org/10.1016/j.physd.2020.132401},
+    year    = {2020}
 }</pre></details>
