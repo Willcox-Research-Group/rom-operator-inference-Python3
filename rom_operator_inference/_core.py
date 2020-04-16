@@ -11,7 +11,7 @@ from scipy.integrate import solve_ivp, IntegrationWarning
 from .utils import (lstsq_reg,
                     expand_Hc as Hc2H,
                     compress_H as H2Hc,
-                    kron_compact as kron2)
+                    kron2c)
 
 
 # Helper functions and classes (public) =======================================
@@ -361,13 +361,13 @@ class _DiscreteROM(_BaseROM):
         elif self.modelform == "cA":
             f_ = lambda x_: self.c_ + self.A_@x_
         elif self.modelform == "H":
-            f_ = lambda x_: self.Hc_@kron2(x_)
+            f_ = lambda x_: self.Hc_@kron2c(x_)
         elif self.modelform == "cH":
-            f_ = lambda x_: self.c_ + self.Hc_@kron2(x_)
+            f_ = lambda x_: self.c_ + self.Hc_@kron2c(x_)
         elif self.modelform == "AH":
-            f_ = lambda x_: self.A_@x_ + self.Hc_@kron2(x_)
+            f_ = lambda x_: self.A_@x_ + self.Hc_@kron2c(x_)
         elif self.modelform == "cAH":
-            f_ = lambda x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_)
+            f_ = lambda x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_)
         # Has control inputs, so f = f(x, u).
         elif self.modelform == "B":
             f_ = lambda x_,u: self.B_@u
@@ -378,13 +378,13 @@ class _DiscreteROM(_BaseROM):
         elif self.modelform == "cAB":
             f_ = lambda x_,u: self.c_ + self.A_@x_ + self.B_@u
         elif self.modelform == "HB":
-            f_ = lambda x_,u: self.Hc_@kron2(x_) + self.B_@u
+            f_ = lambda x_,u: self.Hc_@kron2c(x_) + self.B_@u
         elif self.modelform == "cHB":
-            f_ = lambda x_,u: self.c_ + self.Hc_@kron2(x_) + self.B_@u
+            f_ = lambda x_,u: self.c_ + self.Hc_@kron2c(x_) + self.B_@u
         elif self.modelform == "AHB":
-            f_ = lambda x_,u: self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u
+            f_ = lambda x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u
         elif self.modelform == "cAHB":
-            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u
+            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u
 
         self.f_ = f_
 
@@ -481,13 +481,13 @@ class _ContinuousROM(_BaseROM):
             f_ = lambda t,x_: self.c_ + self.A_@x_
             # self._jac = self.A_
         elif self.modelform == "H":
-            f_ = lambda t,x_: self.Hc_@kron2(x_)
+            f_ = lambda t,x_: self.Hc_@kron2c(x_)
         elif self.modelform == "cH":
-            f_ = lambda t,x_: self.c_ + self.Hc_@kron2(x_)
+            f_ = lambda t,x_: self.c_ + self.Hc_@kron2c(x_)
         elif self.modelform == "AH":
-            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2(x_)
+            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2c(x_)
         elif self.modelform == "cAH":
-            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2(x_)
+            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_)
         # Has control inputs.
         elif self.modelform == "B":
             f_ = lambda t,x_,u: self.B_@u(t)
@@ -502,13 +502,13 @@ class _ContinuousROM(_BaseROM):
             f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.B_@u(t)
             # self._jac = self.A_
         elif self.modelform == "HB":
-            f_ = lambda t,x_,u: self.Hc_@kron2(x_) + self.B_@u(t)
+            f_ = lambda t,x_,u: self.Hc_@kron2c(x_) + self.B_@u(t)
         elif self.modelform == "cHB":
-            f_ = lambda t,x_,u: self.c_ + self.Hc_@kron2(x_) + self.B_@u(t)
+            f_ = lambda t,x_,u: self.c_ + self.Hc_@kron2c(x_) + self.B_@u(t)
         elif self.modelform == "AHB":
-            f_ = lambda t,x_,u: self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u(t)
+            f_ = lambda t,x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u(t)
         elif self.modelform == "cAHB":
-            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2(x_) + self.B_@u(t)
+            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u(t)
         self.f_ = f_
 
     def __str__(self):
@@ -654,13 +654,10 @@ class _InferredMixin:
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -699,7 +696,7 @@ class _InferredMixin:
             D_blocks.append(X_.T)
 
         if self.has_quadratic:
-            X2_ = kron2(X_)
+            X2_ = kron2c(X_)
             D_blocks.append(X2_.T)
             _r2 = X2_.shape[0]   # = r(r+1)//2, size of the compact Kronecker.
 
@@ -944,13 +941,10 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -1291,13 +1285,10 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -1412,13 +1403,10 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs (modelform="AB").
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -1715,13 +1703,10 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------
@@ -1879,13 +1864,10 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
             input), then U may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
-        P : (d,d) ndarray or float
-            Tikhonov regularization matrix. If nonzero, the least-squares
-            problem problem takes the form min_{x} ||Ax - b||^2 + ||Px||^2.
-            If a nonzero number is provided, the regularization matrix is
-            P * I (a scaled identity matrix). Here d is the dimension of the
-            data matrix for the least-squares problem, e.g., d = r + m for a
-            linear model with inputs.
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
 
         Returns
         -------

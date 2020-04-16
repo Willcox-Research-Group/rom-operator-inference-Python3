@@ -4,12 +4,13 @@
 import numpy as _np
 import warnings as _warnings
 from scipy import linalg as _la
+from scipy.special import binom as _binom
 
 
 # Least squares solver ========================================================
 def get_least_squares_size(modelform, r, m=0, affines=None):
-    """Calculate the number of columns in the data matrix D in the Operator
-    Inference least squares problem.
+    """Calculate the number of columns in the operator matrix O in the Operator
+    Inference least-squares problem.
 
     Parameters
     ---------
@@ -42,7 +43,7 @@ def get_least_squares_size(modelform, r, m=0, affines=None):
     Returns
     -------
     ncols : int
-        The number of columns in the Operator Inference least squares problem.
+        The number of columns in the Operator Inference least-squares problem.
     """
     has_inputs = 'B' in modelform
     if has_inputs and m == 0:
@@ -62,11 +63,11 @@ def get_least_squares_size(modelform, r, m=0, affines=None):
 
 
 def lstsq_reg(A, b, P=0):
-    """Solve the l2- (Tikhonov)-regularized ordinary least squares problem
+    """Solve the l2-norm Tikhonov-regularized ordinary least-squares problem
 
         min_{x} ||Ax - b||_2^2 + ||Px||_2^2
 
-    by solving the equivalent ordinary least squares problem
+    by solving the equivalent ordinary least-squares problem
 
                 || [ A ]    _  [ b ] ||^2
         min_{x} || [ P ] x     [ 0 ] ||_2,
@@ -81,26 +82,26 @@ def lstsq_reg(A, b, P=0):
 
     b : (k,) or (k,r) ndarray
         The "right-hand side" vector. If a two-dimensional array, then r
-        independent least squares problems are solved.
+        independent least-squares problems are solved.
 
-    P : float >= 0, (d,d) ndarray, or list of r (d,d) ndarrays
-        The Tikhonov regularization matrix or matrices, in one of the
-        following formats:
-        * float > 0: P * I (a scaled identity matrix) is the regularization
-            matrix.
-        * (d,d) ndarray: P is the regularization matrix.
-        * list of r (d,d) ndarrays: the jth matrix in the list is the regularization
-          matrix for the jth column of b. Only valid if b is two-dimensional.
+    P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+        Tikhonov regularization factor(s). The regularization matrix in the
+        least-squares problem depends on the format of the argument:
+        * float >= 0: `P`*I, a scaled identity matrix.
+        * (d,d) ndarray: the matrix `P`.
+        * list of r floats or (d,d) ndarrays: the jth entry in the list is the
+            regularization factor for the jth column of `b`. Only valid if `b`
+            is two-dimensional and has r columns.
 
     Returns
     -------
     x : (d,) or (d,r) ndarray
-        The least squares solution. If `b` is a two-dimensional array, then
-        each column is a solution to the regularized least squares problem with
+        The least-squares solution. If `b` is a two-dimensional array, then
+        each column is a solution to the regularized least-squares problem with
         the corresponding column of b.
 
     residual : float or (r,) ndarray
-        The residual of the regularized least squares problem. If `b` is a
+        The residual of the regularized least-squares problem. If `b` is a
         two-dimensional array, then an array of residuals are returned that
         correspond to the columns of b.
 
@@ -150,9 +151,9 @@ def lstsq_reg(A, b, P=0):
     return _la.lstsq(lhs, rhs)
 
 
-# Kronecker products ==========================================================
-def kron_compact(x):
-    """Calculate the unique terms of the Kronecker product x ⊗ x.
+# Kronecker (Khatri-Rao) products =============================================
+def kron2c(x):
+    """Calculate the unique terms of the quadratic Kronecker product x ⊗ x.
 
     Parameters
     ----------
@@ -166,37 +167,28 @@ def kron_compact(x):
     """
     if x.ndim not in (1,2):
         raise ValueError("x must be one- or two-dimensional")
-    return _np.concatenate([x[i]*x[:i+1] for i in range(x.shape[0])], axis=0)
+    return _np.concatenate([x[i] * x[:i+1] for i in range(x.shape[0])], axis=0)
 
 
-def kron_col(x, y):
-    """Calculate the full column-wise Kronecker (Khatri-Rao) product x ⊗ y.
+def kron3c(x):
+    """Calculate the unique terms of the cubic Kronecker product x ⊗ x ⊗ x.
 
     Parameters
     ----------
     x : (n,) or (n,k) ndarray
         If two-dimensional, the product is computed column-wise (Khatri-Rao).
 
-    y : (m,) or (m,k) ndarray
-        Must have the same number of dimensions as x. If two-dimensional, must
-        have the same number of columns as x.
-
     Returns
     -------
-    x ⊗ y : (nm,) or (nm,k) ndarray
-        The full Kronecker product of x and y, by column if two-dimensional.
+    x ⊗ x : (n(n+1)(n+2)/6,) or (n(n+1)(n+2)/6,k) ndarray
+        The "compact" Kronecker product of x with itself three times.
     """
-    if x.ndim != y.ndim:
-        raise ValueError("x and y must have the same number of dimensions")
-    if x.ndim == 1:
-        return _np.kron(x,y)
-    elif x.ndim == 2:
-        if x.shape[1] != y.shape[1]:
-            raise ValueError("x and y must have the same number of columns")
-        return _np.column_stack([_np.kron(xcol,ycol)
-                                 for xcol,ycol in zip(x.T, y.T)])
-    else:
-        raise ValueError("x and y must be one- or two-dimensional")
+    if x.ndim not in (1,2):
+        raise ValueError("x must be one- or two-dimensional")
+    x2 = kron2c(x)
+    lens = _binom(_np.arange(2, len(x)+2), 2).astype(int)
+    return _np.concatenate([x[i] * x2[:lens[i]]
+                           for i in range(x.shape[0])], axis=0)
 
 
 # Matricized tensor management ================================================

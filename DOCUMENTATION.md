@@ -53,8 +53,8 @@ Parameters:
 - `rom_strategy`: Whether to use Operator Inference (`"inferred"`) or intrusive projection (`"intrusive"`) to compute the operators of the reduced model.
 - `parametric`: Whether or not the model depends on an external parameter, and how to handle the parametric dependence. Options:
     - `False` (default): the problem is nonparametric.
-    - `"affine"`: one or more operators in the problem depends affinely on the parameter (see SECTION). Only valid for `rom_strategy="intrusive"`.
-    - `"interpolated"`: construct individual models for each sample parameter and interpolate them for general parameter inputs. Only valid for rom_strategy="inferred", and only when the parameter is a scalar.
+    - `"interpolated"`: construct individual models for each sample parameter and [interpolate them](#interpolatedinferredcontinuousrom) for general parameter inputs. Only valid for `rom_strategy="inferred"`, and only when the parameter is a scalar.
+    - `"affine"`: one or more operators in the problem [depends affinely](#affineintrusivecontinuousrom) on the parameter. Only valid for `rom_strategy="intrusive"`.
 
 The return value is the class type for the situation, e.g., `InferredContinuousROM`.
 
@@ -70,7 +70,8 @@ Each character in the string corresponds to a single term of the operator, given
 | `H` | Quadratic | <img src="img/doc/Hhatkronx(t).svg"> | <img src="img/doc/Hhatkronxk.svg"> |
 | `B` | Input | <img src="img/doc/Bhatu(t).svg"/> | <img src="img/doc/Bhatuk.svg"/> |
 
-<!-- | `O` | **O**utput | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}(t)=\hat{C}\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}_{k}=\hat{C}\hat{\mathbf{x}}_{k}"/> | -->
+<!-- | `G` | Cubic | <img src="https://latex.codecogs.com/svg.latex?\hat{G}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{G}(\hat{\mathbf{x}}_k\otimes\hat{\mathbf{x}}_k\otimes\hat{\mathbf{x}}_k)"/> | -->
+<!-- | `C` | Output | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}(t)=\hat{C}\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}_{k}=\hat{C}\hat{\mathbf{x}}_{k}"/> | -->
 
 These are all input as a single string.
 Examples:
@@ -158,7 +159,7 @@ That is, given snapshot data, a basis, and a form for a reduced model, it comput
     - `X`: An _n_ x _k_ snapshot matrix of solutions to the full-order model, or the _r_ x _k_ projected snapshot matrix _V_<sub>_r_</sub><sup>T</sup>_X_. Each column is one snapshot.
     - `Xdot`: The _n_ x _k_ snapshot velocity matrix for the full-order model, or the _r_ x _k_ projected snapshot velocity matrix. Each column is the velocity _d**x**/dt_ for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
     - `U`: The _m_ x _k_ input matrix (or a _k_-vector if _m_ = 1). Each column is the input vector for the corresponding column of `X`. Only required when `'B'` is in `modelform`.
-    - `P`: Tikhonov regularization matrix for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
+    - `P`: Tikhonov regularization factor for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
 - **Returns**
     - The trained `InferredContinuousROM` object.
 
@@ -185,7 +186,7 @@ via Operator Inference.
     - `Vr`: The _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected. Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrix `X`.
     - `X`: An _n_ x _k_ snapshot matrix of solutions to the full-order model, or the _r_ x _k_ projected snapshot matrix _V_<sub>_r_</sub><sup>T</sup>_X_. Each column is one snapshot.
     - `U`: The _m_ x _k-1_ input matrix (or a (_k_-1)-vector if _m_ = 1). Each column is the input for the corresponding column of `X`. Only required when `'B'` is in `modelform`.
-    - `P`: Tikhonov regularization matrix for the least-squares problem.
+    - `P`: Tikhonov regularization factor for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
 - **Returns**
     - The trained `InferredDiscreteROM` object.
 
@@ -213,7 +214,7 @@ The strategy is to take snapshot data for several parameter samples and a global
     - `Xs`: List of _s_ snapshot matrices, each _n_ x _k_ (full-order solutions) or _r_ x _k_ (projected solutions). The _i_th array `Xs[i]` corresponds to the _i_th parameter, `µs[i]`; each column each of array is one snapshot.
     - `Xdots`: List of _s_ snapshot velocity matrices, each _n_ x _k_ (full-order velocities) or _r_ x _k_ (projected velocities).  The _i_th array `Xdots[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Xdots[i][:,j]`, is the velocity _d**x**/dt_ for the corresponding snapshot column `Xs[i][:,j]`.
     - `Us`: List of _s_ input matrices, each _m_ x _k_ (or a _k_-vector if _m_=1). The _i_th array `Us[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Us[i][:,j]`, is the input for the corresponding snapshot `Xs[i][:,j]`. Only required when `'B'` is in `modelform`.
-    - `P`: Tikhonov regularization matrix for the least-squares problem.
+    - `P`: Tikhonov regularization factor for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
 - **Returns**
     - The trained `InterpolatedInferredContinuousROM` object.
 
@@ -242,7 +243,7 @@ The strategy is to take snapshot data for several parameter samples and a global
     - `µs`: The _s_ parameter values corresponding to the snapshot sets.
     - `Xs`: List of _s_ snapshot matrices, each _n_ x _k_ (full-order solutions) or _r_ x _k_ (projected solutions). The _i_th array `Xs[i]` corresponds to the _i_th parameter, `µs[i]`; each column each of array is one snapshot.
     - `Us`: List of _s_ input matrices, each _m_ x _k_ (or a _k_-vector if _m_=1). The _i_th array `Us[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Us[i][:,j]`, is the input for the corresponding snapshot `Xs[i][:,j]`. Only required when `'B'` is in `modelform`.
-    - `P`: Tikhonov regularization matrix for the least-squares problem.
+    - `P`: Tikhonov regularization factor for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
 - **Returns**
     - The trained `InterpolatedInferredDiscreteROM` object.
 
@@ -434,20 +435,46 @@ The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
 ## Utility Functions
 
 These functions are helper routines that are used internally for `fit()` or `predict()` methods.
-See [DETAILS.md](DETAILS.md) for more mathematical explanation.
+See [DETAILS.md](DETAILS.md) for additional mathematical explanation.
+
+**`utils.get_least_squares_size(modelform, r, m=0, affines=None)`**: Calculate the number of columns of the operator matrix _O_ in the Operator Inference least squares problem.
+Useful for determining the dimensions of the regularization matrix _P_ (see `utils.lstsq_reg()`).
+- **Parameters**
+    - `modelform`: the structure of the [desired model](#constructor).
+    - `r`: The dimension of the reduced order model.
+    - `m`: The dimension of the inputs of the model. Must be zero unless `'B'` is in `modelform`.
+    - `affines`: A dictionary mapping labels of the operators that depend affinely on the parameter to the list of functions that define that affine dependence. The keys are entries of `modelform`. For example, if the constant term has the affine structure _c_(_**µ**_) = _θ_<sub>1</sub>(_**µ**_)_c_<sub>1</sub> + _θ_<sub>2</sub>(_**µ**_)_c_<sub>2</sub> + _θ_<sub>3</sub>(_**µ**_)_c_<sub>3</sub>, then `'c' -> [θ1, θ2, θ3]`.
+- **Returns**
+    - The number of columns of the unknown matrix in the Operator Inference least squares problem.
 
 **`utils.lstsq_reg(A, b, P=0)`**: Solve the Tikhonov-regularized ordinary least-squares problem
 <p align="center"><img src="img/doc/reg.svg"/></p>
 
-  where _P_ is the regularization matrix. If `b` is a matrix, solve the above problem for each column of `b`. If `P` is a scalar, use the identity matrix times that scalar for the regularization matrix _P_.
+  via [`scipy.linalg.lstsq()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html).
+- **Parameters**
+    - `A`: The data matrix. In the context of Operator Inference, this is the data matrix _D_ of projected snapshot data.
+    - `b`: The right-hand side vector. If `b` is a matrix, solve the least squares problem for each column of `b`. In the context of Operator Inference, this is the right-hand side matrix _R_ of projected velocity data.
+    - `P`: Tikhonov regularization factor. There are three options:
+        - If `P` is a scalar, use the identity matrix times that scalar for the regularization matrix _P_.
+        - If `P` is a single matrix, use that matrix for _P_ in the problem described above.
+        - If `P` is a list of scalars or matrices, use entry _j_ as the regularization factor for column _j_ of `b`.
+- **Returns** (see [`scipy.linalg.lstsq()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html) for more details)
+    - The least squares solution. In the context of Operator Inference, this is operator matrix _O_<sup>T</sup>.
+    - The residual of the regularized least squares problem.
+    - The effective rank of `A`.
+    - The singular values of `A`.
 
-**`utils.kron_compact(x)`**: Compute the compact column-wise (Khatri-Rao) Kronecker product of `x` with itself.
+Note that _P_ must match the size of the unknown vector **x**.
+For Operator Inference, this means _P_ is _d_ x _d_ where the data matrix _D_ is _k_ x _d_ and the unknown operator matrix _O_<sup>T</sup> is _d_ x _r_.
+To calculate _d_ for a specific model, use `utils.get_least_squares_size()`.
 
-**`utils.kron_col(x, y)`**: Compute the full column-wise (Khatri-Rao) Kronecker product of `x` and `y`.
+**`utils.kron2c(x)`**: Compute the compact, quadratic, column-wise (Khatri-Rao) Kronecker product of `x` with itself.
 
-**`utils.compress_H(H)`**: Convert the full matricized quadratic operator `H` to the compact matricized quadratic operator `Hc`.
+**`utils.kron3c(x)`**: Compute the compact, cubic, column-wise (Khatri-Rao) Kronecker product of `x` with itself three times.
 
-**`utils.expand_Hc(Hc)`**: Convert the compact matricized quadratic operator `Hc` to the full, symmetric, matricized quadratic operator `H`.
+**`utils.compress_H(H)`**: Convert the full _r_ x _r_<sup>2</sup> matricized quadratic operator `H` to the compact _r_ x (_r_(_r_+1)/2) matricized quadratic operator `Hc`.
+
+**`utils.expand_Hc(Hc)`**: Convert the compact _r_ x (_r_(_r_+1)/2) matricized quadratic operator `Hc` to the full, symmetric, _r_ x _r_<sup>2</sup> matricized quadratic operator `H`.
 
 
 ## Index of Notation
@@ -496,7 +523,7 @@ t\ge 0 &= \text{time}\\
 | <img src="img/ntn/fhat.svg"/> | `f_(t,x_,u)` | <img src="img/ntn/n.svg"/>  | Reduced-order system operator |
 | <img src="img/ntn/kronx.svg"/> | `np.kron(x,x)` | <img src="img/ntn/n2.svg"/> | Kronecker product of full state (quadratic terms) |
 | <img src="img/ntn/kronxhat.svg"/> | `np.kron(x_,x_)` | <img src="img/ntn/r2.svg"/>  | Kronecker product of reduced state (quadratic terms) |
-| <img src="img/ntn/kronxhatc.svg"/> | `kron_compact(x_)` | <img src="img/ntn/r2c.svg"/>  | Compact Kronecker product of reduced state (quadratic terms) |
+| <img src="img/ntn/kronxhatc.svg"/> | `kron2c(x_)` | <img src="img/ntn/r2c.svg"/>  | Compact Kronecker product of reduced state (quadratic terms) |
 | <img src="img/ntn/vj.svg"/> | `vj` | <img src="img/ntn/n.svg"/> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
 
 <!-- | **y**  | `y`             | Output vector | -->
