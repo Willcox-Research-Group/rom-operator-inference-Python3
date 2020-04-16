@@ -51,7 +51,7 @@ See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notat
 
 Install from the command line with the following single command (requires [`pip`](https://pypi.org/project/pip/) and [`git`](https://git-scm.com/)).
 ```bash
-$ pip3 install git+https://github.com/shanemcq18/rom-operator-inference-Python3.git
+$ pip3 install git+https://github.com/swischuk/rom-operator-inference-Python3.git
 ```
 
 #### Usage
