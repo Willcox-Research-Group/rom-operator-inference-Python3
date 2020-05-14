@@ -230,6 +230,8 @@ t\ge 0 &= \text{time}\\
 | <img src="img/ntn/AAhat.svg"/> | `A_` | <img src="img/ntn/rxr.svg"/> | Learned state matrix |
 | <img src="img/ntn/HHhat.svg"/> | `H_` | <img src="img/ntn/rxr2.svg"/> | Learned matricized quadratic tensor |
 | <img src="img/ntn/HHhatc.svg"/> | `Hc_` | <img src="img/ntn/rxr2c.svg"/> | Learned matricized quadratic tensor without redundancy (compact) |
+| <img src="img/ntn/GGhat.svg"/> | `G_` | <img src="img/ntn/rxr3.svg"/> | Learned matricized cubic tensor |
+| <img src="img/ntn/GGhatc.svg"/> | `Gc_` | <img src="img/ntn/rxr3c.svg"/> | Learned matricized cubic tensor without redundancy (compact) |
 | <img src="img/ntn/BBhat.svg"/> | `B_` | <img src="img/ntn/rxm.svg"/> | Learned input matrix |
 
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{N}_i"/> | `Ni_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Bilinear state-input matrix for _i_th input | -->
@@ -318,5 +320,13 @@ _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
     volume  = {406},
     pages   = {132401},
     url     = {https://doi.org/10.1016/j.physd.2020.132401},
+    year    = {2020}
+}</pre></details>
+
+- \[8\] Benner, P., Goyal, P., Kramer, B., Peherstorfer, B., and Willcox, K. [Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms](https://arxiv.org/abs/2002.09726). arXiv:2002.09726. Also Oden Institute Report 20-04. ([Download](https://kiwi.oden.utexas.edu/papers/Non-intrusive-nonlinear-model-reduction-Benner-Goyal-Kramer-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{benner2020operator,
+    title   = {Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms},
+    author  = {Benner, P. and Goyal, P. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
+    journal = {arXiv preprint arXiv:2002.09726},
     year    = {2020}
 }</pre></details>
