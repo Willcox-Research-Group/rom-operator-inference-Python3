@@ -217,7 +217,12 @@ class TestBaseROM:
         assert ex.value.args[0] == \
             "__init__() takes 2 positional arguments but 3 were given"
 
-        model = roi._core._BaseROM("cA")
+        with pytest.raises(RuntimeError) as ex:
+            roi._core._BaseROM("cAH")
+        assert ex.value.args[0] == \
+            "abstract class instantiation (use _ContinuousROM or _DiscreteROM)"
+
+        model = roi._core._ContinuousROM("cA")
         assert hasattr(model, "modelform")
         assert hasattr(model, "_form")
         assert hasattr(model, "has_inputs")
@@ -240,7 +245,7 @@ class TestBaseROM:
         m = 20
 
         # Try with invalid modelform.
-        model = roi._core._BaseROM("bad_form")
+        model = roi._core._ContinuousROM("bad_form")
         with pytest.raises(ValueError) as ex:
             model._check_modelform(trained=False)
         assert ex.value.args[0] == \
@@ -305,7 +310,7 @@ class TestBaseROM:
         """Test _BaseROM._check_inputargs()."""
 
         # Try with has_inputs = True but without inputs.
-        model = roi._core._BaseROM("cB")
+        model = roi._core._DiscreteROM("cB")
         with pytest.raises(ValueError) as ex:
             model._check_inputargs(None, 'U')
         assert ex.value.args[0] == \
@@ -322,7 +327,7 @@ class TestBaseROM:
         """Test _core._BaseROM.project()."""
         n, k, m, r = 60, 50, 20, 10
         X, Xdot, U = _get_data(n, k, m)
-        model = roi._core._BaseROM("c")
+        model = roi._core._ContinuousROM("c")
         model.n, model.r, model.m = n, r, m
         model.Vr = la.svd(X)[0][:,:r]
 
@@ -632,7 +637,7 @@ class TestInferredMixin:
         model = ModelClass("cAH")
 
         # Get test data.
-        n, k, m, r = 60, 2000, 20, 10
+        n, k, m, r = 60, 500, 20, 10
         X, Xdot, U = _get_data(n, k, m)
         Vr = la.svd(X)[0][:,:r]
         args = [Vr, X]
@@ -650,15 +655,17 @@ class TestInferredMixin:
             assert model.n == n
             assert model.r == r
             assert model.m == m
+            assert model.c_.shape == (r,)
             assert model.A_.shape == (r,r)
             assert model.Hc_.shape == (r,r*(r+1)//2)
             assert model.H_.shape == (r,r**2)
-            assert model.c_.shape == (r,)
+            assert model.Gc_.shape == (r,r*(r+1)*(r+2)//6)
+            assert model.G_.shape == (r,r**3)
             assert model.B_.shape == (r,m)
             assert hasattr(model, "residual_")
 
         # Test with high-dimensional inputs.
-        model.modelform = "cAHB"
+        model.modelform = "cAHGB"
         model.fit(*args, U=U)
         _test_output_shapes(model)
 

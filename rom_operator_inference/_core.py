@@ -278,6 +278,9 @@ class _BaseROM:
     _MODEL_KEYS = "cAHGB"       # Constant, Linear, Quadratic, Cubic, Input.
 
     def __init__(self, modelform):
+        if not isinstance(self, (_ContinuousROM, _DiscreteROM)):
+            raise RuntimeError("abstract class instantiation "
+                               "(use _ContinuousROM or _DiscreteROM)")
         self.modelform = modelform
 
     @property
