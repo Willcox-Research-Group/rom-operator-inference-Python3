@@ -712,7 +712,7 @@ class TestIntrusiveMixin:
         model = ModelClass("cAHB")
 
         # Get test data.
-        n, k, m, r = 60, 50, 20, 10
+        n, k, m, r = 30, 50, 10, 5
         X = _get_data(n, k, m)[0]
         Vr = la.svd(X)[0][:,:r]
 
@@ -865,7 +865,7 @@ class TestAffineIntrusiveMixin:
         model = ModelClass("cAHGB")
 
         # Get test data.
-        n, k, m, r = 60, 2000, 20, 10
+        n, k, m, r = 30, 1000, 10, 5
         X = _get_data(n, k, m)[0]
         Vr = la.svd(X)[0][:,:r]
 
