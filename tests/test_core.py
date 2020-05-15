@@ -1,6 +1,8 @@
 # test_core.py
 """Tests for rom_operator_inference._core.py."""
 
+import os
+import h5py
 import pytest
 import warnings
 import itertools
@@ -37,7 +39,9 @@ def _get_operators(n=60, m=20):
 
 def _trainedmodel(continuous, modelform, Vr, m=20):
     """Construct a base class with model operators already constructed."""
-    if continuous:
+    if continuous == "inferred":
+        ModelClass = roi._core.InferredContinuousROM
+    elif continuous:
         ModelClass = roi._core._ContinuousROM
     else:
         ModelClass = roi._core._DiscreteROM
@@ -118,6 +122,77 @@ def test_trained_model_from_operators():
                                      "cAH", Vr, A_=A, Hc_=Hc, c_=c)
     roi.trained_model_from_operators(roi._core._ContinuousROM,
                                      "AB", Vr, A_=A, B_=B)
+
+
+def test_load_model():
+    """Test _core.load_model()."""
+    # Get test operators.
+    n, m, r = 20, 2, 5
+    Vr = np.random.random((n,r))
+    c_ = np.random.random(r)
+    A_ = np.random.random((r,r))
+    B_ = np.random.random((r,m))
+
+    # Try loading a file that does not exist.
+    target = "loadmodeltest.h5"
+    if os.path.isfile(target):                  # pragma: no cover
+        os.remove(target)
+    with pytest.raises(FileNotFoundError) as ex:
+        model = roi.load_model(target)
+    assert ex.value.args[0] == target
+
+    # Make an empty HDF5 file to start with.
+    with h5py.File(target, 'w') as f:
+        pass
+
+    with pytest.raises(ValueError) as ex:
+        model = roi.load_model(target)
+    assert ex.value.args[0] == "invalid save format (meta/ not found)"
+
+    # Make a (mostly) compatible HDF5 file to start with.
+    with h5py.File(target, 'a') as f:
+        # Store metadata.
+        meta = f.create_dataset("meta", shape=(0,))
+        meta.attrs["modelclass"] = "InferredDiscreteROOM"
+        meta.attrs["modelform"] = "cAB"
+
+        f.create_dataset("Vr", data=Vr)
+
+    with pytest.raises(ValueError) as ex:
+        model = roi.load_model(target)
+    assert ex.value.args[0] == "invalid save format (operators/ not found)"
+
+    # Store the arrays.
+    with h5py.File(target, 'a') as f:
+        f.create_dataset("operators/c_", data=c_)
+        f.create_dataset("operators/A_", data=A_)
+        f.create_dataset("operators/B_", data=B_)
+
+    # Try to load the file, which has a bad modelclass attribute.
+    with pytest.raises(ValueError) as ex:
+        model = roi.load_model(target)
+    assert ex.value.args[0] == \
+        "invalid modelclass 'InferredDiscreteROOM' (meta.attrs)"
+
+    # Fix the file.
+    with h5py.File(target, 'a') as f:
+        f["meta"].attrs["modelclass"] = "InferredDiscreteROM"
+
+    # Load the file correctly.
+    model = roi.load_model(target)
+    assert isinstance(model, roi.InferredDiscreteROM)
+    for attr in ["modelform", "n", "r", "m", "c_", "A_", "Hc_", "Gc_", "B_"]:
+        assert hasattr(model, attr)
+    assert model.modelform == "cAB"
+    assert np.allclose(model.Vr, Vr)
+    assert np.allclose(model.c_, c_)
+    assert np.allclose(model.A_, A_)
+    assert model.Hc_ is None
+    assert model.Gc_ is None
+    assert np.allclose(model.B_, B_)
+
+    # Clean up.
+    os.remove(target)
 
 
 class TestAffineOperator:
@@ -788,7 +863,86 @@ class TestIntrusiveMixin:
 
 class TestNonparametricMixin:
     """Test _core._NonparametricMixin."""
-    pass
+    def test_save_model(self):
+        """Test _core._NonparametricMixin.save_model()."""
+        # Clean up after old tests.
+        target = "savemodeltest.h5"
+        if os.path.isfile(target):              # pragma: no cover
+            os.remove(target)
+
+        # Get a test model.
+        n, m, r = 15, 2, 5
+        Vr = np.random.random((n,r))
+        model = _trainedmodel("inferred", "cAHGB", Vr, m)
+
+        def _checkfile(filename, mdl):
+            assert os.path.isfile(filename)
+            with h5py.File(filename, 'r') as data:
+                # Check metadata.
+                assert "meta" in data
+                assert len(data["meta"]) == 0
+                assert data["meta"].attrs["modelclass"] == \
+                                                    mdl.__class__.__name__
+                assert data["meta"].attrs["modelform"] == mdl.modelform
+
+                # Check basis
+                assert "Vr" in data
+                assert np.allclose(data["Vr"], Vr)
+
+                # Check operators
+                assert "operators" in data
+                if "c" in mdl.modelform:
+                    assert np.allclose(data["operators/c_"], mdl.c_)
+                else:
+                    assert "c_" not in data["operators"]
+                if "A" in mdl.modelform:
+                    assert np.allclose(data["operators/A_"], mdl.A_)
+                else:
+                    assert "A_" not in data["operators"]
+                if "H" in mdl.modelform:
+                    assert np.allclose(data["operators/Hc_"], mdl.Hc_)
+                else:
+                    assert "Hc_" not in data["operators"]
+                if "G" in mdl.modelform:
+                    assert np.allclose(data["operators/Gc_"], mdl.Gc_)
+                else:
+                    assert "Gc_" not in data["operators"]
+                if "B" in mdl.modelform:
+                    assert np.allclose(data["operators/B_"], mdl.B_)
+                else:
+                    assert "B_" not in data["operators"]
+
+
+        model.save_model(target[:-3])
+        _checkfile(target, model)
+
+        with pytest.raises(FileExistsError) as ex:
+            model.save_model(target, overwrite=False)
+        assert ex.value.args[0] == target
+
+        model = _trainedmodel("inferred", "c", Vr, 0)
+        model.save_model(target, overwrite=True)
+        _checkfile(target, model)
+
+        model = _trainedmodel("inferred", "AB", Vr, m)
+        model.save_model(target, overwrite=True)
+        _checkfile(target, model)
+
+        # Test error cleanup
+        A_ = model.A_
+        del model.A_
+        with pytest.raises(AttributeError) as ex:
+            model.save_model(target, overwrite=True)
+        assert os.path.isfile(target)
+        assert not os.path.isfile("__"+target)
+        model.A_ = A_
+        _checkfile(target, model)
+
+        os.remove(target)
+        del model.A_
+        with pytest.raises(AttributeError) as ex:
+            model.save_model(target, overwrite=False)
+        assert not os.path.isfile(target)
 
 
 class TestParametricMixin:

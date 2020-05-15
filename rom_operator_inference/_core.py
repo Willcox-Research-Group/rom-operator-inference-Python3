@@ -1,6 +1,8 @@
 # _core.py
 """Classes for reduction of dynamical systems."""
 
+import os
+import h5py
 import warnings
 import itertools
 import numpy as np
@@ -163,6 +165,46 @@ def trained_model_from_operators(ModelClass, modelform, Vr,
     model._construct_f_()
 
     return model
+
+
+def load_model(loadfile):
+    """Load a serialized model from an HDF5 file, which should have been
+    created from a ROM object's save_model() method.
+
+    Parameters
+    ----------
+    loadfile : str
+        The file to load from, which should end in '.h5'.
+
+    Returns
+    -------
+    model : ROM class
+        The trained reduced-order model.
+    """
+    if not os.path.isfile(loadfile):
+        raise FileNotFoundError(loadfile)
+
+    with h5py.File(loadfile, 'r') as data:
+        if "meta" not in data:
+            raise ValueError("invalid save format (meta/ not found)")
+        if "operators" not in data:
+            raise ValueError("invalid save format (operators/ not found)")
+
+        # Load metadata.
+        modelclass = data["meta"].attrs["modelclass"]
+        modelform = data["meta"].attrs["modelform"]
+
+        # Load basis.
+        Vr = data["Vr"][:] if "Vr" in data else None
+
+        # Load operators.
+        operators = {x+'_': data[f"operators/{x}_"][:] for x in modelform}
+
+    try:
+        ModelClass = eval(modelclass)
+    except NameError as ex:
+        raise ValueError(f"invalid modelclass '{modelclass}' (meta.attrs)")
+    return trained_model_from_operators(ModelClass, modelform, Vr, **operators)
 
 
 class AffineOperator:
@@ -960,6 +1002,59 @@ class _NonparametricMixin:
         """Matricized cubic tensor; operates on full cubic Kronecker product.
         """
         return None if self.Gc_ is None else Gc2G(self.Gc_)
+
+    def save_model(self, savefile, overwrite=False):
+        """Serialize the model, saving it as an HDF5 file.
+
+        Parameters
+        ----------
+        savefile : str
+            The file to save to. If it does not end with '.h5', the extension
+            will be tacked on to the end.
+
+        overwrite : bool
+            If True and the specified file already exists, overwrite the file.
+            If False and the specified file already exists, raise an error.
+        """
+        # Make sure the file is saved in HDF5 format.
+        if not savefile.endswith(".h5"):
+            savefile += ".h5"
+
+        if os.path.isfile(savefile):
+            if overwrite:
+                # Temporarily move the file to be deleted.
+                folder = os.path.dirname(savefile)
+                filename = os.path.basename(savefile)
+                tempfile = os.path.join(folder, "__"+filename)
+                os.rename(savefile, tempfile)
+            else:
+                raise FileExistsError(savefile)
+
+        try:
+            with h5py.File(savefile, 'w') as f:
+                # Store metadata.
+                meta = f.create_dataset("meta", shape=(0,))
+                meta.attrs["modelclass"] = self.__class__.__name__
+                meta.attrs["modelform"] = self.modelform
+                # Store arrays.
+                if self.Vr is not None:
+                    f.create_dataset("Vr", data=self.Vr)
+                if self.has_constant:
+                    f.create_dataset("operators/c_", data=self.c_)
+                if self.has_linear:
+                    f.create_dataset("operators/A_", data=self.A_)
+                if self.has_quadratic:
+                    f.create_dataset("operators/Hc_", data=self.Hc_)
+                if self.has_cubic:
+                    f.create_dataset("operators/Gc_", data=self.Gc_)
+                if self.has_inputs:
+                    f.create_dataset("operators/B_", data=self.B_)
+        except:     # If there was an error, restore the old file.
+            if overwrite:
+                os.rename(tempfile, savefile)
+            else:
+                os.remove(savefile)
+            raise
 
 
 class _ParametricMixin:
@@ -2506,18 +2601,8 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
         return out
 
 
-
-__all__ = [
-            "InferredDiscreteROM", "InferredContinuousROM",
-            "IntrusiveDiscreteROM", "IntrusiveContinuousROM",
-            "AffineIntrusiveDiscreteROM", "AffineIntrusiveContinuousROM",
-            "InterpolatedInferredDiscreteROM",
-            "InterpolatedInferredContinuousROM",
-          ]
-
-
 # Future additions ------------------------------------------------------------
 # TODO: Account for state / input interactions (N).
-# TODO: class.save_model() / load_model() with HDF5 or similar format.
+# TODO: save_model() for parametric forms.
 # TODO: jacobians for each model form in the continuous case.
 # TODO: better __str__() for parametric classes.
