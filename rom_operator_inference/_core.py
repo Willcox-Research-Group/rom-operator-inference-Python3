@@ -1342,23 +1342,24 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                              f"sets ({s} != {len(rhss)})")
 
         # Check and store dimensions.
+        self.n, self.r = Vr.shape
+        self.m = None
+
+        # Check that the arrays in each list have the same number of columns.
+        _tocheck = [Xs]
+        if is_continuous:
+            _tocheck.append(rhss)
         if self.has_inputs:
             self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
+            # Check that the input dimension is the same in each data set.
+            for U in Us:
+                m = U.shape[0] if U.ndim == 2 else 1
+                if m != self.m:
+                    raise ValueError("control inputs not aligned")
         else:
-            self.m = None
             Us = [None]*s
-        for X, rhs, U in zip(Xs, rhss, Us):
-            self._check_training_data_shapes(Vr, X, rhs, U)
-        n,k = Xs[0].shape       # Dimension of system, number of shapshots.
-        r = Vr.shape[1]         # Number of basis vectors.
-        self.n, self.r = n, r
-
-        # Check that all arrays in each list of arrays are the same sizes.
-        _tocheck = [(Xs, "X"), (rhss, "rhs")]
-        if self.has_inputs:
-            _tocheck += [(Us, "U")]
-        for dataset, label in _tocheck:
-            self._check_dataset_consistency(dataset, label)
+        for dataset in _tocheck:
+            self._check_training_data_shapes(dataset)
 
         # TODO: figure out how to handle P (scalar, array, list(arrays)).
 
@@ -1387,14 +1388,14 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                     row.append(X_.T)
 
             if self.has_quadratic:
-                X2_ = kron2(X_)
+                X2_ = kron2c(X_)
                 if 'H' in affines:
                     row += [θ(µ) * X2_.T for θ in affines['H']]
                 else:
                     row.append(X2_.T)
 
             if self.has_cubic:
-                X3_ = kron3(X_)
+                X3_ = kron3c(X_)
                 if 'G' in affines:
                     row += [θ(µ) * X3_.T for θ in affines['G']]
                 else:

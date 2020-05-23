@@ -100,6 +100,10 @@ def test_select_model():
                                         roi.AffineIntrusiveDiscreteROM
     assert roi.select_model("continuous", "intrusive", "affine") is \
                                         roi.AffineIntrusiveContinuousROM
+    assert roi.select_model("discrete", "inferred", "affine") is \
+                                        roi.AffineInferredDiscreteROM
+    assert roi.select_model("continuous", "inferred", "affine") is \
+                                        roi.AffineInferredContinuousROM
     assert roi.select_model("discrete", "inferred", "interpolated") is \
                                         roi.InterpolatedInferredDiscreteROM
     assert roi.select_model("continuous", "inferred", "interpolated") is \
@@ -1020,7 +1024,7 @@ class TestAffineInferredMixin:
         is_continuous = issubclass(ModelClass, roi._core._ContinuousROM)
 
         # Get test data.
-        n, k, m, r, s = 200, 100, 20, 10, 3
+        n, k, m, r, s = 50, 200, 5, 10, 3
         X, Xdot, U = _get_data(n, k, m)
         Vr = la.svd(X)[0][:,:r]
         θs = [lambda µ: µ, lambda µ: µ**2, lambda µ: µ**3, lambda µ: µ**4]
@@ -1028,6 +1032,7 @@ class TestAffineInferredMixin:
         affines = {"c": θs[:2],
                    "A": θs,
                    "H": θs[:1],
+                   "G": θs[:1],
                    "B": θs[:3]}
         Xs, Xdots, Us = [X]*s, [Xdot]*s, [U]*s
         args = [Vr, µs, affines, Xs]
@@ -1035,7 +1040,7 @@ class TestAffineInferredMixin:
             args.insert(3, Xdots)
 
         # Try with bad number of parameters.
-        model.modelform = "cAHB"
+        model.modelform = "cAHGB"
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, µs[:-1], *args[2:], Us)
         assert ex.value.args[0] == \
@@ -1046,6 +1051,16 @@ class TestAffineInferredMixin:
                 model.fit(Vr, µs, affines, Xs, Xdots[:-1], Us)
             assert ex.value.args[0] == \
                 f"num parameter samples != num rhs sets ({s} != {s-1})"
+
+        # Try with varying input sizes.
+        if is_continuous:
+            with pytest.raises(ValueError) as ex:
+                model.fit(Vr, µs, affines, Xs, Xdots, [U, U[:-1], U])
+            assert ex.value.args[0] == "control inputs not aligned"
+        else:
+            with pytest.raises(ValueError) as ex:
+                model.fit(Vr, µs, affines, Xs, [U, U[:-1], U])
+            assert ex.value.args[0] == "control inputs not aligned"
 
         for form in _MODEL_FORMS:
             args[2] = {key:val for key,val in affines.items() if key in form}
