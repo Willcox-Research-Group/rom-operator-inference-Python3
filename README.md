@@ -1,53 +1,42 @@
 # Operator Inference
 
-This is a Python implementation of Operator Inference for constructing projection-based reduced-order models of dynamical systems.
+This is a Python implementation of Operator Inference for constructing projection-based reduced-order models of dynamical systems with a polynomial form.
 The procedure is **data-driven** and **non-intrusive**, making it a viable candidate for model reduction of black-box or complex systems.
 The methodology was introduced in [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 See [**References**](#references) for more papers that use or build on Operator Inference.
 
-**Contributors**: [Renee Swischuk](https://github.com/swischuk), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Qian](https://github.com/elizqian), [Boris Kramer](https://github.com/bokramer).
+**Contributors**: [Renee Swischuk](https://github.com/swischuk), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Qian](https://github.com/elizqian), [Boris Kramer](https://github.com/bokramer), [Karen Willcox](https://kiwi.oden.utexas.edu/).
 
-See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inference-MATLAB) for a MATLAB implementation and [DOCUMENTATION.md](DOCUMENTATION.md) for the documentation.
+See [this repository](https://github.com/elizqian/operator-inference) for a MATLAB implementation and [DOCUMENTATION.md](DOCUMENTATION.md) for the code documentation.
 
 ## Problem Statement
 
 Consider the (possibly nonlinear) system of _n_ ordinary differential equations with state variable **x**, input (control) variable **u**, and independent variable _t_:
 
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\mathbf{x}}(t)=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t)),\qquad%20\mathbf{x}(0)=\mathbf{x}_0,"/>
-</p>
+<p align="center"><img src="img/prb/eq1.svg"/></p>
 
 where
 
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}:\mathbb{R}\to\mathbb{R}^n,\qquad\mathbf{u}:\mathbb{R}\to\mathbb{R}^m,\qquad\mathbf{f}:\mathbb{R}\times\mathbb{R}^n\times\mathbb{R}^m\to\mathbb{R}^n."/>
-</p>
+<p align="center"><img src="img/prb/eq2.svg"/></p>
 
 This system is called the _full-order model_ (FOM).
 If _n_ is large, as it often is in high-consequence engineering applications, it is computationally expensive to numerically solve the FOM.
 This package provides tools for constructing a _reduced-order model_ (ROM) that is up to quadratic in the state **x** with optional linear control inputs **u**.
 The procedure is data-driven, non-intrusive, and relatively inexpensive.
-In the most general case, the code can construct and solve a reduced-order system of the form
+In the most general case, the code can construct and solve a reduced-order system with the polynomial form
 
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t),"/>
-</p>
+<p align="center"><img src="img/prb/eq3.svg"/></p>
 
-<!-- <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\sum_{i=1}^m\hat{N}_{i}\hat{\mathbf{x}}(t)u_{i}(t)+\hat{\mathbf{c}},"/>
+<!-- https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{G}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\sum_{i=1}^m\hat{N}_{i}\hat{\mathbf{x}}(t)u_{i}(t),"/>
 </p> -->
 
 where now
 
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\hat{\mathbf{x}}:\mathbb{R}\to\mathbb{R}^r,\qquad\mathbf{u}:\mathbb{R}\to\mathbb{R}^m,\qquad\hat{\mathbf{c}}\in\mathbb{R}^r,\qquad%20r\ll%20n,"/>
-</p>
-<p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{B}\in\mathbb{R}^{r\times%20m}."/>
-</p>
+<p align="center"><img src="img/prb/eq4.svg"/></p>
+<p align="center"><img src="img/prb/eq5.svg"/></p>
 
 <!-- <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{B}\in\mathbb{R}^{r\times%20m},\qquad\hat{N}_{i}\in\mathbb{R}^{r\times%20r}."/>
+  <img src="https://latex.codecogs.com/svg.latex?https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{G}\in\mathbb{R}^{r\times%20r^3},\qquad\hat{B}\in\mathbb{R}^{r\times%20m},\qquad\hat{N}_{i}\in\mathbb{R}^{r\times%20r}."/>
 </p> -->
 
 This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension _r_ << _n_.
@@ -61,7 +50,7 @@ See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notat
 
 Install from the command line with the following single command (requires [`pip`](https://pypi.org/project/pip/) and [`git`](https://git-scm.com/)).
 ```bash
-$ pip3 install git+https://github.com/Willcox-Research-Group/rom-operator-inference-Python3.git
+$ pip3 install git+https://github.com/shanemcq18/rom-operator-inference-Python3.git
 ```
 
 #### Usage
@@ -118,8 +107,8 @@ _Computer Methods in Applied Mechanics and Engineering_, Vol. 306, pp. 196-215, 
 [Transform & Learn: A data-driven approach to nonlinear model reduction](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 In the AIAA Aviation 2019 Forum & Exhibition, Dallas, TX, June 2019. ([Download](https://kiwi.oden.utexas.edu/papers/learn-data-driven-nonlinear-reduced-model-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
 @inbook{QKMW2019aviation,
+    title     = {Transform \\& Learn: A data-driven approach to nonlinear model reduction},
     author    = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
-    title     = {Transform \&; Learn: A data-driven approach to nonlinear model reduction},
     booktitle = {AIAA Aviation 2019 Forum},
     doi       = {10.2514/6.2019-3707},
     URL       = {https://arc.aiaa.org/doi/abs/10.2514/6.2019-3707},
@@ -131,29 +120,58 @@ In the AIAA Aviation 2019 Forum & Exhibition, Dallas, TX, June 2019. ([Download]
 _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 ([Download](https://kiwi.oden.utexas.edu/papers/Physics-based-machine-learning-swischuk-willcox.pdf))<details><summary>BibTeX</summary><pre>
 @article{swischuk2019projection,
-  title     = {Projection-based model reduction: Formulations for physics-based machine learning},
-  author    = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
-  journal   = {Computers \& Fluids},
-  volume    = {179},
-  pages     = {704--717},
-  year      = {2019},
-  publisher = {Elsevier}
+    title     = {Projection-based model reduction: Formulations for physics-based machine learning},
+    author    = {Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.},
+    journal   = {Computers \\& Fluids},
+    volume    = {179},
+    pages     = {704--717},
+    year      = {2019},
+    publisher = {Elsevier}
 }</pre></details>
 
-- \[4\] Swischuk, R., Physics-based machine learning and data-driven reduced-order modeling. Master's thesis, Massachusetts Institute of Technology, 2019.
-<!-- TODO: Link, BibTeX when published <details><summary>BibTeX</summary><pre>@article{CITATION}</pre></details> -->
+- \[4\] Swischuk, R., [Physics-based machine learning and data-driven reduced-order modeling](https://dspace.mit.edu/handle/1721.1/122682). Master's thesis, Massachusetts Institute of Technology, 2019. ([Download](https://dspace.mit.edu/bitstream/handle/1721.1/122682/1123218324-MIT.pdf))<details><summary>BibTeX</summary><pre>
+@phdthesis{swischuk2019physics,
+    title  = {Physics-based machine learning and data-driven reduced-order modeling},
+    author = {Swischuk, Renee},
+    year   = {2019},
+    school = {Massachusetts Institute of Technology}
+}</pre></details>
 
 - \[5\] Peherstorfer, B. [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). arXiv:1908.11233.
 ([Download](https://arxiv.org/pdf/1908.11233.pdf))<details><summary>BibTeX</summary><pre>
 @article{peherstorfer2019sampling,
-  title   = {Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
-  author  = {Peherstorfer, Benjamin},
-  journal = {arXiv preprint arXiv:1908.11233},
-  year    = {2019}
+    title   = {Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
+    author  = {Peherstorfer, Benjamin},
+    journal = {arXiv preprint arXiv:1908.11233},
+    year    = {2019}
 }</pre></details>
 
-- \[6\] Swischuk, R., Kramer, B., Huang, C., and Willcox, K., Learning physics-based reduced-order models for a single-injector combustion process. _AIAA Journal_, to appear, 2020. Also in Proceedings of 2020 AIAA SciTech Forum & Exhibition, Orlando FL, January, 2020. Also Oden Institute Report 19-13. ([Download](https://kiwi.oden.utexas.edu/papers/learning-reduced-model-combustion-Swischuk-Kramer-Huang-Willcox.pdf))
-<!-- TODO: new BibTeX when published <details><summary>BibTeX</summary><pre>@article{swischuk2019learning, title={Learning physics-based reduced-order models for a single-injector combustion process}, author={Swischuk, Renee and Kramer, Boris and Huang, Cheng and Willcox, Karen}, journal={arXiv preprint arXiv:1908.03620}, year={2019}}</pre></details> -->
+- \[6\] Swischuk, R., Kramer, B., Huang, C., and Willcox, K., [Learning physics-based reduced-order models for a single-injector combustion process](https://arc.aiaa.org/doi/10.2514/1.J058943). _AIAA Journal_, published online March 2020. Also in Proceedings of 2020 AIAA SciTech Forum & Exhibition, Orlando FL, January, 2020. Also Oden Institute Report 19-13. ([Download](https://kiwi.oden.utexas.edu/papers/learning-reduced-model-combustion-Swischuk-Kramer-Huang-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{SKHW2019_learning_ROMs_combustor,
+    title   = {Learning physics-based reduced-order models for a single-injector combustion process},
+    author  = {Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K.},
+    journal = {AIAA Journal},
+    volume  = {},
+    pages   = {Published Online: 19 Mar 2020},
+    url     = {},
+    year    = {2020}
+}</pre></details>
 
-- \[7\] Qian, E., Kramer, B., Peherstorfer, B., and Willcox, K. Lift & Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems. _Physica D: Nonlinear Phenomena_, to appear, 2020. ([Download](https://kiwi.oden.utexas.edu/papers/lift-learn-scientific-machine-learning-Qian-Willcox.pdf))
-<!-- TODO: Link, BibTeX when published <details><summary>BibTeX</summary><pre>@article{CITATION}</pre></details> -->
+- \[7\] Qian, E., Kramer, B., Peherstorfer, B., and Willcox, K. [Lift & Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems](https://www.sciencedirect.com/science/article/abs/pii/S0167278919307651). _Physica D: Nonlinear Phenomena_, Volume 406, May 2020, 132401. ([Download](https://kiwi.oden.utexas.edu/papers/lift-learn-scientific-machine-learning-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{QKPW2020_lift_and_learn,
+    title   = {Lift \\& Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems.},
+    author  = {Qian, E. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
+    journal = {Physica {D}: {N}onlinear {P}henomena},
+    volume  = {406},
+    pages   = {132401},
+    url     = {https://doi.org/10.1016/j.physd.2020.132401},
+    year    = {2020}
+}</pre></details>
+
+- \[8\] Benner, P., Goyal, P., Kramer, B., Peherstorfer, B., and Willcox, K. [Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms](https://arxiv.org/abs/2002.09726). arXiv:2002.09726. Also Oden Institute Report 20-04. ([Download](https://kiwi.oden.utexas.edu/papers/Non-intrusive-nonlinear-model-reduction-Benner-Goyal-Kramer-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{benner2020operator,
+    title   = {Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms},
+    author  = {Benner, P. and Goyal, P. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
+    journal = {arXiv preprint arXiv:2002.09726},
+    year    = {2020}
+}</pre></details>

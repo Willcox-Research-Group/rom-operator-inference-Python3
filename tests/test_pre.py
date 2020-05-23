@@ -195,42 +195,42 @@ def test_reproject_discrete(n=50, m=5, r=3):
 
     # Linear case, no inputs.
     f = lambda x: A @ x
-    X = roi.pre.reproject_discrete(f, Vr, x0, k)
-    assert X.shape == (n,k)
-    assert np.allclose(Vr @ Vr.T @ X, X)
-    model = roi.InferredDiscreteROM("A").fit(Vr, X)
-    assert np.allclose(X, model.predict(X[:,0], k))
+    X_ = roi.pre.reproject_discrete(f, Vr, x0, k)
+    assert X_.shape == (r,k)
+    model = roi.InferredDiscreteROM("A").fit(Vr, X_)
+    assert np.allclose(Vr @ X_, model.predict(X_[:,0], k))
     assert np.allclose(model.A_, Vr.T @ A @ Vr)
 
     # Linear case, 1D inputs.
     f = lambda x, u: A @ x + B1d * u
-    X = roi.pre.reproject_discrete(f, Vr, x0, k, U1d)
-    assert X.shape == (n,k)
-    assert np.allclose(Vr @ Vr.T @ X, X)
-    model = roi.InferredDiscreteROM("AB").fit(Vr, X, U1d)
-    assert np.allclose(X, model.predict(X[:,0], k, U1d))
+    X_ = roi.pre.reproject_discrete(f, Vr, x0, k, U1d)
+    assert X_.shape == (r,k)
+    model = roi.InferredDiscreteROM("AB").fit(Vr, X_, U1d)
+    assert np.allclose(X_, Vr.T @ model.predict(X_[:,0], k, U1d))
     assert np.allclose(model.A_, Vr.T @ A @ Vr)
     assert np.allclose(model.B_.flatten(), Vr.T @ B1d)
 
     # Linear case, 2D inputs.
     f = lambda x, u: A @ x + B @ u
-    X = roi.pre.reproject_discrete(f, Vr, x0, k, U)
-    assert X.shape == (n,k)
-    assert np.allclose(Vr @ Vr.T @ X, X)
-    model = roi.InferredDiscreteROM("AB").fit(Vr, X, U)
-    assert np.allclose(X, model.predict(X[:,0], k, U))
+    X_ = roi.pre.reproject_discrete(f, Vr, x0, k, U)
+    assert X_.shape == (r,k)
+    model = roi.InferredDiscreteROM("AB").fit(Vr, X_, U)
+    assert np.allclose(X_, Vr.T @ model.predict(X_[:,0], k, U))
     assert np.allclose(model.A_, Vr.T @ A @ Vr)
     assert np.allclose(model.B_, Vr.T @ B)
 
     # Quadratic case, no inputs.
     f = lambda x: A @ x + H @ np.kron(x,x)
-    X = roi.pre.reproject_discrete(f, Vr, x0, k)
-    assert X.shape == (n,k)
-    assert np.allclose(Vr @ Vr.T @ X, X)
-    model = roi.InferredDiscreteROM("AH").fit(Vr, X)
-    assert np.allclose(X, model.predict(X[:,0], k))
-    assert np.allclose(model.A_, Vr.T @ A @ Vr, atol=1e-6)
-    assert np.allclose(model.H_, Vr.T @ H @ np.kron(Vr, Vr), atol=1e-1, rtol=1)
+    X_ = roi.pre.reproject_discrete(f, Vr, x0, k)
+    assert X_.shape == (r,k)
+    model = roi.InferredDiscreteROM("AH").fit(Vr, X_)
+    assert np.allclose(X_, Vr.T @ model.predict(X_[:,0], k))
+    assert np.allclose(model.A_, Vr.T @ A @ Vr, atol=1e-6, rtol=1e-6)
+    H_ = Vr.T @ H @ np.kron(Vr, Vr)
+    for _ in range(10):
+        x_ = np.random.random(r)
+        x2_ = np.kron(x_, x_)
+        assert np.allclose(model.H_ @ x2_, H_ @ x2_)
 
 
 def test_reproject_continuous(n=100, m=20, r=10):
@@ -259,40 +259,42 @@ def test_reproject_continuous(n=100, m=20, r=10):
 
     # Linear case, no inputs.
     f = lambda x: A @ x
-    X, Xdot = roi.pre.reproject_continuous(f, Vr, X)
-    assert X.shape == (n,k)
-    assert Xdot.shape == (n,k)
-    assert np.allclose(Vr @ Vr.T @ X, X)
-    model = roi.InferredContinuousROM("A").fit(Vr, X, Xdot)
+    X_, Xdot_ = roi.pre.reproject_continuous(f, Vr, X)
+    assert X_.shape == (r,k)
+    assert Xdot_.shape == (r,k)
+    model = roi.InferredContinuousROM("A").fit(Vr, X_, Xdot_)
     assert np.allclose(model.A_, Vr.T @ A @ Vr)
 
     # Linear case, 1D inputs.
     f = lambda x, u: A @ x + B1d * u
-    X, Xdot = roi.pre.reproject_continuous(f, Vr, X, U1d)
-    assert X.shape == (n,k)
-    assert Xdot.shape == (n,k)
-    model = roi.InferredContinuousROM("AB").fit(Vr, X, Xdot, U1d)
+    X_, Xdot_ = roi.pre.reproject_continuous(f, Vr, X, U1d)
+    assert X_.shape == (r,k)
+    assert Xdot_.shape == (r,k)
+    model = roi.InferredContinuousROM("AB").fit(Vr, X_, Xdot_, U1d)
     assert np.allclose(model.A_, Vr.T @ A @ Vr)
     assert np.allclose(model.B_.flatten(), Vr.T @ B1d)
 
     # Linear case, 2D inputs.
     f = lambda x, u: A @ x + B @ u
-    X, Xdot = roi.pre.reproject_continuous(f, Vr, X, U)
-    assert X.shape == (n,k)
-    assert Xdot.shape == (n,k)
-    model = roi.InferredContinuousROM("AB").fit(Vr, X, Xdot, U)
+    X_, Xdot_ = roi.pre.reproject_continuous(f, Vr, X, U)
+    assert X_.shape == (r,k)
+    assert Xdot_.shape == (r,k)
+    model = roi.InferredContinuousROM("AB").fit(Vr, X_, Xdot_, U)
     assert np.allclose(model.A_, Vr.T @ A @ Vr)
     assert np.allclose(model.B_, Vr.T @ B)
 
     # Quadratic case, no inputs.
     f = lambda x: A @ x + H @ np.kron(x,x)
-    X, Xdot = roi.pre.reproject_continuous(f, Vr, X)
-    assert X.shape == (n,k)
-    assert Xdot.shape == (n,k)
-    assert np.allclose(Vr @ Vr.T @ X, X)
-    model = roi.InferredContinuousROM("AH").fit(Vr, X, Xdot)
-    assert np.allclose(model.A_, Vr.T @ A @ Vr, atol=1e-6)
-    assert np.allclose(model.H_, Vr.T @ H @ np.kron(Vr, Vr), atol=1e-1, rtol=1)
+    X_, Xdot_ = roi.pre.reproject_continuous(f, Vr, X)
+    assert X_.shape == (r,k)
+    assert Xdot_.shape == (r,k)
+    model = roi.InferredContinuousROM("AH").fit(Vr, X_, Xdot_)
+    assert np.allclose(model.A_, Vr.T @ A @ Vr)
+    H_ = Vr.T @ H @ np.kron(Vr, Vr)
+    for _ in range(10):
+        x_ = np.random.random(r)
+        x2_ = np.kron(x_, x_)
+        assert np.allclose(model.H_ @ x2_, H_ @ x2_)
 
 
 # Derivative approximation ====================================================
