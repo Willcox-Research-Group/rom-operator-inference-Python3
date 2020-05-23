@@ -89,10 +89,10 @@ def select_model(time, rom_strategy, parametric=False):
         return AffineIntrusiveDiscreteROM
     elif t == "continuous" and r == "intrusive" and p == "affine":
         return AffineIntrusiveContinuousROM
-    # elif t == "discrete" and r == "inferred" and p == "affine":
-    #     return AffineInferredDiscreteROM
-    # elif t == "continuous" and r == "inferred" and p == "affine":
-    #     return AffineInferredContinuousROM
+    elif t == "discrete" and r == "inferred" and p == "affine":
+        return AffineInferredDiscreteROM
+    elif t == "continuous" and r == "inferred" and p == "affine":
+        return AffineInferredContinuousROM
     elif t == "discrete" and r == "inferred" and p == "interpolated":
         return InterpolatedInferredDiscreteROM
     elif t == "continuous" and r == "inferred" and p == "interpolated":
@@ -1295,6 +1295,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             * 'c': Constant term c(µ).
             * 'A': Linear state matrix A(µ).
             * 'H': Quadratic state matrix H(µ).
+            * 'G': Cubic state matrix G(µ).
             * 'B': Linear input matrix B(µ).
             For example, if the constant term has the affine structure
             c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
@@ -1392,6 +1393,13 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 else:
                     row.append(X2_.T)
 
+            if self.has_cubic:
+                X3_ = kron3(X_)
+                if 'G' in affines:
+                    row += [θ(µ) * X3_.T for θ in affines['G']]
+                else:
+                    row.append(X3_.T)
+
             if self.has_inputs:
                 U = Us[i]
                 if self.m == 1:
@@ -1455,6 +1463,22 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 self.H_ = Hc2H(self.Hc_)
         else:
             self.Hc_, self.H_ = None, None
+
+        if self.has_cubic:
+            _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
+            if 'G' in affines:
+                Gcs_ = []
+                for j in range(len(affines['G'])):
+                    Gcs_.append(Otrp[i:i+_r3].T)
+                    i += _r3
+                self.Gc_ = AffineOperator(affines['G'], Gcs_)
+                self.G_ = lambda µ: Gc2G(self.Gc_(µ))
+            else:
+                self.Gc_ = Otrp[i:i+_r3].T
+                i += _r3
+                self.G_ = Gc2G(self.Gc_)
+        else:
+            self.Gc_, self.G_ = None, None
 
         if self.has_inputs:
             if 'B' in affines:
@@ -2506,6 +2530,7 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         * 'c' : Constant term c(µ).
         * 'A' : Linear state term A(µ)x(t).
         * 'H' : Quadratic state term H(µ)(x⊗x)(t).
+        * 'G' : Cubic state term G(µ)(x⊗x⊗x)(t).
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
 
@@ -2519,6 +2544,9 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
 
     has_quadratic : bool
         Whether or not there is a quadratic term H(µ)(x⊗x)(t).
+
+    has_cubic : bool
+        Whether or not there is a cubic term G(µ)(x⊗x⊗x)(t).
 
     has_inputs : bool
         Whether or not there is an input term B(µ)u(t).
@@ -2548,6 +2576,16 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
     H_ : callable(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
         Learned ROM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`. Computed on the fly from Hc_ if desired; not used in
+        solving the ROM.
+
+    Gc_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
+          (r,r(r+1)(r+2)//6) ndarray; or None
+        Learned ROM cubic state matrix (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    G_ : callable(µ) -> (r,r**3) ndarray; (r,r**3) ndarray; or None
+        Learned ROM cubic state matrix (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gc_ if desired; not used in
         solving the ROM.
 
     B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
@@ -2664,6 +2702,7 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         * 'c' : Constant term c(µ).
         * 'A' : Linear state term A(µ)x(t).
         * 'H' : Quadratic state term H(µ)(x⊗x)(t).
+        * 'G' : Cubic state term G(µ)(x⊗x⊗x)(t)
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
 
@@ -2677,6 +2716,9 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
 
     has_quadratic : bool
         Whether or not there is a quadratic term H(µ)(x⊗x)(t).
+
+    has_cubic : bool
+        Whether or not there is a cubic term G(µ)(x⊗x⊗x)(t).
 
     has_inputs : bool
         Whether or not there is an input term B(µ)u(t).
@@ -2708,6 +2750,16 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         in `modelform`. Computed on the fly from Hc_ if desired; not used in
         solving the ROM.
 
+    Gc_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
+          (r,r(r+1)(r+2)//6) ndarray; or None
+        Learned ROM cubic state matrix (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    G_ : callable(µ) -> (r,r**3) ndarray; (r,r**3) ndarray; or None
+        Learned ROM cubic state matrix (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gc_ if desired; not used in
+        solving the ROM.
+
     B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
 
@@ -2737,6 +2789,7 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
             * 'c': Constant term c(µ).
             * 'A': Linear state matrix A(µ).
             * 'H': Quadratic state matrix H(µ).
+            * 'G': Cubic state matrix G(µ).
             * 'B': Linear input matrix B(µ).
             For example, if the constant term has the affine structure
             c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
