@@ -82,13 +82,13 @@ def pod_basis(X, r, mode="simple", **options):
 
 
 # Reduced dimension selection =================================================
-def significant_svdvals(X, eps, plot=False):
+def significant_svdvals(singular_values, eps, plot=False):
     """Count the number of singular values of X that are greater than eps.
 
     Parameters
     ----------
-    X : (n,k) ndarray
-        A matrix of k snapshots. Each column is a single snapshot.
+    singular_values : (n,) ndarray
+        The singular values of a snapshot set X, e.g., scipy.linalg.svdvals(X).
 
     eps : float or list(floats)
         Cutoff value(s) for the singular values of X.
@@ -102,12 +102,7 @@ def significant_svdvals(X, eps, plot=False):
     ranks : int or list(int)
         The number of singular values greater than the cutoff value(s).
     """
-    # Check dimensions.
-    if X.ndim != 2:
-        raise ValueError("data X must be two-dimensional")
-
     # Calculate the number of singular values above the cutoff value(s).
-    singular_values = _la.svdvals(X)
     one_eps = _np.isscalar(eps)
     if one_eps:
         eps = [eps]
@@ -131,7 +126,7 @@ def significant_svdvals(X, eps, plot=False):
     return ranks[0] if one_eps else ranks
 
 
-def energy_capture(X, thresh, plot=False):
+def energy_capture(singular_values, thresh, plot=False):
     """Compute the number of singular values of X needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
@@ -139,8 +134,8 @@ def energy_capture(X, thresh, plot=False):
 
     Parameters
     ----------
-    X : (n,k) ndarray
-        A matrix of k snapshots. Each column is a single snapshot.
+    singular_values : (n,) ndarray
+        The singular values of a snapshot set X, e.g., scipy.linalg.svdvals(X).
 
     thresh : float or list(floats)
         Energy capture threshold(s).
@@ -155,12 +150,7 @@ def energy_capture(X, thresh, plot=False):
         The number of singular values required to capture more than each
         energy capture threshold.
     """
-    # Check dimensions.
-    if X.ndim != 2:
-        raise ValueError("data X must be two-dimensional")
-
-    # Calculate singular values and cumulative energy.
-    singular_values = _la.svdvals(X)
+    # Calculate  cumulative energy.
     svdvals2 = singular_values**2
     cumulative_energy = _np.cumsum(svdvals2) / _np.sum(svdvals2)
 
@@ -212,7 +202,7 @@ def projection_error(X, Vr):
     return _la.norm(X - Vr @ Vr.T @ X) / _la.norm(X)
 
 
-def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
+def minimal_projection_error(X, V, eps, plot=False):
     """Compute the number of POD basis vectors required to obtain a projection
     error less than eps. The projection error is defined by
 
@@ -225,17 +215,15 @@ def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
     X : (n,k) ndarray
         A matrix of k snapshots. Each column is a single snapshot.
 
+    V : (n,rmax) ndarray
+        The first rmax POD basis vectors of X. Each column is one basis vector.
+        The projection error is calculated for each Vr = V[:,:r] for r <= rmax.
+
     eps : float or list(floats)
         Cutoff value(s) for the projection error.
 
-    rmax : int
-        The maximal number of basis vectors to check the projection error for.
-
     plot : bool
         If True, plot the POD basis rank r against the projection error.
-
-    options
-        Additional parameters for pre.pod_basis().
 
     Returns
     -------
@@ -246,24 +234,21 @@ def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
     # Check dimensions.
     if X.ndim != 2:
         raise ValueError("data X must be two-dimensional")
-
-    # Get the largest POD basis and calculate the norm ||X||_F.
-    rmax = min(min(X.shape), rmax)
-    V = pod_basis(X, rmax, **options)
-    X_norm = _la.norm(X, ord="fro")
-
+    if V.ndim != 2:
+        raise ValueError("basis V must be two-dimensional")
     one_eps = _np.isscalar(eps)
     if one_eps:
         eps = [eps]
 
-    errors = []
-    rs = _np.arange(1, rmax)
+    # Calculate the projection errors.
+    X_norm = _la.norm(X, ord="fro")
+    rs = _np.arange(1, V.shape[1])
+    errors = _np.empty_like(rs)
     for j,r in enumerate(rs):
         # Get the POD basis of rank r and calculate the projection error.
         Vr = V[:,:r]
-        errors.append(_la.norm(X - Vr @ Vr.T @ X, ord="fro") / X_norm)
+        errors[j] = _la.norm(X - Vr @ Vr.T @ X, ord="fro") / X_norm
     # Calculate the ranks needed to get under each cutoff value.
-    errors = _np.array(errors)
     ranks = [_np.count_nonzero(errors > ep)+1 for ep in eps]
 
     if plot:
