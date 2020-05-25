@@ -1049,6 +1049,8 @@ class _NonparametricMixin:
                     f.create_dataset("operators/Gc_", data=self.Gc_)
                 if self.has_inputs:
                     f.create_dataset("operators/B_", data=self.B_)
+            if overwrite:
+                os.remove(tempfile)
         except:     # If there was an error, restore the old file.
             if overwrite:
                 os.rename(tempfile, savefile)

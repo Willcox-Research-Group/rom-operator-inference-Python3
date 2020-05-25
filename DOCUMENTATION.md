@@ -396,14 +396,13 @@ None of these routines are novel, but they may be instructive for new Python use
 
 **`pre.pod_basis(X, r, mode="arpack", **options)`**: Compute the POD basis of rank `r` for a snapshot matrix `X`.
 
-**`pre.significant_svdvals(X, eps, plot=False)`**: Count the number of singular values of `X` that are greater than `eps`.
+**`pre.significant_svdvals(singular_values, eps, plot=False)`**: Count the number of singular values that are greater than `eps`. The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the singular values on a log scale.
 
-**`pre.energy_capture(X, thresh, plot=False)`**: Compute the number of singular values of `X` needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>
+**`pre.energy_capture(singular_values, thresh, plot=False)`**: Compute the number of singular values needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the cumulative energy on a log scale.
 
 **`pre.projection_error(X, Vr)`**: Compute the relative projection error on _X_ induced by the basis matrix _V<sub>r</sub>_, <p align="center"><img src="img/doc/proj_err.svg"/></p>
 
-**`pre.minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options)`**: Compute the number of POD basis vectors required to obtain a projection
-error less than `eps`, capped at `rmax`.
+**`pre.minimal_projection_error(X, V, eps, plot=False)`**: Compute the number of POD basis vectors required to obtain a projection error less than `eps`, up to the number of columns of `V`. If `plot=True`, plot the projection error on a log scale as a function of the basis size.
 
 **`pre.reproject_continuous(f, Vr, X, U=None)`**: Sample re-projected trajectories [\[5\]](https://arxiv.org/abs/1908.11233) of the continuous system of ODEs defined by `f`.
 

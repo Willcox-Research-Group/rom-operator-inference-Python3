@@ -69,18 +69,14 @@ def test_mean_shift(set_up_basis_data):
 def test_significant_svdvals(set_up_basis_data):
     """Test pre.significant_svdvals()."""
     X = set_up_basis_data
-
-    # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
-        roi.pre.significant_svdvals(np.ravel(X), 1e-14, plot=False)
-    assert exc.value.args[0] == "data X must be two-dimensional"
+    svdvals = la.svdvals(X)
 
     # Single cutoffs.
-    r = roi.pre.significant_svdvals(X, 1e-14, plot=False)
+    r = roi.pre.significant_svdvals(svdvals, 1e-14, plot=False)
     assert isinstance(r, int) and r >= 1
 
     # Multiple cutoffss.
-    rs = roi.pre.significant_svdvals(X, [1e-10, 1e-12], plot=False)
+    rs = roi.pre.significant_svdvals(svdvals, [1e-10,1e-12], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, int) and r >= 1
@@ -89,9 +85,9 @@ def test_significant_svdvals(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = roi.pre.significant_svdvals(X, .0001, plot=True)
+    rs = roi.pre.significant_svdvals(svdvals, .0001, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = roi.pre.significant_svdvals(X, [1e-4, 1e-8, 1e-12], plot=True)
+    rs = roi.pre.significant_svdvals(svdvals, [1e-4, 1e-8, 1e-12], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
@@ -100,18 +96,14 @@ def test_significant_svdvals(set_up_basis_data):
 def test_energy_capture(set_up_basis_data):
     """Test pre.energy_capture()."""
     X = set_up_basis_data
-
-    # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
-        roi.pre.energy_capture(np.ravel(X), .99)
-    assert exc.value.args[0] == "data X must be two-dimensional"
+    svdvals = la.svdvals(X)
 
     # Single threshold.
-    r = roi.pre.energy_capture(X, .9, plot=False)
+    r = roi.pre.energy_capture(svdvals, .9, plot=False)
     assert isinstance(r, np.int64) and r >= 1
 
     # Multiple thresholds.
-    rs = roi.pre.energy_capture(X, [.9, .99, .999], plot=False)
+    rs = roi.pre.energy_capture(svdvals, [.9, .99, .999], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, np.int64) and r >= 1
@@ -120,9 +112,9 @@ def test_energy_capture(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = roi.pre.energy_capture(X, .999, plot=True)
+    rs = roi.pre.energy_capture(svdvals, .999, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = roi.pre.energy_capture(X, [.9, .99, .999], plot=True)
+    rs = roi.pre.energy_capture(svdvals, [.9, .99, .999], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
@@ -140,18 +132,24 @@ def test_projection_error(set_up_basis_data):
 def test_minimal_projection_error(set_up_basis_data):
     """Test pre.minimal_projection_error()."""
     X = set_up_basis_data
+    V = Vr = la.svd(X, full_matrices=False)[0]
 
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
-        roi.pre.minimal_projection_error(np.ravel(X), 1e-14, plot=False)
+        roi.pre.minimal_projection_error(np.ravel(X), V, 1e-14, plot=False)
     assert exc.value.args[0] == "data X must be two-dimensional"
 
+    # Try with bad basis shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.minimal_projection_error(X, np.ravel(V), 1e-14, plot=False)
+    assert exc.value.args[0] == "basis V must be two-dimensional"
+
     # Single cutoffs.
-    r = roi.pre.minimal_projection_error(X, 1e-14, 10, plot=False)
+    r = roi.pre.minimal_projection_error(X, V, 1e-14, plot=False)
     assert isinstance(r, int) and r >= 1
 
     # Multiple cutoffs.
-    rs = roi.pre.minimal_projection_error(X, [1e-10, 1e-12], 10, plot=False)
+    rs = roi.pre.minimal_projection_error(X, V, [1e-10, 1e-12], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, int) and r >= 1
@@ -160,9 +158,9 @@ def test_minimal_projection_error(set_up_basis_data):
     # Plotting
     status = plt.isinteractive()
     plt.ion()
-    roi.pre.minimal_projection_error(X, .0001, 10, plot=True)
+    roi.pre.minimal_projection_error(X, V, .0001, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    roi.pre.minimal_projection_error(X, [1e-4, 1e-6, 1e-10], 10, plot=True)
+    roi.pre.minimal_projection_error(X, V, [1e-4, 1e-6, 1e-10], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
