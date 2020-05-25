@@ -1364,9 +1364,9 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         # TODO: figure out how to handle P (scalar, array, list(arrays)).
 
         # Project states and velocities to the reduced subspace.
-        Xs_ = [Vr.T @ X for X in Xs]
-        rhss_ = [Vr.T @ rhs for rhs in rhss]
         self.Vr = Vr
+        Xs_ = [self.project(X, 'X') for X in Xs]
+        rhss_ = [self.project(rhs, 'rhs') for rhs in rhss]
 
         # Construct the large "Data matrix" D.
         D_blockrows = []
