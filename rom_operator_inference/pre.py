@@ -243,11 +243,11 @@ def minimal_projection_error(X, V, eps, plot=False):
     # Calculate the projection errors.
     X_norm = _la.norm(X, ord="fro")
     rs = _np.arange(1, V.shape[1])
-    errors = _np.empty_like(rs)
-    for j,r in enumerate(rs):
+    errors = _np.empty_like(rs, dtype=_np.float)
+    for r in rs:
         # Get the POD basis of rank r and calculate the projection error.
         Vr = V[:,:r]
-        errors[j] = _la.norm(X - Vr @ Vr.T @ X, ord="fro") / X_norm
+        errors[r-1] = _la.norm(X - Vr @ Vr.T @ X, ord="fro") / X_norm
     # Calculate the ranks needed to get under each cutoff value.
     ranks = [_np.count_nonzero(errors > ep)+1 for ep in eps]
 
