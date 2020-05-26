@@ -2594,10 +2594,6 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
     B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _AffineMixin.__call__(self, µ, discrete=True)
-
     def fit(self, Vr, µs, affines, Xs, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         using solution trajectories from multiple examples.
@@ -2770,10 +2766,6 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _AffineMixin.__call__(self, µ, discrete=False)
-
     def fit(self, Vr, µs, affines, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         using solution trajectories from multiple examples.
