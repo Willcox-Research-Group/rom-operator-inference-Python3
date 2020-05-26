@@ -132,7 +132,7 @@ def test_projection_error(set_up_basis_data):
 def test_minimal_projection_error(set_up_basis_data):
     """Test pre.minimal_projection_error()."""
     X = set_up_basis_data
-    V = Vr = la.svd(X, full_matrices=False)[0]
+    V = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
 
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
@@ -141,7 +141,7 @@ def test_minimal_projection_error(set_up_basis_data):
 
     # Try with bad basis shape.
     with pytest.raises(ValueError) as exc:
-        roi.pre.minimal_projection_error(X, np.ravel(V), 1e-14, plot=False)
+        roi.pre.minimal_projection_error(X, V[0], 1e-14, plot=False)
     assert exc.value.args[0] == "basis V must be two-dimensional"
 
     # Single cutoffs.

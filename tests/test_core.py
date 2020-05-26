@@ -446,19 +446,6 @@ class TestDiscreteROM:
         assert ex.value.args[0] == \
             "<lambda>() missing 1 required positional argument: 'u'"
 
-    def test_str(self):
-        """Test _core.DiscreteROM.__str__()."""
-        model = roi._core._DiscreteROM('')
-        model.modelform = "A"
-        assert str(model) == \
-            "Reduced-order model structure: x_{j+1} = Ax_{j}"
-        model.modelform = "cB"
-        assert str(model) == \
-            "Reduced-order model structure: x_{j+1} = c + Bu_{j}"
-        model.modelform = "H"
-        assert str(model) == \
-            "Reduced-order model structure: x_{j+1} = H(x_{j} ⊗ x_{j})"
-
     def test_fit(self):
         """Test _core._DiscreteROM.fit()."""
         model = roi._core._DiscreteROM("A")
@@ -553,23 +540,6 @@ class TestContinuousROM:
             model.f_(1)
         assert ex.value.args[0] == \
             "<lambda>() missing 1 required positional argument: 'x_'"
-
-    def test_str(self):
-        """Test _core.ContinuousROM.__str__() (string representation)."""
-        model = roi._core._ContinuousROM('')
-
-        model.modelform = "A"
-        assert str(model) == \
-            "Reduced-order model structure: dx / dt = Ax(t)"
-        model.modelform = "cA"
-        assert str(model) == \
-            "Reduced-order model structure: dx / dt = c + Ax(t)"
-        model.modelform = "HB"
-        assert str(model) == \
-            "Reduced-order model structure: dx / dt = H(x ⊗ x)(t) + Bu(t)"
-        model.modelform = "cAH"
-        assert str(model) == \
-            "Reduced-order model structure: dx / dt = c + Ax(t) + H(x ⊗ x)(t)"
 
     def test_fit(self):
         """Test _core._ContinuousROM.fit()."""
@@ -867,6 +837,36 @@ class TestIntrusiveMixin:
 
 class TestNonparametricMixin:
     """Test _core._NonparametricMixin."""
+    def test_str(self):
+        """Test _core._NonparametricMixin.__str__() (string representation)."""
+        # Continuous ROMs
+        model = roi._core.InferredContinuousROM("A")
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = Ax(t)"
+        model.modelform = "cA"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = c + Ax(t)"
+        model.modelform = "HB"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = H(x(t) ⊗ x(t)) + Bu(t)"
+        model.modelform = "G"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = G(x(t) ⊗ x(t) ⊗ x(t))"
+        model.modelform = "cH"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = c + H(x(t) ⊗ x(t))"
+
+        # Discrete ROMs
+        model = roi._core.IntrusiveDiscreteROM("A")
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = Ax_{j}"
+        model.modelform = "cB"
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = c + Bu_{j}"
+        model.modelform = "H"
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = H(x_{j} ⊗ x_{j})"
+
     def test_save_model(self):
         """Test _core._NonparametricMixin.save_model()."""
         # Clean up after old tests.
@@ -951,8 +951,35 @@ class TestNonparametricMixin:
 
 class TestParametricMixin:
     """Test _core._ParametricMixin."""
-    pass
+    def test_str(self):
+        """Test _core._ParametricMixin.__str__() (string representation)."""
+        # Continuous ROMs
+        model = roi._core.InterpolatedInferredContinuousROM("A")
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = Ax(t)"
+        model.c_ = lambda t: t
+        model.A_ = lambda t: t
+        model.modelform = "cA"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = c(µ) + A(µ)x(t)"
+        model.Hc_ = None
+        model.Gc_ = lambda t: t
+        model.B_ = None
+        model.modelform = "HB"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = H(x(t) ⊗ x(t)) + Bu(t)"
+        model.modelform = "G"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = G(µ)(x(t) ⊗ x(t) ⊗ x(t))"
 
+        # Discrete ROMs
+        model = roi._core.AffineIntrusiveDiscreteROM("cH")
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = c + H(x_{j} ⊗ x_{j})"
+        model.c_ = lambda t: t
+        model.Hc_ = None
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = c(µ) + H(x_{j} ⊗ x_{j})"
 
 # Specialized mixins (private) ================================================
 class TestInterpolatedMixin:

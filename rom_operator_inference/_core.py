@@ -481,18 +481,6 @@ class _DiscreteROM(_BaseROM):
 
         self.f_ = f_
 
-    def __str__(self):
-        """String representation: the structure of the model."""
-        self._check_modelform()
-        out = []
-        if self.has_constant:  out.append("c")
-        if self.has_linear:    out.append("Ax_{j}")
-        if self.has_quadratic: out.append("H(x_{j} ⊗ x_{j})")
-        if self.has_cubic:     out.append("G(x_{j} ⊗ x_{j} ⊗ x_{j})")
-        if self.has_inputs:    out.append("Bu_{j}")
-
-        return "Reduced-order model structure: x_{j+1} = " + " + ".join(out)
-
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
 
@@ -638,18 +626,6 @@ class _ContinuousROM(_BaseROM):
             f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u(t)
 
         self.f_ = f_
-
-    def __str__(self):
-        """String representation: the structure of the model."""
-        self._check_modelform()
-        out = []
-        if self.has_constant:  out.append("c")
-        if self.has_linear:    out.append("Ax(t)")
-        if self.has_quadratic: out.append("H(x ⊗ x)(t)")
-        if self.has_cubic:     out.append("G(x ⊗ x ⊗ x)(t)")
-        if self.has_inputs:    out.append("Bu(t)")
-
-        return "Reduced-order model structure: dx / dt = " + " + ".join(out)
 
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
@@ -1007,6 +983,25 @@ class _NonparametricMixin:
         """
         return None if self.Gc_ is None else Gc2G(self.Gc_)
 
+    def __str__(self):
+        """String representation: the structure of the model."""
+        discrete = isinstance(self, _DiscreteROM)
+        x = "x_{j}" if discrete else "x(t)"
+        u = "u_{j}" if discrete else "u(t)"
+        lhs = "x_{j+1}" if discrete else "dx / dt"
+        out = []
+        if self.has_constant:
+            out.append("c")
+        if self.has_linear:
+            out.append(f"A{x}")
+        if self.has_quadratic:
+            out.append(f"H({x} ⊗ {x})")
+        if self.has_cubic:
+            out.append(f"G({x} ⊗ {x} ⊗ {x})")
+        if self.has_inputs:
+            out.append(f"B{u}")
+        return f"Reduced-order model structure: {lhs} = " + " + ".join(out)
+
     def save_model(self, savefile, overwrite=False):
         """Serialize the model, saving it as an HDF5 file.
 
@@ -1065,8 +1060,45 @@ class _NonparametricMixin:
 
 class _ParametricMixin:
     """Mixin class for parametric reduced model classes."""
-    pass
-    # IDEA: check parameter dimension?
+    def __call__(self, µ):
+        """Construct the reduced model corresponding to the parameter µ."""
+        c_  = self.c_(µ)  if callable(self.c_)  else self.c_
+        A_  = self.A_(µ)  if callable(self.A_)  else self.A_
+        Hc_ = self.Hc_(µ) if callable(self.Hc_) else self.Hc_
+        Gc_ = self.Gc_(µ) if callable(self.Gc_) else self.Gc_
+        B_  = self.B_(µ)  if callable(self.B_)  else self.B_
+        cl = _DiscreteROM if isinstance(self, _DiscreteROM) else _ContinuousROM
+        return trained_model_from_operators(ModelClass=cl,
+                                            modelform=self.modelform,
+                                            Vr=self.Vr,
+                                            A_=A_, Hc_=Hc_, Gc_=Gc_, c_=c_,
+                                            B_=B_)
+
+    def __str__(self):
+        """String representation: the structure of the model."""
+        if not hasattr(self, "c_"):             # Untrained -> Nonparametric
+            return _NonparametricMixin.__str__(self)
+        discrete = isinstance(self, _DiscreteROM)
+
+        x = "x_{j}" if discrete else "x(t)"
+        u = "u_{j}" if discrete else "u(t)"
+        lhs = "x_{j+1}" if discrete else "dx / dt"
+        out = []
+        if self.has_constant:
+            out.append("c(µ)" if callable(self.c_)  else "c")
+        if self.has_linear:
+            A = "A(µ)" if callable(self.A_)  else "A"
+            out.append(A + f"{x}")
+        if self.has_quadratic:
+            H = "H(µ)" if callable(self.Hc_) else "H"
+            out.append(H + f"({x} ⊗ {x})")
+        if self.has_cubic:
+            G = "G(µ)" if callable(self.Gc_) else "G"
+            out.append(G + f"({x} ⊗ {x} ⊗ {x})")
+        if self.has_inputs:
+            B = "B(µ)" if callable(self.B_)  else "B"
+            out.append(B + f"{u}")
+        return f"Reduced-order model structure: {lhs} = "+" + ".join(out)
 
 
 # Specialized mixins (private) ================================================
@@ -1125,18 +1157,6 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
     def __len__(self):
         """The number of trained models."""
         return len(self.models_) if hasattr(self, "models_") else 0
-
-    def __call__(self, µ, discrete=False):
-        """Construct the reduced model corresponding to the parameter µ."""
-        c_  = self.c_(µ)  if self.c_  is not None else None
-        A_  = self.A_(µ)  if self.A_  is not None else None
-        Hc_ = self.Hc_(µ) if self.Hc_ is not None else None
-        Gc_ = self.Gc_(µ) if self.Gc_ is not None else None
-        B_  = self.B_(µ)  if self.B_  is not None else None
-        return trained_model_from_operators(
-                    ModelClass=_DiscreteROM if discrete else _ContinuousROM,
-                    modelform=self.modelform,
-                    Vr=self.Vr, A_=A_, Hc_=Hc_, Gc_=Gc_, c_=c_, B_=B_)
 
     def fit(self, ModelClass, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
@@ -1259,18 +1279,6 @@ class _AffineMixin(_ParametricMixin):
         if µ is not None:
             for a in affines.values():
                 AffineOperator(a).validate_coeffs(µ)
-
-    def __call__(self, µ, discrete=False):
-        """Construct the reduced model corresponding to the parameter µ."""
-        c_  = self.c_(µ)  if isinstance(self.c_, AffineOperator)  else self.c_
-        A_  = self.A_(µ)  if isinstance(self.A_, AffineOperator)  else self.A_
-        Hc_ = self.Hc_(µ) if isinstance(self.Hc_, AffineOperator) else self.Hc_
-        Gc_ = self.Gc_(µ) if isinstance(self.Gc_, AffineOperator) else self.Gc_
-        B_  = self.B_(µ)  if isinstance(self.B_, AffineOperator)  else self.B_
-        return trained_model_from_operators(
-                    ModelClass=_DiscreteROM if discrete else _ContinuousROM,
-                    modelform=self.modelform,
-                    Vr=self.Vr, c_=c_, A_=A_, Hc_=Hc_, Gc_=Gc_, B_=B_)
 
 
 class _AffineInferredMixin(_InferredMixin, _AffineMixin):
@@ -2246,10 +2254,6 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _InterpolatedMixin.__call__(self, µ, discrete=True)
-
     def fit(self, Vr, µs, Xs, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
@@ -2415,10 +2419,6 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _InterpolatedMixin.__call__(self, µ, discrete=False)
-
     def fit(self, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
@@ -2992,10 +2992,6 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _AffineMixin.__call__(self, µ, discrete=True)
-
     def predict(self, µ, x0, niters, U=None):
         """Construct a ROM for the parameter µ by exploiting the affine
         structure of the ROM operators, then step the resulting ROM forward
@@ -3141,10 +3137,6 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _AffineMixin.__call__(self, µ, discrete=False)
-
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by exploiting the affine
         structure of the ROM operators, then simulate the resulting ROM with
