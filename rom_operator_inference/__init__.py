@@ -41,4 +41,4 @@ __all__ = [
             "post",
           ]
 
-__version__ = "0.9.2a"
+__version__ = "1.0.0a"
