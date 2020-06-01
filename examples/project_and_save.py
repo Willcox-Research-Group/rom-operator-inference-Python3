@@ -18,10 +18,10 @@ def offdiag_penalizers(reg, r, m):
     where the model has the form dx / dt = c + Ax + H(x⊗x) + Bu.
     """
     regI = np.sqrt(reg) * np.eye(1 + r + r*(r+1)//2 + m)
-    Gs = [regI] * r
-    for i in range(1, r+1):
-        Gs[i][i,i] = 0
-    return Gs
+    Ps = [regI.copy() for _ in range(r)]
+    for i in range(r):
+        Ps[i][i+1,i+1] = 0
+    return Ps
 
 
 def compute_randomized_svd(data, savepath, n_components=500):

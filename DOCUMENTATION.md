@@ -68,6 +68,7 @@ Each character in the string corresponds to a single term of the operator, given
 | `c` | Constant | <img src="img/doc/chat.svg"/> | <img src="img/doc/chat.svg"/> |
 | `A` | Linear | <img src="img/doc/Ahatxhat(t).svg"> | <img src="img/doc/Ahatxhatk.svg"> |
 | `H` | Quadratic | <img src="img/doc/Hhatkronx(t).svg"> | <img src="img/doc/Hhatkronxk.svg"> |
+| `G` | Cubic | <img src="img/doc/Ghatkronx(t).svg"> | <img src="img/doc/Ghatkronxk.svg"> |
 | `B` | Input | <img src="img/doc/Bhatu(t).svg"/> | <img src="img/doc/Bhatuk.svg"/> |
 
 <!-- | `G` | Cubic | <img src="https://latex.codecogs.com/svg.latex?\hat{G}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\hat{G}(\hat{\mathbf{x}}_k\otimes\hat{\mathbf{x}}_k\otimes\hat{\mathbf{x}}_k)"/> | -->
@@ -92,6 +93,7 @@ All `ROM` classes have the following attributes.
     - `has_constant`: boolean, whether or not there is a constant term _**c**_.
     - `has_linear`: boolean, whether or not there is a linear term _A**x**_.
     - `has_quadratic`: boolean, whether or not there is a quadratic term _H(**x**⊗**x**)_.
+    - `has_cubic`: boolean, whether or not there is a cubic term _G(**x**⊗**x**⊗**x**)_.
     - `has_inputs`: boolean, whether or not there is an input term _B**u**_.
     <!-- - `has_outputs`: boolean, whether or not there is an output _C**x**_. -->
 
@@ -101,8 +103,8 @@ All `ROM` classes have the following attributes.
     - `m`: The dimension of the input **u**, or `None` if `'B'` is not in `modelform`.
     <!-- - `l`: The dimension of the output **y**, or `None` if `has_outputs` is `False`. -->
 
-- Reduced operators `c_`, `A_`, `H_`, `Hc_`, and `B_`: the [NumPy](https://numpy.org/) arrays corresponding to the learned parts of the reduced-order model.
-Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="AH"`, then `c_` and `B_` are `None`).
+- Reduced operators `c_`, `A_`, `H_`, `Hc_`, `G_`, `Gc_`, and `B_`: the [NumPy](https://numpy.org/) arrays corresponding to the learned parts of the reduced-order model.
+Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="AHG"`, then `c_` and `B_` are `None`).
 
 - Reduced model function `f_`: the ROM function, defined by the reduced operators listed above.
 This attribute is constructed in `fit()`.
@@ -265,9 +267,10 @@ This class constructs a reduced-order model for the continuous, nonparametric sy
 
 via intrusive projection, i.e.,
 
-<p align="center"><img src="img/doc/intrusive_ops.svg"/></p>
+<p align="center"><img src="img/doc/intrusive_ops1.svg"/></p>
+<p align="center"><img src="img/doc/intrusive_ops2.svg"/></p>
 
-The class requires the actual full-order operators (_**c**_, _A_, _H_, and/or _B_) that define **f**.
+The class requires the actual full-order operators (_**c**_, _A_, _H_, _G_, and/or _B_) that define **f**.
 
 **`IntrusiveContinuousROM.fit(Vr, operators)`**: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
 - **Parameters**
@@ -294,9 +297,10 @@ This class constructs a reduced-order model for the discrete, nonparametric syst
 
 via intrusive projection, i.e.,
 
-<p align="center"><img src="img/doc/intrusive_ops.svg"/></p>
+<p align="center"><img src="img/doc/intrusive_ops1.svg"/></p>
+<p align="center"><img src="img/doc/intrusive_ops2.svg"/></p>
 
-The class requires the actual full-order operators (_**c**_, _A_, _H_, and/or _B_) that define **f**.
+The class requires the actual full-order operators (_**c**_, _A_, _H_, _G_, and/or _B_) that define **f**.
 
 **`IntrusiveDiscreteROM.fit(Vr, operators)`**: Compute the operators of the reduced-order model by projecting the operators of the full-order model.
 - **Parameters**
@@ -390,20 +394,24 @@ None of these routines are novel, but they may be instructive for new Python use
 
 **`pre.mean_shift(X)`**: Compute the mean of the columns of `X` and shift `X` by that mean so that the result has mean column of zero.
 
-**`pre.pod_basis(X, r, mode="arpack", **options)`**: Compute the POD basis of rank `r` for a snapshot matrix `X`.
+**`pre.pod_basis(X, r=None, mode="simple", **options)`**: Compute the POD basis of rank `r` and the associated singular values for a snapshot matrix `X`. If `r = None`, compute all singular vectors / values. This function simply wraps a few SVD methods, selected by `mode`:
+- `mode="simple"`: [`scipy.linalg.svd()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.svd.html)
+- `mode="arpack"`: [`scipy.sparse.linalg.svds()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.svds.html)
+- `mode="randomized"`: [`sklearn.utils.extmath.randomized_svd()`](https://scikit-learn.org/stable/modules/generated/sklearn.utils.extmath.randomized_svd.html)
 
-**`pre.significant_svdvals(X, eps, plot=False)`**: Count the number of singular values of `X` that are greater than `eps`.
+Use `**options` to specify additional parameters for these wrapped functions.
 
-**`pre.energy_capture(X, thresh, plot=False)`**: Compute the number of singular values of `X` needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>
+**`pre.significant_svdvals(singular_values, eps, plot=False)`**: Count the number of singular values that are greater than `eps`. The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the singular values on a log scale.
+
+**`pre.energy_capture(singular_values, thresh, plot=False)`**: Compute the number of singular values needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the cumulative energy on a log scale.
 
 **`pre.projection_error(X, Vr)`**: Compute the relative projection error on _X_ induced by the basis matrix _V<sub>r</sub>_, <p align="center"><img src="img/doc/proj_err.svg"/></p>
 
-**`pre.minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options)`**: Compute the number of POD basis vectors required to obtain a projection
-error less than `eps`, capped at `rmax`.
+**`pre.minimal_projection_error(X, V, eps, plot=False)`**: Compute the number of POD basis vectors required to obtain a projection error less than `eps`, up to the number of columns of `V`. If `plot=True`, plot the projection error on a log scale as a function of the basis size.
 
-**`pre.reproject_continuous(f, Vr, X, U=None)`**: Sample re-projected trajectories of the continuous system of ODEs defined by `f`.
+**`pre.reproject_continuous(f, Vr, X, U=None)`**: Sample re-projected trajectories [\[5\]](https://arxiv.org/abs/1908.11233) of the continuous system of ODEs defined by `f`.
 
-**`pre.reproject_discrete(f, Vr, x0, niters, U=None)`**: Sample re-projected trajectories of the discrete dynamical system defined by `f`.
+**`pre.reproject_discrete(f, Vr, x0, niters, U=None)`**: Sample re-projected trajectories [\[5\]](https://arxiv.org/abs/1908.11233) of the discrete dynamical system defined by `f`.
 
 **`pre.xdot_uniform(X, dt, order=2)`**: Approximate the first derivative of a snapshot matrix `X` in which the snapshots are evenly spaced in time.
 
@@ -476,6 +484,10 @@ To calculate _d_ for a specific model, use `utils.get_least_squares_size()`.
 
 **`utils.expand_Hc(Hc)`**: Convert the compact _r_ x (_r_(_r_+1)/2) matricized quadratic operator `Hc` to the full, symmetric, _r_ x _r_<sup>2</sup> matricized quadratic operator `H`.
 
+**`utils.compress_G(G)`**: Convert the full _r_ x _r_<sup>3</sup> matricized cubic operator `G` to the compact _r_ x (_r_(_r_+1)(_r_+2)/6) matricized cubic operator `Gc`.
+
+**`utils.expand_Gc(Gc)`**: Convert the compact _r_ x (_r_(_r_+1)(_r_+2)/6) matricized cubic operator `Gc` to the full, symmetric, _r_ x _r_<sup>3</sup> matricized cubic operator `G`.
+
 
 ## Index of Notation
 
@@ -546,6 +558,8 @@ t\ge 0 &= \text{time}\\
 | <img src="img/ntn/AAhat.svg"/> | `A_` | <img src="img/ntn/rxr.svg"/> | Learned state matrix |
 | <img src="img/ntn/HHhat.svg"/> | `H_` | <img src="img/ntn/rxr2.svg"/> | Learned matricized quadratic tensor |
 | <img src="img/ntn/HHhatc.svg"/> | `Hc_` | <img src="img/ntn/rxr2c.svg"/> | Learned matricized quadratic tensor without redundancy (compact) |
+| <img src="img/ntn/GGhat.svg"/> | `G_` | <img src="img/ntn/rxr3.svg"/> | Learned matricized cubic tensor |
+| <img src="img/ntn/GGhatc.svg"/> | `Gc_` | <img src="img/ntn/rxr3c.svg"/> | Learned matricized cubic tensor without redundancy (compact) |
 | <img src="img/ntn/BBhat.svg"/> | `B_` | <img src="img/ntn/rxm.svg"/> | Learned input matrix |
 
 <!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{N}_i"/> | `Ni_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Bilinear state-input matrix for _i_th input | -->
@@ -634,5 +648,13 @@ _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
     volume  = {406},
     pages   = {132401},
     url     = {https://doi.org/10.1016/j.physd.2020.132401},
+    year    = {2020}
+}</pre></details>
+
+- \[8\] Benner, P., Goyal, P., Kramer, B., Peherstorfer, B., and Willcox, K. [Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms](https://arxiv.org/abs/2002.09726). arXiv:2002.09726. Also Oden Institute Report 20-04. ([Download](https://kiwi.oden.utexas.edu/papers/Non-intrusive-nonlinear-model-reduction-Benner-Goyal-Kramer-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{benner2020operator,
+    title   = {Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms},
+    author  = {Benner, P. and Goyal, P. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
+    journal = {arXiv preprint arXiv:2002.09726},
     year    = {2020}
 }</pre></details>

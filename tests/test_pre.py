@@ -22,32 +22,53 @@ def test_pod_basis(set_up_basis_data):
     """Test pre.pod_basis() on a small case with the ARPACK solver."""
     X = set_up_basis_data
     n,k = X.shape
-    r = k // 10
+
+    # Try with an invalid rank.
+    rmax = min(n,k)
+    with pytest.raises(ValueError) as exc:
+        roi.pre.pod_basis(X, rmax+1)
+    assert exc.value.args[0] == \
+        f"invalid POD rank r = {rmax+1} (need 1 <= r <= {rmax})"
+
+    with pytest.raises(ValueError) as exc:
+        roi.pre.pod_basis(X, -1)
+    assert exc.value.args[0] == \
+        f"invalid POD rank r = -1 (need 1 <= r <= {rmax})"
 
     # Try with an invalid mode.
     with pytest.raises(NotImplementedError) as exc:
-        roi.pre.pod_basis(X, r, mode="dense")
+        roi.pre.pod_basis(X, None, mode="dense")
     assert exc.value.args[0] == "invalid mode 'dense'"
 
-    Ur = la.svd(X)[0][:,:r]
+    U, vals, _ = la.svd(X, full_matrices=False)
+    for r in [2, 10, rmax]:
+        Ur = U[:,:r]
+        vals_r = vals[:r]
 
-    # Via scipy.linalg.svd().
-    Vr = roi.pre.pod_basis(X, r, mode="simple")
-    assert Vr.shape == (n,r)
-    assert np.allclose(Vr, Ur)
+        # Via scipy.linalg.svd().
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="simple")
+        assert Vr.shape == (n,r)
+        assert np.allclose(Vr, Ur)
+        assert svdvals.shape == (r,)
+        assert np.allclose(svdvals, vals_r)
 
-    # Via scipy.sparse.linalg.svds() (ARPACK).
-    Vr = roi.pre.pod_basis(X, r, mode="arpack")
-    assert Vr.shape == (n,r)
-    for j in range(r):              # Make sure the columns have the same sign.
-        if not np.isclose(Ur[0,j], Vr[0,j]):
-            Vr[:,j] = -Vr[:,j]
-    assert np.allclose(Vr, Ur)
+        # Via scipy.sparse.linalg.svds() (ARPACK).
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="arpack")
+        assert Vr.shape == (n,r)
+        for j in range(r):      # Make sure the columns have the same sign.
+            if not np.isclose(Ur[0,j], Vr[0,j]):
+                Vr[:,j] = -Vr[:,j]
+        assert np.allclose(Vr, Ur)
+        assert svdvals.shape == (r,)
+        assert np.allclose(svdvals, vals_r)
 
-    # Via sklearn.utils.extmath.randomized_svd().
-    Vr = roi.pre.pod_basis(X, r, mode="randomized")
-    assert Vr.shape == (n,r)
-    # No accuracy test, since that is not guaranteed by randomized SVD.
+        # Via sklearn.utils.extmath.randomized_svd().
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="randomized")
+        assert Vr.shape == (n,r)
+        # Light accuracy test (equality not guaranteed by randomized SVD).
+        assert la.norm(np.abs(Vr) - np.abs(Ur)) < 5
+        assert svdvals.shape == (r,)
+        assert la.norm(svdvals - vals_r) < 3
 
 
 def test_mean_shift(set_up_basis_data):
@@ -69,18 +90,14 @@ def test_mean_shift(set_up_basis_data):
 def test_significant_svdvals(set_up_basis_data):
     """Test pre.significant_svdvals()."""
     X = set_up_basis_data
-
-    # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
-        roi.pre.significant_svdvals(np.ravel(X), 1e-14, plot=False)
-    assert exc.value.args[0] == "data X must be two-dimensional"
+    svdvals = la.svdvals(X)
 
     # Single cutoffs.
-    r = roi.pre.significant_svdvals(X, 1e-14, plot=False)
+    r = roi.pre.significant_svdvals(svdvals, 1e-14, plot=False)
     assert isinstance(r, int) and r >= 1
 
     # Multiple cutoffss.
-    rs = roi.pre.significant_svdvals(X, [1e-10, 1e-12], plot=False)
+    rs = roi.pre.significant_svdvals(svdvals, [1e-10,1e-12], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, int) and r >= 1
@@ -89,9 +106,9 @@ def test_significant_svdvals(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = roi.pre.significant_svdvals(X, .0001, plot=True)
+    rs = roi.pre.significant_svdvals(svdvals, .0001, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = roi.pre.significant_svdvals(X, [1e-4, 1e-8, 1e-12], plot=True)
+    rs = roi.pre.significant_svdvals(svdvals, [1e-4, 1e-8, 1e-12], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
@@ -100,18 +117,14 @@ def test_significant_svdvals(set_up_basis_data):
 def test_energy_capture(set_up_basis_data):
     """Test pre.energy_capture()."""
     X = set_up_basis_data
-
-    # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
-        roi.pre.energy_capture(np.ravel(X), .99)
-    assert exc.value.args[0] == "data X must be two-dimensional"
+    svdvals = la.svdvals(X)
 
     # Single threshold.
-    r = roi.pre.energy_capture(X, .9, plot=False)
+    r = roi.pre.energy_capture(svdvals, .9, plot=False)
     assert isinstance(r, np.int64) and r >= 1
 
     # Multiple thresholds.
-    rs = roi.pre.energy_capture(X, [.9, .99, .999], plot=False)
+    rs = roi.pre.energy_capture(svdvals, [.9, .99, .999], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, np.int64) and r >= 1
@@ -120,9 +133,9 @@ def test_energy_capture(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = roi.pre.energy_capture(X, .999, plot=True)
+    rs = roi.pre.energy_capture(svdvals, .999, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = roi.pre.energy_capture(X, [.9, .99, .999], plot=True)
+    rs = roi.pre.energy_capture(svdvals, [.9, .99, .999], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
@@ -140,18 +153,24 @@ def test_projection_error(set_up_basis_data):
 def test_minimal_projection_error(set_up_basis_data):
     """Test pre.minimal_projection_error()."""
     X = set_up_basis_data
+    V = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
 
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
-        roi.pre.minimal_projection_error(np.ravel(X), 1e-14, plot=False)
+        roi.pre.minimal_projection_error(np.ravel(X), V, 1e-14, plot=False)
     assert exc.value.args[0] == "data X must be two-dimensional"
 
+    # Try with bad basis shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.minimal_projection_error(X, V[0], 1e-14, plot=False)
+    assert exc.value.args[0] == "basis V must be two-dimensional"
+
     # Single cutoffs.
-    r = roi.pre.minimal_projection_error(X, 1e-14, 10, plot=False)
+    r = roi.pre.minimal_projection_error(X, V, 1e-14, plot=False)
     assert isinstance(r, int) and r >= 1
 
     # Multiple cutoffs.
-    rs = roi.pre.minimal_projection_error(X, [1e-10, 1e-12], 10, plot=False)
+    rs = roi.pre.minimal_projection_error(X, V, [1e-10, 1e-12], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, int) and r >= 1
@@ -160,9 +179,9 @@ def test_minimal_projection_error(set_up_basis_data):
     # Plotting
     status = plt.isinteractive()
     plt.ion()
-    roi.pre.minimal_projection_error(X, .0001, 10, plot=True)
+    roi.pre.minimal_projection_error(X, V, .0001, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    roi.pre.minimal_projection_error(X, [1e-4, 1e-6, 1e-10], 10, plot=True)
+    roi.pre.minimal_projection_error(X, V, [1e-4, 1e-6, 1e-10], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")

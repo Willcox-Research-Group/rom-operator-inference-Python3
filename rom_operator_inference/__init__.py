@@ -3,11 +3,11 @@
 
 Author: Renee C. Swischuk et al.
 Maintainer: Shane A. McQuarrie
-Github: https://github.com/shanemcq18/rom-operator-inference-Python3
+Github: https://github.com/swischuk/rom-operator-inference-Python3
 """
 
 from ._core import (
-                    select_model,
+                    select_model, load_model,
                     trained_model_from_operators,
                     InferredDiscreteROM,
                     InferredContinuousROM,
@@ -22,6 +22,8 @@ from . import utils, pre, post
 
 
 __all__ = [
+            "select_model", "load_model",
+            "trained_model_from_operators",
             "InferredDiscreteROM",
             "InferredContinuousROM",
             "IntrusiveDiscreteROM"
@@ -35,4 +37,4 @@ __all__ = [
             "post",
           ]
 
-__version__ = "0.7.8"
+__version__ = "1.0.0"

@@ -1,6 +1,8 @@
 # _core.py
 """Classes for reduction of dynamical systems."""
 
+import os
+import h5py
 import warnings
 import itertools
 import numpy as np
@@ -9,9 +11,9 @@ from scipy.interpolate import CubicSpline
 from scipy.integrate import solve_ivp, IntegrationWarning
 
 from .utils import (lstsq_reg,
-                    expand_Hc as Hc2H,
-                    compress_H as H2Hc,
-                    kron2c)
+                    expand_Hc as Hc2H, compress_H as H2Hc,
+                    expand_Gc as Gc2G, compress_G as G2Gc,
+                    kron2c, kron3c)
 
 
 # Helper functions and classes (public) =======================================
@@ -96,7 +98,9 @@ def select_model(time, rom_strategy, parametric=False):
 
 
 def trained_model_from_operators(ModelClass, modelform, Vr,
-                                 c_=None, A_=None, H_=None, Hc_=None, B_=None):
+                                 c_=None, A_=None,
+                                 H_=None, Hc_=None,
+                                 G_=None, Gc_=None, B_=None):
     """Construct a prediction-capable ROM object from the operators of
     the reduced model.
 
@@ -125,6 +129,14 @@ def trained_model_from_operators(ModelClass, modelform, Vr,
         Reduced quadratic state matrix (compact), or None if 'H' is not in
         `modelform`. Only used if `H_` is also None.
 
+    G_ : (r,r**3) ndarray or None
+        Reduced cubic state matrix (full size), or None if 'G' is not in
+        `modelform`.
+
+    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
+        Reduced cubic state matrix (compact), or None if 'G' is not in
+        `modelform`. Only used if `G_` is also None.
+
     B_ : (r,m) ndarray or None
         Reduced input matrix, or None if 'B' is not in `modelform`.
 
@@ -147,11 +159,52 @@ def trained_model_from_operators(ModelClass, modelform, Vr,
     model.m = None if B_ is None else 1 if B_.ndim == 1 else B_.shape[1]
     model.c_, model.A_, model.B_ = c_, A_, B_
     model.Hc_ = H2Hc(H_) if H_ else Hc_
+    model.Gc_ = G2Gc(G_) if G_ else Gc_
 
     # Construct the complete reduced model operator from the arguments.
     model._construct_f_()
 
     return model
+
+
+def load_model(loadfile):
+    """Load a serialized model from an HDF5 file, which should have been
+    created from a ROM object's save_model() method.
+
+    Parameters
+    ----------
+    loadfile : str
+        The file to load from, which should end in '.h5'.
+
+    Returns
+    -------
+    model : ROM class
+        The trained reduced-order model.
+    """
+    if not os.path.isfile(loadfile):
+        raise FileNotFoundError(loadfile)
+
+    with h5py.File(loadfile, 'r') as data:
+        if "meta" not in data:
+            raise ValueError("invalid save format (meta/ not found)")
+        if "operators" not in data:
+            raise ValueError("invalid save format (operators/ not found)")
+
+        # Load metadata.
+        modelclass = data["meta"].attrs["modelclass"]
+        modelform = data["meta"].attrs["modelform"]
+
+        # Load basis.
+        Vr = data["Vr"][:] if "Vr" in data else None
+
+        # Load operators.
+        operators = {x+'_': data[f"operators/{x}_"][:] for x in modelform}
+
+    try:
+        ModelClass = eval(modelclass)
+    except NameError as ex:
+        raise ValueError(f"invalid modelclass '{modelclass}' (meta.attrs)")
+    return trained_model_from_operators(ModelClass, modelform, Vr, **operators)
 
 
 class AffineOperator:
@@ -264,9 +317,12 @@ class AffineOperator:
 # Base classes (private) ======================================================
 class _BaseROM:
     """Base class for all rom_operator_inference reduced model classes."""
-    _MODEL_KEYS = "cAHB"                # Constant, Linear, Quadratic, Input
+    _MODEL_KEYS = "cAHGB"       # Constant, Linear, Quadratic, Cubic, Input.
 
     def __init__(self, modelform):
+        if not isinstance(self, (_ContinuousROM, _DiscreteROM)):
+            raise RuntimeError("abstract class instantiation "
+                               "(use _ContinuousROM or _DiscreteROM)")
         self.modelform = modelform
 
     @property
@@ -290,9 +346,9 @@ class _BaseROM:
     def has_quadratic(self):
         return "H" in self.modelform
 
-    # @property
-    # def has_cubic(self):
-    #     return "G" in self.modelform
+    @property
+    def has_cubic(self):
+        return "G" in self.modelform
 
     @property
     def has_inputs(self):
@@ -312,7 +368,7 @@ class _BaseROM:
         if trained:
             # Make sure that the required attributes exist and aren't None,
             # and that nonrequired attributes exist but are None.
-            for key, s in zip("cAHB", ["c_", "A_", "Hc_", "B_"]):
+            for key, s in zip("cAHGB", ["c_", "A_", "Hc_", "Gc_", "B_"]):
                 if not hasattr(self, s):
                     raise AttributeError(f"attribute '{s}' missing;"
                                          " call fit() to train model")
@@ -340,6 +396,23 @@ class _BaseROM:
             raise ValueError(f"{label} not aligned with Vr, dimension 0")
         return self.Vr.T @ S if S.shape[0] == self.n else S
 
+    @property
+    def operator_norm_(self):
+        """Calculate the squared Frobenius norm of the ROM operators."""
+        self._check_modelform(trained=True)
+        total = 0
+        if self.has_constant:
+            total += np.sum(self.c_**2)
+        if self.has_linear:
+            total += np.sum(self.A_**2)
+        if self.has_quadratic:
+            total += np.sum(self.Hc_**2)
+        if self.has_cubic:
+            total += np.sum(self.Gc_**2)
+        if self.has_inputs:
+            total += np.sum(self.B_**2)
+        return total
+
 
 class _DiscreteROM(_BaseROM):
     """Base class for models that solve the discrete ROM problem,
@@ -358,16 +431,33 @@ class _DiscreteROM(_BaseROM):
             f_ = lambda x_: self.c_
         elif self.modelform == "A":
             f_ = lambda x_: self.A_@x_
-        elif self.modelform == "cA":
-            f_ = lambda x_: self.c_ + self.A_@x_
         elif self.modelform == "H":
             f_ = lambda x_: self.Hc_@kron2c(x_)
+        elif self.modelform == "G":
+            f_ = lambda x_: self.Gc_@kron3c(x_)
+        elif self.modelform == "cA":
+            f_ = lambda x_: self.c_ + self.A_@x_
         elif self.modelform == "cH":
             f_ = lambda x_: self.c_ + self.Hc_@kron2c(x_)
+        elif self.modelform == "cG":
+            f_ = lambda x_: self.c_ + self.Gc_@kron3c(x_)
         elif self.modelform == "AH":
             f_ = lambda x_: self.A_@x_ + self.Hc_@kron2c(x_)
+        elif self.modelform == "AG":
+            f_ = lambda x_: self.A_@x_ + self.Gc_@kron3c(x_)
+        elif self.modelform == "HG":
+            f_ = lambda x_: self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
         elif self.modelform == "cAH":
             f_ = lambda x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_)
+        elif self.modelform == "cAG":
+            f_ = lambda x_: self.c_ + self.A_@x_ + self.Gc_@kron3c(x_)
+        elif self.modelform == "cHG":
+            f_ = lambda x_: self.c_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
+        elif self.modelform == "AHG":
+            f_ = lambda x_: self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
+        elif self.modelform == "cAHG":
+            f_ = lambda x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
+
         # Has control inputs, so f = f(x, u).
         elif self.modelform == "B":
             f_ = lambda x_,u: self.B_@u
@@ -375,29 +465,34 @@ class _DiscreteROM(_BaseROM):
             f_ = lambda x_,u: self.c_ + self.B_@u
         elif self.modelform == "AB":
             f_ = lambda x_,u: self.A_@x_ + self.B_@u
-        elif self.modelform == "cAB":
-            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.B_@u
         elif self.modelform == "HB":
             f_ = lambda x_,u: self.Hc_@kron2c(x_) + self.B_@u
+        elif self.modelform == "GB":
+            f_ = lambda x_,u: self.Gc_@kron3c(x_) + self.B_@u
+        elif self.modelform == "cAB":
+            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.B_@u
         elif self.modelform == "cHB":
             f_ = lambda x_,u: self.c_ + self.Hc_@kron2c(x_) + self.B_@u
+        elif self.modelform == "cGB":
+            f_ = lambda x_,u: self.c_ + self.Gc_@kron3c(x_) + self.B_@u
         elif self.modelform == "AHB":
             f_ = lambda x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u
+        elif self.modelform == "AGB":
+            f_ = lambda x_,u: self.A_@x_ + self.Gc_@kron3c(x_) + self.B_@u
+        elif self.modelform == "HGB":
+            f_ = lambda x_,u: self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u
         elif self.modelform == "cAHB":
             f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u
+        elif self.modelform == "cAGB":
+            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Gc_@kron3c(x_) + self.B_@u
+        elif self.modelform == "cHGB":
+            f_ = lambda x_,u: self.c_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u
+        elif self.modelform == "AHGB":
+            f_ = lambda x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u
+        elif self.modelform == "cAHGB":
+            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u
 
         self.f_ = f_
-
-    def __str__(self):
-        """String representation: the structure of the model."""
-        self._check_modelform()
-        out = []
-        if self.has_constant:  out.append("c")
-        if self.has_linear:    out.append("Ax_{j}")
-        if self.has_quadratic: out.append("H(x_{j} ⊗ x_{j})")
-        if self.has_inputs:    out.append("Bu_{j}")
-
-        return "Reduced-order model structure: x_{j+1} = " + " + ".join(out)
 
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
@@ -477,17 +572,34 @@ class _ContinuousROM(_BaseROM):
         elif self.modelform == "A":
             f_ = lambda t,x_: self.A_@x_
             # self._jac = self.A_
+        elif self.modelform == "H":
+            f_ = lambda t,x_: self.Hc_@kron2c(x_)
+        elif self.modelform == "G":
+            f_ = lambda t,x_: self.Gc_@kron3c(x_)
         elif self.modelform == "cA":
             f_ = lambda t,x_: self.c_ + self.A_@x_
             # self._jac = self.A_
-        elif self.modelform == "H":
-            f_ = lambda t,x_: self.Hc_@kron2c(x_)
         elif self.modelform == "cH":
             f_ = lambda t,x_: self.c_ + self.Hc_@kron2c(x_)
+        elif self.modelform == "cG":
+            f_ = lambda t,x_: self.c_ + self.Gc_@kron3c(x_)
         elif self.modelform == "AH":
             f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2c(x_)
+        elif self.modelform == "AG":
+            f_ = lambda t,x_: self.A_@x_ + self.Gc_@kron3c(x_)
+        elif self.modelform == "HG":
+            f_ = lambda t,x_: self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
         elif self.modelform == "cAH":
             f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_)
+        elif self.modelform == "cAG":
+            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Gc_@kron3c(x_)
+        elif self.modelform == "cHG":
+            f_ = lambda t,x_: self.c_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
+        elif self.modelform == "AHG":
+            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
+        elif self.modelform == "cAHG":
+            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
+
         # Has control inputs.
         elif self.modelform == "B":
             f_ = lambda t,x_,u: self.B_@u(t)
@@ -498,29 +610,35 @@ class _ContinuousROM(_BaseROM):
         elif self.modelform == "AB":
             f_ = lambda t,x_,u: self.A_@x_ + self.B_@u(t)
             # self._jac = self.A_
+        elif self.modelform == "HB":
+            f_ = lambda t,x_,u: self.Hc_@kron2c(x_) + self.B_@u(t)
+        elif self.modelform == "GB":
+            f_ = lambda t,x_,u: self.Gc_@kron3c(x_) + self.B_@u(t)
         elif self.modelform == "cAB":
             f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.B_@u(t)
             # self._jac = self.A_
-        elif self.modelform == "HB":
-            f_ = lambda t,x_,u: self.Hc_@kron2c(x_) + self.B_@u(t)
         elif self.modelform == "cHB":
             f_ = lambda t,x_,u: self.c_ + self.Hc_@kron2c(x_) + self.B_@u(t)
+        elif self.modelform == "cGB":
+            f_ = lambda t,x_,u: self.c_ + self.Gc_@kron3c(x_) + self.B_@u(t)
         elif self.modelform == "AHB":
             f_ = lambda t,x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u(t)
+        elif self.modelform == "AGB":
+            f_ = lambda t,x_,u: self.A_@x_ + self.Gc_@kron3c(x_) + self.B_@u(t)
+        elif self.modelform == "HGB":
+            f_ = lambda t,x_,u: self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u(t)
         elif self.modelform == "cAHB":
             f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u(t)
+        elif self.modelform == "cAGB":
+            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Gc_@kron3c(x_) + self.B_@u(t)
+        elif self.modelform == "cHGB":
+            f_ = lambda t,x_,u: self.c_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u(t)
+        elif self.modelform == "AHGB":
+            f_ = lambda t,x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u(t)
+        elif self.modelform == "cAHGB":
+            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u(t)
+
         self.f_ = f_
-
-    def __str__(self):
-        """String representation: the structure of the model."""
-        self._check_modelform()
-        out = []
-        if self.has_constant:  out.append("c")
-        if self.has_linear:    out.append("Ax(t)")
-        if self.has_quadratic: out.append("H(x ⊗ x)(t)")
-        if self.has_inputs:    out.append("Bu(t)")
-
-        return "Reduced-order model structure: dx / dt = " + " + ".join(out)
 
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
@@ -698,7 +816,12 @@ class _InferredMixin:
         if self.has_quadratic:
             X2_ = kron2c(X_)
             D_blocks.append(X2_.T)
-            _r2 = X2_.shape[0]   # = r(r+1)//2, size of the compact Kronecker.
+            _r2 = X2_.shape[0]  # = r(r+1)/2, size of compact quadratic Kron.
+
+        if self.has_cubic:
+            X3_ = kron3c(X_)
+            D_blocks.append(X3_.T)
+            _r3 = X3_.shape[0]  # = r(r+1)(r+2)/6, size of compact cubic Kron.
 
         if self.has_inputs:
             D_blocks.append(U.T)
@@ -731,6 +854,12 @@ class _InferredMixin:
             i += _r2
         else:
             self.Hc_ = None
+
+        if self.has_cubic:
+            self.Gc_ = Otrp[i:i+_r3].T
+            i += _r3
+        else:
+            self.Gc_ = None
 
         if self.has_inputs:
             self.B_ = Otrp[i:i+self.m].T
@@ -772,6 +901,7 @@ class _IntrusiveMixin:
             * 'c': constant term c.
             * 'A': linear state matrix A.
             * 'H': quadratic state matrix H (either full H or compact Hc).
+            * 'G': cubic state matrix H (either full G or compact Gc).
             * 'B': input matrix B.
 
         Returns
@@ -820,6 +950,22 @@ class _IntrusiveMixin:
         else:
             self.Hc, self.H, self.Hc_ = None, None, None
 
+        if self.has_cubic:
+            G_or_Gc = operators['G']
+            _n3 = self.n * (self.n + 1) * (self.n + 2) // 6
+            if G_or_Gc.shape == (self.n,self.n**3):         # It's G.
+                self.G = G_or_Gc
+                self.Gc = G2Gc(self.G)
+            elif G_or_Gc.shape == (self.n,_n3):             # It's Gc.
+                self.Gc = G_or_Gc
+                self.G = Gc2G(self.Gc)
+            else:
+                raise ValueError("basis Vr and FOM operator G not aligned")
+            G_ = self.Vr.T @ self.G @ np.kron(self.Vr,np.kron(self.Vr,self.Vr))
+            self.Gc_ = G2Gc(G_)
+        else:
+            self.Gc, self.G, self.Gc_ = None, None, None
+
         if self.has_inputs:                 # Linear input matrix.
             self.B = operators['B']
             if self.B.shape[0] != self.n:
@@ -844,16 +990,141 @@ class _NonparametricMixin:
         """Matricized quadratic tensor; operates on full Kronecker product."""
         return None if self.Hc_ is None else Hc2H(self.Hc_)
 
+    @property
+    def G_(self):
+        """Matricized cubic tensor; operates on full cubic Kronecker product.
+        """
+        return None if self.Gc_ is None else Gc2G(self.Gc_)
+
+    def __str__(self):
+        """String representation: the structure of the model."""
+        discrete = isinstance(self, _DiscreteROM)
+        x = "x_{j}" if discrete else "x(t)"
+        u = "u_{j}" if discrete else "u(t)"
+        lhs = "x_{j+1}" if discrete else "dx / dt"
+        out = []
+        if self.has_constant:
+            out.append("c")
+        if self.has_linear:
+            out.append(f"A{x}")
+        if self.has_quadratic:
+            out.append(f"H({x} ⊗ {x})")
+        if self.has_cubic:
+            out.append(f"G({x} ⊗ {x} ⊗ {x})")
+        if self.has_inputs:
+            out.append(f"B{u}")
+        return f"Reduced-order model structure: {lhs} = " + " + ".join(out)
+
+    def save_model(self, savefile, save_basis=True, overwrite=False):
+        """Serialize the model, saving it as an HDF5 file.
+
+        Parameters
+        ----------
+        savefile : str
+            The file to save to. If it does not end with '.h5', the extension
+            will be tacked on to the end.
+
+        savebasis : bool
+            If True, save the basis Vr.
+
+        overwrite : bool
+            If True and the specified file already exists, overwrite the file.
+            If False and the specified file already exists, raise an error.
+        """
+        # Make sure the file is saved in HDF5 format.
+        if not savefile.endswith(".h5"):
+            savefile += ".h5"
+
+        if os.path.isfile(savefile):
+            if overwrite:
+                # Temporarily move the file to be deleted.
+                folder = os.path.dirname(savefile)
+                filename = os.path.basename(savefile)
+                tempfile = os.path.join(folder, "__"+filename)
+                os.rename(savefile, tempfile)
+            else:
+                raise FileExistsError(savefile)
+
+        try:
+            with h5py.File(savefile, 'w') as f:
+                # Store metadata.
+                meta = f.create_dataset("meta", shape=(0,))
+                meta.attrs["modelclass"] = self.__class__.__name__
+                meta.attrs["modelform"] = self.modelform
+                # Store arrays.
+                if (self.Vr is not None) and save_basis:
+                    f.create_dataset("Vr", data=self.Vr)
+                if self.has_constant:
+                    f.create_dataset("operators/c_", data=self.c_)
+                if self.has_linear:
+                    f.create_dataset("operators/A_", data=self.A_)
+                if self.has_quadratic:
+                    f.create_dataset("operators/Hc_", data=self.Hc_)
+                if self.has_cubic:
+                    f.create_dataset("operators/Gc_", data=self.Gc_)
+                if self.has_inputs:
+                    f.create_dataset("operators/B_", data=self.B_)
+            if overwrite:
+                os.remove(tempfile)
+        except:     # If there was an error, restore the old file.
+            if overwrite:
+                os.rename(tempfile, savefile)
+            else:
+                os.remove(savefile)
+            raise
+
 
 class _ParametricMixin:
     """Mixin class for parametric reduced model classes."""
-    pass
-    # IDEA: check parameter dimension?
+    def __call__(self, µ):
+        """Construct the reduced model corresponding to the parameter µ."""
+        c_  = self.c_(µ)  if callable(self.c_)  else self.c_
+        A_  = self.A_(µ)  if callable(self.A_)  else self.A_
+        Hc_ = self.Hc_(µ) if callable(self.Hc_) else self.Hc_
+        Gc_ = self.Gc_(µ) if callable(self.Gc_) else self.Gc_
+        B_  = self.B_(µ)  if callable(self.B_)  else self.B_
+        cl = _DiscreteROM if isinstance(self, _DiscreteROM) else _ContinuousROM
+        return trained_model_from_operators(ModelClass=cl,
+                                            modelform=self.modelform,
+                                            Vr=self.Vr,
+                                            A_=A_, Hc_=Hc_, Gc_=Gc_, c_=c_,
+                                            B_=B_)
+
+    def __str__(self):
+        """String representation: the structure of the model."""
+        if not hasattr(self, "c_"):             # Untrained -> Nonparametric
+            return _NonparametricMixin.__str__(self)
+        discrete = isinstance(self, _DiscreteROM)
+
+        x = "x_{j}" if discrete else "x(t)"
+        u = "u_{j}" if discrete else "u(t)"
+        lhs = "x_{j+1}" if discrete else "dx / dt"
+        out = []
+        if self.has_constant:
+            out.append("c(µ)" if callable(self.c_)  else "c")
+        if self.has_linear:
+            A = "A(µ)" if callable(self.A_)  else "A"
+            out.append(A + f"{x}")
+        if self.has_quadratic:
+            H = "H(µ)" if callable(self.Hc_) else "H"
+            out.append(H + f"({x} ⊗ {x})")
+        if self.has_cubic:
+            G = "G(µ)" if callable(self.Gc_) else "G"
+            out.append(G + f"({x} ⊗ {x} ⊗ {x})")
+        if self.has_inputs:
+            B = "B(µ)" if callable(self.B_)  else "B"
+            out.append(B + f"{u}")
+        return f"Reduced-order model structure: {lhs} = "+" + ".join(out)
 
 
 # Specialized mixins (private) ================================================
 class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
     """Mixin class for interpolatory parametric reduced model classes."""
+    @property
+    def cs_(self):
+        """The constant terms for each submodel."""
+        return [m.c_ for m in self.models_] if self.has_constant else None
+
     @property
     def As_(self):
         """The linear state matrices for each submodel."""
@@ -870,9 +1141,14 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
         return [m.Hc_ for m in self.models_] if self.has_quadratic else None
 
     @property
-    def cs_(self):
-        """The constant terms for each submodel."""
-        return [m.c_ for m in self.models_] if self.has_constant else None
+    def Gs_(self):
+        """The full cubic state matrices for each submodel."""
+        return [m.G_ for m in self.models_] if self.has_cubic else None
+
+    @property
+    def Gcs_(self):
+        """The compact cubic state matrices for each submodel."""
+        return [m.Gc_ for m in self.models_] if self.has_cubic else None
 
     @property
     def Bs_(self):
@@ -897,17 +1173,6 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
     def __len__(self):
         """The number of trained models."""
         return len(self.models_) if hasattr(self, "models_") else 0
-
-    def __call__(self, µ, discrete=False):
-        """Construct the reduced model corresponding to the parameter µ."""
-        A_  = self.A_(µ)  if self.A_  is not None else None
-        Hc_ = self.Hc_(µ) if self.Hc_ is not None else None
-        c_  = self.c_(µ)  if self.c_  is not None else None
-        B_  = self.B_(µ)  if self.B_  is not None else None
-        return trained_model_from_operators(
-                    ModelClass=_DiscreteROM if discrete else _ContinuousROM,
-                    modelform=self.modelform,
-                    Vr=self.Vr, A_=A_, Hc_=Hc_, c_=c_, B_=B_)
 
     def fit(self, ModelClass, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
@@ -1005,10 +1270,12 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
             self.models_.append(model)
 
         # Construct interpolators.
+        self.c_ = CubicSpline(µs, self.cs_)  if self.has_constant  else None
         self.A_ = CubicSpline(µs, self.As_)  if self.has_linear    else None
         self.Hc_= CubicSpline(µs, self.Hcs_) if self.has_quadratic else None
         self.H_ = CubicSpline(µs, self.Hs_)  if self.has_quadratic else None
-        self.c_ = CubicSpline(µs, self.cs_)  if self.has_constant  else None
+        self.Gc_= CubicSpline(µs, self.Gcs_) if self.has_cubic     else None
+        self.G_ = CubicSpline(µs, self.Gs_)  if self.has_cubic     else None
         self.B_ = CubicSpline(µs, self.Bs_)  if self.has_inputs    else None
 
         return self
@@ -1029,17 +1296,6 @@ class _AffineMixin(_ParametricMixin):
             for a in affines.values():
                 AffineOperator(a).validate_coeffs(µ)
 
-    def __call__(self, µ, discrete=False):
-        """Construct the reduced model corresponding to the parameter µ."""
-        c_  = self.c_(µ)  if isinstance(self.c_, AffineOperator)  else self.c_
-        A_  = self.A_(µ)  if isinstance(self.A_, AffineOperator)  else self.A_
-        Hc_ = self.Hc_(µ) if isinstance(self.Hc_, AffineOperator) else self.Hc_
-        B_  = self.B_(µ)  if isinstance(self.B_, AffineOperator)  else self.B_
-        return trained_model_from_operators(
-                    ModelClass=_DiscreteROM if discrete else _ContinuousROM,
-                    modelform=self.modelform,
-                    Vr=self.Vr, c_=c_, A_=A_, Hc_=Hc_, B_=B_)
-
 
 class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
     """Mixin class for affinely parametric intrusive reduced model classes."""
@@ -1057,6 +1313,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
             * 'c': Constant term c(µ).
             * 'A': Linear state matrix A(µ).
             * 'H': Quadratic state matrix H(µ).
+            * 'G': Cubic state matrix G(µ).
             * 'B': linear Input matrix B(µ).
             For example, if the constant term has the affine structure
             c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
@@ -1064,10 +1321,11 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
         operators: dict(str -> ndarray or list(ndarrays))
             The operators that define the full-order model f(t,x;µ).
             Keys must match the modelform:
-            * 'c': constant term c(µ).
-            * 'A': linear state matrix A(µ).
-            * 'H': quadratic state matrix H(µ).
-            * 'B': input matrix B(µ).
+            * 'c': Constant term c(µ).
+            * 'A': Linear state matrix A(µ).
+            * 'H': Quadratic state matrix H(µ).
+            * 'G': Cubic state matrix G(µ).
+            * 'B': Input matrix B(µ).
             Terms with affine structure should be given as a list of the
             component matrices. For example, if the linear state matrix has
             the form A(µ) = θ1(µ)A1 + θ2(µ)A2, then 'A' -> [A1, A2].
@@ -1119,7 +1377,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
         else:
             self.A, self.A_ = None, None
 
-        if self.has_quadratic:               # Quadratic state matrix.
+        if self.has_quadratic:              # Quadratic state matrix.
             _n2 = self.n * (self.n + 1) // 2
             if 'H' in affines:
                 H_or_Hc = AffineOperator(affines['H'], operators['H'])
@@ -1156,6 +1414,45 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
                 self.Hc_ = H2Hc(self.H_)
         else:
             self.Hc, self.H, self.Hc_ = None, None, None
+
+        if self.has_cubic:                  # Cubic state matrix.
+            _n3 = self.n * (self.n + 1) * (self.n + 2) // 6
+            if 'G' in affines:
+                G_or_Gc = AffineOperator(affines['G'], operators['G'])
+                if G_or_Gc.shape == (self.n,self.n**3):     # It's G.
+                    self.G = G_or_Gc
+                    self.Gc = AffineOperator(affines['G'],
+                                             [G2Gc(G)
+                                              for G in G_or_Gc.matrices])
+                elif G_or_Gc.shape == (self.n,_n3):         # It's Gc.
+                    self.Gc = G_or_Gc
+                    self.G = AffineOperator(affines['G'],
+                                             [Gc2G(Gc)
+                                              for Gc in G_or_Gc.matrices])
+                else:
+                    raise ValueError("basis Vr and FOM operator G not aligned")
+                Vr3 = np.kron(np.kron(self.Vr, self.Vr), self.Vr)
+                self.G_ = AffineOperator(affines['G'],
+                                          [self.Vr.T @ G @ Vr3
+                                           for G in self.G.matrices])
+                self.Gc_ = AffineOperator(affines['G'],
+                                          [G2Gc(G_)
+                                           for G_ in self.G_.matrices])
+            else:
+                G_or_Gc = operators['G']
+                if G_or_Gc.shape == (self.n,self.n**3):     # It's G.
+                    self.G = G_or_Gc
+                    self.Gc = G2Gc(self.G)
+                elif G_or_Gc.shape == (self.n,_n3):         # It's Gc.
+                    self.Gc = G_or_Gc
+                    self.G = Gc2G(self.Gc)
+                else:
+                    raise ValueError("basis Vr and FOM operator G not aligned")
+                Vr3 = np.kron(np.kron(self.Vr, self.Vr), self.Vr)
+                self.G_ = self.Vr.T @ self.G @ Vr3
+                self.Gc_ = G2Gc(self.G_)
+        else:
+            self.Gc, self.G, self.Gc_ = None, None, None
 
         if self.has_inputs:                 # Linear input matrix.
             if 'B' in affines:
@@ -1208,6 +1505,7 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         'c' : Constant term c
         'A' : Linear state term Ax.
         'H' : Quadratic state term H(x⊗x).
+        'G' : Cubic state term G(x⊗x⊗x).
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
 
@@ -1221,6 +1519,9 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
 
     has_quadratic : bool
         Whether or not there is a quadratic state term H(x⊗x).
+
+    has_cubic : bool
+        Whether or not there is a cubic state term G(x⊗x⊗x).
 
     has_inputs : bool
         Whether or not there is a linear input term Bu.
@@ -1250,13 +1551,22 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
     A_ : (r,r) ndarray or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : (r,r(r+1)//2) ndarray or None
+    Hc_ : (r,r(r+1)/2) ndarray or None
         Learned ROM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
     H_ : (r,r**2) ndarray or None
         Learned ROM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`. Computed on the fly from Hc_ if desired; not used
+        directly in solving the ROM.
+
+    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
+        Learned ROM cubic state matrix (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    G_ : (r,r**3) ndarray or None
+        Learned ROM cubic state matrix (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gc_ if desired; not used
         directly in solving the ROM.
 
     B_ : (r,m) ndarray or None
@@ -1318,6 +1628,7 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         'c' : Constant term c
         'A' : Linear state term Ax(t).
         'H' : Quadratic state term H(x⊗x)(t).
+        'G' : Cubic state term G(x⊗x⊗x)(t).
         'B' : Input term Bu(t).
         For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
 
@@ -1331,6 +1642,9 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
 
     has_quadratic : bool
         Whether or not there is a quadratic state term H(x⊗x)(t).
+
+    has_cubic : bool
+        Whether or not there is a cubic state term G(x⊗x⊗x)(t).
 
     has_inputs : bool
         Whether or not there is a linear input term Bu(t).
@@ -1360,13 +1674,22 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
     A_ : (r,r) ndarray or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : (r,r(r+1)//2) ndarray or None
+    Hc_ : (r,r(r+1)/2) ndarray or None
         Learned ROM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
     H_ : (r,r**2) ndarray or None
         Learned ROM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`. Computed on the fly from Hc_ if desired; not used
+        directly in solving the ROM.
+
+    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
+        Learned ROM cubic state matrix (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    G_ : (r,r**3) ndarray or None
+        Learned ROM cubic state matrix (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gc_ if desired; not used
         directly in solving the ROM.
 
     B_ : (r,m) ndarray or None
@@ -1433,6 +1756,7 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
         'c' : Constant term c
         'A' : Linear state term Ax.
         'H' : Quadratic state term H(x⊗x).
+        'G' : Cubic state term G(x⊗x⊗x).
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
 
@@ -1446,6 +1770,9 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
 
     has_quadratic : bool
         Whether or not there is a quadratic state term H(x⊗x).
+
+    has_cubic : bool
+        Whether or not there is a cubic state term G(x⊗x⊗x).
 
     has_inputs : bool
         Whether or not there is a linear input term Bu.
@@ -1475,13 +1802,22 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
     A_ : (r,r) ndarray or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : (r,r(r+1)//2) ndarray or None
+    Hc_ : (r,r(r+1)/2) ndarray or None
         Learned ROM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
     H_ : (r,r**2) ndarray or None
         Learned ROM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`. Computed on the fly from Hc_ if desired; not used
+        directly in solving the ROM.
+
+    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
+        Learned ROM cubic state matrix (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    G_ : (r,r**3) ndarray or None
+        Learned ROM cubic state matrix (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gc_ if desired; not used
         directly in solving the ROM.
 
     B_ : (r,m) ndarray or None
@@ -1528,6 +1864,9 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
     has_quadratic : bool
         Whether or not there is a quadratic state term H(x⊗x)(t).
 
+    has_cubic : bool
+        Whether or not there is a cubic state term G(x⊗x⊗x)(t).
+
     has_inputs : bool
         Whether or not there is a linear input term Bu(t).
 
@@ -1549,13 +1888,19 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
     A : (n,n) ndarray or None
         FOM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc : (n,n(n+1)//2) ndarray or None
+    Hc : (n,n(n+1)/2) ndarray or None
         FOM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`.
 
     H : (n,n**2) ndarray or None
         FOM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`.
+
+    Gc : (n,n(n+1)(n+2)/6) ndarray or None
+        FOM cubic state matrix (compact), or None if 'G' is not in `modelform`.
+
+    G : (n,n**3) ndarray or None
+        FOM cubic state matrix (full), or None if 'G' is not in `modelform`.
 
     B : (n,m) ndarray or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
@@ -1566,13 +1911,22 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
     A_ : (r,r) ndarray or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : (r,r(r+1)//2) ndarray or None
+    Hc_ : (r,r(r+1)/2) ndarray or None
         Learned ROM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
     H_ : (r,r**2) ndarray or None
         Learned ROM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`. Computed on the fly from Hc_ if desired; not used in
+        solving the ROM.
+
+    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
+        Learned ROM cubic state matrix (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    G_ : (r,r**3) ndarray or None
+        Learned ROM cubic state matrix (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gc_ if desired; not used in
         solving the ROM.
 
     B_ : (r,m) ndarray or None
@@ -1611,6 +1965,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         'c' : Constant term c
         'A' : Linear state term Ax.
         'H' : Quadratic state term H(x⊗x).
+        'G' : Cubic state term G(x⊗x⊗x).
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
 
@@ -1624,6 +1979,9 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
 
     has_quadratic : bool
         Whether or not there is a quadratic state term H(x⊗x).
+
+    has_cubic : bool
+        Whether or not there is a cubic state term G(x⊗x⊗x).
 
     has_inputs : bool
         Whether or not there is a linear input term Bu.
@@ -1657,13 +2015,22 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
     As_ : list of s (r,r) ndarrays or None
         Learned ROM linear state matrices, or None if 'A' not in `modelform`.
 
-    Hcs_ : list of s (r,r(r+1)//2) ndarrays or None
+    Hcs_ : list of s (r,r(r+1)/2) ndarrays or None
         Learned ROM quadratic state matrices (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
     Hs_ : list of s (r,r**2) ndarrays or None
         Learned ROM quadratic state matrices (full size), or None if 'H' is not
         in `modelform`. Computed on the fly from Hcs_ if desired; not used in
+        solving the ROM.
+
+    Gcs_ : list of s (r,r(r+1)(r+2)/6) ndarrays or None
+        Learned ROM cubic state matrices (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    Gs_ : list of s (r,r**3) ndarrays or None
+        Learned ROM cubic state matrices (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gcs_ if desired; not used in
         solving the ROM.
 
     Bs_ : list of s (r,m) ndarrays or None
@@ -1677,10 +2044,6 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _InterpolatedMixin.__call__(self, µ, discrete=True)
-
     def fit(self, Vr, µs, Xs, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
@@ -1767,6 +2130,7 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         'c' : Constant term c(µ)
         'A' : Linear state term A(µ)x(t).
         'H' : Quadratic state term H(µ)(x⊗x)(t).
+        'H' : Cubic state term G(µ)(x⊗x⊗x)(t).
         'B' : Input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
 
@@ -1780,6 +2144,9 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
 
     has_quadratic : bool
         Whether or not there is a quadratic state term H(µ)(x⊗x)(t).
+
+    has_cubic : bool
+        Whether or not there is a cubic state term G(µ)(x⊗x⊗x)(t).
 
     has_inputs : bool
         Whether or not there is a linear input term B(µ)u(t).
@@ -1813,13 +2180,22 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
     As_ : list of s (r,r) ndarrays or None
         Learned ROM linear state matrices, or None if 'A' not in `modelform`.
 
-    Hcs_ : list of s (r,r(r+1)//2) ndarrays or None
+    Hcs_ : list of s (r,r(r+1)/2) ndarrays or None
         Learned ROM quadratic state matrices (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
     Hs_ : list of s (r,r**2) ndarrays or None
         Learned ROM quadratic state matrices (full size), or None if 'H' is not
         in `modelform`. Computed on the fly from Hcs_ if desired; not used in
+        solving the ROM.
+
+    Gcs_ : list of s (r,r(r+1)(r+2)/6) ndarrays or None
+        Learned ROM cubic state matrices (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    Gs_ : list of s (r,r**3) ndarrays or None
+        Learned ROM cubic state matrices (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gcs_ if desired; not used in
         solving the ROM.
 
     Bs_ : list of s (r,m) ndarrays or None
@@ -1833,10 +2209,6 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _InterpolatedMixin.__call__(self, µ, discrete=False)
-
     def fit(self, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
@@ -1951,6 +2323,7 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
         'c' : Constant term c
         'A' : Linear state term Ax.
         'H' : Quadratic state term H(x⊗x).
+        'G' : Cubic state term G(x⊗x⊗x).
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
 
@@ -1964,6 +2337,9 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
 
     has_quadratic : bool
         Whether or not there is a quadratic state term H(x⊗x).
+
+    cubic : bool
+        Whether or not there is a cubic state term G(x⊗x⊗x).
 
     has_inputs : bool
         Whether or not there is a linear input term Bu.
@@ -1986,12 +2362,21 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
     A : callable(µ) -> (n,n) ndarray; (n,n) ndarray; or None
         FOM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc : callable(µ) -> (n,n(n+1)//2) ndarray; (n,n(n+1)//2) ndarray; or None
+    Hc : callable(µ) -> (n,n(n+1)/2) ndarray; (n,n(n+1)/2) ndarray; or None
         FOM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`.
 
     H : callable(µ) -> (n,n**2) ndarray; (n,n**2) ndarray; or None
         FOM quadratic state matrix (full size), or None if 'H' is not
+        in `modelform`.
+
+    Gc : callable(µ) -> (n,n(n+1)(n+2)/6) ndarray; (n,n(n+1)(n+2)/6) ndarray;
+          or None
+        FOM cubic state matrix (compact), or None if 'G' is not
+        in `modelform`.
+
+    G : callable(µ) -> (n,n**3) ndarray; (n,n**3) ndarray; or None
+        FOM cubic state matrix (full size), or None if 'G' is not
         in `modelform`.
 
     B : callable(µ) -> (n,m) ndarray; (n,m) ndarray; or None
@@ -2003,13 +2388,23 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
     A_ : callable(µ) -> (r,r) ndarray; (r,r) ndarray; or None
         Computed ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
+    Hc_ : callable(µ) -> (r,r(r+1)/2) ndarray; (r,r(r+1)/2) ndarray; or None
         Computed ROM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
     H_ : callable(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
         Computed ROM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`. Computed on the fly from Hc_ if desired; not used in
+        solving the ROM.
+
+    Gc_ : callable(µ) -> (r,r(r+1)(r+2)/6) ndarray; (r,r(r+1)(r+2)/6) ndarray;
+          or None
+        Computed ROM cubic state matrix (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    G_ : callable(µ) -> (r,r**3) ndarray; (r,r**3) ndarray; or None
+        Computed ROM cubic state matrix (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gc_ if desired; not used in
         solving the ROM.
 
     B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
@@ -2019,10 +2414,6 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _AffineMixin.__call__(self, µ, discrete=True)
-
     def predict(self, µ, x0, niters, U=None):
         """Construct a ROM for the parameter µ by exploiting the affine
         structure of the ROM operators, then step the resulting ROM forward
@@ -2079,6 +2470,7 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
         * 'c' : Constant term c(µ).
         * 'A' : Linear state term A(µ)x(t).
         * 'H' : Quadratic state term H(µ)(x⊗x)(t).
+        * 'G' : Cubic state term G(µ)(x⊗x⊗x)(t).
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
 
@@ -2092,6 +2484,9 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
 
     has_quadratic : bool
         Whether or not there is a quadratic term H(µ)(x⊗x)(t).
+
+    has_cubic : bool
+        Whether or not there is a cubic term G(µ)(x⊗x⊗x)(t).
 
     has_inputs : bool
         Whether or not there is an input term B(µ)u(t).
@@ -2114,13 +2509,20 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
     A : callable(µ) -> (n,n) ndarray; (n,n) ndarray; or None
         FOM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc : callable(µ) -> (n,n(n+1)//2) ndarray; (n,n(n+1)//2) ndarray; or None
+    Hc : callable(µ) -> (n,n(n+1)/2) ndarray; (n,n(n+1)/2) ndarray; or None
         FOM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`.
 
     H : callable(µ) -> (n,n**2) ndarray; (n,n**2) ndarray; or None
         FOM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`.
+
+    Gc : callable(µ) -> (n,n(n+1)(n+2)/6) ndarray; (n,n(n+1)(n+2)/6) ndarray;
+          or None
+        FOM cubic state matrix (compact), or None if 'G' is not in `modelform`.
+
+    G : callable(µ) -> (n,n**3) ndarray; (n,n**3) ndarray; or None
+        FOM cubic state matrix (full), or None if 'G' is not in `modelform`.
 
     B : callable(µ) -> (n,m) ndarray; (n,m) ndarray; or None
         FOM input matrix, or None if 'B' is not in `modelform`.
@@ -2131,13 +2533,23 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
     A_ : callable(µ) -> (r,r) ndarray; (r,r) ndarray; or None
         Computed ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
+    Hc_ : callable(µ) -> (r,r(r+1)/2) ndarray; (r,r(r+1)/2) ndarray; or None
         Computed ROM quadratic state matrix (compact), or None if 'H' is not
         in `modelform`. Used internally instead of the larger H_.
 
     H_ : callable(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
         Computed ROM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`. Computed on the fly from Hc_ if desired; not used in
+        solving the ROM.
+
+    Gc_ : callable(µ) -> (r,r(r+1)(r+2)/6) ndarray; (r,r(r+1)(r+2)/6) ndarray;
+          or None
+        Computed ROM cubic state matrix (compact), or None if 'G' is not
+        in `modelform`. Used internally instead of the larger G_.
+
+    G_ : callable(µ) -> (r,r**3) ndarray; (r,r**3) ndarray; or None
+        Computed ROM cubic state matrix (full size), or None if 'G' is not
+        in `modelform`. Computed on the fly from Gc_ if desired; not used in
         solving the ROM.
 
     B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
@@ -2147,10 +2559,6 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def __call__(self, µ):
-        """Construct the reduced model corresponding to the parameter µ."""
-        return _AffineMixin.__call__(self, µ, discrete=False)
-
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by exploiting the affine
         structure of the ROM operators, then simulate the resulting ROM with
@@ -2207,16 +2615,8 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
         return out
 
 
-
-__all__ = [
-            "InferredDiscreteROM", "InferredContinuousROM",
-            "IntrusiveDiscreteROM", "IntrusiveContinuousROM",
-            "AffineIntrusiveDiscreteROM", "AffineIntrusiveContinuousROM",
-            "InterpolatedInferredDiscreteROM",
-            "InterpolatedInferredContinuousROM",
-          ]
-
-
 # Future additions ------------------------------------------------------------
+# TODO: Account for state / input interactions (N).
+# TODO: save_model() for parametric forms.
 # TODO: jacobians for each model form in the continuous case.
 # TODO: better __str__() for parametric classes.

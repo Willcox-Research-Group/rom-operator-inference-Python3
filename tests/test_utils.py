@@ -26,12 +26,14 @@ def test_get_least_squares_size():
     assert roi.utils.get_least_squares_size("A", r) == r
     assert roi.utils.get_least_squares_size("cA", r) == 1 + r
     assert roi.utils.get_least_squares_size("cAH", r) == 1 + r + r*(r+1)//2
+    assert roi.utils.get_least_squares_size("cG", r) == 1 + r*(r+1)*(r+2)//6
 
     # Test with inputs.
     assert roi.utils.get_least_squares_size("cB", r, m) == 1 + m
     assert roi.utils.get_least_squares_size("AB", r, m) == r + m
     assert roi.utils.get_least_squares_size("cAB", r, m) == 1 + r + m
     assert roi.utils.get_least_squares_size("AHB", r, m) == r + r*(r+1)//2 + m
+    assert roi.utils.get_least_squares_size("GB", r, m) == r*(r+1)*(r+2)//6 + m
 
     # Test with affines.
     assert roi.utils.get_least_squares_size("c", r, affines={"c":[0,0]}) == 2
@@ -182,22 +184,24 @@ def _test_kron3c_single_vector(n):
     x3 = roi.utils.kron3c(x)
     assert x3.ndim == 1
     assert x3.shape[0] == n*(n+1)*(n+2)//6
-    # for i in range(n):
-    #     assert np.allclose(x2[i*(i+1)//2:(i+1)*(i+2)//2], x[i]*x[:i+1])
+    for i in range(n):
+        assert np.allclose(x3[i*(i+1)*(i+2)//6:(i+1)*(i+2)*(i+3)//6],
+                            x[i]*roi.utils.kron2c(x[:i+1]))
 
 
 def _test_kron3c_single_matrix(n):
     """Do one matrix test of utils.kron3c()."""
     X = np.random.random((n,n))
-    X2 = roi.utils.kron3c(X)
-    assert X2.ndim == 2
-    assert X2.shape[0] == n*(n+1)*(n+2)//6
-    assert X2.shape[1] == n
-    # for i in range(n):
-    #     assert np.allclose(X2[i*(i+1)//2:(i+1)*(i+2)//2], X[i]*X[:i+1])
+    X3 = roi.utils.kron3c(X)
+    assert X3.ndim == 2
+    assert X3.shape[0] == n*(n+1)*(n+2)//6
+    assert X3.shape[1] == n
+    for i in range(n):
+        assert np.allclose(X3[i*(i+1)*(i+2)//6:(i+1)*(i+2)*(i+3)//6],
+                            X[i]*roi.utils.kron2c(X[:i+1]))
 
 
-def test_kron3c(n_tests=100):
+def test_kron3c(n_tests=50):
     """Test utils.kron3c()."""
     # Try with bad input.
     with pytest.raises(ValueError) as exc:
@@ -205,7 +209,7 @@ def test_kron3c(n_tests=100):
     assert exc.value.args[0] == "x must be one- or two-dimensional"
 
     # Correct inputs.
-    for n in np.random.randint(2, 100, n_tests):
+    for n in np.random.randint(2, 30, n_tests):
         _test_kron3c_single_vector(n)
         _test_kron3c_single_matrix(n)
 
@@ -250,7 +254,7 @@ def test_expand_Hc(n_tests=100):
 
 # utils.compress_H() ----------------------------------------------------------
 def _test_compress_H_single(r):
-    """Do one test of utils.expand_Hc()."""
+    """Do one test of utils.compress_H()."""
     x = np.random.random(r)
 
     # Do a valid compress_H() calculation and check dimensions.
@@ -273,7 +277,7 @@ def _test_compress_H_single(r):
 
 
 def test_compress_H(n_tests=100):
-    """Test utils.expand_Hc()."""
+    """Test utils.compress_H()."""
     # Try to do compress_H() with a bad second dimension.
     r = 5
     r2bad = r**2 + 1
@@ -286,3 +290,76 @@ def test_compress_H(n_tests=100):
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 100, n_tests):
         _test_compress_H_single(r)
+
+
+# utils.expand_Gc() -----------------------------------------------------------
+def _test_expand_Gc_single(r):
+    """Do one test of utils.expand_Gc()."""
+    x = np.random.random(r)
+
+    # Do a valid expand_Hc() calculation and check dimensions.
+    s = r*(r+1)*(r+2)//6
+    Gc = np.random.random((r,s))
+    G = roi.utils.expand_Gc(Gc)
+    assert G.shape == (r,r**3)
+
+    # Check that Gc(x^3) == G(x⊗x⊗x).
+    Gxxx = G @ np.kron(x,np.kron(x,x))
+    assert np.allclose(Gc @ roi.utils.kron3c(x), Gxxx)
+
+    # Check properties of the tensor for G.
+    Gtensor = G.reshape((r,r,r,r))
+    assert np.allclose(Gtensor @ x @ x @ x, Gxxx)
+    for subG in G:
+        assert np.allclose(subG, subG.T)
+
+
+def test_expand_Gc(n_tests=50):
+    """Test utils.expand_Gc()."""
+    # Try to do expand_Gc() with a bad second dimension.
+    r = 5
+    sbad = r*(r+1)*(r+3)//6
+    Gc = np.random.random((r, sbad))
+    with pytest.raises(ValueError) as exc:
+        roi.utils.expand_Gc(Gc)
+    assert exc.value.args[0] == \
+        f"invalid shape (r,s) = {(r,sbad)} with s != r(r+1)(r+2)/6"
+
+    # Do 100 test cases of varying dimensions.
+    for r in np.random.randint(2, 30, n_tests):
+        _test_expand_Gc_single(r)
+
+
+# utils.compress_G() ----------------------------------------------------------
+def _test_compress_G_single(r):
+    """Do one test of utils.compress_G()."""
+    x = np.random.random(r)
+
+    # Do a valid compress_G() calculation and check dimensions.
+    G = np.random.random((r,r**3))
+    s = r*(r+1)*(r+2)//6
+    Gc = roi.utils.compress_G(G)
+    assert Gc.shape == (r,s)
+
+    # Check that Gc(x^3) == G(x⊗x⊗x).
+    Gxxx = G @ np.kron(x,np.kron(x,x))
+    assert np.allclose(Gxxx, Gc @ roi.utils.kron3c(x))
+
+    # Check that expand_Gc() and compress_G() are "inverses."
+    assert np.allclose(Gc, roi.utils.compress_G(roi.utils.expand_Gc(Gc)))
+
+
+def test_compress_G(n_tests=50):
+    """Test utils.compress_G()."""
+    # Try to do compress_H() with a bad second dimension.
+    r = 5
+    r3bad = r**3 + 1
+    G = np.random.random((r, r3bad))
+    with pytest.raises(ValueError) as exc:
+        roi.utils.compress_G(G)
+    assert exc.value.args[0] == \
+        f"invalid shape (r,a) = {(r,r3bad)} with a != r**3"
+
+    # Do 100 test cases of varying dimensions.
+    for r in np.random.randint(2, 30, n_tests):
+        _test_compress_G_single(r)

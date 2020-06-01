@@ -3,7 +3,6 @@
 
 import numpy as _np
 from scipy import linalg as _la
-from scipy.linalg import svd as _svd
 from scipy.sparse import linalg as _spla
 from sklearn.utils import extmath as _sklmath
 from matplotlib import pyplot as _plt
@@ -37,9 +36,10 @@ def mean_shift(X):
     return xbar, Xshifted
 
 
-def pod_basis(X, r, mode="simple", **options):
+def pod_basis(X, r=None, mode="simple", **options):
     """Compute the POD basis of rank r corresponding to the data in X.
-    This function does NOT shift or scale the data before computing the basis.
+    This function does NOT shift or scale data before computing the basis.
+    This function is a simple wrapper for various SVD methods.
 
     Parameters
     ----------
@@ -47,15 +47,16 @@ def pod_basis(X, r, mode="simple", **options):
         A matrix of k snapshots. Each column is a single snapshot.
 
     r : int
-        The number of POD basis vectors to compute.
+        The number of POD basis vectors and singular values to compute.
+        If None (default), compute the full SVD.
 
     mode : str
         The strategy to use for computing the truncated SVD of X. Options:
-        * "simple" (default): Use scipy.linalg.svd() to compute the entire SVD
-            of X, then truncate it to get the first r left singular vectors of
-            X. May be inefficient for very large matrices.
-        * "arpack": Use scipy.sparse.linalg.svds() to compute only the first r
-            left singular vectors of X. This uses ARPACK for the eigensolver.
+        * "simple" (default): Use scipy.linalg.svd() to compute the SVD of X.
+            May be inefficient or intractable for very large matrices.
+        * "arpack": Use scipy.sparse.linalg.svds() to compute the SVD of X.
+            This uses ARPACK for the eigensolver. Inefficient for non-sparse
+            matrices; requires separate computations for full SVD.
         * "randomized": Compute an approximate SVD with a randomized approach
             using sklearn.utils.extmath.randomized_svd(). This gives faster
             results at the cost of some accuracy.
@@ -70,25 +71,58 @@ def pod_basis(X, r, mode="simple", **options):
     -------
     Vr : (n,r) ndarray
         The first r POD basis vectors of X. Each column is one basis vector.
+
+    svdvals : (r,) ndarray
+        The first r singular values of X (highest magnitute first).
     """
+    # Validate the rank.
+    rmax = min(X.shape)
+    if r is None:
+        r = rmax
+    if r > rmax or r < 1:
+        raise ValueError(f"invalid POD rank r = {r} (need 1 <= r <= {rmax})")
+
     if mode == "simple":
-        return _la.svd(X, full_matrices=False, **options)[0][:,:r]
-    if mode == "arpack":
-        return _spla.svds(X, r, which="LM", **options)[0][:,::-1]
+        V, svdvals, _ = _la.svd(X, full_matrices=False, **options)
+
+    elif mode == "arpack":
+        get_smallest = False
+        if r == rmax:
+            r -= 1
+            get_smallest = True
+
+        # Compute all but the last svd vectors / values (maximum allowed)
+        V, svdvals, _ = _spla.svds(X, r, which="LM",
+                                   return_singular_vectors='u', **options)
+        V = V[:,::-1]
+        svdvals = svdvals[::-1]
+
+        # Get the smallest vector / value separately.
+        if get_smallest:
+            V1, smallest, _ = _spla.svds(X, 1, which="SM",
+                                        return_singular_vectors='u', **options)
+            V = _np.concatenate((V, V1), axis=1)
+            svdvals = _np.concatenate((svdvals, smallest))
+            r += 1
+
     elif mode == "randomized":
-        return _sklmath.randomized_svd(X, r, **options)[0][:,::-1]
+        V, svdvals, _ = _sklmath.randomized_svd(X, r, **options)
+
     else:
         raise NotImplementedError(f"invalid mode '{mode}'")
 
+    # Return the first 'r' values.
+    return V[:,:r], svdvals[:r]
+
 
 # Reduced dimension selection =================================================
-def significant_svdvals(X, eps, plot=False):
+def significant_svdvals(singular_values, eps, plot=False):
     """Count the number of singular values of X that are greater than eps.
 
     Parameters
     ----------
-    X : (n,k) ndarray
-        A matrix of k snapshots. Each column is a single snapshot.
+    singular_values : (n,) ndarray
+        The singular values of a snapshot set X, e.g., scipy.linalg.svdvals(X).
 
     eps : float or list(floats)
         Cutoff value(s) for the singular values of X.
@@ -102,12 +136,7 @@ def significant_svdvals(X, eps, plot=False):
     ranks : int or list(int)
         The number of singular values greater than the cutoff value(s).
     """
-    # Check dimensions.
-    if X.ndim != 2:
-        raise ValueError("data X must be two-dimensional")
-
     # Calculate the number of singular values above the cutoff value(s).
-    singular_values = _la.svdvals(X)
     one_eps = _np.isscalar(eps)
     if one_eps:
         eps = [eps]
@@ -131,7 +160,7 @@ def significant_svdvals(X, eps, plot=False):
     return ranks[0] if one_eps else ranks
 
 
-def energy_capture(X, thresh, plot=False):
+def energy_capture(singular_values, thresh, plot=False):
     """Compute the number of singular values of X needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
@@ -139,8 +168,8 @@ def energy_capture(X, thresh, plot=False):
 
     Parameters
     ----------
-    X : (n,k) ndarray
-        A matrix of k snapshots. Each column is a single snapshot.
+    singular_values : (n,) ndarray
+        The singular values of a snapshot set X, e.g., scipy.linalg.svdvals(X).
 
     thresh : float or list(floats)
         Energy capture threshold(s).
@@ -155,12 +184,7 @@ def energy_capture(X, thresh, plot=False):
         The number of singular values required to capture more than each
         energy capture threshold.
     """
-    # Check dimensions.
-    if X.ndim != 2:
-        raise ValueError("data X must be two-dimensional")
-
-    # Calculate singular values and cumulative energy.
-    singular_values = _la.svdvals(X)
+    # Calculate  cumulative energy.
     svdvals2 = singular_values**2
     cumulative_energy = _np.cumsum(svdvals2) / _np.sum(svdvals2)
 
@@ -212,7 +236,7 @@ def projection_error(X, Vr):
     return _la.norm(X - Vr @ Vr.T @ X) / _la.norm(X)
 
 
-def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
+def minimal_projection_error(X, V, eps, plot=False):
     """Compute the number of POD basis vectors required to obtain a projection
     error less than eps. The projection error is defined by
 
@@ -225,17 +249,15 @@ def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
     X : (n,k) ndarray
         A matrix of k snapshots. Each column is a single snapshot.
 
+    V : (n,rmax) ndarray
+        The first rmax POD basis vectors of X. Each column is one basis vector.
+        The projection error is calculated for each Vr = V[:,:r] for r <= rmax.
+
     eps : float or list(floats)
         Cutoff value(s) for the projection error.
 
-    rmax : int
-        The maximal number of basis vectors to check the projection error for.
-
     plot : bool
         If True, plot the POD basis rank r against the projection error.
-
-    options
-        Additional parameters for pre.pod_basis().
 
     Returns
     -------
@@ -246,24 +268,21 @@ def minimal_projection_error(X, eps, rmax=_np.inf, plot=False, **options):
     # Check dimensions.
     if X.ndim != 2:
         raise ValueError("data X must be two-dimensional")
-
-    # Get the largest POD basis and calculate the norm ||X||_F.
-    rmax = min(min(X.shape), rmax)
-    V = pod_basis(X, rmax, **options)
-    X_norm = _la.norm(X, ord="fro")
-
+    if V.ndim != 2:
+        raise ValueError("basis V must be two-dimensional")
     one_eps = _np.isscalar(eps)
     if one_eps:
         eps = [eps]
 
-    errors = []
-    rs = _np.arange(1, rmax)
-    for j,r in enumerate(rs):
+    # Calculate the projection errors.
+    X_norm = _la.norm(X, ord="fro")
+    rs = _np.arange(1, V.shape[1])
+    errors = _np.empty_like(rs, dtype=_np.float)
+    for r in rs:
         # Get the POD basis of rank r and calculate the projection error.
         Vr = V[:,:r]
-        errors.append(_la.norm(X - Vr @ Vr.T @ X, ord="fro") / X_norm)
+        errors[r-1] = _la.norm(X - Vr @ Vr.T @ X, ord="fro") / X_norm
     # Calculate the ranks needed to get under each cutoff value.
-    errors = _np.array(errors)
     ranks = [_np.count_nonzero(errors > ep)+1 for ep in eps]
 
     if plot:
