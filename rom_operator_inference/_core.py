@@ -396,6 +396,23 @@ class _BaseROM:
             raise ValueError(f"{label} not aligned with Vr, dimension 0")
         return self.Vr.T @ S if S.shape[0] == self.n else S
 
+    @property
+    def operator_norm_(self):
+        """Calculate the squared Frobenius norm of the ROM operators."""
+        self._check_modelform(trained=True)
+        total = 0
+        if self.has_constant:
+            total += np.sum(self.c_**2)
+        if self.has_linear:
+            total += np.sum(self.A_**2)
+        if self.has_quadratic:
+            total += np.sum(self.Hc_**2)
+        if self.has_cubic:
+            total += np.sum(self.Gc_**2)
+        if self.has_inputs:
+            total += np.sum(self.B_**2)
+        return total
+
 
 class _DiscreteROM(_BaseROM):
     """Base class for models that solve the discrete ROM problem,
