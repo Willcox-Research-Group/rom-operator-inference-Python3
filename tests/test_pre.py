@@ -22,32 +22,53 @@ def test_pod_basis(set_up_basis_data):
     """Test pre.pod_basis() on a small case with the ARPACK solver."""
     X = set_up_basis_data
     n,k = X.shape
-    r = k // 10
+
+    # Try with an invalid rank.
+    rmax = min(n,k)
+    with pytest.raises(ValueError) as exc:
+        roi.pre.pod_basis(X, rmax+1)
+    assert exc.value.args[0] == \
+        f"invalid POD rank r = {rmax+1} (need 1 <= r <= {rmax})"
+
+    with pytest.raises(ValueError) as exc:
+        roi.pre.pod_basis(X, -1)
+    assert exc.value.args[0] == \
+        f"invalid POD rank r = -1 (need 1 <= r <= {rmax})"
 
     # Try with an invalid mode.
     with pytest.raises(NotImplementedError) as exc:
-        roi.pre.pod_basis(X, r, mode="dense")
+        roi.pre.pod_basis(X, None, mode="dense")
     assert exc.value.args[0] == "invalid mode 'dense'"
 
-    Ur = la.svd(X)[0][:,:r]
+    U, vals, _ = la.svd(X, full_matrices=False)
+    for r in [2, 10, rmax]:
+        Ur = U[:,:r]
+        vals_r = vals[:r]
 
-    # Via scipy.linalg.svd().
-    Vr = roi.pre.pod_basis(X, r, mode="simple")
-    assert Vr.shape == (n,r)
-    assert np.allclose(Vr, Ur)
+        # Via scipy.linalg.svd().
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="simple")
+        assert Vr.shape == (n,r)
+        assert np.allclose(Vr, Ur)
+        assert svdvals.shape == (r,)
+        assert np.allclose(svdvals, vals_r)
 
-    # Via scipy.sparse.linalg.svds() (ARPACK).
-    Vr = roi.pre.pod_basis(X, r, mode="arpack")
-    assert Vr.shape == (n,r)
-    for j in range(r):              # Make sure the columns have the same sign.
-        if not np.isclose(Ur[0,j], Vr[0,j]):
-            Vr[:,j] = -Vr[:,j]
-    assert np.allclose(Vr, Ur)
+        # Via scipy.sparse.linalg.svds() (ARPACK).
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="arpack")
+        assert Vr.shape == (n,r)
+        for j in range(r):      # Make sure the columns have the same sign.
+            if not np.isclose(Ur[0,j], Vr[0,j]):
+                Vr[:,j] = -Vr[:,j]
+        assert np.allclose(Vr, Ur)
+        assert svdvals.shape == (r,)
+        assert np.allclose(svdvals, vals_r)
 
-    # Via sklearn.utils.extmath.randomized_svd().
-    Vr = roi.pre.pod_basis(X, r, mode="randomized")
-    assert Vr.shape == (n,r)
-    # No accuracy test, since that is not guaranteed by randomized SVD.
+        # Via sklearn.utils.extmath.randomized_svd().
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="randomized")
+        assert Vr.shape == (n,r)
+        # Light accuracy test (equality not guaranteed by randomized SVD).
+        assert la.norm(np.abs(Vr) - np.abs(Ur)) < 5
+        assert svdvals.shape == (r,)
+        assert la.norm(svdvals - vals_r) < 3
 
 
 def test_mean_shift(set_up_basis_data):

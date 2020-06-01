@@ -394,7 +394,12 @@ None of these routines are novel, but they may be instructive for new Python use
 
 **`pre.mean_shift(X)`**: Compute the mean of the columns of `X` and shift `X` by that mean so that the result has mean column of zero.
 
-**`pre.pod_basis(X, r, mode="arpack", **options)`**: Compute the POD basis of rank `r` for a snapshot matrix `X`.
+**`pre.pod_basis(X, r=None, mode="simple", **options)`**: Compute the POD basis of rank `r` and the associated singular values for a snapshot matrix `X`. If `r = None`, compute all singular vectors / values. This function simply wraps a few SVD methods, selected by `mode`:
+- `mode="simple"`: [`scipy.linalg.svd()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.svd.html)
+- `mode="arpack"`: [`scipy.sparse.linalg.svds()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.svds.html)
+- `mode="randomized"`: [`sklearn.utils.extmath.randomized_svd()`](https://scikit-learn.org/stable/modules/generated/sklearn.utils.extmath.randomized_svd.html)
+
+Use `**options` to specify additional parameters for these wrapped functions.
 
 **`pre.significant_svdvals(singular_values, eps, plot=False)`**: Count the number of singular values that are greater than `eps`. The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the singular values on a log scale.
 

@@ -420,6 +420,17 @@ class TestBaseROM:
             S_ = model.project(model.Vr.T @ S, label)
             assert S_.shape == (r,k)
 
+    def test_operator_norm_(self):
+        """Test _core._BaseROM.operator_norm_()"""
+        # Get test data.
+        n, k, m, r = 60, 50, 20, 10
+        X = _get_data(n, k, m)[0]
+        Vr = la.svd(X)[0][:,:r]
+
+        model = _trainedmodel(True, "cAHGB", Vr, m)
+        O_ = np.concatenate((model.c_[:,np.newaxis], model.A_,
+                             model.Hc_, model.Gc_, model.B_), axis=1)
+        assert np.isclose(la.norm(O_, ord='fro')**2, model.operator_norm_)
 
 class TestDiscreteROM:
     """Test _core._DiscreteROM."""

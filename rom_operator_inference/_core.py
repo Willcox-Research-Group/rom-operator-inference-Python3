@@ -400,6 +400,23 @@ class _BaseROM:
             raise ValueError(f"{label} not aligned with Vr, dimension 0")
         return self.Vr.T @ S if S.shape[0] == self.n else S
 
+    @property
+    def operator_norm_(self):
+        """Calculate the squared Frobenius norm of the ROM operators."""
+        self._check_modelform(trained=True)
+        total = 0
+        if self.has_constant:
+            total += np.sum(self.c_**2)
+        if self.has_linear:
+            total += np.sum(self.A_**2)
+        if self.has_quadratic:
+            total += np.sum(self.Hc_**2)
+        if self.has_cubic:
+            total += np.sum(self.Gc_**2)
+        if self.has_inputs:
+            total += np.sum(self.B_**2)
+        return total
+
 
 class _DiscreteROM(_BaseROM):
     """Base class for models that solve the discrete ROM problem,
@@ -1002,7 +1019,7 @@ class _NonparametricMixin:
             out.append(f"B{u}")
         return f"Reduced-order model structure: {lhs} = " + " + ".join(out)
 
-    def save_model(self, savefile, overwrite=False):
+    def save_model(self, savefile, save_basis=True, overwrite=False):
         """Serialize the model, saving it as an HDF5 file.
 
         Parameters
@@ -1010,6 +1027,9 @@ class _NonparametricMixin:
         savefile : str
             The file to save to. If it does not end with '.h5', the extension
             will be tacked on to the end.
+
+        savebasis : bool
+            If True, save the basis Vr.
 
         overwrite : bool
             If True and the specified file already exists, overwrite the file.
@@ -1036,7 +1056,7 @@ class _NonparametricMixin:
                 meta.attrs["modelclass"] = self.__class__.__name__
                 meta.attrs["modelform"] = self.modelform
                 # Store arrays.
-                if self.Vr is not None:
+                if (self.Vr is not None) and save_basis:
                     f.create_dataset("Vr", data=self.Vr)
                 if self.has_constant:
                     f.create_dataset("operators/c_", data=self.c_)

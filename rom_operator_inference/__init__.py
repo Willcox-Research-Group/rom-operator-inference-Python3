@@ -3,7 +3,7 @@
 
 Author: Renee C. Swischuk et al.
 Maintainer: Shane A. McQuarrie
-Github: https://github.com/shanemcq18/rom-operator-inference-Python3
+Github: https://github.com/swischuk/rom-operator-inference-Python3
 """
 
 from ._core import (
@@ -41,4 +41,4 @@ __all__ = [
             "post",
           ]
 
-__version__ = "0.8.2a"
+__version__ = "0.9.2a"
