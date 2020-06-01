@@ -1015,7 +1015,7 @@ class _NonparametricMixin:
             out.append(f"B{u}")
         return f"Reduced-order model structure: {lhs} = " + " + ".join(out)
 
-    def save_model(self, savefile, overwrite=False):
+    def save_model(self, savefile, save_basis=True, overwrite=False):
         """Serialize the model, saving it as an HDF5 file.
 
         Parameters
@@ -1023,6 +1023,9 @@ class _NonparametricMixin:
         savefile : str
             The file to save to. If it does not end with '.h5', the extension
             will be tacked on to the end.
+
+        savebasis : bool
+            If True, save the basis Vr.
 
         overwrite : bool
             If True and the specified file already exists, overwrite the file.
@@ -1049,7 +1052,7 @@ class _NonparametricMixin:
                 meta.attrs["modelclass"] = self.__class__.__name__
                 meta.attrs["modelform"] = self.modelform
                 # Store arrays.
-                if self.Vr is not None:
+                if (self.Vr is not None) and save_basis:
                     f.create_dataset("Vr", data=self.Vr)
                 if self.has_constant:
                     f.create_dataset("operators/c_", data=self.c_)
