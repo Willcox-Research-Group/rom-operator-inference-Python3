@@ -201,7 +201,7 @@ def _test_kron3c_single_matrix(n):
                             X[i]*roi.utils.kron2c(X[:i+1]))
 
 
-def test_kron3c(n_tests=100):
+def test_kron3c(n_tests=50):
     """Test utils.kron3c()."""
     # Try with bad input.
     with pytest.raises(ValueError) as exc:
@@ -209,7 +209,7 @@ def test_kron3c(n_tests=100):
     assert exc.value.args[0] == "x must be one- or two-dimensional"
 
     # Correct inputs.
-    for n in np.random.randint(2, 100, n_tests):
+    for n in np.random.randint(2, 30, n_tests):
         _test_kron3c_single_vector(n)
         _test_kron3c_single_matrix(n)
 

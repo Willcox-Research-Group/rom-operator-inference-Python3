@@ -76,7 +76,7 @@ def lstsq_reg(A, b, P=0):
                 || [ A ]    _  [ b ] ||^2
         min_{x} || [ P ] x     [ 0 ] ||_2,
 
-    with scipy.linalg.lstsq().
+    with scipy.linalg.lstsq() (equivalent to numpy.linalg.lstsq()).
     See https://docs.scipy.org/doc/scipy/reference/linalg.html.
 
     Parameters

@@ -1,6 +1,8 @@
 # test_core.py
 """Tests for rom_operator_inference._core.py."""
 
+import os
+import h5py
 import pytest
 import warnings
 import itertools
@@ -37,7 +39,9 @@ def _get_operators(n=60, m=20):
 
 def _trainedmodel(continuous, modelform, Vr, m=20):
     """Construct a base class with model operators already constructed."""
-    if continuous:
+    if continuous == "inferred":
+        ModelClass = roi._core.InferredContinuousROM
+    elif continuous:
         ModelClass = roi._core._ContinuousROM
     else:
         ModelClass = roi._core._DiscreteROM
@@ -118,6 +122,77 @@ def test_trained_model_from_operators():
                                      "cAH", Vr, A_=A, Hc_=Hc, c_=c)
     roi.trained_model_from_operators(roi._core._ContinuousROM,
                                      "AB", Vr, A_=A, B_=B)
+
+
+def test_load_model():
+    """Test _core.load_model()."""
+    # Get test operators.
+    n, m, r = 20, 2, 5
+    Vr = np.random.random((n,r))
+    c_ = np.random.random(r)
+    A_ = np.random.random((r,r))
+    B_ = np.random.random((r,m))
+
+    # Try loading a file that does not exist.
+    target = "loadmodeltest.h5"
+    if os.path.isfile(target):                  # pragma: no cover
+        os.remove(target)
+    with pytest.raises(FileNotFoundError) as ex:
+        model = roi.load_model(target)
+    assert ex.value.args[0] == target
+
+    # Make an empty HDF5 file to start with.
+    with h5py.File(target, 'w') as f:
+        pass
+
+    with pytest.raises(ValueError) as ex:
+        model = roi.load_model(target)
+    assert ex.value.args[0] == "invalid save format (meta/ not found)"
+
+    # Make a (mostly) compatible HDF5 file to start with.
+    with h5py.File(target, 'a') as f:
+        # Store metadata.
+        meta = f.create_dataset("meta", shape=(0,))
+        meta.attrs["modelclass"] = "InferredDiscreteROOM"
+        meta.attrs["modelform"] = "cAB"
+
+        f.create_dataset("Vr", data=Vr)
+
+    with pytest.raises(ValueError) as ex:
+        model = roi.load_model(target)
+    assert ex.value.args[0] == "invalid save format (operators/ not found)"
+
+    # Store the arrays.
+    with h5py.File(target, 'a') as f:
+        f.create_dataset("operators/c_", data=c_)
+        f.create_dataset("operators/A_", data=A_)
+        f.create_dataset("operators/B_", data=B_)
+
+    # Try to load the file, which has a bad modelclass attribute.
+    with pytest.raises(ValueError) as ex:
+        model = roi.load_model(target)
+    assert ex.value.args[0] == \
+        "invalid modelclass 'InferredDiscreteROOM' (meta.attrs)"
+
+    # Fix the file.
+    with h5py.File(target, 'a') as f:
+        f["meta"].attrs["modelclass"] = "InferredDiscreteROM"
+
+    # Load the file correctly.
+    model = roi.load_model(target)
+    assert isinstance(model, roi.InferredDiscreteROM)
+    for attr in ["modelform", "n", "r", "m", "c_", "A_", "Hc_", "Gc_", "B_"]:
+        assert hasattr(model, attr)
+    assert model.modelform == "cAB"
+    assert np.allclose(model.Vr, Vr)
+    assert np.allclose(model.c_, c_)
+    assert np.allclose(model.A_, A_)
+    assert model.Hc_ is None
+    assert model.Gc_ is None
+    assert np.allclose(model.B_, B_)
+
+    # Clean up.
+    os.remove(target)
 
 
 class TestAffineOperator:
@@ -217,7 +292,12 @@ class TestBaseROM:
         assert ex.value.args[0] == \
             "__init__() takes 2 positional arguments but 3 were given"
 
-        model = roi._core._BaseROM("cA")
+        with pytest.raises(RuntimeError) as ex:
+            roi._core._BaseROM("cAH")
+        assert ex.value.args[0] == \
+            "abstract class instantiation (use _ContinuousROM or _DiscreteROM)"
+
+        model = roi._core._ContinuousROM("cA")
         assert hasattr(model, "modelform")
         assert hasattr(model, "_form")
         assert hasattr(model, "has_inputs")
@@ -240,7 +320,7 @@ class TestBaseROM:
         m = 20
 
         # Try with invalid modelform.
-        model = roi._core._BaseROM("bad_form")
+        model = roi._core._ContinuousROM("bad_form")
         with pytest.raises(ValueError) as ex:
             model._check_modelform(trained=False)
         assert ex.value.args[0] == \
@@ -305,7 +385,7 @@ class TestBaseROM:
         """Test _BaseROM._check_inputargs()."""
 
         # Try with has_inputs = True but without inputs.
-        model = roi._core._BaseROM("cB")
+        model = roi._core._DiscreteROM("cB")
         with pytest.raises(ValueError) as ex:
             model._check_inputargs(None, 'U')
         assert ex.value.args[0] == \
@@ -322,7 +402,7 @@ class TestBaseROM:
         """Test _core._BaseROM.project()."""
         n, k, m, r = 60, 50, 20, 10
         X, Xdot, U = _get_data(n, k, m)
-        model = roi._core._BaseROM("c")
+        model = roi._core._ContinuousROM("c")
         model.n, model.r, model.m = n, r, m
         model.Vr = la.svd(X)[0][:,:r]
 
@@ -336,6 +416,17 @@ class TestBaseROM:
             S_ = model.project(model.Vr.T @ S, label)
             assert S_.shape == (r,k)
 
+    def test_operator_norm_(self):
+        """Test _core._BaseROM.operator_norm_()"""
+        # Get test data.
+        n, k, m, r = 60, 50, 20, 10
+        X = _get_data(n, k, m)[0]
+        Vr = la.svd(X)[0][:,:r]
+
+        model = _trainedmodel(True, "cAHGB", Vr, m)
+        O_ = np.concatenate((model.c_[:,np.newaxis], model.A_,
+                             model.Hc_, model.Gc_, model.B_), axis=1)
+        assert np.isclose(la.norm(O_, ord='fro')**2, model.operator_norm_)
 
 class TestDiscreteROM:
     """Test _core._DiscreteROM."""
@@ -361,19 +452,6 @@ class TestDiscreteROM:
             model.f_(1)
         assert ex.value.args[0] == \
             "<lambda>() missing 1 required positional argument: 'u'"
-
-    def test_str(self):
-        """Test _core.DiscreteROM.__str__()."""
-        model = roi._core._DiscreteROM('')
-        model.modelform = "A"
-        assert str(model) == \
-            "Reduced-order model structure: x_{j+1} = Ax_{j}"
-        model.modelform = "cB"
-        assert str(model) == \
-            "Reduced-order model structure: x_{j+1} = c + Bu_{j}"
-        model.modelform = "H"
-        assert str(model) == \
-            "Reduced-order model structure: x_{j+1} = H(x_{j} ⊗ x_{j})"
 
     def test_fit(self):
         """Test _core._DiscreteROM.fit()."""
@@ -469,23 +547,6 @@ class TestContinuousROM:
             model.f_(1)
         assert ex.value.args[0] == \
             "<lambda>() missing 1 required positional argument: 'x_'"
-
-    def test_str(self):
-        """Test _core.ContinuousROM.__str__() (string representation)."""
-        model = roi._core._ContinuousROM('')
-
-        model.modelform = "A"
-        assert str(model) == \
-            "Reduced-order model structure: dx / dt = Ax(t)"
-        model.modelform = "cA"
-        assert str(model) == \
-            "Reduced-order model structure: dx / dt = c + Ax(t)"
-        model.modelform = "HB"
-        assert str(model) == \
-            "Reduced-order model structure: dx / dt = H(x ⊗ x)(t) + Bu(t)"
-        model.modelform = "cAH"
-        assert str(model) == \
-            "Reduced-order model structure: dx / dt = c + Ax(t) + H(x ⊗ x)(t)"
 
     def test_fit(self):
         """Test _core._ContinuousROM.fit()."""
@@ -632,7 +693,7 @@ class TestInferredMixin:
         model = ModelClass("cAH")
 
         # Get test data.
-        n, k, m, r = 60, 2000, 20, 10
+        n, k, m, r = 60, 500, 20, 10
         X, Xdot, U = _get_data(n, k, m)
         Vr = la.svd(X)[0][:,:r]
         args = [Vr, X]
@@ -650,15 +711,17 @@ class TestInferredMixin:
             assert model.n == n
             assert model.r == r
             assert model.m == m
+            assert model.c_.shape == (r,)
             assert model.A_.shape == (r,r)
             assert model.Hc_.shape == (r,r*(r+1)//2)
             assert model.H_.shape == (r,r**2)
-            assert model.c_.shape == (r,)
+            assert model.Gc_.shape == (r,r*(r+1)*(r+2)//6)
+            assert model.G_.shape == (r,r**3)
             assert model.B_.shape == (r,m)
             assert hasattr(model, "residual_")
 
         # Test with high-dimensional inputs.
-        model.modelform = "cAHB"
+        model.modelform = "cAHGB"
         model.fit(*args, U=U)
         _test_output_shapes(model)
 
@@ -705,7 +768,7 @@ class TestIntrusiveMixin:
         model = ModelClass("cAHB")
 
         # Get test data.
-        n, k, m, r = 60, 50, 20, 10
+        n, k, m, r = 30, 50, 10, 5
         X = _get_data(n, k, m)[0]
         Vr = la.svd(X)[0][:,:r]
 
@@ -781,13 +844,149 @@ class TestIntrusiveMixin:
 
 class TestNonparametricMixin:
     """Test _core._NonparametricMixin."""
-    pass
+    def test_str(self):
+        """Test _core._NonparametricMixin.__str__() (string representation)."""
+        # Continuous ROMs
+        model = roi._core.InferredContinuousROM("A")
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = Ax(t)"
+        model.modelform = "cA"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = c + Ax(t)"
+        model.modelform = "HB"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = H(x(t) ⊗ x(t)) + Bu(t)"
+        model.modelform = "G"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = G(x(t) ⊗ x(t) ⊗ x(t))"
+        model.modelform = "cH"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = c + H(x(t) ⊗ x(t))"
+
+        # Discrete ROMs
+        model = roi._core.IntrusiveDiscreteROM("A")
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = Ax_{j}"
+        model.modelform = "cB"
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = c + Bu_{j}"
+        model.modelform = "H"
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = H(x_{j} ⊗ x_{j})"
+
+    def test_save_model(self):
+        """Test _core._NonparametricMixin.save_model()."""
+        # Clean up after old tests.
+        target = "savemodeltest.h5"
+        if os.path.isfile(target):              # pragma: no cover
+            os.remove(target)
+
+        # Get a test model.
+        n, m, r = 15, 2, 5
+        Vr = np.random.random((n,r))
+        model = _trainedmodel("inferred", "cAHGB", Vr, m)
+
+        def _checkfile(filename, mdl):
+            assert os.path.isfile(filename)
+            with h5py.File(filename, 'r') as data:
+                # Check metadata.
+                assert "meta" in data
+                assert len(data["meta"]) == 0
+                assert data["meta"].attrs["modelclass"] == \
+                                                    mdl.__class__.__name__
+                assert data["meta"].attrs["modelform"] == mdl.modelform
+
+                # Check basis
+                assert "Vr" in data
+                assert np.allclose(data["Vr"], Vr)
+
+                # Check operators
+                assert "operators" in data
+                if "c" in mdl.modelform:
+                    assert np.allclose(data["operators/c_"], mdl.c_)
+                else:
+                    assert "c_" not in data["operators"]
+                if "A" in mdl.modelform:
+                    assert np.allclose(data["operators/A_"], mdl.A_)
+                else:
+                    assert "A_" not in data["operators"]
+                if "H" in mdl.modelform:
+                    assert np.allclose(data["operators/Hc_"], mdl.Hc_)
+                else:
+                    assert "Hc_" not in data["operators"]
+                if "G" in mdl.modelform:
+                    assert np.allclose(data["operators/Gc_"], mdl.Gc_)
+                else:
+                    assert "Gc_" not in data["operators"]
+                if "B" in mdl.modelform:
+                    assert np.allclose(data["operators/B_"], mdl.B_)
+                else:
+                    assert "B_" not in data["operators"]
+
+
+        model.save_model(target[:-3])
+        _checkfile(target, model)
+
+        with pytest.raises(FileExistsError) as ex:
+            model.save_model(target, overwrite=False)
+        assert ex.value.args[0] == target
+
+        model = _trainedmodel("inferred", "c", Vr, 0)
+        model.save_model(target, overwrite=True)
+        _checkfile(target, model)
+
+        model = _trainedmodel("inferred", "AB", Vr, m)
+        model.save_model(target, overwrite=True)
+        _checkfile(target, model)
+
+        # Test error cleanup
+        A_ = model.A_
+        del model.A_
+        with pytest.raises(AttributeError) as ex:
+            model.save_model(target, overwrite=True)
+        assert os.path.isfile(target)
+        assert not os.path.isfile("__"+target)
+        model.A_ = A_
+        _checkfile(target, model)
+
+        os.remove(target)
+        del model.A_
+        with pytest.raises(AttributeError) as ex:
+            model.save_model(target, overwrite=False)
+        assert not os.path.isfile(target)
 
 
 class TestParametricMixin:
     """Test _core._ParametricMixin."""
-    pass
+    def test_str(self):
+        """Test _core._ParametricMixin.__str__() (string representation)."""
+        # Continuous ROMs
+        model = roi._core.InterpolatedInferredContinuousROM("A")
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = Ax(t)"
+        model.c_ = lambda t: t
+        model.A_ = lambda t: t
+        model.modelform = "cA"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = c(µ) + A(µ)x(t)"
+        model.Hc_ = None
+        model.Gc_ = lambda t: t
+        model.B_ = None
+        model.modelform = "HB"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = H(x(t) ⊗ x(t)) + Bu(t)"
+        model.modelform = "G"
+        assert str(model) == \
+            "Reduced-order model structure: dx / dt = G(µ)(x(t) ⊗ x(t) ⊗ x(t))"
 
+        # Discrete ROMs
+        model = roi._core.AffineIntrusiveDiscreteROM("cH")
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = c + H(x_{j} ⊗ x_{j})"
+        model.c_ = lambda t: t
+        model.Hc_ = None
+        assert str(model) == \
+            "Reduced-order model structure: x_{j+1} = c(µ) + H(x_{j} ⊗ x_{j})"
 
 # Specialized mixins (private) ================================================
 class TestInterpolatedMixin:
@@ -858,7 +1057,7 @@ class TestAffineIntrusiveMixin:
         model = ModelClass("cAHGB")
 
         # Get test data.
-        n, k, m, r = 60, 2000, 20, 10
+        n, k, m, r = 30, 1000, 10, 5
         X = _get_data(n, k, m)[0]
         Vr = la.svd(X)[0][:,:r]
 
