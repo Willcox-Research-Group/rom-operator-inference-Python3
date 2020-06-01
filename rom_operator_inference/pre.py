@@ -3,7 +3,6 @@
 
 import numpy as _np
 from scipy import linalg as _la
-from scipy.linalg import svd as _svd
 from scipy.sparse import linalg as _spla
 from sklearn.utils import extmath as _sklmath
 from matplotlib import pyplot as _plt
@@ -37,9 +36,10 @@ def mean_shift(X):
     return xbar, Xshifted
 
 
-def pod_basis(X, r, mode="simple", **options):
+def pod_basis(X, r=None, mode="simple", **options):
     """Compute the POD basis of rank r corresponding to the data in X.
-    This function does NOT shift or scale the data before computing the basis.
+    This function does NOT shift or scale data before computing the basis.
+    This function is a simple wrapper for various SVD methods.
 
     Parameters
     ----------
@@ -47,15 +47,16 @@ def pod_basis(X, r, mode="simple", **options):
         A matrix of k snapshots. Each column is a single snapshot.
 
     r : int
-        The number of POD basis vectors to compute.
+        The number of POD basis vectors and singular values to compute.
+        If None (default), compute the full SVD.
 
     mode : str
         The strategy to use for computing the truncated SVD of X. Options:
-        * "simple" (default): Use scipy.linalg.svd() to compute the entire SVD
-            of X, then truncate it to get the first r left singular vectors of
-            X. May be inefficient for very large matrices.
-        * "arpack": Use scipy.sparse.linalg.svds() to compute only the first r
-            left singular vectors of X. This uses ARPACK for the eigensolver.
+        * "simple" (default): Use scipy.linalg.svd() to compute the SVD of X.
+            May be inefficient or intractable for very large matrices.
+        * "arpack": Use scipy.sparse.linalg.svds() to compute the SVD of X.
+            This uses ARPACK for the eigensolver. Inefficient for non-sparse
+            matrices; requires separate computations for full SVD.
         * "randomized": Compute an approximate SVD with a randomized approach
             using sklearn.utils.extmath.randomized_svd(). This gives faster
             results at the cost of some accuracy.
@@ -70,15 +71,48 @@ def pod_basis(X, r, mode="simple", **options):
     -------
     Vr : (n,r) ndarray
         The first r POD basis vectors of X. Each column is one basis vector.
+
+    svdvals : (r,) ndarray
+        The first r singular values of X (highest magnitute first).
     """
+    # Validate the rank.
+    rmax = min(X.shape)
+    if r is None:
+        r = rmax
+    if r > rmax or r < 1:
+        raise ValueError(f"invalid POD rank r = {r} (need 1 <= r <= {rmax})")
+
     if mode == "simple":
-        return _la.svd(X, full_matrices=False, **options)[0][:,:r]
-    if mode == "arpack":
-        return _spla.svds(X, r, which="LM", **options)[0][:,::-1]
+        V, svdvals, _ = _la.svd(X, full_matrices=False, **options)
+
+    elif mode == "arpack":
+        get_smallest = False
+        if r == rmax:
+            r -= 1
+            get_smallest = True
+
+        # Compute all but the last svd vectors / values (maximum allowed)
+        V, svdvals, _ = _spla.svds(X, r, which="LM",
+                                   return_singular_vectors='u', **options)
+        V = V[:,::-1]
+        svdvals = svdvals[::-1]
+
+        # Get the smallest vector / value separately.
+        if get_smallest:
+            V1, smallest, _ = _spla.svds(X, 1, which="SM",
+                                        return_singular_vectors='u', **options)
+            V = _np.concatenate((V, V1), axis=1)
+            svdvals = _np.concatenate((svdvals, smallest))
+            r += 1
+
     elif mode == "randomized":
-        return _sklmath.randomized_svd(X, r, **options)[0][:,::-1]
+        V, svdvals, _ = _sklmath.randomized_svd(X, r, **options)
+
     else:
         raise NotImplementedError(f"invalid mode '{mode}'")
+
+    # Return the first 'r' values.
+    return V[:,:r], svdvals[:r]
 
 
 # Reduced dimension selection =================================================
