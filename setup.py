@@ -7,7 +7,7 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="rom_operator_inference",
-    version="1.0.0",
+    version="1.0.2",
 
     # Package description, license, and keywords.
     description="Operator inference for data-driven, non-intrusive model reduction of dynamical systems.",
@@ -32,8 +32,8 @@ setuptools.setup(
 
     # Technical details: source code, dependencies, test suite.
     packages=["rom_operator_inference"],
+    python_requires=">=3.5",
     install_requires=[
-        "python>=3.6",
         "h5py>=2.9.0",
         "numpy>=1.16",
         "scipy>=1.3",
