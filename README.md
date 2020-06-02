@@ -13,11 +13,11 @@ See [this repository](https://github.com/elizqian/operator-inference) for a MATL
 
 Consider the (possibly nonlinear) system of _n_ ordinary differential equations with state variable **x**, input (control) variable **u**, and independent variable _t_:
 
-<p align="center"><img src="img/prb/eq1.svg"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq1.svg"/></p>
 
 where
 
-<p align="center"><img src="img/prb/eq2.svg"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq2.svg"/></p>
 
 This system is called the _full-order model_ (FOM).
 If _n_ is large, as it often is in high-consequence engineering applications, it is computationally expensive to numerically solve the FOM.
@@ -25,15 +25,15 @@ This package provides tools for constructing a _reduced-order model_ (ROM) that 
 The procedure is data-driven, non-intrusive, and relatively inexpensive.
 In the most general case, the code can construct and solve a reduced-order system with the polynomial form
 
-<p align="center"><img src="img/prb/eq3.svg"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq3.svg"/></p>
 
 <!-- https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{G}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\sum_{i=1}^m\hat{N}_{i}\hat{\mathbf{x}}(t)u_{i}(t),"/>
 </p> -->
 
 where now
 
-<p align="center"><img src="img/prb/eq4.svg"/></p>
-<p align="center"><img src="img/prb/eq5.svg"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq4.svg"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq5.svg"/></p>
 
 <!-- <p align="center">
   <img src="https://latex.codecogs.com/svg.latex?https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{G}\in\mathbb{R}^{r\times%20r^3},\qquad\hat{B}\in\mathbb{R}^{r\times%20m},\qquad\hat{N}_{i}\in\mathbb{R}^{r\times%20r}."/>
@@ -48,9 +48,9 @@ See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notat
 
 #### Installation
 
-Install from the command line with the following single command (requires [`pip`](https://pypi.org/project/pip/) and [`git`](https://git-scm.com/)).
+Install from the command line with the following single command (requires [`pip`](https://pypi.org/project/pip/)).
 ```bash
-$ pip3 install git+https://github.com/swischuk/rom-operator-inference-Python3.git
+$ pip3 install rom-operator-inference
 ```
 
 #### Usage
