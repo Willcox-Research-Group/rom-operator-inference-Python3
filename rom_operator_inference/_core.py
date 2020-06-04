@@ -112,8 +112,9 @@ def trained_model_from_operators(ModelClass, modelform, Vr,
     modelform : str
         The structure of the model, a substring of "cAHB".
 
-    Vr : (n,r) ndarray
+    Vr : (n,r) ndarray or None
         The basis for the linear reduced space (e.g., POD basis matrix).
+        If None, then r is inferred from one of the reduced operators.
 
     c_ : (r,) ndarray or None
         Reduced constant term, or None if 'c' is not in `modelform`.
@@ -153,13 +154,23 @@ def trained_model_from_operators(ModelClass, modelform, Vr,
     model = ModelClass(modelform)
     model._check_modelform(trained=False)
 
-    # Insert the attributes.
-    model.Vr = Vr
-    model.n, model.r = Vr.shape
+    # Insert the reduced operators.
     model.m = None if B_ is None else 1 if B_.ndim == 1 else B_.shape[1]
     model.c_, model.A_, model.B_ = c_, A_, B_
     model.Hc_ = H2Hc(H_) if H_ else Hc_
     model.Gc_ = G2Gc(G_) if G_ else Gc_
+
+    # Insert the basis (if given) and determine dimensions.
+    model.Vr = Vr
+    if Vr is not None:
+        model.n, model.r = Vr.shape
+    else:
+        # Determine the dimension r from the existing operators.
+        model.n = None
+        for op in [model.c_, model.A_, model.Hc_, model.Gc_, model.B_]:
+            if op is not None:
+                model.r = op.shape[0]
+                break
 
     # Construct the complete reduced model operator from the arguments.
     model._construct_f_()
@@ -168,8 +179,8 @@ def trained_model_from_operators(ModelClass, modelform, Vr,
 
 
 def load_model(loadfile):
-    """Load a serialized model from an HDF5 file, which should have been
-    created from a ROM object's save_model() method.
+    """Load a serialized model from an HDF5 file, created previously from
+    a ROM object's save_model() method.
 
     Parameters
     ----------
@@ -192,18 +203,31 @@ def load_model(loadfile):
 
         # Load metadata.
         modelclass = data["meta"].attrs["modelclass"]
+        try:
+            ModelClass = eval(modelclass)
+        except NameError as ex:
+            raise ValueError(f"invalid modelclass '{modelclass}' (meta.attrs)")
+        # is_parametric = issubclass(ModelClass, _ParametricMixin)
         modelform = data["meta"].attrs["modelform"]
 
-        # Load basis.
+        # Load basis if present.
         Vr = data["Vr"][:] if "Vr" in data else None
 
         # Load operators.
-        operators = {x+'_': data[f"operators/{x}_"][:] for x in modelform}
+        operators = {}
+        if 'c' in modelform:
+            operators["c_"] = data["operators/c_"][:]
+        if 'A' in modelform:
+            operators["A_"] = data["operators/A_"][:]
+        if 'H' in modelform:
+            operators["Hc_"] = data["operators/Hc_"][:]
+        if 'G' in modelform:
+            operators["Gc_"] = data["operators/Gc_"][:]
+        if 'B' in modelform:
+            operators["B_"] = data["operators/B_"][:]
 
-    try:
-        ModelClass = eval(modelclass)
-    except NameError as ex:
-        raise ValueError(f"invalid modelclass '{modelclass}' (meta.attrs)")
+        # TODO: loading (and saving) for Parametric operators.
+
     return trained_model_from_operators(ModelClass, modelform, Vr, **operators)
 
 
@@ -514,9 +538,11 @@ class _DiscreteROM(_BaseROM):
 
         Returns
         -------
-        X_ROM : (n,niters) ndarray
-            The approximate solutions to the full-order system, including the
-            given initial condition.
+        X_ROM : (n,niters) or (r,niters) ndarray
+            The approximate solution to the system, including the given
+            initial condition. If the basis Vr is None, return solutions in the
+            reduced r-dimensional subspace (r,niters). Otherwise, map solutions
+            to the full n-dimensional space with Vr (n,niters).
         """
         # Verify modelform.
         self._check_modelform(trained=True)
@@ -530,7 +556,7 @@ class _DiscreteROM(_BaseROM):
             raise ValueError("argument 'niters' must be a nonnegative integer")
 
         # Create the solution array and fill in the initial condition.
-        X_ = np.empty((self.Vr.shape[1],niters))
+        X_ = np.empty((self.r,niters))
         X_[:,0] = x0_.copy()
 
         # Run the iteration.
@@ -548,8 +574,8 @@ class _DiscreteROM(_BaseROM):
             for j in range(niters-1):
                 X_[:,j+1] = self.f_(X_[:,j])            # f(xj)
 
-        # Reconstruct the approximation to the full-order model.
-        return self.Vr @ X_
+        # Reconstruct the approximation to the full-order model if possible.
+        return self.Vr @ X_ if self.Vr is not None else X_
 
 
 class _ContinuousROM(_BaseROM):
@@ -679,8 +705,11 @@ class _ContinuousROM(_BaseROM):
 
         Returns
         -------
-        X_ROM : (n,nt) ndarray
-            The approximate solution to the full-order system over `t`.
+        X_ROM : (n,nt) or (r,nt) ndarray
+            The approximate solution to the system over the time domain `t`.
+            If the basis Vr is None, return solutions in the reduced
+            r-dimensional subspace (r,nt). Otherwise, map the solutions to the
+            full n-dimensional space with Vr (n,nt).
         """
         # Verify modelform.
         self._check_modelform(trained=True)
@@ -715,7 +744,7 @@ class _ContinuousROM(_BaseROM):
                         raise ValueError(message + " or scalar")
                     raise ValueError(message)
             else:                   # u is an (m,nt) array.
-                U = np.atleast_2d(u.copy())
+                U = np.atleast_2d(u)
                 if U.shape != (self.m,nt):
                     raise ValueError("invalid input shape "
                                      f"({U.shape} != {(self.m,nt)}")
@@ -735,7 +764,7 @@ class _ContinuousROM(_BaseROM):
             warnings.warn(self.sol_.message, IntegrationWarning)
 
         # Reconstruct the approximation to the full-order model.
-        return self.Vr @ self.sol_.y
+        return self.Vr @ self.sol_.y if self.Vr is not None else self.sol_.y
 
 
 # Basic mixins (private) ======================================================
@@ -755,8 +784,9 @@ class _InferredMixin:
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        Vr : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, X and rhs are assumed to already be projected (r,k).
 
         X : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
@@ -786,9 +816,13 @@ class _InferredMixin:
         self._check_inputargs(U, 'U')
 
         # Store dimensions and check that number of samples is consistent.
-        self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
+        if Vr is not None:
+            self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
+        else:
+            self.n = None
+            self.r = X.shape[0]
         _tocheck = [X, rhs]
-        if self.has_inputs:         # Input dimension.
+        if self.has_inputs:             # Input dimension.
             if U.ndim == 1:
                 U = U.reshape((1,-1))
                 self.m = 1
@@ -894,6 +928,7 @@ class _IntrusiveMixin:
         ----------
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
+            This cannot be set to None, as it is required for projection.
 
         operators: dict(str -> ndarray)
             The operators that define the full-order model f.
@@ -913,14 +948,13 @@ class _IntrusiveMixin:
         self._check_operators(operators)
 
         # Store dimensions.
-        n,r = Vr.shape          # Dimension of system, number of basis vectors.
         self.Vr = Vr
-        self.n, self.r = n, r
+        self.n, self.r = Vr.shape           # Dim of system, num basis vectors.
 
         # Project FOM operators.
         if self.has_constant:               # Constant term.
             self.c = operators['c']
-            if self.c.shape != (n,):
+            if self.c.shape != (self.n,):
                 raise ValueError("basis Vr and FOM operator c not aligned")
             self.c_ = self.Vr.T @ self.c
         else:
@@ -1016,62 +1050,52 @@ class _NonparametricMixin:
         return f"Reduced-order model structure: {lhs} = " + " + ".join(out)
 
     def save_model(self, savefile, save_basis=True, overwrite=False):
-        """Serialize the model, saving it as an HDF5 file.
+        """Serialize the learned model, saving it in HDF5 format.
+        The model can then be loaded with rom_operator_inference.load_model().
 
         Parameters
         ----------
         savefile : str
-            The file to save to. If it does not end with '.h5', the extension
+            The file to save to. If it does not end with '.h5', this extension
             will be tacked on to the end.
 
         savebasis : bool
-            If True, save the basis Vr.
+            If True, save the basis Vr as well as the reduced operators.
+            If False, only save reduced operators.
 
         overwrite : bool
             If True and the specified file already exists, overwrite the file.
             If False and the specified file already exists, raise an error.
         """
+        # Make sure that the model is trained (or there is nothing to save).
+        self._check_modelform(trained=True)
+
         # Make sure the file is saved in HDF5 format.
         if not savefile.endswith(".h5"):
             savefile += ".h5"
 
-        if os.path.isfile(savefile):
-            if overwrite:
-                # Temporarily move the file to be deleted.
-                folder = os.path.dirname(savefile)
-                filename = os.path.basename(savefile)
-                tempfile = os.path.join(folder, "__"+filename)
-                os.rename(savefile, tempfile)
-            else:
-                raise FileExistsError(savefile)
+        # Be sure not to overwrite and existing file on accident.
+        if os.path.isfile(savefile) and not overwrite:
+            raise FileExistsError(savefile)
 
-        try:
-            with h5py.File(savefile, 'w') as f:
-                # Store metadata.
-                meta = f.create_dataset("meta", shape=(0,))
-                meta.attrs["modelclass"] = self.__class__.__name__
-                meta.attrs["modelform"] = self.modelform
-                # Store arrays.
-                if (self.Vr is not None) and save_basis:
-                    f.create_dataset("Vr", data=self.Vr)
-                if self.has_constant:
-                    f.create_dataset("operators/c_", data=self.c_)
-                if self.has_linear:
-                    f.create_dataset("operators/A_", data=self.A_)
-                if self.has_quadratic:
-                    f.create_dataset("operators/Hc_", data=self.Hc_)
-                if self.has_cubic:
-                    f.create_dataset("operators/Gc_", data=self.Gc_)
-                if self.has_inputs:
-                    f.create_dataset("operators/B_", data=self.B_)
-            if overwrite:
-                os.remove(tempfile)
-        except:     # If there was an error, restore the old file.
-            if overwrite:
-                os.rename(tempfile, savefile)
-            else:
-                os.remove(savefile)
-            raise
+        with h5py.File(savefile, 'w') as f:
+            # Store metadata: ROM class and model form.
+            meta = f.create_dataset("meta", shape=(0,))
+            meta.attrs["modelclass"] = self.__class__.__name__
+            meta.attrs["modelform"] = self.modelform
+            # Store basis (optionally) and reduced operators.
+            if (self.Vr is not None) and save_basis:
+                f.create_dataset("Vr", data=self.Vr)
+            if self.has_constant:
+                f.create_dataset("operators/c_", data=self.c_)
+            if self.has_linear:
+                f.create_dataset("operators/A_", data=self.A_)
+            if self.has_quadratic:
+                f.create_dataset("operators/Hc_", data=self.Hc_)
+            if self.has_cubic:
+                f.create_dataset("operators/Gc_", data=self.Gc_)
+            if self.has_inputs:
+                f.create_dataset("operators/B_", data=self.B_)
 
 
 class _ParametricMixin:
@@ -1184,8 +1208,9 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
             ROM class, either _ContinuousROM or _DiscreteROM, to use for the
             newly constructed model.
 
-        Vr : (n,r) ndarray
+        Vr : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, Xs and rhss are assumed to already be projected (r,k).
 
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
@@ -1236,7 +1261,11 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
             Xdots = [None] * s
 
         # Check and store dimensions.
-        self.n, self.r = Vr.shape
+        if Vr is not None:
+            self.n, self.r = Vr.shape
+        else:
+            self.n = None
+            self.r = Xs[0].shape[0]
         self.m = None
 
         # Check that the arrays in each list have the same number of columns.
@@ -1306,6 +1335,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
         ----------
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
+            This cannot be set to None, as it is required for projection.
 
         affines : dict(str -> list(callables))
             Functions that define the structures of the affine operators.
@@ -1340,22 +1370,21 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
         self._check_operators(operators)
 
         # Store dimensions.
-        n,r = Vr.shape          # Dimension of system, number of basis vectors.
         self.Vr = Vr
-        self.n, self.r = n, r
+        self.n, self.r = self.Vr.shape      # Dim of system, num basis vectors.
 
         # Project FOM operators.
         if self.has_constant:               # Constant term.
             if 'c' in affines:
                 self.c = AffineOperator(affines['c'], operators['c'])
-                if self.c.shape != (n,):
+                if self.c.shape != (self.n,):
                     raise ValueError("basis Vr and FOM operator c not aligned")
                 self.c_ = AffineOperator(affines['c'],
                                           [self.Vr.T @ c
                                            for c in self.c.matrices])
             else:
                 self.c = operators['c']
-                if self.c.shape != (n,):
+                if self.c.shape != (self.n,):
                     raise ValueError("basis Vr and FOM operator c not aligned")
                 self.c_ = self.Vr.T @ self.c
         else:
@@ -1583,8 +1612,9 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        Vr : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, X is assumed to already be projected (r,k).
 
         X : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
@@ -1710,8 +1740,9 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        Vr : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, X and Xdot are assumed to already be projected (r,k).
 
         X : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
@@ -2050,8 +2081,9 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        Vr : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, Xs are assumed to already be projected (r,k).
 
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
@@ -2215,8 +2247,9 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        Vr : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, Xs and Xdots are assumed to already be projected (r,k).
 
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
@@ -2619,4 +2652,3 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
 # TODO: Account for state / input interactions (N).
 # TODO: save_model() for parametric forms.
 # TODO: jacobians for each model form in the continuous case.
-# TODO: better __str__() for parametric classes.
