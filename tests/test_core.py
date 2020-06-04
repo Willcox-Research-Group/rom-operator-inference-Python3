@@ -114,7 +114,7 @@ def test_trained_model_from_operators():
     """Test _core.trained_model_from_operators()."""
     n, m, r = 60, 20, 30
     Vr = np.random.random((n, r))
-    c, A, H, Hc, G, Gc, B = _get_operators(n=n, m=m)
+    c, A, H, Hc, G, Gc, B = _get_operators(n=r, m=m)
 
     # Try with bad ModelClass argument.
     with pytest.raises(TypeError) as ex:
@@ -122,10 +122,33 @@ def test_trained_model_from_operators():
     assert ex.value.args[0] == "ModelClass must be derived from _BaseROM"
 
     # Correct usage.
-    roi.trained_model_from_operators(roi._core._ContinuousROM,
-                                     "cAH", Vr, A_=A, Hc_=Hc, c_=c)
-    roi.trained_model_from_operators(roi._core._ContinuousROM,
-                                     "AB", Vr, A_=A, B_=B)
+    model = roi.trained_model_from_operators(roi._core._ContinuousROM,
+                                             "cAH", Vr, A_=A, Hc_=Hc, c_=c)
+    assert isinstance(model, roi._core._ContinuousROM)
+    assert model.modelform == "cAH"
+    assert model.n == n
+    assert model.r == r
+    assert model.m is None
+    assert np.allclose(model.Vr, Vr)
+    assert np.allclose(model.c_, c)
+    assert np.allclose(model.A_, A)
+    assert np.allclose(model.Hc_, Hc)
+    assert model.B_ is None
+    assert model.Gc_ is None
+
+    model = roi.trained_model_from_operators(roi._core._DiscreteROM,
+                                             "GB", None, Gc_=Gc, B_=B)
+    assert isinstance(model, roi._core._DiscreteROM)
+    assert model.modelform == "GB"
+    assert model.n is None
+    assert model.r == r
+    assert model.m == m
+    assert model.Vr is None
+    assert model.c_ is None
+    assert model.A_ is None
+    assert model.Hc_ is None
+    assert np.allclose(model.Gc_, Gc)
+    assert np.allclose(model.B_, B)
 
 
 def test_load_model():
@@ -133,9 +156,7 @@ def test_load_model():
     # Get test operators.
     n, m, r = 20, 2, 5
     Vr = np.random.random((n,r))
-    c_ = np.random.random(r)
-    A_ = np.random.random((r,r))
-    B_ = np.random.random((r,m))
+    c_, A_, H_, Hc_, G_, Gc_, B_ = _get_operators(n=r, m=m)
 
     # Try loading a file that does not exist.
     target = "loadmodeltest.h5"
@@ -160,8 +181,6 @@ def test_load_model():
         meta.attrs["modelclass"] = "InferredDiscreteROOM"
         meta.attrs["modelform"] = "cAB"
 
-        f.create_dataset("Vr", data=Vr)
-
     with pytest.raises(ValueError) as ex:
         model = roi.load_model(target)
     assert ex.value.args[0] == "invalid save format (operators/ not found)"
@@ -182,18 +201,58 @@ def test_load_model():
     with h5py.File(target, 'a') as f:
         f["meta"].attrs["modelclass"] = "InferredDiscreteROM"
 
+    def _check_model(mdl):
+        assert isinstance(mdl, roi.InferredDiscreteROM)
+        for attr in ["modelform",
+                     "n", "r", "m",
+                     "c_", "A_", "Hc_", "Gc_", "B_", "Vr"]:
+            assert hasattr(mdl, attr)
+        assert mdl.modelform == "cAB"
+        assert model.r == r
+        assert model.m == m
+        assert np.allclose(mdl.c_, c_)
+        assert np.allclose(mdl.A_, A_)
+        assert mdl.Hc_ is None
+        assert mdl.Gc_ is None
+        assert np.allclose(mdl.B_, B_)
+
     # Load the file correctly.
     model = roi.load_model(target)
-    assert isinstance(model, roi.InferredDiscreteROM)
-    for attr in ["modelform", "n", "r", "m", "c_", "A_", "Hc_", "Gc_", "B_"]:
-        assert hasattr(model, attr)
-    assert model.modelform == "cAB"
+    _check_model(model)
+    assert model.Vr is None
+    assert model.n is None
+
+    # Add the basis and then load the file correctly.
+    with h5py.File(target, 'a') as f:
+        f.create_dataset("Vr", data=Vr)
+    model = roi.load_model(target)
+    _check_model(model)
     assert np.allclose(model.Vr, Vr)
-    assert np.allclose(model.c_, c_)
-    assert np.allclose(model.A_, A_)
-    assert model.Hc_ is None
-    assert model.Gc_ is None
-    assert np.allclose(model.B_, B_)
+    assert model.n == n
+
+    # One additional test to cover other cases.
+    with h5py.File(target, 'a') as f:
+        f["meta"].attrs["modelclass"] = "InferredContinuousROM"
+        f["meta"].attrs["modelform"] = "HG"
+        f.create_dataset("operators/Hc_", data=Hc_)
+        f.create_dataset("operators/Gc_", data=Gc_)
+
+    model = roi.load_model(target)
+    assert isinstance(model, roi.InferredContinuousROM)
+    for attr in ["modelform",
+                 "n", "r", "m",
+                 "c_", "A_", "Hc_", "Gc_", "B_", "Vr"]:
+        assert hasattr(model, attr)
+    assert model.modelform == "HG"
+    assert model.r == r
+    assert model.m is None
+    assert model.c_ is None
+    assert model.A_ is None
+    assert np.allclose(model.Hc_, Hc_)
+    assert np.allclose(model.Gc_, Gc_)
+    assert model.B_ is None
+    assert np.allclose(model.Vr, Vr)
+    assert model.n == n
 
     # Clean up.
     os.remove(target)
@@ -521,7 +580,9 @@ class TestDiscreteROM:
         for form in _MODEL_FORMS:
             if "B" not in form:             # No control inputs.
                 model = _trainedmodel(False, form, Vr, None)
-                model.predict(x0, niters)
+                out = model.predict(x0, niters)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,niters)
             else:                           # Has Control inputs.
                 # Predict with 2D inputs.
                 model = _trainedmodel(False, form, Vr, m)
@@ -534,6 +595,13 @@ class TestDiscreteROM:
                 out = model.predict(x0, niters, np.ones(niters))
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n,niters)
+
+        # Predict with no basis gives result in low-dimensional space.
+        model = _trainedmodel(False, "cA", Vr, None)
+        model.Vr, model.n = None, None
+        out = model.predict(Vr.T @ x0, niters)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,niters)
 
 
 class TestContinuousROM:
@@ -599,7 +667,16 @@ class TestContinuousROM:
         for form in _MODEL_FORMS:
             if "B" not in form:
                 model = _trainedmodel(True, form, Vr, None)
-                model.predict(x0, t)
+                out = model.predict(x0, t)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,t.size)
+
+        # Predict with no basis gives result in low-dimensional space.
+        model = _trainedmodel(True, "cA", Vr, None)
+        model.Vr, model.n = None, None
+        out = model.predict(Vr.T @ x0, t)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,t.size)
 
         # Try to predict with badly-shaped discrete inputs.
         model = _trainedmodel(True, "cAHB", Vr, m)
@@ -712,7 +789,6 @@ class TestInferredMixin:
 
         def _test_output_shapes(model):
             """Test shapes of output operators for modelform="cAHB"."""
-            assert model.n == n
             assert model.r == r
             assert model.m == m
             assert model.c_.shape == (r,)
@@ -728,11 +804,24 @@ class TestInferredMixin:
         model.modelform = "cAHGB"
         model.fit(*args, U=U)
         _test_output_shapes(model)
+        assert model.n == n
+        assert np.allclose(model.Vr, Vr)
 
         # Test again with one-dimensional inputs.
         m = 1
         model.fit(*args, U=np.ones(k))
         _test_output_shapes(model)
+        assert model.n == n
+        assert np.allclose(model.Vr, Vr)
+
+        # Test again with Vr = None and projected data.
+        args[0] = None
+        for i in range(1,len(args)):
+            args[i] = Vr.T @ args[i]
+        model.fit(*args, U=np.ones(k))
+        _test_output_shapes(model)
+        assert model.n is None
+        assert model.Vr is None
 
 
 class TestIntrusiveMixin:
@@ -890,7 +979,7 @@ class TestNonparametricMixin:
         Vr = np.random.random((n,r))
         model = _trainedmodel("inferred", "cAHGB", Vr, m)
 
-        def _checkfile(filename, mdl):
+        def _checkfile(filename, mdl, hasbasis):
             assert os.path.isfile(filename)
             with h5py.File(filename, 'r') as data:
                 # Check metadata.
@@ -901,8 +990,9 @@ class TestNonparametricMixin:
                 assert data["meta"].attrs["modelform"] == mdl.modelform
 
                 # Check basis
-                assert "Vr" in data
-                assert np.allclose(data["Vr"], Vr)
+                if hasbasis:
+                    assert "Vr" in data
+                    assert np.allclose(data["Vr"], Vr)
 
                 # Check operators
                 assert "operators" in data
@@ -928,36 +1018,53 @@ class TestNonparametricMixin:
                     assert "B_" not in data["operators"]
 
 
-        model.save_model(target[:-3])
-        _checkfile(target, model)
+        model.save_model(target[:-3], save_basis=False)
+        _checkfile(target, model, False)
 
         with pytest.raises(FileExistsError) as ex:
             model.save_model(target, overwrite=False)
         assert ex.value.args[0] == target
 
+        model.save_model(target, save_basis=True, overwrite=True)
+        _checkfile(target, model, True)
+
         model = _trainedmodel("inferred", "c", Vr, 0)
         model.save_model(target, overwrite=True)
-        _checkfile(target, model)
+        _checkfile(target, model, True)
 
         model = _trainedmodel("inferred", "AB", Vr, m)
-        model.save_model(target, overwrite=True)
-        _checkfile(target, model)
+        model.Vr = None
+        model.save_model(target, save_basis=True, overwrite=True)
+        _checkfile(target, model, False)
 
-        # Test error cleanup
+        # Check that save_model() and load_model() are inverses.
+        model.Vr = Vr
+        model.save_model(target, save_basis=True, overwrite=True)
+        model2 = roi.load_model(target)
+        for attr in ["n", "m", "r", "modelform", "__class__"]:
+            assert getattr(model, attr) == getattr(model2, attr)
+        for attr in ["A_", "B_", "Vr"]:
+            assert np.allclose(getattr(model, attr), getattr(model2, attr))
+        for attr in ["c_", "Hc_", "Gc_"]:
+            assert getattr(model, attr) is getattr(model2, attr) is None
+
+        model.Vr, model.n = None, None
+        model.save_model(target, overwrite=True)
+        model2 = roi.load_model(target)
+        for attr in ["m", "r", "modelform", "__class__"]:
+            assert getattr(model, attr) == getattr(model2, attr)
+        for attr in ["A_", "B_",]:
+            assert np.allclose(getattr(model, attr), getattr(model2, attr))
+        for attr in ["n", "c_", "Hc_", "Gc_", "Vr"]:
+            assert getattr(model, attr) is getattr(model2, attr) is None
+
+
         A_ = model.A_
         del model.A_
         with pytest.raises(AttributeError) as ex:
             model.save_model(target, overwrite=True)
-        assert os.path.isfile(target)
-        assert not os.path.isfile("__"+target)
-        model.A_ = A_
-        _checkfile(target, model)
 
         os.remove(target)
-        del model.A_
-        with pytest.raises(AttributeError) as ex:
-            model.save_model(target, overwrite=False)
-        assert not os.path.isfile(target)
 
 
 class TestParametricMixin:
@@ -1360,6 +1467,13 @@ class TestInterpolatedInferredDiscreteROM:
 
         assert len(model) == len(ps)
 
+        # Test again with Vr = None and projected inputs.
+        Xs_ = [Vr.T @ X for X in Xs]
+        model.fit(None, ps, Xs_, Us)
+        assert len(model) == len(ps)
+        assert model.Vr is None
+        assert model.n is None
+
     def test_predict(self):
         """Test _core.InterpolatedInferredDiscreteROM.predict()."""
         model = roi.InterpolatedInferredDiscreteROM("cAH")
@@ -1439,8 +1553,15 @@ class TestInterpolatedInferredContinuousROM:
         # Fit correctly with inputs.
         model.modelform = "cAHB"
         model.fit(Vr, ps, Xs, Xdots, Us)
-
         assert len(model) == len(ps)
+
+        # Test again with Vr = None and projected inputs.
+        Xs_ = [Vr.T @ X for X in Xs]
+        Xdots_ = [Vr.T @ Xdot for Xdot in Xdots]
+        model.fit(None, ps, Xs_, Xdots_, Us)
+        assert len(model) == len(ps)
+        assert model.Vr is None
+        assert model.n is None
 
     def test_predict(self):
         """Test _core.InterpolatedInferredContinuousROM.predict()."""

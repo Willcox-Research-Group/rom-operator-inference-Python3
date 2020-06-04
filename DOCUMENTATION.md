@@ -28,7 +28,6 @@ The core of `rom_operator_inference` is highly object oriented and defines sever
 The API for these classes adopts some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects): there are `fit()` and `predict()` methods, hyperparameters are set in the constructor, estimated attributes end with underscore, and so on.
 
 Each class corresponds to a type of full-order model (continuous vs. discrete, non-parametric vs. parametric) and a strategy for constructing the ROM.
-In the following table, only those with "Operator Inference" as the strategy are novel; the others are included in the package for comparison purposes.
 
 | Class Name | Problem Statement | ROM Strategy |
 | :--------- | :---------------: | :----------- |
@@ -97,17 +96,20 @@ All `ROM` classes have the following attributes.
     - `has_inputs`: boolean, whether or not there is an input term _B**u**_.
     <!-- - `has_outputs`: boolean, whether or not there is an output _C**x**_. -->
 
-- Dimensions:
+- Dimensions, learned in `fit()`:
     - `n`: The dimension of the original model
     - `r`: The dimension of the learned reduced-order model
     - `m`: The dimension of the input **u**, or `None` if `'B'` is not in `modelform`.
     <!-- - `l`: The dimension of the output **y**, or `None` if `has_outputs` is `False`. -->
 
-- Reduced operators `c_`, `A_`, `H_`, `Hc_`, `G_`, `Gc_`, and `B_`: the [NumPy](https://numpy.org/) arrays corresponding to the learned parts of the reduced-order model.
+- Reduced operators `c_`, `A_`, `H_`, `Hc_`, `G_`, `Gc_`, and `B_`, learned in `fit()`: the [NumPy](https://numpy.org/) arrays corresponding to the learned parts of the reduced-order model.
 Set to `None` if the operator is not included in the prescribed `modelform` (e.g., if `modelform="AHG"`, then `c_` and `B_` are `None`).
 
-- Reduced model function `f_`: the ROM function, defined by the reduced operators listed above.
-This attribute is constructed in `fit()`.
+- Basis matrix `Vr`: the _n_ x _r_ basis defining the mapping between the _n_-dimensional space of the full-order model and the reduced _r_-dimensional subspace of the reduced-order model (e.g., POD basis).
+This is the first input to all `fit()` methods.
+To save memory, inferred (but not intrusive) ROM classes allow entering `Vr=None`, which then assumes that other inputs for training are already projected to the _r_-dimensional subspace (e.g., _V_<sub>_r_</sub><sup>T</sup>_X_ instead of _X_).
+
+- Reduced model function `f_`, learned in `fit()`: the ROM function, defined by the reduced operators listed above.
 For continuous models, `f_` has the following signature:
 ```python
 def f_(t, x_, u):
@@ -146,6 +148,8 @@ Therefore, the signature of `f_` is one of the following.
 | **Has inputs** | `f_(t,x_,u)` | `f_(x_,u)` |
 | **No inputs**  | `f_(t,x_)`   | `f_(x_)`   |
 
+<!-- TODO: model persistence (load_model() and save_model() -->
+
 ### InferredContinuousROM
 
 This class constructs a reduced-order model for the continuous, nonparametric system
@@ -157,7 +161,7 @@ That is, given snapshot data, a basis, and a form for a reduced model, it comput
 
 **`InferredContinuousROM.fit(Vr, X, Xdot, U=None, P=0)`**: Compute the operators of the reduced-order model that best fit the data.
 - **Parameters**
-    - `Vr`: The _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix; see [`pre.pod_basis()`](#preprocessing-tools)). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrix `X`.
+    - `Vr`: The _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix; see [`pre.pod_basis()`](#preprocessing-tools)). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrix `X`. If given as `None`, `X` is assumed to be the projected snapshot matrix _V_<sub>_r_</sub><sup>T</sup>_X_ and `Xdot` is assumed to be the projected velocity matrix.
     - `X`: An _n_ x _k_ snapshot matrix of solutions to the full-order model, or the _r_ x _k_ projected snapshot matrix _V_<sub>_r_</sub><sup>T</sup>_X_. Each column is one snapshot.
     - `Xdot`: The _n_ x _k_ snapshot velocity matrix for the full-order model, or the _r_ x _k_ projected snapshot velocity matrix. Each column is the velocity _d**x**/dt_ for the corresponding column of `X`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
     - `U`: The _m_ x _k_ input matrix (or a _k_-vector if _m_ = 1). Each column is the input vector for the corresponding column of `X`. Only required when `'B'` is in `modelform`.
@@ -167,12 +171,12 @@ That is, given snapshot data, a basis, and a form for a reduced model, it comput
 
 **`InferredContinuousROM.predict(x0, t, u=None, **options)`**: Simulate the learned reduced-order model with [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 - **Parameters**
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector).
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
     - `t`: The time domain, an _n_<sub>_t_</sub>-vector, over which to integrate the reduced-order model.
     - `u`: The input as a function of time, that is, a function mapping a `float` to an _m_-vector (or to a scalar if _m_ = 1). Alternatively, the _m_ x _n_<sub>_t_</sub> matrix (or _n_<sub>_t_</sub>-vector if _m_ = 1) where column _j_ is the input vector corresponding to time `t[j]`. In this case, _**u**_(_t_) is appriximated by a cubic spline interpolating the given inputs. This argument is only required if `'B'` is in `modelform`.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 - **Returns**
-    - `X_ROM`: The _n_ x _n_<sub>_t_</sub> matrix of approximate solution to the full-order system over `t`. Each column is one snapshot of the solution.
+    - `X_ROM`: The _n_ x _n_<sub>_t_</sub> matrix of approximate solution to the full-order system over `t`, or, if `Vr=None` in `fit()`, the _r_ x _n_<sub>_t_</sub> solution in the reduced-order space. Each column is one snapshot of the solution.
 
 
 ### InferredDiscreteROM
@@ -185,7 +189,7 @@ via Operator Inference.
 
 **`InferredDiscreteROM.fit(Vr, X, U=None, P=0)`**: Compute the operators of the reduced-order model that best fit the data.
 - **Parameters**
-    - `Vr`: The _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected. Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrix `X`.
+    - `Vr`: The _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected. Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrix `X`. If given as `None`, `X` is assumed to be the projected snapshot matrix _V_<sub>_r_</sub><sup>T</sup>_X_.
     - `X`: An _n_ x _k_ snapshot matrix of solutions to the full-order model, or the _r_ x _k_ projected snapshot matrix _V_<sub>_r_</sub><sup>T</sup>_X_. Each column is one snapshot.
     - `U`: The _m_ x _k-1_ input matrix (or a (_k_-1)-vector if _m_ = 1). Each column is the input for the corresponding column of `X`. Only required when `'B'` is in `modelform`.
     - `P`: Tikhonov regularization factor for the least-squares problem; see [`utils.lstsq_reg()`](#utility-functions).
@@ -194,11 +198,11 @@ via Operator Inference.
 
 **`InferredDiscreteROM.predict(x0, niters, U=None)`**: Step forward the learned ROM `niters` steps.
 - **Parameters**
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector).
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
     - `niters`: The number of times to step the system forward.
     - `U`: The inputs for the next `niters`-1 time steps, as an _m_ x `niters`-1 matrix (or an (`niters`-1)-vector if _m_ = 1). This argument is only required if `'B'` is in `modelform`.
 - **Returns**
-    - `X_ROM`: The _n_ x `niters` matrix of approximate solutions to the full-order system, including the initial condition. Each column is one iteration of the solution.
+    - `X_ROM`: The _n_ x `niters` matrix of approximate solutions to the full-order system, including the initial condition; or, if `Vr=None` in `fit()`, the _r_ x `niters` solution in the reduced-order space. Each column is one iteration of the solution.
 
 
 ### InterpolatedInferredContinuousROM
@@ -211,7 +215,7 @@ The strategy is to take snapshot data for several parameter samples and a global
 
 **`InterpolatedInferredContinuousROM.fit(Vr, µs, Xs, Xdots, Us=None, P=0)`**: Compute the operators of the reduced-order model that best fit the data.
 - **Parameters**
-    - `Vr`: The (global) _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected. Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrices `Xs`.
+    - `Vr`: The (global) _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected. Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrices `Xs`. If given as `None`, `Xs` is assumed to be the list of the projected snapshot matrices _V_<sub>_r_</sub><sup>T</sup>_X_<sub>_i_</sub> and `Xdots` is assumed to be the list of projected velocity matrices.
     - `µs`: The _s_ parameter values corresponding to the snapshot sets.
     - `Xs`: List of _s_ snapshot matrices, each _n_ x _k_ (full-order solutions) or _r_ x _k_ (projected solutions). The _i_th array `Xs[i]` corresponds to the _i_th parameter, `µs[i]`; each column each of array is one snapshot.
     - `Xdots`: List of _s_ snapshot velocity matrices, each _n_ x _k_ (full-order velocities) or _r_ x _k_ (projected velocities).  The _i_th array `Xdots[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Xdots[i][:,j]`, is the velocity _d**x**/dt_ for the corresponding snapshot column `Xs[i][:,j]`.
@@ -223,12 +227,12 @@ The strategy is to take snapshot data for several parameter samples and a global
 **`InterpolatedInferredContinuousROM.predict(µ, x0, t, u=None, **options)`**: Simulate the learned reduced-order model with [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 - **Parameters**
     - `µ`: The parameter value at which to simulate the ROM.
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector).
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
     - `t`: The time domain, an _n_<sub>_t_</sub>-vector, over which to integrate the reduced-order model.
     - `u`: The input as a function of time, that is, a function mapping a `float` to an _m_-vector (or to a scalar if _m_ = 1). Alternatively, the _m_ x _n_<sub>_t_</sub> matrix (or _n_<sub>_t_</sub>-vector if _m_ = 1) where column _j_ is the input vector corresponding to time `t[j]`. In this case, _**u**_(_t_) is appriximated by a cubic spline interpolating the given inputs. This argument is only required if `'B'` is in `modelform`.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 - **Returns**
-    - `X_ROM`: The _n_ x _n_<sub>_t_</sub> matrix of approximate solution to the full-order system over `t`. Each column is one snapshot of the solution.
+    - `X_ROM`: The _n_ x _n_<sub>_t_</sub> matrix of approximate solution to the full-order system over `t`, or, if `Vr=None` in `fit()`, the _r_ x _n_<sub>_t_</sub> solution in the reduced-order space. Each column is one snapshot of the solution.
 
 
 ### InterpolatedInferredDiscreteROM
@@ -241,7 +245,7 @@ The strategy is to take snapshot data for several parameter samples and a global
 
 **`InterpolatedInferredDiscreteROM.fit(Vr, µs, Xs, Us=None, P=0)`**: Compute the operators of the reduced-order model that best fit the data.
 - **Parameters**
-    - `Vr`: The (global) _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected. Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrices `Xs`.
+    - `Vr`: The (global) _n_ x _r_ basis for the linear reduced space on which the full-order model will be projected. Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrices `Xs`. If given as `None`, `Xs` is assumed to be the list of the projected snapshot matrices _V_<sub>_r_</sub><sup>T</sup>_X_<sub>_i_</sub>.
     - `µs`: The _s_ parameter values corresponding to the snapshot sets.
     - `Xs`: List of _s_ snapshot matrices, each _n_ x _k_ (full-order solutions) or _r_ x _k_ (projected solutions). The _i_th array `Xs[i]` corresponds to the _i_th parameter, `µs[i]`; each column each of array is one snapshot.
     - `Us`: List of _s_ input matrices, each _m_ x _k_ (or a _k_-vector if _m_=1). The _i_th array `Us[i]` corresponds to the _i_th parameter, `µs[i]`. The _j_th column of the _i_th array, `Us[i][:,j]`, is the input for the corresponding snapshot `Xs[i][:,j]`. Only required when `'B'` is in `modelform`.
@@ -252,11 +256,11 @@ The strategy is to take snapshot data for several parameter samples and a global
 **`InterpolatedInferredDiscreteROM.predict(µ, x0, niters, U=None)`**: Step forward the learned ROM `niters` steps.
 - **Parameters**
     - `µ`: The parameter value at which to simulate the ROM.
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector).
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
     - `niters`: The number of times to step the system forward.
     - `U`: The inputs for the next `niters`-1 time steps, as an _m_ x `niters`-1 matrix (or an (`niters`-1)-vector if _m_ = 1). This argument is only required if `'B'` is in `modelform`.
 - **Returns**
-    - `X_ROM`: The _n_ x `niters` matrix of approximate solutions to the full-order system, including the initial condition. Each column is one iteration of the solution.
+    - `X_ROM`: The _n_ x `niters` matrix of approximate solutions to the full-order system, including the initial condition; or, if `Vr=None` in `fit()`, the _r_ x _n_<sub>_t_</sub> solution in the reduced-order space. Each column is one iteration of the solution.
 
 
 ### IntrusiveContinuousROM
