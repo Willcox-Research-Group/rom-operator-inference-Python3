@@ -148,7 +148,25 @@ Therefore, the signature of `f_` is one of the following.
 | **Has inputs** | `f_(t,x_,u)` | `f_(x_,u)` |
 | **No inputs**  | `f_(t,x_)`   | `f_(x_)`   |
 
-<!-- TODO: model persistence (load_model() and save_model() -->
+### Model Persistence
+
+Trained ROM objects can be saved in [HDF5 format](http://docs.h5py.org/en/stable/index.html) with the `save_model()` method, and recovered later with the `load_model()` function.
+Such files store metadata for the model class and structure, the reduced-order model operators (`c_`, `A_`, etc.), other attributes learned in `fit()`, and (optionally) the basis `Vr`.
+
+**`load_model(loadfile)`**: Load a serialized model from an HDF5 file, created previously from a ROM object's `save_model()` method.
+
+**`ROMclass.save_model(savefile, save_basis=True, overwrite=False)`**: Serialize the learned model, saving it in HDF5 format. The model can then be loaded with `load_model()`. _Currently implemented for nonparametric classes only._ Parameters:
+- `savefile`: The file to save to. If it does not end with `'.h5'`, this extension will be tacked on to the end.
+- `savebasis`: If `True`, save the basis `Vr` as well as the reduced operators. If `False`, only save reduced operators.
+- `overwrite`: If `True` and the specified file already exists, overwrite the file. If `False` and the specified file already exists, raise an error.
+
+```python
+>>> import rom_operator_inference as roi
+
+# Suppose model is a trained InferredContinuousROM object.
+>>> model.save_model("trained_rom.h5")          # Save a trained model.
+>>> model2 = roi.load_model("trained_rom.h5")   # Load a model from file.
+```
 
 ### InferredContinuousROM
 
