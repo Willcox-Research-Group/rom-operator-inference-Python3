@@ -239,11 +239,10 @@ def load_model(loadfile):
     model = trained_model_from_operators(ModelClass,modelform,Vr, **operators)
 
     # Attach extra attributes.
-    for key, val in attr.items():
+    for key, val in attrs.items():
         setattr(model, key, val)
 
     return model
-
 
 
 class AffineOperator:

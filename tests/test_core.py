@@ -60,8 +60,13 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
     if "B" in modelform:
         operators['B_'] = B
 
-    return roi._core.trained_model_from_operators(ModelClass, modelform,
-                                                  Vr, **operators)
+    model = roi._core.trained_model_from_operators(ModelClass, modelform,
+                                                   Vr, **operators)
+    model.residual_ = np.random.random()
+    model.misfit_ = np.random.random()
+    model.datacond_ = np.random.random()
+
+    return model
 
 
 # Helper functions and classes (public) =======================================
@@ -1013,6 +1018,10 @@ class TestNonparametricMixin:
                 else:
                     assert "B_" not in data["operators"]
 
+                # Check other attributes.
+                assert "other" in data
+                for attr in ["residual_", "misfit_", "datacond_"]:
+                    assert data[f"other/{attr}"][0] == getattr(mdl, attr)
 
         model.save_model(target[:-3], save_basis=False)
         _checkfile(target, model, False)
@@ -1037,24 +1046,27 @@ class TestNonparametricMixin:
         model.Vr = Vr
         model.save_model(target, save_basis=True, overwrite=True)
         model2 = roi.load_model(target)
-        for attr in ["n", "m", "r", "modelform", "__class__"]:
+        for attr in ["n", "m", "r", "modelform", "__class__",
+                     "datacond_", "residual_", "misfit_"]:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_", "Vr"]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))
         for attr in ["c_", "Hc_", "Gc_"]:
             assert getattr(model, attr) is getattr(model2, attr) is None
 
+        # Check Vr = None functionality.
         model.Vr, model.n = None, None
         model.save_model(target, overwrite=True)
         model2 = roi.load_model(target)
-        for attr in ["m", "r", "modelform", "__class__"]:
+        for attr in ["m", "r", "modelform", "__class__",
+                     "datacond_", "residual_", "misfit_"]:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_",]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))
         for attr in ["n", "c_", "Hc_", "Gc_", "Vr"]:
             assert getattr(model, attr) is getattr(model2, attr) is None
 
-
+        # Try to save a bad model.
         A_ = model.A_
         del model.A_
         with pytest.raises(AttributeError) as ex:
@@ -1373,7 +1385,7 @@ class TestInterpolatedInferredDiscreteROM:
         # Fit correctly with no inputs.
         model.modelform = "cAH"
         model.fit(Vr, ps, Xs)
-        for attr in ["models_", "dataconds_", "residuals_", "fs_"]:
+        for attr in ["models_", "dataconds_", "residuals_", "misfits_", "fs_"]:
             assert hasattr(model, attr)
             assert len(getattr(model, attr)) == len(model.models_)
 
@@ -1462,7 +1474,7 @@ class TestInterpolatedInferredContinuousROM:
         # Fit correctly with no inputs.
         model.modelform = "cAH"
         model.fit(Vr, ps, Xs, Xdots)
-        for attr in ["models_", "dataconds_", "residuals_", "fs_"]:
+        for attr in ["models_", "dataconds_", "residuals_", "misfits_", "fs_"]:
             assert hasattr(model, attr)
             assert len(getattr(model, attr)) == len(model.models_)
 
