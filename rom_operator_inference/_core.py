@@ -226,9 +226,23 @@ def load_model(loadfile):
         if 'B' in modelform:
             operators["B_"] = data["operators/B_"][:]
 
+        # Load any other saved attributes.
+        if "other" in data:
+            attrs = {key: dset[0] if dset.shape == (1,) else dset[:]
+                                   for key, dset in data["other"].items()}
+        else:
+            attrs = {}
+
         # TODO: loading (and saving) for Parametric operators.
 
-    return trained_model_from_operators(ModelClass, modelform, Vr, **operators)
+    # Load the model.
+    model = trained_model_from_operators(ModelClass,modelform,Vr, **operators)
+
+    # Attach extra attributes.
+    for key, val in attrs.items():
+        setattr(model, key, val)
+
+    return model
 
 
 class AffineOperator:
@@ -863,11 +877,20 @@ class _InferredMixin:
             self.m = m
 
         D = np.hstack(D_blocks)
-        self.datacond_ = np.linalg.cond(D)      # Condition number of data.
+        R = rhs_.T
 
         # Solve for the reduced-order model operators via least squares.
-        Otrp, res = lstsq_reg(D, rhs_.T, P)[0:2]
-        self.residual_ = np.sum(res)
+        Otrp, res, _, sval = lstsq_reg(D, R, P)
+
+        # Record info about the least squares solution.
+        # Condition number of the raw data matrix.
+        self.datacond_ = np.linalg.cond(D)
+        # Condition number of regularized data matrix.
+        self.dataregcond_ = abs(sval[0]/sval[-1]) if sval[-1] > 0 else np.inf
+        # Squared Frobenius data misfit (without regularization).
+        self.misfit_ = np.sum(((D @ Otrp) - R)**2)
+        # Squared Frobenius residual of the regularized least squares problem.
+        self.residual_ = np.sum(res) if res.size > 0 else self.misfit_
 
         # Extract the reduced operators from Otrp.
         i = 0
@@ -1067,14 +1090,14 @@ class _NonparametricMixin:
             If True and the specified file already exists, overwrite the file.
             If False and the specified file already exists, raise an error.
         """
-        # Make sure that the model is trained (or there is nothing to save).
+        # Ensure that the model is trained (or there is nothing to save).
         self._check_modelform(trained=True)
 
-        # Make sure the file is saved in HDF5 format.
+        # Ensure the file is saved in HDF5 format.
         if not savefile.endswith(".h5"):
             savefile += ".h5"
 
-        # Be sure not to overwrite and existing file on accident.
+        # Prevent overwriting and existing file on accident.
         if os.path.isfile(savefile) and not overwrite:
             raise FileExistsError(savefile)
 
@@ -1083,9 +1106,12 @@ class _NonparametricMixin:
             meta = f.create_dataset("meta", shape=(0,))
             meta.attrs["modelclass"] = self.__class__.__name__
             meta.attrs["modelform"] = self.modelform
-            # Store basis (optionally) and reduced operators.
+
+            # Store basis (optionally) if it exists.
             if (self.Vr is not None) and save_basis:
                 f.create_dataset("Vr", data=self.Vr)
+
+            # Store reduced operators.
             if self.has_constant:
                 f.create_dataset("operators/c_", data=self.c_)
             if self.has_linear:
@@ -1096,6 +1122,14 @@ class _NonparametricMixin:
                 f.create_dataset("operators/Gc_", data=self.Gc_)
             if self.has_inputs:
                 f.create_dataset("operators/B_", data=self.B_)
+
+            # Store additional useful attributes.
+            for attr in ["datacond_", "dataregcond_", "residual_", "misfit_"]:
+                if hasattr(self, attr):
+                    val = getattr(self, attr)
+                    if np.isscalar(val):
+                        val = [val]
+                    f.create_dataset(f"other/{attr}", data=val)
 
 
 class _ParametricMixin:
@@ -1186,13 +1220,27 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
 
     @property
     def dataconds_(self):
-        """The condition numbers of the data matrices for each submodel."""
+        """The condition numbers of the raw data matrices for each submodel."""
         return np.array([m.datacond_ for m in self.models_])
 
     @property
+    def dataregconds_(self):
+        """The condition numbers of the regularized data matrices for each
+        submodel.
+        """
+        return np.array([m.dataregcond_ for m in self.models_])
+
+    @property
     def residuals_(self):
-        """The residuals for each submodel."""
+        """The regularized least-squares residuals for each submodel."""
         return np.array([m.residual_ for m in self.models_])
+
+    @property
+    def misfits_(self):
+        """The (nonregularized) least-squares data misfits for each
+        submodel.
+        """
+        return np.array([m.misfit_ for m in self.models_])
 
     def __len__(self):
         """The number of trained models."""
@@ -1568,11 +1616,19 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         The basis for the linear reduced space (e.g., POD basis matrix).
 
     datacond_ : float
-        Condition number of the data matrix for the least-squares problem.
+        Condition number of the raw data matrix for the least-squares problem.
+
+    dataregcond_ : float
+        Condition number of the regularized data matrix for the least-squares
+        problem. Same as datacond_ if there is no regularization.
 
     residual_ : float
-        The squared Frobenius-norm residual of the least-squares problem for
-        computing the reduced-order model operators.
+        The squared Frobenius-norm residual of the regularized least-squares
+        problem for computing the reduced-order model operators.
+
+    misfit_ : float
+        The squared Frobenius-norm data misfit of the (nonregularized)
+        least-squares problem for computing the reduced-order model operators.
 
     c_ : (r,) ndarray or None
         Learned ROM constant term, or None if 'c' is not in `modelform`.
@@ -1692,11 +1748,19 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         The basis for the linear reduced space (e.g., POD basis matrix).
 
     datacond_ : float
-        Condition number of the data matrix for the least-squares problem.
+        Condition number of the raw data matrix for the least-squares problem.
+
+    dataregcond_ : float
+        Condition number of the regularized data matrix for the least-squares
+        problem. Same as datacond_ if there is no regularization.
 
     residual_ : float
-        The squared Frobenius-norm residual of the least-squares problem for
-        computing the reduced-order model operators.
+        The squared Frobenius-norm residual of the regularized least-squares
+        problem for computing the reduced-order model operators.
+
+    misfit_ : float
+        The squared Frobenius-norm data misfit of the (nonregularized)
+        least-squares problem for computing the reduced-order model operators.
 
     c_ : (r,) ndarray or None
         Learned ROM constant term, or None if 'c' is not in `modelform`.
@@ -1821,11 +1885,19 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
         The basis for the linear reduced space (e.g., POD basis matrix).
 
     datacond_ : float
-        Condition number of the data matrix for the least-squares problem.
+        Condition number of the raw data matrix for the least-squares problem.
+
+    dataregcond_ : float
+        Condition number of the regularized data matrix for the least-squares
+        problem. Same as datacond_ if there is no regularization.
 
     residual_ : float
-        The squared Frobenius-norm residual of the least-squares problem for
-        computing the reduced-order model operators.
+        The squared Frobenius-norm residual of the regularized least-squares
+        problem for computing the reduced-order model operators.
+
+    misfit_ : float
+        The squared Frobenius-norm data misfit of the (nonregularized)
+        least-squares problem for computing the reduced-order model operators.
 
     c_ : (r,) ndarray or None
         Learned ROM constant term, or None if 'c' is not in `modelform`.
@@ -2034,11 +2106,21 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         The basis for the linear reduced space (e.g., POD basis matrix).
 
     dataconds_ : (s,) ndarray
-        Condition number of the data matrix for each least-squares problem.
+        Condition numbers of the raw data matrices for each least-squares
+        problem.
+
+    dataregconds_ : (s,) ndarray
+        Condition numbers of the regularized data matrices for each
+        least-squares problem.
 
     residuals_ : (s,) ndarray
-        The squared Frobenius-norm residual of each least-squares problem for
-        computing the reduced-order model operators.
+        The squared Frobenius-norm residuals of the regularized least-squares
+        problems for computing each set of reduced-order model operators.
+
+    misfits_ : (s,) ndarray
+        The squared Frobenius-norm data misfits of the (nonregularized)
+        least-squares problems for computing each set of reduced-order model
+        operators.
 
     cs_ : list of s (r,) ndarrays or None
         Learned ROM constant terms, or None if 'c' is not in `modelform`.
@@ -2200,11 +2282,21 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         The basis for the linear reduced space (e.g., POD basis matrix).
 
     dataconds_ : (s,) ndarray
-        Condition number of the data matrix for each least-squares problem.
+        Condition numbers of the raw data matrices for each least-squares
+        problem.
+
+    dataregconds_ : (s,) ndarray
+        Condition numbers of the regularized data matrices for each
+        least-squares problem.
 
     residuals_ : (s,) ndarray
-        The squared Frobenius-norm residual of each least-squares problem (one
-        per parameter) for computing the reduced-order model operators.
+        The squared Frobenius-norm residuals of the regularized least-squares
+        problems for computing each set of reduced-order model operators.
+
+    misfits_ : (s,) ndarray
+        The squared Frobenius-norm data misfits of the (nonregularized)
+        least-squares problems for computing each set of reduced-order model
+        operators.
 
     cs_ : list of s (r,) ndarrays or None
         Learned ROM constant terms, or None if 'c' is not in `modelform`.
