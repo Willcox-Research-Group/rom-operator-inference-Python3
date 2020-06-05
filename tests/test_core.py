@@ -16,7 +16,7 @@ import rom_operator_inference as roi
 _MODEL_KEYS = roi._core._BaseROM._MODEL_KEYS
 _MODEL_FORMS = [''.join(s) for k in range(1, len(_MODEL_KEYS)+1)
                            for s in itertools.combinations(_MODEL_KEYS, k)]
-
+_LSTSQ_REPORTS = ["datacond_", "dataregcond_", "residual_", "misfit_"]
 
 def _get_data(n=60, k=25, m=20):
     """Get fake snapshot, velocity, and input data."""
@@ -62,9 +62,10 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
 
     model = roi._core.trained_model_from_operators(ModelClass, modelform,
                                                    Vr, **operators)
-    model.residual_ = np.random.random()
-    model.misfit_ = np.random.random()
     model.datacond_ = np.random.random()
+    model.dataregcond_ = model.datacond_ / 2
+    model.residual_ = np.random.random()
+    model.misfit_ = model.residual_ / 2
 
     return model
 
@@ -799,7 +800,12 @@ class TestInferredMixin:
             assert model.Gc_.shape == (r,r*(r+1)*(r+2)//6)
             assert model.G_.shape == (r,r**3)
             assert model.B_.shape == (r,m)
+            assert hasattr(model, "datacond_")
+            assert hasattr(model, "dataregcond_")
+            assert model.dataregcond_ <= model.datacond_
             assert hasattr(model, "residual_")
+            assert hasattr(model, "misfit_")
+            assert model.misfit_ <= model.residual_
 
         # Test with high-dimensional inputs.
         model.modelform = "cAHGB"
@@ -810,7 +816,7 @@ class TestInferredMixin:
 
         # Test again with one-dimensional inputs.
         m = 1
-        model.fit(*args, U=np.ones(k))
+        model.fit(*args, U=np.random.random(k))
         _test_output_shapes(model)
         assert model.n == n
         assert np.allclose(model.Vr, Vr)
@@ -819,7 +825,7 @@ class TestInferredMixin:
         args[0] = None
         for i in range(1,len(args)):
             args[i] = Vr.T @ args[i]
-        model.fit(*args, U=np.ones(k))
+        model.fit(*args, U=np.random.random(k))
         _test_output_shapes(model)
         assert model.n is None
         assert model.Vr is None
@@ -1020,7 +1026,7 @@ class TestNonparametricMixin:
 
                 # Check other attributes.
                 assert "other" in data
-                for attr in ["residual_", "misfit_", "datacond_"]:
+                for attr in _LSTSQ_REPORTS:
                     assert data[f"other/{attr}"][0] == getattr(mdl, attr)
 
         model.save_model(target[:-3], save_basis=False)
@@ -1046,8 +1052,7 @@ class TestNonparametricMixin:
         model.Vr = Vr
         model.save_model(target, save_basis=True, overwrite=True)
         model2 = roi.load_model(target)
-        for attr in ["n", "m", "r", "modelform", "__class__",
-                     "datacond_", "residual_", "misfit_"]:
+        for attr in ["n", "m", "r", "modelform", "__class__"] + _LSTSQ_REPORTS:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_", "Vr"]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))
@@ -1058,8 +1063,7 @@ class TestNonparametricMixin:
         model.Vr, model.n = None, None
         model.save_model(target, overwrite=True)
         model2 = roi.load_model(target)
-        for attr in ["m", "r", "modelform", "__class__",
-                     "datacond_", "residual_", "misfit_"]:
+        for attr in ["m", "r", "modelform", "__class__"] + _LSTSQ_REPORTS:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_",]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))
