@@ -802,10 +802,10 @@ class TestInferredMixin:
             assert model.B_.shape == (r,m)
             assert hasattr(model, "datacond_")
             assert hasattr(model, "dataregcond_")
-            assert model.dataregcond_ <= model.datacond_
+            assert round(model.dataregcond_, 6) <= round(model.datacond_, 6)
             assert hasattr(model, "residual_")
             assert hasattr(model, "misfit_")
-            assert model.misfit_ <= model.residual_
+            assert round(model.misfit_, 6) <= round(model.residual_, 6)
 
         # Test with high-dimensional inputs.
         model.modelform = "cAHGB"
@@ -1389,7 +1389,7 @@ class TestInterpolatedInferredDiscreteROM:
         # Fit correctly with no inputs.
         model.modelform = "cAH"
         model.fit(Vr, ps, Xs)
-        for attr in ["models_", "dataconds_", "residuals_", "misfits_", "fs_"]:
+        for attr in ["models_", "fs_"] + [s[:-1]+"s_" for s in _LSTSQ_REPORTS]:
             assert hasattr(model, attr)
             assert len(getattr(model, attr)) == len(model.models_)
 
@@ -1478,7 +1478,7 @@ class TestInterpolatedInferredContinuousROM:
         # Fit correctly with no inputs.
         model.modelform = "cAH"
         model.fit(Vr, ps, Xs, Xdots)
-        for attr in ["models_", "dataconds_", "residuals_", "misfits_", "fs_"]:
+        for attr in ["models_", "fs_"] + [s[:-1]+"s_" for s in _LSTSQ_REPORTS]:
             assert hasattr(model, attr)
             assert len(getattr(model, attr)) == len(model.models_)
 
