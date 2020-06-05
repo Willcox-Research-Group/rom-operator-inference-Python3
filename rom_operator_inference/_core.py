@@ -226,9 +226,24 @@ def load_model(loadfile):
         if 'B' in modelform:
             operators["B_"] = data["operators/B_"][:]
 
+        # Load any other saved attributes.
+        if "other" in data:
+            attrs = {key: dset[0] if dset.shape == (1,) else dset[:]
+                                   for key, dset in data["other"].items()}
+        else:
+            attrs = {}
+
         # TODO: loading (and saving) for Parametric operators.
 
-    return trained_model_from_operators(ModelClass, modelform, Vr, **operators)
+    # Load the model.
+    model = trained_model_from_operators(ModelClass,modelform,Vr, **operators)
+
+    # Attach extra attributes.
+    for key, val in attr.items():
+        setattr(model, key, val)
+
+    return model
+
 
 
 class AffineOperator:
@@ -864,10 +879,12 @@ class _InferredMixin:
 
         D = np.hstack(D_blocks)
         self.datacond_ = np.linalg.cond(D)      # Condition number of data.
+        R = rhs_.T
 
         # Solve for the reduced-order model operators via least squares.
         Otrp, res = lstsq_reg(D, rhs_.T, P)[0:2]
-        self.residual_ = np.sum(res)
+        self.residual_ = np.sum(res)            # Residual of lstsq (w/ reg)
+        self.misfit_ = np.sum((D@ Otrp - R)**2) # Data misfit (w/out reg)
 
         # Extract the reduced operators from Otrp.
         i = 0
@@ -1067,14 +1084,14 @@ class _NonparametricMixin:
             If True and the specified file already exists, overwrite the file.
             If False and the specified file already exists, raise an error.
         """
-        # Make sure that the model is trained (or there is nothing to save).
+        # Ensure that the model is trained (or there is nothing to save).
         self._check_modelform(trained=True)
 
-        # Make sure the file is saved in HDF5 format.
+        # Ensure the file is saved in HDF5 format.
         if not savefile.endswith(".h5"):
             savefile += ".h5"
 
-        # Be sure not to overwrite and existing file on accident.
+        # Prevent overwriting and existing file on accident.
         if os.path.isfile(savefile) and not overwrite:
             raise FileExistsError(savefile)
 
@@ -1083,9 +1100,12 @@ class _NonparametricMixin:
             meta = f.create_dataset("meta", shape=(0,))
             meta.attrs["modelclass"] = self.__class__.__name__
             meta.attrs["modelform"] = self.modelform
-            # Store basis (optionally) and reduced operators.
+
+            # Store basis (optionally) if it exists.
             if (self.Vr is not None) and save_basis:
                 f.create_dataset("Vr", data=self.Vr)
+
+            # Store reduced operators.
             if self.has_constant:
                 f.create_dataset("operators/c_", data=self.c_)
             if self.has_linear:
@@ -1096,6 +1116,14 @@ class _NonparametricMixin:
                 f.create_dataset("operators/Gc_", data=self.Gc_)
             if self.has_inputs:
                 f.create_dataset("operators/B_", data=self.B_)
+
+            # Store additional useful attributes.
+            for attr in ["datacond_", "residual_", "misfit_"]:
+                if hasattr(self, attr):
+                    val = getattr(self, attr)
+                    if np.isscalar(val):
+                        val = [val]
+                    f.create_dataset(f"other/{attr}", data=val)
 
 
 class _ParametricMixin:
@@ -1193,6 +1221,11 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
     def residuals_(self):
         """The residuals for each submodel."""
         return np.array([m.residual_ for m in self.models_])
+
+    @property
+    def misfits_(self):
+        """The misfit for each submodel."""
+        return np.array([m.misfit_ for m in self.models_])
 
     def __len__(self):
         """The number of trained models."""

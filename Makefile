@@ -22,6 +22,7 @@ clean:
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
 
 deploy: test clean
+	git checkout master
 	$(PYTHON) setup.py sdist bdist_wheel
 	$(PYTHON) -m twine upload dist/*
 
