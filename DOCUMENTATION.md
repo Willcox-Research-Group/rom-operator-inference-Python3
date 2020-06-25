@@ -423,9 +423,9 @@ None of these routines are novel, but they may be instructive for new Python use
 
 Use `**options` to specify additional parameters for these wrapped functions.
 
-**`pre.significant_svdvals(singular_values, eps, plot=False)`**: Count the number of singular values that are greater than `eps`. The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the singular values on a log scale.
+**`pre.svdval_decay(singular_values, eps, plot=False)`**: Count the number of singular values that are greater than `eps`. The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the singular values on a log scale.
 
-**`pre.energy_capture(singular_values, thresh, plot=False)`**: Compute the number of singular values needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the cumulative energy on a log scale.
+**`pre.cumulative_energy(singular_values, thresh, plot=False)`**: Compute the number of singular values needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the cumulative energy on a log scale.
 
 **`pre.projection_error(X, Vr)`**: Compute the relative projection error on _X_ induced by the basis matrix _V<sub>r</sub>_, <p align="center"><img src="img/doc/proj_err.svg"/></p>
 

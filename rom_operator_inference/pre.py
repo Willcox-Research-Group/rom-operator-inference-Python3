@@ -36,6 +36,9 @@ def mean_shift(X):
     return xbar, Xshifted
 
 
+# TODO: scale(), unscale().
+
+
 def pod_basis(X, r=None, mode="simple", **options):
     """Compute the POD basis of rank r corresponding to the data in X.
     This function does NOT shift or scale data before computing the basis.
@@ -116,7 +119,7 @@ def pod_basis(X, r=None, mode="simple", **options):
 
 
 # Reduced dimension selection =================================================
-def significant_svdvals(singular_values, eps, plot=False):
+def svdval_decay(singular_values, eps, plot=False):
     """Count the number of singular values of X that are greater than eps.
 
     Parameters
@@ -124,7 +127,7 @@ def significant_svdvals(singular_values, eps, plot=False):
     singular_values : (n,) ndarray
         The singular values of a snapshot set X, e.g., scipy.linalg.svdvals(X).
 
-    eps : float or list(floats)
+    eps : float or list(float)
         Cutoff value(s) for the singular values of X.
 
     plot : bool
@@ -140,27 +143,29 @@ def significant_svdvals(singular_values, eps, plot=False):
     one_eps = _np.isscalar(eps)
     if one_eps:
         eps = [eps]
+    singular_values = _np.array(singular_values)
     ranks = [_np.count_nonzero(singular_values > ep) for ep in eps]
 
     if plot:
         # Visualize singular values and cutoff value(s).
-        fig, ax = _plt.subplots(1, 1, figsize=(12,4))
+        fig, ax = _plt.subplots(1, 1, figsize=(9,3))
         j = _np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, singular_values, 'C0*', ms=4, zorder=3)
+        ax.semilogy(j, singular_values, 'C0*', ms=10, mew=0, zorder=3)
         ax.set_xlim((0,j.size))
         ylim = ax.get_ylim()
         for ep,r in zip(eps, ranks):
-            ax.hlines(ep, 0, r+1, color="black", linewidth=1)
+            ax.hlines(ep, 0, r, color="black", linewidth=.5, alpha=.75)
             ax.vlines(r, ylim[0], singular_values[r-1] if r > 0 else ep,
-                      color="black", linewidth=1)
+                      color="black", linewidth=.5, alpha=.75)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index $j$")
         ax.set_ylabel(r"Singular value $\sigma_j$")
+        _plt.tight_layout()
 
     return ranks[0] if one_eps else ranks
 
 
-def energy_capture(singular_values, thresh, plot=False):
+def cumulative_energy(singular_values, thresh, plot=False):
     """Compute the number of singular values of X needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
@@ -171,12 +176,12 @@ def energy_capture(singular_values, thresh, plot=False):
     singular_values : (n,) ndarray
         The singular values of a snapshot set X, e.g., scipy.linalg.svdvals(X).
 
-    thresh : float or list(floats)
+    thresh : float or list(float)
         Energy capture threshold(s).
 
     plot : bool
         If True, plot the singular values and the energy capture against
-        the singular value index.
+        the singular value index (linear scale).
 
     Returns
     -------
@@ -184,30 +189,31 @@ def energy_capture(singular_values, thresh, plot=False):
         The number of singular values required to capture more than each
         energy capture threshold.
     """
-    # Calculate  cumulative energy.
-    svdvals2 = singular_values**2
-    cumulative_energy = _np.cumsum(svdvals2) / _np.sum(svdvals2)
+    # Calculate the cumulative energy.
+    svdvals2 = _np.array(singular_values)**2
+    cum_energy = _np.cumsum(svdvals2) / _np.sum(svdvals2)
 
     # Determine the points at which the cumulative energy passes the threshold.
     one_thresh = _np.isscalar(thresh)
     if one_thresh:
         thresh = [thresh]
-    ranks = [_np.searchsorted(cumulative_energy, th) + 1 for th in thresh]
+    ranks = [_np.searchsorted(cum_energy, th) + 1 for th in thresh]
 
     if plot:
         # Visualize cumulative energy and threshold value(s).
-        fig, ax = _plt.subplots(1, 1, figsize=(12,4))
+        fig, ax = _plt.subplots(1, 1, figsize=(9,3))
         j = _np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, cumulative_energy, 'C2.-', ms=4, zorder=3)
+        ax.plot(j, cum_energy, 'C2.-', ms=10, lw=1, zorder=3)
         ax.set_xlim(0, j.size)
         ylim = ax.get_ylim()
         for th,r in zip(thresh, ranks):
-            ax.hlines(th, 0, r+1, color="black", linewidth=1)
-            ax.vlines(r, ylim[0], cumulative_energy[r-1] if r > 0 else th,
-                      color="black", linewidth=1)
+            ax.hlines(th, 0, r, color="black", linewidth=.5, alpha=.5)
+            ax.vlines(r, ylim[0], cum_energy[r-1] if r > 0 else th,
+                      color="black", linewidth=.5, alpha=.5)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Cumulative energy")
+        _plt.tight_layout()
 
     return ranks[0] if one_thresh else ranks
 
@@ -253,7 +259,7 @@ def minimal_projection_error(X, V, eps, plot=False):
         The first rmax POD basis vectors of X. Each column is one basis vector.
         The projection error is calculated for each Vr = V[:,:r] for r <= rmax.
 
-    eps : float or list(floats)
+    eps : float or list(float)
         Cutoff value(s) for the projection error.
 
     plot : bool
@@ -606,8 +612,8 @@ def xdot(X, *args, **kwargs):
 __all__ = [
             "mean_shift",
             "pod_basis",
-            "significant_svdvals",
-            "energy_capture",
+            "svdval_decay",
+            "cumulative_energy",
             "projection_error",
             "minimal_projection_error",
             "reproject_discrete",
@@ -616,3 +622,19 @@ __all__ = [
             "xdot_nonuniform",
             "xdot",
           ]
+
+
+# NOTE: to be deleted in a future version.
+def significant_svdvals(*args, **kwargs):       # pragma nocover
+    _np.warnings.warn("significant_svdvals() has been renamed svdval_decay()",
+                   DeprecationWarning, stacklevel=1)
+    return svdval_decay(*args, **kwargs)
+significant_svdvals.__doc__ = "\nDEPRECATED! use svdval_decay().\n\n" \
+                        + svdval_decay.__doc__
+
+def energy_capture(*args, **kwargs):            # pragma nocover
+    _np.warnings.warn("energy_capture() has been renamed cumulative_energy()",
+                   DeprecationWarning, stacklevel=1)
+    return cumulative_energy(*args, **kwargs)
+energy_capture.__doc__ = "\nDEPRECATED! use cumulative_energy().\n\n" \
+                        + cumulative_energy.__doc__

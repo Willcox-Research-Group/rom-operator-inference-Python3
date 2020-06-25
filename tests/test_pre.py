@@ -87,17 +87,17 @@ def test_mean_shift(set_up_basis_data):
 
 
 # Reduced dimension selection =================================================
-def test_significant_svdvals(set_up_basis_data):
-    """Test pre.significant_svdvals()."""
+def test_svdval_decay(set_up_basis_data):
+    """Test pre.svdval_decay()."""
     X = set_up_basis_data
     svdvals = la.svdvals(X)
 
     # Single cutoffs.
-    r = roi.pre.significant_svdvals(svdvals, 1e-14, plot=False)
+    r = roi.pre.svdval_decay(svdvals, 1e-14, plot=False)
     assert isinstance(r, int) and r >= 1
 
     # Multiple cutoffss.
-    rs = roi.pre.significant_svdvals(svdvals, [1e-10,1e-12], plot=False)
+    rs = roi.pre.svdval_decay(svdvals, [1e-10,1e-12], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, int) and r >= 1
@@ -106,25 +106,31 @@ def test_significant_svdvals(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = roi.pre.significant_svdvals(svdvals, .0001, plot=True)
+    rs = roi.pre.svdval_decay(svdvals, .0001, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = roi.pre.significant_svdvals(svdvals, [1e-4, 1e-8, 1e-12], plot=True)
+    rs = roi.pre.svdval_decay(svdvals, [1e-4, 1e-8, 1e-12], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
 
+    # Specific test.
+    svdvals = [.9, .09, .009, .0009, .00009, .000009, .0000009]
+    rs = roi.pre.svdval_decay(svdvals, [.8, .1, .0004], plot=False)
+    assert len(rs) == 3
+    assert rs == [1, 1, 4]
 
-def test_energy_capture(set_up_basis_data):
-    """Test pre.energy_capture()."""
+
+def test_cumulative_energy(set_up_basis_data):
+    """Test pre.cumulative_energy()."""
     X = set_up_basis_data
     svdvals = la.svdvals(X)
 
     # Single threshold.
-    r = roi.pre.energy_capture(svdvals, .9, plot=False)
+    r = roi.pre.cumulative_energy(svdvals, .9, plot=False)
     assert isinstance(r, np.int64) and r >= 1
 
     # Multiple thresholds.
-    rs = roi.pre.energy_capture(svdvals, [.9, .99, .999], plot=False)
+    rs = roi.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, np.int64) and r >= 1
@@ -133,12 +139,18 @@ def test_energy_capture(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = roi.pre.energy_capture(svdvals, .999, plot=True)
+    rs = roi.pre.cumulative_energy(svdvals, .999, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = roi.pre.energy_capture(svdvals, [.9, .99, .999], plot=True)
+    rs = roi.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
+
+    # Specific test.
+    svdvals = np.sqrt([.9, .09, .009, .0009, .00009, .000009, .0000009])
+    rs = roi.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
+    assert len(rs) == 3
+    assert rs == [1, 2, 3]
 
 
 def test_projection_error(set_up_basis_data):
