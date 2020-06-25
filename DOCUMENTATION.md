@@ -189,7 +189,7 @@ That is, given snapshot data, a basis, and a form for a reduced model, it comput
 
 **`InferredContinuousROM.predict(x0, t, u=None, **options)`**: Simulate the learned reduced-order model with [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 - **Parameters**
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_**x**_<sub>0</sub>.
     - `t`: The time domain, an _n_<sub>_t_</sub>-vector, over which to integrate the reduced-order model.
     - `u`: The input as a function of time, that is, a function mapping a `float` to an _m_-vector (or to a scalar if _m_ = 1). Alternatively, the _m_ x _n_<sub>_t_</sub> matrix (or _n_<sub>_t_</sub>-vector if _m_ = 1) where column _j_ is the input vector corresponding to time `t[j]`. In this case, _**u**_(_t_) is appriximated by a cubic spline interpolating the given inputs. This argument is only required if `'B'` is in `modelform`.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
@@ -216,7 +216,7 @@ via Operator Inference.
 
 **`InferredDiscreteROM.predict(x0, niters, U=None)`**: Step forward the learned ROM `niters` steps.
 - **Parameters**
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_**x**_<sub>0</sub>.
     - `niters`: The number of times to step the system forward.
     - `U`: The inputs for the next `niters`-1 time steps, as an _m_ x `niters`-1 matrix (or an (`niters`-1)-vector if _m_ = 1). This argument is only required if `'B'` is in `modelform`.
 - **Returns**
@@ -245,7 +245,7 @@ The strategy is to take snapshot data for several parameter samples and a global
 **`InterpolatedInferredContinuousROM.predict(µ, x0, t, u=None, **options)`**: Simulate the learned reduced-order model with [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 - **Parameters**
     - `µ`: The parameter value at which to simulate the ROM.
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_**x**_<sub>0</sub>.
     - `t`: The time domain, an _n_<sub>_t_</sub>-vector, over which to integrate the reduced-order model.
     - `u`: The input as a function of time, that is, a function mapping a `float` to an _m_-vector (or to a scalar if _m_ = 1). Alternatively, the _m_ x _n_<sub>_t_</sub> matrix (or _n_<sub>_t_</sub>-vector if _m_ = 1) where column _j_ is the input vector corresponding to time `t[j]`. In this case, _**u**_(_t_) is appriximated by a cubic spline interpolating the given inputs. This argument is only required if `'B'` is in `modelform`.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
@@ -274,7 +274,7 @@ The strategy is to take snapshot data for several parameter samples and a global
 **`InterpolatedInferredDiscreteROM.predict(µ, x0, niters, U=None)`**: Step forward the learned ROM `niters` steps.
 - **Parameters**
     - `µ`: The parameter value at which to simulate the ROM.
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_**x**_<sub>0</sub>.
     - `niters`: The number of times to step the system forward.
     - `U`: The inputs for the next `niters`-1 time steps, as an _m_ x `niters`-1 matrix (or an (`niters`-1)-vector if _m_ = 1). This argument is only required if `'B'` is in `modelform`.
 - **Returns**
