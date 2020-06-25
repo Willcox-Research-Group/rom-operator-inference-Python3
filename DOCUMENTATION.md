@@ -459,6 +459,8 @@ If `normalize=True`, then the _normalized absolute error_ is computed instead of
 **`post.Lp_error(X, Y, t=None, p=2)`**: Approximate the absolute and relative _L_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y` corresponding to times `t`, assuming `Y` is an approximation to `X`.
 The [_L_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#Lp_spaces) for vector-valued functions is defined by <p align="center"><img src="img/doc/fLpnorm.svg"/></p>
 For finite _p_, the integrals are approximated by the trapezoidal rule: <p align="center"><img src="img/doc/trap.svg"/></p>
+<p align="center"><img src="img/doc/grid.svg"/></p>
+
 The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
 
 

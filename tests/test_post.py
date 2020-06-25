@@ -108,7 +108,7 @@ def test_Lp_error(set_up_error_data):
 
     with pytest.raises(ValueError) as exc:
         roi.post.Lp_error(np.dstack((X,X)), np.dstack((Y,Y)), t)
-    assert exc.value.args[0] == "X and Y must be two-dimensional"
+    assert exc.value.args[0] == "X and Y must be one- or two-dimensional"
 
     with pytest.raises(ValueError) as exc:
         roi.post.Lp_error(X, Y, np.dstack((t,t)))
@@ -133,6 +133,48 @@ def test_Lp_error(set_up_error_data):
     assert isinstance(abs_err, float)
     assert isinstance(rel_err, float)
 
+    abs_err2, rel_err2 = roi.post.Lp_error(X, Y, t, p=np.inf)
+    assert isinstance(abs_err2, float)
+    assert isinstance(rel_err2, float)
+    assert abs_err == abs_err2
+    assert rel_err == rel_err2
+
+    # Test 1D inputs.
+    for p in [1, 2, 5.7]:
+        abs_err, rel_err = roi.post.Lp_error(X[0], Y[0], t, p=p)
+        assert isinstance(abs_err, float)
+        assert isinstance(rel_err, float)
+
+    # Do a 1D numerical test.
+    t = np.linspace(0, np.pi, 400)
+    X = np.sin(t)
+    Y = np.sin(2*t)
+
+    abs_err, rel_err = roi.post.Lp_error(X, Y, t, p=1)
+    assert round(abs_err, 4) == 2.5
+    assert round(rel_err, 4) == 1.25
+
+    abs_err, rel_err = roi.post.Lp_error(X, Y, t, p=2)
+    assert round(abs_err, 4) == round(np.sqrt(np.pi), 4)
+    assert round(rel_err, 4) == round(np.sqrt(2), 4)
+
     abs_err, rel_err = roi.post.Lp_error(X, Y, t, p=np.inf)
-    assert isinstance(abs_err, float)
-    assert isinstance(rel_err, float)
+    assert round(abs_err, 4) == 1.7602
+    assert round(rel_err, 4) == 1.7602
+
+    # Do a 2D numerical test.
+    t = np.linspace(0, np.pi, 400)
+    X = np.vstack([np.sin(t), np.cos(t)])
+    Y = np.zeros_like(X)
+
+    abs_err, rel_err = roi.post.Lp_error(X, Y, t, p=1)
+    assert round(abs_err, 4) == 4
+    assert rel_err == 1
+
+    abs_err, rel_err = roi.post.Lp_error(X, Y, t, p=2)
+    assert round(abs_err, 4) == round(np.sqrt(np.pi), 4)
+    assert rel_err == 1
+
+    abs_err, rel_err = roi.post.Lp_error(X, Y, p=np.inf)
+    assert round(abs_err, 4) == 1
+    assert rel_err == 1
