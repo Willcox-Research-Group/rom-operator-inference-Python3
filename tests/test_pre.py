@@ -10,7 +10,6 @@ from matplotlib import pyplot as plt
 import rom_operator_inference as roi
 
 
-# Basis computation ===========================================================
 @pytest.fixture
 def set_up_basis_data():
     n = 2000
@@ -18,6 +17,69 @@ def set_up_basis_data():
     return np.random.random((n,k)) - .5
 
 
+# Data preprocessing: shifting and MinMax scaling / unscaling =================
+
+def test_shift(set_up_basis_data):
+    """Test pre.shift()."""
+    X = set_up_basis_data
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.shift(np.random.random((3,3,3)))
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Try with bad shift vector.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.shift(X, X)
+    assert exc.value.args[0] == "shift_by must be one-dimensional"
+
+    # Correct usage.
+    Xshifted, xbar = roi.pre.shift(X)
+    assert xbar.shape == (X.shape[0],)
+    assert Xshifted.shape == X.shape
+    assert np.allclose(np.mean(Xshifted, axis=1), np.zeros(X.shape[0]))
+    for j in range(X.shape[1]):
+        assert np.allclose(Xshifted[:,j], X[:,j] - xbar)
+
+    Y = np.random.random(X.shape)
+    Yshifted = roi.pre.shift(Y, xbar)
+    for j in range(Y.shape[1]):
+        assert np.allclose(Yshifted[:,j], Y[:,j] - xbar)
+
+    # Verify inverse shifting.
+    assert np.allclose(X, roi.pre.shift(Xshifted, -xbar))
+
+
+def test_scale(set_up_basis_data):
+    """Test pre.scale()."""
+    X = set_up_basis_data
+    Y = np.random.random(X.shape) / 3
+
+    # Try with bad scales.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.scale(X, (1,2,3), (4,5))
+    assert exc.value.args[0] == "scale_to must have exactly 2 elements"
+
+    with pytest.raises(ValueError) as exc:
+        roi.pre.scale(X, (1,2), (3,4,5))
+    assert exc.value.args[0] == "scale_from must have exactly 2 elements"
+
+    # Scale X to [-1,1] and then scale Y with the same transformation.
+    Xscaled, scaled_to, scaled_from = roi.pre.scale(X, (-1,1))
+    assert Xscaled.shape == X.shape
+    assert scaled_to == (-1,1)
+    assert isinstance(scaled_from, tuple)
+    assert len(scaled_from) == 2
+    assert round(scaled_from[0],8) == round(X.min(),8)
+    assert round(scaled_from[1],8) == round(X.max(),8)
+    assert round(Xscaled.min(),8) == -1
+    assert round(Xscaled.max(),8) == 1
+
+    # Verify inverse scaling.
+    assert np.allclose(roi.pre.scale(Xscaled, scaled_from, scaled_to), X)
+
+
+# Basis computation ===========================================================
 def test_pod_basis(set_up_basis_data):
     """Test pre.pod_basis() on a small case with the ARPACK solver."""
     X = set_up_basis_data
@@ -69,21 +131,6 @@ def test_pod_basis(set_up_basis_data):
         assert la.norm(np.abs(Vr) - np.abs(Ur)) < 5
         assert svdvals.shape == (r,)
         assert la.norm(svdvals - vals_r) < 3
-
-
-def test_mean_shift(set_up_basis_data):
-    """Test pre.mean_shift()."""
-    X = set_up_basis_data
-    xbar, Xshifted = roi.pre.mean_shift(X)
-    assert xbar.shape == (X.shape[0],)
-    assert Xshifted.shape == X.shape
-    assert np.allclose(np.mean(Xshifted, axis=1), np.zeros(X.shape[0]))
-    assert np.allclose(xbar.reshape((-1,1)) + Xshifted, X)
-
-    # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
-        roi.pre.mean_shift(np.random.random((3,3,3)))
-    assert exc.value.args[0] == "data X must be two-dimensional"
 
 
 # Reduced dimension selection =================================================
