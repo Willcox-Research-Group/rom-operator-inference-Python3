@@ -10,7 +10,6 @@ from matplotlib import pyplot as plt
 import rom_operator_inference as roi
 
 
-# Basis computation ===========================================================
 @pytest.fixture
 def set_up_basis_data():
     n = 2000
@@ -18,6 +17,69 @@ def set_up_basis_data():
     return np.random.random((n,k)) - .5
 
 
+# Data preprocessing: shifting and MinMax scaling / unscaling =================
+
+def test_shift(set_up_basis_data):
+    """Test pre.shift()."""
+    X = set_up_basis_data
+
+    # Try with bad data shape.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.shift(np.random.random((3,3,3)))
+    assert exc.value.args[0] == "data X must be two-dimensional"
+
+    # Try with bad shift vector.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.shift(X, X)
+    assert exc.value.args[0] == "shift_by must be one-dimensional"
+
+    # Correct usage.
+    Xshifted, xbar = roi.pre.shift(X)
+    assert xbar.shape == (X.shape[0],)
+    assert Xshifted.shape == X.shape
+    assert np.allclose(np.mean(Xshifted, axis=1), np.zeros(X.shape[0]))
+    for j in range(X.shape[1]):
+        assert np.allclose(Xshifted[:,j], X[:,j] - xbar)
+
+    Y = np.random.random(X.shape)
+    Yshifted = roi.pre.shift(Y, xbar)
+    for j in range(Y.shape[1]):
+        assert np.allclose(Yshifted[:,j], Y[:,j] - xbar)
+
+    # Verify inverse shifting.
+    assert np.allclose(X, roi.pre.shift(Xshifted, -xbar))
+
+
+def test_scale(set_up_basis_data):
+    """Test pre.scale()."""
+    X = set_up_basis_data
+    Y = np.random.random(X.shape) / 3
+
+    # Try with bad scales.
+    with pytest.raises(ValueError) as exc:
+        roi.pre.scale(X, (1,2,3), (4,5))
+    assert exc.value.args[0] == "scale_to must have exactly 2 elements"
+
+    with pytest.raises(ValueError) as exc:
+        roi.pre.scale(X, (1,2), (3,4,5))
+    assert exc.value.args[0] == "scale_from must have exactly 2 elements"
+
+    # Scale X to [-1,1] and then scale Y with the same transformation.
+    Xscaled, scaled_to, scaled_from = roi.pre.scale(X, (-1,1))
+    assert Xscaled.shape == X.shape
+    assert scaled_to == (-1,1)
+    assert isinstance(scaled_from, tuple)
+    assert len(scaled_from) == 2
+    assert round(scaled_from[0],8) == round(X.min(),8)
+    assert round(scaled_from[1],8) == round(X.max(),8)
+    assert round(Xscaled.min(),8) == -1
+    assert round(Xscaled.max(),8) == 1
+
+    # Verify inverse scaling.
+    assert np.allclose(roi.pre.scale(Xscaled, scaled_from, scaled_to), X)
+
+
+# Basis computation ===========================================================
 def test_pod_basis(set_up_basis_data):
     """Test pre.pod_basis() on a small case with the ARPACK solver."""
     X = set_up_basis_data
@@ -37,8 +99,8 @@ def test_pod_basis(set_up_basis_data):
 
     # Try with an invalid mode.
     with pytest.raises(NotImplementedError) as exc:
-        roi.pre.pod_basis(X, None, mode="dense")
-    assert exc.value.args[0] == "invalid mode 'dense'"
+        roi.pre.pod_basis(X, None, mode="full")
+    assert exc.value.args[0] == "invalid mode 'full'"
 
     U, vals, _ = la.svd(X, full_matrices=False)
     for r in [2, 10, rmax]:
@@ -46,14 +108,14 @@ def test_pod_basis(set_up_basis_data):
         vals_r = vals[:r]
 
         # Via scipy.linalg.svd().
-        Vr, svdvals = roi.pre.pod_basis(X, r, mode="simple")
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="dense")
         assert Vr.shape == (n,r)
         assert np.allclose(Vr, Ur)
         assert svdvals.shape == (r,)
         assert np.allclose(svdvals, vals_r)
 
         # Via scipy.sparse.linalg.svds() (ARPACK).
-        Vr, svdvals = roi.pre.pod_basis(X, r, mode="arpack")
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="sparse")
         assert Vr.shape == (n,r)
         for j in range(r):      # Make sure the columns have the same sign.
             if not np.isclose(Ur[0,j], Vr[0,j]):
@@ -71,33 +133,18 @@ def test_pod_basis(set_up_basis_data):
         assert la.norm(svdvals - vals_r) < 3
 
 
-def test_mean_shift(set_up_basis_data):
-    """Test pre.mean_shift()."""
-    X = set_up_basis_data
-    xbar, Xshifted = roi.pre.mean_shift(X)
-    assert xbar.shape == (X.shape[0],)
-    assert Xshifted.shape == X.shape
-    assert np.allclose(np.mean(Xshifted, axis=1), np.zeros(X.shape[0]))
-    assert np.allclose(xbar.reshape((-1,1)) + Xshifted, X)
-
-    # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
-        roi.pre.mean_shift(np.random.random((3,3,3)))
-    assert exc.value.args[0] == "data X must be two-dimensional"
-
-
 # Reduced dimension selection =================================================
-def test_significant_svdvals(set_up_basis_data):
-    """Test pre.significant_svdvals()."""
+def test_svdval_decay(set_up_basis_data):
+    """Test pre.svdval_decay()."""
     X = set_up_basis_data
     svdvals = la.svdvals(X)
 
     # Single cutoffs.
-    r = roi.pre.significant_svdvals(svdvals, 1e-14, plot=False)
+    r = roi.pre.svdval_decay(svdvals, 1e-14, plot=False)
     assert isinstance(r, int) and r >= 1
 
     # Multiple cutoffss.
-    rs = roi.pre.significant_svdvals(svdvals, [1e-10,1e-12], plot=False)
+    rs = roi.pre.svdval_decay(svdvals, [1e-10,1e-12], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, int) and r >= 1
@@ -106,25 +153,31 @@ def test_significant_svdvals(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = roi.pre.significant_svdvals(svdvals, .0001, plot=True)
+    rs = roi.pre.svdval_decay(svdvals, .0001, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = roi.pre.significant_svdvals(svdvals, [1e-4, 1e-8, 1e-12], plot=True)
+    rs = roi.pre.svdval_decay(svdvals, [1e-4, 1e-8, 1e-12], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
 
+    # Specific test.
+    svdvals = [.9, .09, .009, .0009, .00009, .000009, .0000009]
+    rs = roi.pre.svdval_decay(svdvals, [.8, .1, .0004], plot=False)
+    assert len(rs) == 3
+    assert rs == [1, 1, 4]
 
-def test_energy_capture(set_up_basis_data):
-    """Test pre.energy_capture()."""
+
+def test_cumulative_energy(set_up_basis_data):
+    """Test pre.cumulative_energy()."""
     X = set_up_basis_data
     svdvals = la.svdvals(X)
 
     # Single threshold.
-    r = roi.pre.energy_capture(svdvals, .9, plot=False)
+    r = roi.pre.cumulative_energy(svdvals, .9, plot=False)
     assert isinstance(r, np.int64) and r >= 1
 
     # Multiple thresholds.
-    rs = roi.pre.energy_capture(svdvals, [.9, .99, .999], plot=False)
+    rs = roi.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, np.int64) and r >= 1
@@ -133,12 +186,18 @@ def test_energy_capture(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = roi.pre.energy_capture(svdvals, .999, plot=True)
+    rs = roi.pre.cumulative_energy(svdvals, .999, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = roi.pre.energy_capture(svdvals, [.9, .99, .999], plot=True)
+    rs = roi.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
+
+    # Specific test.
+    svdvals = np.sqrt([.9, .09, .009, .0009, .00009, .000009, .0000009])
+    rs = roi.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
+    assert len(rs) == 3
+    assert rs == [1, 2, 3]
 
 
 def test_projection_error(set_up_basis_data):

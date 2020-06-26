@@ -8,35 +8,124 @@ from sklearn.utils import extmath as _sklmath
 from matplotlib import pyplot as _plt
 
 
-# Basis computation ===========================================================
-def mean_shift(X):
-    """Compute the mean of the columns of X, then use it to shift the columns
-    so that they have mean zero.
+# Shifting and MinMax scaling =================================================
+def shift(X, shift_by=None):
+    """Shift the columns of X by a vector.
 
     Parameters
     ----------
     X : (n,k) ndarray
         A matrix of k snapshots. Each column is a single snapshot.
 
+    shift_by : (n,) or (n,1) ndarray
+        A vector that is the same size as a single snapshot. If None,
+        set to the mean of the columns of X.
+
     Returns
     -------
-    xbar : (n,) ndarray
-        The mean snapshot. Since this is a one-dimensional array, it must be
-        reshaped to be applied to a matrix: Xshifted + xbar.reshape((-1,1)).
-
     Xshifted : (n,k) ndarray
-        The matrix such that Xshifted[:,j] + xbar = X[:,j] for j=1,2,...,k.
+        The matrix such that Xshifted[:,j] = X[:,j] - shift_by for j=0,...,k-1.
+
+    xbar : (n,) ndarray
+        The shift factor. Since this is a one-dimensional array, it must be
+        reshaped to be applied to a matrix: Xshifted + xbar.reshape((-1,1)).
+        Only returned if shift_by=None.
+
+    For shift_by=None, only Xshifted is returned.
+
+    Examples
+    --------
+    # Shift X by its mean, then shift Y by the same mean.
+    >>> Xshifted, xbar = shift(X)
+    >>> Yshifted = shift(Y, xbar)
+
+    # Shift X by its mean, then undo the transformation by an inverse shift.
+    >>> Xshifted, xbar = shift(X)
+    >>> X_again = shift(Xshifted, -xbar)
     """
     # Check dimensions.
     if X.ndim != 2:
         raise ValueError("data X must be two-dimensional")
 
-    xbar = _np.mean(X, axis=1)               # Compute the mean column.
-    Xshifted = X - xbar.reshape((-1,1))     # Shift the columns by the mean.
-    return xbar, Xshifted
+    # If not shift_by factor is provided, compute the mean column.
+    learning = (shift_by is None)
+    if learning:
+        shift_by = _np.mean(X, axis=1)
+    elif shift_by.ndim != 1:
+        raise ValueError("shift_by must be one-dimensional")
+
+    # Shift the columns by the mean.
+    Xshifted = X - shift_by.reshape((-1,1))
+
+    return (Xshifted, shift_by) if learning else Xshifted
 
 
-def pod_basis(X, r=None, mode="simple", **options):
+def scale(X, scale_to, scale_from=None):
+    """Scale the entries of the snapshot matrix X from the interval
+    [scale_from[0], scale_from[1]] to [scale_to[0], scale_to[1]].
+    Scaling algorithm follows sklearn.preprocessing.MinMaxScaler.
+
+    Parameters
+    ----------
+    X : (n,k) ndarray
+        A matrix of k snapshots to be scaled. Each column is a single snapshot.
+
+    scale_to : (2,) tuple
+        The desired minimum and maximum of the scaled data.
+
+    scale_from : (2,) tuple
+        The minimum and maximum of the snapshot data. If None, learn the
+        scaling from X: scale_from[0] = min(X); scale_from[1] = max(X).
+
+    Returns
+    -------
+    Xscaled : (n,k) ndarray
+        The scaled snapshot matrix.
+
+    scaled_to : (2,) tuple
+        The bounds that the snapshot matrix was scaled to, i.e.,
+        scaled_to[0] = min(Xscaled); scaled_to[1] = max(Xscaled).
+        Only returned if scale_from = None.
+
+    scaled_from : (2,) tuple
+        The minimum and maximum of the snapshot data, i.e., the bounds that
+        the data was scaled from. Only returned if scale_from = None.
+
+    For scale_from=None, only Xscaled is returned.
+
+    Examples
+    --------
+    # Scale X to [-1,1] and then scale Y with the same transformation.
+    >>> Xscaled, scaled_to, scaled_from = scale(X, (-1,1))
+    >>> Yscaled = scale(Y, scaled_to, scaled_from)
+
+    # Scale X to [0,1], then undo the transformation by an inverse scaling.
+    >>> Xscaled, scaled_to, scaled_from = scale(X, (0,1))
+    >>> X_again = scale(Xscaled, scaled_from, scaled_to)
+    """
+    # If no scale_from bounds are provided, learn them.
+    learning = (scale_from is None)
+    if learning:
+        scale_from = _np.min(X), _np.max(X)
+        means = _np.mean(X)
+
+    # Check scales.
+    if len(scale_to) != 2:
+        raise ValueError("scale_to must have exactly 2 elements")
+    if len(scale_from) != 2:
+        raise ValueError("scale_from must have exactly 2 elements")
+
+    # Do the scaling.
+    mini, maxi = scale_to
+    xmin, xmax = scale_from
+    scl = (maxi - mini)/(xmax - xmin)
+    Xscaled = X*scl + (mini - xmin*scl)
+
+    return (Xscaled, scale_to, scale_from) if learning else Xscaled
+
+
+# Basis computation ===========================================================
+def pod_basis(X, r=None, mode="dense", **options):
     """Compute the POD basis of rank r corresponding to the data in X.
     This function does NOT shift or scale data before computing the basis.
     This function is a simple wrapper for various SVD methods.
@@ -52,9 +141,9 @@ def pod_basis(X, r=None, mode="simple", **options):
 
     mode : str
         The strategy to use for computing the truncated SVD of X. Options:
-        * "simple" (default): Use scipy.linalg.svd() to compute the SVD of X.
+        * "dense" (default): Use scipy.linalg.svd() to compute the SVD of X.
             May be inefficient or intractable for very large matrices.
-        * "arpack": Use scipy.sparse.linalg.svds() to compute the SVD of X.
+        * "sparse": Use scipy.sparse.linalg.svds() to compute the SVD of X.
             This uses ARPACK for the eigensolver. Inefficient for non-sparse
             matrices; requires separate computations for full SVD.
         * "randomized": Compute an approximate SVD with a randomized approach
@@ -63,8 +152,8 @@ def pod_basis(X, r=None, mode="simple", **options):
 
     options
         Additional parameters for the SVD solver, which depends on `mode`:
-        * "simple": scipy.linalg.svd()
-        * "arpack": scipy.sparse.linalg.svds()
+        * "dense": scipy.linalg.svd()
+        * "sparse": scipy.sparse.linalg.svds()
         * "randomized": sklearn.utils.extmath.randomized_svd()
 
     Returns
@@ -82,10 +171,10 @@ def pod_basis(X, r=None, mode="simple", **options):
     if r > rmax or r < 1:
         raise ValueError(f"invalid POD rank r = {r} (need 1 <= r <= {rmax})")
 
-    if mode == "simple":
+    if mode == "dense" or mode == "simple":
         V, svdvals, _ = _la.svd(X, full_matrices=False, **options)
 
-    elif mode == "arpack":
+    elif mode == "sparse" or mode == "arpack":
         get_smallest = False
         if r == rmax:
             r -= 1
@@ -116,7 +205,7 @@ def pod_basis(X, r=None, mode="simple", **options):
 
 
 # Reduced dimension selection =================================================
-def significant_svdvals(singular_values, eps, plot=False):
+def svdval_decay(singular_values, eps, plot=False):
     """Count the number of singular values of X that are greater than eps.
 
     Parameters
@@ -124,7 +213,7 @@ def significant_svdvals(singular_values, eps, plot=False):
     singular_values : (n,) ndarray
         The singular values of a snapshot set X, e.g., scipy.linalg.svdvals(X).
 
-    eps : float or list(floats)
+    eps : float or list(float)
         Cutoff value(s) for the singular values of X.
 
     plot : bool
@@ -140,27 +229,29 @@ def significant_svdvals(singular_values, eps, plot=False):
     one_eps = _np.isscalar(eps)
     if one_eps:
         eps = [eps]
+    singular_values = _np.array(singular_values)
     ranks = [_np.count_nonzero(singular_values > ep) for ep in eps]
 
     if plot:
         # Visualize singular values and cutoff value(s).
-        fig, ax = _plt.subplots(1, 1, figsize=(12,4))
+        fig, ax = _plt.subplots(1, 1, figsize=(9,3))
         j = _np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, singular_values, 'C0*', ms=4, zorder=3)
+        ax.semilogy(j, singular_values, 'C0*', ms=10, mew=0, zorder=3)
         ax.set_xlim((0,j.size))
         ylim = ax.get_ylim()
         for ep,r in zip(eps, ranks):
-            ax.hlines(ep, 0, r+1, color="black", linewidth=1)
+            ax.hlines(ep, 0, r, color="black", linewidth=.5, alpha=.75)
             ax.vlines(r, ylim[0], singular_values[r-1] if r > 0 else ep,
-                      color="black", linewidth=1)
+                      color="black", linewidth=.5, alpha=.75)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index $j$")
         ax.set_ylabel(r"Singular value $\sigma_j$")
+        _plt.tight_layout()
 
     return ranks[0] if one_eps else ranks
 
 
-def energy_capture(singular_values, thresh, plot=False):
+def cumulative_energy(singular_values, thresh, plot=False):
     """Compute the number of singular values of X needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
@@ -171,12 +262,12 @@ def energy_capture(singular_values, thresh, plot=False):
     singular_values : (n,) ndarray
         The singular values of a snapshot set X, e.g., scipy.linalg.svdvals(X).
 
-    thresh : float or list(floats)
+    thresh : float or list(float)
         Energy capture threshold(s).
 
     plot : bool
         If True, plot the singular values and the energy capture against
-        the singular value index.
+        the singular value index (linear scale).
 
     Returns
     -------
@@ -184,30 +275,31 @@ def energy_capture(singular_values, thresh, plot=False):
         The number of singular values required to capture more than each
         energy capture threshold.
     """
-    # Calculate  cumulative energy.
-    svdvals2 = singular_values**2
-    cumulative_energy = _np.cumsum(svdvals2) / _np.sum(svdvals2)
+    # Calculate the cumulative energy.
+    svdvals2 = _np.array(singular_values)**2
+    cum_energy = _np.cumsum(svdvals2) / _np.sum(svdvals2)
 
     # Determine the points at which the cumulative energy passes the threshold.
     one_thresh = _np.isscalar(thresh)
     if one_thresh:
         thresh = [thresh]
-    ranks = [_np.searchsorted(cumulative_energy, th) + 1 for th in thresh]
+    ranks = [_np.searchsorted(cum_energy, th) + 1 for th in thresh]
 
     if plot:
         # Visualize cumulative energy and threshold value(s).
-        fig, ax = _plt.subplots(1, 1, figsize=(12,4))
+        fig, ax = _plt.subplots(1, 1, figsize=(9,3))
         j = _np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, cumulative_energy, 'C2.-', ms=4, zorder=3)
+        ax.plot(j, cum_energy, 'C2.-', ms=10, lw=1, zorder=3)
         ax.set_xlim(0, j.size)
         ylim = ax.get_ylim()
         for th,r in zip(thresh, ranks):
-            ax.hlines(th, 0, r+1, color="black", linewidth=1)
-            ax.vlines(r, ylim[0], cumulative_energy[r-1] if r > 0 else th,
-                      color="black", linewidth=1)
+            ax.hlines(th, 0, r, color="black", linewidth=.5, alpha=.5)
+            ax.vlines(r, ylim[0], cum_energy[r-1] if r > 0 else th,
+                      color="black", linewidth=.5, alpha=.5)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Cumulative energy")
+        _plt.tight_layout()
 
     return ranks[0] if one_thresh else ranks
 
@@ -253,7 +345,7 @@ def minimal_projection_error(X, V, eps, plot=False):
         The first rmax POD basis vectors of X. Each column is one basis vector.
         The projection error is calculated for each Vr = V[:,:r] for r <= rmax.
 
-    eps : float or list(floats)
+    eps : float or list(float)
         Cutoff value(s) for the projection error.
 
     plot : bool
@@ -604,10 +696,11 @@ def xdot(X, *args, **kwargs):
 
 
 __all__ = [
-            "mean_shift",
+            "shift",
+            "scale",
             "pod_basis",
-            "significant_svdvals",
-            "energy_capture",
+            "svdval_decay",
+            "cumulative_energy",
             "projection_error",
             "minimal_projection_error",
             "reproject_discrete",
@@ -616,3 +709,27 @@ __all__ = [
             "xdot_nonuniform",
             "xdot",
           ]
+
+
+# Deprecations ================================================================
+
+def mean_shift(X):                              # pragma nocover
+    _np.warnings.warn("mean_shift() has been renamed shift()",
+                   DeprecationWarning, stacklevel=1)
+    a,b = shift(X)
+    return b,a
+mean_shift.__doc__ = "\nDEPRECATED! use shift().\n\n" + shift.__doc__
+
+def significant_svdvals(*args, **kwargs):       # pragma nocover
+    _np.warnings.warn("significant_svdvals() has been renamed svdval_decay()",
+                   DeprecationWarning, stacklevel=1)
+    return svdval_decay(*args, **kwargs)
+significant_svdvals.__doc__ = "\nDEPRECATED! use svdval_decay().\n\n" \
+                        + svdval_decay.__doc__
+
+def energy_capture(*args, **kwargs):            # pragma nocover
+    _np.warnings.warn("energy_capture() has been renamed cumulative_energy()",
+                   DeprecationWarning, stacklevel=1)
+    return cumulative_energy(*args, **kwargs)
+energy_capture.__doc__ = "\nDEPRECATED! use cumulative_energy().\n\n" \
+                        + cumulative_energy.__doc__

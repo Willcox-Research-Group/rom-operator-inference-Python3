@@ -94,6 +94,21 @@ def _test_lstq_reg_single(k,d,r):
     X_ = roi.utils.lstsq_reg(A, B, P=[2*I]*r)[0]
     assert la.norm(X_) <= la.norm(X)
 
+    # Test residuals actually give the Frobenius norm squared of the misfit.
+    Acond = np.linalg.cond(A)
+    X_, res, rnk, svdvals = roi.utils.lstsq_reg(A, B, P=0)
+    assert np.isclose(np.sum(res), np.sum((A @ X_ - B)**2))
+    assert np.isclose(abs(svdvals[0]/svdvals[-1]), Acond)
+
+    # Ensure residuals larger, condition numbers smaller with regularization.
+    X_, res, rnk, svdvals = roi.utils.lstsq_reg(A, B, P=2)
+    assert np.sum(res) > np.sum((A @ X_ - B)**2)
+    assert abs(svdvals[0]/svdvals[-1]) < Acond
+
+    X_, res, rnk, svdvals = roi.utils.lstsq_reg(A, B, P=[2*I]*r)
+    assert np.sum(res) > np.sum((A @ X_ - B)**2)
+    assert abs(svdvals[0]/svdvals[-1]) < Acond
+
 
 def test_lstsq_reg(n_tests=5):
     """Test utils.lstsq_reg()."""
