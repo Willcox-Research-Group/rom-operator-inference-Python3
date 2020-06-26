@@ -126,13 +126,14 @@ def Lp_error(X, Y, t=None, p=2):
 
     Parameters
     ----------
-    X : (n,k) ndarray
+    X : (n,k) or (k,) ndarray
         The "true" data corresponding to time t. Each column is one snapshot,
-        i.e., X[:,j] is the data at time t[j].
+        i.e., X[:,j] is the data at time t[j]. If one-dimensional, each entry
+        is one snapshot.
 
-    Y : (n,k) ndarray
+    Y : (n,k) or (k,) ndarray
         An approximation to X, i.e., Y[:,j] approximates X[:,j] and corresponds
-        to time t[j].
+        to time t[j]. If one-dimensional, each entry is one snapshot.
 
     t : (k,) ndarray
         Time domain of the data X and the approximation Y.
@@ -156,15 +157,19 @@ def Lp_error(X, Y, t=None, p=2):
     # Check dimensions.
     if X.shape != Y.shape:
         raise ValueError("truth X and approximation Y not aligned")
-    if X.ndim != 2:
-        raise ValueError("X and Y must be two-dimensional")
+    if X.ndim == 1:
+        X = _np.atleast_2d(X)
+        Y = _np.atleast_2d(Y)
+    elif X.ndim > 2:
+        raise ValueError("X and Y must be one- or two-dimensional")
+
+    # Pick the norm based on p.
     if p < _np.inf:
         if t is None:
             raise ValueError("time t required for p < infinty")
         if t.ndim != 1:
             raise ValueError("time t must be one-dimensional")
-        k = t.shape[0]
-        if X.shape[-1] != k:
+        if X.shape[-1] != t.shape[0]:
             raise ValueError("truth X not aligned with time t")
         pnorm = lambda Z: (_np.trapz(_np.sum(_np.abs(Z)**p, axis=0), t))**(1/p)
     elif p == _np.inf:
