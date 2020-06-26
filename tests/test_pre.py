@@ -99,8 +99,8 @@ def test_pod_basis(set_up_basis_data):
 
     # Try with an invalid mode.
     with pytest.raises(NotImplementedError) as exc:
-        roi.pre.pod_basis(X, None, mode="dense")
-    assert exc.value.args[0] == "invalid mode 'dense'"
+        roi.pre.pod_basis(X, None, mode="full")
+    assert exc.value.args[0] == "invalid mode 'full'"
 
     U, vals, _ = la.svd(X, full_matrices=False)
     for r in [2, 10, rmax]:
@@ -108,14 +108,14 @@ def test_pod_basis(set_up_basis_data):
         vals_r = vals[:r]
 
         # Via scipy.linalg.svd().
-        Vr, svdvals = roi.pre.pod_basis(X, r, mode="simple")
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="dense")
         assert Vr.shape == (n,r)
         assert np.allclose(Vr, Ur)
         assert svdvals.shape == (r,)
         assert np.allclose(svdvals, vals_r)
 
         # Via scipy.sparse.linalg.svds() (ARPACK).
-        Vr, svdvals = roi.pre.pod_basis(X, r, mode="arpack")
+        Vr, svdvals = roi.pre.pod_basis(X, r, mode="sparse")
         assert Vr.shape == (n,r)
         for j in range(r):      # Make sure the columns have the same sign.
             if not np.isclose(Ur[0,j], Vr[0,j]):

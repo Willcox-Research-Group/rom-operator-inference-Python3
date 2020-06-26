@@ -153,7 +153,7 @@ def pod_basis(X, r=None, mode="dense", **options):
     options
         Additional parameters for the SVD solver, which depends on `mode`:
         * "dense": scipy.linalg.svd()
-        * "arpack": scipy.sparse.linalg.svds()
+        * "sparse": scipy.sparse.linalg.svds()
         * "randomized": sklearn.utils.extmath.randomized_svd()
 
     Returns
