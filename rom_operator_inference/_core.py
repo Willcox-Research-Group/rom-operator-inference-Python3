@@ -2744,3 +2744,4 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
 # TODO: Account for state / input interactions (N).
 # TODO: save_model() for parametric forms.
 # TODO: jacobians for each model form in the continuous case.
+# TODO: self.p = parameter size for parametric classes (+ shape checking)

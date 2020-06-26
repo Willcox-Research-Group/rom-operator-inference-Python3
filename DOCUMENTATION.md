@@ -189,7 +189,7 @@ That is, given snapshot data, a basis, and a form for a reduced model, it comput
 
 **`InferredContinuousROM.predict(x0, t, u=None, **options)`**: Simulate the learned reduced-order model with [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 - **Parameters**
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_**x**_<sub>0</sub>.
     - `t`: The time domain, an _n_<sub>_t_</sub>-vector, over which to integrate the reduced-order model.
     - `u`: The input as a function of time, that is, a function mapping a `float` to an _m_-vector (or to a scalar if _m_ = 1). Alternatively, the _m_ x _n_<sub>_t_</sub> matrix (or _n_<sub>_t_</sub>-vector if _m_ = 1) where column _j_ is the input vector corresponding to time `t[j]`. In this case, _**u**_(_t_) is appriximated by a cubic spline interpolating the given inputs. This argument is only required if `'B'` is in `modelform`.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
@@ -216,7 +216,7 @@ via Operator Inference.
 
 **`InferredDiscreteROM.predict(x0, niters, U=None)`**: Step forward the learned ROM `niters` steps.
 - **Parameters**
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_**x**_<sub>0</sub>.
     - `niters`: The number of times to step the system forward.
     - `U`: The inputs for the next `niters`-1 time steps, as an _m_ x `niters`-1 matrix (or an (`niters`-1)-vector if _m_ = 1). This argument is only required if `'B'` is in `modelform`.
 - **Returns**
@@ -245,7 +245,7 @@ The strategy is to take snapshot data for several parameter samples and a global
 **`InterpolatedInferredContinuousROM.predict(µ, x0, t, u=None, **options)`**: Simulate the learned reduced-order model with [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
 - **Parameters**
     - `µ`: The parameter value at which to simulate the ROM.
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_**x**_<sub>0</sub>.
     - `t`: The time domain, an _n_<sub>_t_</sub>-vector, over which to integrate the reduced-order model.
     - `u`: The input as a function of time, that is, a function mapping a `float` to an _m_-vector (or to a scalar if _m_ = 1). Alternatively, the _m_ x _n_<sub>_t_</sub> matrix (or _n_<sub>_t_</sub>-vector if _m_ = 1) where column _j_ is the input vector corresponding to time `t[j]`. In this case, _**u**_(_t_) is appriximated by a cubic spline interpolating the given inputs. This argument is only required if `'B'` is in `modelform`.
     - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
@@ -274,7 +274,7 @@ The strategy is to take snapshot data for several parameter samples and a global
 **`InterpolatedInferredDiscreteROM.predict(µ, x0, niters, U=None)`**: Step forward the learned ROM `niters` steps.
 - **Parameters**
     - `µ`: The parameter value at which to simulate the ROM.
-    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_x_<sub>0</sub>.
+    - `x0`: The initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state _V_<sub>_r_</sub><sup>T</sup>_**x**_<sub>0</sub>.
     - `niters`: The number of times to step the system forward.
     - `U`: The inputs for the next `niters`-1 time steps, as an _m_ x `niters`-1 matrix (or an (`niters`-1)-vector if _m_ = 1). This argument is only required if `'B'` is in `modelform`.
 - **Returns**
@@ -414,18 +414,20 @@ The class requires the actual full-order operators (_**c**_, _A_, _H_, and/or _B
 The `pre` submodule is a collection of common routines for preparing data to be used by the `ROM` classes.
 None of these routines are novel, but they may be instructive for new Python users.
 
-**`pre.mean_shift(X)`**: Compute the mean of the columns of `X` and shift `X` by that mean so that the result has mean column of zero.
+**`pre.shift(X, shift_by=None)`**: Shift the columns of `X` by the vector `shift_by`. If `shift_by=None`, and shift `X` by the mean of its columns.
 
-**`pre.pod_basis(X, r=None, mode="simple", **options)`**: Compute the POD basis of rank `r` and the associated singular values for a snapshot matrix `X`. If `r = None`, compute all singular vectors / values. This function simply wraps a few SVD methods, selected by `mode`:
-- `mode="simple"`: [`scipy.linalg.svd()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.svd.html)
-- `mode="arpack"`: [`scipy.sparse.linalg.svds()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.svds.html)
+**`pre.scale(X, scale_to, scale_from=None)`**: Scale the entries of `X` from the interval `[scale_from[0], scale_from[1]]` to `[scale_to[0], scale_to[1]]`. If `scale_from=None`, learn the scaling by setting `scale_from[0] = min(X)`; `scale_from[1] = max(X)`.
+
+**`pre.pod_basis(X, r=None, mode="dense", **options)`**: Compute the POD basis of rank `r` and the associated singular values for a snapshot matrix `X`. If `r = None`, compute all singular vectors / values. This function simply wraps a few SVD methods, selected by `mode`:
+- `mode="dense"`: [`scipy.linalg.svd()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.svd.html)
+- `mode="sparse"`: [`scipy.sparse.linalg.svds()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.svds.html)
 - `mode="randomized"`: [`sklearn.utils.extmath.randomized_svd()`](https://scikit-learn.org/stable/modules/generated/sklearn.utils.extmath.randomized_svd.html)
 
 Use `**options` to specify additional parameters for these wrapped functions.
 
-**`pre.significant_svdvals(singular_values, eps, plot=False)`**: Count the number of singular values that are greater than `eps`. The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the singular values on a log scale.
+**`pre.svdval_decay(singular_values, eps, plot=False)`**: Count the number of singular values that are greater than `eps`. The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the singular values on a log scale.
 
-**`pre.energy_capture(singular_values, thresh, plot=False)`**: Compute the number of singular values needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the cumulative energy on a log scale.
+**`pre.cumulative_energy(singular_values, thresh, plot=False)`**: Compute the number of singular values needed to surpass the energy threshold `thresh`; the energy of the first _j_ singular values is defined by <p align="center"><img src="img/doc/energy.svg"/></p>The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the cumulative energy on a log scale.
 
 **`pre.projection_error(X, Vr)`**: Compute the relative projection error on _X_ induced by the basis matrix _V<sub>r</sub>_, <p align="center"><img src="img/doc/proj_err.svg"/></p>
 
@@ -459,6 +461,8 @@ If `normalize=True`, then the _normalized absolute error_ is computed instead of
 **`post.Lp_error(X, Y, t=None, p=2)`**: Approximate the absolute and relative _L_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y` corresponding to times `t`, assuming `Y` is an approximation to `X`.
 The [_L_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#Lp_spaces) for vector-valued functions is defined by <p align="center"><img src="img/doc/fLpnorm.svg"/></p>
 For finite _p_, the integrals are approximated by the trapezoidal rule: <p align="center"><img src="img/doc/trap.svg"/></p>
+<p align="center"><img src="img/doc/grid.svg"/></p>
+
 The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
 
 
