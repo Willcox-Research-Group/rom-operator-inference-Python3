@@ -93,7 +93,7 @@ The [`examples/`](examples/) folder contains scripts and notebooks that set up a
 [Data-driven operator inference for non-intrusive projection-based model reduction.](https://www.sciencedirect.com/science/article/pii/S0045782516301104)
 _Computer Methods in Applied Mechanics and Engineering_, Vol. 306, pp. 196-215, 2016.
 ([Download](https://kiwi.oden.utexas.edu/papers/Non-intrusive-model-reduction-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
-@article{Peherstorfer16DataDriven,
+@article{PW2016OperatorInference,
     title     = {Data-driven operator inference for nonintrusive projection-based model reduction},
     author    = {Peherstorfer, B. and Willcox, K.},
     journal   = {Computer Methods in Applied Mechanics and Engineering},
@@ -106,7 +106,7 @@ _Computer Methods in Applied Mechanics and Engineering_, Vol. 306, pp. 196-215, 
 - \[2\] [Qian, E.](https://scholar.google.com/citations?user=jnHI7wQAAAAJ), [Kramer, B.](http://kramer.ucsd.edu/), [Marques, A.](https://scholar.google.com/citations?user=d4tBWWwAAAAJ), and [Willcox, K.](https://kiwi.oden.utexas.edu/),
 [Transform & Learn: A data-driven approach to nonlinear model reduction](https://arc.aiaa.org/doi/10.2514/6.2019-3707).
 In the AIAA Aviation 2019 Forum & Exhibition, Dallas, TX, June 2019. ([Download](https://kiwi.oden.utexas.edu/papers/learn-data-driven-nonlinear-reduced-model-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
-@inbook{QKMW2019aviation,
+@inbook{QKMW2019TransformAndLearn,
     title     = {Transform \\& Learn: A data-driven approach to nonlinear model reduction},
     author    = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
     booktitle = {AIAA Aviation 2019 Forum},
@@ -119,7 +119,7 @@ In the AIAA Aviation 2019 Forum & Exhibition, Dallas, TX, June 2019. ([Download]
 [Projection-based model reduction: Formulations for physics-based machine learning.](https://www.sciencedirect.com/science/article/pii/S0045793018304250)
 _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 ([Download](https://kiwi.oden.utexas.edu/papers/Physics-based-machine-learning-swischuk-willcox.pdf))<details><summary>BibTeX</summary><pre>
-@article{swischuk2019projection,
+@article{SMPW2019PhysicsbasedML,
     title     = {Projection-based model reduction: Formulations for physics-based machine learning},
     author    = {Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.},
     journal   = {Computers \\& Fluids},
@@ -130,7 +130,7 @@ _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 }</pre></details>
 
 - \[4\] [Swischuk, R.](https://scholar.google.com/citations?user=L9D0LBsAAAAJ), [Physics-based machine learning and data-driven reduced-order modeling](https://dspace.mit.edu/handle/1721.1/122682). Master's thesis, Massachusetts Institute of Technology, 2019. ([Download](https://dspace.mit.edu/bitstream/handle/1721.1/122682/1123218324-MIT.pdf))<details><summary>BibTeX</summary><pre>
-@phdthesis{swischuk2019physics,
+@phdthesis{swischuk2019MLandDDROM,
     title  = {Physics-based machine learning and data-driven reduced-order modeling},
     author = {Swischuk, Renee},
     year   = {2019},
@@ -139,26 +139,27 @@ _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 
 - \[5\] [Peherstorfer, B.](https://scholar.google.com/citations?user=C81WhlkAAAAJ) [Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference](https://arxiv.org/abs/1908.11233). arXiv:1908.11233.
 ([Download](https://arxiv.org/pdf/1908.11233.pdf))<details><summary>BibTeX</summary><pre>
-@article{peherstorfer2019sampling,
+@article{peherstorfer2019samplingMarkovian,
     title   = {Sampling low-dimensional Markovian dynamics for pre-asymptotically recovering reduced models from data with operator inference},
     author  = {Peherstorfer, Benjamin},
     journal = {arXiv preprint arXiv:1908.11233},
     year    = {2019}
 }</pre></details>
 
-- \[6\] [Swischuk, R.](https://scholar.google.com/citations?user=L9D0LBsAAAAJ), [Kramer, B.](http://kramer.ucsd.edu/), Huang, C., and [Willcox, K.](https://kiwi.oden.utexas.edu/), [Learning physics-based reduced-order models for a single-injector combustion process](https://arc.aiaa.org/doi/10.2514/1.J058943). _AIAA Journal_, published online March 2020. Also in Proceedings of 2020 AIAA SciTech Forum & Exhibition, Orlando FL, January, 2020. Also Oden Institute Report 19-13. ([Download](https://kiwi.oden.utexas.edu/papers/learning-reduced-model-combustion-Swischuk-Kramer-Huang-Willcox.pdf))<details><summary>BibTeX</summary><pre>
-@article{SKHW2019_learning_ROMs_combustor,
-    title   = {Learning physics-based reduced-order models for a single-injector combustion process},
-    author  = {Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K.},
-    journal = {AIAA Journal},
-    volume  = {},
-    pages   = {Published Online: 19 Mar 2020},
-    url     = {},
-    year    = {2020}
+- \[6\] [Swischuk, R.](https://scholar.google.com/citations?user=L9D0LBsAAAAJ), [Kramer, B.](http://kramer.ucsd.edu/), [Huang, C.](https://scholar.google.com/citations?user=lUXijaQAAAAJ), and [Willcox, K.](https://kiwi.oden.utexas.edu/), [Learning physics-based reduced-order models for a single-injector combustion process](https://arc.aiaa.org/doi/10.2514/1.J058943). _AIAA Journal_, Vol. 58:6, pp. 2658-2672, 2020. Also in Proceedings of 2020 AIAA SciTech Forum & Exhibition, Orlando FL, January, 2020. Also Oden Institute Report 19-13.
+([Download](https://kiwi.oden.utexas.edu/papers/learning-reduced-model-combustion-Swischuk-Kramer-Huang-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{SKHW2020ROMCombustion,
+    title     = {Learning physics-based reduced-order models for a single-injector combustion process},
+    author    = {Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K.},
+    journal   = {AIAA Journal},
+    volume    = {58:6},
+    pages     = {2658--2672},
+    year      = {2020},
+    publisher = {American Institute of Aeronautics and Astronautics}
 }</pre></details>
 
-- \[7\] [Qian, E.](https://scholar.google.com/citations?user=jnHI7wQAAAAJ), [Kramer, B.](http://kramer.ucsd.edu/), [Peherstorfer, B.](https://scholar.google.com/citations?user=C81WhlkAAAAJ), and [Willcox, K.](https://kiwi.oden.utexas.edu/) [Lift & Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems](https://www.sciencedirect.com/science/article/abs/pii/S0167278919307651). _Physica D: Nonlinear Phenomena_, Volume 406, May 2020, 132401. ([Download](https://kiwi.oden.utexas.edu/papers/lift-learn-scientific-machine-learning-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
-@article{QKPW2020_lift_and_learn,
+- \[7\] [Qian, E.](https://scholar.google.com/citations?user=jnHI7wQAAAAJ), [Kramer, B.](http://kramer.ucsd.edu/), [Peherstorfer, B.](https://scholar.google.com/citations?user=C81WhlkAAAAJ), and [Willcox, K.](https://kiwi.oden.utexas.edu/) [Lift & Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems](https://www.sciencedirect.com/science/article/abs/pii/S0167278919307651). _Physica D: Nonlinear Phenomena_, Vol. 406, May 2020, 132401. ([Download](https://kiwi.oden.utexas.edu/papers/lift-learn-scientific-machine-learning-Qian-Willcox.pdf))<details><summary>BibTeX</summary><pre>
+@article{QKPW2020LiftAndLearn,
     title   = {Lift \\& Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems.},
     author  = {Qian, E. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
     journal = {Physica {D}: {N}onlinear {P}henomena},
@@ -169,7 +170,7 @@ _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
 }</pre></details>
 
 - \[8\] [Benner, P.](https://scholar.google.com/citations?user=6zcRrC4AAAAJ), [Goyal, P.](https://scholar.google.com/citations?user=9rEfaRwAAAAJ), [Kramer, B.](http://kramer.ucsd.edu/), [Peherstorfer, B.](https://scholar.google.com/citations?user=C81WhlkAAAAJ), and [Willcox, K.](https://kiwi.oden.utexas.edu/) [Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms](https://arxiv.org/abs/2002.09726). arXiv:2002.09726. Also Oden Institute Report 20-04. ([Download](https://kiwi.oden.utexas.edu/papers/Non-intrusive-nonlinear-model-reduction-Benner-Goyal-Kramer-Peherstorfer-Willcox.pdf))<details><summary>BibTeX</summary><pre>
-@article{benner2020operator,
+@article{BGKPW2020OpInfNonPoly,
     title   = {Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms},
     author  = {Benner, P. and Goyal, P. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
     journal = {arXiv preprint arXiv:2002.09726},
