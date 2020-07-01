@@ -152,7 +152,8 @@ _Computers & Fluids_, Vol. 179, pp. 704-717, 2019.
     title     = {Learning physics-based reduced-order models for a single-injector combustion process},
     author    = {Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K.},
     journal   = {AIAA Journal},
-    volume    = {58:6},
+    volume    = {58},
+    number    = {6},
     pages     = {2658--2672},
     year      = {2020},
     publisher = {American Institute of Aeronautics and Astronautics}
