@@ -2,10 +2,11 @@
 """Utility functions for the operator inference."""
 
 import numpy as _np
+import itertools as _it
+import scipy.linalg as _la
 import warnings as _warnings
-from scipy import linalg as _la
+import multiprocessing as _mp
 from scipy.special import binom as _binom
-from itertools import permutations as _permutations
 
 
 # Least squares solver ========================================================
@@ -131,10 +132,18 @@ def lstsq_reg(A, b, P=0):
         if len(P) != r:
             raise ValueError(
                 "list P must have r entries with r = number of columns of b")
+
+        # Do the problem in parallel (spawning new processes).
+        with _mp.get_context("spawn").Pool(min(r, _mp.cpu_count())) as pool:
+            out = pool.starmap(lstsq_reg,
+                               zip(_it.repeat(A), iter(b.T), iter(P)))
+
+        # Unpack and return the results.
         X = _np.empty((d,r))
         residuals = _np.empty(r)
         for j in range(r):
-            X[:,j], residuals[j], rank, s = lstsq_reg(A, b[:,j], P[j])
+            X[:,j], residuals[j] = out[j][:2]
+        rank, s = out[0][-2:]
         return X, residuals, rank, s
 
     # If P is a scalar, construct the default regularization matrix P*I.
@@ -300,8 +309,8 @@ def compress_G(G):
         for j in range(i+1):
             for k in range(j+1):
                 Gc[:,fj] = _np.sum([G[:,(a*r**2)+(b*r)+c]
-                                   for a,b,c in set(_permutations((i,j,k),3))],
-                                   axis=0)
+                                for a,b,c in set(_it.permutations((i,j,k),3))
+                                    ], axis=0)
                 fj += 1
 
     # assert fj == s
@@ -335,7 +344,7 @@ def expand_Gc(Gc):
     for i in range(r):
         for j in range(i+1):
             for k in range(j+1):
-                idxs = set(_permutations((i,j,k),3))
+                idxs = set(_it.permutations((i,j,k),3))
                 fill = Gc[:,fj] / len(idxs)
                 for a,b,c in idxs:
                     G[:,(a*r**2)+(b*r)+c] = fill
