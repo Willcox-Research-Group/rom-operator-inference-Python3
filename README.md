@@ -11,11 +11,11 @@ See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inf
 
 Consider the (possibly nonlinear) system of _n_ ordinary differential equations with state variable **x**, input (control) variable **u**, and independent variable _t_:
 
-<p align="center"><img src="./img/details/eq01.svg"/></p>
+<p align="center"><img src="./img/details/eq01.svg"></p>
 
 where
 
-<p align="center"><img src="./img/details/eq02.svg"/></p>
+<p align="center"><img src="./img/details/eq02.svg"></p>
 
 This system is called the _full-order model_ (FOM).
 If _n_ is large, as it often is in high-consequence engineering applications, it is computationally expensive to numerically solve the FOM.
@@ -23,11 +23,11 @@ This package provides tools for constructing a _reduced-order model_ (ROM) that 
 The procedure is data-driven, non-intrusive, and relatively inexpensive.
 In the most general case, the code can construct and solve a reduced-order system with the polynomial form
 
-<p align="center"><img src="./img/details/eq03.svg"/></p>
+<p align="center"><img src="./img/details/eq03.svg"></p>
 
 where now
 
-<p align="center"><img src="./img/details/eq04.svg"/></p>
+<p align="center"><img src="./img/details/eq04.svg"></p>
 
 This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension _r_ << _n_.
 

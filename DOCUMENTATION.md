@@ -31,17 +31,17 @@ Each class corresponds to a type of full-order model (continuous vs. discrete, n
 
 | Class Name | Problem Statement | ROM Strategy |
 | :--------- | :---------------: | :----------- |
-| `InferredContinuousROM` | <img src="./img/documentation/eq01.svg"/> | Operator Inference |
-| `InferredDiscreteROM` | <img src="./img/documentation/eq02.svg"/> | Operator Inference |
-| `InterpolatedInferredContinuousROM` | <img src="./img/documentation/eq04.svg"/> | Operator Inference |
-| `InterpolatedInferredDiscreteROM` | <img src="./img/documentation/eq05.svg"/> | Operator Inference |
-| `IntrusiveContinuousROM` | <img src="./img/documentation/eq01.svg"/> | Intrusive Projection |
-| `IntrusiveDiscreteROM` | <img src="./img/documentation/eq02.svg"/> | Intrusive Projection |
-| `AffineIntrusiveContinuousROM` | <img src="./img/documentation/eq07.svg"/> | Intrusive Projection |
-| `AffineIntrusiveDiscreteROM` | <img src="./img/documentation/eq08.svg"/> | Intrusive Projection |
+| `InferredContinuousROM` | <img src="./img/documentation/eq01.svg"> | Operator Inference |
+| `InferredDiscreteROM` | <img src="./img/documentation/eq02.svg"> | Operator Inference |
+| `InterpolatedInferredContinuousROM` | <img src="./img/documentation/eq04.svg"> | Operator Inference |
+| `InterpolatedInferredDiscreteROM` | <img src="./img/documentation/eq05.svg"> | Operator Inference |
+| `IntrusiveContinuousROM` | <img src="./img/documentation/eq01.svg"> | Intrusive Projection |
+| `IntrusiveDiscreteROM` | <img src="./img/documentation/eq02.svg"> | Intrusive Projection |
+| `AffineIntrusiveContinuousROM` | <img src="./img/documentation/eq07.svg"> | Intrusive Projection |
+| `AffineIntrusiveDiscreteROM` | <img src="./img/documentation/eq08.svg"> | Intrusive Projection |
 
-<!-- | `AffineInferredContinuousROM` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t;\boldsymbol{\mu})=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\boldsymbol{\mu})"/> | Operator Inference | -->
-<!-- | `AffineInferredDiscreteROM` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k};\boldsymbol{\mu})"/> | Operator Inference | -->
+<!-- | `AffineInferredContinuousROM` | <img src="https://latex.codecogs.com/svg.latex?\frac{d}{dt}\mathbf{x}(t;\boldsymbol{\mu})=\mathbf{f}(t,\mathbf{x}(t),\mathbf{u}(t);\boldsymbol{\mu})"> | Operator Inference | -->
+<!-- | `AffineInferredDiscreteROM` | <img src="https://latex.codecogs.com/svg.latex?\mathbf{x}_{k+1}=\mathbf{f}(\mathbf{x}_{k},\mathbf{u}_{k};\boldsymbol{\mu})"> | Operator Inference | -->
 
 <!-- More classes will be added in the future. -->
 The following function may be helpful for selecting an appropriate class.
@@ -64,24 +64,24 @@ Each character in the string corresponds to a single term of the operator, given
 
 | Character | Name | Continuous Term | Discrete Term |
 | :-------- | :--- | :-------------- | :------------ |
-| `c` | Constant | <img src="./img/documentation/eq10.svg"/> | <img src="./img/documentation/eq10.svg"/> |
+| `c` | Constant | <img src="./img/documentation/eq10.svg"> | <img src="./img/documentation/eq10.svg"> |
 | `A` | Linear | <img src="./img/documentation/eq11.svg"> | <img src="./img/documentation/eq12.svg"> |
 | `H` | Quadratic | <img src="./img/documentation/eq13.svg"> | <img src="./img/documentation/eq14.svg"> |
 | `G` | Cubic | <img src="./img/documentation/eq15.svg"> | <img src="./img/documentation/eq16.svg"> |
-| `B` | Input | <img src="./img/documentation/eq17.svg"/> | <img src="./img/documentation/eq18.svg"/> |
+| `B` | Input | <img src="./img/documentation/eq17.svg"> | <img src="./img/documentation/eq18.svg"> |
 
 
-<!-- | `C` | Output | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}(t)=\hat{C}\hat{\mathbf{x}}(t)"/> | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}_{k}=\hat{C}\hat{\mathbf{x}}_{k}"/> | -->
+<!-- | `C` | Output | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}(t)=\hat{C}\hat{\mathbf{x}}(t)"> | <img src="https://latex.codecogs.com/svg.latex?\mathbf{y}_{k}=\hat{C}\hat{\mathbf{x}}_{k}"> | -->
 
 These are all input as a single string.
 Examples:
 
 | `modelform` | Continuous ROM Structure | Discrete ROM Structure |
 | :---------- | :----------------------- | ---------------------- |
-|  `"A"`   | <img src="./img/documentation/eq19.svg"/> | <img src="./img/documentation/eq20.svg"/>
-|  `"cA"`  | <img src="./img/documentation/eq21.svg"/> | <img src="./img/documentation/eq22.svg"/>
-|  `"HB"`  | <img src="./img/documentation/eq23.svg"/> | <img src="./img/documentation/eq24.svg"/>
-|  `"cAHB"` | <img src="./img/documentation/eq25.svg"/> | <img src="./img/documentation/eq26.svg"/>
+|  `"A"`   | <img src="./img/documentation/eq19.svg"> | <img src="./img/documentation/eq20.svg">
+|  `"cA"`  | <img src="./img/documentation/eq21.svg"> | <img src="./img/documentation/eq22.svg">
+|  `"HB"`  | <img src="./img/documentation/eq23.svg"> | <img src="./img/documentation/eq24.svg">
+|  `"cAHB"` | <img src="./img/documentation/eq25.svg"> | <img src="./img/documentation/eq26.svg">
 
 ### Attributes
 
@@ -172,7 +172,7 @@ Such files store metadata for the model class and structure, the reduced-order m
 
 This class constructs a reduced-order model for the continuous, nonparametric system
 
-<p align="center"><img src="./img/documentation/eq27.svg"/></p>
+<p align="center"><img src="./img/documentation/eq27.svg"></p>
 
 via Operator Inference [\[1\]](#references).
 That is, given snapshot data, a basis, and a form for a reduced model, it computes the reduced model operators by solving an ordinary least-squares problem (see [DETAILS.md](DETAILS.md)).
@@ -201,7 +201,7 @@ That is, given snapshot data, a basis, and a form for a reduced model, it comput
 
 This class constructs a reduced-order model for the discrete, nonparametric system
 
-<p align="center"><img src="./img/documentation/eq02.svg"/></p>
+<p align="center"><img src="./img/documentation/eq02.svg"></p>
 
 via Operator Inference.
 
@@ -226,7 +226,7 @@ via Operator Inference.
 ### InterpolatedInferredContinuousROM
 
 This class constructs a reduced-order model for the continuous, parametric system
-<p align="center"><img src="./img/documentation/eq28.svg"/></p>
+<p align="center"><img src="./img/documentation/eq28.svg"></p>
 
 via Operator Inference.
 The strategy is to take snapshot data for several parameter samples and a global basis, compute a reduced model for each parameter sample via Operator Inference, then construct a general parametric model by interpolating the entries of the inferred operators [\[1\]](#references).
@@ -256,7 +256,7 @@ The strategy is to take snapshot data for several parameter samples and a global
 ### InterpolatedInferredDiscreteROM
 
 This class constructs a reduced-order model for the continuous, parametric system
-<p align="center"><img src="./img/documentation/eq29.svg"/></p>
+<p align="center"><img src="./img/documentation/eq29.svg"></p>
 
 via Operator Inference.
 The strategy is to take snapshot data for several parameter samples and a global basis, compute a reduced model for each parameter sample via Operator Inference, then construct a general parametric model by interpolating the entries of the inferred operators [\[1\]](#references).
@@ -285,11 +285,11 @@ The strategy is to take snapshot data for several parameter samples and a global
 
 This class constructs a reduced-order model for the continuous, nonparametric system
 
-<p align="center"><img src="./img/documentation/eq27.svg"/></p>
+<p align="center"><img src="./img/documentation/eq27.svg"></p>
 
 via intrusive projection, i.e.,
 
-<p align="center"><img src="./img/documentation/eq30.svg"/></p>
+<p align="center"><img src="./img/documentation/eq30.svg"></p>
 
 where ⊗ denotes the full matrix Kronecker product.
 The class requires the actual full-order operators (**c**, **A**, **H**, **G**, and/or **B**) that define **f**.
@@ -315,11 +315,11 @@ The class requires the actual full-order operators (**c**, **A**, **H**, **G**, 
 
 This class constructs a reduced-order model for the discrete, nonparametric system
 
-<p align="center"><img src="./img/documentation/eq02.svg"/></p>
+<p align="center"><img src="./img/documentation/eq02.svg"></p>
 
 via intrusive projection, i.e.,
 
-<p align="center"><img src="./img/documentation/eq30.svg"/></p>
+<p align="center"><img src="./img/documentation/eq30.svg"></p>
 
 The class requires the actual full-order operators (**c**, **A**, **H**, **G**, and/or **B**) that define **f**.
 
@@ -343,15 +343,15 @@ The class requires the actual full-order operators (**c**, **A**, **H**, **G**, 
 
 This class constructs a reduced-order model for the continuous, affinely parametric system
 
-<p align="center"><img src="./img/documentation/eq31.svg"/></p>
+<p align="center"><img src="./img/documentation/eq31.svg"></p>
 
 where the operators that define **f** may only depend affinely on the parameter, e.g.,
 
-<p align="center"><img src="./img/documentation/eq32.svg"/></p>
+<p align="center"><img src="./img/documentation/eq32.svg"></p>
 
 The reduction is done via intrusive projection, i.e.,
 
-<p align="center"><img src="./img/documentation/eq33.svg"/></p>
+<p align="center"><img src="./img/documentation/eq33.svg"></p>
 
 The class requires the actual full-order operators (**c**, **A**, **H**, and/or **B**) that define **f** _and_ the functions that define any affine parameter dependencies (i.e., the _θ_<sub>_ℓ_</sub> functions).
 
@@ -378,15 +378,15 @@ The class requires the actual full-order operators (**c**, **A**, **H**, and/or 
 
 This class constructs a reduced-order model for the continuous, affinely parametric system
 
-<p align="center"><img src="./img/documentation/eq34.svg"/></p>
+<p align="center"><img src="./img/documentation/eq34.svg"></p>
 
 where the operators that define **f** may only depend affinely on the parameter, e.g.,
 
-<p align="center"><img src="./img/documentation/eq32.svg"/></p>
+<p align="center"><img src="./img/documentation/eq32.svg"></p>
 
 The reduction is done via intrusive projection, i.e.,
 
-<p align="center"><img src="./img/documentation/eq33.svg"/></p>
+<p align="center"><img src="./img/documentation/eq33.svg"></p>
 
 The class requires the actual full-order operators (**c**, **A**, **H**, and/or **B**) that define **f** _and_ the functions that define any affine parameter dependencies (i.e., the _θ_<sub>_ℓ_</sub> functions).
 
@@ -428,9 +428,9 @@ Use `**options` to specify additional parameters for these wrapped functions.
 
 **`pre.svdval_decay(singular_values, eps, plot=False)`**: Count the number of singular values that are greater than `eps`. The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the singular values on a log scale.
 
-**`pre.cumulative_energy(singular_values, thresh, plot=False)`**: Compute the number of singular values needed to surpass the energy threshold `thresh`; the energy of the first _r_ singular values is defined by <p align="center"><img src="./img/documentation/eq36.svg"/></p>The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the cumulative energy on a log scale.
+**`pre.cumulative_energy(singular_values, thresh, plot=False)`**: Compute the number of singular values needed to surpass the energy threshold `thresh`; the energy of the first _r_ singular values is defined by <p align="center"><img src="./img/documentation/eq36.svg"></p>The singular values can be computed with, for example, `singular_values = scipy.linalg.svdvals(X)` where `X` is a snapshot matrix. If `plot=True`, plot the cumulative energy on a log scale.
 
-**`pre.projection_error(X, Vr)`**: Compute the relative Frobenius-norm projection error on **X** induced by the basis matrix **V**<sub>_r_</sub>, <p align="center"><img src="./img/documentation/eq37.svg"/></p>
+**`pre.projection_error(X, Vr)`**: Compute the relative Frobenius-norm projection error on **X** induced by the basis matrix **V**<sub>_r_</sub>, <p align="center"><img src="./img/documentation/eq37.svg"></p>
 
 <!-- TODO: allow norms other than Frobenius? -->
 
@@ -452,20 +452,20 @@ Use `**options` to specify additional parameters for these wrapped functions.
 ## Postprocessing Tools
 
 The `post` submodule is a collection of common routines for computing the absolute and relative errors produced by a ROM approximation.
-Given a norm, "true" data **X**, and an approximation **Y** to **X**, these errors are defined by <p align="center"><img src="./img/documentation/eq38.svg"/></p>
+Given a norm, "true" data **X**, and an approximation **Y** to **X**, these errors are defined by <p align="center"><img src="./img/documentation/eq38.svg"></p>
 
 **`post.frobenius_error(X, Y)`**: Compute the absolute and relative Frobenius-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
 The [Frobenius matrix norm](https://en.wikipedia.org/wiki/Matrix_norm#Frobenius_norm) is defined by <p align="center"><img src="./img/documentation/eq39.svg"></p>
 
 **`post.lp_error(X, Y, p=2, normalize=False)`**: Compute the absolute and relative _l_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y`, assuming `Y` is an approximation to `X`.
-The [_l_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#The_p-norm_in_finite_dimensions) is defined by <p align="center"><img src="./img/documentation/eq40.svg"/></p>
+The [_l_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#The_p-norm_in_finite_dimensions) is defined by <p align="center"><img src="./img/documentation/eq40.svg"></p>
 With _p = 2_ this is the usual Euclidean norm.
 The errors are calculated for each pair of columns of `X` and `Y`.
 If `normalize=True`, then the _normalized absolute error_ is computed instead of the relative error: <p align="center"><img src="./img/documentation/eq41.svg"></p>
 
 **`post.Lp_error(X, Y, t=None, p=2)`**: Approximate the absolute and relative _L_<sup>_p_</sup>-norm errors between snapshot sets `X` and `Y` corresponding to times `t`, assuming `Y` is an approximation to `X`.
-The [_L_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#Lp_spaces) for vector-valued functions is defined by <p align="center"><img src="./img/documentation/eq42.svg"/></p>
-For finite _p_, the integrals are approximated by the trapezoidal rule: <p align="center"><img src="./img/documentation/eq43.svg"/></p>
+The [_L_<sup>_p_</sup> norm](https://en.wikipedia.org/wiki/Lp_space#Lp_spaces) for vector-valued functions is defined by <p align="center"><img src="./img/documentation/eq42.svg"></p>
+For finite _p_, the integrals are approximated by the trapezoidal rule: <p align="center"><img src="./img/documentation/eq43.svg"></p>
 
 The `t` argument can be omitted if _p_ is infinity (`p = np.inf`).
 
@@ -486,7 +486,7 @@ Useful for determining the dimensions of the regularization matrix **𝚪** (see
     - The number of columns of the unknown matrix in the Operator Inference least squares problem.
 
 **`utils.lstsq_reg(A, b, P=0)`**: Solve the Tikhonov-regularized ordinary least-squares problem
-<p align="center"><img src="./img/documentation/eq44.svg"/></p>
+<p align="center"><img src="./img/documentation/eq44.svg"></p>
 
   via [`scipy.linalg.lstsq()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html).
 - **Parameters**
@@ -528,21 +528,21 @@ In the code, a low-dimensional quantity ends with an underscore, so that the mod
 
 | Symbol | Code | Description |
 | :----: | :--- | :---------- |
-| <img src="./img/notation/eq01.svg"/> | `n`  | Dimension of the full-order system (large) |
-| <img src="./img/notation/eq02.svg"/> | `r`  | Dimension of the reduced-order system (small) |
-| <img src="./img/notation/eq03.svg"/> | `m`  | Dimension of the input **u** |
-| <img src="./img/notation/eq05.svg"/> | `k`  | Number of state snapshots, i.e., the number of training points |
-| <img src="./img/notation/eq06.svg"/> | `s`  | Number of parameter samples for parametric training |
-| <img src="./img/notation/eq07.svg"/> | `p` | Dimension of the parameter space |
-| <img src="./img/notation/eq08.svg"/> | `d` | Number of columns of the data matrix _D_ |
+| <img src="./img/notation/eq01.svg"> | `n`  | Dimension of the full-order system (large) |
+| <img src="./img/notation/eq02.svg"> | `r`  | Dimension of the reduced-order system (small) |
+| <img src="./img/notation/eq03.svg"> | `m`  | Dimension of the input **u** |
+| <img src="./img/notation/eq05.svg"> | `k`  | Number of state snapshots, i.e., the number of training points |
+| <img src="./img/notation/eq06.svg"> | `s`  | Number of parameter samples for parametric training |
+| <img src="./img/notation/eq07.svg"> | `p` | Dimension of the parameter space |
+| <img src="./img/notation/eq08.svg"> | `d` | Number of columns of the data matrix _D_ |
 
-<!-- | <img src="./img/notation/eq04"/> | `l` | Dimension of the output **y** | -->
+<!-- | <img src="./img/notation/eq04.svg"> | `l` | Dimension of the output **y** | -->
 
 <!-- ### Scalars
 
 | Symbol | Code | Description |
 | :----: | :--- | :---------- |
-| <img src="./img/notation/eq09.svg"/> | `nt`  | Number of time steps in a simulation |
+| <img src="./img/notation/eq09.svg"> | `nt`  | Number of time steps in a simulation |
 | | `µ` | Scalar parameter (_p_ = 1). | -->
 
 
@@ -550,21 +550,21 @@ In the code, a low-dimensional quantity ends with an underscore, so that the mod
 
 | Symbol | Code | Size | Description |
 | :----: | :--- | :--: | :---------- |
-| <img src="./img/notation/eq10.svg"/> | `x` | <img src="./img/notation/eq01.svg"/> | Full-order state vector |
-| <img src="./img/notation/eq11.svg"/> | `x_` | <img src="./img/notation/eq02.svg"/> | Reduced-order state vector |
-| <img src="./img/notation/eq12.svg"/> | `xdot_` | <img src="./img/notation/eq02.svg"/> | Reduced-order state time derivative vector |
-| <img src="./img/notation/eq13.svg"/> | `x_ROM` | <img src="./img/notation/eq01.svg"/> | Approximation to **x** produced by ROM |
-| <img src="./img/notation/eq14.svg"/> | `c_` | <img src="./img/notation/eq02.svg"/> | Learned constant term  |
-| <img src="./img/notation/eq15.svg"/> | `u` | <img src="./img/notation/eq03.svg"/> | Input vector  |
-| <img src="./img/notation/eq17.svg"/> | `f(t,x,u(t))` or `f(x,u)` | <img src="./img/notation/eq01.svg"/>  | Full-order system operator |
-| <img src="./img/notation/eq18.svg"/> | `f_(t,x_,u(t))` or `f(x_,u)` | <img src="./img/notation/eq02.svg"/>  | Reduced-order system operator |
-| <img src="./img/notation/eq19.svg"/> | `np.kron(x,x)` | <img src="./img/notation/eq20.svg"/> | Quadratic Kronecker product of full state |
-| <img src="./img/notation/eq21.svg"/> | `np.kron(x_,x_)` | <img src="./img/notation/eq22.svg"/>  | Quadratic Kronecker product of reduced state |
-| <img src="./img/notation/eq23.svg"/> | `utils.kron2c(x_)` | <img src="./img/notation/eq24.svg"/>  | Compact quadratic Kronecker product of reduced state |
-| <img src="./img/notation/eq25.svg"/> | `np.kron(x,np.kron(x,x))` | <img src="./img/notation/eq26.svg"/> | Cubic Kronecker product of full state |
-| <img src="./img/notation/eq27.svg"/> | `np.kron(x_,np.kron(x_,x_))` | <img src="./img/notation/eq28.svg"/>  | Cubic Kronecker product of reduced state |
-| <img src="./img/notation/eq29.svg"/> | `utils.kron3c(x_)` | <img src="./img/notation/eq30.svg"/>  | Compact cubic Kronecker product of reduced state |
-| <img src="./img/notation/eq31.svg"/> | `vj` | <img src="./img/notation/eq01.svg"/> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of **V**<sub>_r_</sub> |
+| <img src="./img/notation/eq10.svg"> | `x` | <img src="./img/notation/eq01.svg"> | Full-order state vector |
+| <img src="./img/notation/eq11.svg"> | `x_` | <img src="./img/notation/eq02.svg"> | Reduced-order state vector |
+| <img src="./img/notation/eq12.svg"> | `xdot_` | <img src="./img/notation/eq02.svg"> | Reduced-order state time derivative vector |
+| <img src="./img/notation/eq13.svg"> | `x_ROM` | <img src="./img/notation/eq01.svg"> | Approximation to **x** produced by ROM |
+| <img src="./img/notation/eq14.svg"> | `c_` | <img src="./img/notation/eq02.svg"> | Learned constant term  |
+| <img src="./img/notation/eq15.svg"> | `u` | <img src="./img/notation/eq03.svg"> | Input vector  |
+| <img src="./img/notation/eq17.svg"> | `f(t,x,u(t))` or `f(x,u)` | <img src="./img/notation/eq01.svg">  | Full-order system operator |
+| <img src="./img/notation/eq18.svg"> | `f_(t,x_,u(t))` or `f(x_,u)` | <img src="./img/notation/eq02.svg">  | Reduced-order system operator |
+| <img src="./img/notation/eq19.svg"> | `np.kron(x,x)` | <img src="./img/notation/eq20.svg"> | Quadratic Kronecker product of full state |
+| <img src="./img/notation/eq21.svg"> | `np.kron(x_,x_)` | <img src="./img/notation/eq22.svg">  | Quadratic Kronecker product of reduced state |
+| <img src="./img/notation/eq23.svg"> | `utils.kron2c(x_)` | <img src="./img/notation/eq24.svg">  | Compact quadratic Kronecker product of reduced state |
+| <img src="./img/notation/eq25.svg"> | `np.kron(x,np.kron(x,x))` | <img src="./img/notation/eq26.svg"> | Cubic Kronecker product of full state |
+| <img src="./img/notation/eq27.svg"> | `np.kron(x_,np.kron(x_,x_))` | <img src="./img/notation/eq28.svg">  | Cubic Kronecker product of reduced state |
+| <img src="./img/notation/eq29.svg"> | `utils.kron3c(x_)` | <img src="./img/notation/eq30.svg">  | Compact cubic Kronecker product of reduced state |
+| <img src="./img/notation/eq31.svg"> | `vj` | <img src="./img/notation/eq01.svg"> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of **V**<sub>_r_</sub> |
 
 <!-- | **y**  | `y`             | Output vector | -->
 <!-- | **y_ROM**, **y~** | `y_ROM`      | Approximation to **y** produced by ROM | -->
@@ -573,30 +573,30 @@ In the code, a low-dimensional quantity ends with an underscore, so that the mod
 
 | Symbol | Code | Shape | Description |
 | :----: | :--- | :---: | :---------- |
-| <img src="./img/notation/eq32.svg"/> | `Vr` | <img src="./img/notation/eq33.svg"/> | low-rank basis of rank _r_ (usually the POD basis) |
-| <img src="./img/notation/eq34.svg"/> | `X` | <img src="./img/notation/eq35.svg"/> | Snapshot matrix |
-| <img src="./img/notation/eq36.svg"/> | `Xdot` | <img src="./img/notation/eq35.svg"/> | Snapshot time derivative matrix |
-| <img src="./img/notation/eq37.svg"/> | `U` | <img src="./img/notation/eq38.svg"/> | Input matrix (inputs corresonding to the snapshots) |
-| <img src="./img/notation/eq41.svg"/> | `X_` | <img src="./img/notation/eq42.svg"/> | Projected snapshot matrix |
-| <img src="./img/notation/eq43.svg"/> | `Xdot_` | <img src="./img/notation/eq42.svg"/> | Projected snapshot time derivative matrix |
-| <img src="./img/notation/eq44.svg"/> | `D` | <img src="./img/notation/eq45.svg"/> | Data matrix |
-| <img src="./img/notation/eq46.svg"/> | `O` | <img src="./img/notation/eq47.svg"/> | Operator matrix |
-| <img src="./img/notation/eq48.svg"/> | `R` | <img src="./img/notation/eq49.svg"/> | Right-hand side matrix |
-| <img src="./img/notation/eq50.svg"/> | `P` | <img src="./img/notation/eq51.svg"/> | Tikhonov regularization matrix |
-| <img src="./img/notation/eq52.svg"/> | `A` | <img src="./img/notation/eq53.svg"/> | Full-order linear state matrix |
-| <img src="./img/notation/eq54.svg"/> | `A_` | <img src="./img/notation/eq55.svg"/> | Reduced-order linear state matrix |
-| <img src="./img/notation/eq56.svg"/> | `H` | <img src="./img/notation/eq57.svg"/> | Full-order matricized quadratic state tensor |
-| <img src="./img/notation/eq58.svg"/> | `H_` | <img src="./img/notation/eq59.svg"/> | Reduced-order matricized quadratic state tensor |
-| <img src="./img/notation/eq60.svg"/> | `Hc_` | <img src="./img/notation/eq61.svg"/> | Compact reduced-order matricized quadratic state tensor |
-| <img src="./img/notation/eq62.svg"/> | `G` | <img src="./img/notation/eq63.svg"/> | Full-order matricized quadratic state tensor |
-| <img src="./img/notation/eq64.svg"/> | `G_` | <img src="./img/notation/eq65.svg"/> | Reduced-order matricized quadratic state tensor |
-| <img src="./img/notation/eq66.svg"/> | `Gc_` | <img src="./img/notation/eq67.svg"/> | Compact reduced-order matricized quadratic state tensor |
-| <img src="./img/notation/eq68.svg"/> | `B` | <img src="./img/notation/eq69.svg"/> | Full-order input matrix |
-| <img src="./img/notation/eq70.svg"/> | `B_` | <img src="./img/notation/eq71.svg"/> | Reduced-order input matrix |
+| <img src="./img/notation/eq32.svg"> | `Vr` | <img src="./img/notation/eq33.svg"> | low-rank basis of rank _r_ (usually the POD basis) |
+| <img src="./img/notation/eq34.svg"> | `X` | <img src="./img/notation/eq35.svg"> | Snapshot matrix |
+| <img src="./img/notation/eq36.svg"> | `Xdot` | <img src="./img/notation/eq35.svg"> | Snapshot time derivative matrix |
+| <img src="./img/notation/eq37.svg"> | `U` | <img src="./img/notation/eq38.svg"> | Input matrix (inputs corresonding to the snapshots) |
+| <img src="./img/notation/eq41.svg"> | `X_` | <img src="./img/notation/eq42.svg"> | Projected snapshot matrix |
+| <img src="./img/notation/eq43.svg"> | `Xdot_` | <img src="./img/notation/eq42.svg"> | Projected snapshot time derivative matrix |
+| <img src="./img/notation/eq44.svg"> | `D` | <img src="./img/notation/eq45.svg"> | Data matrix |
+| <img src="./img/notation/eq46.svg"> | `O` | <img src="./img/notation/eq47.svg"> | Operator matrix |
+| <img src="./img/notation/eq48.svg"> | `R` | <img src="./img/notation/eq49.svg"> | Right-hand side matrix |
+| <img src="./img/notation/eq50.svg"> | `P` | <img src="./img/notation/eq51.svg"> | Tikhonov regularization matrix |
+| <img src="./img/notation/eq52.svg"> | `A` | <img src="./img/notation/eq53.svg"> | Full-order linear state matrix |
+| <img src="./img/notation/eq54.svg"> | `A_` | <img src="./img/notation/eq55.svg"> | Reduced-order linear state matrix |
+| <img src="./img/notation/eq56.svg"> | `H` | <img src="./img/notation/eq57.svg"> | Full-order matricized quadratic state tensor |
+| <img src="./img/notation/eq58.svg"> | `H_` | <img src="./img/notation/eq59.svg"> | Reduced-order matricized quadratic state tensor |
+| <img src="./img/notation/eq60.svg"> | `Hc_` | <img src="./img/notation/eq61.svg"> | Compact reduced-order matricized quadratic state tensor |
+| <img src="./img/notation/eq62.svg"> | `G` | <img src="./img/notation/eq63.svg"> | Full-order matricized quadratic state tensor |
+| <img src="./img/notation/eq64.svg"> | `G_` | <img src="./img/notation/eq65.svg"> | Reduced-order matricized quadratic state tensor |
+| <img src="./img/notation/eq66.svg"> | `Gc_` | <img src="./img/notation/eq67.svg"> | Compact reduced-order matricized quadratic state tensor |
+| <img src="./img/notation/eq68.svg"> | `B` | <img src="./img/notation/eq69.svg"> | Full-order input matrix |
+| <img src="./img/notation/eq70.svg"> | `B_` | <img src="./img/notation/eq71.svg"> | Reduced-order input matrix |
 
-<!-- | <img src="./img/notation/eq72.svg"/> | `C` | <img src="./img/notation/eq73.svg"/> | Full-order output matrix | -->
-<!-- | <img src="./img/notation/eq74.svg"/> | `C_` | <img src="./img/notation/eq75.svg"/> | Reduced-order output matrix | -->
-<!-- | <img src="\hat{N}_i"/> | `Ni_` | <img src="./img/notation/eq55.svg"/> | Bilinear state-input matrix for _i_th input | -->
+<!-- | <img src="./img/notation/eq72.svg"> | `C` | <img src="./img/notation/eq73.svg"> | Full-order output matrix | -->
+<!-- | <img src="./img/notation/eq74.svg"> | `C_` | <img src="./img/notation/eq75.svg"> | Reduced-order output matrix | -->
+<!-- | <img src="\hat{N}_i"> | `Ni_` | <img src="./img/notation/eq55.svg"> | Bilinear state-input matrix for _i_th input | -->
 
 
 ## References
