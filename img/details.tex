@@ -1,0 +1,267 @@
+% details.tex: generate .svg files used in DETAILS.md.
+\documentclass[12 pt]{article}
+
+\input{config}
+
+% Body ========================================================================
+\begin{document}
+
+% FOM -------------------------------------------------------------------------
+\begin{align*}
+    \ddt\xfom(t)
+    = \ffom(t,\xfom(t),\ufom(t)),
+    \qquad
+    \xfom(0)
+    = \xfom_0,
+\end{align*}
+
+% FOM dimensions --------------------------------------------------------------
+\begin{align*}
+    \xfom:\RR\to\RR^{n},
+    \qquad
+    \ufom:\RR\to\RR^{m},
+    \qquad
+    \ffom:\RR\times\RR^{n}\times\RR^{m}\to\RR^{n}.
+\end{align*}
+
+% Polynomial ROM --------------------------------------------------------------
+\begin{align*}
+    \ddt\xrom(t)
+    = \crom
+    + \Arom\xrom(t)
+    + \Hrom(\xrom(t)\otimes\xrom(t))
+    + \Grom(\xrom(t)\otimes\xrom(t)\otimes\xrom(t))
+    + \Brom\ufom(t),
+\end{align*}
+
+% Reduced dimensions ----------------------------------------------------------
+\begin{gather*}
+    \xrom:\RR\to\RR^{r},
+    \qquad
+    \ufom:\RR\to\RR^{m},
+    \qquad
+    \crom\in\RR^{r},
+    \qquad
+    r \ll n,
+    \\
+    \Arom\in\RR^{r \times r},
+    \qquad
+    \Hrom\in\RR^{r \times r^2},
+    \qquad
+    \Grom\in\RR^{r \times r^3},
+    \qquad
+    \Brom\in\RR^{r \times m}.
+\end{gather*}
+
+% Low-dimensional approximation -----------------------------------------------
+\begin{align*}
+    \xfom(t)
+    \approx \Vr\xrom(t),
+    \qquad
+    \xrom:\RR\to\RR^{r}.
+\end{align*}
+
+% Substitute approximation ----------------------------------------------------
+\begin{align*}
+    \ddt\xfom(t)
+    = \Vr\trp\ffom(t,\Vr\xrom(t),\ufom(t))
+    =: \from(t,\xrom(t),\ufom(t)).
+\end{align*}
+
+% ROM operator ----------------------------------------------------------------
+\begin{align*}
+    \from:\RR\times\RR^{r}\times\RR^{m}\to\RR^{r}.
+\end{align*}
+
+% Intrusive -------------------------------------------------------------------
+\begin{align*}
+    \ffom(t,\xfom(t)) = \Afom\xfom(t)
+    \qquad\Longrightarrow\qquad
+    \from(t,\xrom(t)) = \Vr\trp\Afom\Vr\xrom(t) = \intrusive{\Afom}\xrom(t),
+    \\
+    \text{where}\quad
+    \intrusive{\Afom}
+    := \Vr\trp\Afom\Vr\in\RR^{r \times r}.
+\end{align*}
+
+% Quadratic ROM ---------------------------------------------------------------
+\begin{align*}
+    \ddt\xrom(t)
+    = \crom
+    + \Arom\xrom(t)
+    + \Hrom(\xrom(t)\otimes\xrom(t))
+    + \Brom\ufom(t).
+\end{align*}
+
+% Projection ------------------------------------------------------------------
+\begin{align*}
+    \xrom_{j} = \Vr\trp\xfom_{j},
+\end{align*}
+
+% Least squares problem -------------------------------------------------------
+\begin{align*}
+    \min_{\crom,\Arom,\Hrom,\Brom}\sum_{j=0}^{k-1}\left\|
+      \crom
+    + \Arom\xrom_j
+    + \Hrom(\xrom_j\otimes\xrom_j)
+    + \Brom\ufom_j
+    - \dxrom_j
+    \right\|_2^2.
+\end{align*}
+
+% Frobenius norm --------------------------------------------------------------
+\begin{align*}
+    \sum_{j=0}^{k-1}\|\mathbf{z}_j\|_2^2
+    = \|\mathbf{Z}\|_F^2,
+    \qquad
+    \mathbf{Z}
+    = \left[\begin{array}{c|c|c|c}\arrayrulecolor{lightgray}
+        &&& \\
+        \mathbf{z}_0 & \mathbf{z}_1 & \cdots & \mathbf{z}_{k-1} \\
+        &&& \\
+    \end{array}\right],
+\end{align*}
+
+% Matricize least squares problem ---------------------------------------------
+\begin{align*}
+    \sum_{j=0}^{k-1}\left\|
+      \crom
+    + \Arom\xrom_j
+    + \Hrom(\xrom_j\otimes\xrom_j)
+    + \Brom\ufom_j
+    - \dxrom_j
+    \right\|_2^2
+    &=
+    \left\|
+      \crom\ones\trp
+    + \Arom\Xrom
+    + \Hrom(\Xrom\otimes\Xrom)
+    + \Brom\Ufom
+    - \dXrom
+    \right\|_F^2
+    \\
+    &=
+    \left\|
+      \ones\crom\trp
+    + \Xrom\trp\Arom\trp
+    + (\Xrom\otimes\Xrom)\trp\Hrom\trp
+    + \Ufom\trp\Brom\trp
+    - \dXrom\trp
+    \right\|_F^2
+    \\
+    &=
+    \left\|\Data \Ops\trp - \Rhs\trp\right\|_F^2,
+\end{align*}
+
+% Matrix definitions ----------------------------------------------------------
+\begin{align*}
+    \Ops
+    &= \left[\begin{array}{cccc}
+        \crom &
+        \Arom &
+        \Hrom &
+        \Brom
+    \end{array}\right]\in\RR^{r\times d(r,m)},
+    &\text{(unknown operators)}
+    \\
+    \mathbf{D}
+    &= \left[\begin{array}{cccc}
+        \ones &
+        \Xrom\trp &
+        (\Xrom\otimes\Xrom)\trp &
+        \mathbf{U}\trp
+    \end{array}\right]\in\RR^{k\times d(r,m)},
+    &\text{(known data)}
+    \\
+    \Xrom
+    &= \left[\begin{array}{c|c|c|c}
+        \arrayrulecolor{lightgray}
+        \xrom_0 & \xrom_1 & \cdots & \xrom_{k-1} \\
+    \end{array}\right]\in\RR^{r\times k}
+    &\text{(snapshots)}
+    \\
+    \Rhs
+    &= \left[\begin{array}{c|c|c|c}
+        \arrayrulecolor{lightgray}
+        \dxrom_0 & \dxrom_1 & \cdots & \dxrom_{k-1} \\
+    \end{array}\right]\in\RR^{r\times k},
+    &\text{(time derivatives)}
+    \\
+    \Ufom
+    &= \left[\begin{array}{c|c|c|c}
+        \arrayrulecolor{lightgray}
+        \ufom_0 & \ufom_1 & \cdots & \ufom_{k-1} \\
+    \end{array}\right]\in\RR^{m\times k},
+    &\text{(inputs)}
+\end{align*}
+
+% Decoupled least squares -----------------------------------------------------
+\begin{align*}
+    \min_{\ops_i}
+    \left\|\Data\ops_i - \rhs_i\right\|_2^2 + \left\|\Reg\ops_i\right\|_2^2,
+    \quad
+    i = 1,\ldots, r.
+\end{align*}
+
+% Compact Kronecker product ---------------------------------------------------
+\begin{align*}
+    \xrom\, \reduced{\otimes}\, \xrom
+    := \left[\begin{array}{c}
+        \xrom^{(1)} \\ \vdots \\ \xrom^{(r)}
+    \end{array}\right]\in\RR^{r(r+1)/2},
+    \qquad\text{where}\qquad
+    \xrom^{(i)}
+    = x_i \left[\begin{array}{c}
+        x_1 \\ \vdots \\ x_i
+    \end{array}\right]\in\RR^{i}
+\end{align*}
+
+% Dimension of compact Kronecker product --------------------------------------
+\begin{align*}
+    \left(\!\!{r\choose 2}\!\!\right)
+    = \binom{r + 2 - 1}{2}
+    = \binom{r+1}{2}
+    = \frac{r(r+1)}{2}.
+\end{align*}
+
+% Discrete setting ------------------------------------------------------------
+\begin{align*}
+    \xrom_{j+1}
+    = \crom
+    + \Arom\xrom_{j}
+    + \Hrom(\xrom_{j}\otimes\xrom_{j})
+    + \Brom\ufom_{j}.
+\end{align*}
+
+% Discrete least-squares problem ----------------------------------------------
+\begin{align*}
+    \min_{\crom,\Arom,\Hrom,\Brom}\sum_{j=0}^{k-1}\left\|
+      \crom
+    + \Arom\xrom_{j}
+    + \Hrom(\xrom_{j}\otimes\xrom_{j})
+    + \Brom\ufom_j
+    - \xrom_{j+1}
+    \right\|_2^2.
+\end{align*}
+
+% Steady-state setting --------------------------------------------------------
+\begin{align*}
+    \grom
+    = \crom
+    + \Arom\xrom
+    + \Hrom(\xrom \otimes \xrom)
+    + \Brom\ufom.
+\end{align*}
+
+% Steady-state least-squares problem ------------------------------------------
+\begin{align*}
+    \min_{\crom,\Arom,\Hrom,\Brom}\sum_{j=0}^{k-1}\left\|
+      \crom
+    + \Arom\xrom_{j}
+    + \Hrom(\xrom_{j}\otimes\xrom_{j})
+    + \Brom\ufom_j
+    - \grom_{j}
+    \right\|_2^2.
+\end{align*}
+
+\end{document}
