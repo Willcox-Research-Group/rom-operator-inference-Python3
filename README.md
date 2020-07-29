@@ -5,17 +5,17 @@ The procedure is **data-driven** and **non-intrusive**, making it a viable candi
 The methodology was introduced in [\[1\]](#references).
 See [**References**](#references) for more papers that use or build on Operator Inference.
 
-See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inference-MATLAB) for a MATLAB implementation and [DOCUMENTATION.md](./DOCUMENTATION.md) for the code documentation.
+See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inference-MATLAB) for a MATLAB implementation and [DOCUMENTATION.md](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/DOCUMENTATION.md) for the code documentation.
 
 ## Problem Statement
 
 Consider the (possibly nonlinear) system of _n_ ordinary differential equations with state variable **x**, input (control) variable **u**, and independent variable _t_:
 
-<p align="center"><img src="./img/details/eq01.svg"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Willcox-Research-Group/rom-operator-inference-Python3/master/img/details/eq01.svg"></p>
 
 where
 
-<p align="center"><img src="./img/details/eq02.svg"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Willcox-Research-Group/rom-operator-inference-Python3/master/img/details/eq02.svg"></p>
 
 This system is called the _full-order model_ (FOM).
 If _n_ is large, as it often is in high-consequence engineering applications, it is computationally expensive to numerically solve the FOM.
@@ -23,15 +23,15 @@ This package provides tools for constructing a _reduced-order model_ (ROM) that 
 The procedure is data-driven, non-intrusive, and relatively inexpensive.
 In the most general case, the code can construct and solve a reduced-order system with the polynomial form
 
-<p align="center"><img src="./img/details/eq03.svg"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Willcox-Research-Group/rom-operator-inference-Python3/master/img/details/eq03.svg"></p>
 
 where now
 
-<p align="center"><img src="./img/details/eq04.svg"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Willcox-Research-Group/rom-operator-inference-Python3/master/img/details/eq04.svg"></p>
 
 This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension _r_ << _n_.
 
-See [DETAILS.md](./DETAILS.md) for more mathematical details and an index of notation.
+See [DETAILS.md](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/DETAILS.md) for more mathematical details and an index of notation.
 
 
 ## Quick Start
@@ -66,7 +66,7 @@ import rom_operator_inference as roi
 
 ## Examples
 
-The [`examples/`](./examples/) folder contains scripts and notebooks that set up and run several examples:
+The [`examples/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/master/examples) folder contains scripts and notebooks that set up and run several examples:
 - [`examples/tutorial.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/tutorial.ipynb): A walkthrough of a very simple heat equation example.
 - [`examples/heat_1D.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/heat_1D.ipynb): A more complicated one-dimensional heat equation example [\[1\]](#references).
 - [`examples/data_driven_heat.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/data_driven_heat.ipynb): A purely data-driven example using data generated from a one-dimensional heat equation [\[4\]](#references).
