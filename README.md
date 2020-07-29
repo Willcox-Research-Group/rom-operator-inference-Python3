@@ -2,22 +2,20 @@
 
 This is a Python implementation of Operator Inference for constructing projection-based reduced-order models of dynamical systems with a polynomial form.
 The procedure is **data-driven** and **non-intrusive**, making it a viable candidate for model reduction of black-box or complex systems.
-The methodology was introduced in [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
+The methodology was introduced in [\[1\]](#references).
 See [**References**](#references) for more papers that use or build on Operator Inference.
 
-**Contributors**: [Renee Swischuk](https://github.com/swischuk), [Shane McQuarrie](https://github.com/shanemcq18), [Elizabeth Qian](https://github.com/elizqian), [Boris Kramer](http://kramer.ucsd.edu/), [Karen Willcox](https://kiwi.oden.utexas.edu/).
-
-See [this repository](https://github.com/elizqian/operator-inference) for a MATLAB implementation and [DOCUMENTATION.md](DOCUMENTATION.md) for the code documentation.
+See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inference-MATLAB) for a MATLAB implementation and [DOCUMENTATION.md](./DOCUMENTATION.md) for the code documentation.
 
 ## Problem Statement
 
 Consider the (possibly nonlinear) system of _n_ ordinary differential equations with state variable **x**, input (control) variable **u**, and independent variable _t_:
 
-<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq1.svg"/></p>
+<p align="center"><img src="./img/details/eq01.svg"/></p>
 
 where
 
-<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq2.svg"/></p>
+<p align="center"><img src="./img/details/eq02.svg"/></p>
 
 This system is called the _full-order model_ (FOM).
 If _n_ is large, as it often is in high-consequence engineering applications, it is computationally expensive to numerically solve the FOM.
@@ -25,23 +23,15 @@ This package provides tools for constructing a _reduced-order model_ (ROM) that 
 The procedure is data-driven, non-intrusive, and relatively inexpensive.
 In the most general case, the code can construct and solve a reduced-order system with the polynomial form
 
-<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq3.svg"/></p>
-
-<!-- https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{\mathbf{c}}+\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{G}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\sum_{i=1}^m\hat{N}_{i}\hat{\mathbf{x}}(t)u_{i}(t),"/>
-</p> -->
+<p align="center"><img src="./img/details/eq03.svg"/></p>
 
 where now
 
-<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq4.svg"/></p>
-<p align="center"><img src="https://raw.githubusercontent.com/swischuk/rom-operator-inference-Python3/master/img/prb/eq5.svg"/></p>
-
-<!-- <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{G}\in\mathbb{R}^{r\times%20r^3},\qquad\hat{B}\in\mathbb{R}^{r\times%20m},\qquad\hat{N}_{i}\in\mathbb{R}^{r\times%20r}."/>
-</p> -->
+<p align="center"><img src="./img/details/eq04.svg"/></p>
 
 This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension _r_ << _n_.
 
-See [DETAILS.md](DETAILS.md) for more mathematical details and an index of notation.
+See [DETAILS.md](./DETAILS.md) for more mathematical details and an index of notation.
 
 
 ## Quick Start
@@ -55,7 +45,7 @@ $ pip3 install rom-operator-inference
 
 #### Usage
 
-Given a linear basis `Vr`, snapshot data `X`, and snapshot velocities `Xdot`, the following code learns a reduced model for a problem of the form _d**x**/dt = **c** + A**x**(t)_, then solves the reduced system for _0 ≤ t ≤ 1_.
+Given a linear basis `Vr`, snapshot data `X`, and snapshot time derivatives `Xdot`, the following code learns a reduced model for a problem of the form d**x** / dt = **c** + **Ax**(t), then solves the reduced system for _0 ≤ t ≤ 1_.
 
 ```python
 import numpy as np
@@ -64,27 +54,34 @@ import rom_operator_inference as roi
 # Define a model of the form  dx / dt = c + Ax(t).
 >>> model = roi.InferredContinuousROM(modelform="cA")
 
-# Fit the model to snapshot data X, the snapshot derivative Xdot,
+# Fit the model to snapshot data X, the time derivatives Xdot,
 # and the linear basis Vr by solving for the operators c_ and A_.
 >>> model.fit(Vr, X, Xdot)
 
 # Simulate the learned model over the time domain [0,1] with 100 timesteps.
 >>> t = np.linspace(0, 1, 100)
->>> X_ROM = model.predict(X[:,0], t)
+>>> x_ROM = model.predict(X[:,0], t)
 ```
 
 
 ## Examples
 
-The [`examples/`](examples/) folder contains scripts and notebooks that set up and run several examples:
+The [`examples/`](./examples/) folder contains scripts and notebooks that set up and run several examples:
 - [`examples/tutorial.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/tutorial.ipynb): A walkthrough of a very simple heat equation example.
-- [`examples/heat_1D.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/heat_1D.ipynb): A more complicated one-dimensional heat equation example [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
-- [`examples/data_driven_heat.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/data_driven_heat.ipynb): A purely data-driven example using data generated from a one-dimensional heat equation \[4\].
-<!-- - `examples/TODO.ipynb`: Burgers' equation [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104). -->
-<!-- - `examples/TODO.ipynb`: Euler equation [\[2\]](https://arc.aiaa.org/doi/10.2514/6.2019-3707). -->
+- [`examples/heat_1D.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/heat_1D.ipynb): A more complicated one-dimensional heat equation example [\[1\]](#references).
+- [`examples/data_driven_heat.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/data_driven_heat.ipynb): A purely data-driven example using data generated from a one-dimensional heat equation [\[4\]](#references).
+<!-- - `examples/TODO.ipynb`: Burgers' equation [\[1\]](#references). -->
+<!-- - `examples/TODO.ipynb`: Euler equation [\[2\]](#references). -->
 <!-- This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions. -->
 
-(More examples coming)
+---
+
+**Contributors**:
+[Renee Swischuk](https://github.com/swischuk),
+[Shane McQuarrie](https://github.com/shanemcq18),
+[Elizabeth Qian](https://github.com/elizqian),
+[Boris Kramer](http://kramer.ucsd.edu/),
+[Karen Willcox](https://kiwi.oden.utexas.edu/).
 
 
 ## References
