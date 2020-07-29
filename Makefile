@@ -2,7 +2,7 @@
 
 REMOVE = rm -rfv
 PYTHON = python3
-PYTEST = pytest --cov --cov-report html
+PYTEST = $(PYTHON) -m pytest --cov --cov-report html
 TARGET = tests/*.py
 
 

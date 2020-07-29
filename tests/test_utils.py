@@ -41,7 +41,7 @@ def test_get_least_squares_size():
 
 
 # utils.lstsq_reg() -----------------------------------------------------------
-def _test_lstq_reg_single(k,d,r):
+def _test_lstsq_reg_single(k,d,r):
     """Do one test of utils.lstsq_reg()."""
     A = np.random.random((k, d))
     b = np.random.random(k)
@@ -80,6 +80,13 @@ def _test_lstq_reg_single(k,d,r):
     # Ensure that the least squares solution is the usual one when P=0 (list)
     X_ = roi.utils.lstsq_reg(A, B, P=[np.zeros((d,d))]*r)[0]
     assert np.allclose(X, X_)
+
+    # Ensure that the least squares problem decouples correctly.
+    Ps = [l*I for l in range(r)]
+    X_ = roi.utils.lstsq_reg(A, B, P=Ps)[0]
+    for j in range(r):
+        xj_ = roi.utils.lstsq_reg(A, B[:,j], P=Ps[j])[0]
+        assert np.allclose(xj_, X_[:,j])
 
     # Check that the regularized least squares solution has decreased norm.
     X_ = roi.utils.lstsq_reg(A, B, P=2)[0]
@@ -145,16 +152,25 @@ def test_lstsq_reg(n_tests=5):
     assert exc.value.args[0] == \
         "P must be (d,d) with d = number of columns of A"
 
+    # Bad number of regularization matrices (list).
     with pytest.raises(ValueError) as exc:
         roi.utils.lstsq_reg(A, B,
                             [np.random.random((10,10)) for i in range(3)])
     assert exc.value.args[0] == \
-        "list P must have r entries with r = number of columns of b"
+        "multiple P requires exactly r entries with r = number of columns of b"
+
+    # Bad number of regularization matrices (generator).
+    with pytest.raises(ValueError) as exc:
+        roi.utils.lstsq_reg(A, B,
+                            (np.random.random((10,10)) for i in range(3)))
+    assert exc.value.args[0] == \
+        "multiple P requires exactly r entries with r = number of columns of b"
+
 
     # Do individual tests.
     k, m = 200, 20
     for r in np.random.randint(4, 50, n_tests):
-        _test_lstq_reg_single(k, min(k, 1 + r + r*(r+1)//2 + m), r)
+        _test_lstsq_reg_single(k, min(k, 1 + r + r*(r+1)//2 + m), r)
 
 
 # utils.kron2c() --------------------------------------------------------------
