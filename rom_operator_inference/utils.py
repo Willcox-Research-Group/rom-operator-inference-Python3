@@ -7,6 +7,7 @@ import scipy.linalg as _la
 import warnings as _warnings
 import multiprocessing as _mp
 from scipy.special import binom as _binom
+from types import GeneratorType as _gentype
 
 
 # Least squares solver ========================================================
@@ -120,23 +121,20 @@ def lstsq_reg(A, b, P=0):
     if b.ndim not in {1,2}:
         raise ValueError("`b` must be one- or two-dimensional")
     k,d = A.shape
-    if k < d:
+    if P == 0 and k < d:
         _warnings.warn("least squares system is underdetermined",
                        _la.LinAlgWarning)
 
     # If P is a list of ndarrays, decouple the problem by column.
-    if isinstance(P, list) or isinstance(P, tuple):
+    if isinstance(P, (list, tuple, _gentype)):
         if b.ndim != 2:
             raise ValueError("`b` must be two-dimensional with multiple P")
-        r = b.shape[1]
-        if len(P) != r:
-            raise ValueError(
-                "list P must have r entries with r = number of columns of b")
 
         # Do the problem in parallel (spawning new processes).
-        with _mp.get_context("spawn").Pool(min(r, _mp.cpu_count())) as pool:
-            out = pool.starmap(lstsq_reg,
-                               zip(_it.repeat(A), iter(b.T), iter(P)))
+        r = b.shape[1]
+        n_processes = min([r, _mp.cpu_count(), 32])
+        with _mp.get_context("spawn").Pool(processes=n_processes) as pool:
+            out = pool.starmap(lstsq_reg, zip(_it.repeat(A), b.T, P))
 
         # Unpack and return the results.
         X = _np.empty((d,r))
