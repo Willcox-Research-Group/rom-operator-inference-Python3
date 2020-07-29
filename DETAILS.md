@@ -8,6 +8,7 @@ However, note that some notation has been altered for coding convenience and cla
 - [**Problem Statement**](#problem-statement)
 - [**Projection-based Model Reduction**](#projection-based-model-reduction)
 - [**Operator Inference via Least Squares**](#operator-inference-via-least-squares)
+- [**Extensions and Variations**](#extensions-and-variations)
 - [**Index of Notation**](#index-of-notation)
 - [**References**](#references)
 
@@ -16,11 +17,11 @@ However, note that some notation has been altered for coding convenience and cla
 
 Consider the (possibly nonlinear) system of _n_ ordinary differential equations with state variable **x**, input (control) variable **u**, and independent variable _t_:
 
-<p align="center"><img src="img/prb/eq1.svg"/></p>
+<p align="center"><img src="./img/details/eq01.svg"/></p>
 
 where
 
-<p align="center"><img src="img/prb/eq2.svg"/></p>
+<p align="center"><img src="./img/details/eq02.svg"/></p>
 
 This system is called the _full-order model_ (FOM).
 If _n_ is large, as it often is in high-consequence engineering applications, it is computationally expensive to numerically solve the FOM.
@@ -28,20 +29,11 @@ This package provides tools for constructing a _reduced-order model_ (ROM) that 
 The procedure is data-driven, non-intrusive, and relatively inexpensive.
 In the most general case, the code can construct and solve a reduced-order system with the polynomial form
 
-<p align="center"><img src="img/prb/eq3.svg"/></p>
-
-<!-- <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\dot{\hat{\mathbf{x}}}(t)=\hat{A}\hat{\mathbf{x}}(t)+\hat{H}(\hat{\mathbf{x}}\otimes\hat{\mathbf{x}})(t)+\hat{B}\mathbf{u}(t)+\sum_{i=1}^m\hat{N}_{i}\hat{\mathbf{x}}(t)u_{i}(t)+\hat{\mathbf{c}},"/>
-</p> -->
+<p align="center"><img src="./img/details/eq03.svg"/></p>
 
 where now
 
-<p align="center"><img src="img/prb/eq4.svg"/></p>
-<p align="center"><img src="img/prb/eq5.svg"/></p>
-
-<!-- <p align="center">
-  <img src="https://latex.codecogs.com/svg.latex?\hat{A}\in\mathbb{R}^{r\times%20r},\qquad\hat{H}\in\mathbb{R}^{r\times%20r^2},\qquad\hat{B}\in\mathbb{R}^{r\times%20m},\qquad\hat{N}_{i}\in\mathbb{R}^{r\times%20r}."/>
-</p> -->
+<p align="center"><img src="./img/details/eq04.svg"/></p>
 
 This reduced low-dimensional system approximates the original high-dimensional system, but it is much easier (faster) to solve because of its low dimension _r_ << _n_.
 
@@ -53,113 +45,113 @@ Model reduction via projection occurs in three steps:
 2. **Compression**: Compute a low-rank basis (which defines a low-dimensional linear subspace) that captures most of the behavior of the snapshots.
 3. **Projection**: Use the low-rank basis to construct a low-dimensional ODE (the ROM) that approximates the FOM.
 
-<!-- These steps comprise what is called the _offline phase_ in the literature, since they can all be done before the resulting ROM is simulated. -->
+This package focuses mostly on step 3 and provides a few light tools for step 2.
 
-This package focuses on step 3, constructing the ROM given the snapshot data and the low-rank basis from steps 1 and 2, respectively.
+Let **X** be the _n_ x _k_ matrix whose _k_ columns are each solutions to the FOM of length _n_ (step 1), and let **V**<sub>_r_</sub> be an orthonormal _n_ x _r_ matrix representation for an _r_-dimensional subspace (step 2).
+A common choice for **V**<sub>_r_</sub> is the POD basis of rank _r_, the matrix whose columns are the first _r_ singular vectors of **X**.
+We call **X** the _snapshot matrix_ and **V**<sub>_r_</sub> the _basis matrix_.
 
-Let _X_ be the _n_ x _k_ matrix whose _k_ columns are each solutions to the FOM of length _n_ (step 1), and let _V_<sub>_r_</sub> be an orthonormal _n_ x _r_ matrix representation for an _r_-dimensional subspace (step 2).
-For example, a common choice for _V_<sub>_r_</sub> is the POD Basis of rank _r_, the matrix comprised of the first _r_ singular vectors of _X_.
-We call _X_ the _snapshot matrix_ and _V_<sub>_r_</sub> the _reduced basis matrix_.
+The classical _intrusive_ approach to the projection step is to make the Ansatz
 
-The classical approach to the projection step is to make the Ansatz
+<p align="center"><img src="./img/details/eq05.svg"/></p>
 
-<p align="center"><img src="img/dtl/eq01.svg"/></p>
+Inserting this into the FOM and multiplying both sides by the transpose of **V**<sub>_r_</sub> (Galerkin projection) yields
 
-Inserting this into the FOM and multiplying both sides by the transpose of _V_<sub>_r_</sub> yields
-
-<p align="center"><img src="img/dtl/eq02.svg"/></p>
+<p align="center"><img src="./img/details/eq06.svg"/></p>
 
 This new system is _r_-dimensional in the sense that
 
-<p align="center"><img src="img/dtl/eq03.svg"/></p>
+<p align="center"><img src="./img/details/eq07.svg"/></p>
 
 If the FOM operator **f** is known and has a nice structure, this reduced system can be solved cheaply by precomputing any involved matrices and then applying a time-stepping scheme.
 For example, if **f** is linear in **x** and there is no input **u**, then
 
-<p align="center"><img src="img/dtl/eq04.svg"/></p>
+<p align="center"><img src="./img/details/eq08.svg"/></p>
 
-where
-
-<p align="center"><img src="img/dtl/eq05.svg"/></p>
-
-However, _this approach breaks down if the FOM operator **f** is unknown, uncertain, or highly nonlinear_.
+However, this approach breaks down if the FOM operator **f** is unknown, uncertain, or highly nonlinear.
 
 ## Operator Inference via Least Squares
 
 Instead of directly computing the reduced operators, the Operator Inference framework takes a data-driven approach: assuming a specific structure of the ROM (linear, quadratic, etc.), solve for the involved operators that best fit the data.
 For example, suppose that we seek a ROM of the form
 
-<p align="center"><img src="img/dtl/eq06.svg"/></p>
+<p align="center"><img src="./img/details/eq09.svg"/></p>
 
-We have only the snapshot matrix _X_, the low-rank basis matrix _V_<sub>_r_</sub> (which was derived from _X_), the inputs _U_, and perhaps the snapshot velocities _X'_ (if not, these must be approximated).
-Here the (_ij_)<sup>th</sup> entry of _U_ is the _i_<sup>th</sup> component of **u** at the time corresponding to the _j_<sup>th</sup> snapshot.
-To solve for the linear operators on the right-hand side of the preceding equation, we project the snapshot data via the basis matrix,
+We start with _k_ snapshots **x**<sub>_j_</sub> and inputs **u**<sub>_j_</sub>.
+That is, **x**<sub>_j_</sub> is an approximate solution to the FOM at time _t_<sub>j</sub> with input **u**<sub>_j_</sub> = **u**(_t_<sub>_j_</sub>).
+We compute the basis matrix **V**<sub>_r_</sub>  from the snapshots (e.g., by taking the SVD of the matrix whose columns are the **x**<sub>_j_</sub>) and project the snapshots onto the _r_-dimensional subspace defined by the basis via
 
-<p align="center"><img src="img/dtl/eq07.svg"/></p>
+<p align="center"><img src="./img/details/eq10.svg"/></p>
 
-then solve the least squares problem
+We also require time derivative information for the snapshots.
+These may be provided by the FOM solver or estimated, for example with finite differences of the projected snapshots.
+With projected snapshots, inputs, and time derivative information in hand, we then solve the least-squares problem
 
-<p align="center"><img src="img/dtl/eq08.svg"/></p>
+<p align="center"><img src="./img/details/eq11.svg"/></p>
 
-where **1** is a _k_-vector of 1's and
+Note that this minimum-residual problem is not (yet) in a typical linear least-squares form, as the unknown quantities are the _matrices_, not the vectors.
+Recalling that the vector _2_-norm is related to the matrix Frobenius norm, i.e.,
 
-<p align="center"><img src="img/dtl/eq09.svg"/></p>
+<p align="center"><img src="./img/details/eq12.svg"/></p>
 
-For our purposes, the ⊗ operator between matrices denotes a column-wise Kronecker product (also called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product)).
-The minimization problem given above decouples into _r_ independent ordinary least-squares problems, one for each of the columns of _O<sup>T</sup>_:
+we can rewrite the residual objective function in the more typical matrix form:
 
-<p align="center"><img src="img/dtl/eq10.svg"/></p>
+<p align="center"><img src="./img/details/eq13.svg"/></p>
 
-The entire routine is relatively inexpensive to solve.
-The code also allows for a Tikhonov regularization matrix or list of matrices (the `P` keyword argument for `predict()` methods), in which case the problem being solved is
+where
 
-<p align="center"><img src="img/dtl/eq11.svg"/></p>
+<p align="center"><img src="./img/details/eq14.svg"/></p>
 
-It can be shown [\[1\]](https://www.sciencedirect.com/science/article/pii/S0045782516301104) that, under some idealized assumptions, these inferred operators converge to the operators computed by explicit projection.
+and where **1**<sub>_k_</sub> is a _k_-vector of 1's and _d(r,m) = 1 + r + r<sup>2</sup> + m_.
+For our purposes, the ⊗ operator between matrices denotes a column-wise Kronecker product, sometimes called the [Khatri-Rao product](https://en.wikipedia.org/wiki/Kronecker_product#Khatri%E2%80%93Rao_product).
+
+The minimization problem given above decouples into _r_ independent ordinary least-squares problems, one for each of the columns of **O**<sup>T</sup>.
+Though each independent sub-problem is typically well-posed, the problem is susceptible to noise (from model misspecification, the truncation of the basis, numerical estimation of time derivatives, etc.) and can therefore suffer from overfitting.
+To combat this, the problems can be regularized with a Tikhonov penalization.
+In this case, the complete minimization problem is given by
+
+<p align="center"><img src="./img/details/eq15.svg"/></p>
+
+It can be shown [\[1\]](#references) that, under some idealized assumptions, the operators inferred by solving this data-driven minimization problem converge to the operators computed by explicit projection.
 The key idea, however, is that _the inferred operators can be cheaply computed without knowing the full-order model_.
-This is very convenient in situations where the FOM is given by a "black box," such as a legacy code for complex fluid simulations.
+This is very convenient in "glass box" situations where the FOM is given by a legacy code for complex simulations but the target dynamics are known.
 
-#### The Discrete Case
+### Implementation Note: The Kronecker Product
 
-The framework described above can also be used to construct reduced-order models for approximating _discrete_ dynamical systems.
-For instance, consider the full-order model
+The [Kronecker product](https://en.wikipedia.org/wiki/Kronecker_product) ⊗ introduces some redundancies.
+For example, **x** ⊗ **x** contains both _x_<sub>1</sub>_x_<sub>2</sub> and _x_<sub>2</sub>_x_<sub>1</sub>.
+To avoid these redundancies, we introduce a "compact" Kronecker product which only computes the unique terms of the usual Kronecker product:
 
-<p align="center"><img src="img/dtl/eq12.svg"/></p>
+<p align="center"><img src="./img/details/eq16.svg"/></p>
 
-Instead of collecting snapshot velocities, we collect _k+1_ snapshots and let _X_ be the _n x k_ matrix whose columns are the first _k_ snapshots and _X'_ be the _n x k_ matrix whose columns are the last _k_ snapshots.
-That is, the columns **x**<sub>_k_</sub> of _X_ and **x**<sub>_k_</sub>' satisfy
+The dimension _r(r+1)/2_ arises because we choose _2_ of _r_ entries _without replacement_, i.e., this is a _multiset_ coefficient:
 
-<p align="center"><img src="img/dtl/eq13.svg"/></p>
+<p align="center"><img src="./img/details/eq17.svg"/></p>
 
-Then we set up the same least squares problem as before, but now the right-hand side matrix is
+When the compact Kronecker product is used, we call the resulting inferred quadratic operator **H**<sub>c</sub> instead of **H**.
+We similarly define a cubic compact product recursively with the quadratic compact product and call the resulting cubic inferred operator **G**<sub>c</sub> instead of **G**.
 
-<p align="center"><img src="img/dtl/eq14.svg"/></p>
+## Extensions and Variations
 
-The resulting reduced-order model has the form
+### The Discrete Setting
 
-<p align="center"><img src="img/dtl/eq15.svg"><p>
+The framework described above can also be used to construct reduced-order models for approximating _discrete_ dynamical systems, as may arise from discretizing PDEs in both space and time.
+For instance, we can learn a discrete ROM of the form
 
+<p align="center"><img src="./img/details/eq18.svg"/></p>
 
-<!-- TODO: #### Re-projection and Recovering Intrusive Models -->
+The procedure is the same as described in the previous section with the exception that the snapshot matrix **X** has columns **x**<sub>_j_</sub> for _j = 0,1,...,k-1_, while the right-hand side matrix **R** has columns **x**<sub>_j_</sub> for _j = 1,...,k_.
+That is, the (not yet regularized) least-squares problem to be solved has the form
 
+<p align="center"><img src="./img/details/eq19.svg"/></p>
 
-#### Implementation Note: The Kronecker Product
+<!-- TODO: ### The Steady Setting -->
 
-The vector [Kronecker product](https://en.wikipedia.org/wiki/Kronecker_product) ⊗ introduces some redundancies.
-For example, the product **x** ⊗ **x** contains both _x_<sub>1</sub>_x_<sub>2</sub> and _x_<sub>2</sub>_x_<sub>1</sub>.
-To avoid these redundancies, we introduce a "compact" Kronecker product <img src="img/dtl/eq16.svg" height=10/> which only computes the unique terms of the usual vector Kronecker product:
+<!-- TODO: ### Lifting and Variable Transformations -->
 
-<p align="center"><img src="img/dtl/eq17.svg"/></p>
+<!-- TODO: ### Re-projection and Recovering Intrusive Models -->
 
-When the compact Kronecker product is used, we call the resulting operator _H<sub>c</sub>_ instead of _H_.
-Thus, the reduced order model becomes
-
-<p align="center"><img src="img/dtl/eq18.svg"/></p>
-
-and the corresponding Operator Inference least squares problem is
-
-<p align="center"><img src="img/dtl/eq19.svg"/></p>
-
+<!-- TODO: ### Incorporating Nonlinear Terms with DEIM -->
 
 ## Index of Notation
 
@@ -170,45 +162,43 @@ In the code, a low-dimensional quantity ends with an underscore, so that the mod
 
 | Symbol | Code | Description |
 | :----: | :--- | :---------- |
-| <img src="img/ntn/n.svg"/> | `n`  | Dimension of the full-order system (large) |
-| <img src="img/ntn/r.svg"/> | `r`  | Dimension of the reduced-order system (small) |
-| <img src="img/ntn/m.svg"/> | `m`  | Dimension of the input **u** |
-| <img src="img/ntn/k.svg"/> | `k`  | Number of state snapshots, i.e., the number of training points |
-| <img src="img/ntn/s.svg"/> | `s`  | Number of parameter samples for parametric training |
-| <img src="img/ntn/p.svg"/> | `p` | Dimension of the parameter space |
-| <img src="img/ntn/d.svg"/> | `d` | Number of columns of the data matrix _D_ |
-| <img src="img/ntn/nt.svg"/> | `nt`  | Number of time steps in a simulation |
+| <img src="./img/notation/eq01.svg"/> | `n`  | Dimension of the full-order system (large) |
+| <img src="./img/notation/eq02.svg"/> | `r`  | Dimension of the reduced-order system (small) |
+| <img src="./img/notation/eq03.svg"/> | `m`  | Dimension of the input **u** |
+| <img src="./img/notation/eq05.svg"/> | `k`  | Number of state snapshots, i.e., the number of training points |
+| <img src="./img/notation/eq06.svg"/> | `s`  | Number of parameter samples for parametric training |
+| <img src="./img/notation/eq07.svg"/> | `p` | Dimension of the parameter space |
+| <img src="./img/notation/eq08.svg"/> | `d` | Number of columns of the data matrix _D_ |
 
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\ell"/> | `l` | Dimension of the output **y** | -->
+<!-- | <img src="./img/notation/eq04"/> | `l` | Dimension of the output **y** | -->
+
+<!-- ### Scalars
+
+| Symbol | Code | Description |
+| :----: | :--- | :---------- |
+| <img src="./img/notation/eq09.svg"/> | `nt`  | Number of time steps in a simulation |
+| | `µ` | Scalar parameter (_p_ = 1). | -->
 
 
 ### Vectors
 
-<!-- \sigma_j\in\text{diag}(\Sigma) &= \textrm{singular value of }X\\
-\boldsymbol{\mu}\in\mathcal{P} &= \text{system parameter}\\
-\mathcal{P}\subset\mathbb{R}^{p} &= \text{parameter space}\\
-\Omega\subset\mathbb{R}^{d} &= \text{spatial domain}\\
-% \omega\in\Omega &= \text{spatial point (one dimension)}\\
-\boldsymbol{\omega}\in\Omega &= \text{spatial point}\\
-t\ge 0 &= \text{time}\\
-\hat{} &= \textrm{reduced variable, e.g., }\hat{\mathbf{x}}\textrm{ or }\hat{A}\\
-\dot{} = \frac{d}{dt} &= \text{time derivative} -->
-
-
 | Symbol | Code | Size | Description |
 | :----: | :--- | :--: | :---------- |
-| <img src="img/ntn/x.svg"/> | `x` | <img src="img/ntn/n.svg"/> | Full-order state vector |
-| <img src="img/ntn/xhat.svg"/> | `x_` | <img src="img/ntn/r.svg"/> | Reduced-order state vector |
-| <img src="img/ntn/xhatdot.svg"/> | `xdot_` | <img src="img/ntn/r.svg"/> | Reduced-order state velocity vector |
-| <img src="img/ntn/xrom.svg"/> | `x_ROM` | <img src="img/ntn/n.svg"/> | Approximation to **x** produced by ROM |
-| <img src="img/ntn/chat.svg"/> | `c_` | <img src="img/ntn/m.svg"/> | Learned constant term  |
-| <img src="img/ntn/u.svg"/> | `u` | <img src="img/ntn/m.svg"/> | Input vector  |
-| <img src="img/ntn/f.svg"/> | `f(t,x,u)` | <img src="img/ntn/n.svg"/>  | Full-order system operator |
-| <img src="img/ntn/fhat.svg"/> | `f_(t,x_,u)` | <img src="img/ntn/n.svg"/>  | Reduced-order system operator |
-| <img src="img/ntn/kronx.svg"/> | `np.kron(x,x)` | <img src="img/ntn/n2.svg"/> | Kronecker product of full state (quadratic terms) |
-| <img src="img/ntn/kronxhat.svg"/> | `np.kron(x_,x_)` | <img src="img/ntn/r2.svg"/>  | Kronecker product of reduced state (quadratic terms) |
-| <img src="img/ntn/kronxhatc.svg"/> | `kron2c(x_)` | <img src="img/ntn/r2c.svg"/>  | Compact Kronecker product of reduced state (quadratic terms) |
-| <img src="img/ntn/vj.svg"/> | `vj` | <img src="img/ntn/n.svg"/> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of _V_<sub>_r_</sub> |
+| <img src="./img/notation/eq10.svg"/> | `x` | <img src="./img/notation/eq01.svg"/> | Full-order state vector |
+| <img src="./img/notation/eq11.svg"/> | `x_` | <img src="./img/notation/eq02.svg"/> | Reduced-order state vector |
+| <img src="./img/notation/eq12.svg"/> | `xdot_` | <img src="./img/notation/eq02.svg"/> | Reduced-order state time derivative vector |
+| <img src="./img/notation/eq13.svg"/> | `x_ROM` | <img src="./img/notation/eq01.svg"/> | Approximation to **x** produced by ROM |
+| <img src="./img/notation/eq14.svg"/> | `c_` | <img src="./img/notation/eq02.svg"/> | Learned constant term  |
+| <img src="./img/notation/eq15.svg"/> | `u` | <img src="./img/notation/eq03.svg"/> | Input vector  |
+| <img src="./img/notation/eq17.svg"/> | `f(t,x,u(t))` or `f(x,u)` | <img src="./img/notation/eq01.svg"/>  | Full-order system operator |
+| <img src="./img/notation/eq18.svg"/> | `f_(t,x_,u(t))` or `f(x_,u)` | <img src="./img/notation/eq02.svg"/>  | Reduced-order system operator |
+| <img src="./img/notation/eq19.svg"/> | `np.kron(x,x)` | <img src="./img/notation/eq20.svg"/> | Quadratic Kronecker product of full state |
+| <img src="./img/notation/eq21.svg"/> | `np.kron(x_,x_)` | <img src="./img/notation/eq22.svg"/>  | Quadratic Kronecker product of reduced state |
+| <img src="./img/notation/eq23.svg"/> | `utils.kron2c(x_)` | <img src="./img/notation/eq24.svg"/>  | Compact quadratic Kronecker product of reduced state |
+| <img src="./img/notation/eq25.svg"/> | `np.kron(x,np.kron(x,x))` | <img src="./img/notation/eq26.svg"/> | Cubic Kronecker product of full state |
+| <img src="./img/notation/eq27.svg"/> | `np.kron(x_,np.kron(x_,x_))` | <img src="./img/notation/eq28.svg"/>  | Cubic Kronecker product of reduced state |
+| <img src="./img/notation/eq29.svg"/> | `utils.kron3c(x_)` | <img src="./img/notation/eq30.svg"/>  | Compact cubic Kronecker product of reduced state |
+| <img src="./img/notation/eq31.svg"/> | `vj` | <img src="./img/notation/eq01.svg"/> | _j_<sup>th</sup> subspace basis vector, i.e., column _j_ of **V**<sub>_r_</sub> |
 
 <!-- | **y**  | `y`             | Output vector | -->
 <!-- | **y_ROM**, **y~** | `y_ROM`      | Approximation to **y** produced by ROM | -->
@@ -217,29 +207,30 @@ t\ge 0 &= \text{time}\\
 
 | Symbol | Code | Shape | Description |
 | :----: | :--- | :---: | :---------- |
-| <img src="img/ntn/Vr.svg"/> | `Vr` | <img src="img/ntn/nxr.svg"/> | low-rank basis of rank _r_ (usually the POD basis) |
-| <img src="img/ntn/XX.svg"/> | `X` | <img src="img/ntn/nxk.svg"/> | Snapshot matrix |
-| <img src="img/ntn/XXdot.svg"/> | `Xdot` | <img src="img/ntn/nxk.svg"/> | Snapshot velocity matrix |
-| <img src="img/ntn/UU.svg"/> | `U` | <img src="img/ntn/mxk.svg"/> | Input matrix (inputs corresonding to the snapshots) |
-| <img src="img/ntn/XXhat.svg"/> | `X_` | <img src="img/ntn/rxk.svg"/> | Projected snapshot matrix |
-| <img src="img/ntn/XXhatdot.svg"/> | `Xdot_` | <img src="img/ntn/rxk.svg"/> | Projected snapshot velocity matrix |
-| <img src="img/ntn/DD.svg"/> | `D` | <img src="img/ntn/kxd.svg"/> | Data matrix |
-| <img src="img/ntn/OO.svg"/> | `O` | <img src="img/ntn/dxr.svg"/> | Operator matrix |
-| <img src="img/ntn/RR.svg"/> | `R` | <img src="img/ntn/kxr.svg"/> | Right-hand side matrix |
-| <img src="img/ntn/PP.svg"/> | `P` | <img src="img/ntn/dxd.svg"/> | Tikhonov regularization matrix |
-| <img src="img/ntn/AAhat.svg"/> | `A_` | <img src="img/ntn/rxr.svg"/> | Learned state matrix |
-| <img src="img/ntn/HHhat.svg"/> | `H_` | <img src="img/ntn/rxr2.svg"/> | Learned matricized quadratic tensor |
-| <img src="img/ntn/HHhatc.svg"/> | `Hc_` | <img src="img/ntn/rxr2c.svg"/> | Learned matricized quadratic tensor without redundancy (compact) |
-| <img src="img/ntn/GGhat.svg"/> | `G_` | <img src="img/ntn/rxr3.svg"/> | Learned matricized cubic tensor |
-| <img src="img/ntn/GGhatc.svg"/> | `Gc_` | <img src="img/ntn/rxr3c.svg"/> | Learned matricized cubic tensor without redundancy (compact) |
-| <img src="img/ntn/BBhat.svg"/> | `B_` | <img src="img/ntn/rxm.svg"/> | Learned input matrix |
+| <img src="./img/notation/eq32.svg"/> | `Vr` | <img src="./img/notation/eq33.svg"/> | low-rank basis of rank _r_ (usually the POD basis) |
+| <img src="./img/notation/eq34.svg"/> | `X` | <img src="./img/notation/eq35.svg"/> | Snapshot matrix |
+| <img src="./img/notation/eq36.svg"/> | `Xdot` | <img src="./img/notation/eq35.svg"/> | Snapshot time derivative matrix |
+| <img src="./img/notation/eq37.svg"/> | `U` | <img src="./img/notation/eq38.svg"/> | Input matrix (inputs corresonding to the snapshots) |
+| <img src="./img/notation/eq41.svg"/> | `X_` | <img src="./img/notation/eq42.svg"/> | Projected snapshot matrix |
+| <img src="./img/notation/eq43.svg"/> | `Xdot_` | <img src="./img/notation/eq42.svg"/> | Projected snapshot time derivative matrix |
+| <img src="./img/notation/eq44.svg"/> | `D` | <img src="./img/notation/eq45.svg"/> | Data matrix |
+| <img src="./img/notation/eq46.svg"/> | `O` | <img src="./img/notation/eq47.svg"/> | Operator matrix |
+| <img src="./img/notation/eq48.svg"/> | `R` | <img src="./img/notation/eq49.svg"/> | Right-hand side matrix |
+| <img src="./img/notation/eq50.svg"/> | `P` | <img src="./img/notation/eq51.svg"/> | Tikhonov regularization matrix |
+| <img src="./img/notation/eq52.svg"/> | `A` | <img src="./img/notation/eq53.svg"/> | Full-order linear state matrix |
+| <img src="./img/notation/eq54.svg"/> | `A_` | <img src="./img/notation/eq55.svg"/> | Reduced-order linear state matrix |
+| <img src="./img/notation/eq56.svg"/> | `H` | <img src="./img/notation/eq57.svg"/> | Full-order matricized quadratic state tensor |
+| <img src="./img/notation/eq58.svg"/> | `H_` | <img src="./img/notation/eq59.svg"/> | Reduced-order matricized quadratic state tensor |
+| <img src="./img/notation/eq60.svg"/> | `Hc_` | <img src="./img/notation/eq61.svg"/> | Compact reduced-order matricized quadratic state tensor |
+| <img src="./img/notation/eq62.svg"/> | `G` | <img src="./img/notation/eq63.svg"/> | Full-order matricized quadratic state tensor |
+| <img src="./img/notation/eq64.svg"/> | `G_` | <img src="./img/notation/eq65.svg"/> | Reduced-order matricized quadratic state tensor |
+| <img src="./img/notation/eq66.svg"/> | `Gc_` | <img src="./img/notation/eq67.svg"/> | Compact reduced-order matricized quadratic state tensor |
+| <img src="./img/notation/eq68.svg"/> | `B` | <img src="./img/notation/eq69.svg"/> | Full-order input matrix |
+| <img src="./img/notation/eq70.svg"/> | `B_` | <img src="./img/notation/eq71.svg"/> | Reduced-order input matrix |
 
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{N}_i"/> | `Ni_` | <img src="https://latex.codecogs.com/svg.latex?r\times%20r"/> | Bilinear state-input matrix for _i_th input | -->
-
-<!-- | <img src="https://latex.codecogs.com/svg.latex?\hat{C}"/> | `C_` | <img src="https://latex.codecogs.com/svg.latex?q\times%20r"/> | Learned output matrix | -->
-
-<!-- I_{a\times%20a}\in\mathbb{R}^{a\times a} | | identity matrix\\ -->
-<!-- \Sigma \in \mathbb{R}^{\ell\times\ell} &= \text{diagonal singular value matrix}\\ -->
+<!-- | <img src="./img/notation/eq72.svg"/> | `C` | <img src="./img/notation/eq73.svg"/> | Full-order output matrix | -->
+<!-- | <img src="./img/notation/eq74.svg"/> | `C_` | <img src="./img/notation/eq75.svg"/> | Reduced-order output matrix | -->
+<!-- | <img src="\hat{N}_i"/> | `Ni_` | <img src="./img/notation/eq55.svg"/> | Bilinear state-input matrix for _i_th input | -->
 
 
 ## References

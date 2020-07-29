@@ -1,4 +1,4 @@
-% details.tex: generate .svg files used in DETAILS.md.
+% documentation.tex: generate .svg files used in DOCUMENTATION.md.
 \documentclass[12 pt]{article}
 
 \input{config}
@@ -256,7 +256,7 @@
 % Projection error ------------------------------------------------------------
 \begin{align*}
     \texttt{proj\_err}
-    = \frac{\|\Xfom - \Vr\Vr\trp\Xfom\|_F}{\|\Xfom\|_F}
+    = \frac{\|\Xfom - \Vr\Vr\trp\Xfom\|_F}{\|\Xfom\|_F}.
 \end{align*}
 
 % Absolute / relative error ---------------------------------------------------
@@ -280,8 +280,8 @@
 \begin{align*}
     \|\xfom\|_{\ell^p}
     = \begin{cases}
-    \left(\sum_{i=1}^{n}|x_i|^p\right)^{1/p} & p < \infty,
-    \\
+    \left(\displaystyle\sum_{i=1}^{n}|x_i|^p\right)^{1/p} & p < \infty,
+    \\ & \\
     \underset{i=1,\ldots,n}{\textrm{sup}}|x_i| & p = \infty.
     \end{cases}
 \end{align*}
@@ -298,8 +298,8 @@
 \begin{align*}
     \|\xfom(\cdot)\|_{L^p([a,b])}
     = \begin{cases}
-    \left(\int_{a}^{b}\|\xfom(t)\|_{\ell^p}^p\:dt\right)^{1/p} & p < \infty,
-    \\
+    \left(\displaystyle\int_{a}^{b}\|\xfom(t)\|_{\ell^p}^p\:dt\right)^{1/p} & p < \infty,
+    \\ & \\
     \sup_{t\in[a,b]}\|\xfom(t)\|_{\ell^\infty} & p = \infty.
     \end{cases}
 \end{align*}
