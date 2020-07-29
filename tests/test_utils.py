@@ -152,11 +152,20 @@ def test_lstsq_reg(n_tests=5):
     assert exc.value.args[0] == \
         "P must be (d,d) with d = number of columns of A"
 
+    # Bad number of regularization matrices (list).
     with pytest.raises(ValueError) as exc:
         roi.utils.lstsq_reg(A, B,
                             [np.random.random((10,10)) for i in range(3)])
     assert exc.value.args[0] == \
         "multiple P requires exactly r entries with r = number of columns of b"
+
+    # Bad number of regularization matrices (generator).
+    with pytest.raises(ValueError) as exc:
+        roi.utils.lstsq_reg(A, B,
+                            (np.random.random((10,10)) for i in range(3)))
+    assert exc.value.args[0] == \
+        "multiple P requires exactly r entries with r = number of columns of b"
+
 
     # Do individual tests.
     k, m = 200, 20

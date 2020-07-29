@@ -5,7 +5,6 @@ import numpy as _np
 import itertools as _it
 import scipy.linalg as _la
 import warnings as _warnings
-import multiprocessing as _mp
 from scipy.special import binom as _binom
 from types import GeneratorType as _gentype
 
@@ -117,47 +116,44 @@ def lstsq_reg(A, b, P=0):
     s : (min(k, d),) ndarray or None
         Singular values of `A`.
     """
-    # Check dimensions and raise a warning if the problem is underdetermined.
+    # Check dimensions of b.
     if b.ndim not in {1,2}:
         raise ValueError("`b` must be one- or two-dimensional")
     k,d = A.shape
-    if _np.isscalar(P) and P == 0 and k < d:
-        _warnings.warn("least squares system is underdetermined",
-                       _la.LinAlgWarning, stacklevel=2)
 
-    # If P is a list of ndarrays, decouple the problem by column.
-    if isinstance(P, (list, tuple, _gentype, range)):
+    # If P is a sequence, decouple the problem by column.
+    if isinstance(P, (list, tuple, range, _gentype)):
         # Check that the problem can be properly decoupled.
         if b.ndim != 2:
             raise ValueError("`b` must be two-dimensional with multiple P")
         r = b.shape[1]
-        if isinstance(P, (list, tuple)) and len(P) != r:
+        if hasattr(P, "__len__") and len(P) != r:
             raise ValueError("multiple P requires exactly r entries "
                              "with r = number of columns of b")
 
-        # Do the problem in parallel (spawning new processes).
-        # TESTED ON MACOS AND LINUX ONLY.
-        n_processes = min([r, _mp.cpu_count(), 32])
-        with _mp.get_context("spawn").Pool(processes=n_processes) as pool:
-            out = pool.starmap(lstsq_reg, zip(_it.repeat(A), b.T, P))
-        if len(out) != r:
+        # Solve each independent problem (iteratively for now).
+        result = [lstsq_reg(*args) for args in zip(_it.repeat(A), b.T, P)]
+        if len(result) != r:
             raise ValueError("multiple P requires exactly r entries "
                              "with r = number of columns of b")
 
         # Unpack and return the results.
         X = _np.empty((d,r))
         residuals = _np.empty(r)
-        for j in range(r):
-            X[:,j] = out[j][0]
-            res = out[j][1]
+        for j,(x, res, rnk, ss) in enumerate(result):
+            X[:,j] = x
             residuals[j] = 0 if isinstance(res ,_np.ndarray) else res
-        rank, s = out[0][-2:]
+        rank, s = result[0][-2:]
+        # TODO: better treatment of rank, s
         return X, residuals, rank, s
 
     # If P is a scalar, construct the default regularization matrix P*I.
     if _np.isscalar(P):
+        # Default case: fall back to default scipy.linalg.lstsq().
         if P == 0:
-            # Default case: fall back to default scipy.linalg.lstsq().
+            if k < d:   # Warn the user if the system is underdetermined.
+                _warnings.warn("least squares system is underdetermined",
+                               _la.LinAlgWarning, stacklevel=2)
             return _la.lstsq(A, b)
         elif P < 0:
             raise ValueError("regularization parameter must be nonnegative")
