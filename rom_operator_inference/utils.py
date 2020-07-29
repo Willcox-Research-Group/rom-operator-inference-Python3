@@ -117,30 +117,40 @@ def lstsq_reg(A, b, P=0):
     s : (min(k, d),) ndarray or None
         Singular values of `A`.
     """
-    # Check dimensions.
+    # Check dimensions and raise a warning if the problem is underdetermined.
     if b.ndim not in {1,2}:
         raise ValueError("`b` must be one- or two-dimensional")
     k,d = A.shape
-    if P == 0 and k < d:
+    if _np.isscalar(P) and P == 0 and k < d:
         _warnings.warn("least squares system is underdetermined",
-                       _la.LinAlgWarning)
+                       _la.LinAlgWarning, stacklevel=2)
 
     # If P is a list of ndarrays, decouple the problem by column.
-    if isinstance(P, (list, tuple, _gentype)):
+    if isinstance(P, (list, tuple, _gentype, range)):
+        # Check that the problem can be properly decoupled.
         if b.ndim != 2:
             raise ValueError("`b` must be two-dimensional with multiple P")
+        r = b.shape[1]
+        if isinstance(P, (list, tuple)) and len(P) != r:
+            raise ValueError("multiple P requires exactly r entries "
+                             "with r = number of columns of b")
 
         # Do the problem in parallel (spawning new processes).
-        r = b.shape[1]
+        # TESTED ON MACOS AND LINUX ONLY.
         n_processes = min([r, _mp.cpu_count(), 32])
         with _mp.get_context("spawn").Pool(processes=n_processes) as pool:
             out = pool.starmap(lstsq_reg, zip(_it.repeat(A), b.T, P))
+        if len(out) != r:
+            raise ValueError("multiple P requires exactly r entries "
+                             "with r = number of columns of b")
 
         # Unpack and return the results.
         X = _np.empty((d,r))
         residuals = _np.empty(r)
         for j in range(r):
-            X[:,j], residuals[j] = out[j][:2]
+            X[:,j] = out[j][0]
+            res = out[j][1]
+            residuals[j] = 0 if isinstance(res ,_np.ndarray) else res
         rank, s = out[0][-2:]
         return X, residuals, rank, s
 

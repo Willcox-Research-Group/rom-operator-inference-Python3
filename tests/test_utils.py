@@ -156,7 +156,7 @@ def test_lstsq_reg(n_tests=5):
         roi.utils.lstsq_reg(A, B,
                             [np.random.random((10,10)) for i in range(3)])
     assert exc.value.args[0] == \
-        "list P must have r entries with r = number of columns of b"
+        "multiple P requires exactly r entries with r = number of columns of b"
 
     # Do individual tests.
     k, m = 200, 20
