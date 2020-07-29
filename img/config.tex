@@ -1,0 +1,61 @@
+% config.tex
+
+% Imports and settings ========================================================
+
+\usepackage{amsfonts,amssymb,amsthm,amsmath,mathrsfs,mathtools}
+\usepackage[table]{xcolor}
+\usepackage[active,tightpage]{preview}
+
+\PreviewEnvironment{align*}                 % Each align* on separate page
+\PreviewEnvironment{gather*}                % Each gather* on separate page
+\renewcommand{\familydefault}{\sfdefault}   % Serif \text{} font (match .md)
+
+% Notation ====================================================================
+
+\newcommand{\ddt}{\frac{\textrm{d}}{\textrm{d}t}} % \dot}
+
+\newcommand{\xfom}{\mathbf{x}}              % Full state vector
+\newcommand{\dxfom}{\dot{\xfom}}            % Full time derivative vector
+\newcommand{\ufom}{\mathbf{u}}              % Input vector
+\newcommand{\ffom}{\mathbf{f}}              % FOM operator
+\newcommand{\Xfom}{\mathbf{X}}              % Snapshot matrix
+\newcommand{\dXfom}{\dot{\mathbf{X}}}       % Time derivatives matrix
+\newcommand{\Ufom}{\mathbf{U}}              % Input matrix
+\newcommand{\gfom}{\mathbf{g}}              % Steady-state RHS vector
+
+\newcommand{\cfom}{\mathbf{c}}              % Full constant term
+\newcommand{\Afom}{\mathbf{A}}              % Full linear state matrix
+\newcommand{\Hfom}{\mathbf{H}}              % Full quadratic state matrix
+\newcommand{\Gfom}{\mathbf{G}}              % Full cubic state matrix
+\newcommand{\Bfom}{\mathbf{B}}              % Full input matrix
+
+\newcommand{\reduced}{\widehat}             % Reduced quantities
+\newcommand{\intrusive}{\widetilde}         % Intrusive quantities
+
+\newcommand{\xrom}{\reduced{\xfom}}         % Reduced state vector
+\newcommand{\dxrom}{\dot{\xrom}}            % Reduced time derivative vector
+\newcommand{\from}{\reduced{\ffom}}         % ROM operator
+\newcommand{\Xrom}{\reduced{\Xfom}}         % Reduced snapshot matrix
+\newcommand{\dXrom}{\dot{\Xrom}}            % Reduced time derivatives matrix
+\newcommand{\grom}{\reduced{\gfom}}         % Reduced steady-state RHS vector
+
+\newcommand{\crom}{\reduced{\cfom}}         % Reduced constant term
+\newcommand{\Arom}{\reduced{\Afom}}         % Reduced linear state matrix
+\newcommand{\Hrom}{\reduced{\Hfom}}         % Reduced quadratic state matrix
+\newcommand{\Grom}{\reduced{\Gfom}}         % Reduced cubic state matrix
+\newcommand{\Brom}{\reduced{\Bfom}}         % Reduced input matrix
+\newcommand{\Vr}{\mathbf{V}_r}              % POD basis of rank r
+
+\newcommand{\ones}{\mathbf{1}_k}            % Vector of ones
+\newcommand{\Data}{\mathbf{D}}              % Data matrix
+\newcommand{\Ops}{\mathbf{O}}               % Unknown operators matrix
+\newcommand{\Rhs}{\mathbf{R}}               % Right-hand side matrix
+\newcommand{\ops}{\mathbf{o}}               % Unknown operators vector
+\newcommand{\rhs}{\mathbf{r}}               % Right-hand side vector
+\newcommand{\Reg}{\boldsymbol{\Gamma}}      % Regularization matrix
+
+\newcommand{\sparam}{\mu}                   % scalar parameter
+\newcommand{\vparam}{\boldsymbol{\sparam}}  % vector parameter
+
+\newcommand{\trp}{^{\mathsf T}}             % Matrix transpose
+\newcommand{\RR}{\mathbb{R}}                % The reals

@@ -1,0 +1,389 @@
+% notation.tex: generate .svg files used in the Index of Notation tables.
+\documentclass[12 pt]{article}
+
+\input{config}
+
+\begin{document}
+
+% Dimensions ==================================================================
+
+% Full-order dimension --------------------------------------------------------
+\begin{align*}
+    n
+\end{align*}
+
+% Reduced-order dimension -----------------------------------------------------
+\begin{align*}
+    r
+\end{align*}
+
+% Input dimension -------------------------------------------------------------
+\begin{align*}
+    m
+\end{align*}
+
+% Output dimension ------------------------------------------------------------
+\begin{align*}
+    \ell
+\end{align*}
+
+% Training size ---------------------------------------------------------------
+\begin{align*}
+    k
+\end{align*}
+
+% Parameter samples -----------------------------------------------------------
+\begin{align*}
+    s
+\end{align*}
+
+% Parameter dimension ---------------------------------------------------------
+\begin{align*}
+    p
+\end{align*}
+
+% Number of independent least-squares problems --------------------------------
+\begin{align*}
+    d
+\end{align*}
+
+% Number of time steps in a simulation ----------------------------------------
+\begin{align*}
+    n_t
+\end{align*}
+
+% Vectors =====================================================================
+
+% Full-order state ------------------------------------------------------------
+\begin{align*}
+    \xfom
+\end{align*}
+
+% Reduced-order state ---------------------------------------------------------
+\begin{align*}
+    \xrom
+\end{align*}
+
+% Reduced-order time derivative -----------------------------------------------
+\begin{align*}
+    \dxrom
+\end{align*}
+
+% ROM approximation to FOM ----------------------------------------------------
+\begin{align*}
+    \xfom_\textrm{ROM}
+\end{align*}
+
+% Learned constant term -------------------------------------------------------
+\begin{align*}
+    \crom
+\end{align*}
+
+% Input -----------------------------------------------------------------------
+\begin{align*}
+    \ufom
+\end{align*}
+
+% Output ----------------------------------------------------------------------
+\begin{align*}
+    \yfom
+\end{align*}
+
+% FOM system operator ---------------------------------------------------------
+\begin{align*}
+    \ffom
+\end{align*}
+
+% ROM system operator ---------------------------------------------------------
+\begin{align*}
+    \from
+\end{align*}
+
+% Full-order Kronecker product ------------------------------------------------
+\begin{align*}
+    \xfom \otimes \xfom
+\end{align*}
+
+% FOM dimension squared -------------------------------------------------------
+\begin{align*}
+    n^2
+\end{align*}
+
+% Reduced-order Kronecker product ---------------------------------------------
+\begin{align*}
+    \xrom \otimes \xrom
+\end{align*}
+
+% ROM dimension squared -------------------------------------------------------
+\begin{align*}
+    r^2
+\end{align*}
+
+% Reduced-order compact Kronecker product -------------------------------------
+\begin{align*}
+    \xrom\ \reduced{\otimes}\ \xrom
+\end{align*}
+
+% ROM dimension squared compact -----------------------------------------------
+\begin{align*}
+    \frac{r(r+1)}{2}
+\end{align*}
+
+% Full-order cubic Kronecker product ------------------------------------------
+\begin{align*}
+    \xfom \otimes \xfom \otimes \xfom
+\end{align*}
+
+% FOM dimension cubed ---------------------------------------------------------
+\begin{align*}
+    n^3
+\end{align*}
+
+% Reduced-order cubic Kronecker product ---------------------------------------
+\begin{align*}
+    \xrom \otimes \xrom \otimes \xrom
+\end{align*}
+
+% ROM dimension cubed ---------------------------------------------------------
+\begin{align*}
+    r^3
+\end{align*}
+
+% Reduced-order compact Kronecker product -------------------------------------
+\begin{align*}
+    \xrom\ \reduced{\otimes}\ \xrom\ \reduced{\otimes}\ \xrom
+\end{align*}
+
+% ROM dimension squared compact -----------------------------------------------
+\begin{align*}
+    \frac{r(r+1)(r+2)}{6}
+\end{align*}
+
+% Basis vector ----------------------------------------------------------------
+\begin{align*}
+    \mathbf{v}_j
+\end{align*}
+
+% Matrices ====================================================================
+
+% Basis matrix ----------------------------------------------------------------
+\begin{align*}
+    \Vr
+\end{align*}
+
+% Basis matrix shape ----------------------------------------------------------
+\begin{align*}
+    n \times r
+\end{align*}
+
+% Snapshot matrix -------------------------------------------------------------
+\begin{align*}
+    \Xfom
+\end{align*}
+
+% Snapshot matrix shape -------------------------------------------------------
+\begin{align*}
+    n \times k
+\end{align*}
+
+% Time derivative matrix ------------------------------------------------------
+\begin{align*}
+    \dXfom
+\end{align*}
+
+% Input matrix ----------------------------------------------------------------
+\begin{align*}
+    \Ufom
+\end{align*}
+
+% Input matrix shape ----------------------------------------------------------
+\begin{align*}
+    m \times k
+\end{align*}
+
+% Output matrix ---------------------------------------------------------------
+\begin{align*}
+    \Yfom
+\end{align*}
+
+% Output matrix shape ---------------------------------------------------------
+\begin{align*}
+    \ell \times k
+\end{align*}
+
+% Reduced snapshot matrix -----------------------------------------------------
+\begin{align*}
+    \Xrom
+\end{align*}
+
+% Reduced snapshot matrix shape -----------------------------------------------
+\begin{align*}
+    r \times k
+\end{align*}
+
+% Reduced time derivative matrix ----------------------------------------------
+\begin{align*}
+    \dXrom
+\end{align*}
+
+% Data matrix -----------------------------------------------------------------
+\begin{align*}
+    \Data
+\end{align*}
+
+% Data matrix shape -----------------------------------------------------------
+\begin{align*}
+    k \times d
+\end{align*}
+
+% Operator matrix -------------------------------------------------------------
+\begin{align*}
+    \Ops
+\end{align*}
+
+% Operator matrix shape -------------------------------------------------------
+\begin{align*}
+    r \times d
+\end{align*}
+
+% RHS matrix ------------------------------------------------------------------
+\begin{align*}
+    \Rhs
+\end{align*}
+
+% RHS matrix shape ------------------------------------------------------------
+\begin{align*}
+    r \times k
+\end{align*}
+
+% Regularization matrix -------------------------------------------------------
+\begin{align*}
+    \Reg
+\end{align*}
+
+% Regularization matrix shape -------------------------------------------------
+\begin{align*}
+    d \times d
+\end{align*}
+
+% FOM linear term -------------------------------------------------------------
+\begin{align*}
+    \Afom
+\end{align*}
+
+% FOM linear term shape -------------------------------------------------------
+\begin{align*}
+    n \times n
+\end{align*}
+
+% ROM linear term -------------------------------------------------------------
+\begin{align*}
+    \Arom
+\end{align*}
+
+% ROM linear term shape -------------------------------------------------------
+\begin{align*}
+    r \times r
+\end{align*}
+
+% FOM quadratic term ----------------------------------------------------------
+\begin{align*}
+    \Hfom
+\end{align*}
+
+% FOM quadratic term shape ----------------------------------------------------
+\begin{align*}
+    n \times n^2
+\end{align*}
+
+% ROM quadratic term ----------------------------------------------------------
+\begin{align*}
+    \Hrom
+\end{align*}
+
+% ROM quadratic term shape ----------------------------------------------------
+\begin{align*}
+    r \times r^2
+\end{align*}
+
+% ROM compact quadratic term --------------------------------------------------
+\begin{align*}
+    \Hrom_\textrm{c}
+\end{align*}
+
+% ROM compact quadratic term shape --------------------------------------------
+\begin{align*}
+    r \times \frac{r(r+1)}{2}
+\end{align*}
+
+% FOM cubic term --------------------------------------------------------------
+\begin{align*}
+    \Gfom
+\end{align*}
+
+% FOM cubic term shape --------------------------------------------------------
+\begin{align*}
+    n \times n^3
+\end{align*}
+
+% ROM cubic term --------------------------------------------------------------
+\begin{align*}
+    \Grom
+\end{align*}
+
+% ROM cubic term shape --------------------------------------------------------
+\begin{align*}
+    r \times r^3
+\end{align*}
+
+% ROM compact cubic term ------------------------------------------------------
+\begin{align*}
+    \Grom_\textrm{c}
+\end{align*}
+
+% ROM compact cubic term shape ------------------------------------------------
+\begin{align*}
+    r \times \frac{r(r+1)(r+2)}{6}
+\end{align*}
+
+% FOM input matrix ------------------------------------------------------------
+\begin{align*}
+    \Bfom
+\end{align*}
+
+% FOM input matrix shape ------------------------------------------------------
+\begin{align*}
+    n \times m
+\end{align*}
+
+% ROM input matrix ------------------------------------------------------------
+\begin{align*}
+    \Brom
+\end{align*}
+
+% ROM input matrix shape ------------------------------------------------------
+\begin{align*}
+    r \times m
+\end{align*}
+
+% FOM output matrix -----------------------------------------------------------
+\begin{align*}
+    \Cfom
+\end{align*}
+
+% FOM output matrix shape -----------------------------------------------------
+\begin{align*}
+    \ell \times n
+\end{align*}
+
+% ROM output matrix -----------------------------------------------------------
+\begin{align*}
+    \Crom
+\end{align*}
+
+% ROM output matrix shape -----------------------------------------------------
+\begin{align*}
+    \ell \times r
+\end{align*}
+
+\end{document}
