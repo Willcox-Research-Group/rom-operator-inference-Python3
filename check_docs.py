@@ -4,6 +4,7 @@
 import os
 import re
 import difflib
+from collections import defaultdict
 
 
 # Global variables ============================================================
@@ -19,39 +20,12 @@ VNFILES = [SETUP, INIT]
 REDSPACE = '\x1b[41m \x1b[49m'
 VERSION = re.compile(r'_{0,2}?version_{0,2}?\s*=\s*"([\d\.]+?)"',
                      re.MULTILINE)
-TEX = re.compile(
-                r'''<img\ src=                          #  begin image tag
-                "https://latex.codecogs.com/svg.latex\? #   LaTeX web prefix
-                (.+?)                                   #   LATEX CODE
-                "/>                                     #  end image tag
-                ''',
-                re.VERBOSE | re.MULTILINE)
+MDREF = re.compile(r"\[.+?\]\((\./.+?)\)")
+MDIMG = re.compile(r"""<img src=["'](\./.+?)["']>""")
+MDLINK = re.compile(r"\[(.+?)\]\(([^\.].+?)\)")
 
 
 # Tests =======================================================================
-def check_latex_code_for_spaces(filelist=MDFILES):
-    """Make sure there are no spaces in the latex code snippets, since that
-    keeps them from displaying correctly on Github.
-    """
-    # Read files and search for errors.
-    errors = []
-    for filename in filelist:
-        with open(filename, 'r') as infile:
-            data = infile.read()
-        for index,tex in enumerate(TEX.findall(data)):
-            if ' ' in tex:
-                errors.append((filename, index, tex))
-
-    # Report errors.
-    for name,index,tex in errors:
-        print(f"bad space in {name}, LaTeX occurrence #{index+1}:\n\t",
-              tex.replace(' ', REDSPACE),
-              sep='', end='\n')
-    if errors:
-        nerrs = len(errors)
-        raise SyntaxError(f"{nerrs} LaTeX error{'s' if nerrs > 1 else ''}")
-
-
 def check_references_sections_are_the_same(filelist=MDFILES):
     """Make sure that the "References" sections in each doc file are the same.
     """
@@ -75,7 +49,7 @@ def check_references_sections_are_the_same(filelist=MDFILES):
                                " do not match")
 
 
-def check_index_sections_are_the_same(filelist=DOCFILES):
+def check_notation_sections_are_the_same(filelist=DOCFILES):
     """Make sure that the "Index of Notation" sections in each doc file are
     the same.
     """
@@ -97,7 +71,7 @@ def check_index_sections_are_the_same(filelist=DOCFILES):
             errors = True
         if errors:
             raise SyntaxError(f"'Index of Notation' of {file1} and {file2} "
-                               " do not match")
+                               "do not match")
 
 
 def check_version_numbers_match(filelist=VNFILES):
@@ -118,8 +92,42 @@ def check_version_numbers_match(filelist=VNFILES):
                          f"not match ('{versions[0]}' != '{versions[1]}')")
 
 
+def check_file_references_exist(filelist=MDFILES):
+    """Make sure that Markdown references of the type [text](./file) and
+    <img src="./file"> link to existing files.
+    """
+    for filename in filelist:
+        with open(filename, 'r') as infile:
+            data = infile.read()
+
+        badrefs = [m for m in MDREF.findall(data) if not os.path.isfile(m)
+                                                  and not os.path.isdir(m)]
+        badrefs += [m for m in MDIMG.findall(data) if not os.path.isfile(m)]
+
+        if badrefs:
+            raise SyntaxError(f"Bad references in {filename} (missing file)"
+                              "\n\t" + '\n\t'.join(badrefs))
+
+
+def check_author_links_consistent(filelist=MDFILES, safelist=("Download",)):
+    for filename in filelist:
+        with open(filename, 'r') as infile:
+            data = infile.read()
+
+        links = defaultdict(set)
+        for key, value in MDLINK.findall(data):
+            links[key].add(value)
+
+        badrefs = [k for k,v in links.items()
+                     if k not in safelist and len(v) > 1]
+        if badrefs:
+            raise SyntaxError(f"Bad references in {filename} (nonunique link)"
+                              "\n\t" + '\n\t'.join(badrefs))
+
+
 if __name__ == "__main__":
-    check_latex_code_for_spaces()
     check_references_sections_are_the_same()
-    check_index_sections_are_the_same()
+    check_notation_sections_are_the_same()
+    check_author_links_consistent()
+    check_file_references_exist()
     check_version_numbers_match()
