@@ -1,28 +1,19 @@
-# _affine.py
-"""ROM classes for affine parametric dependence:
+# _affine/base.py
+"""Base for ROMs with affine parametric dependence..
 
 Classes
 -------
-* _AffineMixin(_ParametricMixin)
-* _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin)
-
 * AffineOperator
-* AffineIntrusiveDiscreteROM(_AffineInferredMixin, _DiscreteROM)
-* AffineIntrusiveContinuousROM(_AffineInferredMixin, _ContinuousROM)
+* _AffineMixin(_ParametricMixin)
 """
 
 import numpy as np
 
-from ._base import _ContinuousROM, _DiscreteROM, _ParametricMixin
-from ._inferred import _InferredMixin
-from ._intrusive import _IntrusiveMixin
+from .._base import _ParametricMixin
 
-from .utils import (lstsq_reg,
-                    expand_Hc as Hc2H, compress_H as H2Hc,
-                    expand_Gc as Gc2G, compress_G as G2Gc,
-                    kron2c, kron3c)
 
 __all__ = ["AffineOperator"]
+
 
 class AffineOperator:
     """Class for representing a linear operator with affine structure, i.e.,

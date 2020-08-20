@@ -1,18 +1,19 @@
-# _interpolated.py
-"""Parametric ROM classes that use interpolation.
+# _interpolate/inferred.py
+"""Parametric ROM classes that use interpolation and Operator Inference.
 
 Classes
 -------
-* _InterpolatedMixin(_InferredMixin, _ParametricMixin)
-* InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM)
-* InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM)
+* _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin)
+* InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM)
+* InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousROM)
 """
 
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-from ._base import _DiscreteROM, _ContinuousROM, _ParametricMixin
-from ._inferred import (_InferredMixin,
+from .base import _InterpolatedMixin
+from .._base import _DiscreteROM, _ContinuousROM
+from .._inferred import (_InferredMixin,
                         InferredDiscreteROM,
                         InferredContinuousROM)
 
@@ -24,75 +25,8 @@ __all__ = [
 
 
 # Specialized mixins (private) ================================================
-class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
-    """Mixin class for interpolatory parametric reduced model classes."""
-    @property
-    def cs_(self):
-        """The constant terms for each submodel."""
-        return [m.c_ for m in self.models_] if self.has_constant else None
-
-    @property
-    def As_(self):
-        """The linear state matrices for each submodel."""
-        return [m.A_ for m in self.models_] if self.has_linear else None
-
-    @property
-    def Hs_(self):
-        """The full quadratic state matrices for each submodel."""
-        return [m.H_ for m in self.models_] if self.has_quadratic else None
-
-    @property
-    def Hcs_(self):
-        """The compact quadratic state matrices for each submodel."""
-        return [m.Hc_ for m in self.models_] if self.has_quadratic else None
-
-    @property
-    def Gs_(self):
-        """The full cubic state matrices for each submodel."""
-        return [m.G_ for m in self.models_] if self.has_cubic else None
-
-    @property
-    def Gcs_(self):
-        """The compact cubic state matrices for each submodel."""
-        return [m.Gc_ for m in self.models_] if self.has_cubic else None
-
-    @property
-    def Bs_(self):
-        """The linear input matrices for each submodel."""
-        return [m.B_ for m in self.models_] if self.has_inputs else None
-
-    @property
-    def fs_(self):
-        """The reduced-order operators for each submodel."""
-        return [m.f_ for m in self.models_]
-
-    @property
-    def dataconds_(self):
-        """The condition numbers of the raw data matrices for each submodel."""
-        return np.array([m.datacond_ for m in self.models_])
-
-    @property
-    def dataregconds_(self):
-        """The condition numbers of the regularized data matrices for each
-        submodel.
-        """
-        return np.array([m.dataregcond_ for m in self.models_])
-
-    @property
-    def residuals_(self):
-        """The regularized least-squares residuals for each submodel."""
-        return np.array([m.residual_ for m in self.models_])
-
-    @property
-    def misfits_(self):
-        """The (nonregularized) least-squares data misfits for each
-        submodel.
-        """
-        return np.array([m.misfit_ for m in self.models_])
-
-    def __len__(self):
-        """The number of trained models."""
-        return len(self.models_) if hasattr(self, "models_") else 0
+class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
+    """Mixin for interpolatory ROM classes that use Operator Inference."""
 
     def fit(self, ModelClass, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
@@ -207,7 +141,7 @@ class _InterpolatedMixin(_InferredMixin, _ParametricMixin):
 
 
 # Interpolated Operator Inference models (private) ============================
-class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
+class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
     """Reduced order model for a high-dimensional discrete dynamical system,
     parametrized by a scalar µ, of the form
 
@@ -347,7 +281,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         -------
         self
         """
-        return _InterpolatedMixin.fit(self, InferredDiscreteROM,
+        return _InterpolatedInferredMixin.fit(self, InferredDiscreteROM,
                                       Vr, µs, Xs, None, Us, P)
 
     def predict(self, µ, x0, niters, U=None):
@@ -383,7 +317,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedMixin, _DiscreteROM):
         return model.predict(x0, niters, U)
 
 
-class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
+class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousROM):
     """Reduced order model for a system of high-dimensional ODEs, parametrized
     by a scalar µ, of the form
 
@@ -528,7 +462,7 @@ class InterpolatedInferredContinuousROM(_InterpolatedMixin, _ContinuousROM):
         -------
         self
         """
-        return _InterpolatedMixin.fit(self, InferredContinuousROM,
+        return _InterpolatedInferredMixin.fit(self, InferredContinuousROM,
                                       Vr, µs, Xs, Xdots, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):

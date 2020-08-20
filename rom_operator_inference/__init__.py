@@ -9,10 +9,8 @@ GitHub: https://github.com/Willcox-Research-Group/rom-operator-inference-Python3
 from ._base import *
 from ._inferred import *
 from ._intrusive import *
-from ._interpolated import *
+from ._interpolate import *
 from ._affine import *
-from ._affine_inferred import *
-from ._affine_intrusive import *
 
 from . import utils, pre, post
 

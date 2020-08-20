@@ -1,4 +1,4 @@
-# _affine_intrusive.py
+# _affine/intrusive.py
 """Affinely parametric ROM classes that use intrusive projection:
 
 Classes
@@ -10,22 +10,22 @@ Classes
 
 import numpy as np
 
-from ._base import _ContinuousROM, _DiscreteROM, _ParametricMixin
-from ._intrusive import (_IntrusiveMixin,
-                         IntrusiveDiscreteROM,
-                         IntrusiveContinuousROM)
-from ._affine import AffineOperator, _AffineMixin
-
-from .utils import (lstsq_reg,
-                    expand_Hc as Hc2H, compress_H as H2Hc,
-                    expand_Gc as Gc2G, compress_G as G2Gc,
-                    kron2c, kron3c)
+from .base import AffineOperator, _AffineMixin
+from .._base import _ContinuousROM, _DiscreteROM
+from .._intrusive import (_IntrusiveMixin,
+                          IntrusiveDiscreteROM,
+                          IntrusiveContinuousROM)
+from ..utils import (lstsq_reg,
+                     expand_Hc as Hc2H, compress_H as H2Hc,
+                     expand_Gc as Gc2G, compress_G as G2Gc,
+                     kron2c, kron3c)
 
 
 __all__ = [
             "AffineIntrusiveDiscreteROM",
             "AffineIntrusiveContinuousROM"
           ]
+
 
 class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
     """Mixin class for affinely parametric intrusive reduced model classes."""
