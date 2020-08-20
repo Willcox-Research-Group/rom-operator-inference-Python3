@@ -13,6 +13,8 @@ from ._core import (
                     InferredContinuousROM,
                     IntrusiveDiscreteROM,
                     IntrusiveContinuousROM,
+                    AffineInferredDiscreteROM,
+                    AffineInferredContinuousROM,
                     AffineIntrusiveDiscreteROM,
                     AffineIntrusiveContinuousROM,
                     InterpolatedInferredDiscreteROM,
@@ -28,6 +30,8 @@ __all__ = [
             "InferredContinuousROM",
             "IntrusiveDiscreteROM"
             "IntrusiveContinuousROM",
+            "AffineInferredDiscreteROM",
+            "AffineInferredContinuousROM",
             "AffineIntrusiveDiscreteROM",
             "AffineIntrusiveContinuousROM",
             "InterpolatedInferredDiscreteROM",
@@ -37,4 +41,4 @@ __all__ = [
             "post",
           ]
 
-__version__ = "1.1.3"
+__version__ = "1.1.3a"

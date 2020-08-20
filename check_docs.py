@@ -12,7 +12,7 @@ SETUP = "setup.py"
 INIT = os.path.join("rom_operator_inference", "__init__.py")
 VNFILES = [SETUP, INIT]
 
-VERSION = re.compile(r'_{0,2}?version_{0,2}?\s*=\s*"([\d\.]+?)"',
+VERSION = re.compile(r'_{0,2}?version_{0,2}?\s*=\s*"([\d\.]+?-?\w+?)"',
                      re.MULTILINE)
 MDLINK = re.compile(r"\[(.+?)\]\(([^\.].+?)\)")
 
