@@ -1,5 +1,5 @@
-# test_core.py
-"""Tests for rom_operator_inference._core.py."""
+# test_base.py
+"""Tests for rom_operator_inference._*.py."""
 
 import os
 import h5py
@@ -13,7 +13,7 @@ import rom_operator_inference as roi
 
 
 # Helper functions for testing ================================================
-_MODEL_KEYS = roi._core._BaseROM._MODEL_KEYS
+_MODEL_KEYS = roi._base._BaseROM._MODEL_KEYS
 _MODEL_FORMS = [''.join(s) for k in range(1, len(_MODEL_KEYS)+1)
                            for s in itertools.combinations(_MODEL_KEYS, k)]
 _LSTSQ_REPORTS = ["datacond_", "dataregcond_", "residual_", "misfit_"]
@@ -40,11 +40,11 @@ def _get_operators(n=60, m=20):
 def _trainedmodel(continuous, modelform, Vr, m=20):
     """Construct a base class with model operators already constructed."""
     if continuous == "inferred":
-        ModelClass = roi._core.InferredContinuousROM
+        ModelClass = roi._inferred.InferredContinuousROM
     elif continuous:
-        ModelClass = roi._core._ContinuousROM
+        ModelClass = roi._base._ContinuousROM
     else:
-        ModelClass = roi._core._DiscreteROM
+        ModelClass = roi._base._DiscreteROM
 
     n,r = Vr.shape
     c, A, H, Hc, G, Gc, B = _get_operators(r, m)
@@ -60,8 +60,8 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
     if "B" in modelform:
         operators['B_'] = B
 
-    model = roi._core.trained_model_from_operators(ModelClass, modelform,
-                                                   Vr, **operators)
+    model = ModelClass(modelform)._set_operators(Vr, **operators)
+
     model.datacond_ = np.random.random()
     model.dataregcond_ = model.datacond_ / 2
     model.residual_ = np.random.random()
@@ -71,94 +71,53 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
 
 
 # Helper functions and classes (public) =======================================
-def test_select_model():
-    """Test _core.select_model()."""
+def test_select_model_class():
+    """Test select_model_class()."""
     # Try with bad `time` argument.
     with pytest.raises(ValueError) as ex:
-        roi.select_model("semidiscrete", "inferred", False)
+        roi.select_model_class("semidiscrete", "inferred", False)
     assert "input `time` must be one of " in ex.value.args[0]
 
     # Try with bad `rom_strategy` argument.
     with pytest.raises(ValueError) as ex:
-        roi.select_model("discrete", "opinf", False)
+        roi.select_model_class("discrete", "opinf", False)
     assert "input `rom_strategy` must be one of " in ex.value.args[0]
 
     # Try with bad `parametric` argument.
     with pytest.raises(ValueError) as ex:
-        roi.select_model("discrete", "inferred", True)
+        roi.select_model_class("discrete", "inferred", True)
     assert "input `parametric` must be one of " in ex.value.args[0]
 
     # Try with bad combination.
     with pytest.raises(NotImplementedError) as ex:
-        roi.select_model("discrete", "intrusive", "interpolated")
+        roi.select_model_class("discrete", "intrusive", "interpolated")
     assert ex.value.args[0] == "model type invalid or not implemented"
 
     # Valid cases.
-    assert roi.select_model("discrete", "inferred") is  \
+    assert roi.select_model_class("discrete", "inferred") is  \
                                         roi.InferredDiscreteROM
-    assert roi.select_model("continuous", "inferred") is \
+    assert roi.select_model_class("continuous", "inferred") is \
                                         roi.InferredContinuousROM
-    assert roi.select_model("discrete", "intrusive") is \
+    assert roi.select_model_class("discrete", "intrusive") is \
                                         roi.IntrusiveDiscreteROM
-    assert roi.select_model("continuous", "intrusive") is \
+    assert roi.select_model_class("continuous", "intrusive") is \
                                         roi.IntrusiveContinuousROM
-    assert roi.select_model("discrete", "intrusive", "affine") is \
+    assert roi.select_model_class("discrete", "intrusive", "affine") is \
                                         roi.AffineIntrusiveDiscreteROM
-    assert roi.select_model("continuous", "intrusive", "affine") is \
+    assert roi.select_model_class("continuous", "intrusive", "affine") is \
                                         roi.AffineIntrusiveContinuousROM
-    assert roi.select_model("discrete", "inferred", "affine") is \
+    assert roi.select_model_class("discrete", "inferred", "affine") is \
                                         roi.AffineInferredDiscreteROM
-    assert roi.select_model("continuous", "inferred", "affine") is \
+    assert roi.select_model_class("continuous", "inferred", "affine") is \
                                         roi.AffineInferredContinuousROM
-    assert roi.select_model("discrete", "inferred", "interpolated") is \
+    assert roi.select_model_class("discrete", "inferred", "interpolated") is \
                                         roi.InterpolatedInferredDiscreteROM
-    assert roi.select_model("continuous", "inferred", "interpolated") is \
+    assert roi.select_model_class("continuous", "inferred", "interpolated") is \
                                         roi.InterpolatedInferredContinuousROM
 
 
-def test_trained_model_from_operators():
-    """Test _core.trained_model_from_operators()."""
-    n, m, r = 60, 20, 30
-    Vr = np.random.random((n, r))
-    c, A, H, Hc, G, Gc, B = _get_operators(n=r, m=m)
-
-    # Try with bad ModelClass argument.
-    with pytest.raises(TypeError) as ex:
-        roi.trained_model_from_operators(str, "cAH", Vr)
-    assert ex.value.args[0] == "ModelClass must be derived from _BaseROM"
-
-    # Correct usage.
-    model = roi.trained_model_from_operators(roi._core._ContinuousROM,
-                                             "cAH", Vr, A_=A, Hc_=Hc, c_=c)
-    assert isinstance(model, roi._core._ContinuousROM)
-    assert model.modelform == "cAH"
-    assert model.n == n
-    assert model.r == r
-    assert model.m is None
-    assert np.allclose(model.Vr, Vr)
-    assert np.allclose(model.c_, c)
-    assert np.allclose(model.A_, A)
-    assert np.allclose(model.Hc_, Hc)
-    assert model.B_ is None
-    assert model.Gc_ is None
-
-    model = roi.trained_model_from_operators(roi._core._DiscreteROM,
-                                             "GB", None, Gc_=Gc, B_=B)
-    assert isinstance(model, roi._core._DiscreteROM)
-    assert model.modelform == "GB"
-    assert model.n is None
-    assert model.r == r
-    assert model.m == m
-    assert model.Vr is None
-    assert model.c_ is None
-    assert model.A_ is None
-    assert model.Hc_ is None
-    assert np.allclose(model.Gc_, Gc)
-    assert np.allclose(model.B_, B)
-
-
 def test_load_model():
-    """Test _core.load_model()."""
+    """Test load_model()."""
     # Get test operators.
     n, m, r = 20, 2, 5
     Vr = np.random.random((n,r))
@@ -265,7 +224,7 @@ def test_load_model():
 
 
 class TestAffineOperator:
-    """Test _core.AffineOperator."""
+    """Test _affine.AffineOperator."""
     @staticmethod
     def _set_up_affine_attributes(n=5):
         fs = [np.sin, np.cos, np.exp]
@@ -273,31 +232,31 @@ class TestAffineOperator:
         return fs, As
 
     def test_init(self):
-        """Test _core.AffineOperator.__init__()."""
+        """Test _affine.AffineOperator.__init__()."""
         fs, As = self._set_up_affine_attributes()
 
         # Try with different number of functions and matrices.
         with pytest.raises(ValueError) as ex:
-            roi._core.AffineOperator(fs, As[:-1])
+            roi._affine.AffineOperator(fs, As[:-1])
         assert ex.value.args[0] == "expected 3 matrices, got 2"
 
         # Try with matrices of different shapes.
         with pytest.raises(ValueError) as ex:
-            roi._core.AffineOperator(fs, As[:-1] + [np.random.random((4,4))])
+            roi._affine.AffineOperator(fs, As[:-1] + [np.random.random((4,4))])
         assert ex.value.args[0] == \
             "affine operator matrix shapes do not match ((4, 4) != (5, 5))"
 
         # Correct usage.
-        affop = roi._core.AffineOperator(fs, As)
-        affop = roi._core.AffineOperator(fs)
+        affop = roi._affine.AffineOperator(fs, As)
+        affop = roi._affine.AffineOperator(fs)
         affop.matrices = As
 
     def test_validate_coeffs(self):
-        """Test _core.AffineOperator.validate_coeffs()."""
+        """Test _affine.AffineOperator.validate_coeffs()."""
         fs, As = self._set_up_affine_attributes()
 
         # Try with non-callables.
-        affop = roi._core.AffineOperator(As)
+        affop = roi._affine.AffineOperator(As)
         with pytest.raises(ValueError) as ex:
             affop.validate_coeffs(10)
         assert ex.value.args[0] == \
@@ -305,22 +264,22 @@ class TestAffineOperator:
 
         # Try with vector-valued functions.
         f1 = lambda t: np.array([t, t**2])
-        affop = roi._core.AffineOperator([f1, f1])
+        affop = roi._affine.AffineOperator([f1, f1])
         with pytest.raises(ValueError) as ex:
             affop.validate_coeffs(10)
         assert ex.value.args[0] == \
             "coefficient functions of affine operator must return a scalar"
 
         # Correct usage.
-        affop = roi._core.AffineOperator(fs, As)
+        affop = roi._affine.AffineOperator(fs, As)
         affop.validate_coeffs(0)
 
     def test_call(self):
-        """Test _core.AffineOperator.__call__()."""
+        """Test _affine.AffineOperator.__call__()."""
         fs, As = self._set_up_affine_attributes()
 
         # Try without matrices set.
-        affop = roi._core.AffineOperator(fs)
+        affop = roi._affine.AffineOperator(fs)
         with pytest.raises(RuntimeError) as ex:
             affop(10)
         assert ex.value.args[0] == "component matrices not initialized!"
@@ -333,14 +292,14 @@ class TestAffineOperator:
                                np.cos(10)*As[1] + np.exp(10)*As[2])
 
     def test_eq(self):
-        """Test _core.AffineOperator.__eq__()."""
+        """Test _affine.AffineOperator.__eq__()."""
         fs, As = self._set_up_affine_attributes()
-        affop1 = roi._core.AffineOperator(fs[:-1])
-        affop2 = roi._core.AffineOperator(fs, As)
+        affop1 = roi._affine.AffineOperator(fs[:-1])
+        affop2 = roi._affine.AffineOperator(fs, As)
 
         assert affop1 != 1
         assert affop1 != affop2
-        affop1 = roi._core.AffineOperator(fs)
+        affop1 = roi._affine.AffineOperator(fs)
         assert affop1 != affop2
         affop1.matrices = As
         assert affop1 == affop2
@@ -348,25 +307,25 @@ class TestAffineOperator:
 
 # Base classes (private) ======================================================
 class TestBaseROM:
-    """Test _core._BaseROM."""
+    """Test _base._BaseROM."""
     def test_init(self):
         """Test _BaseROM.__init__()."""
         with pytest.raises(TypeError) as ex:
-            roi._core._BaseROM()
+            roi._base._BaseROM()
         assert ex.value.args[0] == \
             "__init__() missing 1 required positional argument: 'modelform'"
 
         with pytest.raises(TypeError) as ex:
-            roi._core._BaseROM("cAH", False)
+            roi._base._BaseROM("cAH", False)
         assert ex.value.args[0] == \
             "__init__() takes 2 positional arguments but 3 were given"
 
         with pytest.raises(RuntimeError) as ex:
-            roi._core._BaseROM("cAH")
+            roi._base._BaseROM("cAH")
         assert ex.value.args[0] == \
             "abstract class instantiation (use _ContinuousROM or _DiscreteROM)"
 
-        model = roi._core._ContinuousROM("cA")
+        model = roi._base._ContinuousROM("cA")
         assert hasattr(model, "modelform")
         assert hasattr(model, "_form")
         assert hasattr(model, "has_inputs")
@@ -389,7 +348,7 @@ class TestBaseROM:
         m = 20
 
         # Try with invalid modelform.
-        model = roi._core._ContinuousROM("bad_form")
+        model = roi._base._ContinuousROM("bad_form")
         with pytest.raises(ValueError) as ex:
             model._check_modelform(trained=False)
         assert ex.value.args[0] == \
@@ -450,11 +409,45 @@ class TestBaseROM:
         assert ex.value.args[0] == \
             "attribute 'B_' is None; call fit() to train model"
 
+    def test_set_operators(self):
+        """Test _base._BaseROM._set_operators()."""
+        n, m, r = 60, 20, 30
+        Vr = np.random.random((n, r))
+        c, A, H, Hc, G, Gc, B = _get_operators(n=r, m=m)
+
+        # Test correct usage.
+        model = roi._base._ContinuousROM("cAH")._set_operators(Vr=Vr, A_=A,
+                                                               Hc_=Hc, c_=c)
+        assert isinstance(model, roi._base._ContinuousROM)
+        assert model.modelform == "cAH"
+        assert model.n == n
+        assert model.r == r
+        assert model.m is None
+        assert np.allclose(model.Vr, Vr)
+        assert np.allclose(model.c_, c)
+        assert np.allclose(model.A_, A)
+        assert np.allclose(model.Hc_, Hc)
+        assert model.B_ is None
+        assert model.Gc_ is None
+
+        model = roi._base._DiscreteROM("GB")._set_operators(None, Gc_=Gc, B_=B)
+        assert isinstance(model, roi._base._DiscreteROM)
+        assert model.modelform == "GB"
+        assert model.n is None
+        assert model.r == r
+        assert model.m == m
+        assert model.Vr is None
+        assert model.c_ is None
+        assert model.A_ is None
+        assert model.Hc_ is None
+        assert np.allclose(model.Gc_, Gc)
+        assert np.allclose(model.B_, B)
+
     def test_check_inputargs(self):
         """Test _BaseROM._check_inputargs()."""
 
         # Try with has_inputs = True but without inputs.
-        model = roi._core._DiscreteROM("cB")
+        model = roi._base._DiscreteROM("cB")
         with pytest.raises(ValueError) as ex:
             model._check_inputargs(None, 'U')
         assert ex.value.args[0] == \
@@ -468,10 +461,10 @@ class TestBaseROM:
             "argument 'u' invalid since 'B' in modelform"
 
     def test_project(self):
-        """Test _core._BaseROM.project()."""
+        """Test _base._BaseROM.project()."""
         n, k, m, r = 60, 50, 20, 10
         X, Xdot, U = _get_data(n, k, m)
-        model = roi._core._ContinuousROM("c")
+        model = roi._base._ContinuousROM("c")
         model.n, model.r, model.m = n, r, m
         model.Vr = la.svd(X)[0][:,:r]
 
@@ -486,7 +479,7 @@ class TestBaseROM:
             assert S_.shape == (r,k)
 
     def test_operator_norm_(self):
-        """Test _core._BaseROM.operator_norm_()"""
+        """Test _base._BaseROM.operator_norm_()"""
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
         X = _get_data(n, k, m)[0]
@@ -498,10 +491,10 @@ class TestBaseROM:
         assert np.isclose(la.norm(O_, ord='fro')**2, model.operator_norm_)
 
 class TestDiscreteROM:
-    """Test _core._DiscreteROM."""
+    """Test _base._DiscreteROM."""
     def test_construct_f_(self):
-        """Test _core.DiscreteROM._construct_f_()."""
-        model = roi._core._DiscreteROM('')
+        """Test _base.DiscreteROM._construct_f_()."""
+        model = roi._base._DiscreteROM('')
 
         # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
@@ -523,8 +516,8 @@ class TestDiscreteROM:
             "<lambda>() missing 1 required positional argument: 'u'"
 
     def test_fit(self):
-        """Test _core._DiscreteROM.fit()."""
-        model = roi._core._DiscreteROM("A")
+        """Test _base._DiscreteROM.fit()."""
+        model = roi._base._DiscreteROM("A")
         with pytest.raises(NotImplementedError) as ex:
             model.fit()
         assert ex.value.args[0] == \
@@ -536,8 +529,8 @@ class TestDiscreteROM:
             "fit() must be implemented by child classes"
 
     def test_predict(self):
-        """Test _core._DiscreteROM.predict()."""
-        model = roi._core._DiscreteROM('')
+        """Test _base._DiscreteROM.predict()."""
+        model = roi._base._DiscreteROM('')
 
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
@@ -611,10 +604,10 @@ class TestDiscreteROM:
 
 
 class TestContinuousROM:
-    """Test _core._ContinuousROM."""
+    """Test _base._ContinuousROM."""
     def test_construct_f_(self):
-        """Test incorrect usage of _core.ContinuousROM._construct_f_()."""
-        model = roi._core._ContinuousROM('')
+        """Test incorrect usage of _base.ContinuousROM._construct_f_()."""
+        model = roi._base._ContinuousROM('')
 
         # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
@@ -627,8 +620,8 @@ class TestContinuousROM:
             "<lambda>() missing 1 required positional argument: 'x_'"
 
     def test_fit(self):
-        """Test _core._ContinuousROM.fit()."""
-        model = roi._core._ContinuousROM("A")
+        """Test _base._ContinuousROM.fit()."""
+        model = roi._base._ContinuousROM("A")
         with pytest.raises(NotImplementedError) as ex:
             model.fit()
         assert ex.value.args[0] == \
@@ -640,8 +633,8 @@ class TestContinuousROM:
             "fit() must be implemented by child classes"
 
     def test_predict(self):
-        """Test _core._ContinuousROM.predict()."""
-        model = roi._core._ContinuousROM('')
+        """Test _base._ContinuousROM.predict()."""
+        model = roi._base._ContinuousROM('')
 
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
@@ -752,13 +745,13 @@ class TestContinuousROM:
 
 # Basic mixins (private) ======================================================
 class TestInferredMixin:
-    """Test _core._InferredMixin."""
+    """Test _inferred._InferredMixin."""
     def test_check_training_data_shapes(self):
-        """Test _core._InferredMixin._check_training_data_shapes()."""
+        """Test _inferred._InferredMixin._check_training_data_shapes()."""
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
         X, Xdot, U = _get_data(n, k, m)
-        model = roi._core._InferredMixin()
+        model = roi._inferred._InferredMixin()
 
         # Try to fit the model with misaligned X and Xdot.
         with pytest.raises(ValueError) as ex:
@@ -774,8 +767,9 @@ class TestInferredMixin:
         model._check_training_data_shapes([X, Xdot, U])
 
     def _test_fit(self, ModelClass):
-        """Test _core._InferredMixin.fit(), the parent method for
-        _core.InferredDiscreteROM.fit(), _core.InferredContinuousROM.fit().
+        """Test _inferred._InferredMixin.fit(), the parent method for
+        _inferred.InferredDiscreteROM.fit() and
+        _inferred.InferredContinuousROM.fit().
         """
         model = ModelClass("cAH")
 
@@ -784,7 +778,7 @@ class TestInferredMixin:
         X, Xdot, U = _get_data(n, k, m)
         Vr = la.svd(X)[0][:,:r]
         args = [Vr, X]
-        if issubclass(ModelClass, roi._core._ContinuousROM):
+        if issubclass(ModelClass, roi._inferred._ContinuousROM):
             args.insert(1, Xdot)
 
         # Fit the model with each possible non-input modelform.
@@ -836,10 +830,10 @@ class TestInferredMixin:
 
 
 class TestIntrusiveMixin:
-    """Test _core._IntrusiveMixin."""
+    """Test _intrusive._IntrusiveMixin."""
     def test_check_operators(self):
-        """Test _core._IntrusiveMixin._check_operators()."""
-        model = roi._core._IntrusiveMixin()
+        """Test _intrusive._IntrusiveMixin._check_operators()."""
+        model = roi._intrusive._IntrusiveMixin()
         model.modelform = "cAHB"
         v = None
 
@@ -866,8 +860,9 @@ class TestIntrusiveMixin:
         model._check_operators({"c":v, "A":v, "H":v, "B":v})
 
     def _test_fit(self, ModelClass):
-        """Test _core._IntrusiveMixin.fit(), the parent method for
-        _core.IntrusiveDiscreteROM.fit(), _core.IntrusiveContinuousROM.fit().
+        """Test _intrusive._IntrusiveMixin.fit(), the parent method for
+        _intrusive.IntrusiveDiscreteROM.fit() and
+        _intrusive.IntrusiveContinuousROM.fit().
         """
         model = ModelClass("cAHB")
 
@@ -947,11 +942,11 @@ class TestIntrusiveMixin:
 
 
 class TestNonparametricMixin:
-    """Test _core._NonparametricMixin."""
+    """Test _base._NonparametricMixin."""
     def test_str(self):
-        """Test _core._NonparametricMixin.__str__() (string representation)."""
+        """Test _base._NonparametricMixin.__str__() (string representation)."""
         # Continuous ROMs
-        model = roi._core.InferredContinuousROM("A")
+        model = roi._inferred.InferredContinuousROM("A")
         assert str(model) == \
             "Reduced-order model structure: dx / dt = Ax(t)"
         model.modelform = "cA"
@@ -968,7 +963,7 @@ class TestNonparametricMixin:
             "Reduced-order model structure: dx / dt = c + H(x(t) ⊗ x(t))"
 
         # Discrete ROMs
-        model = roi._core.IntrusiveDiscreteROM("A")
+        model = roi._intrusive.IntrusiveDiscreteROM("A")
         assert str(model) == \
             "Reduced-order model structure: x_{j+1} = Ax_{j}"
         model.modelform = "cB"
@@ -979,7 +974,7 @@ class TestNonparametricMixin:
             "Reduced-order model structure: x_{j+1} = H(x_{j} ⊗ x_{j})"
 
     def test_save_model(self):
-        """Test _core._NonparametricMixin.save_model()."""
+        """Test _base._NonparametricMixin.save_model()."""
         # Clean up after old tests.
         target = "savemodeltest.h5"
         if os.path.isfile(target):              # pragma: no cover
@@ -1084,11 +1079,11 @@ class TestNonparametricMixin:
 
 
 class TestParametricMixin:
-    """Test _core._ParametricMixin."""
+    """Test _base._ParametricMixin."""
     def test_str(self):
-        """Test _core._ParametricMixin.__str__() (string representation)."""
+        """Test _base._ParametricMixin.__str__() (string representation)."""
         # Continuous ROMs
-        model = roi._core.InterpolatedInferredContinuousROM("A")
+        model = roi._interpolated.InterpolatedInferredContinuousROM("A")
         assert str(model) == \
             "Reduced-order model structure: dx / dt = Ax(t)"
         model.c_ = lambda t: t
@@ -1107,7 +1102,7 @@ class TestParametricMixin:
             "Reduced-order model structure: dx / dt = G(µ)(x(t) ⊗ x(t) ⊗ x(t))"
 
         # Discrete ROMs
-        model = roi._core.AffineIntrusiveDiscreteROM("cH")
+        model = roi._affine_intrusive.AffineIntrusiveDiscreteROM("cH")
         assert str(model) == \
             "Reduced-order model structure: x_{j+1} = c + H(x_{j} ⊗ x_{j})"
         model.c_ = lambda t: t
@@ -1117,15 +1112,15 @@ class TestParametricMixin:
 
 # Specialized mixins (private) ================================================
 class TestInterpolatedMixin:
-    """Test _core._InterpolatedMixin."""
+    """Test _interpolated._InterpolatedMixin."""
     pass
 
 
 class TestAffineMixin:
-    """Test _core._AffineMixin."""
+    """Test _affine._AffineMixin."""
     def test_check_affines(self):
-        """Test _core._AffineMixin._check_affines()."""
-        model = roi._core._AffineMixin()
+        """Test _affine._AffineMixin._check_affines()."""
+        model = roi._affine._AffineMixin()
         model.modelform = "cAHB"
         v = [lambda s: 0, lambda s: 0]
 
@@ -1145,10 +1140,10 @@ class TestAffineMixin:
 
     def _test_predict(self, ModelClass):
         """Test predict() methods for Affine classes:
-        * _core.AffineInferredDiscreteROM.predict()
-        * _core.AffineInferredContinuousROM.predict()
-        * _core.AffineIntrusiveDiscreteROM.predict()
-        * _core.AffineIntrusiveContinuousROM.predict()
+        * _affine_inferred.AffineInferredDiscreteROM.predict()
+        * _affine_inferred.AffineInferredContinuousROM.predict()
+        * _affine_intrusive.AffineIntrusiveDiscreteROM.predict()
+        * _affine_intrusive.AffineIntrusiveContinuousROM.predict()
         """
         model = ModelClass("cAHG")
 
@@ -1161,28 +1156,28 @@ class TestAffineMixin:
         ident = lambda a: a
         c, A, H, Hc, G, Gc, B = _get_operators(r, m)
         model.Vr = Vr
-        model.c_ = roi._core.AffineOperator([ident, ident], [c,c])
-        model.A_ = roi._core.AffineOperator([ident, ident, ident], [A,A,A])
-        model.Hc_ = roi._core.AffineOperator([ident], [Hc])
-        model.Gc_ = roi._core.AffineOperator([ident, ident], [Gc, Gc])
+        model.c_ = roi._affine.AffineOperator([ident, ident], [c,c])
+        model.A_ = roi._affine.AffineOperator([ident, ident, ident], [A,A,A])
+        model.Hc_ = roi._affine.AffineOperator([ident], [Hc])
+        model.Gc_ = roi._affine.AffineOperator([ident, ident], [Gc, Gc])
         model.B_ = None
 
         # Predict.
-        if issubclass(ModelClass, roi._core._ContinuousROM):
+        if issubclass(ModelClass, roi._base._ContinuousROM):
             model.predict(1, X[:,0], np.linspace(0, 1, 100))
         else:
             model.predict(1, X[:,0], 100)
 
 
 class TestAffineInferredMixin:
-    """Test _core._AffineInferredMixin."""
+    """Test _affine_inferred._AffineInferredMixin."""
     def _test_fit(self, ModelClass):
-        """Test _core._AffineInferredMixin.fit(), parent method of
-        _core.AffineInferredDiscreteROM.fit() and
-        _core.AffineInferredContinuousROM.fit().
+        """Test _affine_inferred._AffineInferredMixin.fit(), parent method of
+        _affine_inferred.AffineInferredDiscreteROM.fit() and
+        _affine_inferred.AffineInferredContinuousROM.fit().
         """
         model = ModelClass("cAHB")
-        is_continuous = issubclass(ModelClass, roi._core._ContinuousROM)
+        is_continuous = issubclass(ModelClass, roi._base._ContinuousROM)
 
         # Get test data.
         n, k, m, r, s = 50, 200, 5, 10, 3
@@ -1255,11 +1250,11 @@ class TestAffineInferredMixin:
 
 
 class TestAffineIntrusiveMixin:
-    """Test _core._AffineIntrusiveMixin."""
+    """Test _affine_intrusive._AffineIntrusiveMixin."""
     def _test_fit(self, ModelClass):
-        """Test _core._AffineIntrusiveMixin.fit(), parent method of
-        _core.AffineIntrusiveDiscreteROM.fit() and
-        _core.AffineIntrusiveContinuousROM.fit().
+        """Test _affine_intrusive._AffineIntrusiveMixin.fit(), parent method of
+        _affine_intrusive.AffineIntrusiveDiscreteROM.fit() and
+        _affine_intrusive.AffineIntrusiveContinuousROM.fit().
         """
         model = ModelClass("cAHGB")
 
@@ -1410,38 +1405,39 @@ class TestAffineIntrusiveMixin:
 # Useable classes (public) ====================================================
 # Nonparametric operator inference models -------------------------------------
 class TestInferredDiscreteROM:
-    """Test _core.InferredDiscreteROM."""
+    """Test _inferred.InferredDiscreteROM."""
     def test_fit(self):
+        """Test _inferred.InferredDiscreteROM.fit()."""
         TestInferredMixin()._test_fit(roi.InferredDiscreteROM)
 
 
 class TestInferredContinuousROM:
-    """Test _core.InferredContinuousROM."""
+    """Test _inferred.InferredContinuousROM."""
     def test_fit(self):
-        """Test _core.InferredContinuousROM.fit()."""
+        """Test _inferred.InferredContinuousROM.fit()."""
         TestInferredMixin()._test_fit(roi.InferredContinuousROM)
 
 
 # Nonparametric intrusive models ----------------------------------------------
 class TestIntrusiveDiscreteROM:
-    """Test _core.IntrusiveDiscreteROM."""
+    """Test _intrusive.IntrusiveDiscreteROM."""
     def test_fit(self):
-        """Test _core.IntrusiveDiscreteROM.fit()."""
+        """Test _intrusive.IntrusiveDiscreteROM.fit()."""
         TestIntrusiveMixin()._test_fit(roi.IntrusiveDiscreteROM)
 
 
 class TestIntrusiveContinuousROM:
-    """Test _core.IntrusiveContinuousROM."""
+    """Test _intrusive.IntrusiveContinuousROM."""
     def test_fit(self):
-        """Test _core.IntrusiveContinuousROM.fit()."""
+        """Test _intrusive.IntrusiveContinuousROM.fit()."""
         TestIntrusiveMixin()._test_fit(roi.IntrusiveContinuousROM)
 
 
 # Interpolated operator inference models --------------------------------------
 class TestInterpolatedInferredDiscreteROM:
-    """Test _core.InterpolatedInferredDiscreteROM."""
+    """Test _interpolated.InterpolatedInferredDiscreteROM."""
     def test_fit(self):
-        """Test _core.InterpolatedInferredDiscreteROM.fit()."""
+        """Test _interpolated.InterpolatedInferredDiscreteROM.fit()."""
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
         # Get data for fitting.
@@ -1491,7 +1487,7 @@ class TestInterpolatedInferredDiscreteROM:
         assert model.n is None
 
     def test_predict(self):
-        """Test _core.InterpolatedInferredDiscreteROM.predict()."""
+        """Test _interpolated.InterpolatedInferredDiscreteROM.predict()."""
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
         # Get data for fitting.
@@ -1521,9 +1517,9 @@ class TestInterpolatedInferredDiscreteROM:
 
 
 class TestInterpolatedInferredContinuousROM:
-    """Test _core.InterpolatedInferredContinuousROM."""
+    """Test _interpolated.InterpolatedInferredContinuousROM."""
     def test_fit(self):
-        """Test _core.InterpolatedInferredContinuousROM.fit()."""
+        """Test _interpolated.InterpolatedInferredContinuousROM.fit()."""
         model = roi.InterpolatedInferredContinuousROM("cAH")
 
         # Get data for fitting.
@@ -1580,7 +1576,7 @@ class TestInterpolatedInferredContinuousROM:
         assert model.n is None
 
     def test_predict(self):
-        """Test _core.InterpolatedInferredContinuousROM.predict()."""
+        """Test _interpolated.InterpolatedInferredContinuousROM.predict()."""
         model = roi.InterpolatedInferredContinuousROM("cAH")
 
         # Get data for fitting.
@@ -1613,45 +1609,45 @@ class TestInterpolatedInferredContinuousROM:
 
 # Affine inferred models ------------------------------------------------------
 class TestAffineInferredDiscreteROM:
-    """Test _core.AffineInferredDiscreteROM."""
+    """Test _affine_inferred.AffineInferredDiscreteROM."""
     def test_fit(self):
-        """Test _core.AffineInferredDiscreteROM.fit()."""
+        """Test _affine_inferred.AffineInferredDiscreteROM.fit()."""
         TestAffineInferredMixin()._test_fit(roi.AffineInferredDiscreteROM)
 
     def test_predict(self):
-        """Test _core.AffineInferredDiscreteROM.predict()."""
+        """Test _affine_inferred.AffineInferredDiscreteROM.predict()."""
         TestAffineMixin()._test_predict(roi.AffineInferredDiscreteROM)
 
 
 class TestAffineInferredContinuousROM:
-    """Test _core.AffineInferredContinuousROM."""
+    """Test _affine_inferred.AffineInferredContinuousROM."""
     def test_fit(self):
-        """Test _core.AffineInferredContinuousROM.fit()."""
+        """Test _affine_inferred.AffineInferredContinuousROM.fit()."""
         TestAffineInferredMixin()._test_fit(roi.AffineInferredContinuousROM)
 
     def test_predict(self):
-        """Test _core.AffineInferredContinuousROM.predict()."""
+        """Test _affine_inferred.AffineInferredContinuousROM.predict()."""
         TestAffineMixin()._test_predict(roi.AffineInferredContinuousROM)
 
 
 # Affine intrusive models -----------------------------------------------------
 class TestAffineIntrusiveDiscreteROM:
-    """Test _core.AffineIntrusiveDiscreteROM."""
+    """Test _affine_intrusive.AffineIntrusiveDiscreteROM."""
     def test_fit(self):
-        """Test _core.AffineIntrusiveDiscreteROM.fit()."""
+        """Test _affine_intrusive.AffineIntrusiveDiscreteROM.fit()."""
         TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveDiscreteROM)
 
     def test_predict(self):
-        """Test _core.AffineIntrusiveDiscreteROM.predict()."""
+        """Test _affine_intrusive.AffineIntrusiveDiscreteROM.predict()."""
         TestAffineMixin()._test_predict(roi.AffineIntrusiveDiscreteROM)
 
 
 class TestAffineIntrusiveContinuousROM:
-    """Test _core.AffineIntrusiveContinuousROM."""
+    """Test _affine_intrusive.AffineIntrusiveContinuousROM."""
     def test_fit(self):
-        """Test _core.AffineIntrusiveContinuousROM.fit()."""
+        """Test _affine_intrusive.AffineIntrusiveContinuousROM.fit()."""
         TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveContinuousROM)
 
     def test_predict(self):
-        """Test _core.AffineIntrusiveContinuousROM.predict()."""
+        """Test _affine_intrusive.AffineIntrusiveContinuousROM.predict()."""
         TestAffineMixin()._test_predict(roi.AffineIntrusiveContinuousROM)
