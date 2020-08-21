@@ -6,7 +6,7 @@ Maintainer: Shane A. McQuarrie
 GitHub: https://github.com/Willcox-Research-Group/rom-operator-inference-Python3
 """
 
-__version__ = "1.1.6"
+__version__ = "1.1.7"
 
 from ._base import *
 from ._inferred import *

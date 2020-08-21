@@ -7,12 +7,13 @@ Classes
 * _AffineMixin(_ParametricMixin)
 """
 
+__all__ = [
+            "AffineOperator",
+          ]
+
 import numpy as np
 
 from .._base import _ParametricMixin
-
-
-__all__ = ["AffineOperator"]
 
 
 class AffineOperator:

@@ -8,6 +8,11 @@ Classes
 * AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM)
 """
 
+__all__ = [
+            "AffineInferredDiscreteROM",
+            "AffineInferredContinuousROM",
+          ]
+
 import numpy as np
 
 from ._base import AffineOperator, _AffineMixin
@@ -19,12 +24,6 @@ from ..utils import (lstsq_reg,
                      expand_Hc as Hc2H,
                      expand_Gc as Gc2G,
                      kron2c, kron3c)
-
-
-__all__ = [
-            "AffineInferredDiscreteROM",
-            "AffineInferredContinuousROM"
-          ]
 
 
 class _AffineInferredMixin(_InferredMixin, _AffineMixin):

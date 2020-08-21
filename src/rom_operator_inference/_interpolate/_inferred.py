@@ -8,6 +8,11 @@ Classes
 * InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousROM)
 """
 
+__all__ = [
+            "InterpolatedInferredDiscreteROM",
+            "InterpolatedInferredContinuousROM",
+          ]
+
 import numpy as np
 from scipy.interpolate import CubicSpline
 
@@ -16,12 +21,6 @@ from .._base import _DiscreteROM, _ContinuousROM
 from .._inferred import (_InferredMixin,
                         InferredDiscreteROM,
                         InferredContinuousROM)
-
-
-__all__ = [
-            "InterpolatedInferredDiscreteROM",
-            "InterpolatedInferredContinuousROM"
-          ]
 
 
 # Specialized mixins (private) ================================================

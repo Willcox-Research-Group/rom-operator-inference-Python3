@@ -1,4 +1,4 @@
-# pre/_finitediff.py
+# pre/_finite_difference.py
 """Finite-difference schemes for estimating snapshot time derivatives."""
 
 __all__ = [
@@ -6,7 +6,6 @@ __all__ = [
             "xdot_nonuniform",
             "xdot",
           ]
-
 
 import numpy as np
 

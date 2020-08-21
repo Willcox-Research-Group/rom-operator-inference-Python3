@@ -1,4 +1,4 @@
-# __init__.py
+# _interpolate/__init__.py
 """Interpolating ROMs for systems with parametric dependence."""
 
 from ._base import *

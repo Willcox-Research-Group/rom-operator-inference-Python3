@@ -8,16 +8,15 @@ Classes
 * InferredContinuousROM(_InferredMixin, _NonparametricMixin, _ContinuousROM)
 """
 
+__all__ = [
+            "InferredDiscreteROM",
+            "InferredContinuousROM",
+          ]
+
 import numpy as np
 
 from .utils import lstsq_reg, kron2c, kron3c
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
-
-
-__all__ = [
-            "InferredDiscreteROM",
-            "InferredContinuousROM"
-          ]
 
 
 class _InferredMixin:

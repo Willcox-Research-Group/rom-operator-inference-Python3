@@ -8,18 +8,17 @@ Classes
 * IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin, _ContinuousROM)
 """
 
+__all__ = [
+            "IntrusiveDiscreteROM",
+            "IntrusiveContinuousROM",
+          ]
+
 import numpy as np
 
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
 
 from .utils import (expand_Hc as Hc2H, compress_H as H2Hc,
                     expand_Gc as Gc2G, compress_G as G2Gc)
-
-
-__all__ = [
-            "IntrusiveDiscreteROM",
-            "IntrusiveContinuousROM"
-          ]
 
 
 class _IntrusiveMixin:

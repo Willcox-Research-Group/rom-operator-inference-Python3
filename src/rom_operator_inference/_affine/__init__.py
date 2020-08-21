@@ -1,4 +1,4 @@
-# __init__.py
+# _affine/__init__.py
 """ROMs for systems with affine parametric dependence."""
 
 from ._base import *

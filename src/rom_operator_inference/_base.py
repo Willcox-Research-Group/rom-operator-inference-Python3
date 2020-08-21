@@ -1,5 +1,7 @@
 # _base.py
-"""Base ROM classes and main utility functions."""
+"""Base ROM classes and mixins."""
+
+__all__ = []
 
 import os
 import h5py
@@ -12,9 +14,6 @@ from .utils import (lstsq_reg,
                     expand_Hc as Hc2H, compress_H as H2Hc,
                     expand_Gc as Gc2G, compress_G as G2Gc,
                     kron2c, kron3c)
-
-
-__all__ = []
 
 
 # Base classes (private) ======================================================
