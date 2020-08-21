@@ -11,7 +11,7 @@ Classes
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-from .base import _InterpolatedMixin
+from ._base import _InterpolatedMixin
 from .._base import _DiscreteROM, _ContinuousROM
 from .._inferred import (_InferredMixin,
                         InferredDiscreteROM,

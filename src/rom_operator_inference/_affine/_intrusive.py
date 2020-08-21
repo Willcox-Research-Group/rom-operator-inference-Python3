@@ -10,7 +10,7 @@ Classes
 
 import numpy as np
 
-from .base import AffineOperator, _AffineMixin
+from ._base import AffineOperator, _AffineMixin
 from .._base import _ContinuousROM, _DiscreteROM
 from .._intrusive import (_IntrusiveMixin,
                           IntrusiveDiscreteROM,
