@@ -11,6 +11,7 @@ __all__ = [
 import numpy as np
 
 
+# Reprojection schemes ========================================================
 def reproject_discrete(f, Vr, x0, niters, U=None):
     """Sample re-projected trajectories of the discrete dynamical system
 
