@@ -26,6 +26,7 @@ from ...utils import (lstsq_reg,
                       kron2c, kron3c)
 
 
+# Affine inferred mixin (private) =============================================
 class _AffineInferredMixin(_InferredMixin, _AffineMixin):
     """Mixin class for affinely parametric inferred reduced model classes."""
     def fit(self, ModelClass, Vr, µs, affines, Xs, rhss, Us=None, P=0):

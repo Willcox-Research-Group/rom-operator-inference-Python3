@@ -16,6 +16,7 @@ import numpy as np
 from .._base import _ParametricMixin
 
 
+# Affine operator (public) ====================================================
 class AffineOperator:
     """Class for representing a linear operator with affine structure, i.e.,
 
@@ -122,7 +123,7 @@ class AffineOperator:
         return all([np.allclose(self.matrices[l], other.matrices[l])
                                             for l in range(self.nterms)])
 
-
+# Affine base mixin (private) =================================================
 class _AffineMixin(_ParametricMixin):
     """Mixin class for affinely parametric reduced model classes."""
 

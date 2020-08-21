@@ -1,5 +1,5 @@
-# test_interpolate.py
-"""Tests for rom_operator_inference._core._interpolate."""
+# core/interpolate/test_inferred.py
+"""Tests for rom_operator_inference._core._interpolate._inferred."""
 
 import pytest
 import numpy as np
@@ -10,18 +10,13 @@ import rom_operator_inference as roi
 from .. import _LSTSQ_REPORTS, _get_data
 
 
-# Mixins (private) ============================================================
-class TestInterpolatedMixin:
-    """Test _core._interpolate._base._InterpolatedMixin."""
-    pass
-
-
+# Interpolated inferred mixin (private) =======================================
 class TestInterpolatedInferredMixin:
     """Test _core._interpolate._inferred._InterpolatedInferredMixin."""
     pass
 
 
-# Useable classes (public) ====================================================
+# Interpolated inferred models (public) =======================================
 class TestInterpolatedInferredDiscreteROM:
     """Test _core._interpolate._inferred.InterpolatedInferredDiscreteROM."""
     def test_fit(self):

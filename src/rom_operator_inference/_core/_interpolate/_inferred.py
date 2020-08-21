@@ -1,4 +1,4 @@
-# _core/_interpolate/inferred.py
+# _core/_interpolate/_inferred.py
 """Parametric ROM classes that use interpolation and Operator Inference.
 
 Classes
@@ -23,7 +23,7 @@ from .._inferred import (_InferredMixin,
                         InferredContinuousROM)
 
 
-# Specialized mixins (private) ================================================
+# Interpolated inferred mixin (private) =======================================
 class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
     """Mixin for interpolatory ROM classes that use Operator Inference."""
 
@@ -139,7 +139,7 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         return self
 
 
-# Interpolated Operator Inference models (private) ============================
+# Interpolated inferred models (public) =======================================
 class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
     """Reduced order model for a high-dimensional discrete dynamical system,
     parametrized by a scalar µ, of the form

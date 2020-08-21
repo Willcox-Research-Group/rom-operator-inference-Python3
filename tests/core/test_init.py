@@ -161,6 +161,3 @@ def test_load_model():
 
     # Clean up.
     os.remove(target)
-
-
-# TODO: move check_docs.py here or test_docs.py.

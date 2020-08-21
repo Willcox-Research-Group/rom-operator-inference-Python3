@@ -26,6 +26,7 @@ from ...utils import (lstsq_reg,
                       kron2c, kron3c)
 
 
+# Affine intrusive mixin (private) ============================================
 class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
     """Mixin class for affinely parametric intrusive reduced model classes."""
     def fit(self, Vr, affines, operators):

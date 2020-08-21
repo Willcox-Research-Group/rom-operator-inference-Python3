@@ -1,4 +1,4 @@
-# _core/_interpolate/inferred.py
+# _core/_interpolate/_base.py
 """Parametric ROM classes that use interpolation.
 
 Classes
