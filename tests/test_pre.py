@@ -417,12 +417,12 @@ def test_fwd4(set_up_uniform_difference_data):
     dt = t[1] - t[0]
     for j in range(Y.shape[1] - 5):
         # One-dimensional test.
-        dY0 = roi.pre._fwd4(Y[0,j:j+5], dt)
+        dY0 = roi.pre._finitediff._fwd4(Y[0,j:j+5], dt)
         assert isinstance(dY0, float)
         assert np.isclose(dY0, dY[0,j])
 
         # Two-dimensional test.
-        dYj = roi.pre._fwd4(Y[:,j:j+5].T, dt)
+        dYj = roi.pre._finitediff._fwd4(Y[:,j:j+5].T, dt)
         assert dYj.shape == Y[:,j].shape
         assert np.allclose(dYj, dY[:,j])
 
@@ -437,12 +437,12 @@ def test_fwd6(set_up_uniform_difference_data):
     dt = t[1] - t[0]
     for j in range(Y.shape[1] - 7):
         # One-dimensional test.
-        dY0 = roi.pre._fwd6(Y[0,j:j+7], dt)
+        dY0 = roi.pre._finitediff._fwd6(Y[0,j:j+7], dt)
         assert isinstance(dY0, float)
         assert np.isclose(dY0, dY[0,j])
 
         # Two-dimensional test.
-        dYj = roi.pre._fwd6(Y[:,j:j+7].T, dt).T
+        dYj = roi.pre._finitediff._fwd6(Y[:,j:j+7].T, dt).T
         assert dYj.shape == Y[:,j].shape
         assert np.allclose(dYj, dY[:,j])
 

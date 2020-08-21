@@ -6,6 +6,8 @@ Maintainer: Shane A. McQuarrie
 GitHub: https://github.com/Willcox-Research-Group/rom-operator-inference-Python3
 """
 
+__version__ = "1.1.5"
+
 from ._base import *
 from ._inferred import *
 from ._intrusive import *
@@ -13,9 +15,6 @@ from ._interpolate import *
 from ._affine import *
 
 from . import utils, pre, post
-
-
-__version__ = "1.1.4"
 
 
 def select_model_class(time, rom_strategy, parametric=False):
