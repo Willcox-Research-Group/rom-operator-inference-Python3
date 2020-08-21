@@ -1,5 +1,5 @@
-# test_pre.py
-"""Tests for rom_operator_inference.post.py"""
+# test_post.py
+"""Tests for rom_operator_inference.post."""
 
 import pytest
 import numpy as np
@@ -22,18 +22,20 @@ def set_up_error_data():
 
 
 def test_absolute_and_relative_error(set_up_error_data):
-    """Test post._absolute_and_relative_error() (helper function)."""
+    """Test post._errors._absolute_and_relative_error() (helper function)."""
     error_data = set_up_error_data
     X, Y = error_data.truth, error_data.approximation
 
     # Frobenious norm
-    abs_err, rel_err = roi.post._absolute_and_relative_error(X, Y, la.norm)
+    abs_err, rel_err = roi.post._errors._absolute_and_relative_error(X, Y,
+                                                                     la.norm)
     assert isinstance(abs_err, float)
     assert isinstance(rel_err, float)
 
     # Euclidean norm, columnwise
     eucnorm = lambda z: la.norm(z, axis=0)
-    abs_err, rel_err = roi.post._absolute_and_relative_error(X, Y, eucnorm)
+    abs_err, rel_err = roi.post._errors._absolute_and_relative_error(X, Y,
+                                                                     eucnorm)
     assert abs_err.shape == rel_err.shape == (X.shape[1],)
 
 

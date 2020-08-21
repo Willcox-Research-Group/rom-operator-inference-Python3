@@ -1,8 +1,14 @@
-# post.py
+# post/_errors.py
 """Tools for accuracy and error evaluation."""
 
-import numpy as _np
-from scipy import linalg as _la
+__all__ = [
+            "frobenius_error",
+            "lp_error",
+            "Lp_error",
+          ]
+
+import numpy as np
+from scipy import linalg as la
 
 
 def _absolute_and_relative_error(X, Y, norm):
@@ -51,7 +57,7 @@ def frobenius_error(X, Y):
         raise ValueError("X and Y must be two-dimensional")
 
     # Compute the errors.
-    return _absolute_and_relative_error(X, Y, lambda Z: _la.norm(Z, ord="fro"))
+    return _absolute_and_relative_error(X, Y, lambda Z: la.norm(Z, ord="fro"))
 
 
 def lp_error(X, Y, p=2, normalize=False):
@@ -96,7 +102,7 @@ def lp_error(X, Y, p=2, normalize=False):
         single snapshots, so the error is a float.
     """
     # Check p.
-    if not _np.isscalar(p) or p <= 0:
+    if not np.isscalar(p) or p <= 0:
         raise ValueError("norm order p must be positive (np.inf ok)")
 
     # Check dimensions.
@@ -106,10 +112,10 @@ def lp_error(X, Y, p=2, normalize=False):
         raise ValueError("X and Y must be one- or two-dimensional")
 
     # Compute the error.
-    norm_of_data = _la.norm(X, ord=p, axis=0)
+    norm_of_data = la.norm(X, ord=p, axis=0)
     if normalize:
         norm_of_data = norm_of_data.max()
-    absolute_error = _la.norm(X - Y, ord=p, axis=0)
+    absolute_error = la.norm(X - Y, ord=p, axis=0)
     return absolute_error, absolute_error / norm_of_data
 
 
@@ -151,29 +157,29 @@ def Lp_error(X, Y, t=None, p=2):
         The relative error ||X - Y||_{L^p} / ||X||_{L^p}.
     """
     # Check p.
-    if not _np.isscalar(p) or p <= 0:
+    if not np.isscalar(p) or p <= 0:
         raise ValueError("norm order p must be positive (np.inf ok)")
 
     # Check dimensions.
     if X.shape != Y.shape:
         raise ValueError("truth X and approximation Y not aligned")
     if X.ndim == 1:
-        X = _np.atleast_2d(X)
-        Y = _np.atleast_2d(Y)
+        X = np.atleast_2d(X)
+        Y = np.atleast_2d(Y)
     elif X.ndim > 2:
         raise ValueError("X and Y must be one- or two-dimensional")
 
     # Pick the norm based on p.
-    if p < _np.inf:
+    if p < np.inf:
         if t is None:
             raise ValueError("time t required for p < infinty")
         if t.ndim != 1:
             raise ValueError("time t must be one-dimensional")
         if X.shape[-1] != t.shape[0]:
             raise ValueError("truth X not aligned with time t")
-        pnorm = lambda Z: (_np.trapz(_np.sum(_np.abs(Z)**p, axis=0), t))**(1/p)
-    elif p == _np.inf:
-        pnorm = lambda Z: _np.max(_np.abs(Z), axis=0).max()
+        pnorm = lambda Z: (np.trapz(np.sum(np.abs(Z)**p, axis=0), t))**(1/p)
+    elif p == np.inf:
+        pnorm = lambda Z: np.max(np.abs(Z), axis=0).max()
 
     # Compute the error.
     return _absolute_and_relative_error(X, Y, pnorm)
