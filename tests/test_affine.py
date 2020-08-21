@@ -11,7 +11,7 @@ from _common import _MODEL_FORMS, _get_data, _get_operators
 
 
 class TestAffineOperator:
-    """Test _affine.base.AffineOperator."""
+    """Test _affine._base.AffineOperator."""
     @staticmethod
     def _set_up_affine_attributes(n=5):
         fs = [np.sin, np.cos, np.exp]
@@ -19,7 +19,7 @@ class TestAffineOperator:
         return fs, As
 
     def test_init(self):
-        """Test _affine.base.AffineOperator.__init__()."""
+        """Test _affine._base.AffineOperator.__init__()."""
         fs, As = self._set_up_affine_attributes()
 
         # Try with different number of functions and matrices.
@@ -39,7 +39,7 @@ class TestAffineOperator:
         affop.matrices = As
 
     def test_validate_coeffs(self):
-        """Test _affine.base.AffineOperator.validate_coeffs()."""
+        """Test _affine._base.AffineOperator.validate_coeffs()."""
         fs, As = self._set_up_affine_attributes()
 
         # Try with non-callables.
@@ -62,7 +62,7 @@ class TestAffineOperator:
         affop.validate_coeffs(0)
 
     def test_call(self):
-        """Test _affine.base.AffineOperator.__call__()."""
+        """Test _affine._base.AffineOperator.__call__()."""
         fs, As = self._set_up_affine_attributes()
 
         # Try without matrices set.
@@ -79,7 +79,7 @@ class TestAffineOperator:
                                np.cos(10)*As[1] + np.exp(10)*As[2])
 
     def test_eq(self):
-        """Test _affine.base.AffineOperator.__eq__()."""
+        """Test _affine._base.AffineOperator.__eq__()."""
         fs, As = self._set_up_affine_attributes()
         affop1 = roi.AffineOperator(fs[:-1])
         affop2 = roi.AffineOperator(fs, As)
@@ -94,10 +94,10 @@ class TestAffineOperator:
 
 # Mixins (private) ============================================================
 class TestAffineMixin:
-    """Test _affine.base._AffineMixin."""
+    """Test _affine._base._AffineMixin."""
     def test_check_affines(self):
-        """Test _affine.base._AffineMixin._check_affines()."""
-        model = roi._affine.base._AffineMixin()
+        """Test _affine._base._AffineMixin._check_affines()."""
+        model = roi._affine._base._AffineMixin()
         model.modelform = "cAHB"
         v = [lambda s: 0, lambda s: 0]
 
@@ -117,10 +117,10 @@ class TestAffineMixin:
 
     def _test_predict(self, ModelClass):
         """Test predict() methods for Affine classes:
-        * _affine.inferred.AffineInferredDiscreteROM.predict()
-        * _affine.inferred.AffineInferredContinuousROM.predict()
-        * _affine.intrusive.AffineIntrusiveDiscreteROM.predict()
-        * _affine.intrusive.AffineIntrusiveContinuousROM.predict()
+        * _affine._inferred.AffineInferredDiscreteROM.predict()
+        * _affine._inferred.AffineInferredContinuousROM.predict()
+        * _affine._intrusive.AffineIntrusiveDiscreteROM.predict()
+        * _affine._intrusive.AffineIntrusiveContinuousROM.predict()
         """
         model = ModelClass("cAHG")
 
@@ -147,11 +147,11 @@ class TestAffineMixin:
 
 
 class TestAffineInferredMixin:
-    """Test _affine.inferred._AffineInferredMixin."""
+    """Test _affine._inferred._AffineInferredMixin."""
     def _test_fit(self, ModelClass):
-        """Test _affine.inferred._AffineInferredMixin.fit(), parent method of
-        _affine.inferred.AffineInferredDiscreteROM.fit() and
-        _affine.inferred.AffineInferredContinuousROM.fit().
+        """Test _affine._inferred._AffineInferredMixin.fit(), parent method of
+        _affine._inferred.AffineInferredDiscreteROM.fit() and
+        _affine._inferred.AffineInferredContinuousROM.fit().
         """
         model = ModelClass("cAHB")
         is_continuous = issubclass(ModelClass, roi._base._ContinuousROM)
@@ -227,11 +227,11 @@ class TestAffineInferredMixin:
 
 
 class TestAffineIntrusiveMixin:
-    """Test _affine.intrusive._AffineIntrusiveMixin."""
+    """Test _affine._intrusive._AffineIntrusiveMixin."""
     def _test_fit(self, ModelClass):
-        """Test _affine.intrusive._AffineIntrusiveMixin.fit(), parent method of
-        _affine.intrusive.AffineIntrusiveDiscreteROM.fit() and
-        _affine.intrusive.AffineIntrusiveContinuousROM.fit().
+        """Test _affine._intrusive._AffineIntrusiveMixin.fit(), parent method of
+        _affine._intrusive.AffineIntrusiveDiscreteROM.fit() and
+        _affine._intrusive.AffineIntrusiveContinuousROM.fit().
         """
         model = ModelClass("cAHGB")
 
@@ -383,45 +383,45 @@ class TestAffineIntrusiveMixin:
 
 # Affine inferred models ------------------------------------------------------
 class TestAffineInferredDiscreteROM:
-    """Test _affine.inferred.AffineInferredDiscreteROM."""
+    """Test _affine._inferred.AffineInferredDiscreteROM."""
     def test_fit(self):
-        """Test _affine.inferred.AffineInferredDiscreteROM.fit()."""
+        """Test _affine._inferred.AffineInferredDiscreteROM.fit()."""
         TestAffineInferredMixin()._test_fit(roi.AffineInferredDiscreteROM)
 
     def test_predict(self):
-        """Test _affine.inferred.AffineInferredDiscreteROM.predict()."""
+        """Test _affine._inferred.AffineInferredDiscreteROM.predict()."""
         TestAffineMixin()._test_predict(roi.AffineInferredDiscreteROM)
 
 
 class TestAffineInferredContinuousROM:
-    """Test _affine.inferred.AffineInferredContinuousROM."""
+    """Test _affine._inferred.AffineInferredContinuousROM."""
     def test_fit(self):
-        """Test _affine.inferred.AffineInferredContinuousROM.fit()."""
+        """Test _affine._inferred.AffineInferredContinuousROM.fit()."""
         TestAffineInferredMixin()._test_fit(roi.AffineInferredContinuousROM)
 
     def test_predict(self):
-        """Test _affine.inferred.AffineInferredContinuousROM.predict()."""
+        """Test _affine._inferred.AffineInferredContinuousROM.predict()."""
         TestAffineMixin()._test_predict(roi.AffineInferredContinuousROM)
 
 
 # Affine intrusive models -----------------------------------------------------
 class TestAffineIntrusiveDiscreteROM:
-    """Test _affine.intrusive.AffineIntrusiveDiscreteROM."""
+    """Test _affine._intrusive.AffineIntrusiveDiscreteROM."""
     def test_fit(self):
-        """Test _affine.intrusive.AffineIntrusiveDiscreteROM.fit()."""
+        """Test _affine._intrusive.AffineIntrusiveDiscreteROM.fit()."""
         TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveDiscreteROM)
 
     def test_predict(self):
-        """Test _affine.intrusive.AffineIntrusiveDiscreteROM.predict()."""
+        """Test _affine._intrusive.AffineIntrusiveDiscreteROM.predict()."""
         TestAffineMixin()._test_predict(roi.AffineIntrusiveDiscreteROM)
 
 
 class TestAffineIntrusiveContinuousROM:
-    """Test _affine.intrusive.AffineIntrusiveContinuousROM."""
+    """Test _affine._intrusive.AffineIntrusiveContinuousROM."""
     def test_fit(self):
-        """Test _affine.intrusive.AffineIntrusiveContinuousROM.fit()."""
+        """Test _affine._intrusive.AffineIntrusiveContinuousROM.fit()."""
         TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveContinuousROM)
 
     def test_predict(self):
-        """Test _affine.intrusive.AffineIntrusiveContinuousROM.predict()."""
+        """Test _affine._intrusive.AffineIntrusiveContinuousROM.predict()."""
         TestAffineMixin()._test_predict(roi.AffineIntrusiveContinuousROM)

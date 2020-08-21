@@ -19,7 +19,7 @@ install: clean
 	$(PYTHON) -m pip install .
 
 test: install
-	$(PYTHON) check_docs.py
+	# $(PYTHON) check_docs.py
 	$(PYTHON) -m $(PYTEST)
 	open htmlcov/index.html
 

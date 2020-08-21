@@ -12,21 +12,21 @@ from _common import _LSTSQ_REPORTS, _get_data
 
 # Mixins (private) ============================================================
 class TestInterpolatedMixin:
-    """Test _interpolate.base._InterpolatedMixin."""
+    """Test _interpolate._base._InterpolatedMixin."""
     pass
 
 
 class TestInterpolatedInferredMixin:
-    """Test _interpolate.inferred._InterpolatedInferredMixin."""
+    """Test _interpolate._inferred._InterpolatedInferredMixin."""
     pass
 
 
 # Useable classes (public) ====================================================
 class TestInterpolatedInferredDiscreteROM:
-    """Test _interpolate.inferred.InterpolatedInferredDiscreteROM."""
+    """Test _interpolate._inferred.InterpolatedInferredDiscreteROM."""
     def test_fit(self):
         """Test
-        _interpolate.inferred.InterpolatedInferredDiscreteROM.fit().
+        _interpolate._inferred.InterpolatedInferredDiscreteROM.fit().
         """
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
@@ -78,7 +78,7 @@ class TestInterpolatedInferredDiscreteROM:
 
     def test_predict(self):
         """Test
-        _interpolate.inferred.InterpolatedInferredDiscreteROM.predict().
+        _interpolate._inferred.InterpolatedInferredDiscreteROM.predict().
         """
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
@@ -109,10 +109,10 @@ class TestInterpolatedInferredDiscreteROM:
 
 
 class TestInterpolatedInferredContinuousROM:
-    """Test _interpolate.inferred.InterpolatedInferredContinuousROM."""
+    """Test _interpolate._inferred.InterpolatedInferredContinuousROM."""
     def test_fit(self):
         """Test
-        _interpolate.inferred.InterpolatedInferredContinuousROM.fit().
+        _interpolate._inferred.InterpolatedInferredContinuousROM.fit().
         """
         model = roi.InterpolatedInferredContinuousROM("cAH")
 
@@ -171,7 +171,7 @@ class TestInterpolatedInferredContinuousROM:
 
     def test_predict(self):
         """Test
-        _interpolate.inferred.InterpolatedInferredContinuousROM.predict().
+        _interpolate._inferred.InterpolatedInferredContinuousROM.predict().
         """
         model = roi.InterpolatedInferredContinuousROM("cAH")
 
