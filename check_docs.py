@@ -9,7 +9,7 @@ from collections import defaultdict
 # Global variables ============================================================
 README = "README.md"
 SETUP = "setup.py"
-INIT = os.path.join("rom_operator_inference", "__init__.py")
+INIT = os.path.join("src", "rom_operator_inference", "__init__.py")
 VNFILES = [SETUP, INIT]
 
 VERSION = re.compile(r'_{0,2}?version_{0,2}?\s*=\s*"([\d\.]+?-?\w+?)"',

@@ -1,15 +1,9 @@
-.PHONY: test clean deploy
+.PHONY: clean install test deploy
 
 REMOVE = rm -rfv
 PYTHON = python3
-PYTEST = $(PYTHON) -m pytest --cov --cov-report html
-TARGET = tests/*.py
+PYTEST = pytest --cov rom_operator_inference tests/*.py --cov-report html
 
-
-test:
-	$(PYTHON) check_docs.py
-	$(PYTEST) $(TARGET)
-	open htmlcov/index.html
 
 clean:
 	find . -type d -name "build" | xargs $(REMOVE)
@@ -21,7 +15,16 @@ clean:
 	find . -type d -name ".ipynb_checkpoints" | xargs $(REMOVE)
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
 
-deploy: test clean
+install: clean
+	$(PYTHON) -m pip install .
+
+test: install
+	$(PYTHON) check_docs.py
+	$(PYTHON) -m $(PYTEST)
+	open htmlcov/index.html
+
+
+deploy: test
 	git checkout master
 	$(PYTHON) setup.py sdist bdist_wheel
 	$(PYTHON) -m twine upload dist/*
