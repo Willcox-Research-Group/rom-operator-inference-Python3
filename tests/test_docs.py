@@ -1,5 +1,5 @@
-# check_docs.py
-"""Script for catching errors in README.md and synchronizing versions."""
+# test_docs.py
+"""Catch errors in README.md and ensure __version__ is synchronized."""
 
 import os
 import re
@@ -9,25 +9,31 @@ from collections import defaultdict
 # Global variables ============================================================
 README = "README.md"
 SETUP = "setup.py"
-INIT = os.path.join("rom_operator_inference", "__init__.py")
-VNFILES = [SETUP, INIT]
+INIT = os.path.join("src", "rom_operator_inference", "__init__.py")
 
-VERSION = re.compile(r'_{0,2}?version_{0,2}?\s*=\s*"([\d\.]+?)"',
+# Locate files if tests are being run directly from the tests/ directory.
+if not os.path.isfile(README) and os.path.basename(os.getcwd()) == "tests":
+    up_one = lambda f: os.path.abspath(os.path.join("..", f))
+    README = up_one(README)
+    SETUP = up_one(SETUP)
+    INIT = up_one(INIT)
+
+VNFILES = [SETUP, INIT]
+VERSION = re.compile(r'_{0,2}?version_{0,2}?\s*=\s*"([\d\.]+?-?\w+?)"',
                      re.MULTILINE)
 MDLINK = re.compile(r"\[(.+?)\]\(([^\.].+?)\)")
+SAFELIST = ["Download"]
 
 
 # Tests =======================================================================
 
-def check_version_numbers_match(filelist):
-    """Make sure that the version number in setup.py and __init__.py match."""
-    if len(filelist) != 2:
-        raise ValueError("can only compare 2 files at a time")
-    file1, file2 = filelist
+def test_version_numbers():
+    """Check that the version number in setup.py and __init__.py match."""
+    file1, file2 = VNFILES
 
     # Get the version number listed in each file.
     versions = []
-    for filename in filelist:
+    for filename in VNFILES:
         with open(filename, 'r') as infile:
             data = infile.read()
         versions.append(VERSION.findall(data)[0])
@@ -37,8 +43,9 @@ def check_version_numbers_match(filelist):
                          f"not match ('{versions[0]}' != '{versions[1]}')")
 
 
-def check_author_links_consistent(filename, safelist=("Download",)):
-    with open(filename, 'r') as infile:
+def test_author_links():
+    """Check that Markdown URLs are uniquely mapped."""
+    with open(README, 'r') as infile:
         data = infile.read()
 
     links = defaultdict(set)
@@ -46,16 +53,7 @@ def check_author_links_consistent(filename, safelist=("Download",)):
         links[key].add(value)
 
     badrefs = [k for k,v in links.items()
-                 if k not in safelist and len(v) > 1]
+                 if k not in SAFELIST and len(v) > 1]
     if badrefs:
-        raise SyntaxError(f"Bad references in {filename} (nonunique link)"
+        raise SyntaxError(f"Bad references in {README} (nonunique link)"
                           "\n\t" + '\n\t'.join(badrefs))
-
-
-def main():
-    check_version_numbers_match(VNFILES)
-    check_author_links_consistent(README)
-
-
-if __name__ == "__main__":
-    main()

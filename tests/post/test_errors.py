@@ -1,39 +1,30 @@
-# test_pre.py
-"""Tests for rom_operator_inference.post.py"""
+# post/test_errors.py
+"""Tests for rom_operator_inference.post._errors.py."""
 
 import pytest
 import numpy as np
 from scipy import linalg as la
-from collections import namedtuple
 
 import rom_operator_inference as roi
 
-
-ErrorData = namedtuple("ErrorData", ["truth", "approximation", "time"])
-
-@pytest.fixture
-def set_up_error_data():
-    n = 2000
-    k = 500
-    X = np.random.random((n,k)) - .5
-    Y = X + np.random.normal(loc=0, scale=1e-4, size=(n,k))
-    t = np.linspace(0, 1, k)
-    return ErrorData(X, Y, t)
+from . import set_up_error_data
 
 
 def test_absolute_and_relative_error(set_up_error_data):
-    """Test post._absolute_and_relative_error() (helper function)."""
+    """Test post._errors._absolute_and_relative_error() (helper function)."""
     error_data = set_up_error_data
     X, Y = error_data.truth, error_data.approximation
 
     # Frobenious norm
-    abs_err, rel_err = roi.post._absolute_and_relative_error(X, Y, la.norm)
+    abs_err, rel_err = roi.post._errors._absolute_and_relative_error(X, Y,
+                                                                     la.norm)
     assert isinstance(abs_err, float)
     assert isinstance(rel_err, float)
 
     # Euclidean norm, columnwise
     eucnorm = lambda z: la.norm(z, axis=0)
-    abs_err, rel_err = roi.post._absolute_and_relative_error(X, Y, eucnorm)
+    abs_err, rel_err = roi.post._errors._absolute_and_relative_error(X, Y,
+                                                                     eucnorm)
     assert abs_err.shape == rel_err.shape == (X.shape[1],)
 
 
@@ -55,7 +46,6 @@ def test_frobenius_error(set_up_error_data):
     abs_err, rel_err = roi.post.frobenius_error(X, Y)
     assert isinstance(abs_err, float)
     assert isinstance(rel_err, float)
-
 
 
 def test_lp_error(set_up_error_data):
