@@ -1,5 +1,5 @@
 # test_inferred.py
-"""Tests for rom_operator_inference._inferred.py."""
+"""Tests for rom_operator_inference._core._inferred.py."""
 
 import pytest
 import numpy as np
@@ -12,13 +12,13 @@ from _common import _MODEL_FORMS, _get_data
 
 # Mixins (private) ============================================================
 class TestInferredMixin:
-    """Test _inferred._InferredMixin."""
+    """Test _core._inferred._InferredMixin."""
     def test_check_training_data_shapes(self):
-        """Test _inferred._InferredMixin._check_training_data_shapes()."""
+        """Test _core._inferred._InferredMixin._check_training_data_shapes()."""
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
         X, Xdot, U = _get_data(n, k, m)
-        model = roi._inferred._InferredMixin()
+        model = roi._core._inferred._InferredMixin()
 
         # Try to fit the model with misaligned X and Xdot.
         with pytest.raises(ValueError) as ex:
@@ -34,9 +34,9 @@ class TestInferredMixin:
         model._check_training_data_shapes([X, Xdot, U])
 
     def _test_fit(self, ModelClass):
-        """Test _inferred._InferredMixin.fit(), the parent method for
-        _inferred.InferredDiscreteROM.fit() and
-        _inferred.InferredContinuousROM.fit().
+        """Test _core._inferred._InferredMixin.fit(), the parent method for
+        _core._inferred.InferredDiscreteROM.fit() and
+        _core._inferred.InferredContinuousROM.fit().
         """
         model = ModelClass("cAH")
 
@@ -45,7 +45,7 @@ class TestInferredMixin:
         X, Xdot, U = _get_data(n, k, m)
         Vr = la.svd(X)[0][:,:r]
         args = [Vr, X]
-        if issubclass(ModelClass, roi._inferred._ContinuousROM):
+        if issubclass(ModelClass, roi._core._inferred._ContinuousROM):
             args.insert(1, Xdot)
 
         # Fit the model with each possible non-input modelform.
@@ -98,14 +98,14 @@ class TestInferredMixin:
 
 # Useable classes (public) ====================================================
 class TestInferredDiscreteROM:
-    """Test _inferred.InferredDiscreteROM."""
+    """Test _core._inferred.InferredDiscreteROM."""
     def test_fit(self):
-        """Test _inferred.InferredDiscreteROM.fit()."""
+        """Test _core._inferred.InferredDiscreteROM.fit()."""
         TestInferredMixin()._test_fit(roi.InferredDiscreteROM)
 
 
 class TestInferredContinuousROM:
-    """Test _inferred.InferredContinuousROM."""
+    """Test _core._inferred.InferredContinuousROM."""
     def test_fit(self):
-        """Test _inferred.InferredContinuousROM.fit()."""
+        """Test _core._inferred.InferredContinuousROM.fit()."""
         TestInferredMixin()._test_fit(roi.InferredContinuousROM)

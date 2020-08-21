@@ -1,4 +1,4 @@
-# _inferred.py
+# _core/_inferred.py
 """Nonparametric Operator Inference ROM classes.
 
 Classes
@@ -15,8 +15,8 @@ __all__ = [
 
 import numpy as np
 
-from .utils import lstsq_reg, kron2c, kron3c
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
+from ..utils import lstsq_reg, kron2c, kron3c
 
 
 class _InferredMixin:

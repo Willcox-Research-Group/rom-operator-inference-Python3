@@ -1,4 +1,4 @@
-# _base.py
+# _core/_base.py
 """Base ROM classes and mixins."""
 
 __all__ = []
@@ -10,10 +10,10 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.integrate import solve_ivp, IntegrationWarning
 
-from .utils import (lstsq_reg,
-                    expand_Hc as Hc2H, compress_H as H2Hc,
-                    expand_Gc as Gc2G, compress_G as G2Gc,
-                    kron2c, kron3c)
+from ..utils import (lstsq_reg,
+                     expand_Hc as Hc2H, compress_H as H2Hc,
+                     expand_Gc as Gc2G, compress_G as G2Gc,
+                     kron2c, kron3c)
 
 
 # Base classes (private) ======================================================

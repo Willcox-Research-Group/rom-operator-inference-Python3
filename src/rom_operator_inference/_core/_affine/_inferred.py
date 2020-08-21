@@ -1,4 +1,4 @@
-# _affine/inferred.py
+# _core/_affine/inferred.py
 """Affinely parametric ROM classes that use Operator Inference.
 
 Classes
@@ -20,10 +20,10 @@ from .._base import _ContinuousROM, _DiscreteROM
 from .._inferred import (_InferredMixin,
                          InferredDiscreteROM,
                          InferredContinuousROM)
-from ..utils import (lstsq_reg,
-                     expand_Hc as Hc2H,
-                     expand_Gc as Gc2G,
-                     kron2c, kron3c)
+from ...utils import (lstsq_reg,
+                      expand_Hc as Hc2H,
+                      expand_Gc as Gc2G,
+                      kron2c, kron3c)
 
 
 class _AffineInferredMixin(_InferredMixin, _AffineMixin):

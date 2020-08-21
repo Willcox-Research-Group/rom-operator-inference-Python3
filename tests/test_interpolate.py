@@ -1,5 +1,5 @@
 # test_interpolate.py
-"""Tests for rom_operator_inference.interpolate."""
+"""Tests for rom_operator_inference._core._interpolate."""
 
 import pytest
 import numpy as np
@@ -12,21 +12,21 @@ from _common import _LSTSQ_REPORTS, _get_data
 
 # Mixins (private) ============================================================
 class TestInterpolatedMixin:
-    """Test _interpolate._base._InterpolatedMixin."""
+    """Test _core._interpolate._base._InterpolatedMixin."""
     pass
 
 
 class TestInterpolatedInferredMixin:
-    """Test _interpolate._inferred._InterpolatedInferredMixin."""
+    """Test _core._interpolate._inferred._InterpolatedInferredMixin."""
     pass
 
 
 # Useable classes (public) ====================================================
 class TestInterpolatedInferredDiscreteROM:
-    """Test _interpolate._inferred.InterpolatedInferredDiscreteROM."""
+    """Test _core._interpolate._inferred.InterpolatedInferredDiscreteROM."""
     def test_fit(self):
         """Test
-        _interpolate._inferred.InterpolatedInferredDiscreteROM.fit().
+        _core._interpolate._inferred.InterpolatedInferredDiscreteROM.fit().
         """
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
@@ -78,7 +78,7 @@ class TestInterpolatedInferredDiscreteROM:
 
     def test_predict(self):
         """Test
-        _interpolate._inferred.InterpolatedInferredDiscreteROM.predict().
+        _core._interpolate._inferred.InterpolatedInferredDiscreteROM.predict().
         """
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
@@ -109,10 +109,10 @@ class TestInterpolatedInferredDiscreteROM:
 
 
 class TestInterpolatedInferredContinuousROM:
-    """Test _interpolate._inferred.InterpolatedInferredContinuousROM."""
+    """Test _core._interpolate._inferred.InterpolatedInferredContinuousROM."""
     def test_fit(self):
         """Test
-        _interpolate._inferred.InterpolatedInferredContinuousROM.fit().
+        _core._interpolate._inferred.InterpolatedInferredContinuousROM.fit().
         """
         model = roi.InterpolatedInferredContinuousROM("cAH")
 
@@ -171,7 +171,7 @@ class TestInterpolatedInferredContinuousROM:
 
     def test_predict(self):
         """Test
-        _interpolate._inferred.InterpolatedInferredContinuousROM.predict().
+        _core._interpolate._inferred.InterpolatedInferredContinuousROM.predict().
         """
         model = roi.InterpolatedInferredContinuousROM("cAH")
 

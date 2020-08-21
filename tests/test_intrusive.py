@@ -1,5 +1,5 @@
 # test_intrusive.py
-"""Tests for rom_operator_inference._intrusive.py."""
+"""Tests for rom_operator_inference._core._intrusive.py."""
 
 import pytest
 from scipy import linalg as la
@@ -11,10 +11,10 @@ from _common import _get_data, _get_operators
 
 # Mixins (private) ============================================================
 class TestIntrusiveMixin:
-    """Test _intrusive._IntrusiveMixin."""
+    """Test _core._intrusive._IntrusiveMixin."""
     def test_check_operators(self):
-        """Test _intrusive._IntrusiveMixin._check_operators()."""
-        model = roi._intrusive._IntrusiveMixin()
+        """Test _core._intrusive._IntrusiveMixin._check_operators()."""
+        model = roi._core._intrusive._IntrusiveMixin()
         model.modelform = "cAHB"
         v = None
 
@@ -41,9 +41,9 @@ class TestIntrusiveMixin:
         model._check_operators({"c":v, "A":v, "H":v, "B":v})
 
     def _test_fit(self, ModelClass):
-        """Test _intrusive._IntrusiveMixin.fit(), the parent method for
-        _intrusive.IntrusiveDiscreteROM.fit() and
-        _intrusive.IntrusiveContinuousROM.fit().
+        """Test _core._intrusive._IntrusiveMixin.fit(), the parent method for
+        _core._intrusive.IntrusiveDiscreteROM.fit() and
+        _core._intrusive.IntrusiveContinuousROM.fit().
         """
         model = ModelClass("cAHB")
 
@@ -124,14 +124,14 @@ class TestIntrusiveMixin:
 
 # Useable classes (public) ====================================================
 class TestIntrusiveDiscreteROM:
-    """Test _intrusive.IntrusiveDiscreteROM."""
+    """Test _core._intrusive.IntrusiveDiscreteROM."""
     def test_fit(self):
-        """Test _intrusive.IntrusiveDiscreteROM.fit()."""
+        """Test _core._intrusive.IntrusiveDiscreteROM.fit()."""
         TestIntrusiveMixin()._test_fit(roi.IntrusiveDiscreteROM)
 
 
 class TestIntrusiveContinuousROM:
-    """Test _intrusive.IntrusiveContinuousROM."""
+    """Test _core._intrusive.IntrusiveContinuousROM."""
     def test_fit(self):
-        """Test _intrusive.IntrusiveContinuousROM.fit()."""
+        """Test _core._intrusive.IntrusiveContinuousROM.fit()."""
         TestIntrusiveMixin()._test_fit(roi.IntrusiveContinuousROM)

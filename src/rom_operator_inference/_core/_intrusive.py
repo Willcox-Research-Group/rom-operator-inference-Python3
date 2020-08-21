@@ -1,4 +1,4 @@
-# _intrusive.py
+# _core/_intrusive.py
 """Nonparametric ROM classes that use intrusive projection.
 
 Classes
@@ -17,8 +17,8 @@ import numpy as np
 
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
 
-from .utils import (expand_Hc as Hc2H, compress_H as H2Hc,
-                    expand_Gc as Gc2G, compress_G as G2Gc)
+from ..utils import (expand_Hc as Hc2H, compress_H as H2Hc,
+                     expand_Gc as Gc2G, compress_G as G2Gc)
 
 
 class _IntrusiveMixin:

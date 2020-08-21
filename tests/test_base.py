@@ -1,5 +1,5 @@
 # test_base.py
-"""Tests for rom_operator_inference._base.py."""
+"""Tests for rom_operator_inference._core._base.py."""
 
 import os
 import h5py
@@ -14,25 +14,25 @@ from _common import (_MODEL_KEYS, _MODEL_FORMS, _LSTSQ_REPORTS,
 
 
 class TestBaseROM:
-    """Test _base._BaseROM."""
+    """Test _core._base._BaseROM."""
     def test_init(self):
         """Test _BaseROM.__init__()."""
         with pytest.raises(TypeError) as ex:
-            roi._base._BaseROM()
+            roi._core._base._BaseROM()
         assert ex.value.args[0] == \
             "__init__() missing 1 required positional argument: 'modelform'"
 
         with pytest.raises(TypeError) as ex:
-            roi._base._BaseROM("cAH", False)
+            roi._core._base._BaseROM("cAH", False)
         assert ex.value.args[0] == \
             "__init__() takes 2 positional arguments but 3 were given"
 
         with pytest.raises(RuntimeError) as ex:
-            roi._base._BaseROM("cAH")
+            roi._core._base._BaseROM("cAH")
         assert ex.value.args[0] == \
             "abstract class instantiation (use _ContinuousROM or _DiscreteROM)"
 
-        model = roi._base._ContinuousROM("cA")
+        model = roi._core._base._ContinuousROM("cA")
         assert hasattr(model, "modelform")
         assert hasattr(model, "_form")
         assert hasattr(model, "has_inputs")
@@ -55,7 +55,7 @@ class TestBaseROM:
         m = 20
 
         # Try with invalid modelform.
-        model = roi._base._ContinuousROM("bad_form")
+        model = roi._core._base._ContinuousROM("bad_form")
         with pytest.raises(ValueError) as ex:
             model._check_modelform(trained=False)
         assert ex.value.args[0] == \
@@ -117,15 +117,15 @@ class TestBaseROM:
             "attribute 'B_' is None; call fit() to train model"
 
     def test_set_operators(self):
-        """Test _base._BaseROM._set_operators()."""
+        """Test _core._base._BaseROM._set_operators()."""
         n, m, r = 60, 20, 30
         Vr = np.random.random((n, r))
         c, A, H, Hc, G, Gc, B = _get_operators(n=r, m=m)
 
         # Test correct usage.
-        model = roi._base._ContinuousROM("cAH")._set_operators(Vr=Vr, A_=A,
-                                                               Hc_=Hc, c_=c)
-        assert isinstance(model, roi._base._ContinuousROM)
+        model = roi._core._base._ContinuousROM("cAH")._set_operators(
+                                                    Vr=Vr, A_=A, Hc_=Hc, c_=c)
+        assert isinstance(model, roi._core._base._ContinuousROM)
         assert model.modelform == "cAH"
         assert model.n == n
         assert model.r == r
@@ -137,8 +137,9 @@ class TestBaseROM:
         assert model.B_ is None
         assert model.Gc_ is None
 
-        model = roi._base._DiscreteROM("GB")._set_operators(None, Gc_=Gc, B_=B)
-        assert isinstance(model, roi._base._DiscreteROM)
+        model = roi._core._base._DiscreteROM("GB")._set_operators(None,
+                                                                  Gc_=Gc, B_=B)
+        assert isinstance(model, roi._core._base._DiscreteROM)
         assert model.modelform == "GB"
         assert model.n is None
         assert model.r == r
@@ -154,7 +155,7 @@ class TestBaseROM:
         """Test _BaseROM._check_inputargs()."""
 
         # Try with has_inputs = True but without inputs.
-        model = roi._base._DiscreteROM("cB")
+        model = roi._core._base._DiscreteROM("cB")
         with pytest.raises(ValueError) as ex:
             model._check_inputargs(None, 'U')
         assert ex.value.args[0] == \
@@ -168,10 +169,10 @@ class TestBaseROM:
             "argument 'u' invalid since 'B' in modelform"
 
     def test_project(self):
-        """Test _base._BaseROM.project()."""
+        """Test _core._base._BaseROM.project()."""
         n, k, m, r = 60, 50, 20, 10
         X, Xdot, U = _get_data(n, k, m)
-        model = roi._base._ContinuousROM("c")
+        model = roi._core._base._ContinuousROM("c")
         model.n, model.r, model.m = n, r, m
         model.Vr = la.svd(X)[0][:,:r]
 
@@ -186,7 +187,7 @@ class TestBaseROM:
             assert S_.shape == (r,k)
 
     def test_operator_norm_(self):
-        """Test _base._BaseROM.operator_norm_()"""
+        """Test _core._base._BaseROM.operator_norm_()"""
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
         X = _get_data(n, k, m)[0]
@@ -199,10 +200,10 @@ class TestBaseROM:
 
 
 class TestDiscreteROM:
-    """Test _base._DiscreteROM."""
+    """Test _core._base._DiscreteROM."""
     def test_construct_f_(self):
-        """Test _base.DiscreteROM._construct_f_()."""
-        model = roi._base._DiscreteROM('')
+        """Test _core._base.DiscreteROM._construct_f_()."""
+        model = roi._core._base._DiscreteROM('')
 
         # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
@@ -224,8 +225,8 @@ class TestDiscreteROM:
             "<lambda>() missing 1 required positional argument: 'u'"
 
     def test_fit(self):
-        """Test _base._DiscreteROM.fit()."""
-        model = roi._base._DiscreteROM("A")
+        """Test _core._base._DiscreteROM.fit()."""
+        model = roi._core._base._DiscreteROM("A")
         with pytest.raises(NotImplementedError) as ex:
             model.fit()
         assert ex.value.args[0] == \
@@ -237,8 +238,8 @@ class TestDiscreteROM:
             "fit() must be implemented by child classes"
 
     def test_predict(self):
-        """Test _base._DiscreteROM.predict()."""
-        model = roi._base._DiscreteROM('')
+        """Test _core._base._DiscreteROM.predict()."""
+        model = roi._core._base._DiscreteROM('')
 
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
@@ -312,10 +313,10 @@ class TestDiscreteROM:
 
 
 class TestContinuousROM:
-    """Test _base._ContinuousROM."""
+    """Test _core._base._ContinuousROM."""
     def test_construct_f_(self):
-        """Test incorrect usage of _base.ContinuousROM._construct_f_()."""
-        model = roi._base._ContinuousROM('')
+        """Test incorrect usage of _core._base.ContinuousROM._construct_f_()."""
+        model = roi._core._base._ContinuousROM('')
 
         # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
@@ -328,8 +329,8 @@ class TestContinuousROM:
             "<lambda>() missing 1 required positional argument: 'x_'"
 
     def test_fit(self):
-        """Test _base._ContinuousROM.fit()."""
-        model = roi._base._ContinuousROM("A")
+        """Test _core._base._ContinuousROM.fit()."""
+        model = roi._core._base._ContinuousROM("A")
         with pytest.raises(NotImplementedError) as ex:
             model.fit()
         assert ex.value.args[0] == \
@@ -341,8 +342,8 @@ class TestContinuousROM:
             "fit() must be implemented by child classes"
 
     def test_predict(self):
-        """Test _base._ContinuousROM.predict()."""
-        model = roi._base._ContinuousROM('')
+        """Test _core._base._ContinuousROM.predict()."""
+        model = roi._core._base._ContinuousROM('')
 
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
@@ -452,11 +453,13 @@ class TestContinuousROM:
 
 
 class TestNonparametricMixin:
-    """Test _base._NonparametricMixin."""
+    """Test _core._base._NonparametricMixin."""
     def test_str(self):
-        """Test _base._NonparametricMixin.__str__() (string representation)."""
+        """Test _core._base._NonparametricMixin.__str__()
+        (string representation).
+        """
         # Continuous ROMs
-        model = roi._inferred.InferredContinuousROM("A")
+        model = roi.InferredContinuousROM("A")
         assert str(model) == \
             "Reduced-order model structure: dx / dt = Ax(t)"
         model.modelform = "cA"
@@ -473,7 +476,7 @@ class TestNonparametricMixin:
             "Reduced-order model structure: dx / dt = c + H(x(t) ⊗ x(t))"
 
         # Discrete ROMs
-        model = roi._intrusive.IntrusiveDiscreteROM("A")
+        model = roi.IntrusiveDiscreteROM("A")
         assert str(model) == \
             "Reduced-order model structure: x_{j+1} = Ax_{j}"
         model.modelform = "cB"
@@ -484,7 +487,7 @@ class TestNonparametricMixin:
             "Reduced-order model structure: x_{j+1} = H(x_{j} ⊗ x_{j})"
 
     def test_save_model(self):
-        """Test _base._NonparametricMixin.save_model()."""
+        """Test _core._base._NonparametricMixin.save_model()."""
         # Clean up after old tests.
         target = "savemodeltest.h5"
         if os.path.isfile(target):              # pragma: no cover
@@ -589,11 +592,13 @@ class TestNonparametricMixin:
 
 
 class TestParametricMixin:
-    """Test _base._ParametricMixin."""
+    """Test _core._base._ParametricMixin."""
     def test_str(self):
-        """Test _base._ParametricMixin.__str__() (string representation)."""
+        """Test _core._base._ParametricMixin.__str__()
+        (string representation).
+        """
         # Continuous ROMs
-        model = roi._interpolate.InterpolatedInferredContinuousROM("A")
+        model = roi.InterpolatedInferredContinuousROM("A")
         assert str(model) == \
             "Reduced-order model structure: dx / dt = Ax(t)"
         model.c_ = lambda t: t

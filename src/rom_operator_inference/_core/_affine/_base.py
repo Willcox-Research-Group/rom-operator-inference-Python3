@@ -1,4 +1,4 @@
-# _affine/base.py
+# _core/_affine/_base.py
 """Base for ROMs with affine parametric dependence..
 
 Classes
