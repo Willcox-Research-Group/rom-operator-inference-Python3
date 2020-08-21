@@ -1,4 +1,4 @@
-# test_inferred.py
+# _core/test_inferred.py
 """Tests for rom_operator_inference._core._inferred.py."""
 
 import pytest

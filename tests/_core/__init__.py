@@ -1,5 +1,5 @@
-# _common.py
-"""Global variables and helper routines for setting up tests."""
+# _core/__init__.py
+"""Global variables and helper routines for setting up core tests."""
 
 import itertools
 import numpy as np

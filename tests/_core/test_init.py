@@ -1,5 +1,5 @@
-# test_init.py
-"""Tests for rom_operator_inference.__init__.py."""
+# _core/test_init.py
+"""Tests for rom_operator_inference._core.__init__.py."""
 
 import os
 import h5py

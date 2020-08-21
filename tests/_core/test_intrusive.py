@@ -1,4 +1,4 @@
-# test_intrusive.py
+# _core/test_intrusive.py
 """Tests for rom_operator_inference._core._intrusive.py."""
 
 import pytest
