@@ -6,7 +6,7 @@ from scipy import linalg as la
 
 import rom_operator_inference as roi
 
-from _common import _get_data, _get_operators
+from . import _get_data, _get_operators
 
 
 # Mixins (private) ============================================================

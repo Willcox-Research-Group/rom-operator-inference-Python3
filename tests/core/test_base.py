@@ -9,7 +9,7 @@ from scipy import linalg as la
 
 import rom_operator_inference as roi
 
-from _common import (_MODEL_KEYS, _MODEL_FORMS, _LSTSQ_REPORTS,
+from . import (_MODEL_KEYS, _MODEL_FORMS, _LSTSQ_REPORTS,
                      _get_data, _get_operators, _trainedmodel)
 
 

@@ -7,7 +7,7 @@ from scipy import linalg as la
 
 import rom_operator_inference as roi
 
-from _common import _LSTSQ_REPORTS, _get_data
+from .. import _LSTSQ_REPORTS, _get_data
 
 
 # Mixins (private) ============================================================

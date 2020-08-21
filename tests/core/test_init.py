@@ -8,7 +8,7 @@ import numpy as np
 
 import rom_operator_inference as roi
 
-from _common import _get_operators
+from . import _get_operators
 
 
 def test_select_model_class():
