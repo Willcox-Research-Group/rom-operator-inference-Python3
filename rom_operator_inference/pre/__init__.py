@@ -4,4 +4,4 @@
 from ._basis import *
 from ._shift_scale import *
 from ._reprojection import *
-from ._finite_differences import *
+from ._finite_difference import *

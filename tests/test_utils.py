@@ -9,7 +9,7 @@ import rom_operator_inference as roi
 
 
 def test_get_least_squares_size():
-    """Test utils.get_least_squares_size()."""
+    """Test utils._solver.get_least_squares_size()."""
     m, r = 3, 7
 
     # Try with bad input combinations.
@@ -42,7 +42,7 @@ def test_get_least_squares_size():
 
 # utils.lstsq_reg() -----------------------------------------------------------
 def _test_lstsq_reg_single(k,d,r):
-    """Do one test of utils.lstsq_reg()."""
+    """Do one test of utils._solver.lstsq_reg()."""
     A = np.random.random((k, d))
     b = np.random.random(k)
     B = np.random.random((k,r))
@@ -118,7 +118,7 @@ def _test_lstsq_reg_single(k,d,r):
 
 
 def test_lstsq_reg(n_tests=5):
-    """Test utils.lstsq_reg()."""
+    """Test utils._solver.lstsq_reg()."""
     A = np.random.random((20,10))
     B = np.random.random((20, 5))
 
@@ -175,7 +175,7 @@ def test_lstsq_reg(n_tests=5):
 
 # utils.kron2c() --------------------------------------------------------------
 def _test_kron2c_single_vector(n):
-    """Do one vector test of utils.kron2c()."""
+    """Do one vector test of utils._kronecker.kron2c()."""
     x = np.random.random(n)
     x2 = roi.utils.kron2c(x)
     assert x2.ndim == 1
@@ -185,7 +185,7 @@ def _test_kron2c_single_vector(n):
 
 
 def _test_kron2c_single_matrix(n):
-    """Do one matrix test of utils.kron2c()."""
+    """Do one matrix test of utils._kronecker.kron2c()."""
     X = np.random.random((n,n))
     X2 = roi.utils.kron2c(X)
     assert X2.ndim == 2
@@ -196,10 +196,10 @@ def _test_kron2c_single_matrix(n):
 
 
 def test_kron2c(n_tests=100):
-    """Test utils.kron2c()."""
+    """Test utils._kronecker.kron2c()."""
     # Try with bad input.
     with pytest.raises(ValueError) as exc:
-        roi.utils.kron2c(np.random.random((3,3,3)))
+        roi.utils.kron2c(np.random.random((3,3,3)), checkdim=True)
     assert exc.value.args[0] == "x must be one- or two-dimensional"
 
     # Correct inputs.
@@ -210,7 +210,7 @@ def test_kron2c(n_tests=100):
 
 # utils.kron3c() --------------------------------------------------------------
 def _test_kron3c_single_vector(n):
-    """Do one vector test of utils.kron3c()."""
+    """Do one vector test of utils._kronecker.kron3c()."""
     x = np.random.random(n)
     x3 = roi.utils.kron3c(x)
     assert x3.ndim == 1
@@ -221,7 +221,7 @@ def _test_kron3c_single_vector(n):
 
 
 def _test_kron3c_single_matrix(n):
-    """Do one matrix test of utils.kron3c()."""
+    """Do one matrix test of utils._kronecker.kron3c()."""
     X = np.random.random((n,n))
     X3 = roi.utils.kron3c(X)
     assert X3.ndim == 2
@@ -233,10 +233,10 @@ def _test_kron3c_single_matrix(n):
 
 
 def test_kron3c(n_tests=50):
-    """Test utils.kron3c()."""
+    """Test utils._kronecker.kron3c()."""
     # Try with bad input.
     with pytest.raises(ValueError) as exc:
-        roi.utils.kron3c(np.random.random((2,4,3)))
+        roi.utils.kron3c(np.random.random((2,4,3)), checkdim=True)
     assert exc.value.args[0] == "x must be one- or two-dimensional"
 
     # Correct inputs.
@@ -247,7 +247,7 @@ def test_kron3c(n_tests=50):
 
 # utils.expand_Hc() -----------------------------------------------------------
 def _test_expand_Hc_single(r):
-    """Do one test of utils.expand_Hc()."""
+    """Do one test of utils._kronecker.expand_Hc()."""
     x = np.random.random(r)
 
     # Do a valid expand_Hc() calculation and check dimensions.
@@ -268,7 +268,7 @@ def _test_expand_Hc_single(r):
 
 
 def test_expand_Hc(n_tests=100):
-    """Test utils.expand_Hc()."""
+    """Test utils._kronecker.expand_Hc()."""
     # Try to do expand_Hc() with a bad second dimension.
     r = 5
     sbad = r*(r+3)//2
@@ -285,7 +285,7 @@ def test_expand_Hc(n_tests=100):
 
 # utils.compress_H() ----------------------------------------------------------
 def _test_compress_H_single(r):
-    """Do one test of utils.compress_H()."""
+    """Do one test of utils._kronecker.compress_H()."""
     x = np.random.random(r)
 
     # Do a valid compress_H() calculation and check dimensions.
@@ -308,7 +308,7 @@ def _test_compress_H_single(r):
 
 
 def test_compress_H(n_tests=100):
-    """Test utils.compress_H()."""
+    """Test utils._kronecker.compress_H()."""
     # Try to do compress_H() with a bad second dimension.
     r = 5
     r2bad = r**2 + 1
@@ -325,7 +325,7 @@ def test_compress_H(n_tests=100):
 
 # utils.expand_Gc() -----------------------------------------------------------
 def _test_expand_Gc_single(r):
-    """Do one test of utils.expand_Gc()."""
+    """Do one test of utils._kronecker.expand_Gc()."""
     x = np.random.random(r)
 
     # Do a valid expand_Hc() calculation and check dimensions.
@@ -346,7 +346,7 @@ def _test_expand_Gc_single(r):
 
 
 def test_expand_Gc(n_tests=50):
-    """Test utils.expand_Gc()."""
+    """Test utils._kronecker.expand_Gc()."""
     # Try to do expand_Gc() with a bad second dimension.
     r = 5
     sbad = r*(r+1)*(r+3)//6
@@ -363,7 +363,7 @@ def test_expand_Gc(n_tests=50):
 
 # utils.compress_G() ----------------------------------------------------------
 def _test_compress_G_single(r):
-    """Do one test of utils.compress_G()."""
+    """Do one test of utils._kronecker.compress_G()."""
     x = np.random.random(r)
 
     # Do a valid compress_G() calculation and check dimensions.
@@ -381,7 +381,7 @@ def _test_compress_G_single(r):
 
 
 def test_compress_G(n_tests=50):
-    """Test utils.compress_G()."""
+    """Test utils._kronecker.compress_G()."""
     # Try to do compress_H() with a bad second dimension.
     r = 5
     r3bad = r**3 + 1

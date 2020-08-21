@@ -1,5 +1,5 @@
 # test_pre.py
-"""Tests for rom_operator_inference.pre.py"""
+"""Tests for rom_operator_inference.pre."""
 
 import pytest
 import numpy as np
@@ -20,7 +20,7 @@ def set_up_basis_data():
 # Data preprocessing: shifting and MinMax scaling / unscaling =================
 
 def test_shift(set_up_basis_data):
-    """Test pre.shift()."""
+    """Test pre._shift_scale.shift()."""
     X = set_up_basis_data
 
     # Try with bad data shape.
@@ -51,7 +51,7 @@ def test_shift(set_up_basis_data):
 
 
 def test_scale(set_up_basis_data):
-    """Test pre.scale()."""
+    """Test pre._shift_scale.scale()."""
     X = set_up_basis_data
     Y = np.random.random(X.shape) / 3
 
@@ -81,7 +81,7 @@ def test_scale(set_up_basis_data):
 
 # Basis computation ===========================================================
 def test_pod_basis(set_up_basis_data):
-    """Test pre.pod_basis() on a small case with the ARPACK solver."""
+    """Test pre._basis.pod_basis() on a small case with the ARPACK solver."""
     X = set_up_basis_data
     n,k = X.shape
 
@@ -135,7 +135,7 @@ def test_pod_basis(set_up_basis_data):
 
 # Reduced dimension selection =================================================
 def test_svdval_decay(set_up_basis_data):
-    """Test pre.svdval_decay()."""
+    """Test pre._basis.svdval_decay()."""
     X = set_up_basis_data
     svdvals = la.svdvals(X)
 
@@ -168,7 +168,7 @@ def test_svdval_decay(set_up_basis_data):
 
 
 def test_cumulative_energy(set_up_basis_data):
-    """Test pre.cumulative_energy()."""
+    """Test pre._basis.cumulative_energy()."""
     X = set_up_basis_data
     svdvals = la.svdvals(X)
 
@@ -201,7 +201,7 @@ def test_cumulative_energy(set_up_basis_data):
 
 
 def test_projection_error(set_up_basis_data):
-    """Test pre.projection_error()."""
+    """Test pre._basis.projection_error()."""
     X = set_up_basis_data
     Vr = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
 
@@ -210,7 +210,7 @@ def test_projection_error(set_up_basis_data):
 
 
 def test_minimal_projection_error(set_up_basis_data):
-    """Test pre.minimal_projection_error()."""
+    """Test pre._basis.minimal_projection_error()."""
     X = set_up_basis_data
     V = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
 
@@ -248,7 +248,7 @@ def test_minimal_projection_error(set_up_basis_data):
 
 # Reprojection schemes ========================================================
 def test_reproject_discrete(n=50, m=5, r=3):
-    """Test pre.reproject_discrete()."""
+    """Test pre._reprojection.reproject_discrete()."""
     # Construct dummy operators.
     k = 1 + r + r*(r+1)//2
     I = np.eye(n)
@@ -312,7 +312,7 @@ def test_reproject_discrete(n=50, m=5, r=3):
 
 
 def test_reproject_continuous(n=100, m=20, r=10):
-    """Test pre.reproject_continuous()."""
+    """Test pre._reprojection.reproject_continuous()."""
     # Construct dummy operators.
     k = 1 + r + r*(r+1)//2
     I = np.eye(n)
@@ -411,18 +411,18 @@ def set_up_nonuniform_difference_data():
 
 
 def test_fwd4(set_up_uniform_difference_data):
-    """Test pre._fwd4()."""
+    """Test pre._finite_difference._fwd4()."""
     dynamicstate = set_up_uniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
     dt = t[1] - t[0]
     for j in range(Y.shape[1] - 5):
         # One-dimensional test.
-        dY0 = roi.pre._finitediff._fwd4(Y[0,j:j+5], dt)
+        dY0 = roi.pre._finite_difference._fwd4(Y[0,j:j+5], dt)
         assert isinstance(dY0, float)
         assert np.isclose(dY0, dY[0,j])
 
         # Two-dimensional test.
-        dYj = roi.pre._finitediff._fwd4(Y[:,j:j+5].T, dt)
+        dYj = roi.pre._finite_difference._fwd4(Y[:,j:j+5].T, dt)
         assert dYj.shape == Y[:,j].shape
         assert np.allclose(dYj, dY[:,j])
 
@@ -431,18 +431,18 @@ def test_fwd4(set_up_uniform_difference_data):
 
 
 def test_fwd6(set_up_uniform_difference_data):
-    """Test pre._fwd6()."""
+    """Test pre._finite_difference._fwd6()."""
     dynamicstate = set_up_uniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
     dt = t[1] - t[0]
     for j in range(Y.shape[1] - 7):
         # One-dimensional test.
-        dY0 = roi.pre._finitediff._fwd6(Y[0,j:j+7], dt)
+        dY0 = roi.pre._finite_difference._fwd6(Y[0,j:j+7], dt)
         assert isinstance(dY0, float)
         assert np.isclose(dY0, dY[0,j])
 
         # Two-dimensional test.
-        dYj = roi.pre._finitediff._fwd6(Y[:,j:j+7].T, dt).T
+        dYj = roi.pre._finite_difference._fwd6(Y[:,j:j+7].T, dt).T
         assert dYj.shape == Y[:,j].shape
         assert np.allclose(dYj, dY[:,j])
 
@@ -451,7 +451,7 @@ def test_fwd6(set_up_uniform_difference_data):
 
 
 def test_xdot_uniform(set_up_uniform_difference_data):
-    """Test pre.xdot_uniform()."""
+    """Test pre._finite_difference.xdot_uniform()."""
     dynamicstate = set_up_uniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
     dt = t[1] - t[0]
@@ -477,7 +477,7 @@ def test_xdot_uniform(set_up_uniform_difference_data):
 
 
 def test_xdot_nonuniform(set_up_nonuniform_difference_data):
-    """Test pre.xdot_nonuniform()."""
+    """Test pre._finite_difference.xdot_nonuniform()."""
     dynamicstate = set_up_nonuniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
     dY_ = roi.pre.xdot_nonuniform(Y, t)
@@ -501,7 +501,7 @@ def test_xdot_nonuniform(set_up_nonuniform_difference_data):
 
 def test_xdot(set_up_uniform_difference_data,
               set_up_nonuniform_difference_data):
-    """Test pre.xdot()."""
+    """Test pre._finite_difference.xdot()."""
     # Uniform tests.
     dynamicstate = set_up_uniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
