@@ -194,73 +194,27 @@ class _DiscreteROM(_BaseROM):
         """Define the attribute self.f_ based on the computed operators."""
         self._check_modelform(trained=True)
 
-        # No control inputs, so f = f(x).
-        if self.modelform == "c":
-            f_ = lambda x_: self.c_
-        elif self.modelform == "A":
-            f_ = lambda x_: self.A_@x_
-        elif self.modelform == "H":
-            f_ = lambda x_: self.Hc_@kron2c(x_)
-        elif self.modelform == "G":
-            f_ = lambda x_: self.Gc_@kron3c(x_)
-        elif self.modelform == "cA":
-            f_ = lambda x_: self.c_ + self.A_@x_
-        elif self.modelform == "cH":
-            f_ = lambda x_: self.c_ + self.Hc_@kron2c(x_)
-        elif self.modelform == "cG":
-            f_ = lambda x_: self.c_ + self.Gc_@kron3c(x_)
-        elif self.modelform == "AH":
-            f_ = lambda x_: self.A_@x_ + self.Hc_@kron2c(x_)
-        elif self.modelform == "AG":
-            f_ = lambda x_: self.A_@x_ + self.Gc_@kron3c(x_)
-        elif self.modelform == "HG":
-            f_ = lambda x_: self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
-        elif self.modelform == "cAH":
-            f_ = lambda x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_)
-        elif self.modelform == "cAG":
-            f_ = lambda x_: self.c_ + self.A_@x_ + self.Gc_@kron3c(x_)
-        elif self.modelform == "cHG":
-            f_ = lambda x_: self.c_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
-        elif self.modelform == "AHG":
-            f_ = lambda x_: self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
-        elif self.modelform == "cAHG":
-            f_ = lambda x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
+        # Gather the pieces of the function.
+        rhs = []
+        namespace = {"self": self}
+        if self.has_constant:
+            rhs.append("self.c_")
+        if self.has_linear:
+            rhs.append("(self.A_ @ x_)")
+        if self.has_quadratic:
+            rhs.append("(self.Hc_ @ kron2c(x_))")
+            namespace["kron2c"] = kron2c
+        if self.has_cubic:
+            rhs.append("(self.Gc_ @ kron3c(x_))")
+            namespace["kron3c"] = kron3c
+        if self.has_inputs:
+            lhs = "lambda x_,u: "
+            rhs.append("(self.B_ @ u)")
+        else:
+            lhs = "lambda x_: "
 
-        # Has control inputs, so f = f(x, u).
-        elif self.modelform == "B":
-            f_ = lambda x_,u: self.B_@u
-        elif self.modelform == "cB":
-            f_ = lambda x_,u: self.c_ + self.B_@u
-        elif self.modelform == "AB":
-            f_ = lambda x_,u: self.A_@x_ + self.B_@u
-        elif self.modelform == "HB":
-            f_ = lambda x_,u: self.Hc_@kron2c(x_) + self.B_@u
-        elif self.modelform == "GB":
-            f_ = lambda x_,u: self.Gc_@kron3c(x_) + self.B_@u
-        elif self.modelform == "cAB":
-            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.B_@u
-        elif self.modelform == "cHB":
-            f_ = lambda x_,u: self.c_ + self.Hc_@kron2c(x_) + self.B_@u
-        elif self.modelform == "cGB":
-            f_ = lambda x_,u: self.c_ + self.Gc_@kron3c(x_) + self.B_@u
-        elif self.modelform == "AHB":
-            f_ = lambda x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u
-        elif self.modelform == "AGB":
-            f_ = lambda x_,u: self.A_@x_ + self.Gc_@kron3c(x_) + self.B_@u
-        elif self.modelform == "HGB":
-            f_ = lambda x_,u: self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u
-        elif self.modelform == "cAHB":
-            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u
-        elif self.modelform == "cAGB":
-            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Gc_@kron3c(x_) + self.B_@u
-        elif self.modelform == "cHGB":
-            f_ = lambda x_,u: self.c_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u
-        elif self.modelform == "AHGB":
-            f_ = lambda x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u
-        elif self.modelform == "cAHGB":
-            f_ = lambda x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u
-
-        self.f_ = f_
+        # Evaluate the pieces and bind them to the object as a lambda function.
+        self.f_ = eval(lhs + " + ".join(rhs), namespace)
 
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
@@ -334,81 +288,27 @@ class _ContinuousROM(_BaseROM):
         """Define the attribute self.f_ based on the computed operators."""
         self._check_modelform(trained=True)
 
-        # self._jac = None
-        # No control inputs.
-        if self.modelform == "c":
-            f_ = lambda t,x_: self.c_
-            # self._jac = np.zeros((self.r, self.r))
-        elif self.modelform == "A":
-            f_ = lambda t,x_: self.A_@x_
-            # self._jac = self.A_
-        elif self.modelform == "H":
-            f_ = lambda t,x_: self.Hc_@kron2c(x_)
-        elif self.modelform == "G":
-            f_ = lambda t,x_: self.Gc_@kron3c(x_)
-        elif self.modelform == "cA":
-            f_ = lambda t,x_: self.c_ + self.A_@x_
-            # self._jac = self.A_
-        elif self.modelform == "cH":
-            f_ = lambda t,x_: self.c_ + self.Hc_@kron2c(x_)
-        elif self.modelform == "cG":
-            f_ = lambda t,x_: self.c_ + self.Gc_@kron3c(x_)
-        elif self.modelform == "AH":
-            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2c(x_)
-        elif self.modelform == "AG":
-            f_ = lambda t,x_: self.A_@x_ + self.Gc_@kron3c(x_)
-        elif self.modelform == "HG":
-            f_ = lambda t,x_: self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
-        elif self.modelform == "cAH":
-            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_)
-        elif self.modelform == "cAG":
-            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Gc_@kron3c(x_)
-        elif self.modelform == "cHG":
-            f_ = lambda t,x_: self.c_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
-        elif self.modelform == "AHG":
-            f_ = lambda t,x_: self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
-        elif self.modelform == "cAHG":
-            f_ = lambda t,x_: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_)
+        # Gather the pieces of the function.
+        rhs = []
+        namespace = {"self": self}
+        if self.has_constant:
+            rhs.append("self.c_")
+        if self.has_linear:
+            rhs.append("(self.A_ @ x_)")
+        if self.has_quadratic:
+            rhs.append("(self.Hc_ @ kron2c(x_))")
+            namespace["kron2c"] = kron2c
+        if self.has_cubic:
+            rhs.append("(self.Gc_ @ kron3c(x_))")
+            namespace["kron3c"] = kron3c
+        if self.has_inputs:
+            lhs = "lambda t,x_,u: "
+            rhs.append("(self.B_ @ u(t))")
+        else:
+            lhs = "lambda t,x_: "
 
-        # Has control inputs.
-        elif self.modelform == "B":
-            f_ = lambda t,x_,u: self.B_@u(t)
-            # self._jac = np.zeros((self.r, self.r))
-        elif self.modelform == "cB":
-            f_ = lambda t,x_,u: self.c_ + self.B_@u(t)
-            # self._jac = np.zeros((self.r, self.r))
-        elif self.modelform == "AB":
-            f_ = lambda t,x_,u: self.A_@x_ + self.B_@u(t)
-            # self._jac = self.A_
-        elif self.modelform == "HB":
-            f_ = lambda t,x_,u: self.Hc_@kron2c(x_) + self.B_@u(t)
-        elif self.modelform == "GB":
-            f_ = lambda t,x_,u: self.Gc_@kron3c(x_) + self.B_@u(t)
-        elif self.modelform == "cAB":
-            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.B_@u(t)
-            # self._jac = self.A_
-        elif self.modelform == "cHB":
-            f_ = lambda t,x_,u: self.c_ + self.Hc_@kron2c(x_) + self.B_@u(t)
-        elif self.modelform == "cGB":
-            f_ = lambda t,x_,u: self.c_ + self.Gc_@kron3c(x_) + self.B_@u(t)
-        elif self.modelform == "AHB":
-            f_ = lambda t,x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u(t)
-        elif self.modelform == "AGB":
-            f_ = lambda t,x_,u: self.A_@x_ + self.Gc_@kron3c(x_) + self.B_@u(t)
-        elif self.modelform == "HGB":
-            f_ = lambda t,x_,u: self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u(t)
-        elif self.modelform == "cAHB":
-            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.B_@u(t)
-        elif self.modelform == "cAGB":
-            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Gc_@kron3c(x_) + self.B_@u(t)
-        elif self.modelform == "cHGB":
-            f_ = lambda t,x_,u: self.c_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u(t)
-        elif self.modelform == "AHGB":
-            f_ = lambda t,x_,u: self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u(t)
-        elif self.modelform == "cAHGB":
-            f_ = lambda t,x_,u: self.c_ + self.A_@x_ + self.Hc_@kron2c(x_) + self.Gc_@kron3c(x_) + self.B_@u(t)
-
-        self.f_ = f_
+        # Evaluate the pieces and bind them to the object as a lambda function.
+        self.f_ = eval(lhs + " + ".join(rhs), namespace)
 
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
