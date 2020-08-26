@@ -20,7 +20,7 @@ _LSTSQ_REPORTS = ["datacond_", "dataregcond_", "residual_", "misfit_"]
 def _get_data(n=60, k=25, m=20):
     """Get fake snapshot, velocity, and input data."""
     X = np.random.random((n,k))
-    Xdot = np.zeros((n,k))
+    Xdot = np.random.random((n,k))
     U = np.ones((m,k))
 
     return X, Xdot, U
