@@ -25,10 +25,146 @@ class _InferredMixin:
     @staticmethod
     def _check_training_data_shapes(datasets):
         """Ensure that each data set has the same number of columns."""
+        # TODO: ensure that each dataset is two-dimensional. # BUG
         k = datasets[0].shape[1]
         for data in datasets:
             if data.shape[1] != k:
                 raise ValueError("data sets not aligned, dimension 1")
+
+    def _process_fit_arguments(self, Vr, X, rhs, U):
+        """Do sanity checks, extract dimensions, check and fix data sizes,
+        and get the projected data for the Operator Inference problem.
+
+        Returns
+        -------
+        X_ : (r,k) ndarray
+            Projected state snapshots.
+
+        rhs_ : (r,k) ndarray
+            Projected right-hand-side data.
+
+        U : (m,k) ndarray
+            Inputs, potentially reshaped.
+        """
+        # Check modelform and inputs.
+        self._check_modelform()
+        self._check_inputargs(U, 'U')
+
+        # Store dimensions and check that number of samples is consistent.
+        if Vr is not None:
+            self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
+        else:
+            self.n = None
+            self.r = X.shape[0]
+        _tocheck = [X, rhs]
+        if self.has_inputs:             # Input dimension.
+            if U.ndim == 1:
+                U = U.reshape((1,-1))
+                self.m = 1
+            else:
+                self.m = U.shape[0]
+            _tocheck.append(U)
+        else:
+            self.m = None
+        self._check_training_data_shapes(_tocheck)
+
+        # Project states and rhs to the reduced subspace (if not done already).
+        self.Vr = Vr
+        X_ = self.project(X, 'X')
+        rhs_ = self.project(rhs, 'rhs')
+
+        return X_, rhs_, U
+
+    def _construct_data_matrix(self, X_, U):
+        """Construct the Operator Inference data matrix D (before any
+        regularization) from projected data.
+
+        If modelform="cAHB", this is D = [1 | X_.T | (X_ ⊗ X_).T | U.T].
+
+        Returns
+        -------
+        D : (k,d(r,m)) ndarray
+            Non-regularized Operator Inference data matrix.
+        """
+        D = []
+        if self.has_constant:
+            D.append(np.ones((X_.shape[1],1)))
+        if self.has_linear:
+            D.append(X_.T)
+        if self.has_quadratic:
+            D.append(kron2c(X_).T)
+        if self.has_cubic:
+            D.append(kron3c(X_).T)
+        if self.has_inputs:
+            D.append(U.T)
+
+        return np.hstack(D)
+
+    def _solve_opinf_lstsq(self, D, R, P):
+        """Solve the Operator Inference least-squares problem and record
+        data about the conditioning and residuals of the problem.
+
+        Returns
+        -------
+        O : (r,d(r,m)) ndarray
+            Solution to the Operator Inference least-squares problem, i.e.,
+            the inferred operators in block matrix form.
+        """
+        Rtrp = R.T
+
+        # Solve for the reduced-order model operators via least squares.
+        Otrp, res, _, sval = lstsq_reg(D, Rtrp, P)
+
+        # Record info about the least squares solution.
+        # Condition number of the raw data matrix.
+        self.datacond_ = np.linalg.cond(D)
+        # Condition number of regularized data matrix.
+        self.dataregcond_ = abs(sval[0]/sval[-1]) if sval[-1] > 0 else np.inf
+        # Squared Frobenius data misfit (without regularization).
+        self.misfit_ = np.sum(((D @ Otrp) - Rtrp)**2)
+        # Squared Frobenius residual of the regularized least squares problem.
+        self.residual_ = np.sum(res) if res.size > 0 else self.misfit_
+
+        return Otrp.T
+
+    def _extract_operators(self, O):
+        """Extract and save the inferred operators from the block-matrix
+        solution to the least-squarse problem.
+        """
+        i = 0
+        if self.has_constant:
+            self.c_ = O[:,i:i+1][:,0]       # Note that c_ is one-dimensional.
+            i += 1
+        else:
+            self.c_ = None
+
+        if self.has_linear:
+            self.A_ = O[:,i:i+self.r]
+            i += self.r
+        else:
+            self.A_ = None
+
+        if self.has_quadratic:
+            _r2 = self.r*(self.r + 1)//2
+            self.Hc_ = O[:,i:i+_r2]
+            i += _r2
+        else:
+            self.Hc_ = None
+
+        if self.has_cubic:
+            _r3 = self.r*(self.r + 1)*(self.r + 2)//6
+            self.Gc_ = O[:,i:i+_r3]
+            i += _r3
+        else:
+            self.Gc_ = None
+
+        if self.has_inputs:
+            self.B_ = O[:,i:i+self.m]
+            i += self.m
+        else:
+            self.B_ = None
+
+        return
 
     def fit(self, Vr, X, rhs, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
@@ -62,105 +198,10 @@ class _InferredMixin:
         -------
         self
         """
-        # Check modelform and inputs.
-        self._check_modelform()
-        self._check_inputargs(U, 'U')
-
-        # Store dimensions and check that number of samples is consistent.
-        if Vr is not None:
-            self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
-        else:
-            self.n = None
-            self.r = X.shape[0]
-        _tocheck = [X, rhs]
-        if self.has_inputs:             # Input dimension.
-            if U.ndim == 1:
-                U = U.reshape((1,-1))
-                self.m = 1
-            else:
-                self.m = U.shape[0]
-            _tocheck.append(U)
-        else:
-            self.m = None
-        self._check_training_data_shapes(_tocheck)
-        k = X.shape[1]
-
-        # Project states and rhs to the reduced subspace (if not done already).
-        self.Vr = Vr
-        X_ = self.project(X, 'X')
-        rhs_ = self.project(rhs, 'rhs')
-
-        # Construct the "Data matrix" D = [X^T, (X ⊗ X)^T, U^T, 1].
-        D_blocks = []
-        if self.has_constant:
-            D_blocks.append(np.ones((k,1)))
-
-        if self.has_linear:
-            D_blocks.append(X_.T)
-
-        if self.has_quadratic:
-            X2_ = kron2c(X_)
-            D_blocks.append(X2_.T)
-            _r2 = X2_.shape[0]  # = r(r+1)/2, size of compact quadratic Kron.
-
-        if self.has_cubic:
-            X3_ = kron3c(X_)
-            D_blocks.append(X3_.T)
-            _r3 = X3_.shape[0]  # = r(r+1)(r+2)/6, size of compact cubic Kron.
-
-        if self.has_inputs:
-            D_blocks.append(U.T)
-            m = U.shape[0]
-            self.m = m
-
-        D = np.hstack(D_blocks)
-        R = rhs_.T
-
-        # Solve for the reduced-order model operators via least squares.
-        Otrp, res, _, sval = lstsq_reg(D, R, P)
-
-        # Record info about the least squares solution.
-        # Condition number of the raw data matrix.
-        self.datacond_ = np.linalg.cond(D)
-        # Condition number of regularized data matrix.
-        self.dataregcond_ = abs(sval[0]/sval[-1]) if sval[-1] > 0 else np.inf
-        # Squared Frobenius data misfit (without regularization).
-        self.misfit_ = np.sum(((D @ Otrp) - R)**2)
-        # Squared Frobenius residual of the regularized least squares problem.
-        self.residual_ = np.sum(res) if res.size > 0 else self.misfit_
-
-        # Extract the reduced operators from Otrp.
-        i = 0
-        if self.has_constant:
-            self.c_ = Otrp[i:i+1][0]        # Note that c_ is one-dimensional.
-            i += 1
-        else:
-            self.c_ = None
-
-        if self.has_linear:
-            self.A_ = Otrp[i:i+self.r].T
-            i += self.r
-        else:
-            self.A_ = None
-
-        if self.has_quadratic:
-            self.Hc_ = Otrp[i:i+_r2].T
-            i += _r2
-        else:
-            self.Hc_ = None
-
-        if self.has_cubic:
-            self.Gc_ = Otrp[i:i+_r3].T
-            i += _r3
-        else:
-            self.Gc_ = None
-
-        if self.has_inputs:
-            self.B_ = Otrp[i:i+self.m].T
-            i += self.m
-        else:
-            self.B_ = None
-
+        X_, rhs_, U = self._process_fit_arguments(Vr, X, rhs, U)
+        D = self._construct_data_matrix(X_, U)
+        O = self._solve_opinf_lstsq(D, rhs_, P)
+        self._extract_operators(O)
         self._construct_f_()
         return self
 

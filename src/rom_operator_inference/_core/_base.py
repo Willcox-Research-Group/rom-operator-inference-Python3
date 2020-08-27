@@ -550,4 +550,3 @@ class _ParametricMixin:
 # TODO: save_model() for parametric forms.
 # TODO: jacobians for each model form in the continuous case.
 # TODO: self.p = parameter size for parametric classes (+ shape checking)
-# TODO: programmatic self.f_ = eval("lambda...")
