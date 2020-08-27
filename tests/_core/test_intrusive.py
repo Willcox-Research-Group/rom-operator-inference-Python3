@@ -12,33 +12,33 @@ from . import _get_data, _get_operators
 # Mixins (private) ============================================================
 class TestIntrusiveMixin:
     """Test _core._intrusive._IntrusiveMixin."""
-    def test_check_operators(self):
-        """Test _core._intrusive._IntrusiveMixin._check_operators()."""
+    def test_check_operators_keys(self):
+        """Test _core._intrusive._IntrusiveMixin._check_operators_keys()."""
         model = roi._core._intrusive._IntrusiveMixin()
         model.modelform = "cAHB"
         v = None
 
         # Try with missing operator keys.
         with pytest.raises(KeyError) as ex:
-            model._check_operators({"A":v, "H":v, "B":v})
+            model._check_operators_keys({"A":v, "H":v, "B":v})
         assert ex.value.args[0] == "missing operator key 'c'"
 
         with pytest.raises(KeyError) as ex:
-            model._check_operators({"H":v, "B":v})
+            model._check_operators_keys({"H":v, "B":v})
         assert ex.value.args[0] == "missing operator keys 'c', 'A'"
 
         # Try with surplus operator keys.
         with pytest.raises(KeyError) as ex:
-            model._check_operators({'CC':v, "c":v, "A":v, "H":v, "B":v})
+            model._check_operators_keys({'CC':v, "c":v, "A":v, "H":v, "B":v})
         assert ex.value.args[0] == "invalid operator key 'CC'"
 
         with pytest.raises(KeyError) as ex:
-            model._check_operators({"c":v, "A":v, "H":v, "B":v,
-                                    'CC':v, 'LL':v})
+            model._check_operators_keys({"c":v, "A":v, "H":v, "B":v,
+                                         'CC':v, 'LL':v})
         assert ex.value.args[0] == "invalid operator keys 'CC', 'LL'"
 
         # Correct usage.
-        model._check_operators({"c":v, "A":v, "H":v, "B":v})
+        model._check_operators_keys({"c":v, "A":v, "H":v, "B":v})
 
     def _test_fit(self, ModelClass):
         """Test _core._intrusive._IntrusiveMixin.fit(), the parent method for

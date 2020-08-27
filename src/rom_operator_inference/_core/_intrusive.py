@@ -23,7 +23,7 @@ from ..utils import (expand_Hc as Hc2H, compress_H as H2Hc,
 
 class _IntrusiveMixin:
     """Mixin class for reduced model classes that use intrusive projection."""
-    def _check_operators(self, operators):
+    def _check_operators_keys(self, operators):
         """Check the keys of the `operators` argument."""
         # Check for missing operator keys.
         missing = [repr(key) for key in self.modelform if key not in operators]
@@ -37,36 +37,20 @@ class _IntrusiveMixin:
             _noun = "key" + ('' if len(surplus) == 1 else 's')
             raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
 
-    def fit(self, Vr, operators):
-        """Compute the reduced model operators via intrusive projection.
+    def _process_fit_arguments(self, Vr, operators):
+        self._check_modelform(trained=False)
+        self._check_operators_keys(operators)
 
-        Parameters
-        ----------
-        Vr : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
-            This cannot be set to None, as it is required for projection.
+        # Make sure Vr is not None (explicitly) and check dimensions.
+        if Vr is None:
+            raise ValueError("Vr required for intrusive ROMs (got Vr=None)")
 
-        operators: dict(str -> ndarray)
-            The operators that define the full-order model f.
-            Keys must match the modelform:
-            * 'c': constant term c.
-            * 'A': linear state matrix A.
-            * 'H': quadratic state matrix H (either full H or compact Hc).
-            * 'G': cubic state matrix H (either full G or compact Gc).
-            * 'B': input matrix B.
-
-        Returns
-        -------
-        self
-        """
-        # Verify modelform.
-        self._check_modelform()
-        self._check_operators(operators)
-
-        # Store dimensions.
+        # Store basis and dimensions.
         self.Vr = Vr
         self.n, self.r = Vr.shape           # Dim of system, num basis vectors.
 
+    def _project_operators(self, operators):
+        """Project the full-order operators to the reduced-order space."""
         # Project FOM operators.
         if self.has_constant:               # Constant term.
             self.c = operators['c']
@@ -100,7 +84,7 @@ class _IntrusiveMixin:
         else:
             self.Hc, self.H, self.Hc_ = None, None, None
 
-        if self.has_cubic:
+        if self.has_cubic:                  # Cubic state matrix.
             G_or_Gc = operators['G']
             _n3 = self.n * (self.n + 1) * (self.n + 2) // 6
             if G_or_Gc.shape == (self.n,self.n**3):         # It's G.
@@ -129,6 +113,30 @@ class _IntrusiveMixin:
         else:
             self.B, self.B_, self.m = None, None, None
 
+    def fit(self, Vr, operators):
+        """Compute the reduced model operators via intrusive projection.
+
+        Parameters
+        ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+            This cannot be set to None, as it is required for projection.
+
+        operators: dict(str -> ndarray)
+            The operators that define the full-order model f.
+            Keys must match the modelform:
+            * 'c': constant term c.
+            * 'A': linear state matrix A.
+            * 'H': quadratic state matrix H (either full H or compact Hc).
+            * 'G': cubic state matrix H (either full G or compact Gc).
+            * 'B': input matrix B.
+
+        Returns
+        -------
+        self
+        """
+        self._process_fit_arguments(Vr, operators)
+        self._project_operators(operators)
         self._construct_f_()
         return self
 
