@@ -160,7 +160,7 @@ class _BaseROM:
 
     def project(self, S, label="input"):
         """Check the dimensions of S and project it if needed."""
-        if S.shape[0] not in {self.r, self.n}:
+        if S.shape[0] not in (self.r, self.n):
             raise ValueError(f"{label} not aligned with Vr, dimension 0")
         return self.Vr.T @ S if S.shape[0] == self.n else S
 
@@ -411,7 +411,7 @@ class _ContinuousROM(_BaseROM):
         return self.Vr @ self.sol_.y if self.Vr is not None else self.sol_.y
 
 
-# Mixin for parametric / nonparametric classes (private) ======================
+# Mixins for parametric / nonparametric classes (private) =====================
 class _NonparametricMixin:
     """Mixin class for non-parametric reduced model classes."""
     @property

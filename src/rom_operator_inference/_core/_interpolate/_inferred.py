@@ -281,7 +281,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
         self
         """
         return _InterpolatedInferredMixin.fit(self, InferredDiscreteROM,
-                                      Vr, µs, Xs, None, Us, P)
+                                              Vr, µs, Xs, None, Us, P)
 
     def predict(self, µ, x0, niters, U=None):
         """Construct a ROM for the parameter µ by interolating the entries of
@@ -462,7 +462,7 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousR
         self
         """
         return _InterpolatedInferredMixin.fit(self, InferredContinuousROM,
-                                      Vr, µs, Xs, Xdots, Us, P)
+                                              Vr, µs, Xs, Xdots, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by interolating the entries of

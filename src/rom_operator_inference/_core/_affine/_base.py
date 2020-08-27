@@ -123,6 +123,7 @@ class AffineOperator:
         return all([np.allclose(self.matrices[l], other.matrices[l])
                                             for l in range(self.nterms)])
 
+
 # Affine base mixin (private) =================================================
 class _AffineMixin(_ParametricMixin):
     """Mixin class for affinely parametric reduced model classes."""
@@ -135,6 +136,7 @@ class _AffineMixin(_ParametricMixin):
             _noun = "key" + ('' if len(surplus) == 1 else 's')
             raise KeyError(f"invalid affine {_noun} {', '.join(surplus)}")
 
+        # TODO: this is the only place validate_coeffs() is called. Do it here?
         if µ is not None:
             for a in affines.values():
                 AffineOperator(a).validate_coeffs(µ)

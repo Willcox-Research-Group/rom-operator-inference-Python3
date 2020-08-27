@@ -25,15 +25,15 @@ class _InferredMixin:
     @staticmethod
     def _check_training_data_shapes(datasets):
         """Ensure that each data set has the same number of columns."""
-        # TODO: ensure that each dataset is two-dimensional. # BUG
-        k = datasets[0].shape[1]
         for data in datasets:
-            if data.shape[1] != k:
-                raise ValueError("data sets not aligned, dimension 1")
+            if data.ndim != 2:
+                raise ValueError("training data must be two-dimensional")
+            if data.shape[1] != datasets[0].shape[1]:
+                raise ValueError("training data not aligned, dimension 1")
 
     def _process_fit_arguments(self, Vr, X, rhs, U):
-        """Do sanity checks, extract dimensions, check and fix data sizes,
-        and get the projected data for the Operator Inference problem.
+        """Do sanity checks, extract dimensions, check and fix data sizes, and
+        get projected data for the Operator Inference least-squares problem.
 
         Returns
         -------
@@ -50,26 +50,26 @@ class _InferredMixin:
         self._check_modelform()
         self._check_inputargs(U, 'U')
 
-        # Store dimensions and check that number of samples is consistent.
+        # Store basis and dimensions.
         if Vr is not None:
             self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
         else:
-            self.n = None
-            self.r = X.shape[0]
+            self.n = None               # No full dimension.
+            self.r = X.shape[0]         # Reduced dimension.
+        self.Vr = Vr
+
+        # Ensure training data sets have consistent sizes.
         _tocheck = [X, rhs]
-        if self.has_inputs:             # Input dimension.
-            if U.ndim == 1:
+        if self.has_inputs:
+            if U.ndim == 1:             # Reshape one-dimensional inputs.
                 U = U.reshape((1,-1))
-                self.m = 1
-            else:
-                self.m = U.shape[0]
+            self.m = U.shape[0]         # Input dimension.
             _tocheck.append(U)
         else:
-            self.m = None
+            self.m = None               # No input dimension.
         self._check_training_data_shapes(_tocheck)
 
         # Project states and rhs to the reduced subspace (if not done already).
-        self.Vr = Vr
         X_ = self.project(X, 'X')
         rhs_ = self.project(rhs, 'rhs')
 
@@ -145,14 +145,14 @@ class _InferredMixin:
             self.A_ = None
 
         if self.has_quadratic:
-            _r2 = self.r*(self.r + 1)//2
+            _r2 = self.r * (self.r + 1) // 2
             self.Hc_ = O[:,i:i+_r2]
             i += _r2
         else:
             self.Hc_ = None
 
         if self.has_cubic:
-            _r3 = self.r*(self.r + 1)*(self.r + 2)//6
+            _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
             self.Gc_ = O[:,i:i+_r3]
             i += _r3
         else:

@@ -29,16 +29,204 @@ from ...utils import (lstsq_reg,
 # Affine inferred mixin (private) =============================================
 class _AffineInferredMixin(_InferredMixin, _AffineMixin):
     """Mixin class for affinely parametric inferred reduced model classes."""
-    def fit(self, ModelClass, Vr, µs, affines, Xs, rhss, Us=None, P=0):
+
+    def _process_fit_arguments(self, Vr, µs, affines, Xs, rhss, Us):
+        """Do sanity checks, extract dimensions, check and fix data sizes, and
+        get projected data for the Operator Inference least-squares problem.
+
+        Returns
+        -------
+        Xs_ : list of s (r,k) ndarrays
+            Projected state snapshots. Xs_[i] corresponds to µ[i].
+
+        rhss_ : list of s (r,k) ndarrays
+            Projected right-hand-side data. rhss_[i] corresponds to µ[i].
+
+        Us : list of s (m,k) ndarrays
+            Inputs, potentially reshaped. Us[i] corresponds to µ[i].
+        """
+        # Check modelform, affines dictionary, and inputs.
+        self._check_modelform(trained=False)
+        # TODO: self.p = self._check_params(µs): extract self.p and check sizes.
+        self._check_affines(affines, µs[0])
+        self._check_inputargs(Us, 'Us')
+
+        # Check that the number of params matches the number of training sets.
+        s = len(µs)
+        if len(Xs) != s:
+            raise ValueError("num parameter samples != num state snapshot "
+                             f"training sets ({s} != {len(Xs)})")
+        if len(rhss) != s:
+            raise ValueError("num parameter samples != num rhs "
+                             f"training sets ({s} != {len(rhss)})")
+        if self.has_inputs and len(Us) != s:
+            raise ValueError("num parameter samples != num input "
+                             f"training sets ({s} != {len(Us)})")
+
+        # Store basis and dimensions.
+        if Vr is not None:
+            self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
+        else:
+            self.n = None               # No full dimension.
+            self.r = Xs[0].shape[0]     # Reduced dimension.
+        self.Vr = Vr
+
+        # Ensure training data sets have consistent sizes.
+        _tocheck = [Xs, rhss]
+        if self.has_inputs:
+            if not isinstance(Us, list):
+                Us = list(Us)
+            for i in range(s):
+                if Us[i].ndim == 1:     # Reshape one-dimensional inputs.
+                    Us[i] = Us[i].reshape((1,-1))
+                if Us[i].shape[0] != Us[0].shape[0]:
+                    raise ValueError("control inputs not aligned")
+            self.m = Us[0].shape[0]
+            _tocheck.append(Us)
+        else:
+            self.m = None
+        for dsets in zip(*_tocheck):
+            self._check_training_data_shapes(dsets)
+
+        # Project states and rhs to the reduced subspace (if not done already).
+        Xs_ = [self.project(X, 'X') for X in Xs]
+        rhss_ = [self.project(rhs, 'rhs') for rhs in rhss]
+
+        return Xs_, rhss_, Us
+
+
+    def _construct_data_matrix(self, µs, affines, Xs_, Us):
+        """Construct the affine Operator Inference data matrix D (before any
+        regularization) from projected data.
+
+        Returns
+        -------
+        D : (sum(k_i),d(r,m)) ndarray
+            Non-regularized affine Operator Inference data matrix.
+        """
+        D_rows = []
+        for i,(µ,X_) in enumerate(zip(µs, Xs_)):
+            row = []
+            if self.has_constant:
+                ones = np.ones((X_.shape[1],1))
+                if 'c' in affines:
+                    row += [θ(µ) * ones for θ in affines['c']]
+                else:
+                    row.append(ones)
+
+            if self.has_linear:
+                if 'A' in affines:
+                    row += [θ(µ) * X_.T for θ in affines['A']]
+                else:
+                    row.append(X_.T)
+
+            if self.has_quadratic:
+                X2_ = kron2c(X_)
+                if 'H' in affines:
+                    row += [θ(µ) * X2_.T for θ in affines['H']]
+                else:
+                    row.append(X2_.T)
+
+            if self.has_cubic:
+                X3_ = kron3c(X_)
+                if 'G' in affines:
+                    row += [θ(µ) * X3_.T for θ in affines['G']]
+                else:
+                    row.append(X3_.T)
+
+            if self.has_inputs:
+                U = Us[i]
+                if 'B' in affines:
+                    row += [θ(µ) * U.T for θ in affines['B']]
+                else:
+                    row.append(U.T)
+
+            D_rows.append(np.hstack(row))
+
+        return np.vstack(D_rows)
+
+    def _extract_operators(self, affines, O):
+        """Extract and save the inferred operators from the block-matrix
+        solution to the least-squarse problem.
+        """
+        i = 0
+        if self.has_constant:
+            if 'c' in affines:
+                cs_ = []
+                for j in range(len(affines['c'])):
+                    cs_.append(O[:,i:i+1][:,0])     # c_ is one-dimensional.
+                    i += 1
+                self.c_ = AffineOperator(affines['c'], cs_)
+            else:
+                self.c_ = O[:,i:i+1][:,0]           # c_ is one-dimensional.
+                i += 1
+        else:
+            self.c_, self.cs_ = None, None
+
+        if self.has_linear:
+            if 'A' in affines:
+                As_ = []
+                for j in range(len(affines['A'])):
+                    As_.append(O[:,i:i+self.r])
+                    i += self.r
+                self.A_ = AffineOperator(affines['A'], As_)
+            else:
+                self.A_ = O[:,i:i+self.r]
+                i += self.r
+        else:
+            self.A_ = None
+
+        if self.has_quadratic:
+            _r2 = self.r * (self.r + 1) // 2
+            if 'H' in affines:
+                Hcs_ = []
+                for j in range(len(affines['H'])):
+                    Hcs_.append(O[:,i:i+_r2])
+                    i += _r2
+                self.Hc_ = AffineOperator(affines['H'], Hcs_)
+                self.H_ = lambda µ: Hc2H(self.Hc_(µ))
+            else:
+                self.Hc_ = O[:,i:i+_r2]
+                i += _r2
+                self.H_ = Hc2H(self.Hc_)
+        else:
+            self.Hc_, self.H_ = None, None
+
+        if self.has_cubic:
+            _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
+            if 'G' in affines:
+                Gcs_ = []
+                for j in range(len(affines['G'])):
+                    Gcs_.append(O[:,i:i+_r3])
+                    i += _r3
+                self.Gc_ = AffineOperator(affines['G'], Gcs_)
+                self.G_ = lambda µ: Gc2G(self.Gc_(µ))
+            else:
+                self.Gc_ = O[:,i:i+_r3]
+                i += _r3
+                self.G_ = Gc2G(self.Gc_)
+        else:
+            self.Gc_, self.G_ = None, None
+
+        if self.has_inputs:
+            if 'B' in affines:
+                Bs_ = []
+                for j in range(len(affines['B'])):
+                    Bs_.append(O[:,i:i+self.m])
+                    i += self.m
+                self.B_ = AffineOperator(affines['B'], Bs_)
+            else:
+                self.B_ = O[:,i:i+self.m]
+                i += self.m
+        else:
+            self.B_ = None
+
+    def fit(self, Vr, µs, affines, Xs, rhss, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
         For terms with affine structure, solve for the component operators.
 
         Parameters
         ----------
-        ModelClass: class
-            ROM class, either _ContinuousROM or _DiscreteROM, to use for the
-            newly constructed model.
-
         Vr : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
@@ -82,174 +270,12 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         -------
         self
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=False)
-        self._check_affines(affines, µs[0])
-        self._check_inputargs(Us, 'Us')
-        is_continuous = issubclass(ModelClass, _ContinuousROM)
-
-        # Check that the number of params matches the number of snapshot sets.
-        s = len(µs)
-        if len(Xs) != s:
-            raise ValueError("num parameter samples != num state snapshot "
-                             f"sets ({s} != {len(Xs)})")
-        if len(rhss) != s:
-            raise ValueError("num parameter samples != num rhs "
-                             f"sets ({s} != {len(rhss)})")
-
-        # Check and store dimensions.
-        self.n, self.r = Vr.shape
-        self.m = None
-
-        # Check that the arrays in each list have the same number of columns.
-        _tocheck = [Xs]
-        if is_continuous:
-            _tocheck.append(rhss)
-        if self.has_inputs:
-            self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
-            # Check that the input dimension is the same in each data set.
-            for U in Us:
-                m = U.shape[0] if U.ndim == 2 else 1
-                if m != self.m:
-                    raise ValueError("control inputs not aligned")
-        else:
-            Us = [None]*s
-        for dataset in _tocheck:
-            self._check_training_data_shapes(dataset)
-
-        # TODO: figure out how to handle P (scalar, array, list(arrays)).
-
-        # Project states and velocities to the reduced subspace.
-        self.Vr = Vr
-        Xs_ = [self.project(X, 'X') for X in Xs]
-        rhss_ = [self.project(rhs, 'rhs') for rhs in rhss]
-
-        # Construct the large "Data matrix" D.
-        D_blockrows = []
-        for i,(µ,X_) in enumerate(zip(µs, Xs_)):
-            row = []
-            k = X_.shape[1]
-
-            if self.has_constant:
-                ones = np.ones((k,1))
-                if 'c' in affines:
-                    row += [θ(µ) * ones for θ in affines['c']]
-                else:
-                    row.append(ones)
-
-            if self.has_linear:
-                if 'A' in affines:
-                    row += [θ(µ) * X_.T for θ in affines['A']]
-                else:
-                    row.append(X_.T)
-
-            if self.has_quadratic:
-                X2_ = kron2c(X_)
-                if 'H' in affines:
-                    row += [θ(µ) * X2_.T for θ in affines['H']]
-                else:
-                    row.append(X2_.T)
-
-            if self.has_cubic:
-                X3_ = kron3c(X_)
-                if 'G' in affines:
-                    row += [θ(µ) * X3_.T for θ in affines['G']]
-                else:
-                    row.append(X3_.T)
-
-            if self.has_inputs:
-                U = Us[i]
-                if self.m == 1:
-                    U = U.reshape((1,k))
-                if 'B' in affines:
-                    row += [θ(µ) * U.T for θ in affines['B']]
-                else:
-                    row.append(U.T)
-
-            D_blockrows.append(np.hstack(row))
-
-        D = np.vstack(D_blockrows)
-        self.datacond_ = np.linalg.cond(D)      # Condition number of data.
-        R = np.hstack(rhss_).T
-        self._D_ = D.copy()                     ## Save data matrix for later.
-
-        # Solve for the reduced-order model operators via least squares.
-        Otrp, res = lstsq_reg(D, R, P)[0:2]
-        self.residual_ = np.sum(res)
-
-        # Extract the reduced operators from Otrp.
-        i = 0
-        if self.has_constant:
-            if 'c' in affines:
-                cs_ = []
-                for j in range(len(affines['c'])):
-                    cs_.append(Otrp[i:i+1][0])      # c_ is one-dimensional.
-                    i += 1
-                self.c_ = AffineOperator(affines['c'], cs_)
-            else:
-                self.c_ = Otrp[i:i+1][0]            # c_ is one-dimensional.
-                i += 1
-        else:
-            self.c_, self.cs_ = None, None
-
-        if self.has_linear:
-            if 'A' in affines:
-                As_ = []
-                for j in range(len(affines['A'])):
-                    As_.append(Otrp[i:i+self.r].T)
-                    i += self.r
-                self.A_ = AffineOperator(affines['A'], As_)
-            else:
-                self.A_ = Otrp[i:i+self.r].T
-                i += self.r
-        else:
-            self.A_ = None
-
-        if self.has_quadratic:
-            _r2 = self.r * (self.r + 1) // 2
-            if 'H' in affines:
-                Hcs_ = []
-                for j in range(len(affines['H'])):
-                    Hcs_.append(Otrp[i:i+_r2].T)
-                    i += _r2
-                self.Hc_ = AffineOperator(affines['H'], Hcs_)
-                self.H_ = lambda µ: Hc2H(self.Hc_(µ))
-            else:
-                self.Hc_ = Otrp[i:i+_r2].T
-                i += _r2
-                self.H_ = Hc2H(self.Hc_)
-        else:
-            self.Hc_, self.H_ = None, None
-
-        if self.has_cubic:
-            _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
-            if 'G' in affines:
-                Gcs_ = []
-                for j in range(len(affines['G'])):
-                    Gcs_.append(Otrp[i:i+_r3].T)
-                    i += _r3
-                self.Gc_ = AffineOperator(affines['G'], Gcs_)
-                self.G_ = lambda µ: Gc2G(self.Gc_(µ))
-            else:
-                self.Gc_ = Otrp[i:i+_r3].T
-                i += _r3
-                self.G_ = Gc2G(self.Gc_)
-        else:
-            self.Gc_, self.G_ = None, None
-
-        if self.has_inputs:
-            if 'B' in affines:
-                Bs_ = []
-                for j in range(len(affines['B'])):
-                    Bs_.append(Otrp[i:i+self.m].T)
-                    i += self.m
-                self.B_ = AffineOperator(affines['B'], Bs_)
-            else:
-                self.B_ = Otrp[i:i+self.m].T
-                i += self.m
-        else:
-            self.B_ = None
-
+        Xs_, rhss_, Us = self._process_fit_arguments(Vr, µs, affines,
+                                                     Xs, rhss, Us)
+        D = self._construct_data_matrix(µs, affines, Xs_, Us)
+        R = np.hstack(rhss_)
+        O = self._solve_opinf_lstsq(D, R, P)
+        self._extract_operators(affines, O)
         return self
 
 
@@ -378,12 +404,11 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         -------
         self
         """
-        # Truncate extra inputs for convenience.
+        # Truncate extra inputs as needed.
         if Us is not None:
             Us = [U[...,:X.shape[1]-1] for U,X in zip(Us, Xs)]
 
-        return _AffineInferredMixin.fit(self, InferredDiscreteROM,
-                                        Vr, µs, affines,
+        return _AffineInferredMixin.fit(self, Vr, µs, affines,
                                         [X[:,:-1] for X in Xs],
                                         [X[:,1:]  for X in Xs],
                                         Us, P)
@@ -555,8 +580,9 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         -------
         self
         """
-        return _AffineInferredMixin.fit(self, InferredContinuousROM,
-                                        Vr, µs, affines, Xs, Xdots, Us, P)
+        return _AffineInferredMixin.fit(self,
+                                        Vr, µs, affines,
+                                        Xs, Xdots, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by exploiting the affine

@@ -44,13 +44,13 @@ class TestAffineInferredMixin:
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, µs[:-1], *args[2:], Us)
         assert ex.value.args[0] == \
-            f"num parameter samples != num state snapshot sets ({s-1} != {s})"
+            f"num parameter samples != num state snapshot training sets ({s-1} != {s})"
 
         if is_continuous:
             with pytest.raises(ValueError) as ex:
                 model.fit(Vr, µs, affines, Xs, Xdots[:-1], Us)
-            assert ex.value.args[0] == \
-                f"num parameter samples != num rhs sets ({s} != {s-1})"
+            assert ex.value.args[0] == "num parameter samples != num rhs " \
+                                       f"training sets ({s} != {s-1})"
 
         # Try with varying input sizes.
         if is_continuous:

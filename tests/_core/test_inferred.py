@@ -14,21 +14,27 @@ from . import _MODEL_FORMS, _get_data
 class TestInferredMixin:
     """Test _core._inferred._InferredMixin."""
     def test_check_training_data_shapes(self):
-        """Test _core._inferred._InferredMixin._check_training_data_shapes()."""
+        """Test _core._inferred._InferredMixin._check_training_data_shapes().
+        """
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
         X, Xdot, U = _get_data(n, k, m)
         model = roi._core._inferred._InferredMixin()
 
+        # Try to fit the model with a single snapshot.
+        with pytest.raises(ValueError) as ex:
+            model._check_training_data_shapes([X[:,0], Xdot[:,0]])
+        assert ex.value.args[0] == "training data must be two-dimensional"
+
         # Try to fit the model with misaligned X and Xdot.
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X, Xdot[:,1:-1]])
-        assert ex.value.args[0] == "data sets not aligned, dimension 1"
+        assert ex.value.args[0] == "training data not aligned, dimension 1"
 
         # Try to fit the model with misaligned X and U.
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X, Xdot, U[:,:-1]])
-        assert ex.value.args[0] == "data sets not aligned, dimension 1"
+        assert ex.value.args[0] == "training data not aligned, dimension 1"
 
         model._check_training_data_shapes([X, Xdot])
         model._check_training_data_shapes([X, Xdot, U])
