@@ -87,15 +87,19 @@ class _InferredMixin:
             Non-regularized Operator Inference data matrix.
         """
         D = []
-        if self.has_constant:
+        if self.has_constant:           # Constant term.
             D.append(np.ones((X_.shape[1],1)))
-        if self.has_linear:
+
+        if self.has_linear:             # Linear state term.
             D.append(X_.T)
-        if self.has_quadratic:
+
+        if self.has_quadratic:          # (compact) quadratic state term.
             D.append(kron2c(X_).T)
-        if self.has_cubic:
+
+        if self.has_cubic:              # (compact) cubic state term.
             D.append(kron3c(X_).T)
-        if self.has_inputs:
+
+        if self.has_inputs:             # Linear input term.
             D.append(U.T)
 
         return np.hstack(D)
@@ -132,33 +136,33 @@ class _InferredMixin:
         solution to the least-squarse problem.
         """
         i = 0
-        if self.has_constant:
-            self.c_ = O[:,i:i+1][:,0]       # Note that c_ is one-dimensional.
+        if self.has_constant:           # Constant term (one-dimensional).
+            self.c_ = O[:,i:i+1][:,0]
             i += 1
         else:
             self.c_ = None
 
-        if self.has_linear:
+        if self.has_linear:             # Linear state matrix.
             self.A_ = O[:,i:i+self.r]
             i += self.r
         else:
             self.A_ = None
 
-        if self.has_quadratic:
+        if self.has_quadratic:          # (compact) Qudadratic state matrix.
             _r2 = self.r * (self.r + 1) // 2
             self.Hc_ = O[:,i:i+_r2]
             i += _r2
         else:
             self.Hc_ = None
 
-        if self.has_cubic:
+        if self.has_cubic:              # (compact) Cubic state matrix.
             _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
             self.Gc_ = O[:,i:i+_r3]
             i += _r3
         else:
             self.Gc_ = None
 
-        if self.has_inputs:
+        if self.has_inputs:             # Linear input matrix.
             self.B_ = O[:,i:i+self.m]
             i += self.m
         else:

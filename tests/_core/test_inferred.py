@@ -158,12 +158,12 @@ class TestInferredMixin:
             for prefix in MODEL_KEYS:
                 attr = prefix+'c_' if prefix in "HG" else prefix+'_'
                 assert hasattr(model, attr)
+                value = getattr(model, attr)
                 if prefix in form:
-                    value = getattr(model, attr)
                     assert isinstance(value, np.ndarray)
                     assert value.shape == shapes[attr]
                 else:
-                    assert getattr(model, attr) is None
+                    assert value is None
 
     def _test_fit(self, ModelClass):
         """Test _core._inferred._InferredMixin.fit(), the parent method for
