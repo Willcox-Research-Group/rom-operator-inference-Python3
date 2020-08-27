@@ -8,12 +8,12 @@ import rom_operator_inference as roi
 
 
 # Global variables for testsing ===============================================
-_MODEL_KEYS = roi._core._base._BaseROM._MODEL_KEYS
+MODEL_KEYS = roi._core._base._BaseROM._MODEL_KEYS
 
-_MODEL_FORMS = [''.join(s) for k in range(1, len(_MODEL_KEYS)+1)
-                           for s in itertools.combinations(_MODEL_KEYS, k)]
+MODEL_FORMS = [''.join(s) for k in range(1, len(MODEL_KEYS)+1)
+                           for s in itertools.combinations(MODEL_KEYS, k)]
 
-_LSTSQ_REPORTS = ["datacond_", "dataregcond_", "residual_", "misfit_"]
+LSTSQ_REPORTS = ["datacond_", "dataregcond_", "residual_", "misfit_"]
 
 
 # Helper functions for testing ================================================

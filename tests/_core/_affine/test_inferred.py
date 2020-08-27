@@ -8,7 +8,7 @@ from scipy import linalg as la
 import rom_operator_inference as roi
 
 from .test_base import TestAffineMixin
-from .. import _MODEL_FORMS, _get_data, _get_operators
+from .. import MODEL_FORMS, _get_data, _get_operators
 
 
 # Affine inferred mixin (private) =============================================
@@ -62,7 +62,7 @@ class TestAffineInferredMixin:
                 model.fit(Vr, µs, affines, Xs, [U, U[:-1], U])
             assert ex.value.args[0] == "control inputs not aligned"
 
-        for form in _MODEL_FORMS:
+        for form in MODEL_FORMS:
             args[2] = {key:val for key,val in affines.items() if key in form}
             model.modelform = form
             model.fit(*args, Us=Us if "B" in form else None)

@@ -7,7 +7,7 @@ from scipy import linalg as la
 
 import rom_operator_inference as roi
 
-from .. import _LSTSQ_REPORTS, _get_data
+from .. import LSTSQ_REPORTS, _get_data
 
 
 # Interpolated inferred mixin (private) =======================================
@@ -54,7 +54,7 @@ class TestInterpolatedInferredDiscreteROM:
         # Fit correctly with no inputs.
         model.modelform = "cAH"
         model.fit(Vr, ps, Xs)
-        for attr in ["models_", "fs_"] + [s[:-1]+"s_" for s in _LSTSQ_REPORTS]:
+        for attr in ["models_", "fs_"] + [s[:-1]+"s_" for s in LSTSQ_REPORTS]:
             assert hasattr(model, attr)
             assert len(getattr(model, attr)) == len(model.models_)
 
@@ -147,7 +147,7 @@ class TestInterpolatedInferredContinuousROM:
         # Fit correctly with no inputs.
         model.modelform = "cAH"
         model.fit(Vr, ps, Xs, Xdots)
-        for attr in ["models_", "fs_"] + [s[:-1]+"s_" for s in _LSTSQ_REPORTS]:
+        for attr in ["models_", "fs_"] + [s[:-1]+"s_" for s in LSTSQ_REPORTS]:
             assert hasattr(model, attr)
             assert len(getattr(model, attr)) == len(model.models_)
 

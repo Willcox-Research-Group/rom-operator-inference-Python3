@@ -8,7 +8,7 @@ from scipy import linalg as la
 import rom_operator_inference as roi
 
 from .test_base import TestAffineMixin
-from .. import _MODEL_FORMS, _get_data, _get_operators
+from .. import _get_data, _get_operators
 
 
 # Affine intrusive mixin (private) ============================================

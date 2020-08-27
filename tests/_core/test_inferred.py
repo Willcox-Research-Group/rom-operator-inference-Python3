@@ -7,7 +7,7 @@ from scipy import linalg as la
 
 import rom_operator_inference as roi
 
-from . import _MODEL_KEYS, _MODEL_FORMS, _LSTSQ_REPORTS, _get_data
+from . import MODEL_KEYS, MODEL_FORMS, LSTSQ_REPORTS, _get_data
 
 
 # Mixins (private) ============================================================
@@ -93,7 +93,7 @@ class TestInferredMixin:
         X_, _, U = _get_data(r, k, m)
 
         model = self.Dummy("c")
-        for form in _MODEL_FORMS:
+        for form in MODEL_FORMS:
             model.modelform = form
             D = model._construct_data_matrix(X_, U)
             d = roi.utils.get_least_squares_size(form, r,
@@ -121,7 +121,7 @@ class TestInferredMixin:
         model = self.Dummy("c")  # Model form doesn't matter here
 
         def _check_model(mdl, OO):
-            for attr in _LSTSQ_REPORTS:
+            for attr in LSTSQ_REPORTS:
                 assert hasattr(mdl, attr)
                 assert getattr(mdl, attr) >= 0
             assert OO.shape == (r,d)
@@ -149,13 +149,13 @@ class TestInferredMixin:
 
         model = self.Dummy("c")
         model.r = r
-        for form in _MODEL_FORMS:
+        for form in MODEL_FORMS:
             model.modelform = form
             model.m = m if 'B' in form else 0
             d = roi.utils.get_least_squares_size(form, r, model.m)
             O = np.random.random((r,d))
             model._extract_operators(O)
-            for prefix in _MODEL_KEYS:
+            for prefix in MODEL_KEYS:
                 attr = prefix+'c_' if prefix in "HG" else prefix+'_'
                 assert hasattr(model, attr)
                 if prefix in form:
@@ -184,7 +184,7 @@ class TestInferredMixin:
             args_r.append(Vr.T @ Xdot)
 
         # Fit the model with each modelform.
-        for form in _MODEL_FORMS:
+        for form in MODEL_FORMS:
             model.modelform = form
             if "B" in form:
                 # Two-dimensional inputs.

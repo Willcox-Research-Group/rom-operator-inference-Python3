@@ -9,7 +9,7 @@ from scipy import linalg as la
 
 import rom_operator_inference as roi
 
-from . import (_MODEL_KEYS, _MODEL_FORMS, _LSTSQ_REPORTS,
+from . import (MODEL_KEYS, MODEL_FORMS, LSTSQ_REPORTS,
                      _get_data, _get_operators, _trainedmodel)
 
 
@@ -285,7 +285,7 @@ class TestDiscreteROM:
             model.predict(x0, niters, lambda t: np.ones(m-1))
         assert ex.value.args[0] == "input U must be an array, not a callable"
 
-        for form in _MODEL_FORMS:
+        for form in MODEL_FORMS:
             if "B" not in form:             # No control inputs.
                 model = _trainedmodel(False, form, Vr, None)
                 out = model.predict(x0, niters)
@@ -372,7 +372,7 @@ class TestContinuousROM:
         assert ex.value.args[0] == "time 't' must be one-dimensional"
 
         # Predict without inputs.
-        for form in _MODEL_FORMS:
+        for form in MODEL_FORMS:
             if "B" not in form:
                 model = _trainedmodel(True, form, Vr, None)
                 out = model.predict(x0, t)
@@ -424,7 +424,7 @@ class TestContinuousROM:
         assert ex.value.args[0] == \
             f"input function u() must return ndarray of shape (m,)={(m,)}"
 
-        for form in _MODEL_FORMS:
+        for form in MODEL_FORMS:
             if "B" in form:
                 # Predict with 2D inputs.
                 model = _trainedmodel(True, form, Vr, m)
@@ -538,7 +538,7 @@ class TestNonparametricMixin:
 
                 # Check other attributes.
                 assert "other" in data
-                for attr in _LSTSQ_REPORTS:
+                for attr in LSTSQ_REPORTS:
                     assert data[f"other/{attr}"][0] == getattr(mdl, attr)
 
         model.save_model(target[:-3], save_basis=False)
@@ -564,7 +564,7 @@ class TestNonparametricMixin:
         model.Vr = Vr
         model.save_model(target, save_basis=True, overwrite=True)
         model2 = roi.load_model(target)
-        for attr in ["n", "m", "r", "modelform", "__class__"] + _LSTSQ_REPORTS:
+        for attr in ["n", "m", "r", "modelform", "__class__"] + LSTSQ_REPORTS:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_", "Vr"]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))
@@ -575,7 +575,7 @@ class TestNonparametricMixin:
         model.Vr, model.n = None, None
         model.save_model(target, overwrite=True)
         model2 = roi.load_model(target)
-        for attr in ["m", "r", "modelform", "__class__"] + _LSTSQ_REPORTS:
+        for attr in ["m", "r", "modelform", "__class__"] + LSTSQ_REPORTS:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_",]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))
