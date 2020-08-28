@@ -96,25 +96,25 @@ class TestAffineOperator:
 # Affine base mixin (private) =================================================
 class TestAffineMixin:
     """Test _core._affine._base._AffineMixin."""
-    def test_check_affines(self):
-        """Test _core._affine._base._AffineMixin._check_affines()."""
+    def test_check_affines_keys(self):
+        """Test _core._affine._base._AffineMixin._check_affines_keys()."""
         model = roi._core._affine._base._AffineMixin()
         model.modelform = "cAHB"
         v = [lambda s: 0, lambda s: 0]
 
         # Try with surplus affine keys.
         with pytest.raises(KeyError) as ex:
-            model._check_affines({'CC':v, "c":v, "A":v, "H":v, "B":v}, 0)
+            model._check_affines_keys({'CC':v, "c":v, "A":v, "H":v, "B":v})
         assert ex.value.args[0] == "invalid affine key 'CC'"
 
         with pytest.raises(KeyError) as ex:
-            model._check_affines({"c":v, "A":v, "H":v, "B":v,
-                                    'CC':v, 'LL':v}, 0)
+            model._check_affines_keys({"c":v, "A":v, "H":v, "B":v,
+                                    'CC':v, 'LL':v})
         assert ex.value.args[0] == "invalid affine keys 'CC', 'LL'"
 
         # Correct usage.
-        model._check_affines({"c":v, "H":v}, 0)     # OK to be missing some.
-        model._check_affines({"c":v, "A":v, "H":v, "B":v}, 0)
+        model._check_affines_keys({"c":v, "H":v})   # OK to be missing some.
+        model._check_affines_keys({"c":v, "A":v, "H":v, "B":v})
 
     def _test_predict(self, ModelClass):
         """Test predict() methods for Affine classes:

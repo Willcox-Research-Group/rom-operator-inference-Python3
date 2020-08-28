@@ -30,6 +30,14 @@ from ...utils import (lstsq_reg,
 class _AffineInferredMixin(_InferredMixin, _AffineMixin):
     """Mixin class for affinely parametric inferred reduced model classes."""
 
+    def _check_affines(self, affines, µ):
+        """Check the keys of the affines argument."""
+        self._check_affines_keys(affines)
+
+        for a in affines.values():
+            AffineOperator(a).validate_coeffs(µ)
+
+
     def _process_fit_arguments(self, Vr, µs, affines, Xs, rhss, Us):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get projected data for the Operator Inference least-squares problem.
@@ -47,7 +55,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         """
         # Check modelform, affines dictionary, and inputs.
         self._check_modelform(trained=False)
-        # TODO: self.p = self._check_params(µs): extract self.p and check sizes.
+        # TODO: self.p = self._check_params(µs): extract self.p and check for consistent sizes.
         self._check_affines(affines, µs[0])
         self._check_inputargs(Us, 'Us')
 

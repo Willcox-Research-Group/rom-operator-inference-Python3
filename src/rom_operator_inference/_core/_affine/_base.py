@@ -128,15 +128,10 @@ class AffineOperator:
 class _AffineMixin(_ParametricMixin):
     """Mixin class for affinely parametric reduced model classes."""
 
-    def _check_affines(self, affines, µ=None):
+    def _check_affines_keys(self, affines):
         """Check the keys of the affines argument."""
         # Check for unnecessary affine keys.
         surplus = [repr(key) for key in affines if key not in self.modelform]
         if surplus:
             _noun = "key" + ('' if len(surplus) == 1 else 's')
             raise KeyError(f"invalid affine {_noun} {', '.join(surplus)}")
-
-        # TODO: this is the only place validate_coeffs() is called. Do it here?
-        if µ is not None:
-            for a in affines.values():
-                AffineOperator(a).validate_coeffs(µ)

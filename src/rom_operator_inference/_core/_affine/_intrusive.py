@@ -67,7 +67,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
         """
         # Verify modelform, affines, and operators.
         self._check_modelform(trained=False)
-        self._check_affines(affines, None)
+        self._check_affines_keys(affines)
         self._check_operators_keys(operators)
 
         # Store dimensions.
