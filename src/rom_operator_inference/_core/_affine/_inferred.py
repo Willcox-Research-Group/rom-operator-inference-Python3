@@ -14,6 +14,7 @@ __all__ = [
           ]
 
 import numpy as np
+import scipy.linalg as la
 
 from ._base import AffineOperator, _AffineMixin
 from .._base import _ContinuousROM, _DiscreteROM
@@ -30,13 +31,23 @@ from ...utils import (lstsq_reg,
 class _AffineInferredMixin(_InferredMixin, _AffineMixin):
     """Mixin class for affinely parametric inferred reduced model classes."""
 
-    def _check_affines(self, affines, µ):
-        """Check the keys of the affines argument."""
+    def _check_affines(self, affines, µs):
+        """Check the affines argument, including checking for rank deficiency.
+        """
+        # Ensure there are not surplus keys.
         self._check_affines_keys(affines)
 
-        for a in affines.values():
-            AffineOperator(a).validate_coeffs(µ)
+        # Check for rank deficiencies in the data matrix.
+        for key, θs in affines.items():
+            Theta = np.array([[θ(µ) for θ in θs] for µ in µs])
+            rank = np.linalg.matrix_rank(Theta)
+            if rank < Theta.shape[1]:
+                np.warnings.warn(f"rank-deficient data matrix due to '{key}' "
+                                 "affine structure and parameter samples",
+                                 la.LinAlgWarning, stacklevel=2)
 
+        for a in affines.values():
+            AffineOperator(a).validate_coeffs(µs[0])
 
     def _process_fit_arguments(self, Vr, µs, affines, Xs, rhss, Us):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
@@ -56,7 +67,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         # Check modelform, affines dictionary, and inputs.
         self._check_modelform(trained=False)
         # TODO: self.p = self._check_params(µs): extract self.p and check for consistent sizes.
-        self._check_affines(affines, µs[0])
+        self._check_affines(affines, µs)
         self._check_inputargs(Us, 'Us')
 
         # Check that the number of params matches the number of training sets.
@@ -80,21 +91,20 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         self.Vr = Vr
 
         # Ensure training data sets have consistent sizes.
-        _tocheck = [Xs, rhss]
         if self.has_inputs:
             if not isinstance(Us, list):
                 Us = list(Us)
+            self.m = 1 if Us[0].ndim == 1 else Us[0].shape[0]
             for i in range(s):
                 if Us[i].ndim == 1:     # Reshape one-dimensional inputs.
                     Us[i] = Us[i].reshape((1,-1))
-                if Us[i].shape[0] != Us[0].shape[0]:
-                    raise ValueError("control inputs not aligned")
-            self.m = Us[0].shape[0]
-            _tocheck.append(Us)
+                self._check_training_data_shapes([Xs[i], rhss[i], Us[i]],
+                                    [f"Xs[{i}]", f"Xdots[{i}]", f"Us[{i}]"])
         else:
             self.m = None
-        for dsets in zip(*_tocheck):
-            self._check_training_data_shapes(dsets)
+            for i in range(s):
+                self._check_training_data_shapes([Xs[i], rhss[i]],
+                                                 [f"Xs[{i}]", f"Xdots[{i}]"])
 
         # Project states and rhs to the reduced subspace (if not done already).
         Xs_ = [self.project(X, 'X') for X in Xs]

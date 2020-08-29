@@ -22,14 +22,23 @@ from ..utils import lstsq_reg, kron2c, kron3c
 class _InferredMixin:
     """Mixin class for reduced model classes that use Operator Inference."""
 
-    @staticmethod
-    def _check_training_data_shapes(datasets):
+    def _check_training_data_shapes(self, datasets, labels):
         """Ensure that each data set has the same number of columns."""
-        for data in datasets:
+        for data, label in zip(datasets, labels):
+            # Ensure each data set is two-dimensional.
             if data.ndim != 2:
-                raise ValueError("training data must be two-dimensional")
+                raise ValueError(f"{label} must be two-dimensional")
+            # Ensure each data set has the same number of columns.
             if data.shape[1] != datasets[0].shape[1]:
-                raise ValueError("training data not aligned, dimension 1")
+                raise ValueError("training data not aligned "
+                                 f"({label}.shape[1] != {labels[0]}.shape[1])")
+            # Validate the number of rows.
+            if label.startswith("X") and data.shape[0] not in (self.n, self.r):
+                raise ValueError(f"invalid training set ({label}.shape[0] "
+                                 f"!= n={self.n} or r={self.r})")
+            elif label.startswith("U") and data.shape[0] != self.m:
+                raise ValueError(f"invalid training input "
+                                 f"({label}.shape[0] != m={self.m})")
 
     def _process_fit_arguments(self, Vr, X, rhs, U):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
@@ -59,15 +68,14 @@ class _InferredMixin:
         self.Vr = Vr
 
         # Ensure training data sets have consistent sizes.
-        _tocheck = [X, rhs]
         if self.has_inputs:
             if U.ndim == 1:             # Reshape one-dimensional inputs.
                 U = U.reshape((1,-1))
             self.m = U.shape[0]         # Input dimension.
-            _tocheck.append(U)
+            self._check_training_data_shapes([X, rhs, U], ["X", "Xdot", "U"])
         else:
             self.m = None               # No input dimension.
-        self._check_training_data_shapes(_tocheck)
+            self._check_training_data_shapes([X, rhs], ["X", "Xdot"])
 
         # Project states and rhs to the reduced subspace (if not done already).
         X_ = self.project(X, 'X')

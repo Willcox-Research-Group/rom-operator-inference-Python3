@@ -27,6 +27,79 @@ from .._inferred import (_InferredMixin,
 class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
     """Mixin for interpolatory ROM classes that use Operator Inference."""
 
+    def _process_fit_arguments(self, ModelClass, Vr, µs, Xs, Xdots, Us):
+        """Do sanity checks, extract dimensions, check and fix data sizes, and
+        get perpare arguments for individual Operator Inference ROMs.
+
+        Returns
+        -------
+        is_continuous : bool
+            Whether or not ModelClass is a subclass of _ContinuousROM.
+
+        Xdots : list of s (r,k) ndarrays (or None)
+            Right-hand-side data. rhss_[i] corresponds to µ[i].
+
+        Us : list of s (m,k) ndarrays (or None)
+            Inputs, potentially reshaped. Us[i] corresponds to µ[i].
+        """
+        # Check modelform, affines dictionary, and inputs.
+        self._check_modelform(trained=False)
+        # TODO: self.p = self._check_params(µs): extract self.p and check for consistent sizes.
+        self._check_inputargs(Us, 'Us')
+        is_continuous = issubclass(ModelClass, _ContinuousROM)
+
+        # Check that parameters are one-dimensional.
+        if not np.isscalar(µs[0]):
+            raise ValueError("only scalar parameter values are supported")
+
+        # Check that the number of params matches the number of training sets.
+        s = len(µs)
+        if len(Xs) != s:
+            raise ValueError("num parameter samples != num state snapshot "
+                             f"training sets ({s} != {len(Xs)})")
+        if is_continuous and len(Xdots) != s:
+            raise ValueError("num parameter samples != num time derivative "
+                             f"training sets ({s} != {len(Xdots)})")
+        elif not is_continuous:
+            Xdots = [None] * s
+        if self.has_inputs and len(Us) != s:
+            raise ValueError("num parameter samples != num input "
+                             f"training sets ({s} != {len(Us)})")
+
+        # Store basis and dimensions.
+        if Vr is not None:
+            self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
+        else:
+            self.n = None               # No full dimension.
+            self.r = Xs[0].shape[0]     # Reduced dimension.
+        self.Vr = Vr
+
+        # Ensure training data sets have consistent sizes.
+        if self.has_inputs:
+            if not isinstance(Us, list):
+                Us = list(Us)
+            self.m = 1 if Us[0].ndim == 1 else Us[0].shape[0]
+            for i in range(s):
+                if Us[i].ndim == 1:     # Reshape one-dimensional inputs.
+                    Us[i] = Us[i].reshape((1,-1))
+                if is_continuous:
+                    self._check_training_data_shapes([Xs[i], Xdots[i], Us[i]],
+                                                     [f"Xs[{i}]",
+                                                      f"Xdots[{i}]",
+                                                      f"Us[{i}]"])
+                else:
+                    self._check_training_data_shapes([Xs[i], Us[i]],
+                                                     [f"Xs[{i}]", f"Us[{i}]"])
+        else:
+            self.m = None
+            Us = [None] * s
+            if is_continuous:
+                for i in range(s):
+                    self._check_training_data_shapes([Xs[i], Xdots[i]],
+                                                     [f"Xs[{i}]",
+                                                      f"Xdots[{i}]"])
+        return is_continuous, Xdots, Us
+
     def fit(self, ModelClass, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
@@ -69,49 +142,9 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         -------
         self
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=False)
-        self._check_inputargs(Us, 'Us')
-        is_continuous = issubclass(ModelClass, _ContinuousROM)
-
-        # Check that parameters are one-dimensional.
-        if not np.isscalar(µs[0]):
-            raise ValueError("only scalar parameter values are supported")
-
-        # Check that the number of params matches the number of snapshot sets.
-        s = len(µs)
-        if len(Xs) != s:
-            raise ValueError("num parameter samples != num state snapshot "
-                             f"sets ({s} != {len(Xs)})")
-        if is_continuous and len(Xdots) != s:
-            raise ValueError("num parameter samples != num velocity snapshot "
-                             f"sets ({s} != {len(Xdots)})")
-        elif not is_continuous:
-            Xdots = [None] * s
-
-        # Check and store dimensions.
-        if Vr is not None:
-            self.n, self.r = Vr.shape
-        else:
-            self.n = None
-            self.r = Xs[0].shape[0]
-        self.m = None
-
-        # Check that the arrays in each list have the same number of columns.
-        _tocheck = [Xs]
-        if is_continuous:
-            _tocheck.append(Xdots)
-        if self.has_inputs:
-            self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
-            # Check that the input dimension is the same in each data set.
-            for U in Us:
-                m = U.shape[0] if U.ndim == 2 else 1
-                if m != self.m:
-                    raise ValueError("control inputs not aligned")
-        else:
-            Us = [None]*s
-        for dataset in _tocheck:
-            self._check_training_data_shapes(dataset)
+        is_continuous, Xdots, Us = self._process_fit_arguments(ModelClass,
+                                                               Vr, µs,
+                                                               Xs, Xdots, Us)
 
         # TODO: figure out how to handle P (scalar, array, list(arrays)).
 

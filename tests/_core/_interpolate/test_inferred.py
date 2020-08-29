@@ -42,14 +42,8 @@ class TestInterpolatedInferredDiscreteROM:
         # Try with bad number of Xs.
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, ps, [X1, X2, X2+1])
-        assert ex.value.args[0] == \
-            "num parameter samples != num state snapshot sets (2 != 3)"
-
-        # Try with varying input sizes.
-        model.modelform = "cAHB"
-        with pytest.raises(ValueError) as ex:
-            model.fit(Vr, ps, Xs, [U1, U2[:-1]])
-        assert ex.value.args[0] == "control inputs not aligned"
+        assert ex.value.args[0] == "num parameter samples != num state " \
+                                   "snapshot training sets (2 != 3)"
 
         # Fit correctly with no inputs.
         model.modelform = "cAH"
@@ -129,20 +123,14 @@ class TestInterpolatedInferredContinuousROM:
         # Try with bad number of Xs.
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, ps, [X1, X2, X2+1], Xdots)
-        assert ex.value.args[0] == \
-            "num parameter samples != num state snapshot sets (2 != 3)"
+        assert ex.value.args[0] == "num parameter samples != num state " \
+                                   "snapshot training sets (2 != 3)"
 
         # Try with bad number of Xdots.
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, ps, Xs, Xdots + [Xdot1])
-        assert ex.value.args[0] == \
-            "num parameter samples != num velocity snapshot sets (2 != 3)"
-
-        # Try with varying input sizes.
-        model.modelform = "cAHB"
-        with pytest.raises(ValueError) as ex:
-            model.fit(Vr, ps, Xs, Xdots, [U1, U2[:-1]])
-        assert ex.value.args[0] == "control inputs not aligned"
+        assert ex.value.args[0] == "num parameter samples != num time " \
+                                   "derivative training sets (2 != 3)"
 
         # Fit correctly with no inputs.
         model.modelform = "cAH"
