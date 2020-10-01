@@ -20,8 +20,7 @@ from .._base import _ContinuousROM, _DiscreteROM
 from .._intrusive import (_IntrusiveMixin,
                           IntrusiveDiscreteROM,
                           IntrusiveContinuousROM)
-from ...utils import (lstsq_reg,
-                      expand_Hc as Hc2H, compress_H as H2Hc,
+from ...utils import (expand_Hc as Hc2H, compress_H as H2Hc,
                       expand_Gc as Gc2G, compress_G as G2Gc,
                       kron2c, kron3c)
 

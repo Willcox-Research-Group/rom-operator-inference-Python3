@@ -21,8 +21,7 @@ from .._base import _ContinuousROM, _DiscreteROM
 from .._inferred import (_InferredMixin,
                          InferredDiscreteROM,
                          InferredContinuousROM)
-from ...utils import (lstsq_reg,
-                      expand_Hc as Hc2H,
+from ...utils import (expand_Hc as Hc2H,
                       expand_Gc as Gc2G,
                       kron2c, kron3c)
 

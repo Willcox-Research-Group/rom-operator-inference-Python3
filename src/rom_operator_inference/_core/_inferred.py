@@ -125,17 +125,13 @@ class _InferredMixin:
         Rtrp = R.T
 
         # Solve for the reduced-order model operators via least squares.
-        Otrp, res, _, sval = lstsq_reg(D, Rtrp, P)
+        Otrp, mis, res, cond, regcond = lstsq_reg(D, Rtrp, P)
 
         # Record info about the least squares solution.
-        # Condition number of the raw data matrix.
-        self.datacond_ = np.linalg.cond(D)
-        # Condition number of regularized data matrix.
-        self.dataregcond_ = abs(sval[0]/sval[-1]) if sval[-1] > 0 else np.inf
-        # Squared Frobenius data misfit (without regularization).
-        self.misfit_ = np.sum(((D @ Otrp) - Rtrp)**2)
-        # Squared Frobenius residual of the regularized least squares problem.
-        self.residual_ = np.sum(res) if res.size > 0 else self.misfit_
+        self.misfit_ = mis          # ||DO.T - R.T||_F^2
+        self.residual_ = res        # ||DO.T - R.T||_F^2 + ||PO.T||_F^2
+        self.datacond_ = cond       # cond(D)
+        self.dataregcond_ = regcond # cond([D.T | P.T].T)
 
         return Otrp.T
 
