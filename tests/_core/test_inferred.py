@@ -114,8 +114,7 @@ class TestInferredMixin:
         for form in MODEL_FORMS:
             model.modelform = form
             D = model._construct_data_matrix(X_, U)
-            d = roi.utils.get_least_squares_size(form, r,
-                                                 m if 'B' in form else 0)
+            d = roi.lstsq.lstsq_size(form, r, m if 'B' in form else 0)
             assert D.shape == (k,d)
 
             # Spot check.
@@ -170,7 +169,7 @@ class TestInferredMixin:
         for form in MODEL_FORMS:
             model.modelform = form
             model.m = m if 'B' in form else 0
-            d = roi.utils.get_least_squares_size(form, r, model.m)
+            d = roi.lstsq.lstsq_size(form, r, model.m)
             O = np.random.random((r,d))
             model._extract_operators(O)
             for prefix in MODEL_KEYS:

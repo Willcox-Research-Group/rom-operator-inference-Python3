@@ -1,5 +1,5 @@
-# utils/test_solver.py
-"""Tests for rom_operator_inference.utils._solver.py."""
+# lstsq/test_tikhonov.py
+"""Tests for rom_operator_inference.lstsq._tikhonov.py."""
 
 import pytest
 import numpy as np
@@ -8,43 +8,11 @@ from scipy import linalg as la
 import rom_operator_inference as roi
 
 
-def test_get_least_squares_size():
-    """Test utils._solver.get_least_squares_size()."""
-    m, r = 3, 7
-
-    # Try with bad input combinations.
-    with pytest.raises(ValueError) as ex:
-        roi.utils.get_least_squares_size("cAHB", r)
-    assert ex.value.args[0] == "argument m > 0 required since 'B' in modelform"
-
-    with pytest.raises(ValueError) as ex:
-        roi.utils.get_least_squares_size("cAH", r, m=10)
-    assert ex.value.args[0] == "argument m=10 invalid since 'B' in modelform"
-
-    # Test without inputs.
-    assert roi.utils.get_least_squares_size("c", r) == 1
-    assert roi.utils.get_least_squares_size("A", r) == r
-    assert roi.utils.get_least_squares_size("cA", r) == 1 + r
-    assert roi.utils.get_least_squares_size("cAH", r) == 1 + r + r*(r+1)//2
-    assert roi.utils.get_least_squares_size("cG", r) == 1 + r*(r+1)*(r+2)//6
-
-    # Test with inputs.
-    assert roi.utils.get_least_squares_size("cB", r, m) == 1 + m
-    assert roi.utils.get_least_squares_size("AB", r, m) == r + m
-    assert roi.utils.get_least_squares_size("cAB", r, m) == 1 + r + m
-    assert roi.utils.get_least_squares_size("AHB", r, m) == r + r*(r+1)//2 + m
-    assert roi.utils.get_least_squares_size("GB", r, m) == r*(r+1)*(r+2)//6 + m
-
-    # Test with affines.
-    assert roi.utils.get_least_squares_size("c", r, affines={"c":[0,0]}) == 2
-    assert roi.utils.get_least_squares_size("A", r, affines={"A":[0,0]}) == 2*r
-
-
 class TestBaseLstsqSolver:
-    """Test utils._solver._BaseLstsqSolver."""
+    """Test lstsq._tikhonov._BaseLstsqSolver."""
     def test_check_shapes(self):
-        """Test utils._solver._BaseLstsqSolver._check_shapes()."""
-        solver = roi.utils._solver._BaseLstsqSolver()
+        """Test lstsq._tikhonov._BaseLstsqSolver._check_shapes()."""
+        solver = roi.lstsq._tikhonov._BaseLstsqSolver()
 
         # Try with rhs with too many dimensions.
         b = np.empty((2,2,2))
@@ -71,10 +39,10 @@ class TestBaseLstsqSolver:
 
 
 class TestLstsqSolverL2:
-    """Test utils._solver.LstsqSolverL2."""
+    """Test lstsq._tikhonov.LstsqSolverL2."""
     def test_fit(self, m=20, n=10, k=5):
-        """Test utils._solver.LstsqSolverL2.fit()."""
-        solver = roi.utils._solver.LstsqSolverL2(compute_extras=True)
+        """Test lstsq._tikhonov.LstsqSolverL2.fit()."""
+        solver = roi.lstsq.LstsqSolverL2(compute_extras=True)
 
         def _test_shapes(A, b, shapes):
             solver.fit(A, b)
@@ -104,9 +72,9 @@ class TestLstsqSolverL2:
         _test_shapes(A, b, [(n,m), (m,), (m,k), (m,n), (m,k)])
 
     def test_predict(self, m=20, n=10, k=5):
-        """Test utils._solver.LstsqSolverL2.predict()."""
-        solver1D = roi.utils._solver.LstsqSolverL2(compute_extras=True)
-        solver2D = roi.utils._solver.LstsqSolverL2(compute_extras=True)
+        """Test lstsq._tikhonov.LstsqSolverL2.predict()."""
+        solver1D = roi.lstsq.LstsqSolverL2(compute_extras=True)
+        solver2D = roi.lstsq.LstsqSolverL2(compute_extras=True)
         A = np.random.random((m,n))
         B = np.random.random((m,k))
         b = B[:,0]
@@ -198,10 +166,10 @@ class TestLstsqSolverL2:
 
 
 class TestLstsqSolverTikhonov:
-    """Test utils._solver.LstsqSolverTikhonov."""
+    """Test lstsq._tikhonov.LstsqSolverTikhonov."""
     def test_fit(self, m=20, n=10, k=5):
-        """Test utils._solver.LstsqSolverTikhonov.fit()."""
-        solver = roi.utils._solver.LstsqSolverTikhonov(compute_extras=True)
+        """Test lstsq._tikhonov.LstsqSolverTikhonov.fit()."""
+        solver = roi.lstsq.LstsqSolverTikhonov(compute_extras=True)
 
         def _test_shapes(A, b, shapes):
             solver.fit(A, b)
@@ -231,9 +199,9 @@ class TestLstsqSolverTikhonov:
         _test_shapes(A, b, [(m+n,k), (m,n), (m,k)])
 
     def test_predict(self, m=20, n=10, k=5):
-        """Test utils._solver.LstsqSolverTikhonov.predict()."""
-        solver1D = roi.utils._solver.LstsqSolverTikhonov(compute_extras=True)
-        solver2D = roi.utils._solver.LstsqSolverTikhonov(compute_extras=True)
+        """Test lstsq._tikhonov.LstsqSolverTikhonov.predict()."""
+        solver1D = roi.lstsq.LstsqSolverTikhonov(compute_extras=True)
+        solver2D = roi.lstsq.LstsqSolverTikhonov(compute_extras=True)
         A = np.random.random((m,n))
         B = np.random.random((m,k))
         b = B[:,0]
@@ -311,36 +279,36 @@ class TestLstsqSolverTikhonov:
 
 
 def test_lstsq_reg(m=20, n=10, k=5):
-    """Test utils._solver.lstsq_reg()."""
+    """Test lstsq._tikhonov.lstsq_reg()."""
     A = np.random.random((m,n))
     B = np.random.random((m,k))
     Ps = [np.random.random((n,n)) for _ in range(k)]
 
     with pytest.raises(ValueError) as ex:
-        roi.utils.lstsq_reg(A, B[:,0], Ps)
+        roi.lstsq.lstsq_reg(A, B[:,0], Ps)
     assert ex.value.args[0] == "`b` must be two-dimensional with multiple P"
 
     # Bad number of regularization matrices (list).
     with pytest.raises(ValueError) as ex:
-        roi.utils.lstsq_reg(A, B, Ps[:3])
+        roi.lstsq.lstsq_reg(A, B, Ps[:3])
     assert ex.value.args[0] == \
         "multiple P requires exactly r entries with r = number of columns of b"
 
     # Bad number of regularization matrices (generator).
     with pytest.raises(ValueError) as ex:
-        roi.utils.lstsq_reg(A, B, (np.random.random((n,n)) for _ in range(3)))
+        roi.lstsq.lstsq_reg(A, B, (np.random.random((n,n)) for _ in range(3)))
     assert ex.value.args[0] == \
         "multiple P requires exactly r entries with r = number of columns of b"
 
     # Bad type for regularization.
     with pytest.raises(ValueError) as ex:
-        roi.utils.lstsq_reg(A, B, {})
+        roi.lstsq.lstsq_reg(A, B, {})
     assert ex.value.args[0] == "invalid input P of type 'dict'"
 
     # Correct usage.
-    roi.utils.lstsq_reg(A, B, 0)
-    roi.utils.lstsq_reg(A, B, 1)
-    roi.utils.lstsq_reg(A, B, Ps[0])
-    roi.utils.lstsq_reg(A, B, Ps)
+    roi.lstsq.lstsq_reg(A, B, 0)
+    roi.lstsq.lstsq_reg(A, B, 1)
+    roi.lstsq.lstsq_reg(A, B, Ps[0])
+    roi.lstsq.lstsq_reg(A, B, Ps)
 
-    # Do output shape tests?
+    # TODO: output shape tests?

@@ -1,8 +1,9 @@
 # utils/_solver.py
-"""Operator Inference least-squares solver."""
+"""Operator Inference least-squares solvers with Tikhonov regularization."""
 
 __all__ = [
-            "get_least_squares_size",
+            "LstsqSolverL2",
+            "LstsqSolverTikhonov",
             "lstsq_reg",
           ]
 
@@ -11,63 +12,6 @@ import warnings
 import itertools
 import numpy as np
 import scipy.linalg as la
-
-
-def get_least_squares_size(modelform, r, m=0, affines=None):
-    """Calculate the number of columns in the operator matrix O in the Operator
-    Inference least-squares problem.
-
-    Parameters
-    ---------
-    modelform : str containing 'c', 'A', 'H', 'G', and/or 'B'
-        The structure of the desired reduced-order model. Each character
-        indicates the presence of a different term in the model:
-        'c' : Constant term c
-        'A' : Linear state term Ax.
-        'H' : Quadratic state term H(x⊗x).
-        'G' : Cubic state term G(x⊗x⊗x).
-        'B' : Input term Bu.
-        For example, modelform=="AB" means f(x,u) = Ax + Bu.
-
-    r : int
-        The dimension of the reduced order model.
-
-    m : int
-        The dimension of the inputs of the model.
-        Must be zero unless 'B' is in `modelform`.
-
-    affines : dict(str -> list(callables))
-        Functions that define the structures of the affine operators.
-        Keys must match the modelform:
-        * 'c': Constant term c(µ).
-        * 'A': Linear state matrix A(µ).
-        * 'H': Quadratic state matrix H(µ).
-        * 'G': Cubic state matrix G(µ).
-        * 'B': linear Input matrix B(µ).
-        For example, if the constant term has the affine structure
-        c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
-
-    Returns
-    -------
-    ncols : int
-        The number of columns in the Operator Inference least-squares problem.
-    """
-    has_inputs = 'B' in modelform
-    if has_inputs and m == 0:
-        raise ValueError(f"argument m > 0 required since 'B' in modelform")
-    if not has_inputs and m != 0:
-        raise ValueError(f"argument m={m} invalid since 'B' in modelform")
-
-    if affines is None:
-        affines = {}
-
-    qc = len(affines['c']) if 'c' in affines else 1 if 'c' in modelform else 0
-    qA = len(affines['A']) if 'A' in affines else 1 if 'A' in modelform else 0
-    qH = len(affines['H']) if 'H' in affines else 1 if 'H' in modelform else 0
-    qG = len(affines['G']) if 'G' in affines else 1 if 'G' in modelform else 0
-    qB = len(affines['B']) if 'B' in affines else 1 if 'B' in modelform else 0
-
-    return qc + qA*r + qH*r*(r+1)//2 + qG*r*(r+1)*(r+2)//6 + qB*m
 
 
 # Solver classes ==============================================================
@@ -100,7 +44,99 @@ class _BaseLstsqSolver:
         self._bndim = b.ndim
 
 
-class LstsqSolverL2(_BaseLstsqSolver):
+class LstsqSolverTikhonov(_BaseLstsqSolver):
+    """Solve the l2-norm ordinary least-squares problem with Tikhonov
+    regularization:
+                                              || [ A ]    _  [ b ] ||^2
+        min_{x} ||Ax - b||_2^2 + ||Px||_2^2 = || [ P ] x     [ 0 ] ||_2.
+
+    If b is two-dimensional, the problem is solved in the Frobenius norm:
+                                              || [ A ]    _  [ B ] ||^2
+        min_{X} ||AX - B||_F^2 + ||PX||_F^2 = || [ P ] X     [ 0 ] ||_F.
+    """
+    def fit(self, A, b):
+        """Pad b appropriately to prepare to solve the least-squares problem.
+
+        Parameters
+        ----------
+        A : (k,d) ndarray
+            The "left-hand side" matrix.
+
+        b : (k,) or (k,r) ndarray
+            The "right-hand side" vector. If a two-dimensional array, then r
+            independent least-squares problems are solved.
+        """
+        self._check_shapes(A, b)
+
+        # Pad b and save what is needed to solve the problem.
+        pad = np.zeros(self.d) if self._bndim == 1 else np.zeros((self.d,
+                                                                  b.shape[1]))
+        self._rhs = np.concatenate((b, pad))
+        self._A = A
+
+        # Save what is needed for extra outputs if desired.
+        if self.compute_extras:
+            self._b = b
+            self._cond = np.linalg.cond(A)
+
+        return self
+
+    def predict(self, P):
+        """Solve the least-squares problem with regularization parameter λ.
+
+        Parameters
+        ----------
+        P : (d,d) ndarray
+            Regularization matrix.
+
+        Returns
+        -------
+        x : (d,) or (d,r) ndarray
+            Least-squares solution. If `b` is a two-dimensional array, then
+            each column is a solution to the regularized least-squares problem
+            with the corresponding column of b.
+
+        **If compute_extras is True, the following are also returned.**
+
+        misfit: float
+            Residual (data misfit) of the non-regularized problem:
+            * if `b` is one-dimensional: ||Ax - b||_2^2
+            * if `b` is two-dimensional: ||Ax - b||_F^2
+
+        residual : float
+            Residual of the regularized problem:
+            * if `b` is one-dimensional: ||Ax - b||_2^2 + ||λx||_2^2
+            * if `b` is two-dimensional: ||Ax - b||_F^2 + ||λx||_F^2
+
+        cond : float
+            Condition number of A, σ_max(A) / σ_min(A).
+
+        regcond : float
+            Condition number of regularized A, σ_max(G) / σ_min(G) where
+            G = [A.T | P.T].T is the augmented data matrix.
+        """
+        # Validate P. # TODO: allow sparse P.
+        if not isinstance(P, np.ndarray):
+            raise ValueError("regularization matrix must be a NumPy array")
+        if P.shape != (self.d,self.d):
+            raise ValueError("P.shape != (d,d) where d = A.shape[1]")
+
+        # Construct and solve the augmented problem.
+        lhs = np.vstack((self._A, P))
+        x, residuals, _, s = la.lstsq(lhs, self._rhs)
+
+        # Compute residuals and condition numbers if desired.
+        if self.compute_extras:
+            misfit = np.sum((self._A @ x - self._b)**2) # ||Ax-b||^2
+            residual = np.sum(residuals)                # ||Ax-b||^2 + ||Px||^2
+            regcond = abs(s[0] / s[-1])                 # cond([A.T | P.T].T)
+
+            return x, misfit, residual, self._cond, regcond
+
+        return x
+
+
+class LstsqSolverL2(LstsqSolverTikhonov):
     """Solve the l2-norm ordinary least-squares problem with L2 regularization:
 
         min_{x} ||Ax - b||_2^2 + ||λx||_2^2,   λ > 0.
@@ -206,98 +242,8 @@ class LstsqSolverL2(_BaseLstsqSolver):
 
         return x
 
-class LstsqSolverTikhonov(_BaseLstsqSolver):
-    """Solve the l2-norm ordinary least-squares problem with Tikhonov
-    regularization:
-                                              || [ A ]    _  [ b ] ||^2
-        min_{x} ||Ax - b||_2^2 + ||Px||_2^2 = || [ P ] x     [ 0 ] ||_2.
 
-    If b is two-dimensional, the problem is solved in the Frobenius norm:
-                                              || [ A ]    _  [ B ] ||^2
-        min_{X} ||AX - B||_F^2 + ||PX||_F^2 = || [ P ] X     [ 0 ] ||_F.
-    """
-    def fit(self, A, b):
-        """Pad b appropriately to prepare to solve the least-squares problem.
-
-        Parameters
-        ----------
-        A : (k,d) ndarray
-            The "left-hand side" matrix.
-
-        b : (k,) or (k,r) ndarray
-            The "right-hand side" vector. If a two-dimensional array, then r
-            independent least-squares problems are solved.
-        """
-        self._check_shapes(A, b)
-
-        # Pad b and save what is needed to solve the problem.
-        pad = np.zeros(self.d) if self._bndim == 1 else np.zeros((self.d,
-                                                                  b.shape[1]))
-        self._rhs = np.concatenate((b, pad))
-        self._A = A
-
-        # Save what is needed for extra outputs if desired.
-        if self.compute_extras:
-            self._b = b
-            self._cond = np.linalg.cond(A)
-
-        return self
-
-    def predict(self, P):
-        """Solve the least-squares problem with regularization parameter λ.
-
-        Parameters
-        ----------
-        P : (d,d) ndarray
-            Regularization matrix.
-
-        Returns
-        -------
-        x : (d,) or (d,r) ndarray
-            Least-squares solution. If `b` is a two-dimensional array, then
-            each column is a solution to the regularized least-squares problem
-            with the corresponding column of b.
-
-        **If compute_extras is True, the following are also returned.**
-
-        misfit: float
-            Residual (data misfit) of the non-regularized problem:
-            * if `b` is one-dimensional: ||Ax - b||_2^2
-            * if `b` is two-dimensional: ||Ax - b||_F^2
-
-        residual : float
-            Residual of the regularized problem:
-            * if `b` is one-dimensional: ||Ax - b||_2^2 + ||λx||_2^2
-            * if `b` is two-dimensional: ||Ax - b||_F^2 + ||λx||_F^2
-
-        cond : float
-            Condition number of A, σ_max(A) / σ_min(A).
-
-        regcond : float
-            Condition number of regularized A, σ_max(G) / σ_min(G) where
-            G = [A.T | P.T].T is the augmented data matrix.
-        """
-        # Validate P. # TODO: allow sparse P.
-        if not isinstance(P, np.ndarray):
-            raise ValueError("regularization matrix must be a NumPy array")
-        if P.shape != (self.d,self.d):
-            raise ValueError("P.shape != (d,d) where d = A.shape[1]")
-
-        # Construct and solve the augmented problem.
-        lhs = np.vstack((self._A, P))
-        x, residuals, _, s = la.lstsq(lhs, self._rhs)
-
-        # Compute residuals and condition numbers if desired.
-        if self.compute_extras:
-            misfit = np.sum((self._A @ x - self._b)**2) # ||Ax-b||^2
-            residual = np.sum(residuals)                # ||Ax-b||^2 + ||Px||^2
-            regcond = abs(s[0] / s[-1])                 # cond([A.T | P.T].T)
-
-            return x, misfit, residual, self._cond, regcond
-
-        return x
-
-
+# Convenience function ========================================================
 def lstsq_reg(A, b, P=0):
     """Solve the l2-norm Tikhonov-regularized ordinary least-squares problem
 

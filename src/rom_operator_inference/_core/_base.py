@@ -1,5 +1,14 @@
 # _core/_base.py
-"""Base ROM classes and mixins."""
+"""Base ROM classes and mixins.
+
+Classes
+-------
+* _BaseROM: base class for all ROM objects.
+* _DiscreteROM: base class for all discrete ROMs (difference equations).
+* _ContinuousROM: base class for all continuous ROMs (differential equations).
+* _NonparametricMixin: base mixin for all ROMs without parameter dependence.
+* _ParametricMixin: base mixin for all ROMs with external parameter dependence.
+"""
 
 __all__ = []
 
@@ -10,8 +19,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.integrate import solve_ivp, IntegrationWarning
 
-from ..utils import (lstsq_reg,
-                     expand_Hc as Hc2H, compress_H as H2Hc,
+from ..utils import (expand_Hc as Hc2H, compress_H as H2Hc,
                      expand_Gc as Gc2G, compress_G as G2Gc,
                      kron2c, kron3c)
 
@@ -546,7 +554,8 @@ class _ParametricMixin:
 
 
 # Future additions ------------------------------------------------------------
-# TODO: Account for state / input interactions (N).
 # TODO: save_model() for parametric forms.
+# TODO: class _SteadyROM(_BaseROM) for the steady problem.
+# TODO: Account for state / input interactions (N).
 # TODO: jacobians for each model form in the continuous case.
 # TODO: self.p = parameter size for parametric classes (+ shape checking)

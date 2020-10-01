@@ -16,7 +16,8 @@ __all__ = [
 import numpy as np
 
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
-from ..utils import lstsq_reg, kron2c, kron3c
+from ..lstsq import lstsq_reg
+from ..utils import kron2c, kron3c
 
 
 class _InferredMixin:
