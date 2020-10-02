@@ -200,8 +200,10 @@ class TestLstsqSolverTikhonov:
 
     def test_predict(self, m=20, n=10, k=5):
         """Test lstsq._tikhonov.LstsqSolverTikhonov.predict()."""
-        solver1D = roi.lstsq.LstsqSolverTikhonov(compute_extras=True)
-        solver2D = roi.lstsq.LstsqSolverTikhonov(compute_extras=True)
+        solver1D = roi.lstsq.LstsqSolverTikhonov(compute_extras=True,
+                                                 check_regularizer=False)
+        solver2D = roi.lstsq.LstsqSolverTikhonov(compute_extras=True,
+                                                 check_regularizer=False)
         A = np.random.random((m,n))
         B = np.random.random((m,k))
         b = B[:,0]
@@ -286,19 +288,12 @@ def test_lstsq_reg(m=20, n=10, k=5):
 
     with pytest.raises(ValueError) as ex:
         roi.lstsq.lstsq_reg(A, B[:,0], Ps)
-    assert ex.value.args[0] == "`b` must be two-dimensional with multiple P"
+    assert ex.value.args[0] == "`B` must be two-dimensional"
 
     # Bad number of regularization matrices (list).
     with pytest.raises(ValueError) as ex:
         roi.lstsq.lstsq_reg(A, B, Ps[:3])
-    assert ex.value.args[0] == \
-        "multiple P requires exactly r entries with r = number of columns of b"
-
-    # Bad number of regularization matrices (generator).
-    with pytest.raises(ValueError) as ex:
-        roi.lstsq.lstsq_reg(A, B, (np.random.random((n,n)) for _ in range(3)))
-    assert ex.value.args[0] == \
-        "multiple P requires exactly r entries with r = number of columns of b"
+    assert ex.value.args[0] == "len(Ps) != number of columns of B"
 
     # Bad type for regularization.
     with pytest.raises(ValueError) as ex:
