@@ -162,7 +162,7 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
 
         min_{X} ||AX - B||_F^2 + ||PX||_F^2,    P > 0 (SPD matrix).
     """
-    def __init__(self, compute_extras=True, check_regularizer=True):
+    def __init__(self, compute_extras=True, check_regularizer=False):
         """Set behavior parameters.
 
         Parameters
@@ -173,7 +173,8 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
 
         check_regularizer : bool
             If True, ensure that a regularization matrix is full rank before
-            attempting to solve the corresponding least-squares problem.
+            attempting to solve the corresponding least-squares problem (via
+            numpy.linalg.matrix_rank()). This is expensive for large problems.
         """
         _BaseLstsqSolver.__init__(self, compute_extras)
         self.check_regularizer = check_regularizer
@@ -204,23 +205,36 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
 
         return self
 
-    def _validate_regularizer(self, P):
-        """Validate the type and shape of the regularizer."""
+    def _process_regularizer(self, P):
+        """Validate the type and shape of the regularizer and compute P.T P."""
         # TODO: allow sparse P.
         if not isinstance(P, np.ndarray):
             raise ValueError("regularization matrix must be a NumPy array")
-        if P.shape != (self.d,self.d):
-            raise ValueError("P.shape != (d,d) where d = A.shape[1]")
-        if self.check_regularizer and np.linalg.matrix_rank(P) != self.d:
-            raise ValueError("regularizer P is rank deficient")
+
+        # One-dimensional input (diagonals of the regularization matrix).
+        if P.shape == (self.d,):
+            if np.any(P <= 0):
+                raise ValueError("invalid regularizer P")
+            return np.diag(P**2)
+
+        # Two-dimensional input (the regularization matrix).
+        elif P.shape == (self.d,self.d):
+            if self.check_regularizer and np.linalg.matrix_rank(P) != self.d:
+                raise ValueError("regularizer P is rank deficient")
+            return P.T @ P
+
+        # Anything else is invalid.
+        else:
+            raise ValueError("P.shape != (d,d) or (d,) where d = A.shape[1]")
 
     def predict(self, P):
-        """Solve the least-squares problem with regularization parameter λ.
+        """Solve the least-squares problem with regularization matrix P.
 
         Parameters
         ----------
-        P : (d,d) ndarray
-            Regularization matrix.
+        P : (d,d) or (d,) ndarray
+            Regularization matrix (or the diagonals of the regularization
+            matrix if one-dimensional).
 
         Returns
         -------
@@ -248,16 +262,15 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
             Condition number of regularized A, σ_max(G) / σ_min(G) where
             G = [A.T | P.T].T is the augmented data matrix.
         """
-        self._validate_regularizer(P)
-
         # Construct and solve the augmented problem.
-        lhs = self._AtA + (P.T @ P)
+        lhs = self._AtA + self._process_regularizer(P)
         x = la.solve(lhs, self._rhs, assume_a="pos")
 
         # Compute residuals and condition numbers if desired.
         if self.compute_extras:
             misfit = np.sum((self._A @ x - self._b)**2) # ||Ax-b||^2
-            residual = misfit + np.sum((P @ x)**2)      # ||Ax-b||^2 + ||Px||^2
+            Px = P * x if P.ndim == 1 else P @ x
+            residual = misfit + np.sum(Px**2)           # ||Ax-b||^2 + ||Px||^2
             regcond = np.sqrt(np.linalg.cond(lhs))      # cond([A.T | P.T].T)
 
             return x, misfit, residual, self._cond, regcond
@@ -305,8 +318,9 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
 
         Parameters
         ----------
-        Ps : sequence of r (d,d) ndarrays
-            Regularization matrices, one for each column of B.
+        P : sequence of r (d,d) or (d,) ndarrays
+            Regularization matrices (or the diagonals of the regularization
+            matrices if one-dimensional), one for each column of B.
 
         Returns
         -------
@@ -342,16 +356,15 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
 
         # Solve each independent problem (iteratively for now).
         for j, P, rhs in zip(range(self.r), Ps, self._rhs.T):
-            self._validate_regularizer(P)
-
             # Construct and solve the augmented problem.
-            lhs = self._AtA + (P.T @ P)
+            lhs = self._AtA + self._process_regularizer(P)
             X[:,j] = la.solve(lhs, self._rhs[:,j], assume_a="pos")
 
             # Record extras if desired.
             if self.compute_extras:
                 misfit += np.sum((self._A @ X[:,j] - self._B[:,j])**2)
-                residuals.append(misfit + np.sum((P @ X[:,j])**2))
+                Px = P * X[:,j] if P.ndim == 1 else P @ X[:,j]
+                residuals.append(misfit + np.sum(Px**2))
                 regconds.append(np.sqrt(np.linalg.cond(lhs)))
 
         # Compute data misfit if desired.
@@ -397,11 +410,11 @@ def solver_factory(A, b, P, compute_extras=True, check_regularizer=True):
     isarray = isinstance(P, np.ndarray)
 
     # If P is a scalar, solve the corresponding L2 problem.
-    if np.isscalar(P) or (isarray and P.shape == (A.shape[1])):
+    if np.isscalar(P):
         solver = LstsqSolverL2(compute_extras=compute_extras)
 
     # If P is a single matrix, solve the corresponding Tikhonov problem.
-    elif isarray and P.ndim == 2:
+    elif isarray and (P.shape == (A.shape[1]) or P.ndim == 2):
         solver = LstsqSolverTikhonov(compute_extras=compute_extras,
                                      check_regularizer=check_regularizer)
 
@@ -416,7 +429,7 @@ def solver_factory(A, b, P, compute_extras=True, check_regularizer=True):
     return solver.fit(A, b)
 
 
-def lstsq_reg(A, b, P=0):
+def lstsq_reg(A, b, P=0, compute_extras=True, check_regularizer=False):
     """Solve the l2-norm Tikhonov-regularized ordinary least-squares problem
 
         min_{x} ||Ax - b||_2^2 + ||Px||_2^2.
@@ -438,7 +451,7 @@ def lstsq_reg(A, b, P=0):
         * (d,d) ndarray: the matrix `P`.
         * sequence : the jth entry in the sequence is the regularization
             parameter for the jth column of `b`. Only valid if `b` is two-
-            dimensional and has r columns.
+            dimensional.
 
     Returns
     -------
@@ -454,8 +467,8 @@ def lstsq_reg(A, b, P=0):
 
     residual : float
         Residual of the regularized problem:
-        * if `b` is one-dimensional: ||Ax - b||_2^2 + ||λx||_2^2
-        * if `b` is two-dimensional: ||Ax - b||_F^2 + ||λx||_F^2
+        * if `b` is one-dimensional: ||Ax - b||_2^2 + ||Px||_2^2
+        * if `b` is two-dimensional: ||Ax - b||_F^2 + ||Px||_F^2
 
     cond : float
         Condition number of A, σ_max(A) / σ_min(A).
@@ -463,5 +476,6 @@ def lstsq_reg(A, b, P=0):
     regcond : float or list of length r
         Effective condition number of regularized A.
     """
-    return solver_factory(A, b, P, compute_extras=True,
-                                   check_regularizer=True).predict(P)
+    solver = solver_factory(A, b, P, compute_extras=compute_extras,
+                                     check_regularizer=check_regularizer)
+    return solver.predict(P)

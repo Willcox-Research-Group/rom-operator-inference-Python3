@@ -220,7 +220,8 @@ class TestLstsqSolverTikhonov:
         P = np.empty((n-1,n+1))
         with pytest.raises(ValueError) as ex:
             solver2D.predict(P)
-        assert ex.value.args[0] == "P.shape != (d,d) where d = A.shape[1]"
+        assert ex.value.args[0] == \
+            "P.shape != (d,d) or (d,) where d = A.shape[1]"
 
         # Test without regularization, b.ndim = 1.
         Z = np.zeros((n,n))
