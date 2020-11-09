@@ -5,6 +5,7 @@ __all__ = [
             "LstsqSolverL2",
             "LstsqSolverTikhonov",
             "lstsq_reg",
+            "solver_factory",
           ]
 
 import types
@@ -101,12 +102,12 @@ class LstsqSolverL2(_BaseLstsqSolver):
         misfit: float
             Residual (data misfit) of the non-regularized problem:
             * if `b` is one-dimensional: ||Ax - b||_2^2
-            * if `b` is two-dimensional: ||Ax - b||_F^2
+            * if `b` is two-dimensional: ||AX - B||_F^2
 
         residual : float
             Residual of the regularized problem:
             * if `b` is one-dimensional: ||Ax - b||_2^2 + ||λx||_2^2
-            * if `b` is two-dimensional: ||Ax - b||_F^2 + ||λx||_F^2
+            * if `b` is two-dimensional: ||AX - B||_F^2 + ||λX||_F^2
 
         datacond : float
             Condition number of A, σ_max(A) / σ_min(A).
@@ -154,12 +155,12 @@ class LstsqSolverL2(_BaseLstsqSolver):
 class LstsqSolverTikhonov(_BaseLstsqSolver):
     """Solve the l2-norm ordinary least-squares problem with Tikhonov
     regularization:
-                                              || [ A ]    _  [ b ] ||^2
-        min_{x} ||Ax - b||_2^2 + ||Px||_2^2 = || [ P ] x     [ 0 ] ||_2.
+
+        min_{x} ||Ax - b||_2^2 + ||Px||_2^2,    P > 0 (SPD matrix).
 
     If b is two-dimensional, the problem is solved in the Frobenius norm:
-                                              || [ A ]    _  [ B ] ||^2
-        min_{X} ||AX - B||_F^2 + ||PX||_F^2 = || [ P ] X     [ 0 ] ||_F.
+
+        min_{X} ||AX - B||_F^2 + ||PX||_F^2,    P > 0 (SPD matrix).
     """
     def __init__(self, compute_extras=True, check_regularizer=True):
         """Set behavior parameters.
@@ -178,7 +179,7 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
         self.check_regularizer = check_regularizer
 
     def fit(self, A, b):
-        """Pad b appropriately to prepare to solve the least-squares problem.
+        """Prepare to solve the least-squares problem via the normal equations.
 
         Parameters
         ----------
@@ -192,13 +193,12 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
         self._check_shapes(A, b)
 
         # Pad b and save what is needed to solve the problem.
-        pad = np.zeros(self.d) if self._bndim == 1 else np.zeros((self.d,
-                                                                  b.shape[1]))
-        self._rhs = np.concatenate((b, pad))
-        self._A = A
+        self._rhs = A.T @ b
+        self._AtA = A.T @ A
 
         # Save what is needed for extra outputs if desired.
         if self.compute_extras:
+            self._A = A
             self._b = b
             self._cond = np.linalg.cond(A)
 
@@ -251,14 +251,14 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
         self._validate_regularizer(P)
 
         # Construct and solve the augmented problem.
-        lhs = np.vstack((self._A, P))
-        x, residuals, _, s = la.lstsq(lhs, self._rhs)
+        lhs = self._AtA + (P.T @ P)
+        x = la.solve(lhs, self._rhs, assume_a="pos")
 
         # Compute residuals and condition numbers if desired.
         if self.compute_extras:
             misfit = np.sum((self._A @ x - self._b)**2) # ||Ax-b||^2
-            residual = np.sum(residuals)                # ||Ax-b||^2 + ||Px||^2
-            regcond = abs(s[0] / s[-1])                 # cond([A.T | P.T].T)
+            residual = misfit + np.sum((P @ x)**2)      # ||Ax-b||^2 + ||Px||^2
+            regcond = np.sqrt(np.linalg.cond(lhs))      # cond([A.T | P.T].T)
 
             return x, misfit, residual, self._cond, regcond
 
@@ -272,7 +272,7 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
         min_{x_i} ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2.
     """
     def fit(self, A, B):
-        """Pad b appropriately to prepare to solve the least-squares problem.
+        """Prepare to solve the least-squares problem via the normal equations.
 
         Parameters
         ----------
@@ -289,18 +289,19 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
         self.r = B.shape[1]
 
         # Pad B and save what is needed to solve the problem.
-        self._rhs = np.concatenate((B, np.zeros((self.d, self.r))))
-        self._A = A
+        self._AtA = A.T @ A
+        self._rhs = A.T @ B
 
         # Save what is needed for extra outputs if desired.
         if self.compute_extras:
+            self._A = A
             self._B = B
             self._cond = np.linalg.cond(A)
 
         return self
 
     def predict(self, Ps):
-        """Solve the least-squares problem with regularization parameter λ.
+        """Solve the least-squares problem with regularization matrices Ps.
 
         Parameters
         ----------
@@ -318,8 +319,9 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
         misfit: float
             Residual (data misfit) of the raw problem: ||AX - B||_F^2
 
-        residual : float
-            Residual of the regularized problem: ||Ax - b||_F^2 + ||λx||_F^2
+        residuals : list of r floats
+            Residuals of the regularized problems:
+            ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2.
 
         cond : float
             Condition number of A, σ_max(A) / σ_min(A).
@@ -334,7 +336,8 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
         # Allocate space for the solution and initialize extras if desired.
         X = np.empty((self.d,self.r))
         if self.compute_extras:
-            residual = 0
+            misfit = 0
+            residuals = []
             regconds = []
 
         # Solve each independent problem (iteratively for now).
@@ -342,18 +345,18 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
             self._validate_regularizer(P)
 
             # Construct and solve the augmented problem.
-            lhs = np.vstack((self._A, P))
-            X[:,j], res, _, s = la.lstsq(lhs, rhs)
+            lhs = self._AtA + (P.T @ P)
+            X[:,j] = la.solve(lhs, self._rhs[:,j], assume_a="pos")
 
             # Record extras if desired.
             if self.compute_extras:
-                residual += res
-                regconds.append(abs(s[0] / s[-1]))
+                misfit += np.sum((self._A @ X[:,j] - self._B[:,j])**2)
+                residuals.append(misfit + np.sum((P @ X[:,j])**2))
+                regconds.append(np.sqrt(np.linalg.cond(lhs)))
 
         # Compute data misfit if desired.
         if self.compute_extras:
-            misfit = np.sum((self._A @ X - self._B)**2) # ||Ax-B||^2
-            return X, misfit, residual, self._cond, regconds
+            return X, misfit, residuals, self._cond, regconds
 
         return X
 

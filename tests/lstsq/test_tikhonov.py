@@ -173,7 +173,7 @@ class TestLstsqSolverTikhonov:
 
         def _test_shapes(A, b, shapes):
             solver.fit(A, b)
-            for attr, shape in zip(["_rhs", "_A", "_b"], shapes):
+            for attr, shape in zip(["_A", "_b", "_AtA", "_rhs"], shapes):
                 assert hasattr(solver, attr)
                 obj = getattr(solver, attr)
                 assert isinstance(obj, np.ndarray)
@@ -182,21 +182,21 @@ class TestLstsqSolverTikhonov:
         # Test overdetermined, b.ndim = 1.
         A = np.random.random((m,n))
         b = np.random.random(m)
-        _test_shapes(A, b, [(m+n,), (m,n), (m,)])
+        _test_shapes(A, b, [(m,n), (m,), (n,n), (n,)])
 
         # Test overdetermined, b.ndim = 2.
         b = np.random.random((m,k))
-        _test_shapes(A, b, [(m+n,k), (m,n), (m,k)])
+        _test_shapes(A, b, [(m,n), (m,k), (n,n), (n,k)])
 
         # Test underdetermined, b.ndim = 1.
         m,n = n,m
         A = A.T
         b = np.random.random(m)
-        _test_shapes(A, b, [(m+n,), (m,n), (m,)])
+        _test_shapes(A, b, [(m,n), (m,), (n,n), (n,)])
 
         # Test underdetermined, b.ndim = 2.
         b = np.random.random((m,k))
-        _test_shapes(A, b, [(m+n,k), (m,n), (m,k)])
+        _test_shapes(A, b, [(m,n), (m,k), (n,n), (n,k)])
 
     def test_predict(self, m=20, n=10, k=5):
         """Test lstsq._tikhonov.LstsqSolverTikhonov.predict()."""
