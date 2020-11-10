@@ -2,21 +2,21 @@
 """Operator Inference least-squares solvers with Tikhonov regularization."""
 
 __all__ = [
-            "LstsqSolverL2",
-            "LstsqSolverTikhonov",
-            "lstsq_reg",
-            "solver_factory",
+            "SolverL2",
+            "SolverTikhonov",
+            "SolverTikhonovDecoupled",
+            "solver",
+            "solve",
           ]
 
 import types
 import warnings
-import itertools
 import numpy as np
 import scipy.linalg as la
 
 
 # Solver classes ==============================================================
-class _BaseLstsqSolver:
+class _BaseSolver:
     """Base class for least-squares solvers for problems of the form
 
         min_{x} ||Ax - b||^2 + ||Px||^2.
@@ -45,7 +45,7 @@ class _BaseLstsqSolver:
         self._bndim = b.ndim
 
 
-class LstsqSolverL2(_BaseLstsqSolver):
+class SolverL2(_BaseSolver):
     """Solve the l2-norm ordinary least-squares problem with L2 regularization:
 
         min_{x} ||Ax - b||_2^2 + ||λx||_2^2,   λ > 0.
@@ -152,7 +152,7 @@ class LstsqSolverL2(_BaseLstsqSolver):
         return x
 
 
-class LstsqSolverTikhonov(_BaseLstsqSolver):
+class SolverTikhonov(_BaseSolver):
     """Solve the l2-norm ordinary least-squares problem with Tikhonov
     regularization:
 
@@ -172,11 +172,11 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
             addition to the solution; if False, predict() returns the solution.
 
         check_regularizer : bool
-            If True, ensure that a regularization matrix is full rank before
-            attempting to solve the corresponding least-squares problem (via
-            numpy.linalg.matrix_rank()). This is expensive for large problems.
+            If True, ensure that a regularization matrix is full rank (via
+            numpy.linalg.matrix_rank()) before attempting to solve the
+            corresponding least-squares problem. Expensive for large problems.
         """
-        _BaseLstsqSolver.__init__(self, compute_extras)
+        _BaseSolver.__init__(self, compute_extras)
         self.check_regularizer = check_regularizer
 
     def fit(self, A, b):
@@ -214,7 +214,7 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
         # One-dimensional input (diagonals of the regularization matrix).
         if P.shape == (self.d,):
             if np.any(P <= 0):
-                raise ValueError("invalid regularizer P")
+                raise ValueError("diagonal P must be positive definite")
             return np.diag(P**2)
 
         # Two-dimensional input (the regularization matrix).
@@ -278,7 +278,7 @@ class LstsqSolverTikhonov(_BaseLstsqSolver):
         return x
 
 
-class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
+class SolverTikhonovDecoupled(SolverTikhonov):
     """Solve r independent l2-norm ordinary least-squares problems, each with
     the same data matrix but a different Tikhonov regularizer,
 
@@ -296,22 +296,10 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
             The "right-hand side" matrix. Each column of B defines a separate
             least-squares problem.
         """
-        self._check_shapes(A, B)
-        if self._bndim != 2:
+        if B.ndim != 2:
             raise ValueError("`B` must be two-dimensional")
         self.r = B.shape[1]
-
-        # Pad B and save what is needed to solve the problem.
-        self._AtA = A.T @ A
-        self._rhs = A.T @ B
-
-        # Save what is needed for extra outputs if desired.
-        if self.compute_extras:
-            self._A = A
-            self._B = B
-            self._cond = np.linalg.cond(A)
-
-        return self
+        return SolverTikhonov.fit(self, A, B)
 
     def predict(self, Ps):
         """Solve the least-squares problem with regularization matrices Ps.
@@ -362,7 +350,7 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
 
             # Record extras if desired.
             if self.compute_extras:
-                misfit += np.sum((self._A @ X[:,j] - self._B[:,j])**2)
+                misfit += np.sum((self._A @ X[:,j] - self._b[:,j])**2)
                 Px = P * X[:,j] if P.ndim == 1 else P @ X[:,j]
                 residuals.append(misfit + np.sum(Px**2))
                 regconds.append(np.sqrt(np.linalg.cond(lhs)))
@@ -375,8 +363,7 @@ class LstsqSolverTikhonovMulti(LstsqSolverTikhonov):
 
 
 # Convenience functions =======================================================
-
-def solver_factory(A, b, P, compute_extras=True, check_regularizer=True):
+def solver(A, b, P, **kwargs):
     """Select and initialize an appropriate solver for the ordinary least-
     squares problem with Tikhonov regularization,
 
@@ -401,9 +388,20 @@ def solver_factory(A, b, P, compute_extras=True, check_regularizer=True):
             parameter for the jth column of `b`. Only valid if `b` is two-
             dimensional and has r columns.
 
+    **kwargs
+        Additional arguments for the solver object.
+        * compute_extras : bool
+            If True, solver.predict() returns residual / conditioning
+            information in addition to the solution; if False,
+            solver.predict() returns the solution only.
+        * check_regularizer : bool
+            If True, ensure that a regularization matrix is full rank (via
+            numpy.linalg.matrix_rank()) before attempting to solve the
+            corresponding least-squares problem. Expensive for large problems.
+
     Returns
     -------
-    solver : LstsqSolverL2 or LstsqSolverTikhonov
+    solver
         Least-squares solver object, with a predict() method mapping the
         regularization factor to the least-squares solution.
     """
@@ -411,17 +409,17 @@ def solver_factory(A, b, P, compute_extras=True, check_regularizer=True):
 
     # If P is a scalar, solve the corresponding L2 problem.
     if np.isscalar(P):
-        solver = LstsqSolverL2(compute_extras=compute_extras)
+        if "compute_extras" in kwargs:                  # pragma: no cover
+            kwargs.pop("compute_extras")
+        solver = SolverL2(**kwargs)
 
     # If P is a single matrix, solve the corresponding Tikhonov problem.
-    elif isarray and (P.shape == (A.shape[1]) or P.ndim == 2):
-        solver = LstsqSolverTikhonov(compute_extras=compute_extras,
-                                     check_regularizer=check_regularizer)
+    elif isarray and (P.shape == (A.shape[1],) or P.ndim == 2):
+        solver = SolverTikhonov(**kwargs)
 
     # If P is a sequence, decouple the problem by column.
     elif isinstance(P, (np.ndarray, list, types.GeneratorType)):
-        solver = LstsqSolverTikhonovMulti(compute_extras=compute_extras,
-                                          check_regularizer=check_regularizer)
+        solver = SolverTikhonovDecoupled(**kwargs)
 
     else:
         raise ValueError(f"invalid input P of type '{type(P).__name__}'")
@@ -429,7 +427,7 @@ def solver_factory(A, b, P, compute_extras=True, check_regularizer=True):
     return solver.fit(A, b)
 
 
-def lstsq_reg(A, b, P=0, compute_extras=True, check_regularizer=False):
+def solve(A, b, P=0, **kwargs):
     """Solve the l2-norm Tikhonov-regularized ordinary least-squares problem
 
         min_{x} ||Ax - b||_2^2 + ||Px||_2^2.
@@ -452,6 +450,17 @@ def lstsq_reg(A, b, P=0, compute_extras=True, check_regularizer=False):
         * sequence : the jth entry in the sequence is the regularization
             parameter for the jth column of `b`. Only valid if `b` is two-
             dimensional.
+
+    **kwargs
+        Additional arguments for the solver object.
+        * compute_extras : bool
+            If True, solver.predict() returns residual / conditioning
+            information in addition to the solution; if False,
+            solver.predict() returns the solution only.
+        * check_regularizer : bool
+            If True, ensure that a regularization matrix is full rank (via
+            numpy.linalg.matrix_rank()) before attempting to solve the
+            corresponding least-squares problem. Expensive for large problems.
 
     Returns
     -------
@@ -476,6 +485,4 @@ def lstsq_reg(A, b, P=0, compute_extras=True, check_regularizer=False):
     regcond : float or list of length r
         Effective condition number of regularized A.
     """
-    solver = solver_factory(A, b, P, compute_extras=compute_extras,
-                                     check_regularizer=check_regularizer)
-    return solver.predict(P)
+    return solver(A, b, P, **kwargs).predict(P)

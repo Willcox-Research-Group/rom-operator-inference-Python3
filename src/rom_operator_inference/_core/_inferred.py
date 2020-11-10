@@ -7,6 +7,9 @@ Classes
 * InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM)
 * InferredContinuousROM(_InferredMixin, _NonparametricMixin, _ContinuousROM)
 """
+# TODO: _construct_data_matrix() --> _assemble_data_matrix()
+# TODO: _construct_f_() --> _init_f_()
+
 
 __all__ = [
             "InferredDiscreteROM",
@@ -16,7 +19,7 @@ __all__ = [
 import numpy as np
 
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
-from ..lstsq import lstsq_reg
+from .. import lstsq
 from ..utils import kron2c, kron3c
 
 
@@ -126,7 +129,7 @@ class _InferredMixin:
         Rtrp = R.T
 
         # Solve for the reduced-order model operators via least squares.
-        Otrp, mis, res, cond, regcond = lstsq_reg(D, Rtrp, P)
+        Otrp, mis, res, cond, regcond = lstsq.solve(D, Rtrp, P)
 
         # Record info about the least squares solution.
         self.misfit_ = mis          # ||DO.T - R.T||_F^2
@@ -175,6 +178,35 @@ class _InferredMixin:
 
         return
 
+    def _construct_solver(self, Vr, X, rhs, U, P, **kwargs):
+        """
+        TODO
+        """
+        X_, rhs_, U = self._process_fit_arguments(Vr, X, rhs, U)
+        D = self._construct_data_matrix(X_, U)
+        return lstsq.solver(D, rhs_.T, P, **kwargs)
+
+    def _evaluate_solver(self, solver, P):
+        """
+        TODO
+        """
+        if solver.compute_extras:
+            # Solve for the reduced-order model operators via least squares.
+            Otrp, mis, res, cond, regcond = solver.predict(P)
+
+            # Record info about the least squares solution.
+            self.misfit_ = mis          # ||DO.T - R.T||_F^2
+            self.residual_ = res        # ||DO.T - R.T||_F^2 + ||PO.T||_F^2
+            self.datacond_ = cond       # cond(D)
+            self.dataregcond_ = regcond # cond([D.T | P.T].T)
+        else:
+            Otrp = solver.predict(P)
+
+        # Get the operators from the operator matrix.
+        self._extract_operators(Otrp.T)
+        self._construct_f_()
+        return self
+
     def fit(self, Vr, X, rhs, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
@@ -199,7 +231,7 @@ class _InferredMixin:
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
-            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
 
@@ -207,11 +239,7 @@ class _InferredMixin:
         -------
         self
         """
-        X_, rhs_, U = self._process_fit_arguments(Vr, X, rhs, U)
-        D = self._construct_data_matrix(X_, U)
-        O = self._solve_opinf_lstsq(D, rhs_, P)
-        self._extract_operators(O)
-        self._construct_f_()
+        self._evaluate_solver(self._construct_solver(Vr, X, rhs, U, P), P)
         return self
 
 
@@ -334,7 +362,7 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
-            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
 
@@ -474,7 +502,7 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
-            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
 

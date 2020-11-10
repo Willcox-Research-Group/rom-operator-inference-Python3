@@ -8,11 +8,11 @@ from scipy import linalg as la
 import rom_operator_inference as roi
 
 
-class TestBaseLstsqSolver:
-    """Test lstsq._tikhonov._BaseLstsqSolver."""
+class TestBaseSolver:
+    """Test lstsq._tikhonov._BaseSolver."""
     def test_check_shapes(self):
-        """Test lstsq._tikhonov._BaseLstsqSolver._check_shapes()."""
-        solver = roi.lstsq._tikhonov._BaseLstsqSolver()
+        """Test lstsq._tikhonov._BaseSolver._check_shapes()."""
+        solver = roi.lstsq._tikhonov._BaseSolver()
 
         # Try with rhs with too many dimensions.
         b = np.empty((2,2,2))
@@ -38,11 +38,11 @@ class TestBaseLstsqSolver:
         solver._check_shapes(A, b)
 
 
-class TestLstsqSolverL2:
-    """Test lstsq._tikhonov.LstsqSolverL2."""
+class TestSolverL2:
+    """Test lstsq._tikhonov.SolverL2."""
     def test_fit(self, m=20, n=10, k=5):
-        """Test lstsq._tikhonov.LstsqSolverL2.fit()."""
-        solver = roi.lstsq.LstsqSolverL2(compute_extras=True)
+        """Test lstsq._tikhonov.SolverL2.fit()."""
+        solver = roi.lstsq.SolverL2(compute_extras=True)
 
         def _test_shapes(A, b, shapes):
             solver.fit(A, b)
@@ -72,9 +72,9 @@ class TestLstsqSolverL2:
         _test_shapes(A, b, [(n,m), (m,), (m,k), (m,n), (m,k)])
 
     def test_predict(self, m=20, n=10, k=5):
-        """Test lstsq._tikhonov.LstsqSolverL2.predict()."""
-        solver1D = roi.lstsq.LstsqSolverL2(compute_extras=True)
-        solver2D = roi.lstsq.LstsqSolverL2(compute_extras=True)
+        """Test lstsq._tikhonov.SolverL2.predict()."""
+        solver1D = roi.lstsq.SolverL2(compute_extras=True)
+        solver2D = roi.lstsq.SolverL2(compute_extras=True)
         A = np.random.random((m,n))
         B = np.random.random((m,k))
         b = B[:,0]
@@ -165,11 +165,56 @@ class TestLstsqSolverL2:
         x2 = solver1D.predict(1)
 
 
-class TestLstsqSolverTikhonov:
-    """Test lstsq._tikhonov.LstsqSolverTikhonov."""
+class TestSolverTikhonov:
+    """Test lstsq._tikhonov.SolverTikhonov."""
+    def test_process_regularizer(self, d=10):
+        solver = roi.lstsq.SolverTikhonov(check_regularizer=True)
+        solver.d = d
+
+        # Try with bad regularizer type.
+        with pytest.raises(ValueError) as ex:
+            solver._process_regularizer("not an array")
+        assert ex.value.args[0] == \
+            "regularization matrix must be a NumPy array"
+
+        # Try with bad regularizer shapes.
+        P = np.empty(d-1)
+        with pytest.raises(ValueError) as ex:
+            solver._process_regularizer(P)
+        assert ex.value.args[0] == \
+            "P.shape != (d,d) or (d,) where d = A.shape[1]"
+
+        P = np.empty((d,d-1))
+        with pytest.raises(ValueError) as ex:
+            solver._process_regularizer(P)
+        assert ex.value.args[0] == \
+            "P.shape != (d,d) or (d,) where d = A.shape[1]"
+
+        # Try with bad regularizers.
+        P = np.ones(d)
+        P[-1] = 0
+        with pytest.raises(ValueError) as ex:
+            solver._process_regularizer(P)
+        assert ex.value.args[0] == "diagonal P must be positive definite"
+
+        P = np.eye(d)
+        P[-1,-1] = 0
+        with pytest.raises(ValueError) as ex:
+            solver._process_regularizer(P)
+        assert ex.value.args[0] == "regularizer P is rank deficient"
+
+        # Correct usage
+        P = np.full(d, 2)
+        P2 = solver._process_regularizer(P)
+        assert np.all(P2 == np.diag(np.full(d, 4)))
+
+        P = np.eye(d) + np.diag(np.ones(d-1), -1)
+        P2 = solver._process_regularizer(P)
+        assert np.all(P2 == P.T @ P)
+
     def test_fit(self, m=20, n=10, k=5):
-        """Test lstsq._tikhonov.LstsqSolverTikhonov.fit()."""
-        solver = roi.lstsq.LstsqSolverTikhonov(compute_extras=True)
+        """Test lstsq._tikhonov.SolverTikhonov.fit()."""
+        solver = roi.lstsq.SolverTikhonov(compute_extras=True)
 
         def _test_shapes(A, b, shapes):
             solver.fit(A, b)
@@ -199,29 +244,16 @@ class TestLstsqSolverTikhonov:
         _test_shapes(A, b, [(m,n), (m,k), (n,n), (n,k)])
 
     def test_predict(self, m=20, n=10, k=5):
-        """Test lstsq._tikhonov.LstsqSolverTikhonov.predict()."""
-        solver1D = roi.lstsq.LstsqSolverTikhonov(compute_extras=True,
-                                                 check_regularizer=False)
-        solver2D = roi.lstsq.LstsqSolverTikhonov(compute_extras=True,
-                                                 check_regularizer=False)
+        """Test lstsq._tikhonov.SolverTikhonov.predict()."""
+        solver1D = roi.lstsq.SolverTikhonov(compute_extras=True,
+                                            check_regularizer=False)
+        solver2D = roi.lstsq.SolverTikhonov(compute_extras=True,
+                                            check_regularizer=False)
         A = np.random.random((m,n))
         B = np.random.random((m,k))
         b = B[:,0]
         solver1D.fit(A, b)
         solver2D.fit(A, B)
-
-        # Try with bad regularizer type.
-        with pytest.raises(ValueError) as ex:
-            solver1D.predict([1, 2, 3])
-        assert ex.value.args[0] == \
-            "regularization matrix must be a NumPy array"
-
-        # Try with bad regularizer shape.
-        P = np.empty((n-1,n+1))
-        with pytest.raises(ValueError) as ex:
-            solver2D.predict(P)
-        assert ex.value.args[0] == \
-            "P.shape != (d,d) or (d,) where d = A.shape[1]"
 
         # Test without regularization, b.ndim = 1.
         Z = np.zeros((n,n))
@@ -279,32 +311,73 @@ class TestLstsqSolverTikhonov:
 
         solver1D.compute_extras = False
         x2 = solver1D.predict(I)
+        x2 = solver1D.predict(np.ones(n))
 
 
-def test_lstsq_reg(m=20, n=10, k=5):
-    """Test lstsq._tikhonov.lstsq_reg()."""
+class TestSolverTikhonovDecoupled:
+    """Test lstsq._tikhonov.SolverTikhonovDecoupled."""
+    def test_fit(self, m=20, n=10, k=5):
+        """Test lstsq._tikhonov.SolverTikhonovDecoupled.fit()."""
+        A = np.random.random((m,n))
+        B = np.random.random((m,k))
+        b = B[:,0]
+
+        # Require two-dimensional inputs.
+        solver = roi.lstsq.SolverTikhonovDecoupled(compute_extras=False)
+        with pytest.raises(ValueError) as ex:
+            solver.fit(A, b)
+        assert ex.value.args[0] == "`B` must be two-dimensional"
+
+        solver.fit(A, B)
+        assert solver.r == k
+
+    def test_predict(self, m=20, n=10):
+        """Test lstsq._tikhonov.SolverTikhonovDecoupled.predict()."""
+        solver = roi.lstsq.SolverTikhonovDecoupled(compute_extras=True,
+                                                   check_regularizer=False)
+        A = np.random.random((m,n))
+        B = np.random.random((m,2))
+        solver.fit(A, B)
+        Ps = [np.eye(n), np.full(n, 2)]
+
+        Apad1 = np.vstack((A, Ps[0]))
+        Apad2 = np.vstack((A, np.diag(Ps[1])))
+        Bpad = np.vstack((B, np.zeros((n,2))))
+        xx1 = la.lstsq(Apad1, Bpad[:,0])[0]
+        xx2 = la.lstsq(Apad2, Bpad[:,1])[0]
+        X1 = np.column_stack([xx1, xx2])
+        X2, misfit, residual, cond, regcond = solver.predict(Ps)
+        assert np.allclose(X1, X2)
+        assert misfit < np.sum(residual)
+        assert np.isclose(misfit, la.norm(A @ X1 - B, ord='fro')**2)
+        assert np.isclose(cond, np.linalg.cond(A))
+
+        solver.compute_extras = False
+        solver.predict(Ps)
+
+
+def test_solve(m=20, n=10, k=5):
+    """Test lstsq._tikhonov.solve()."""
     A = np.random.random((m,n))
     B = np.random.random((m,k))
     Ps = [np.random.random((n,n)) for _ in range(k)]
 
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.lstsq_reg(A, B[:,0], Ps)
+        roi.lstsq.solve(A, B[:,0], Ps)
     assert ex.value.args[0] == "`B` must be two-dimensional"
 
     # Bad number of regularization matrices (list).
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.lstsq_reg(A, B, Ps[:3])
+        roi.lstsq.solve(A, B, Ps[:3])
     assert ex.value.args[0] == "len(Ps) != number of columns of B"
 
     # Bad type for regularization.
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.lstsq_reg(A, B, {})
+        roi.lstsq.solve(A, B, {})
     assert ex.value.args[0] == "invalid input P of type 'dict'"
 
     # Correct usage.
-    roi.lstsq.lstsq_reg(A, B, 0)
-    roi.lstsq.lstsq_reg(A, B, 1)
-    roi.lstsq.lstsq_reg(A, B, Ps[0])
-    roi.lstsq.lstsq_reg(A, B, Ps)
-
-    # TODO: output shape tests?
+    roi.lstsq.solve(A, B, 0)
+    roi.lstsq.solve(A, B, 1)
+    roi.lstsq.solve(A, B, Ps[0])
+    roi.lstsq.solve(A, B, Ps)

@@ -60,7 +60,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         rhss_ : list of s (r,k) ndarrays
             Projected right-hand-side data. rhss_[i] corresponds to µ[i].
 
-        Us : list of s (m,k) ndarrays
+        Us : list of s (m,k) ndarrays or None
             Inputs, potentially reshaped. Us[i] corresponds to µ[i].
         """
         # Check modelform, affines dictionary, and inputs.
