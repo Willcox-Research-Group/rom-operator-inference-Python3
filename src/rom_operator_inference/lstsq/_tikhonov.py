@@ -269,7 +269,10 @@ class SolverTikhonov(_BaseSolver):
         # Compute residuals and condition numbers if desired.
         if self.compute_extras:
             misfit = np.sum((self._A @ x - self._b)**2) # ||Ax-b||^2
-            Px = P * x if P.ndim == 1 else P @ x
+            if P.ndim == 1:
+                Px = P.reshape((-1,1)) * x if x.ndim == 2 else P * x
+            else:
+                Px = P @ x
             residual = misfit + np.sum(Px**2)           # ||Ax-b||^2 + ||Px||^2
             regcond = np.sqrt(np.linalg.cond(lhs))      # cond([A.T | P.T].T)
 

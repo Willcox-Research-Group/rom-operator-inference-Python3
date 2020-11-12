@@ -207,7 +207,7 @@ class _InferredMixin:
         self._construct_f_()
         return self
 
-    def fit(self, Vr, X, rhs, U=None, P=0):
+    def fit(self, Vr, X, rhs, U=None, P=0, **kwargs):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -235,12 +235,16 @@ class _InferredMixin:
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
 
+        **kwargs
+            Additional arguments for the least-squares solver.
+            See lstsq.solvers().
+
         Returns
         -------
         self
         """
-        self._evaluate_solver(self._construct_solver(Vr, X, rhs, U, P), P)
-        return self
+        solver = self._construct_solver(Vr, X, rhs, U, P, **kwargs)
+        return self._evaluate_solver(solver, P)
 
 
 # Nonparametric Operator Inference models -------------------------------------
