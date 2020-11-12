@@ -156,9 +156,9 @@ def best_bounded_reg(rom, B, errornorm, reg_bounds, fit_args, predict_args,
     # Buffer *_args up to final argument.
     nargs_fit = len(inspect.signature(rom.fit).parameters)
     nargs_predict = len(inspect.signature(rom.predict).parameters)
-    while len(fit_args) < nargs_fit - 1:
+    while len(fit_args) < nargs_fit - 2:
         fit_args += [None]
-    while len(predict_args) < nargs_predict -1 :
+    while len(predict_args) < nargs_predict - 1:
         predict_args += [None]
 
     # Define the subroutine to optimize.
@@ -172,7 +172,7 @@ def best_bounded_reg(rom, B, errornorm, reg_bounds, fit_args, predict_args,
 
         # Train the ROM with the given regularization parameter.
         try:
-            rom.fit(*fit_args, reg)
+            rom.fit(*fit_args, P=reg)
         except (np.linalg.LinAlgError, ValueError) as e:    # pragma: nocover
             if e.args[0] in [               # Near-singular data matrix.
                 "SVD did not converge in Linear Least Squares",
@@ -204,7 +204,7 @@ def best_bounded_reg(rom, B, errornorm, reg_bounds, fit_args, predict_args,
                                      bounds=reg_bounds)
     if opt_result.success and opt_result.fun != __MAXFUN:
         best_reg = 10 ** opt_result.x
-        rom.fit(*fit_args, best_reg)
+        rom.fit(*fit_args, P=best_reg)
         return best_reg, rom
     else:                                                   # pragma: nocover
         print(f"Regularization optimization FAILED")
