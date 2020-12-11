@@ -28,10 +28,14 @@ class TestBaseSolver:
         assert ex.value.args[0] == \
             "inputs not aligned: A.shape[0] != b.shape[0]"
 
-        # Correct usage, underdetermined, ignoring warnings.
+        # Correct usage but for an underdetermined system.
         b = np.empty(2)
         A = np.empty((2,4))
-        solver._check_shapes(A, b)
+        with pytest.warns(la.LinAlgWarning) as wn:
+            solver._check_shapes(A, b)
+        assert len(wn) == 1
+        assert wn[0].message.args[0] == \
+            "original least-squares system is underdetermined!"
 
         # Correct usage, not underdetermined.
         A = np.empty((2,2))
@@ -52,24 +56,14 @@ class TestSolverL2:
                 assert isinstance(obj, np.ndarray)
                 assert obj.shape == shape
 
-        # Test overdetermined, b.ndim = 1.
+        # Test with b.ndim = 1.
         A = np.random.random((m,n))
         b = np.random.random(m)
         _test_shapes(A, b, [(n,n), (n,), (n,), (m,n), (m,)])
 
-        # Test overdetermined, b.ndim = 2.
+        # Test with b.ndim = 2.
         b = np.random.random((m,k))
         _test_shapes(A, b, [(n,n), (n,), (n,k), (m,n), (m,k)])
-
-        # Test underdetermined, b.ndim = 1.
-        m,n = n,m
-        A = A.T
-        b = np.random.random(m)
-        _test_shapes(A, b, [(n,m), (m,), (m,), (m,n), (m,)])
-
-        # Test underdetermined, b.ndim = 2.
-        b = np.random.random((m,k))
-        _test_shapes(A, b, [(n,m), (m,), (m,k), (m,n), (m,k)])
 
     def test_predict(self, m=20, n=10, k=5):
         """Test lstsq._tikhonov.SolverL2.predict()."""
@@ -94,75 +88,45 @@ class TestSolverL2:
 
         # Test without regularization, b.ndim = 1.
         x1 = la.lstsq(A, b)[0]
-        x2, misfit, residual, cond, regcond = solver1D.predict(0)
+        x2 = solver1D.predict(0)
         assert np.allclose(x1, x2)
-        assert np.isclose(misfit, residual)
-        assert np.allclose(misfit, la.norm(A @ x1 - b, ord=2)**2)
-        assert np.isclose(cond, regcond)
-        assert np.isclose(cond, np.linalg.cond(A))
+        assert np.isclose(solver1D.misfit_, solver1D.residual_)
+        assert np.allclose(solver1D.misfit_, la.norm(A @ x1 - b, ord=2)**2)
+        assert np.isclose(solver1D.cond_, solver1D.regcond_)
+        assert np.isclose(solver1D.cond_, np.linalg.cond(A))
 
         # Test without regularization, b.ndim = 2.
         X1 = la.lstsq(A, B)[0]
-        X2, misfit, residual, cond, regcond = solver2D.predict(0)
+        X2 = solver2D.predict(0)
         assert np.allclose(X1, X2)
-        assert np.isclose(misfit, residual)
-        assert np.allclose(misfit, la.norm(A @ X1 - B, ord='fro')**2)
-        assert np.isclose(cond, regcond)
-        assert np.isclose(cond, np.linalg.cond(A))
+        assert np.isclose(solver2D.misfit_, solver2D.residual_)
+        assert np.allclose(solver2D.misfit_, la.norm(A @ X1 - B, ord='fro')**2)
+        assert np.isclose(solver2D.cond_, solver2D.regcond_)
+        assert np.isclose(solver2D.cond_, np.linalg.cond(A))
 
         # Test with regularization, b.ndim = 1.
         Apad = np.vstack((A, np.eye(n)))
         bpad = np.concatenate((b, np.zeros(n)))
         x1 = la.lstsq(Apad, bpad)[0]
-        x2, misfit, residual, cond, regcond = solver1D.predict(1)
+        x2 = solver1D.predict(1)
         assert np.allclose(x1, x2)
-        assert misfit < residual
-        assert np.allclose(misfit, la.norm(A @ x1 - b, ord=2)**2)
-        assert np.allclose(residual, misfit + la.norm(x1, ord=2)**2)
-        assert cond > regcond
-        assert np.isclose(cond, np.linalg.cond(A))
+        assert solver1D.misfit_ < solver1D.residual_
+        assert np.allclose(solver1D.misfit_, la.norm(A @ x1 - b, ord=2)**2)
+        assert np.allclose(solver1D.residual_,
+                           solver1D.misfit_ + la.norm(x1, ord=2)**2)
+        assert solver1D.cond_ > solver1D.regcond_
+        assert np.isclose(solver1D.cond_, np.linalg.cond(A))
 
         # Test with regularization, b.ndim = 2.
         Bpad = np.concatenate((B, np.zeros((n, k))))
         X1 = la.lstsq(Apad, Bpad)[0]
-        X2, misfit, residual, cond, regcond = solver2D.predict(1)
+        X2 = solver2D.predict(1)
         assert np.allclose(X1, X2)
-        assert misfit < residual
-        assert np.allclose(misfit, la.norm(A @ X1 - B, ord='fro')**2)
-        assert np.allclose(residual, misfit + la.norm(X1, ord='fro')**2)
-        assert cond > regcond
-        assert np.isclose(cond, np.linalg.cond(A))
-
-        # Test with underdetermined system, no regularization.
-        m,n = n,m
-        A = A.T
-        b = np.random.random(m)
-        x1 = la.lstsq(A, b)[0]
-        solver1D.fit(A, b)
-        with pytest.warns(la.LinAlgWarning) as wn:
-            x2, misfit, residual, cond, regcond = solver1D.predict(0)
-        assert len(wn) == 1
-        assert wn[0].message.args[0] == \
-            "least-squares system is underdetermined " \
-            "(will compute minimum-norm solution)"
-        assert np.allclose(x1, x2)
-        assert np.isclose(misfit, residual)
-        assert np.allclose(misfit, la.norm(A @ x1 - b, ord=2)**2)
-        assert np.isclose(cond, regcond)
-        assert np.isclose(cond, np.linalg.cond(A))
-
-        # Test with underdetermined system and regularization.
-        Apad = np.vstack((A, np.eye(n)))
-        bpad = np.concatenate((b, np.zeros(n)))
-        x1 = la.lstsq(Apad, bpad)[0]
-        x2, misfit, residual, cond, regcond = solver1D.predict(1)
-        assert np.allclose(x1, x2)
-        assert misfit < residual
-        assert np.allclose(misfit, la.norm(A @ x1 - b, ord=2)**2)
-        assert np.isclose(cond, np.linalg.cond(A))
-
-        solver1D.compute_extras = False
-        x2 = solver1D.predict(1)
+        assert solver2D.misfit_ < solver2D.residual_
+        assert np.allclose(solver2D.misfit_, la.norm(A @ X1 - B, ord='fro')**2)
+        assert np.allclose(solver2D.residual_, solver2D.misfit_ + la.norm(X1, ord='fro')**2)
+        assert solver2D.cond_ > solver2D.regcond_
+        assert np.isclose(solver2D.cond_, np.linalg.cond(A))
 
 
 class TestSolverTikhonov:
@@ -224,22 +188,12 @@ class TestSolverTikhonov:
                 assert isinstance(obj, np.ndarray)
                 assert obj.shape == shape
 
-        # Test overdetermined, b.ndim = 1.
+        # Test with b.ndim = 1.
         A = np.random.random((m,n))
         b = np.random.random(m)
         _test_shapes(A, b, [(m,n), (m,), (n,n), (n,)])
 
-        # Test overdetermined, b.ndim = 2.
-        b = np.random.random((m,k))
-        _test_shapes(A, b, [(m,n), (m,k), (n,n), (n,k)])
-
-        # Test underdetermined, b.ndim = 1.
-        m,n = n,m
-        A = A.T
-        b = np.random.random(m)
-        _test_shapes(A, b, [(m,n), (m,), (n,n), (n,)])
-
-        # Test underdetermined, b.ndim = 2.
+        # Test with b.ndim = 2.
         b = np.random.random((m,k))
         _test_shapes(A, b, [(m,n), (m,k), (n,n), (n,k)])
 
@@ -258,59 +212,63 @@ class TestSolverTikhonov:
         # Test without regularization, b.ndim = 1.
         Z = np.zeros((n,n))
         x1 = la.lstsq(A, b)[0]
-        x2, misfit, residual, cond, regcond = solver1D.predict(Z)
+        x2 = solver1D.predict(Z)
+
         assert np.allclose(x1, x2)
-        assert np.isclose(misfit, residual)
-        assert np.allclose(misfit, la.norm(A @ x1 - b, ord=2)**2)
-        assert np.isclose(cond, regcond)
-        assert np.isclose(cond, np.linalg.cond(A))
+        assert np.isclose(solver1D.misfit_, solver1D.residual_)
+        assert np.allclose(solver1D.misfit_, la.norm(A @ x1 - b, ord=2)**2)
+        assert np.isclose(solver1D.cond_, solver1D.regcond_)
+        assert np.isclose(solver1D.cond_, np.linalg.cond(A))
 
         # Test without regularization, b.ndim = 2.
         X1 = la.lstsq(A, B)[0]
-        X2, misfit, residual, cond, regcond = solver2D.predict(Z)
+        X2 = solver2D.predict(Z)
+
         assert np.allclose(X1, X2)
-        assert np.isclose(misfit, residual)
-        assert np.allclose(misfit, la.norm(A @ X1 - B, ord='fro')**2)
-        assert np.isclose(cond, regcond)
-        assert np.isclose(cond, np.linalg.cond(A))
+        assert np.isclose(solver2D.misfit_, solver2D.residual_)
+        assert np.allclose(solver2D.misfit_, la.norm(A @ X1 - B, ord='fro')**2)
+        assert np.isclose(solver2D.cond_, solver2D.regcond_)
+        assert np.isclose(solver2D.cond_, np.linalg.cond(A))
 
         # Test with regularization, b.ndim = 1.
         I = np.eye(n)
         Apad = np.vstack((A, I))
         bpad = np.concatenate((b, np.zeros(n)))
         x1 = la.lstsq(Apad, bpad)[0]
-        x2, misfit, residual, cond, regcond = solver1D.predict(I)
+        x2 = solver1D.predict(I)
+
         assert np.allclose(x1, x2)
-        assert misfit < residual
-        assert np.allclose(misfit, la.norm(A @ x1 - b, ord=2)**2)
-        assert np.allclose(residual, misfit + la.norm(x1, ord=2)**2)
-        assert cond > regcond
-        assert np.isclose(cond, np.linalg.cond(A))
+        assert solver1D.misfit_ < solver1D.residual_
+        assert np.allclose(solver1D.misfit_, la.norm(A @ x1 - b, ord=2)**2)
+        assert np.allclose(solver1D.residual_,
+                           solver1D.misfit_ + la.norm(x1, ord=2)**2)
+        assert solver1D.cond_ > solver1D.regcond_
+        assert np.isclose(solver1D.cond_, np.linalg.cond(A))
 
         # Test with regularization, b.ndim = 2.
         Bpad = np.concatenate((B, np.zeros((n, k))))
         X1 = la.lstsq(Apad, Bpad)[0]
-        X2, misfit, residual, cond, regcond = solver2D.predict(I)
+        X2 = solver2D.predict(I)
+
         assert np.allclose(X1, X2)
-        assert misfit < residual
-        assert np.allclose(misfit, la.norm(A @ X1 - B, ord='fro')**2)
-        assert np.allclose(residual, misfit + la.norm(X1, ord='fro')**2)
-        assert cond > regcond
-        assert np.isclose(cond, np.linalg.cond(A))
+        assert solver2D.misfit_ < solver2D.residual_
+        assert np.allclose(solver2D.misfit_, la.norm(A @ X1 - B, ord='fro')**2)
+        assert np.allclose(solver2D.residual_, solver2D.misfit_ + la.norm(X1, ord='fro')**2)
+        assert solver2D.cond_ > solver2D.regcond_
+        assert np.isclose(solver2D.cond_, np.linalg.cond(A))
 
         # Test with underdetermined system and regularization.
         I = np.eye(n)
         Apad = np.vstack((A, I))
         bpad = np.concatenate((b, np.zeros(n)))
         x1 = la.lstsq(Apad, bpad)[0]
-        x2, misfit, residual, cond, regcond = solver1D.predict(I)
-        assert np.allclose(x1, x2)
-        assert misfit < residual
-        assert np.allclose(misfit, la.norm(A @ x1 - b, ord=2)**2)
-        assert np.isclose(cond, np.linalg.cond(A))
-
-        solver1D.compute_extras = False
         x2 = solver1D.predict(I)
+
+        assert np.allclose(x1, x2)
+        assert solver1D.misfit_ < solver1D.residual_
+        assert np.allclose(solver1D.misfit_, la.norm(A @ x1 - b, ord=2)**2)
+        assert np.isclose(solver1D.cond_, np.linalg.cond(A))
+
         x2 = solver1D.predict(np.ones(n))
 
 
@@ -346,11 +304,11 @@ class TestSolverTikhonovDecoupled:
         xx1 = la.lstsq(Apad1, Bpad[:,0])[0]
         xx2 = la.lstsq(Apad2, Bpad[:,1])[0]
         X1 = np.column_stack([xx1, xx2])
-        X2, misfit, residual, cond, regcond = solver.predict(Ps)
+        X2 = solver.predict(Ps)
         assert np.allclose(X1, X2)
-        assert misfit < np.sum(residual)
-        assert np.isclose(misfit, la.norm(A @ X1 - B, ord='fro')**2)
-        assert np.isclose(cond, np.linalg.cond(A))
+        assert solver.misfit_ < np.sum(solver.residual_)
+        assert np.isclose(solver.misfit_, la.norm(A @ X1 - B, ord='fro')**2)
+        assert np.isclose(solver.cond_, np.linalg.cond(A))
 
         solver.compute_extras = False
         solver.predict(Ps)

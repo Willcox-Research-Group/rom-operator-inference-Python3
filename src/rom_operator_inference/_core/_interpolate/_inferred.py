@@ -14,9 +14,9 @@ __all__ = [
           ]
 
 import numpy as np
-from scipy.interpolate import CubicSpline
+import scipy.interpolate as interp
 
-from ._base import _InterpolatedMixin
+from ._base import _InterpolatedMixin, _Interp2DMulti
 from .._base import _DiscreteROM, _ContinuousROM
 from .._inferred import (_InferredMixin,
                         InferredDiscreteROM,
@@ -49,11 +49,11 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         is_continuous = issubclass(ModelClass, _ContinuousROM)
 
         # Check that parameters are one-dimensional.
-        if not np.isscalar(µs[0]):
-            raise ValueError("only scalar parameter values are supported")
+        µs = np.array(µs)
+        self.p = µs.ndim
 
         # Check that the number of params matches the number of training sets.
-        s = len(µs)
+        s = µs.shape[0]
         if len(Xs) != s:
             raise ValueError("num parameter samples != num state snapshot "
                              f"training sets ({s} != {len(Xs)})")
@@ -98,7 +98,7 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
                     self._check_training_data_shapes([Xs[i], Xdots[i]],
                                                      [f"Xs[{i}]",
                                                       f"Xdots[{i}]"])
-        return is_continuous, Xdots, Us
+        return is_continuous, µs, Xdots, Us
 
     def fit(self, ModelClass, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
@@ -142,7 +142,7 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         -------
         self
         """
-        is_continuous, Xdots, Us = self._process_fit_arguments(ModelClass,
+        continuous, µs, Xdots, Us = self._process_fit_arguments(ModelClass,
                                                                Vr, µs,
                                                                Xs, Xdots, Us)
 
@@ -153,21 +153,32 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         self.models_ = []
         for µ, X, Xdot, U in zip(µs, Xs, Xdots, Us):
             model = ModelClass(self.modelform)
-            if is_continuous:
+            if continuous:
                 model.fit(Vr, X, Xdot, U, P)
             else:
                 model.fit(Vr, X, U, P)
             model.parameter = µ
             self.models_.append(model)
 
+        # Select the interpolator based on the parameter dimension.
+        if self.p == 1:
+            Interpolator = interp.CubicSpline
+        elif self.p == 2:
+            Interpolator = _Interp2DMulti
+        else:
+            print("MODELS TRAINED BUT INTERPOLATION NOT IMPLEMENTED FOR p > 2")
+            return self
+
         # Construct interpolators.
-        self.c_ = CubicSpline(µs, self.cs_)  if self.has_constant  else None
-        self.A_ = CubicSpline(µs, self.As_)  if self.has_linear    else None
-        self.Hc_= CubicSpline(µs, self.Hcs_) if self.has_quadratic else None
-        self.H_ = CubicSpline(µs, self.Hs_)  if self.has_quadratic else None
-        self.Gc_= CubicSpline(µs, self.Gcs_) if self.has_cubic     else None
-        self.G_ = CubicSpline(µs, self.Gs_)  if self.has_cubic     else None
-        self.B_ = CubicSpline(µs, self.Bs_)  if self.has_inputs    else None
+        for lbl, atr in zip(["constant","linear","quadratic","cubic","inputs"],
+                            ["c",       "A",     "Hc",       "Gc",   "B"]):
+            if getattr(self, f"has_{lbl}"):         # if self.has_constant
+                ops = getattr(self, f"{atr}s_")     # ops = self.cs_
+                op = Interpolator(µs, ops)
+                op.shape = ops[0].shape
+                setattr(self, f"{atr}_", op)        # self.c_ = op
+            else:
+                setattr(self, f"{atr}_", None)      # self.c_ = None
 
         return self
 

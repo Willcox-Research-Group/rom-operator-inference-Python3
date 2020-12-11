@@ -9,6 +9,7 @@ Classes
 __all__ = []
 
 import numpy as np
+import scipy.interpolate as interp
 
 from .._base import _ParametricMixin
 
@@ -55,30 +56,59 @@ class _InterpolatedMixin(_ParametricMixin):
         """The reduced-order operators for each submodel."""
         return [m.f_ for m in self.models_]
 
-    @property
-    def dataconds_(self):
-        """The condition numbers of the raw data matrices for each submodel."""
-        return np.array([m.datacond_ for m in self.models_])
-
-    @property
-    def dataregconds_(self):
-        """The condition numbers of the regularized data matrices for each
-        submodel.
-        """
-        return np.array([m.dataregcond_ for m in self.models_])
-
-    @property
-    def residuals_(self):
-        """The regularized least-squares residuals for each submodel."""
-        return np.array([m.residual_ for m in self.models_])
-
-    @property
-    def misfits_(self):
-        """The (nonregularized) least-squares data misfits for each
-        submodel.
-        """
-        return np.array([m.misfit_ for m in self.models_])
-
     def __len__(self):
         """The number of trained models."""
         return len(self.models_) if hasattr(self, "models_") else 0
+
+
+class _Interp2DMulti:
+    def __init__(self, µs, z):
+        """Construct linear 2D interpolators for each operator entry.
+
+        Parameters
+        ----------
+        µs : (s,2) ndarray or list of s ndarrays
+            Parameter samples (interpolation points).
+
+        z : (s,...) ndarray or list of s ndarrays
+            Inferred operators corresponding to the parameter samples
+            (interpolation values)
+        """
+        # Validate and unpack training parameters.
+        µs = np.array(µs)
+        if µs.ndim != 2 or µs.shape[1] != 2:
+            raise ValueError("parameter samples must be two-dimensional")
+        s = µs.shape[0]
+        µ1s, µ2s = µs[:,0], µs[:,1]
+
+        # Construct a single interpolator for each operator entry.
+        if len(z) != s:
+            raise ValueError("unequal number of samples and values")
+        self.shape_ = z[0].shape
+        data = np.reshape(z, (s,-1))
+        with np.warnings.catch_warnings():
+            np.warnings.simplefilter("once")
+            self.interpolators_ = [interp.interp2d(µ1s, µ2s, data[:,j])
+                                   for j in range(data.shape[-1])]
+
+    def __call__(self, µ):
+        """Evaluate the interpolators and reshape the output appropriately.
+
+        Parameters
+        ----------
+        µ : ndarray
+            A single test parameter.
+
+        Returns
+        -------
+        out: ndarray
+            Interpolation evaluation of this operator at the test parameter.
+        """
+        # Validate and unpack test parameter.
+        µ = np.array(µ)
+        if µ.shape != (2,):
+            raise ValueError("expected a single two-entry parameter")
+
+        # Evaluate the interpolators at the test parameter.
+        return np.reshape([float(f(µ[0], µ[1]))
+                           for f in self.interpolators_], self.shape_)

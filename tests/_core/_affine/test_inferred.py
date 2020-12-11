@@ -8,7 +8,7 @@ import scipy.linalg as la
 import rom_operator_inference as roi
 
 from .test_base import TestAffineMixin
-from .. import MODEL_FORMS, _get_data, _get_operators
+from .. import MODEL_KEYS, MODEL_FORMS, _get_data, _get_operators
 
 
 # Affine inferred mixin (private) =============================================
@@ -92,9 +92,11 @@ class TestAffineInferredMixin:
         assert model.r == r
         assert model.Vr is Vr
         assert model.m == m
-        # assert np.allclose(X_, Vr.T @ X)
-        # assert np.allclose(rhs_, Vr.T @ rhs)
-        # assert U_ is U
+        for X, X_ in zip(Xs, Xs_):
+            assert np.allclose(X_, Vr.T @ X)
+        for rhs, rhs_ in zip(rhss, rhss_):
+            assert np.allclose(rhs_, Vr.T @ rhs)
+        assert Us_ is Us
 
         # Without basis and with a one-dimensional input.
         Xs_, rhss_, Us_ = model._process_fit_arguments(None, µs, affines,
@@ -103,10 +105,13 @@ class TestAffineInferredMixin:
         assert model.r == n
         assert model.Vr is None
         assert model.m == 1
-        # assert Xs_ is Xs
-        # assert rhss_ is rhss
-        # assert U_.shape == (1,k)
-        # assert np.allclose(U_.reshape(-1), U)
+        for X, X_ in zip(Xs, Xs_):
+            assert np.all(X_ == X)
+        for rhs, rhs_ in zip(rhss, rhss_):
+            assert np.all(rhs_ == rhs)
+        for U, U_ in zip(Us1d, Us_):
+            assert U_.shape == (1,k)
+            assert np.all(U_.reshape(-1) == U)
 
         # With basis and no input.
         model.modelform = "cAHG"
@@ -117,21 +122,104 @@ class TestAffineInferredMixin:
         assert model.r == r
         assert model.Vr is Vr
         assert model.m is None
-        # assert np.allclose(X_, Vr.T @ X)
-        # assert np.allclose(rhs_, Vr.T @ rhs)
-        # assert U_ is None
+        for X, X_ in zip(Xs, Xs_):
+            assert np.allclose(X_, Vr.T @ X)
+        for rhs, rhs_ in zip(rhss, rhss_):
+            assert np.allclose(rhs_, Vr.T @ rhs)
+        assert Us_ is None
 
     def test_construct_data_matrix(self):
         """Test _core._affine._inferred.
                 _AffineInferredMixin._construct_data_matrix().
         """
-        pass
+        # Get test data.
+        k, m, r, s = 200, 5, 10, 10
+        X_, _, U = _get_data(r, k, m)
+        θs = [lambda µ: np.sin(µ[0]), lambda µ: np.cos(µ[0]),
+              lambda µ: np.sin(µ[1]), lambda µ: np.cos(µ[1])]
+        µs = np.arange(1, 2*s+1).reshape((s,2))
+        affines = {"c": θs[:2],
+                   "A": θs,
+                   "H": θs[:1],
+                   "G": θs[:1],
+                   "B": θs[:3]}
+        Xs_, Us = [X_]*s, [U]*s
+        Us1d = [U[0,:]]*s
+
+        # Test with each possible modelform.
+        model = self.Dummy("c")
+        model.m, model.r = m, r
+        for form in MODEL_FORMS:
+            model.modelform = form
+            D = model._construct_data_matrix(µs, affines, Xs_, Us)
+            d = roi.lstsq.lstsq_size(form, r, m if 'B' in form else 0, affines)
+            assert D.shape == (k*s,d)
+
+            # Spot check.
+            if form == "c":
+                θc = np.array([[θ(µ) for θ in affines["c"]] for µ in µs])
+                assert np.allclose(D, np.kron(θc, np.ones((k,1))))
+            elif form == "H":
+                θH = np.array([[θ(µ) for θ in affines["H"]] for µ in µs])
+                assert np.allclose(D, np.kron(θH, roi.utils.kron2c(X_).T))
+            elif form == "G":
+                θG = np.array([[θ(µ) for θ in affines["G"]] for µ in µs])
+                assert np.allclose(D, np.kron(θG, roi.utils.kron3c(X_).T))
+            elif form == "AB":
+                θA = np.array([[θ(µ) for θ in affines["A"]] for µ in µs])
+                θB = np.array([[θ(µ) for θ in affines["B"]] for µ in µs])
+                rr = r*len(affines["A"])
+                assert np.allclose(D[:,:rr], np.kron(θA, X_.T))
+                assert np.allclose(D[:,rr:], np.kron(θB, U.T))
+
+        # Try with one-dimensional inputs as a 1D array.
+        model.modelform = "B"
+        model.m = 1
+        D = model._construct_data_matrix(µs, affines, Xs_, Us1d)
+        d = roi.lstsq.lstsq_size(model.modelform, r, model.m, affines)
+        assert D.shape == (k*s, d)
+        θB = np.array([[θ(µ) for θ in affines["B"]] for µ in µs])
+        assert np.allclose(D, np.kron(θB, U[0].reshape((-1,1))))
 
     def test_extract_operators(self):
         """Test _core._affine._inferred.
                 _AffineInferredMixin._extract_operators().
         """
-        pass
+        k, m, r, s = 200, 5, 10, 10
+        X_, _, U = _get_data(r, k, m)
+        θs = [lambda µ: np.sin(µ[0]), lambda µ: µ[0] + µ[1],
+              lambda µ: np.cos(µ[1]), lambda µ: np.sin(µ[1])]
+        µs = np.arange(1, 2*s+1).reshape((s,2))
+        affines = {"c": θs[:2],
+                   "A": θs,
+                   "H": θs[:1],
+                   "G": θs[:1],
+                   "B": θs[:3]}
+        shapes = {
+                    "c_":  (r,),
+                    "A_":  (r,r),
+                    "Hc_": (r,r*(r+1)//2),
+                    "Gc_": (r,r*(r+1)*(r+2)//6),
+                    "B_":  (r,m),
+                 }
+
+        model = self.Dummy("c")
+        model.r = r
+        for form in MODEL_FORMS:
+            model.modelform = form
+            model.m = m if 'B' in form else 0
+            d = roi.lstsq.lstsq_size(form, r, model.m, affines)
+            O = np.random.random((r,d))
+            model._extract_operators(affines, O)
+            for prefix in MODEL_KEYS:
+                attr = prefix+'c_' if prefix in "HG" else prefix+'_'
+                assert hasattr(model, attr)
+                value = getattr(model, attr)
+                if prefix in form:
+                    assert isinstance(value, roi._core._affine.AffineOperator)
+                    assert value.shape == shapes[attr]
+                else:
+                    assert value is None
 
     def _test_fit(self, ModelClass):
         """Test _core._affine._inferred._AffineInferredMixin.fit(),
@@ -143,7 +231,7 @@ class TestAffineInferredMixin:
         is_continuous = issubclass(ModelClass, roi._core._base._ContinuousROM)
 
         # Get test data.
-        n, k, m, r, s = 50, 200, 5, 10, 3
+        n, k, m, r, s = 50, 200, 5, 10, 10
         X, Xdot, U = _get_data(n, k, m)
         Vr = la.svd(X)[0][:,:r]
         θs = [lambda µ: µ, lambda µ: µ**2, lambda µ: µ**3, lambda µ: µ**4]
@@ -158,31 +246,7 @@ class TestAffineInferredMixin:
         if is_continuous:
             args.insert(3, Xdots)
 
-        # Try with bad number of parameters.
-        model.modelform = "cAHGB"
-        with pytest.raises(ValueError) as ex:
-            model.fit(Vr, µs[:-1], *args[2:], Us)
-        assert ex.value.args[0] == \
-            f"num parameter samples != num state snapshot training sets ({s-1} != {s})"
-
-        if is_continuous:
-            with pytest.raises(ValueError) as ex:
-                model.fit(Vr, µs, affines, Xs, Xdots[:-1], Us)
-            assert ex.value.args[0] == "num parameter samples != num rhs " \
-                                       f"training sets ({s} != {s-1})"
-
-        # Try with varying input sizes.
-        if is_continuous:
-            with pytest.raises(ValueError) as ex:
-                model.fit(Vr, µs, affines, Xs, Xdots, [U, U[:-1], U])
-            assert ex.value.args[0] == \
-                f"invalid training input (Us[1].shape[0] != m={m})"
-        else:
-            with pytest.raises(ValueError) as ex:
-                model.fit(Vr, µs, affines, Xs, [U, U, U[:-1]])
-            assert ex.value.args[0] == \
-                f"invalid training input (Us[2].shape[0] != m={m})"
-
+        # Run fit() for each possible model form.
         for form in MODEL_FORMS:
             args[2] = {key:val for key,val in affines.items() if key in form}
             model.modelform = form
@@ -201,7 +265,6 @@ class TestAffineInferredMixin:
             assert model.H_.shape == (r,r**2)
             assert model.c_.shape == (r,)
             assert model.B_.shape == (r,m)
-            assert hasattr(model, "residual_")
 
         model.modelform = "cAHB"
         model.fit(*args, Us=Us)

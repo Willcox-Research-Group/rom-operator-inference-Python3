@@ -17,6 +17,8 @@ class TestIntrusiveMixin:
                 roi._core._intrusive._IntrusiveMixin):
         def __init__(self, modelform):
             self.modelform = modelform
+        def _construct_f_(*args, **kwargs):
+            pass
 
     """Test _core._intrusive._IntrusiveMixin."""
     def test_check_operators_keys(self):

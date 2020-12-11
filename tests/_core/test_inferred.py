@@ -7,7 +7,7 @@ from scipy import linalg as la
 
 import rom_operator_inference as roi
 
-from . import MODEL_KEYS, MODEL_FORMS, LSTSQ_REPORTS, _get_data
+from . import MODEL_KEYS, MODEL_FORMS, _get_data
 
 
 # Mixins (private) ============================================================
@@ -111,6 +111,7 @@ class TestInferredMixin:
         X_, _, U = _get_data(r, k, m)
 
         model = self.Dummy("c")
+        model.m, model.r = m, r
         for form in MODEL_FORMS:
             model.modelform = form
             D = model._construct_data_matrix(X_, U)
@@ -128,30 +129,12 @@ class TestInferredMixin:
                 assert np.allclose(D[:,:r], X_.T)
                 assert np.allclose(D[:,r:], U.T)
 
-    def test_solve_opinf_lstsq(self):
-        """Test _core._inferred._InferredMixin._solve_opinf_lstsq()."""
-        k, r = 500, 10
-        d = 1 + r + r * (r+1) // 2
-        D = np.random.random((k,d))
-        R = np.random.random((r,k))
-
-        model = self.Dummy("c")  # Model form doesn't matter here
-
-        def _check_model(mdl, OO):
-            for attr in LSTSQ_REPORTS:
-                assert hasattr(mdl, attr)
-                assert getattr(mdl, attr) >= 0
-            assert OO.shape == (r,d)
-
-        # Without regularization.
-        O = model._solve_opinf_lstsq(D, R, 0)
-        _check_model(model, O)
-        assert np.allclose(model.datacond_, model.dataregcond_)
-
-        # With regularization.
-        O = model._solve_opinf_lstsq(D, R, 1)
-        _check_model(model, O)
-        assert model.datacond_ >= model.dataregcond_
+        # Try with one-dimensional inputs as a 1D array.
+        model.modelform = "cB"
+        model.m = 1
+        D = model._construct_data_matrix(X_, U[0])
+        assert D.shape == (k, 2)
+        assert np.allclose(D, np.column_stack((np.ones(k), U[0])))
 
     def test_extract_operators(self):
         """Test _core._inferred._InferredMixin._extract_operators()."""

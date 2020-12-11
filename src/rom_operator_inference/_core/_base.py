@@ -34,14 +34,15 @@ class _BaseROM:
             raise RuntimeError("abstract class instantiation "
                                "(use _ContinuousROM or _DiscreteROM)")
         self.modelform = modelform
+        self.n, self.m, self.r = None, None, None
 
     @property
     def modelform(self):
-        return self._form
+        return self.__form
 
     @modelform.setter
     def modelform(self, form):
-        self._form = ''.join(sorted(form,
+        self.__form = ''.join(sorted(form,
                                     key=lambda k: self._MODEL_KEYS.find(k)))
 
     @property
@@ -76,19 +77,39 @@ class _BaseROM:
                                  "are " + ', '.join(self._MODEL_KEYS))
 
         if trained:
-            # Make sure that the required attributes exist and aren't None,
-            # and that nonrequired attributes exist but are None.
+            fixmsg = "call fit() to train model"
+
+            # Ensure required dimensions are not set to None.
+            if self.r is None:
+                raise AttributeError(f"null reduced dimension 'r'; {fixmsg}")
+            if self.has_inputs and (self.m is None):
+                raise AttributeError(f"null input dimension 'm'; {fixmsg}")
+            shapes = {
+                        "c_" : (self.r, ),
+                        "A_" : (self.r, self.r),
+                        "Hc_": (self.r, self.r*(self.r + 1)//2),
+                        "Gc_": (self.r, self.r*(self.r + 1)*(self.r + 2)//6),
+                        "B_" : (self.r, self.m),
+                     }
+
             for key, s in zip("cAHGB", ["c_", "A_", "Hc_", "Gc_", "B_"]):
+                # Ensure all operator attributes exist.
                 if not hasattr(self, s):
-                    raise AttributeError(f"attribute '{s}' missing;"
-                                         " call fit() to train model")
+                    raise AttributeError(f"attribute '{s}' missing; {fixmsg}")
                 attr = getattr(self, s)
-                if key in self.modelform and attr is None:
-                    raise AttributeError(f"attribute '{s}' is None;"
-                                         " call fit() to train model")
+                if key in self.modelform:
+                    # Ensure required operators are not set to None.
+                    if attr is None:
+                        raise AttributeError(f"attribute '{s}' is None; "
+                                             f"{fixmsg}")
+                    # Check shapes of required operators.
+                    if attr.shape != shapes[s]:
+                        raise ValueError(f"'{s}.shape' must be {shapes[s]} for"
+                                         f" r = {self.r} (got {attr.shape})")
+                # Ensure nonrequired operators are set to None.
                 elif key not in self.modelform and attr is not None:
-                    raise AttributeError(f"attribute '{s}' should be None;"
-                                         " call fit() to train model")
+                    raise AttributeError(f"attribute '{s}' should be None; "
+                                         f"{fixmsg}")
 
     def _set_operators(self, Vr, c_=None, A_=None,
                                  H_=None, Hc_=None,
@@ -152,8 +173,6 @@ class _BaseROM:
 
         # Construct the complete reduced model operator from the arguments.
         self._construct_f_()
-
-        self._check_modelform(trained=True)
         return self
 
     def _check_inputargs(self, u, argname):
@@ -503,14 +522,6 @@ class _NonparametricMixin:
             if self.has_inputs:
                 f.create_dataset("operators/B_", data=self.B_)
 
-            # Store additional useful attributes.
-            for attr in ["datacond_", "dataregcond_", "residual_", "misfit_"]:
-                if hasattr(self, attr):
-                    val = getattr(self, attr)
-                    if np.isscalar(val):
-                        val = [val]
-                    f.create_dataset(f"other/{attr}", data=val)
-
 
 class _ParametricMixin:
     """Mixin class for parametric reduced model classes."""
@@ -556,6 +567,7 @@ class _ParametricMixin:
 # Future additions ------------------------------------------------------------
 # TODO: save_model() for parametric forms.
 # TODO: class _SteadyROM(_BaseROM) for the steady problem.
-# TODO: Account for state / input interactions (N).
+# TODO: Account for state / input interactions (N?).
 # TODO: jacobians for each model form in the continuous case.
 # TODO: self.p = parameter size for parametric classes (+ shape checking)
+# TODO: H_ <- Hc_ and G_ <- Gc_; better to avoid the confusion of having both.

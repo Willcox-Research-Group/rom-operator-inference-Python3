@@ -48,6 +48,26 @@ class _InferredMixin:
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get projected data for the Operator Inference least-squares problem.
 
+        Parameters
+        ----------
+        Vr : (n,r) ndarray or None
+            The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, X and rhs are assumed to already be projected (r,k).
+
+        X : (n,k) or (r,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
+
+        rhs : (n,k) or (r,k) ndarray
+            Column-wise next-iteration (discrete model) or velocity
+            (continuous model) training data. Each column is a snapshot, and
+            either full order (n rows) or projected to reduced order (r rows).
+
+        U : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
+
         Returns
         -------
         X_ : (r,k) ndarray
@@ -60,7 +80,7 @@ class _InferredMixin:
             Inputs, potentially reshaped.
         """
         # Check modelform and inputs.
-        self._check_modelform()
+        self._check_modelform(trained=False)
         self._check_inputargs(U, 'U')
 
         # Store basis and dimensions.
@@ -88,15 +108,23 @@ class _InferredMixin:
         return X_, rhs_, U
 
     def _construct_data_matrix(self, X_, U):
-        """Construct the Operator Inference data matrix D (before any
-        regularization) from projected data.
+        """Construct the Operator Inference data matrix D from projected data.
 
         If modelform="cAHB", this is D = [1 | X_.T | (X_ ⊗ X_).T | U.T].
+
+        Parameters
+        ----------
+        X_ : (r,k) ndarray
+            Column-wise projected snapshot training data.
+
+        U : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array.
 
         Returns
         -------
         D : (k,d(r,m)) ndarray
-            Non-regularized Operator Inference data matrix.
+            Operator Inference data matrix (no regularization).
         """
         D = []
         if self.has_constant:           # Constant term.
@@ -105,43 +133,28 @@ class _InferredMixin:
         if self.has_linear:             # Linear state term.
             D.append(X_.T)
 
-        if self.has_quadratic:          # (compact) quadratic state term.
+        if self.has_quadratic:          # (compact) Quadratic state term.
             D.append(kron2c(X_).T)
 
-        if self.has_cubic:              # (compact) cubic state term.
+        if self.has_cubic:              # (compact) Cubic state term.
             D.append(kron3c(X_).T)
 
         if self.has_inputs:             # Linear input term.
+            if self.m == U.ndim == 1:
+                U = U.reshape((1,-1))
             D.append(U.T)
 
         return np.hstack(D)
 
-    def _solve_opinf_lstsq(self, D, R, P):
-        """Solve the Operator Inference least-squares problem and record
-        data about the conditioning and residuals of the problem.
-
-        Returns
-        -------
-        O : (r,d(r,m)) ndarray
-            Solution to the Operator Inference least-squares problem, i.e.,
-            the inferred operators in block matrix form.
-        """
-        Rtrp = R.T
-
-        # Solve for the reduced-order model operators via least squares.
-        Otrp, mis, res, cond, regcond = lstsq.solve(D, Rtrp, P)
-
-        # Record info about the least squares solution.
-        self.misfit_ = mis          # ||DO.T - R.T||_F^2
-        self.residual_ = res        # ||DO.T - R.T||_F^2 + ||PO.T||_F^2
-        self.datacond_ = cond       # cond(D)
-        self.dataregcond_ = regcond # cond([D.T | P.T].T)
-
-        return Otrp.T
-
     def _extract_operators(self, O):
         """Extract and save the inferred operators from the block-matrix
-        solution to the least-squarse problem.
+        solution to the least-squares problem.
+
+        Parameters
+        ----------
+        O : (r,d(r,m)) ndarray
+            Block matrix of ROM operator coefficients, the transpose of the
+            solution to the Operator Inference linear least-squares problem.
         """
         i = 0
         if self.has_constant:           # Constant term (one-dimensional).
@@ -179,33 +192,52 @@ class _InferredMixin:
         return
 
     def _construct_solver(self, Vr, X, rhs, U, P, **kwargs):
-        """
-        TODO
+        """Construct a solver object mapping the regularizer P to solutions
+        of the Operator Inference least-squares problem.
+
+        Parameters
+        ----------
+        Vr : (n,r) ndarray or None
+            The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, X and rhs are assumed to already be projected (r,k).
+
+        X : (n,k) or (r,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
+
+        rhs : (n,k) or (r,k) ndarray
+            Column-wise next-iteration (discrete model) or velocity
+            (continuous model) training data. Each column is a snapshot, and
+            either full order (n rows) or projected to reduced order (r rows).
+
+        U : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
+
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB". This parameter is used here
+            only to determine the correct type of solver.
         """
         X_, rhs_, U = self._process_fit_arguments(Vr, X, rhs, U)
         D = self._construct_data_matrix(X_, U)
-        return lstsq.solver(D, rhs_.T, P, **kwargs)
+        self.solver_ = lstsq.solver(D, rhs_.T, P, **kwargs)
 
-    def _evaluate_solver(self, solver, P):
+    def _evaluate_solver(self, P):
+        """Evaluate the least-squares solver with regularizer P.
+
+        Parameters
+        ----------
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
         """
-        TODO
-        """
-        if solver.compute_extras:
-            # Solve for the reduced-order model operators via least squares.
-            Otrp, mis, res, cond, regcond = solver.predict(P)
-
-            # Record info about the least squares solution.
-            self.misfit_ = mis          # ||DO.T - R.T||_F^2
-            self.residual_ = res        # ||DO.T - R.T||_F^2 + ||PO.T||_F^2
-            self.datacond_ = cond       # cond(D)
-            self.dataregcond_ = regcond # cond([D.T | P.T].T)
-        else:
-            Otrp = solver.predict(P)
-
-        # Get the operators from the operator matrix.
+        Otrp = self.solver_.predict(P)
         self._extract_operators(Otrp.T)
         self._construct_f_()
-        return self
 
     def fit(self, Vr, X, rhs, U, P, **kwargs):
         """Solve for the reduced model operators via ordinary least squares.
@@ -243,8 +275,9 @@ class _InferredMixin:
         -------
         self
         """
-        solver = self._construct_solver(Vr, X, rhs, U, P, **kwargs)
-        return self._evaluate_solver(solver, P)
+        self._construct_solver(Vr, X, rhs, U, P, **kwargs)
+        self._evaluate_solver(P)
+        return self
 
 
 # Nonparametric Operator Inference models -------------------------------------

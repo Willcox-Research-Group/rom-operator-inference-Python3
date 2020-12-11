@@ -27,8 +27,11 @@ class _BaseSolver:
         Parameters
         ----------
         compute_extras : bool
-            If True, predict() returns residual / conditioning information in
-            addition to the solution; if False, predict() returns the solution.
+            If True, record residual / conditioning information as attributes:
+            * cond_: condition number of the matrix A.
+            * regcond_: condition number of the regularized matrix [A.T|P.T].T.
+            * misfit_: data misfit ||Ax - b||^2.
+            * residual_: problem residual ||Ax - b||^2 + ||Px||^2.
         """
         self.compute_extras = compute_extras
 
@@ -36,6 +39,11 @@ class _BaseSolver:
         """Verify the shapes of A and b are consistent for ||Ax - b||."""
         # Record dimensions of A (and ensure A is two-dimensional).
         self.k, self.d = A.shape
+
+        # Warn about underdeterminedness (even with regularization).
+        if self.k < self.d:
+            warnings.warn("original least-squares system is underdetermined!",
+                          la.LinAlgWarning, stacklevel=2)
 
         # Check dimensions of b.
         if b.ndim not in {1,2}:
@@ -76,9 +84,10 @@ class SolverL2(_BaseSolver):
 
         # Save what is needed for extra outputs if desired.
         if self.compute_extras:
+            self.extras = {}
             self._A = A
             self._b = b
-            self._cond = abs(s[0] / s[-1]) if s[-1] > 0 else np.inf
+            self.cond_ = abs(s[0] / s[-1]) if s[-1] > 0 else np.inf
 
         return self
 
@@ -97,22 +106,22 @@ class SolverL2(_BaseSolver):
             each column is a solution to the regularized least-squares problem
             with the corresponding column of b.
 
-        **If compute_extras is True, the following are also returned.**
+        **If compute_extras is True, the following attributes are saved.**
 
-        misfit: float
+        misfit_: float
             Residual (data misfit) of the non-regularized problem:
             * if `b` is one-dimensional: ||Ax - b||_2^2
             * if `b` is two-dimensional: ||AX - B||_F^2
 
-        residual : float
+        residual_ : float
             Residual of the regularized problem:
             * if `b` is one-dimensional: ||Ax - b||_2^2 + ||λx||_2^2
             * if `b` is two-dimensional: ||AX - B||_F^2 + ||λX||_F^2
 
-        datacond : float
+        datacond_ : float
             Condition number of A, σ_max(A) / σ_min(A).
 
-        dataregcond : float
+        dataregcond_ : float
             Effective condition number of regularized A, s_max(A) / s_min(A)
             where s(A) = (σ(A)^2 + λ^2) / σ(A).
         """
@@ -121,12 +130,6 @@ class SolverL2(_BaseSolver):
             raise ValueError("regularization parameter must be a scalar")
         if λ < 0:
             raise ValueError("regularization parameter must be nonnegative")
-
-        # Warn for underdeterminedness.
-        if λ == 0 and self.k < self.d:
-            warnings.warn("least-squares system is underdetermined "
-                          "(will compute minimum-norm solution)",
-                          la.LinAlgWarning, stacklevel=2)
 
         # Invert / filter the singular values and compute the solution.
         if λ == 0:
@@ -140,14 +143,12 @@ class SolverL2(_BaseSolver):
 
         # Compute residuals and condition numbers if desired.
         if self.compute_extras:
-            # Residuals (without, then with regularization)
-            misfit = np.sum((self._A @ x - self._b)**2) # ||Ax-b||^2
-            residual = misfit + λ**2*np.sum(x**2)       # ||Ax-b||^2 + ||λx||^2
-
-            # Condition numbers (without, then with regularization).
-            regcond = abs(Sinv.max() / Sinv.min())
-
-            return x, misfit, residual, self._cond, regcond
+            # Data misfit (no regularization): ||Ax-b||^2.
+            self.misfit_ = np.sum((self._A @ x - self._b)**2)
+            # Problem residual: ||Ax-b||^2 + ||λx||^2.
+            self.residual_ = self.misfit_ + λ**2*np.sum(x**2)
+            # Condition number of regularized problem.
+            self.regcond_ = abs(Sinv.max() / Sinv.min())
 
         return x
 
@@ -162,14 +163,17 @@ class SolverTikhonov(_BaseSolver):
 
         min_{X} ||AX - B||_F^2 + ||PX||_F^2,    P > 0 (SPD matrix).
     """
-    def __init__(self, compute_extras=True, check_regularizer=False):
+    def __init__(self, compute_extras=False, check_regularizer=False):
         """Set behavior parameters.
 
         Parameters
         ----------
         compute_extras : bool
-            If True, predict() returns residual / conditioning information in
-            addition to the solution; if False, predict() returns the solution.
+            If True, record residual / conditioning information as attributes:
+            * cond_: condition number of the matrix A.
+            * regcond_: condition number of the regularized matrix [A.T|P.T].T.
+            * misfit_: data misfit ||Ax - b||^2.
+            * residual_: problem residual ||Ax - b||^2 + ||Px||^2.
 
         check_regularizer : bool
             If True, ensure that a regularization matrix is full rank (via
@@ -199,9 +203,10 @@ class SolverTikhonov(_BaseSolver):
 
         # Save what is needed for extra outputs if desired.
         if self.compute_extras:
+            self.extras = {}
             self._A = A
             self._b = b
-            self._cond = np.linalg.cond(A)
+            self.cond_ = np.linalg.cond(A)
 
         return self
 
@@ -243,22 +248,22 @@ class SolverTikhonov(_BaseSolver):
             each column is a solution to the regularized least-squares problem
             with the corresponding column of b.
 
-        **If compute_extras is True, the following are also returned.**
+        **If compute_extras is True, the following attributes are saved.**
 
-        misfit: float
+        misfit_: float
             Residual (data misfit) of the non-regularized problem:
             * if `b` is one-dimensional: ||Ax - b||_2^2
             * if `b` is two-dimensional: ||Ax - b||_F^2
 
-        residual : float
+        residual_ : float
             Residual of the regularized problem:
             * if `b` is one-dimensional: ||Ax - b||_2^2 + ||λx||_2^2
             * if `b` is two-dimensional: ||Ax - b||_F^2 + ||λx||_F^2
 
-        cond : float
+        cond_ : float
             Condition number of A, σ_max(A) / σ_min(A).
 
-        regcond : float
+        regcond_ : float
             Condition number of regularized A, σ_max(G) / σ_min(G) where
             G = [A.T | P.T].T is the augmented data matrix.
         """
@@ -268,15 +273,16 @@ class SolverTikhonov(_BaseSolver):
 
         # Compute residuals and condition numbers if desired.
         if self.compute_extras:
-            misfit = np.sum((self._A @ x - self._b)**2) # ||Ax-b||^2
             if P.ndim == 1:
                 Px = P.reshape((-1,1)) * x if x.ndim == 2 else P * x
             else:
                 Px = P @ x
-            residual = misfit + np.sum(Px**2)           # ||Ax-b||^2 + ||Px||^2
-            regcond = np.sqrt(np.linalg.cond(lhs))      # cond([A.T | P.T].T)
-
-            return x, misfit, residual, self._cond, regcond
+            # Data misfit (no regularization): ||Ax-b||^2.
+            self.misfit_ = np.sum((self._A @ x - self._b)**2)
+            # Problem residual: ||Ax-b||^2 + ||Px||^2.
+            self.residual_ = self.misfit_ + np.sum(Px**2)
+            # Conditioning of regularized problem: cond([A.T | P.T].T).
+            self.regcond_ = np.sqrt(np.linalg.cond(lhs))
 
         return x
 
@@ -319,19 +325,20 @@ class SolverTikhonovDecoupled(SolverTikhonov):
             Least-squares solution; each column is a solution to the
             problem with the corresponding column of B.
 
-        **If compute_extras is True, the following are also returned.**
+        **If compute_extras is True, the following attributes are saved.**
 
-        misfit: float
+
+        misfit_: float
             Residual (data misfit) of the raw problem: ||AX - B||_F^2
 
-        residuals : list of r floats
+        residual_ : list of r floats
             Residuals of the regularized problems:
             ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2.
 
-        cond : float
+        cond_ : float
             Condition number of A, σ_max(A) / σ_min(A).
 
-        regconds : list of r floats
+        regcond_ : list of r floats
             Condition numbers of regularized A, σ_max(G) / σ_min(G) where
             G = [A.T | P.T].T is the augmented data matrix.
         """
@@ -351,16 +358,18 @@ class SolverTikhonovDecoupled(SolverTikhonov):
             lhs = self._AtA + self._process_regularizer(P)
             X[:,j] = la.solve(lhs, self._rhs[:,j], assume_a="pos")
 
-            # Record extras if desired.
+            # Compute extras if desired.
             if self.compute_extras:
                 misfit += np.sum((self._A @ X[:,j] - self._b[:,j])**2)
                 Px = P * X[:,j] if P.ndim == 1 else P @ X[:,j]
                 residuals.append(misfit + np.sum(Px**2))
                 regconds.append(np.sqrt(np.linalg.cond(lhs)))
 
-        # Compute data misfit if desired.
+        # Record extras if desired.
         if self.compute_extras:
-            return X, misfit, residuals, self._cond, regconds
+            self.misfit_ = misfit
+            self.residual_ = residuals
+            self.regcond_ = regconds
 
         return X
 
@@ -394,9 +403,11 @@ def solver(A, b, P, **kwargs):
     **kwargs
         Additional arguments for the solver object.
         * compute_extras : bool
-            If True, solver.predict() returns residual / conditioning
-            information in addition to the solution; if False,
-            solver.predict() returns the solution only.
+            If True, record residual / conditioning information as attributes:
+            - cond_: condition number of the matrix A.
+            - regcond_: condition number of the regularized matrix [A.T|P.T].T.
+            - misfit_: data misfit ||Ax - b||^2.
+            - residual_: problem residual ||Ax - b||^2 + ||Px||^2.
         * check_regularizer : bool
             If True, ensure that a regularization matrix is full rank (via
             numpy.linalg.matrix_rank()) before attempting to solve the
@@ -457,9 +468,11 @@ def solve(A, b, P=0, **kwargs):
     **kwargs
         Additional arguments for the solver object.
         * compute_extras : bool
-            If True, solver.predict() returns residual / conditioning
-            information in addition to the solution; if False,
-            solver.predict() returns the solution only.
+            If True, record residual / conditioning information as attributes:
+            - cond_: condition number of the matrix A.
+            - regcond_: condition number of the regularized matrix [A.T|P.T].T.
+            - misfit_: data misfit ||Ax - b||^2.
+            - residual_: problem residual ||Ax - b||^2 + ||Px||^2.
         * check_regularizer : bool
             If True, ensure that a regularization matrix is full rank (via
             numpy.linalg.matrix_rank()) before attempting to solve the
@@ -471,21 +484,5 @@ def solve(A, b, P=0, **kwargs):
         Least-squares solution. If `b` is a two-dimensional array, then
         each column is a solution to the regularized least-squares problem
         with the corresponding column of b.
-
-    misfit: float
-        Residual (data misfit) of the non-regularized problem:
-        * if `b` is one-dimensional: ||Ax - b||_2^2
-        * if `b` is two-dimensional: ||Ax - b||_F^2
-
-    residual : float
-        Residual of the regularized problem:
-        * if `b` is one-dimensional: ||Ax - b||_2^2 + ||Px||_2^2
-        * if `b` is two-dimensional: ||Ax - b||_F^2 + ||Px||_F^2
-
-    cond : float
-        Condition number of A, σ_max(A) / σ_min(A).
-
-    regcond : float or list of length r
-        Effective condition number of regularized A.
     """
     return solver(A, b, P, **kwargs).predict(P)

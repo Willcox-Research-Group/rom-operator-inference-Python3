@@ -53,10 +53,8 @@ def lstsq_size(modelform, r, m=0, affines=None):
     if affines is None:
         affines = {}
 
-    qc = len(affines['c']) if 'c' in affines else 1 if 'c' in modelform else 0
-    qA = len(affines['A']) if 'A' in affines else 1 if 'A' in modelform else 0
-    qH = len(affines['H']) if 'H' in affines else 1 if 'H' in modelform else 0
-    qG = len(affines['G']) if 'G' in affines else 1 if 'G' in modelform else 0
-    qB = len(affines['B']) if 'B' in affines else 1 if 'B' in modelform else 0
+    qs = [(len(affines[op]) if (op in affines and op in modelform)
+           else 1 if op in modelform else 0)  for op in "cAHGB"]
+    rs = [1, r, r*(r+1)//2, r*(r+1)*(r+2)//6, m]
 
-    return qc + qA*r + qH*r*(r+1)//2 + qG*r*(r+1)*(r+2)//6 + qB*m
+    return sum(qq*rr for qq, rr in zip(qs, rs))

@@ -139,6 +139,7 @@ class TestAffineMixin:
         model.Hc_ = roi.AffineOperator([ident], [Hc])
         model.Gc_ = roi.AffineOperator([ident, ident], [Gc, Gc])
         model.B_ = None
+        model.n, model.m, model.r = n, m, r
 
         # Predict.
         if issubclass(ModelClass, roi._core._base._ContinuousROM):

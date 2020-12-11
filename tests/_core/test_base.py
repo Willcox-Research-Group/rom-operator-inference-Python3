@@ -9,8 +9,8 @@ from scipy import linalg as la
 
 import rom_operator_inference as roi
 
-from . import (MODEL_KEYS, MODEL_FORMS, LSTSQ_REPORTS,
-                     _get_data, _get_operators, _trainedmodel)
+from . import (MODEL_KEYS, MODEL_FORMS,
+               _get_data, _get_operators, _trainedmodel)
 
 
 class TestBaseROM:
@@ -34,7 +34,6 @@ class TestBaseROM:
 
         model = roi._core._base._ContinuousROM("cA")
         assert hasattr(model, "modelform")
-        assert hasattr(model, "_form")
         assert hasattr(model, "has_inputs")
         assert model.modelform == "cA"
         assert model.has_constant is True
@@ -49,10 +48,10 @@ class TestBaseROM:
         assert model.has_quadratic is True
         assert model.has_inputs is True
 
-    def test_check_modelform(self):
+    def test_check_modelform(self, n=10, r=3, m=5):
         """Test _BaseROM._check_modelform()."""
-        Vr = np.random.random((60,5))
-        m = 20
+        c_, A_, H_, Hc_, G_, Gc_, B_ = _get_operators(r, m)
+        Vr = np.random.random((n,r))
 
         # Try with invalid modelform.
         model = roi._core._base._ContinuousROM("bad_form")
@@ -62,65 +61,59 @@ class TestBaseROM:
             "invalid modelform key 'b'; " \
             f"options are {', '.join(model._MODEL_KEYS)}"
 
-        # Try with untrained model.
+        # Try with completely untrained model.
         model.modelform = "cAH"
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
-            "attribute 'c_' missing; call fit() to train model"
+            "null reduced dimension 'r'; call fit() to train model"
 
-        # Try with missing attributes.
-        model = _trainedmodel(True, "cAHB", Vr, m)
-        c_ = model.c_.copy()
-        del model.c_
+        # Try with reduced dimension set but not input dimension.
+        model.modelform = "cAHB"
+        model.r = r
+        with pytest.raises(AttributeError) as ex:
+            model._check_modelform(trained=True)
+        assert ex.value.args[0] == \
+            "null input dimension 'm'; call fit() to train model"
+
+        # Try with missing operators.
+        model.modelform = "cAHB"
+        model.r, model.m = r, m
+        model.A_, model.Hc_, model.Gc_, model.B_ = A_, Hc_, None, B_
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
             "attribute 'c_' missing; call fit() to train model"
         model.c_ = c_
 
-        B_ = model.B_.copy()
-        del model.B_
-        with pytest.raises(AttributeError) as ex:
-            model._check_modelform(trained=True)
-        assert ex.value.args[0] == \
-            "attribute 'B_' missing; call fit() to train model"
-        model.B_ = B_
-
-        # Try with incorrectly set attributes.
-        A_ = model.A_.copy()
+        # Try with null required operator.
         model.A_ = None
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
             "attribute 'A_' is None; call fit() to train model"
+        model.A_ = A_
 
-        model = _trainedmodel(True, "cAB", Vr, m)
-        model.Hc_ = 1
+        # Try with operators that shouldn't be present.
+        model.Gc_ = Gc_
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
-            "attribute 'Hc_' should be None; call fit() to train model"
-        model.Hc_ = None
+            "attribute 'Gc_' should be None; call fit() to train model"
+        model.Gc_ = None
 
-        model.modelform = "cA"
-        with pytest.raises(AttributeError) as ex:
+        # Try with a badly shaped operator.
+        model.A_ = np.random.random((r,r-1))
+        with pytest.raises(ValueError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
-            "attribute 'B_' should be None; call fit() to train model"
-
-        model = _trainedmodel(False, "cAH", Vr, None)
-        model.modelform = "cAHB"
-        with pytest.raises(AttributeError) as ex:
-            model._check_modelform(trained=True)
-        assert ex.value.args[0] == \
-            "attribute 'B_' is None; call fit() to train model"
+            f"'A_.shape' must be {(r,r)} for r = {r} (got {(r,r-1)})"
 
     def test_set_operators(self):
         """Test _core._base._BaseROM._set_operators()."""
         n, m, r = 60, 20, 30
         Vr = np.random.random((n, r))
-        c, A, H, Hc, G, Gc, B = _get_operators(n=r, m=m)
+        c, A, H, Hc, G, Gc, B = _get_operators(r, m)
 
         # Test correct usage.
         model = roi._core._base._ContinuousROM("cAH")._set_operators(
@@ -207,8 +200,9 @@ class TestDiscreteROM:
 
         # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
-        model.c_, model.A_ = 1, 1
+        model.c_, model.A_ = np.random.random(5), np.random.random((5,5))
         model.Hc_, model.Gc_, model.B_ = None, None, None
+        model.r = 5
         model._construct_f_()
         with pytest.raises(TypeError) as ex:
             model.f_(1, 2)
@@ -216,7 +210,10 @@ class TestDiscreteROM:
             "<lambda>() takes 1 positional argument but 2 were given"
 
         model.modelform = "HGB"
-        model.Hc_, model.Gc_, model.B_ = 1, 1, 1
+        model.Hc_ = np.random.random((2,3))
+        model.Gc_ = np.random.random((2,4))
+        model.B_ = np.random.random((2,5))
+        model.r, model.m = 2, 5
         model.c_, model.A_ = None, None
         model._construct_f_()
         with pytest.raises(TypeError) as ex:
@@ -320,8 +317,9 @@ class TestContinuousROM:
 
         # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
-        model.c_, model.A_ = 1, 1
+        model.c_, model.A_ = np.random.random(5), np.random.random((5,5))
         model.Hc_, model.Gc_, model.B_ = None, None, None
+        model.r = 5
         model._construct_f_()
         with pytest.raises(TypeError) as ex:
             model.f_(1)
@@ -454,6 +452,23 @@ class TestContinuousROM:
 
 class TestNonparametricMixin:
     """Test _core._base._NonparametricMixin."""
+
+    class Dummy(roi._core._base._BaseROM, roi._core._base._NonparametricMixin):
+        def __init__(self, modelform):
+            self.modelform = modelform
+
+    def test_properties(self, r=10):
+        """Test _core._base._NonparametricMixin.[H_,G_]."""
+        for op, shape1, shape2 in zip("HG", [r*(r+1)//2, r*(r+1)*(r+2)//6],
+                                            [r**2,       r**3]):
+            model = self.Dummy(op)
+            op_, opc_ = f"{op}_", f"{op}c_"
+            setattr(model, opc_, None)
+            assert getattr(model, op_) is None
+            setattr(model, opc_, np.zeros((r,shape1)))
+            assert isinstance(getattr(model, op_), np.ndarray)
+            assert getattr(model, op_).shape == (r,shape2)
+
     def test_str(self):
         """Test _core._base._NonparametricMixin.__str__()
         (string representation).
@@ -536,11 +551,6 @@ class TestNonparametricMixin:
                 else:
                     assert "B_" not in data["operators"]
 
-                # Check other attributes.
-                assert "other" in data
-                for attr in LSTSQ_REPORTS:
-                    assert data[f"other/{attr}"][0] == getattr(mdl, attr)
-
         model.save_model(target[:-3], save_basis=False)
         _checkfile(target, model, False)
 
@@ -564,7 +574,7 @@ class TestNonparametricMixin:
         model.Vr = Vr
         model.save_model(target, save_basis=True, overwrite=True)
         model2 = roi.load_model(target)
-        for attr in ["n", "m", "r", "modelform", "__class__"] + LSTSQ_REPORTS:
+        for attr in ["n", "m", "r", "modelform", "__class__"]:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_", "Vr"]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))
@@ -575,7 +585,7 @@ class TestNonparametricMixin:
         model.Vr, model.n = None, None
         model.save_model(target, overwrite=True)
         model2 = roi.load_model(target)
-        for attr in ["m", "r", "modelform", "__class__"] + LSTSQ_REPORTS:
+        for attr in ["m", "r", "modelform", "__class__"]:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_",]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))

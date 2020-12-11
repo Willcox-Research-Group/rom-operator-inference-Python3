@@ -24,6 +24,7 @@ from .._inferred import (_InferredMixin,
 from ...utils import (expand_Hc as Hc2H,
                       expand_Gc as Gc2G,
                       kron2c, kron3c)
+from ... import lstsq
 
 
 # Affine inferred mixin (private) =============================================
@@ -52,6 +53,39 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get projected data for the Operator Inference least-squares problem.
 
+        Parameters
+        ----------
+        Vr : (n,r) ndarray
+            The basis for the linear reduced space (e.g., POD basis matrix).
+
+        µs : list of s scalars or (p,) ndarrays
+            Parameter values at which the snapshot data is collected.
+
+        affines : dict(str -> list(callables))
+            Functions that define the structures of the affine operators.
+            Keys must match the modelform:
+            * 'c': Constant term c(µ).
+            * 'A': Linear state matrix A(µ).
+            * 'H': Quadratic state matrix H(µ).
+            * 'G': Cubic state matrix G(µ).
+            * 'B': Linear input matrix B(µ).
+            For example, if the constant term has the affine structure
+            c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
+
+        Xs : list of s (n,k) ndarrays (or (s,n,k) ndarray)
+            Column-wise snapshot training data (each column is a snapshot).
+            The ith array Xs[i] corresponds to the ith parameter, µs[i].
+
+        rhss : list of s (n,k) ndarrays (or (s,n,k) ndarray)
+            Column-wise next-iteration (discrete model) or velocity
+            (continuous model) training data. The ith array, rhss[i],
+            corresponds to the ith parameter, µs[i].
+
+        Us : list of s (m,k) or (k,) ndarrays or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
+
         Returns
         -------
         Xs_ : list of s (r,k) ndarrays
@@ -65,7 +99,8 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         """
         # Check modelform, affines dictionary, and inputs.
         self._check_modelform(trained=False)
-        # TODO: self.p = self._check_params(µs): extract self.p and check for consistent sizes.
+        # TODO: self.p = self._check_params(µs):
+        #       extract self.p and check for consistent sizes.
         self._check_affines(affines, µs)
         self._check_inputargs(Us, 'Us')
 
@@ -111,48 +146,72 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
 
         return Xs_, rhss_, Us
 
-
     def _construct_data_matrix(self, µs, affines, Xs_, Us):
-        """Construct the affine Operator Inference data matrix D (before any
-        regularization) from projected data.
+        """Construct the Operator Inference data matrix D from projected data.
+
+        Parameters
+        ----------
+        µs : list of s scalars or (p,) ndarrays
+            Parameter values at which the snapshot data is collected.
+
+        affines : dict(str -> list(callables))
+            Functions that define the structures of the affine operators.
+            Keys must match the modelform:
+            * 'c': Constant term c(µ).
+            * 'A': Linear state matrix A(µ).
+            * 'H': Quadratic state matrix H(µ).
+            * 'G': Cubic state matrix G(µ).
+            * 'B': Linear input matrix B(µ).
+            For example, if the constant term has the affine structure
+            c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
+
+        Xs_ : list of s (r,k_i) ndarrays
+            Column-wise snapshot projected training data.
+            The ith array, Xs_[i], corresponds to the ith parameter, µs[i].
+
+        Us_ : list of s (m,k_i) or (k_i,) ndarrays or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a list of one-dimensional arrays.
 
         Returns
         -------
         D : (sum(k_i),d(r,m)) ndarray
-            Non-regularized affine Operator Inference data matrix.
+            Operator Inference data matrix (no regularization).
         """
         D_rows = []
         for i,(µ,X_) in enumerate(zip(µs, Xs_)):
             row = []
-            if self.has_constant:
+            if self.has_constant:       # Constant term.
                 ones = np.ones((X_.shape[1],1))
                 if 'c' in affines:
                     row += [θ(µ) * ones for θ in affines['c']]
                 else:
                     row.append(ones)
 
-            if self.has_linear:
+            if self.has_linear:         # Linear state term.
                 if 'A' in affines:
                     row += [θ(µ) * X_.T for θ in affines['A']]
                 else:
                     row.append(X_.T)
 
-            if self.has_quadratic:
+            if self.has_quadratic:      # (compact) Quadratic state term.
                 X2_ = kron2c(X_)
                 if 'H' in affines:
                     row += [θ(µ) * X2_.T for θ in affines['H']]
                 else:
                     row.append(X2_.T)
 
-            if self.has_cubic:
+            if self.has_cubic:          # (compact) Cubic state term.
                 X3_ = kron3c(X_)
                 if 'G' in affines:
                     row += [θ(µ) * X3_.T for θ in affines['G']]
                 else:
                     row.append(X3_.T)
 
-            if self.has_inputs:
+            if self.has_inputs:         # Linear input term.
                 U = Us[i]
+                if self.m == U.ndim == 1:
+                    U = U.reshape((1,-1))
                 if 'B' in affines:
                     row += [θ(µ) * U.T for θ in affines['B']]
                 else:
@@ -164,23 +223,41 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
 
     def _extract_operators(self, affines, O):
         """Extract and save the inferred operators from the block-matrix
-        solution to the least-squarse problem.
+        solution to the least-squares problem, constructing AffineOperators
+        as indicated by the affine structure.
+
+        Parameters
+        ----------
+        affines : dict(str -> list(callables))
+            Functions that define the structures of the affine operators.
+            Keys must match the modelform:
+            * 'c': Constant term c(µ).
+            * 'A': Linear state matrix A(µ).
+            * 'H': Quadratic state matrix H(µ).
+            * 'G': Cubic state matrix G(µ).
+            * 'B': Linear input matrix B(µ).
+            For example, if the constant term has the affine structure
+            c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
+
+        O : (r,d(r,m)) ndarray
+            Block matrix of ROM operator coefficients, the transpose of the
+            solution to the Operator Inference linear least-squares problem.
         """
         i = 0
-        if self.has_constant:
+        if self.has_constant:           # Constant term (one-dimensional).
             if 'c' in affines:
                 cs_ = []
                 for j in range(len(affines['c'])):
-                    cs_.append(O[:,i:i+1][:,0])     # c_ is one-dimensional.
+                    cs_.append(O[:,i:i+1][:,0])
                     i += 1
                 self.c_ = AffineOperator(affines['c'], cs_)
             else:
-                self.c_ = O[:,i:i+1][:,0]           # c_ is one-dimensional.
+                self.c_ = O[:,i:i+1][:,0]
                 i += 1
         else:
             self.c_, self.cs_ = None, None
 
-        if self.has_linear:
+        if self.has_linear:             # Linear state term.
             if 'A' in affines:
                 As_ = []
                 for j in range(len(affines['A'])):
@@ -193,7 +270,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         else:
             self.A_ = None
 
-        if self.has_quadratic:
+        if self.has_quadratic:          # (compact) Quadratic state term.
             _r2 = self.r * (self.r + 1) // 2
             if 'H' in affines:
                 Hcs_ = []
@@ -209,7 +286,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         else:
             self.Hc_, self.H_ = None, None
 
-        if self.has_cubic:
+        if self.has_cubic:              # (compact) Cubic state term.
             _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
             if 'G' in affines:
                 Gcs_ = []
@@ -225,7 +302,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         else:
             self.Gc_, self.G_ = None, None
 
-        if self.has_inputs:
+        if self.has_inputs:             # Linear input term.
             if 'B' in affines:
                 Bs_ = []
                 for j in range(len(affines['B'])):
@@ -238,7 +315,35 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         else:
             self.B_ = None
 
-    def fit(self, Vr, µs, affines, Xs, rhss, Us=None, P=0):
+    def _construct_solver(self, Vr, µs, affines, Xs, rhss, Us, P, **kwargs):
+        """Construct a solver object mapping the regularizer P to solutions
+        of the Operator Inference least-squares problem.
+
+        Parameters
+        ----------
+        Vr : (n,r) ndarray or None
+            The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, X and rhs are assumed to already be projected (r,k).
+        """
+        Xs_, rhss_, Us = self._process_fit_arguments(Vr, µs, affines,
+                                                     Xs, rhss, Us)
+        D = self._construct_data_matrix(µs, affines, Xs_, Us)
+        self.solver_ = lstsq.solver(D, np.hstack(rhss_).T, P, **kwargs)
+
+    def _evaluate_solver(self, affines, P):
+        """Evaluate the least-squares solver with regularizer P.
+
+        Parameters
+        ----------
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
+        """
+        Otrp = self.solver_.predict(P)
+        self._extract_operators(affines, Otrp.T)
+
+    def fit(self, Vr, µs, affines, Xs, rhss, Us=None, P=0, **kwargs):
         """Solve for the reduced model operators via ordinary least squares.
         For terms with affine structure, solve for the component operators.
 
@@ -283,16 +388,16 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             data matrix for the least-squares problem, e.g., d = r + m for a
             linear model with inputs.
 
+        **kwargs
+            Additional arguments for the least-squares solver.
+            See lstsq.solvers().
+
         Returns
         -------
         self
         """
-        Xs_, rhss_, Us = self._process_fit_arguments(Vr, µs, affines,
-                                                     Xs, rhss, Us)
-        D = self._construct_data_matrix(µs, affines, Xs_, Us)
-        R = np.hstack(rhss_)
-        O = self._solve_opinf_lstsq(D, R, P)
-        self._extract_operators(affines, O)
+        self._construct_solver(Vr, µs, affines, Xs, rhss, Us, P, **kwargs)
+        self._evaluate_solver(affines, P)
         return self
 
 

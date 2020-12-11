@@ -71,8 +71,8 @@ def Lcurve(rom, regs, fit_args, discrete=False):
     # Get the residuals and norms for each regularization parameter.
     residuals, norms = [], []
     for reg in regs:
-        rom.fit(*fit_args, reg)
-        residuals.append(rom.misfit_)
+        rom.fit(*fit_args, reg, compute_extras=True)
+        residuals.append(rom.solver_.misfit_)
         norms.append(rom.operator_norm_)
 
     return _plot_Lcurve(regs, residuals, norms, discrete)

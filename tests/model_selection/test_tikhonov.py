@@ -22,7 +22,7 @@ def test_Lcurve():
 
     # Correct usage.
     # rom, regs, fit_args, discrete=False
-    X, Xdot, U = _get_data()
+    X, Xdot, U = _get_data(n=60, k=30, m=2)
     Vr = la.svd(X)[0][:,:10]
     X_ = Vr.T @ X
     Xdot_ = Vr.T @ Xdot
@@ -54,7 +54,7 @@ def test_best_bounded_reg():
     assert ex.value.args[0] == "errornorm must be callable"
 
     # Correct usage.
-    X, Xdot, U = _get_data()
+    X, Xdot, U = _get_data(n=60, k=30, m=2)
     Xdot = np.zeros_like(Xdot)
     Vr = la.svd(X)[0][:,:10]
     X_ = Vr.T @ X
