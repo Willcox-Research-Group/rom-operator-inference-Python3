@@ -179,18 +179,6 @@ class TestBaseROM:
             S_ = model.project(model.Vr.T @ S, label)
             assert S_.shape == (r,k)
 
-    def test_operator_norm_(self):
-        """Test _core._base._BaseROM.operator_norm_()"""
-        # Get test data.
-        n, k, m, r = 60, 50, 20, 10
-        X = _get_data(n, k, m)[0]
-        Vr = la.svd(X)[0][:,:r]
-
-        model = _trainedmodel(True, "cAHGB", Vr, m)
-        O_ = np.concatenate((model.c_[:,np.newaxis], model.A_,
-                             model.H_, model.G_, model.B_), axis=1)
-        assert np.isclose(la.norm(O_, ord='fro')**2, model.operator_norm_)
-
 
 class TestDiscreteROM:
     """Test _core._base._DiscreteROM."""
@@ -450,6 +438,29 @@ class TestNonparametricMixin:
     class Dummy(roi._core._base._BaseROM, roi._core._base._NonparametricMixin):
         def __init__(self, modelform):
             self.modelform = modelform
+
+    def test_operator_matrix_(self):
+        """Test _core._base._NonparametricMixin.operator_matrix_."""
+        m, r =  4, 9
+        c, A, H, G, B = _get_operators(r, m)
+        model = self.Dummy("")
+        model.m, model.r = m, r
+        model.c_, model.A_, model.H_, model.G_, model.B_ = c, A, H, G, B
+
+        for form in MODEL_FORMS:
+            model.modelform = form
+            model.m = m if 'B' in form else 0
+            O = model.operator_matrix_
+            d = roi.lstsq.lstsq_size(form, r, model.m)
+            assert O.shape == (r,d)
+
+            # Spot check.
+            if form == "cB":
+                assert np.all(O == np.hstack((c[:,np.newaxis], B)))
+            elif form == "AB":
+                assert np.all(O == np.hstack((A, B)))
+            elif form == "HG":
+                assert np.all(O == np.hstack((H, G)))
 
     def test_str(self):
         """Test _core._base._NonparametricMixin.__str__()

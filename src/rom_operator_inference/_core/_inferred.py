@@ -140,12 +140,14 @@ class _InferredMixin:
             D.append(kron3c(X_).T)
 
         if self.has_inputs:             # Linear input term.
-            if self.m == U.ndim == 1:
+            if (self.m == U.ndim == 1) or (self.m is None and U.ndim == 1):
                 U = U.reshape((1,-1))
+                self.m = 1
             D.append(U.T)
 
         return np.hstack(D)
 
+    # TODO: move this to _NonparametricMixin, use as operator_matrix_ setter.
     def _extract_operators(self, O):
         """Extract and save the inferred operators from the block-matrix
         solution to the least-squares problem.

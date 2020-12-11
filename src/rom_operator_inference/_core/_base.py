@@ -181,23 +181,6 @@ class _BaseROM:
             raise ValueError(f"{label} not aligned with Vr, dimension 0")
         return self.Vr.T @ S if S.shape[0] == self.n else S
 
-    @property
-    def operator_norm_(self):
-        """Calculate the squared Frobenius norm of the ROM operators."""
-        self._check_modelform(trained=True)
-        total = 0
-        if self.has_constant:
-            total += np.sum(self.c_**2)
-        if self.has_linear:
-            total += np.sum(self.A_**2)
-        if self.has_quadratic:
-            total += np.sum(self.H_**2)
-        if self.has_cubic:
-            total += np.sum(self.G_**2)
-        if self.has_inputs:
-            total += np.sum(self.B_**2)
-        return total
-
 
 class _DiscreteROM(_BaseROM):
     """Base class for models that solve the discrete ROM problem,
@@ -431,6 +414,23 @@ class _ContinuousROM(_BaseROM):
 # Mixins for parametric / nonparametric classes (private) =====================
 class _NonparametricMixin:
     """Mixin class for non-parametric reduced model classes."""
+    @property
+    def operator_matrix_(self):
+        """The r x d(r,m) Operator matrix O = [c | A | H | G | B]."""
+        self._check_modelform(trained=True)
+        ops = []
+        if self.has_constant:
+            ops.append(self.c_.reshape((-1,1)))
+        if self.has_linear:
+            ops.append(self.A_)
+        if self.has_quadratic:
+            ops.append(self.H_)
+        if self.has_cubic:
+            ops.append(self.G_)
+        if self.has_inputs:
+            ops.append(self.B_)
+        return np.hstack(ops)
+
     def __str__(self):
         """String representation: the structure of the model."""
         discrete = isinstance(self, _DiscreteROM)
@@ -549,3 +549,4 @@ class _ParametricMixin:
 # TODO: Account for state / input interactions (N?).
 # TODO: jacobians for each model form in the continuous case.
 # TODO: self.p = parameter size for parametric classes (+ shape checking)
+# TODO: _[construct->assemble]_data_matrix()

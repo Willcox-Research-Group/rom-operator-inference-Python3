@@ -57,11 +57,4 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
     if "B" in modelform:
         operators['B_'] = B
 
-    model = ModelClass(modelform)._set_operators(Vr, **operators)
-
-    model.datacond_ = np.random.random()
-    model.dataregcond_ = model.datacond_ / 2
-    model.residual_ = np.random.random()
-    model.misfit_ = model.residual_ / 2
-
-    return model
+    return ModelClass(modelform)._set_operators(Vr, **operators)

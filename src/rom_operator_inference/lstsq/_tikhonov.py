@@ -419,16 +419,14 @@ def solver(A, b, P, **kwargs):
         Least-squares solver object, with a predict() method mapping the
         regularization factor to the least-squares solution.
     """
-    isarray = isinstance(P, np.ndarray)
-
     # If P is a scalar, solve the corresponding L2 problem.
     if np.isscalar(P):
-        if "compute_extras" in kwargs:                  # pragma: no cover
-            kwargs.pop("compute_extras")
+        if "check_regularizer" in kwargs:                  # pragma: no cover
+            kwargs.pop("check_regularizer")
         solver = SolverL2(**kwargs)
 
     # If P is a single matrix, solve the corresponding Tikhonov problem.
-    elif isarray and (P.shape == (A.shape[1],) or P.ndim == 2):
+    elif isinstance(P, np.ndarray) and (P.shape==(A.shape[1],) or P.ndim==2):
         solver = SolverTikhonov(**kwargs)
 
     # If P is a sequence, decouple the problem by column.
