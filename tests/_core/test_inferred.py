@@ -140,11 +140,11 @@ class TestInferredMixin:
         """Test _core._inferred._InferredMixin._extract_operators()."""
         r, m = 10, 2
         shapes = {
-                    "c_":  (r,),
-                    "A_":  (r,r),
-                    "Hc_": (r,r*(r+1)//2),
-                    "Gc_": (r,r*(r+1)*(r+2)//6),
-                    "B_":  (r,m),
+                    "c_": (r,),
+                    "A_": (r,r),
+                    "H_": (r,r*(r+1)//2),
+                    "G_": (r,r*(r+1)*(r+2)//6),
+                    "B_": (r,m),
                  }
 
         model = self.Dummy("c")
@@ -156,7 +156,7 @@ class TestInferredMixin:
             O = np.random.random((r,d))
             model._extract_operators(O)
             for prefix in MODEL_KEYS:
-                attr = prefix+'c_' if prefix in "HG" else prefix+'_'
+                attr = prefix+'_'
                 assert hasattr(model, attr)
                 value = getattr(model, attr)
                 if prefix in form:

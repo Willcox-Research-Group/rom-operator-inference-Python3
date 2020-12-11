@@ -19,9 +19,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.integrate import solve_ivp, IntegrationWarning
 
-from ..utils import (expand_Hc as Hc2H, compress_H as H2Hc,
-                     expand_Gc as Gc2G, compress_G as G2Gc,
-                     kron2c, kron3c)
+from ..utils import compress_H, compress_G, kron2c, kron3c
 
 
 # Base classes (private) ======================================================
@@ -85,14 +83,15 @@ class _BaseROM:
             if self.has_inputs and (self.m is None):
                 raise AttributeError(f"null input dimension 'm'; {fixmsg}")
             shapes = {
-                        "c_" : (self.r, ),
-                        "A_" : (self.r, self.r),
-                        "Hc_": (self.r, self.r*(self.r + 1)//2),
-                        "Gc_": (self.r, self.r*(self.r + 1)*(self.r + 2)//6),
-                        "B_" : (self.r, self.m),
+                        "c_": (self.r, ),
+                        "A_": (self.r, self.r),
+                        "H_": (self.r, self.r*(self.r + 1)//2),
+                        "G_": (self.r, self.r*(self.r + 1)*(self.r + 2)//6),
+                        "B_": (self.r, self.m),
                      }
 
-            for key, s in zip("cAHGB", ["c_", "A_", "Hc_", "Gc_", "B_"]):
+            for key in self._MODEL_KEYS:
+                s = key+'_'
                 # Ensure all operator attributes exist.
                 if not hasattr(self, s):
                     raise AttributeError(f"attribute '{s}' missing; {fixmsg}")
@@ -111,9 +110,7 @@ class _BaseROM:
                     raise AttributeError(f"attribute '{s}' should be None; "
                                          f"{fixmsg}")
 
-    def _set_operators(self, Vr, c_=None, A_=None,
-                                 H_=None, Hc_=None,
-                                 G_=None, Gc_=None, B_=None):
+    def _set_operators(self, Vr, c_=None, A_=None, H_=None, G_=None, B_=None):
         """Set the ROM operators and corresponding dimensions.
 
         Parameters
@@ -128,21 +125,13 @@ class _BaseROM:
         A_ : (r,r) ndarray or None
             Reduced linear state matrix, or None if 'c' is not in `modelform`.
 
-        H_ : (r,r**2) ndarray or None
-            Reduced quadratic state matrix (full size), or None if 'H' is not in
+        H_ : (r,r(r+1)/2) ndarray or None
+            Reduced (compact) quadratic state matrix, or None if 'H' is not in
             `modelform`.
 
-        Hc_ : (r,r(r+1)/2) ndarray or None
-            Reduced quadratic state matrix (compact), or None if 'H' is not in
-            `modelform`. Only used if `H_` is also None.
-
-        G_ : (r,r**3) ndarray or None
-            Reduced cubic state matrix (full size), or None if 'G' is not in
-            `modelform`.
-
-        Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
-            Reduced cubic state matrix (compact), or None if 'G' is not in
-            `modelform`. Only used if `G_` is also None.
+        G_ : (r,r(r+1)(r+2)/6) ndarray or None
+            Reduced (compact) cubic state matrix (compact), or None if 'G' is
+            not in `modelform`.
 
         B_ : (r,m) ndarray or None
             Reduced input matrix, or None if 'B' is not in `modelform`.
@@ -153,12 +142,6 @@ class _BaseROM:
         """
         self._check_modelform(trained=False)
 
-        # Insert the reduced operators.
-        self.m = None if B_ is None else 1 if B_.ndim == 1 else B_.shape[1]
-        self.c_, self.A_, self.B_ = c_, A_, B_
-        self.Hc_ = H2Hc(H_) if H_ else Hc_
-        self.Gc_ = G2Gc(G_) if G_ else Gc_
-
         # Insert the basis (if given) and determine dimensions.
         self.Vr = Vr
         if Vr is not None:
@@ -166,10 +149,17 @@ class _BaseROM:
         else:
             # Determine the dimension r from the existing operators.
             self.n = None
-            for op in [self.c_, self.A_, self.Hc_, self.Gc_, self.B_]:
+            for op in [c_, A_, H_, G_, B_]:
                 if op is not None:
                     self.r = op.shape[0]
                     break
+        self.m = None if B_ is None else 1 if B_.ndim == 1 else B_.shape[1]
+
+        # Insert the operators.
+        _r2, _r3 = self.r*(self.r + 1)//2, self.r*(self.r + 1)*(self.r + 2)//6
+        self.c_, self.A_, self.B_ = c_, A_, B_
+        self.H_ = H_ if (H_ is None or H_.shape[1] == _r2) else compress_H(H_)
+        self.G_ = G_ if (G_ is None or G_.shape[1] == _r3) else compress_G(G_)
 
         # Construct the complete reduced model operator from the arguments.
         self._construct_f_()
@@ -201,9 +191,9 @@ class _BaseROM:
         if self.has_linear:
             total += np.sum(self.A_**2)
         if self.has_quadratic:
-            total += np.sum(self.Hc_**2)
+            total += np.sum(self.H_**2)
         if self.has_cubic:
-            total += np.sum(self.Gc_**2)
+            total += np.sum(self.G_**2)
         if self.has_inputs:
             total += np.sum(self.B_**2)
         return total
@@ -229,10 +219,10 @@ class _DiscreteROM(_BaseROM):
         if self.has_linear:
             rhs.append("(self.A_ @ x_)")
         if self.has_quadratic:
-            rhs.append("(self.Hc_ @ kron2c(x_))")
+            rhs.append("(self.H_ @ kron2c(x_))")
             namespace["kron2c"] = kron2c
         if self.has_cubic:
-            rhs.append("(self.Gc_ @ kron3c(x_))")
+            rhs.append("(self.G_ @ kron3c(x_))")
             namespace["kron3c"] = kron3c
         if self.has_inputs:
             lhs = "lambda x_,u: "
@@ -323,10 +313,10 @@ class _ContinuousROM(_BaseROM):
         if self.has_linear:
             rhs.append("(self.A_ @ x_)")
         if self.has_quadratic:
-            rhs.append("(self.Hc_ @ kron2c(x_))")
+            rhs.append("(self.H_ @ kron2c(x_))")
             namespace["kron2c"] = kron2c
         if self.has_cubic:
-            rhs.append("(self.Gc_ @ kron3c(x_))")
+            rhs.append("(self.G_ @ kron3c(x_))")
             namespace["kron3c"] = kron3c
         if self.has_inputs:
             lhs = "lambda t,x_,u: "
@@ -441,17 +431,6 @@ class _ContinuousROM(_BaseROM):
 # Mixins for parametric / nonparametric classes (private) =====================
 class _NonparametricMixin:
     """Mixin class for non-parametric reduced model classes."""
-    @property
-    def H_(self):
-        """Matricized quadratic tensor; operates on full Kronecker product."""
-        return None if self.Hc_ is None else Hc2H(self.Hc_)
-
-    @property
-    def G_(self):
-        """Matricized cubic tensor; operates on full cubic Kronecker product.
-        """
-        return None if self.Gc_ is None else Gc2G(self.Gc_)
-
     def __str__(self):
         """String representation: the structure of the model."""
         discrete = isinstance(self, _DiscreteROM)
@@ -516,9 +495,9 @@ class _NonparametricMixin:
             if self.has_linear:
                 f.create_dataset("operators/A_", data=self.A_)
             if self.has_quadratic:
-                f.create_dataset("operators/Hc_", data=self.Hc_)
+                f.create_dataset("operators/H_", data=self.H_)
             if self.has_cubic:
-                f.create_dataset("operators/Gc_", data=self.Gc_)
+                f.create_dataset("operators/G_", data=self.G_)
             if self.has_inputs:
                 f.create_dataset("operators/B_", data=self.B_)
 
@@ -527,15 +506,15 @@ class _ParametricMixin:
     """Mixin class for parametric reduced model classes."""
     def __call__(self, µ):
         """Construct the reduced model corresponding to the parameter µ."""
-        c_  = self.c_(µ)  if callable(self.c_)  else self.c_
-        A_  = self.A_(µ)  if callable(self.A_)  else self.A_
-        Hc_ = self.Hc_(µ) if callable(self.Hc_) else self.Hc_
-        Gc_ = self.Gc_(µ) if callable(self.Gc_) else self.Gc_
-        B_  = self.B_(µ)  if callable(self.B_)  else self.B_
+        c_ = self.c_(µ) if callable(self.c_) else self.c_
+        A_ = self.A_(µ) if callable(self.A_) else self.A_
+        H_ = self.H_(µ) if callable(self.H_) else self.H_
+        G_ = self.G_(µ) if callable(self.G_) else self.G_
+        B_ = self.B_(µ) if callable(self.B_) else self.B_
         cl = _DiscreteROM if isinstance(self, _DiscreteROM) else _ContinuousROM
         return cl(self.modelform)._set_operators(Vr=self.Vr,
                                                  c_=c_, A_=A_,
-                                                 Hc_=Hc_, Gc_=Gc_, B_=B_)
+                                                 H_=H_, G_=G_, B_=B_)
 
     def __str__(self):
         """String representation: the structure of the model."""
@@ -553,10 +532,10 @@ class _ParametricMixin:
             A = "A(µ)" if callable(self.A_)  else "A"
             out.append(A + f"{x}")
         if self.has_quadratic:
-            H = "H(µ)" if callable(self.Hc_) else "H"
+            H = "H(µ)" if callable(self.H_) else "H"
             out.append(H + f"({x} ⊗ {x})")
         if self.has_cubic:
-            G = "G(µ)" if callable(self.Gc_) else "G"
+            G = "G(µ)" if callable(self.G_) else "G"
             out.append(G + f"({x} ⊗ {x} ⊗ {x})")
         if self.has_inputs:
             B = "B(µ)" if callable(self.B_)  else "B"
@@ -570,4 +549,3 @@ class _ParametricMixin:
 # TODO: Account for state / input interactions (N?).
 # TODO: jacobians for each model form in the continuous case.
 # TODO: self.p = parameter size for parametric classes (+ shape checking)
-# TODO: H_ <- Hc_ and G_ <- Gc_; better to avoid the confusion of having both.

@@ -50,7 +50,7 @@ class TestBaseROM:
 
     def test_check_modelform(self, n=10, r=3, m=5):
         """Test _BaseROM._check_modelform()."""
-        c_, A_, H_, Hc_, G_, Gc_, B_ = _get_operators(r, m)
+        c_, A_, H_, G_, B_ = _get_operators(r, m)
         Vr = np.random.random((n,r))
 
         # Try with invalid modelform.
@@ -79,7 +79,7 @@ class TestBaseROM:
         # Try with missing operators.
         model.modelform = "cAHB"
         model.r, model.m = r, m
-        model.A_, model.Hc_, model.Gc_, model.B_ = A_, Hc_, None, B_
+        model.A_, model.H_, model.G_, model.B_ = A_, H_, None, B_
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
@@ -95,12 +95,12 @@ class TestBaseROM:
         model.A_ = A_
 
         # Try with operators that shouldn't be present.
-        model.Gc_ = Gc_
+        model.G_ = G_
         with pytest.raises(AttributeError) as ex:
             model._check_modelform(trained=True)
         assert ex.value.args[0] == \
-            "attribute 'Gc_' should be None; call fit() to train model"
-        model.Gc_ = None
+            "attribute 'G_' should be None; call fit() to train model"
+        model.G_ = None
 
         # Try with a badly shaped operator.
         model.A_ = np.random.random((r,r-1))
@@ -113,11 +113,11 @@ class TestBaseROM:
         """Test _core._base._BaseROM._set_operators()."""
         n, m, r = 60, 20, 30
         Vr = np.random.random((n, r))
-        c, A, H, Hc, G, Gc, B = _get_operators(r, m)
+        c, A, H, G, B = _get_operators(r, m)
 
         # Test correct usage.
         model = roi._core._base._ContinuousROM("cAH")._set_operators(
-                                                    Vr=Vr, A_=A, Hc_=Hc, c_=c)
+                                                    Vr=Vr, c_=c, A_=A, H_=H)
         assert isinstance(model, roi._core._base._ContinuousROM)
         assert model.modelform == "cAH"
         assert model.n == n
@@ -126,12 +126,12 @@ class TestBaseROM:
         assert np.allclose(model.Vr, Vr)
         assert np.allclose(model.c_, c)
         assert np.allclose(model.A_, A)
-        assert np.allclose(model.Hc_, Hc)
+        assert np.allclose(model.H_, H)
         assert model.B_ is None
-        assert model.Gc_ is None
+        assert model.G_ is None
 
         model = roi._core._base._DiscreteROM("GB")._set_operators(None,
-                                                                  Gc_=Gc, B_=B)
+                                                                  G_=G, B_=B)
         assert isinstance(model, roi._core._base._DiscreteROM)
         assert model.modelform == "GB"
         assert model.n is None
@@ -140,8 +140,8 @@ class TestBaseROM:
         assert model.Vr is None
         assert model.c_ is None
         assert model.A_ is None
-        assert model.Hc_ is None
-        assert np.allclose(model.Gc_, Gc)
+        assert model.H_ is None
+        assert np.allclose(model.G_, G)
         assert np.allclose(model.B_, B)
 
     def test_check_inputargs(self):
@@ -188,7 +188,7 @@ class TestBaseROM:
 
         model = _trainedmodel(True, "cAHGB", Vr, m)
         O_ = np.concatenate((model.c_[:,np.newaxis], model.A_,
-                             model.Hc_, model.Gc_, model.B_), axis=1)
+                             model.H_, model.G_, model.B_), axis=1)
         assert np.isclose(la.norm(O_, ord='fro')**2, model.operator_norm_)
 
 
@@ -201,7 +201,7 @@ class TestDiscreteROM:
         # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
         model.c_, model.A_ = np.random.random(5), np.random.random((5,5))
-        model.Hc_, model.Gc_, model.B_ = None, None, None
+        model.H_, model.G_, model.B_ = None, None, None
         model.r = 5
         model._construct_f_()
         with pytest.raises(TypeError) as ex:
@@ -210,8 +210,8 @@ class TestDiscreteROM:
             "<lambda>() takes 1 positional argument but 2 were given"
 
         model.modelform = "HGB"
-        model.Hc_ = np.random.random((2,3))
-        model.Gc_ = np.random.random((2,4))
+        model.H_ = np.random.random((2,3))
+        model.G_ = np.random.random((2,4))
         model.B_ = np.random.random((2,5))
         model.r, model.m = 2, 5
         model.c_, model.A_ = None, None
@@ -242,9 +242,6 @@ class TestDiscreteROM:
         n, k, m, r = 60, 50, 20, 10
         X = _get_data(n, k, m)[0]
         Vr = la.svd(X)[0][:,:r]
-
-        # Get test (reduced) operators.
-        c, A, H, Hc, G, Gc, B = _get_operators(r, m)
 
         niters = 5
         x0 = X[:,0]
@@ -318,7 +315,7 @@ class TestContinuousROM:
         # Check that the constructed f takes the right number of arguments.
         model.modelform = "cA"
         model.c_, model.A_ = np.random.random(5), np.random.random((5,5))
-        model.Hc_, model.Gc_, model.B_ = None, None, None
+        model.H_, model.G_, model.B_ = None, None, None
         model.r = 5
         model._construct_f_()
         with pytest.raises(TypeError) as ex:
@@ -347,9 +344,6 @@ class TestContinuousROM:
         n, k, m, r = 60, 50, 20, 10
         X = _get_data(n, k, m)[0]
         Vr = la.svd(X)[0][:,:r]
-
-        # Get test (reduced) operators.
-        c, A, H, Hc, G, Gc, B = _get_operators(r, m)
 
         nt = 5
         x0 = X[:,0]
@@ -457,18 +451,6 @@ class TestNonparametricMixin:
         def __init__(self, modelform):
             self.modelform = modelform
 
-    def test_properties(self, r=10):
-        """Test _core._base._NonparametricMixin.[H_,G_]."""
-        for op, shape1, shape2 in zip("HG", [r*(r+1)//2, r*(r+1)*(r+2)//6],
-                                            [r**2,       r**3]):
-            model = self.Dummy(op)
-            op_, opc_ = f"{op}_", f"{op}c_"
-            setattr(model, opc_, None)
-            assert getattr(model, op_) is None
-            setattr(model, opc_, np.zeros((r,shape1)))
-            assert isinstance(getattr(model, op_), np.ndarray)
-            assert getattr(model, op_).shape == (r,shape2)
-
     def test_str(self):
         """Test _core._base._NonparametricMixin.__str__()
         (string representation).
@@ -539,13 +521,13 @@ class TestNonparametricMixin:
                 else:
                     assert "A_" not in data["operators"]
                 if "H" in mdl.modelform:
-                    assert np.allclose(data["operators/Hc_"], mdl.Hc_)
+                    assert np.allclose(data["operators/H_"], mdl.H_)
                 else:
-                    assert "Hc_" not in data["operators"]
+                    assert "H_" not in data["operators"]
                 if "G" in mdl.modelform:
-                    assert np.allclose(data["operators/Gc_"], mdl.Gc_)
+                    assert np.allclose(data["operators/G_"], mdl.G_)
                 else:
-                    assert "Gc_" not in data["operators"]
+                    assert "G_" not in data["operators"]
                 if "B" in mdl.modelform:
                     assert np.allclose(data["operators/B_"], mdl.B_)
                 else:
@@ -578,7 +560,7 @@ class TestNonparametricMixin:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_", "Vr"]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))
-        for attr in ["c_", "Hc_", "Gc_"]:
+        for attr in ["c_", "H_", "G_"]:
             assert getattr(model, attr) is getattr(model2, attr) is None
 
         # Check Vr = None functionality.
@@ -589,7 +571,7 @@ class TestNonparametricMixin:
             assert getattr(model, attr) == getattr(model2, attr)
         for attr in ["A_", "B_",]:
             assert np.allclose(getattr(model, attr), getattr(model2, attr))
-        for attr in ["n", "c_", "Hc_", "Gc_", "Vr"]:
+        for attr in ["n", "c_", "H_", "G_", "Vr"]:
             assert getattr(model, attr) is getattr(model2, attr) is None
 
         # Try to save a bad model.
@@ -616,8 +598,8 @@ class TestParametricMixin:
         model.modelform = "cA"
         assert str(model) == \
             "Reduced-order model structure: dx / dt = c(µ) + A(µ)x(t)"
-        model.Hc_ = None
-        model.Gc_ = lambda t: t
+        model.H_ = None
+        model.G_ = lambda t: t
         model.B_ = None
         model.modelform = "HB"
         assert str(model) == \
@@ -631,6 +613,6 @@ class TestParametricMixin:
         assert str(model) == \
             "Reduced-order model structure: x_{j+1} = c + H(x_{j} ⊗ x_{j})"
         model.c_ = lambda t: t
-        model.Hc_ = None
+        model.H_ = None
         assert str(model) == \
             "Reduced-order model structure: x_{j+1} = c(µ) + H(x_{j} ⊗ x_{j})"

@@ -136,9 +136,9 @@ def load_model(loadfile):
         if 'A' in modelform:
             operators["A_"] = data["operators/A_"][:]
         if 'H' in modelform:
-            operators["Hc_"] = data["operators/Hc_"][:]
+            operators["H_"] = data["operators/H_"][:]
         if 'G' in modelform:
-            operators["Gc_"] = data["operators/Gc_"][:]
+            operators["G_"] = data["operators/G_"][:]
         if 'B' in modelform:
             operators["B_"] = data["operators/B_"][:]
 

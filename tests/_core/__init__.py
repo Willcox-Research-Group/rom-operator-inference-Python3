@@ -24,16 +24,14 @@ def _get_data(n=60, k=25, m=20):
     return X, Xdot, U
 
 
-def _get_operators(n=60, m=20):
+def _get_operators(n=60, m=20, expanded=False):
     """Construct fake model operators."""
     c = np.random.random(n)
     A = np.eye(n)
-    H = np.zeros((n,n**2))
-    Hc = np.zeros((n,n*(n+1)//2))
-    G = np.zeros((n,n**3))
-    Gc = np.zeros((n,n*(n+1)*(n+2)//6))
+    H = np.zeros((n,n**2 if expanded else n*(n+1)//2))
+    G = np.zeros((n,n**3 if expanded else n*(n+1)*(n+2)//6))
     B = np.random.random((n,m)) if m else None
-    return c, A, H, Hc, G, Gc, B
+    return c, A, H, G, B
 
 
 def _trainedmodel(continuous, modelform, Vr, m=20):
@@ -46,16 +44,16 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
         ModelClass = roi._core._base._DiscreteROM
 
     n,r = Vr.shape
-    c, A, H, Hc, G, Gc, B = _get_operators(r, m)
+    c, A, H, G, B = _get_operators(r, m)
     operators = {}
     if "c" in modelform:
         operators['c_'] = c
     if "A" in modelform:
         operators['A_'] = A
     if "H" in modelform:
-        operators['Hc_'] = Hc
+        operators['H_'] = H
     if "G" in modelform:
-        operators['Gc_'] = Gc
+        operators['G_'] = G
     if "B" in modelform:
         operators['B_'] = B
 

@@ -70,7 +70,7 @@ def test_reproject_discrete(n=50, m=5, r=3):
     for _ in range(10):
         x_ = np.random.random(r)
         x2_ = np.kron(x_, x_)
-        assert np.allclose(model.H_ @ x2_, H_ @ x2_)
+        assert np.allclose(model.H_ @ roi.utils.kron2c(x_), H_ @ x2_)
 
 
 def test_reproject_continuous(n=100, m=20, r=10):
@@ -134,4 +134,4 @@ def test_reproject_continuous(n=100, m=20, r=10):
     for _ in range(10):
         x_ = np.random.random(r)
         x2_ = np.kron(x_, x_)
-        assert np.allclose(model.H_ @ x2_, H_ @ x2_)
+        assert np.allclose(model.H_ @ roi.utils.kron2c(x_), H_ @ x2_)

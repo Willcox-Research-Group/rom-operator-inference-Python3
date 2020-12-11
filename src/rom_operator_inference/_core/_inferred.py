@@ -171,17 +171,17 @@ class _InferredMixin:
 
         if self.has_quadratic:          # (compact) Qudadratic state matrix.
             _r2 = self.r * (self.r + 1) // 2
-            self.Hc_ = O[:,i:i+_r2]
+            self.H_ = O[:,i:i+_r2]
             i += _r2
         else:
-            self.Hc_ = None
+            self.H_ = None
 
         if self.has_cubic:              # (compact) Cubic state matrix.
             _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
-            self.Gc_ = O[:,i:i+_r3]
+            self.G_ = O[:,i:i+_r3]
             i += _r3
         else:
-            self.Gc_ = None
+            self.G_ = None
 
         if self.has_inputs:             # Linear input matrix.
             self.B_ = O[:,i:i+self.m]
@@ -353,29 +353,19 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
     A_ : (r,r) ndarray or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : (r,r(r+1)/2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    H_ : (r,r(r+1)/2) ndarray or None
+        Learned ROM (compact) quadratic state matrix, or None if 'H' is not in
+        `modelform`.
 
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : (r,r**3) ndarray or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used
-        directly in solving the ROM.
+    G_ : (r,r(r+1)(r+2)/6) ndarray or None
+        Learned ROM (compact) cubic state matrix, or None if 'G' is not in
+        `modelform`.
 
     B_ : (r,m) ndarray or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
 
     f_ : callable((r,) ndarray, (m,) ndarray) -> (r,)
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
+        The learned ROM operator, defined by c_, A_, H_, G_, and/or B_.
         The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
         f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
         (and inputs if appropriate) to reduced state. Calculated in fit().
@@ -489,29 +479,19 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
     A_ : (r,r) ndarray or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : (r,r(r+1)/2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    H_ : (r,r(r+1)/2) ndarray or None
+        Learned ROM (compact) quadratic state matrix, or None if 'H' is not in
+        `modelform`.
 
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : (r,r**3) ndarray or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used
-        directly in solving the ROM.
+    G_ : (r,r(r+1)(r+2)/6) ndarray or None
+        Learned ROM (compact) cubic state matrix, or None if 'G' is not in
+        `modelform`.
 
     B_ : (r,m) ndarray or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
 
     f_ : callable(float, (r,) ndarray, func?) -> (r,) ndarray
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
+        The learned ROM operator defined by c_, A_, H_, G_, and/or B_.
         The signature is f_(t, x_) if 'B' is not in `modelform` (no inputs) and
         f_(t, x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
         (and possibly an input function) to reduced state. Calculated in fit().

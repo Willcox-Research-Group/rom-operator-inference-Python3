@@ -44,7 +44,6 @@ def _plot_Lcurve(regs, residuals, norms, discrete=False):
     ax.grid()
 
 
-
 def Lcurve(rom, regs, fit_args, discrete=False):
     """Plot the L-curve (solution norm vs residual norm) for an Operator
     Inference ROM.

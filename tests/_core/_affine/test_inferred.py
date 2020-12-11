@@ -8,7 +8,7 @@ import scipy.linalg as la
 import rom_operator_inference as roi
 
 from .test_base import TestAffineMixin
-from .. import MODEL_KEYS, MODEL_FORMS, _get_data, _get_operators
+from .. import MODEL_KEYS, MODEL_FORMS, _get_data
 
 
 # Affine inferred mixin (private) =============================================
@@ -196,11 +196,11 @@ class TestAffineInferredMixin:
                    "G": θs[:1],
                    "B": θs[:3]}
         shapes = {
-                    "c_":  (r,),
-                    "A_":  (r,r),
-                    "Hc_": (r,r*(r+1)//2),
-                    "Gc_": (r,r*(r+1)*(r+2)//6),
-                    "B_":  (r,m),
+                    "c_": (r,),
+                    "A_": (r,r),
+                    "H_": (r,r*(r+1)//2),
+                    "G_": (r,r*(r+1)*(r+2)//6),
+                    "B_": (r,m),
                  }
 
         model = self.Dummy("c")
@@ -212,7 +212,7 @@ class TestAffineInferredMixin:
             O = np.random.random((r,d))
             model._extract_operators(affines, O)
             for prefix in MODEL_KEYS:
-                attr = prefix+'c_' if prefix in "HG" else prefix+'_'
+                attr = prefix+'_'
                 assert hasattr(model, attr)
                 value = getattr(model, attr)
                 if prefix in form:
@@ -256,22 +256,22 @@ class TestAffineInferredMixin:
             model.fit(*args, Us=Us if "B" in form else None)
 
         def _test_output_shapes(model):
-            """Test shapes of output operators for modelform="cAHB"."""
+            """Test shapes of output operators for modelform="cAHGB"."""
             assert model.n == n
             assert model.r == r
             assert model.m == m
             assert model.A_.shape == (r,r)
-            assert model.Hc_.shape == (r,r*(r+1)//2)
-            assert model.H_.shape == (r,r**2)
+            assert model.H_.shape == (r,r*(r+1)//2)
+            assert model.G_.shape == (r,r*(r+1)*(r+2)//6)
             assert model.c_.shape == (r,)
             assert model.B_.shape == (r,m)
 
-        model.modelform = "cAHB"
+        model.modelform = "cAHGB"
         model.fit(*args, Us=Us)
         _test_output_shapes(model)
 
         # Fit the model with 1D inputs (1D array for B)
-        model.modelform = "cAHB"
+        model.modelform = "cAHGB"
         model.fit(*args, Us=np.ones((s,k)))
         m = 1
         _test_output_shapes(model)

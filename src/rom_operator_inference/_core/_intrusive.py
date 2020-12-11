@@ -16,9 +16,7 @@ __all__ = [
 import numpy as np
 
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
-
-from ..utils import (expand_Hc as Hc2H, compress_H as H2Hc,
-                     expand_Gc as Gc2G, compress_G as G2Gc)
+from ..utils import compress_H, compress_G
 
 
 class _IntrusiveMixin:
@@ -74,9 +72,9 @@ class _IntrusiveMixin:
             if self.H.shape != (self.n,self.n**2):
                 raise ValueError("basis Vr and FOM operator H not aligned")
             H_ = self.Vr.T @ self.H @ np.kron(self.Vr, self.Vr)
-            self.Hc_ = H2Hc(H_)
+            self.H_ = compress_H(H_)
         else:
-            self.H, self.Hc_ = None, None
+            self.H, self.H_ = None, None
 
         if self.has_cubic:              # Cubic state matrix.
             self.G = operators['G']
@@ -84,9 +82,9 @@ class _IntrusiveMixin:
             if self.G.shape != (self.n,self.n**3):
                 raise ValueError("basis Vr and FOM operator G not aligned")
             G_ = self.Vr.T @ self.G @ np.kron(self.Vr,np.kron(self.Vr,self.Vr))
-            self.Gc_ = G2Gc(G_)
+            self.G_ = compress_G(G_)
         else:
-            self.G, self.Gc_ = None, None
+            self.G, self.G_ = None, None
 
         if self.has_inputs:             # Linear input matrix.
             self.B = operators['B']
@@ -201,23 +199,13 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
     A_ : (r,r) ndarray or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : (r,r(r+1)/2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    H_ : (r,r(r+1)/2) ndarray or None
+        Learned ROM (compact) quadratic state matrix, or None if 'H' is not in
+        `modelform`.
 
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
-
-    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : (r,r**3) ndarray or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used in
-        solving the ROM.
+    G_ : (r,r(r+1)(r+2)/6) ndarray or None
+        Learned ROM (compact) cubic state matrix, or None if 'G' is not in
+        `modelform`.
 
     B_ : (r,m) ndarray or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
@@ -303,23 +291,13 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
     A_ : (r,r) ndarray or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : (r,r(r+1)/2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    H_ : (r,r(r+1)/2) ndarray or None
+        Learned ROM (compact) quadratic state matrix, or None if 'H' is not
+        in `modelform`.
 
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
-
-    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : (r,r**3) ndarray or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used in
-        solving the ROM.
+    G_ : (r,r(r+1)(r+2)/6) ndarray or None
+        Learned ROM (compat) cubic state matrix (compact), or None if 'G' is
+        not in `modelform`.
 
     B_ : (r,m) ndarray or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.

@@ -82,8 +82,8 @@ class TestIntrusiveMixin:
                     "B":   (n,m),
                     "c_":  (r,),
                     "A_":  (r,r),
-                    "Hc_": (r,r*(r+1)//2),
-                    "Gc_": (r,r*(r+1)*(r+2)//6),
+                    "H_": (r,r*(r+1)//2),
+                    "G_": (r,r*(r+1)*(r+2)//6),
                     "B_":  (r,m),
                  }
 
@@ -93,7 +93,7 @@ class TestIntrusiveMixin:
         model.n = n
 
         # Get test operators.
-        c, A, H, Hc, G, Gc, B = _get_operators(n, m)
+        c, A, H, G, B = _get_operators(n, m, expanded=True)
         operators = {"c":c, "A":A, "H":H, "G":G, "B":B}
         B1d = B[:,0]
 
@@ -130,7 +130,7 @@ class TestIntrusiveMixin:
             ops = {key:val for key,val in operators.items() if key in form}
             model._project_operators(ops)
             for prefix in MODEL_KEYS:
-                attr = prefix+'c_' if prefix in "HG" else prefix+'_'
+                attr = prefix+'_'
                 assert hasattr(model, prefix)
                 assert hasattr(model, attr)
                 value_n = getattr(model, prefix)
@@ -161,7 +161,7 @@ class TestIntrusiveMixin:
         Vr = np.random.random((n,r))
 
         # Get test operators.
-        c, A, H, Hc, G, Gc, B = _get_operators(n, m)
+        c, A, H, G, B = _get_operators(n, m, expanded=True)
         operators = {"c":c, "A":A, "H":H, "G":G, "B":B}
         B1d = B[:,0]
 

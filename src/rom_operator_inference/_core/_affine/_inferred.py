@@ -21,9 +21,7 @@ from .._base import _ContinuousROM, _DiscreteROM
 from .._inferred import (_InferredMixin,
                          InferredDiscreteROM,
                          InferredContinuousROM)
-from ...utils import (expand_Hc as Hc2H,
-                      expand_Gc as Gc2G,
-                      kron2c, kron3c)
+from ...utils import kron2c, kron3c
 from ... import lstsq
 
 
@@ -243,6 +241,8 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             Block matrix of ROM operator coefficients, the transpose of the
             solution to the Operator Inference linear least-squares problem.
         """
+        # TODO: do this programmatically. for op in self._MODEL_KEYS...
+
         i = 0
         if self.has_constant:           # Constant term (one-dimensional).
             if 'c' in affines:
@@ -255,7 +255,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 self.c_ = O[:,i:i+1][:,0]
                 i += 1
         else:
-            self.c_, self.cs_ = None, None
+            self.c_ = None
 
         if self.has_linear:             # Linear state term.
             if 'A' in affines:
@@ -277,14 +277,12 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 for j in range(len(affines['H'])):
                     Hcs_.append(O[:,i:i+_r2])
                     i += _r2
-                self.Hc_ = AffineOperator(affines['H'], Hcs_)
-                self.H_ = lambda µ: Hc2H(self.Hc_(µ))
+                self.H_ = AffineOperator(affines['H'], Hcs_)
             else:
-                self.Hc_ = O[:,i:i+_r2]
+                self.H_ = O[:,i:i+_r2]
                 i += _r2
-                self.H_ = Hc2H(self.Hc_)
         else:
-            self.Hc_, self.H_ = None, None
+            self.H_ = None
 
         if self.has_cubic:              # (compact) Cubic state term.
             _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
@@ -293,14 +291,12 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 for j in range(len(affines['G'])):
                     Gcs_.append(O[:,i:i+_r3])
                     i += _r3
-                self.Gc_ = AffineOperator(affines['G'], Gcs_)
-                self.G_ = lambda µ: Gc2G(self.Gc_(µ))
+                self.G_ = AffineOperator(affines['G'], Gcs_)
             else:
-                self.Gc_ = O[:,i:i+_r3]
+                self.G_ = O[:,i:i+_r3]
                 i += _r3
-                self.G_ = Gc2G(self.Gc_)
         else:
-            self.Gc_, self.G_ = None, None
+            self.G_ = None
 
         if self.has_inputs:             # Linear input term.
             if 'B' in affines:
@@ -461,24 +457,14 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
     A_ : callable(µ) -> (r,r) ndarray; (r,r) ndarray; or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    H_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
+        Learned ROM (compact) quadratic state matrix, or None if 'H' is not in
+        `modelform`.
 
-    H_ : callable(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
-
-    Gc_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
+    G_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
           (r,r(r+1)(r+2)//6) ndarray; or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : callable(µ) -> (r,r**3) ndarray; (r,r**3) ndarray; or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used in
-        solving the ROM.
+        Learned ROM (compact) cubic state matrix, or None if 'G' is not in
+        `modelform`.
 
     B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
@@ -628,24 +614,14 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
     A_ : callable(µ) -> (r,r) ndarray; (r,r) ndarray; or None
         Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    H_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
+        Learned ROM (compact) quadratic state matrix, or None if 'H' is not in
+        `modelform`.
 
-    H_ : callable(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
-
-    Gc_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
+    G_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
           (r,r(r+1)(r+2)//6) ndarray; or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : callable(µ) -> (r,r**3) ndarray; (r,r**3) ndarray; or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used in
-        solving the ROM.
+        Learned ROM (compact) cubic state matrix, or None if 'G' is not in
+        `modelform`.
 
     B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.

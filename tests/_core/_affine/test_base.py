@@ -132,12 +132,12 @@ class TestAffineMixin:
 
         # Get test operators.
         ident = lambda a: a
-        c, A, H, Hc, G, Gc, B = _get_operators(r, m)
+        c, A, H, G, B = _get_operators(r, m)
         model.Vr = Vr
         model.c_ = roi.AffineOperator([ident, ident], [c,c])
         model.A_ = roi.AffineOperator([ident, ident, ident], [A,A,A])
-        model.Hc_ = roi.AffineOperator([ident], [Hc])
-        model.Gc_ = roi.AffineOperator([ident, ident], [Gc, Gc])
+        model.H_ = roi.AffineOperator([ident], [H])
+        model.G_ = roi.AffineOperator([ident, ident], [G, G])
         model.B_ = None
         model.n, model.m, model.r = n, m, r
 

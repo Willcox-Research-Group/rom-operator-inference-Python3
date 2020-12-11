@@ -28,7 +28,7 @@ class TestAffineIntrusiveMixin:
         Vr = la.svd(X)[0][:,:r]
 
         # Get test operators.
-        c, A, H, Hc, G, Gc, B = _get_operators(n, m)
+        c, A, H, G, B = _get_operators(n, m, expanded=True)
         B1d = B[:,0]
         ident = lambda a: a
         affines = {"c": [ident, ident],
@@ -124,6 +124,8 @@ class TestAffineIntrusiveMixin:
             model.fit(Vr, afs, ops)
 
         model.modelform = "cAHGB"
+        Hc = roi.utils.compress_H(H)
+        Gc = roi.utils.compress_G(G)
         model.fit(Vr, {}, {"c":c, "A":A, "H":H, "G":Gc, "B":B})
         model.fit(Vr, {}, {"c":c, "A":A, "H":Hc, "G":G, "B":B})
         model.fit(Vr, {}, {"c":c, "A":A, "H":H, "G":Gc, "B":B1d})
@@ -139,19 +141,15 @@ class TestAffineIntrusiveMixin:
         assert model.n == n
         assert model.r == r
         assert model.m == m
-        assert model.A.shape == (n,n)
-        assert model.Hc.shape == (n,n*(n+1)//2)
-        assert model.H.shape == (n,n**2)
-        assert model.Gc.shape == (n,n*(n+1)*(n+2)//6)
-        assert model.G.shape == (n,n**3)
         assert model.c.shape == (n,)
+        assert model.A.shape == (n,n)
+        assert model.H.shape == (n,n**2)
+        assert model.G.shape == (n,n**3)
         assert model.B.shape == (n,m)
-        assert model.A_.shape == (r,r)
-        assert model.Hc_.shape == (r,r*(r+1)//2)
-        assert model.H_.shape == (r,r**2)
-        assert model.Gc_.shape == (r,r*(r+1)*(r+2)//6)
-        assert model.G_.shape == (r,r**3)
         assert model.c_.shape == (r,)
+        assert model.A_.shape == (r,r)
+        assert model.H_.shape == (r,r*(r+1)//2)
+        assert model.G_.shape == (r,r*(r+1)*(r+2)//6)
         assert model.B_.shape == (r,m)
 
         # Fit the model with 1D inputs (1D array for B)

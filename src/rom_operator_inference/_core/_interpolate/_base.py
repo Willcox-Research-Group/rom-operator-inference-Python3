@@ -32,19 +32,9 @@ class _InterpolatedMixin(_ParametricMixin):
         return [m.H_ for m in self.models_] if self.has_quadratic else None
 
     @property
-    def Hcs_(self):
-        """The compact quadratic state matrices for each submodel."""
-        return [m.Hc_ for m in self.models_] if self.has_quadratic else None
-
-    @property
     def Gs_(self):
         """The full cubic state matrices for each submodel."""
         return [m.G_ for m in self.models_] if self.has_cubic else None
-
-    @property
-    def Gcs_(self):
-        """The compact cubic state matrices for each submodel."""
-        return [m.Gc_ for m in self.models_] if self.has_cubic else None
 
     @property
     def Bs_(self):

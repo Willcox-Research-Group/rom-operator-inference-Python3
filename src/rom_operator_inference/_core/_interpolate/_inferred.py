@@ -171,7 +171,7 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
 
         # Construct interpolators.
         for lbl, atr in zip(["constant","linear","quadratic","cubic","inputs"],
-                            ["c",       "A",     "Hc",       "Gc",   "B"]):
+                            ["c",       "A",     "H",        "G",    "B"]):
             if getattr(self, f"has_{lbl}"):         # if self.has_constant
                 ops = getattr(self, f"{atr}s_")     # ops = self.cs_
                 op = Interpolator(µs, ops)
@@ -263,30 +263,20 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
     As_ : list of s (r,r) ndarrays or None
         Learned ROM linear state matrices, or None if 'A' not in `modelform`.
 
-    Hcs_ : list of s (r,r(r+1)/2) ndarrays or None
-        Learned ROM quadratic state matrices (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    Hs_ : list of s (r,r(r+1)/2) ndarrays or None
+        Learned ROM (compact) quadratic state matrices, or None if 'H' is not
+        in `modelform`.
 
-    Hs_ : list of s (r,r**2) ndarrays or None
-        Learned ROM quadratic state matrices (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hcs_ if desired; not used in
-        solving the ROM.
-
-    Gcs_ : list of s (r,r(r+1)(r+2)/6) ndarrays or None
-        Learned ROM cubic state matrices (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    Gs_ : list of s (r,r**3) ndarrays or None
-        Learned ROM cubic state matrices (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gcs_ if desired; not used in
-        solving the ROM.
+    Gs_ : list of s (r,r(r+1)(r+2)/6) ndarrays or None
+        Learned ROM (compact) cubic state matrices, or None if 'G' is not
+        in `modelform`.
 
     Bs_ : list of s (r,m) ndarrays or None
         Learned ROM input matrices, or None if 'B' not in `modelform`.
 
     fs_ : list of func(float, (r,) ndarray) -> (r,) ndarray
         The complete ROM operators for each parameter sample, defined by
-        cs_, As_, and/or Hcs_.
+        cs_, As_, Hs_, Gs_, and/or Bs_.
 
     sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
         of integrating the learned ROM in predict(). For more details, see
@@ -439,30 +429,20 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousR
     As_ : list of s (r,r) ndarrays or None
         Learned ROM linear state matrices, or None if 'A' not in `modelform`.
 
-    Hcs_ : list of s (r,r(r+1)/2) ndarrays or None
-        Learned ROM quadratic state matrices (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    Hs_ : list of s (r,r(r+1)/2) ndarrays or None
+        Learned ROM (compact) quadratic state matrices, or None if 'H' is not
+        in `modelform`.
 
-    Hs_ : list of s (r,r**2) ndarrays or None
-        Learned ROM quadratic state matrices (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hcs_ if desired; not used in
-        solving the ROM.
-
-    Gcs_ : list of s (r,r(r+1)(r+2)/6) ndarrays or None
-        Learned ROM cubic state matrices (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    Gs_ : list of s (r,r**3) ndarrays or None
-        Learned ROM cubic state matrices (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gcs_ if desired; not used in
-        solving the ROM.
+    Gs_ : list of s (r,r(r+1)(r+2)/6) ndarrays or None
+        Learned ROM (compact) cubic state matrices, or None if 'G' is not
+        in `modelform`.
 
     Bs_ : list of s (r,m) ndarrays or None
         Learned ROM input matrices, or None if 'B' not in `modelform`.
 
     fs_ : list of func(float, (r,) ndarray) -> (r,) ndarray
         The complete ROM operators for each parameter sample, defined by
-        cs_, As_, and/or Hcs_.
+        cs_, As_, Hs_, Gs_, and/or Bs_.
 
     sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
         of integrating the learned ROM in predict(). For more details, see

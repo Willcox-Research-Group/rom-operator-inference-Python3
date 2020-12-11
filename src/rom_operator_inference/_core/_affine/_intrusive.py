@@ -20,9 +20,8 @@ from .._base import _ContinuousROM, _DiscreteROM
 from .._intrusive import (_IntrusiveMixin,
                           IntrusiveDiscreteROM,
                           IntrusiveContinuousROM)
-from ...utils import (expand_Hc as Hc2H, compress_H as H2Hc,
-                      expand_Gc as Gc2G, compress_G as G2Gc,
-                      kron2c, kron3c)
+from ...utils import (expand_Hc, compress_H,
+                      expand_Gc, compress_G, kron2c, kron3c)
 
 
 # Affine intrusive mixin (private) ============================================
@@ -108,80 +107,60 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
 
         if self.has_quadratic:              # Quadratic state matrix.
             _n2 = self.n * (self.n + 1) // 2
+            Vr2 = np.kron(self.Vr, self.Vr)
             if 'H' in affines:
                 H_or_Hc = AffineOperator(affines['H'], operators['H'])
                 if H_or_Hc.shape == (self.n,self.n**2):     # It's H.
                     self.H = H_or_Hc
-                    self.Hc = AffineOperator(affines['H'],
-                                             [H2Hc(H)
-                                              for H in H_or_Hc.matrices])
                 elif H_or_Hc.shape == (self.n,_n2):         # It's Hc.
-                    self.Hc = H_or_Hc
                     self.H = AffineOperator(affines['H'],
-                                             [Hc2H(Hc)
-                                              for Hc in H_or_Hc.matrices])
+                                            [expand_Hc(Hc)
+                                             for Hc in H_or_Hc.matrices])
                 else:
                     raise ValueError("basis Vr and FOM operator H not aligned")
-                Vr2 = np.kron(self.Vr, self.Vr)
                 self.H_ = AffineOperator(affines['H'],
-                                          [self.Vr.T @ H @ Vr2
-                                           for H in self.H.matrices])
-                self.Hc_ = AffineOperator(affines['H'],
-                                          [H2Hc(H_)
-                                           for H_ in self.H_.matrices])
+                                         [compress_H(self.Vr.T @ H @ Vr2)
+                                          for H in self.H.matrices])
             else:
                 H_or_Hc = operators['H']
                 if H_or_Hc.shape == (self.n,self.n**2):     # It's H.
                     self.H = H_or_Hc
-                    self.Hc = H2Hc(self.H)
                 elif H_or_Hc.shape == (self.n,_n2):         # It's Hc.
-                    self.Hc = H_or_Hc
-                    self.H = Hc2H(self.Hc)
+                    self.H = expand_Hc(H_or_Hc)
                 else:
                     raise ValueError("basis Vr and FOM operator H not aligned")
-                self.H_ = self.Vr.T @ self.H @ np.kron(self.Vr, self.Vr)
-                self.Hc_ = H2Hc(self.H_)
+                self.H_ = compress_H(self.Vr.T @ self.H @ Vr2)
         else:
-            self.Hc, self.H, self.Hc_ = None, None, None
+            self.H, self.H_ = None, None
 
         if self.has_cubic:                  # Cubic state matrix.
             _n3 = self.n * (self.n + 1) * (self.n + 2) // 6
+            Vr3 = np.kron(np.kron(self.Vr, self.Vr), self.Vr)
             if 'G' in affines:
                 G_or_Gc = AffineOperator(affines['G'], operators['G'])
                 if G_or_Gc.shape == (self.n,self.n**3):     # It's G.
                     self.G = G_or_Gc
-                    self.Gc = AffineOperator(affines['G'],
-                                             [G2Gc(G)
-                                              for G in G_or_Gc.matrices])
                 elif G_or_Gc.shape == (self.n,_n3):         # It's Gc.
-                    self.Gc = G_or_Gc
                     self.G = AffineOperator(affines['G'],
-                                             [Gc2G(Gc)
+                                             [expand_Gc(Gc)
                                               for Gc in G_or_Gc.matrices])
                 else:
                     raise ValueError("basis Vr and FOM operator G not aligned")
-                Vr3 = np.kron(np.kron(self.Vr, self.Vr), self.Vr)
+
                 self.G_ = AffineOperator(affines['G'],
-                                          [self.Vr.T @ G @ Vr3
+                                          [compress_G(self.Vr.T @ G @ Vr3)
                                            for G in self.G.matrices])
-                self.Gc_ = AffineOperator(affines['G'],
-                                          [G2Gc(G_)
-                                           for G_ in self.G_.matrices])
             else:
                 G_or_Gc = operators['G']
                 if G_or_Gc.shape == (self.n,self.n**3):     # It's G.
                     self.G = G_or_Gc
-                    self.Gc = G2Gc(self.G)
                 elif G_or_Gc.shape == (self.n,_n3):         # It's Gc.
-                    self.Gc = G_or_Gc
-                    self.G = Gc2G(self.Gc)
+                    self.G = expand_Gc(G_or_Gc)
                 else:
                     raise ValueError("basis Vr and FOM operator G not aligned")
-                Vr3 = np.kron(np.kron(self.Vr, self.Vr), self.Vr)
-                self.G_ = self.Vr.T @ self.G @ Vr3
-                self.Gc_ = G2Gc(self.G_)
+                self.G_ = compress_G(self.Vr.T @ self.G @ Vr3)
         else:
-            self.Gc, self.G, self.Gc_ = None, None, None
+            self.G, self.G_ = None, None
 
         if self.has_inputs:                 # Linear input matrix.
             if 'B' in affines:
@@ -274,17 +253,8 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
     A : callable(µ) -> (n,n) ndarray; (n,n) ndarray; or None
         FOM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc : callable(µ) -> (n,n(n+1)/2) ndarray; (n,n(n+1)/2) ndarray; or None
-        FOM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`.
-
     H : callable(µ) -> (n,n**2) ndarray; (n,n**2) ndarray; or None
         FOM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`.
-
-    Gc : callable(µ) -> (n,n(n+1)(n+2)/6) ndarray; (n,n(n+1)(n+2)/6) ndarray;
-          or None
-        FOM cubic state matrix (compact), or None if 'G' is not
         in `modelform`.
 
     G : callable(µ) -> (n,n**3) ndarray; (n,n**3) ndarray; or None
@@ -300,24 +270,14 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
     A_ : callable(µ) -> (r,r) ndarray; (r,r) ndarray; or None
         Computed ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : callable(µ) -> (r,r(r+1)/2) ndarray; (r,r(r+1)/2) ndarray; or None
-        Computed ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    H_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
+        Learned ROM (compact) quadratic state matrix, or None if 'H' is not in
+        `modelform`.
 
-    H_ : callable(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
-        Computed ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
-
-    Gc_ : callable(µ) -> (r,r(r+1)(r+2)/6) ndarray; (r,r(r+1)(r+2)/6) ndarray;
-          or None
-        Computed ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : callable(µ) -> (r,r**3) ndarray; (r,r**3) ndarray; or None
-        Computed ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used in
-        solving the ROM.
+    G_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
+          (r,r(r+1)(r+2)//6) ndarray; or None
+        Learned ROM (compact) cubic state matrix, or None if 'G' is not in
+        `modelform`.
 
     B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
         Computed ROM input matrix, or None if 'B' is not in `modelform`.
@@ -421,10 +381,6 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
     A : callable(µ) -> (n,n) ndarray; (n,n) ndarray; or None
         FOM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc : callable(µ) -> (n,n(n+1)/2) ndarray; (n,n(n+1)/2) ndarray; or None
-        FOM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`.
-
     H : callable(µ) -> (n,n**2) ndarray; (n,n**2) ndarray; or None
         FOM quadratic state matrix (full size), or None if 'H' is not
         in `modelform`.
@@ -445,24 +401,14 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
     A_ : callable(µ) -> (r,r) ndarray; (r,r) ndarray; or None
         Computed ROM linear state matrix, or None if 'A' is not in `modelform`.
 
-    Hc_ : callable(µ) -> (r,r(r+1)/2) ndarray; (r,r(r+1)/2) ndarray; or None
-        Computed ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
+    H_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
+        Learned ROM (compact) quadratic state matrix, or None if 'H' is not in
+        `modelform`.
 
-    H_ : callable(µ) -> (r,r**2) ndarray; (r,r**2) ndarray; or None
-        Computed ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
-
-    Gc_ : callable(µ) -> (r,r(r+1)(r+2)/6) ndarray; (r,r(r+1)(r+2)/6) ndarray;
-          or None
-        Computed ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : callable(µ) -> (r,r**3) ndarray; (r,r**3) ndarray; or None
-        Computed ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used in
-        solving the ROM.
+    G_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
+          (r,r(r+1)(r+2)//6) ndarray; or None
+        Learned ROM (compact) cubic state matrix, or None if 'G' is not in
+        `modelform`.
 
     B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
         Computed ROM input matrix, or None if 'B' is not in `modelform`.
