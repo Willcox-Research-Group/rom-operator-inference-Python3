@@ -128,9 +128,9 @@ class TestAffineInferredMixin:
             assert np.allclose(rhs_, Vr.T @ rhs)
         assert Us_ is None
 
-    def test_construct_data_matrix(self):
+    def test_assemble_data_matrix(self):
         """Test _core._affine._inferred.
-                _AffineInferredMixin._construct_data_matrix().
+                _AffineInferredMixin._assemble_data_matrix().
         """
         # Get test data.
         k, m, r, s = 200, 5, 10, 10
@@ -151,7 +151,7 @@ class TestAffineInferredMixin:
         model.m, model.r = m, r
         for form in MODEL_FORMS:
             model.modelform = form
-            D = model._construct_data_matrix(µs, affines, Xs_, Us)
+            D = model._assemble_data_matrix(µs, affines, Xs_, Us)
             d = roi.lstsq.lstsq_size(form, r, m if 'B' in form else 0, affines)
             assert D.shape == (k*s,d)
 
@@ -175,7 +175,7 @@ class TestAffineInferredMixin:
         # Try with one-dimensional inputs as a 1D array.
         model.modelform = "B"
         model.m = 1
-        D = model._construct_data_matrix(µs, affines, Xs_, Us1d)
+        D = model._assemble_data_matrix(µs, affines, Xs_, Us1d)
         d = roi.lstsq.lstsq_size(model.modelform, r, model.m, affines)
         assert D.shape == (k*s, d)
         θB = np.array([[θ(µ) for θ in affines["B"]] for µ in µs])
@@ -296,5 +296,7 @@ class TestAffineInferredContinuousROM:
         TestAffineInferredMixin()._test_fit(roi.AffineInferredContinuousROM)
 
     def test_predict(self):
-        """Test _core._affine._inferred.AffineInferredContinuousROM.predict()."""
+        """Test _core._affine._inferred.
+                AffineInferredContinuousROM.predict().
+        """
         TestAffineMixin()._test_predict(roi.AffineInferredContinuousROM)

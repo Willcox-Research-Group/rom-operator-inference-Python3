@@ -104,8 +104,8 @@ class TestInferredMixin:
         assert np.allclose(rhs_, Vr.T @ rhs)
         assert U_ is None
 
-    def test_construct_data_matrix(self):
-        """Test _core._inferred._InferredMixin._construct_data_matrix()."""
+    def test_assemble_data_matrix(self):
+        """Test _core._inferred._InferredMixin._assemble_data_matrix()."""
         # Get test data.
         k, m, r = 500, 20, 10
         X_, _, U = _get_data(r, k, m)
@@ -114,7 +114,7 @@ class TestInferredMixin:
         model.m, model.r = m, r
         for form in MODEL_FORMS:
             model.modelform = form
-            D = model._construct_data_matrix(X_, U)
+            D = model._assemble_data_matrix(X_, U)
             d = roi.lstsq.lstsq_size(form, r, m if 'B' in form else 0)
             assert D.shape == (k,d)
 
@@ -132,7 +132,7 @@ class TestInferredMixin:
         # Try with one-dimensional inputs as a 1D array.
         model.modelform = "cB"
         model.m = 1
-        D = model._construct_data_matrix(X_, U[0])
+        D = model._assemble_data_matrix(X_, U[0])
         assert D.shape == (k, 2)
         assert np.allclose(D, np.column_stack((np.ones(k), U[0])))
 

@@ -7,9 +7,6 @@ Classes
 * InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM)
 * InferredContinuousROM(_InferredMixin, _NonparametricMixin, _ContinuousROM)
 """
-# TODO: _construct_data_matrix() --> _assemble_data_matrix()
-# TODO: _construct_f_() --> _init_f_()
-
 
 __all__ = [
             "InferredDiscreteROM",
@@ -107,7 +104,7 @@ class _InferredMixin:
 
         return X_, rhs_, U
 
-    def _construct_data_matrix(self, X_, U):
+    def _assemble_data_matrix(self, X_, U):
         """Construct the Operator Inference data matrix D from projected data.
 
         If modelform="cAHB", this is D = [1 | X_.T | (X_ ⊗ X_).T | U.T].
@@ -224,7 +221,7 @@ class _InferredMixin:
             only to determine the correct type of solver.
         """
         X_, rhs_, U = self._process_fit_arguments(Vr, X, rhs, U)
-        D = self._construct_data_matrix(X_, U)
+        D = self._assemble_data_matrix(X_, U)
         self.solver_ = lstsq.solver(D, rhs_.T, P, **kwargs)
 
     def _evaluate_solver(self, P):
@@ -239,7 +236,7 @@ class _InferredMixin:
         """
         Otrp = self.solver_.predict(P)
         self._extract_operators(Otrp.T)
-        self._construct_f_()
+        self._init_f_()
 
     def fit(self, Vr, X, rhs, U, P, **kwargs):
         """Solve for the reduced model operators via ordinary least squares.

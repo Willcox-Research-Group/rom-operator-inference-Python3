@@ -162,7 +162,7 @@ class _BaseROM:
         self.G_ = G_ if (G_ is None or G_.shape[1] == _r3) else compress_G(G_)
 
         # Construct the complete reduced model operator from the arguments.
-        self._construct_f_()
+        self._init_f_()
         return self
 
     def _check_inputargs(self, u, argname):
@@ -190,7 +190,7 @@ class _DiscreteROM(_BaseROM):
     The problem may also be parametric, i.e., x and f may depend on an
     independent parameter µ.
     """
-    def _construct_f_(self):
+    def _init_f_(self):
         """Define the attribute self.f_ based on the computed operators."""
         self._check_modelform(trained=True)
 
@@ -284,7 +284,7 @@ class _ContinuousROM(_BaseROM):
     The problem may also be parametric, i.e., x and f may depend on an
     independent parameter µ.
     """
-    def _construct_f_(self):
+    def _init_f_(self):
         """Define the attribute self.f_ based on the computed operators."""
         self._check_modelform(trained=True)
 

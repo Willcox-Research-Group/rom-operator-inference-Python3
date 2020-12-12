@@ -97,7 +97,7 @@ class _IntrusiveMixin:
         else:
             self.B, self.B_, self.m = None, None, None
 
-        self._construct_f_()
+        self._init_f_()
 
     def fit(self, Vr, operators):
         """Compute the reduced model operators via intrusive projection.

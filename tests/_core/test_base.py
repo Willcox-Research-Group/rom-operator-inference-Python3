@@ -182,8 +182,8 @@ class TestBaseROM:
 
 class TestDiscreteROM:
     """Test _core._base._DiscreteROM."""
-    def test_construct_f_(self):
-        """Test _core._base.DiscreteROM._construct_f_()."""
+    def test_init_f_(self):
+        """Test _core._base.DiscreteROM._init_f_()."""
         model = roi._core._base._DiscreteROM('')
 
         # Check that the constructed f takes the right number of arguments.
@@ -191,7 +191,7 @@ class TestDiscreteROM:
         model.c_, model.A_ = np.random.random(5), np.random.random((5,5))
         model.H_, model.G_, model.B_ = None, None, None
         model.r = 5
-        model._construct_f_()
+        model._init_f_()
         with pytest.raises(TypeError) as ex:
             model.f_(1, 2)
         assert ex.value.args[0] == \
@@ -203,7 +203,7 @@ class TestDiscreteROM:
         model.B_ = np.random.random((2,5))
         model.r, model.m = 2, 5
         model.c_, model.A_ = None, None
-        model._construct_f_()
+        model._init_f_()
         with pytest.raises(TypeError) as ex:
             model.f_(1)
         assert ex.value.args[0] == \
@@ -296,8 +296,8 @@ class TestDiscreteROM:
 
 class TestContinuousROM:
     """Test _core._base._ContinuousROM."""
-    def test_construct_f_(self):
-        """Test incorrect usage of _core._base.ContinuousROM._construct_f_()."""
+    def test_init_f_(self):
+        """Test incorrect usage of _core._base.ContinuousROM._init_f_()."""
         model = roi._core._base._ContinuousROM('')
 
         # Check that the constructed f takes the right number of arguments.
@@ -305,7 +305,7 @@ class TestContinuousROM:
         model.c_, model.A_ = np.random.random(5), np.random.random((5,5))
         model.H_, model.G_, model.B_ = None, None, None
         model.r = 5
-        model._construct_f_()
+        model._init_f_()
         with pytest.raises(TypeError) as ex:
             model.f_(1)
         assert ex.value.args[0] == \
@@ -438,20 +438,24 @@ class TestNonparametricMixin:
     class Dummy(roi._core._base._BaseROM, roi._core._base._NonparametricMixin):
         def __init__(self, modelform):
             self.modelform = modelform
+        def _init_f_(*args, **kwargs):
+            pass
 
     def test_operator_matrix_(self):
         """Test _core._base._NonparametricMixin.operator_matrix_."""
         m, r =  4, 9
         c, A, H, G, B = _get_operators(r, m)
         model = self.Dummy("")
-        model.m, model.r = m, r
-        model.c_, model.A_, model.H_, model.G_, model.B_ = c, A, H, G, B
-
         for form in MODEL_FORMS:
             model.modelform = form
-            model.m = m if 'B' in form else 0
+            model._set_operators(None,
+                                 c_=c if 'c' in form else None,
+                                 A_=A if 'A' in form else None,
+                                 H_=H if 'H' in form else None,
+                                 G_=G if 'G' in form else None,
+                                 B_=B if 'B' in form else None)
             O = model.operator_matrix_
-            d = roi.lstsq.lstsq_size(form, r, model.m)
+            d = roi.lstsq.lstsq_size(form, r, m if 'B' in form else 0)
             assert O.shape == (r,d)
 
             # Spot check.

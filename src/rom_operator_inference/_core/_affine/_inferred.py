@@ -144,7 +144,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
 
         return Xs_, rhss_, Us
 
-    def _construct_data_matrix(self, µs, affines, Xs_, Us):
+    def _assemble_data_matrix(self, µs, affines, Xs_, Us):
         """Construct the Operator Inference data matrix D from projected data.
 
         Parameters
@@ -323,7 +323,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         """
         Xs_, rhss_, Us = self._process_fit_arguments(Vr, µs, affines,
                                                      Xs, rhss, Us)
-        D = self._construct_data_matrix(µs, affines, Xs_, Us)
+        D = self._assemble_data_matrix(µs, affines, Xs_, Us)
         self.solver_ = lstsq.solver(D, np.hstack(rhss_).T, P, **kwargs)
 
     def _evaluate_solver(self, affines, P):
