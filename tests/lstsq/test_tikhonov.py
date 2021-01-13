@@ -129,6 +129,57 @@ class TestSolverL2:
         assert np.isclose(solver2D.cond_, np.linalg.cond(A))
 
 
+def _test_decoupled_fit(SolverClass, m, n, k):
+    A = np.random.random((m,n))
+    B = np.random.random((m,k))
+    b = B[:,0]
+
+    # Require two-dimensional inputs.
+    solver = SolverClass(compute_extras=False)
+    with pytest.raises(ValueError) as ex:
+        solver.fit(A, b)
+    assert ex.value.args[0] == "`B` must be two-dimensional"
+
+    solver.fit(A, B)
+    assert solver.r == k
+
+
+class TestSolverL2Decoupled:
+    """Test lstsq._tikhonov.SolverL2Decoupled."""
+    def test_fit(self, m=20, n=10, k=5):
+        """Test lstsq._tikhonov.SolverL2Decoupled.fit()."""
+        _test_decoupled_fit(roi.lstsq.SolverL2Decoupled, m, n, k)
+
+    def test_predict(self, m=20, n=10):
+        λs = np.array([0, 1, 3, 5])
+        k = len(λs)
+        A = np.random.random((m,n))
+        B = np.random.random((m,k))
+        solver = roi.lstsq.SolverL2Decoupled(compute_extras=True).fit(A, B)
+
+        # Try with the wrong number of regularization parameters.
+        with pytest.raises(ValueError) as ex:
+            solver.predict(λs[:-1])
+        assert ex.value.args[0] == "len(λs) != number of columns of B"
+
+        I = np.eye(n)
+        Apads = [np.vstack((A, λ*I)) for λ in λs]
+        Bpad = np.vstack((B, np.zeros((n,k))))
+        X1 = np.column_stack([la.lstsq(Apad, Bpad[:,j])[0]
+                              for j,Apad in enumerate(Apads)])
+        X2 = solver.predict(λs)
+        assert np.allclose(X1, X2)
+        assert solver.misfit_.shape == (k,)
+        assert solver.residual_.shape == (k,)
+        assert np.all(solver.misfit_ <= solver.residual_)
+        assert np.isclose(solver.misfit_.sum(),
+                          la.norm(A @ X1 - B, ord='fro')**2)
+        assert np.isclose(solver.cond_, np.linalg.cond(A))
+
+        solver.compute_extras = False
+        solver.predict(λs)
+
+
 class TestSolverTikhonov:
     """Test lstsq._tikhonov.SolverTikhonov."""
     def test_process_regularizer(self, d=10):
@@ -276,18 +327,7 @@ class TestSolverTikhonovDecoupled:
     """Test lstsq._tikhonov.SolverTikhonovDecoupled."""
     def test_fit(self, m=20, n=10, k=5):
         """Test lstsq._tikhonov.SolverTikhonovDecoupled.fit()."""
-        A = np.random.random((m,n))
-        B = np.random.random((m,k))
-        b = B[:,0]
-
-        # Require two-dimensional inputs.
-        solver = roi.lstsq.SolverTikhonovDecoupled(compute_extras=False)
-        with pytest.raises(ValueError) as ex:
-            solver.fit(A, b)
-        assert ex.value.args[0] == "`B` must be two-dimensional"
-
-        solver.fit(A, B)
-        assert solver.r == k
+        _test_decoupled_fit(roi.lstsq.SolverTikhonovDecoupled, m, n, k)
 
     def test_predict(self, m=20, n=10):
         """Test lstsq._tikhonov.SolverTikhonovDecoupled.predict()."""
@@ -298,6 +338,11 @@ class TestSolverTikhonovDecoupled:
         solver.fit(A, B)
         Ps = [np.eye(n), np.full(n, 2)]
 
+        # Try with the wrong number of regularizers.
+        with pytest.raises(ValueError) as ex:
+            solver.predict(Ps[:1])
+        assert ex.value.args[0] == "len(Ps) != number of columns of B"
+
         Apad1 = np.vstack((A, Ps[0]))
         Apad2 = np.vstack((A, np.diag(Ps[1])))
         Bpad = np.vstack((B, np.zeros((n,2))))
@@ -306,36 +351,56 @@ class TestSolverTikhonovDecoupled:
         X1 = np.column_stack([xx1, xx2])
         X2 = solver.predict(Ps)
         assert np.allclose(X1, X2)
-        assert solver.misfit_ < np.sum(solver.residual_)
-        assert np.isclose(solver.misfit_, la.norm(A @ X1 - B, ord='fro')**2)
+        assert solver.misfit_.shape == (2,)
+        assert solver.residual_.shape == (2,)
+        assert np.all(solver.misfit_ <= solver.residual_)
+        assert np.isclose(solver.misfit_.sum(),
+                          la.norm(A @ X1 - B, ord='fro')**2)
         assert np.isclose(solver.cond_, np.linalg.cond(A))
 
         solver.compute_extras = False
         solver.predict(Ps)
 
 
-def test_solve(m=20, n=10, k=5):
+def test_solver(m=20, n=10, k=5):
     """Test lstsq._tikhonov.solve()."""
     A = np.random.random((m,n))
     B = np.random.random((m,k))
-    Ps = [np.random.random((n,n)) for _ in range(k)]
+    λs = 5 + np.random.random(k)
+    Ps = [5 + np.random.random((n,n)) for _ in range(k)]
+    Ps_diag = [5 + np.random.random(n) for _ in range(k)]
 
+    # Bad number of regularization parameters.
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.solve(A, B[:,0], Ps)
-    assert ex.value.args[0] == "`B` must be two-dimensional"
+        roi.lstsq.solver(A, B, λs[:k-2])
+    assert ex.value.args[0] == "invalid or misaligned input P"
 
-    # Bad number of regularization matrices (list).
+    # Bad number of regularization matrices.
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.solve(A, B, Ps[:3])
-    assert ex.value.args[0] == "len(Ps) != number of columns of B"
+        roi.lstsq.solver(A, B, Ps[:k-2])
+    assert ex.value.args[0] == "invalid or misaligned input P"
+
+    # Try to solve 1D problem with multiple regularizations.
+    with pytest.raises(ValueError) as ex:
+        roi.lstsq.solver(A, B[:,0], Ps)
+    assert ex.value.args[0] == "invalid or misaligned input P"
 
     # Bad type for regularization.
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.solve(A, B, {})
-    assert ex.value.args[0] == "invalid input P of type 'dict'"
+        roi.lstsq.solver(A, B, {})
+    assert ex.value.args[0] == "invalid or misaligned input P"
 
     # Correct usage.
+    solver = roi.lstsq.solver(A, B, 0)
+    assert isinstance(solver, roi.lstsq.SolverL2)
+    solver = roi.lstsq.solver(A, B, λs[0])
+    assert isinstance(solver, roi.lstsq.SolverL2)
+    solver = roi.lstsq.solver(A, B, λs)
+    assert isinstance(solver, roi.lstsq.SolverL2Decoupled)
+    solver = roi.lstsq.solver(A, B, Ps[0])
+    assert isinstance(solver, roi.lstsq.SolverTikhonov)
+    solver = roi.lstsq.solver(A, B, Ps)
+    assert isinstance(solver, roi.lstsq.SolverTikhonovDecoupled)
+    solver = roi.lstsq.solver(A, B, Ps_diag)
+    assert isinstance(solver, roi.lstsq.SolverTikhonovDecoupled)
     roi.lstsq.solve(A, B, 0)
-    roi.lstsq.solve(A, B, 1)
-    roi.lstsq.solve(A, B, Ps[0])
-    roi.lstsq.solve(A, B, Ps)

@@ -1,8 +1,10 @@
 # lstsq/_tikhonov.py
 """Operator Inference least-squares solvers with Tikhonov regularization."""
+# TODO: update documentation to say extras are now attributes, not returns
 
 __all__ = [
             "SolverL2",
+            "SolverL2Decoupled",
             "SolverTikhonov",
             "SolverTikhonovDecoupled",
             "solver",
@@ -27,11 +29,7 @@ class _BaseSolver:
         Parameters
         ----------
         compute_extras : bool
-            If True, record residual / conditioning information as attributes:
-            * cond_: condition number of the matrix A.
-            * regcond_: condition number of the regularized matrix [A.T|P.T].T.
-            * misfit_: data misfit ||Ax - b||^2.
-            * residual_: problem residual ||Ax - b||^2 + ||Px||^2.
+            If True, record residual / conditioning information as attributes.
         """
         self.compute_extras = compute_extras
 
@@ -61,6 +59,31 @@ class SolverL2(_BaseSolver):
     If b is two-dimensional, the problem is solved in the Frobenius norm:
 
         min_{X} ||AX - B||_F^2 + ||λX||_F^2,   λ > 0.
+
+    Attributes
+    ----------
+    k : int
+        Number of equations in the least-squares problem (number of rows of A).
+
+    d : int
+        Number of unknowns to learn in each problem (number of columns of A).
+
+    compute_extras : bool
+        If True, predict() records the remaining attributes listed below.
+
+    cond_ : float
+        Condition number of the matrix A.
+
+    regcond_ : float
+        Effective condition number of the regularized A, [A.T|λI.T].T,
+        computed from filtered singular values of A.
+
+    misfit_ : float
+        Data misfit ||Ax - b||_2^2, or ||AX - B||_F^2 if b is two-dimensional.
+
+    residual_ : float
+        Problem residual ||Ax - b||_2^2 + ||λx||_2^2,
+        or ||AX - B||_F^2 + ||λX||_F^2 if b is two-dimensional.
     """
     def fit(self, A, b):
         """Take the SVD of A in preparation to solve the least-squares problem.
@@ -84,12 +107,19 @@ class SolverL2(_BaseSolver):
 
         # Save what is needed for extra outputs if desired.
         if self.compute_extras:
-            self.extras = {}
             self._A = A
             self._b = b
             self.cond_ = abs(s[0] / s[-1]) if s[-1] > 0 else np.inf
 
         return self
+
+    def _process_regularizer(self, λ):
+        """Validate the regularization parameter and return λ^2."""
+        if not np.isscalar(λ):
+            raise ValueError("regularization parameter must be a scalar")
+        if λ < 0:
+            raise ValueError("regularization parameter must be nonnegative")
+        return λ**2
 
     def predict(self, λ):
         """Solve the least-squares problem with regularization parameter λ.
@@ -105,37 +135,14 @@ class SolverL2(_BaseSolver):
             Least-squares solution. If `b` is a two-dimensional array, then
             each column is a solution to the regularized least-squares problem
             with the corresponding column of b.
-
-        **If compute_extras is True, the following attributes are saved.**
-
-        misfit_: float
-            Residual (data misfit) of the non-regularized problem:
-            * if `b` is one-dimensional: ||Ax - b||_2^2
-            * if `b` is two-dimensional: ||AX - B||_F^2
-
-        residual_ : float
-            Residual of the regularized problem:
-            * if `b` is one-dimensional: ||Ax - b||_2^2 + ||λx||_2^2
-            * if `b` is two-dimensional: ||AX - B||_F^2 + ||λX||_F^2
-
-        datacond_ : float
-            Condition number of A, σ_max(A) / σ_min(A).
-
-        dataregcond_ : float
-            Effective condition number of regularized A, s_max(A) / s_min(A)
-            where s(A) = (σ(A)^2 + λ^2) / σ(A).
         """
-        # Check that λ is a nonnegative scalar.
-        if not np.isscalar(λ):
-            raise ValueError("regularization parameter must be a scalar")
-        if λ < 0:
-            raise ValueError("regularization parameter must be nonnegative")
+        λ2 = self._process_regularizer(λ)
 
         # Invert / filter the singular values and compute the solution.
-        if λ == 0:
+        if λ2 == 0:
             Sinv = 1 / self._s                          # σinv = 1/σ
         else:
-            Sinv = self._s / (self._s**2 + λ**2)        # σinv = σ/(σ^2 + λ^2)
+            Sinv = self._s / (self._s**2 + λ2)          # σinv = σ/(σ^2 + λ^2)
         if self._bndim == 2:
             Sinv = Sinv.reshape((-1,1))
 
@@ -146,11 +153,106 @@ class SolverL2(_BaseSolver):
             # Data misfit (no regularization): ||Ax-b||^2.
             self.misfit_ = np.sum((self._A @ x - self._b)**2)
             # Problem residual: ||Ax-b||^2 + ||λx||^2.
-            self.residual_ = self.misfit_ + λ**2*np.sum(x**2)
+            self.residual_ = self.misfit_ + λ2*np.sum(x**2)
             # Condition number of regularized problem.
             self.regcond_ = abs(Sinv.max() / Sinv.min())
 
         return x
+
+
+class SolverL2Decoupled(SolverL2):
+    """Solve r independent l2-norm ordinary least-squares problems, each with
+    the same data matrix but different L2 regularizations,
+
+        min_{x_i} ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2,    λ_i > 0.
+
+    Attributes
+    ----------
+    k : int
+        Number of equations in the least-squares problem (number of rows of A).
+
+    d : int
+        Number of unknowns to learn in each problem (number of columns of A).
+
+    r : int
+        Number of independent least-squares problems (number of columns of B).
+
+    compute_extras : bool
+        If True, predict() records the remaining attributes listed below.
+
+    cond_ : float
+        Condition number of the matrix A.
+
+    regcond_ : (r,) ndarray
+        Effective condition numbers of the regularized A, [A.T| (λ_i I).T].T,
+        computed from filtered singular values of A, i = 1,...,r.
+
+    misfit_ : (r,) ndarray
+        Data misfits ||Ax_i - b_i||_2^2, i = 1,...,r.
+
+    residual_ : (r,) ndarray
+        Problem residuals ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2, i = 1,...,r.
+    """
+    def fit(self, A, B):
+        """Take the SVD of A in preparation to solve the least-squares problem.
+
+        Parameters
+        ----------
+        A : (k,d) ndarray
+            The "left-hand side" matrix.
+
+        B : (k,r) ndarray
+            The "right-hand side" matrix. Each column of B defines a separate
+            least-squares problem.
+        """
+        if B.ndim != 2:
+            raise ValueError("`B` must be two-dimensional")
+        self.r = B.shape[1]
+        return SolverL2.fit(self, A, B)
+
+    def predict(self, λs):
+        """Solve the least-squares problems with regularization parameters λs.
+
+        Parameters
+        ----------
+        λs : sequence of r floats or (r,) ndarray
+
+        Returns
+        -------
+        X : (d,r) ndarray
+            Least-squares solution; each column is a solution to the
+            problem with the corresponding column of B.
+        """
+        if hasattr(λs, "__len__") and len(λs) != self.r:
+            raise ValueError("len(λs) != number of columns of B")
+
+        # Allocate space for the solution and initialize extras if desired.
+        X = np.empty((self.d,self.r))
+        if self.compute_extras:
+            λ2s = []
+            regconds = []
+
+        # Solve each independent problem (iteratively for now).
+        for j, λ in zip(range(self.r), λs):
+            # Solve each regularized problem.
+            λ2 = self._process_regularizer(λ)
+            if λ2 == 0:
+                Sinv = 1 / self._s                      # σinv = 1/σ
+            else:
+                Sinv = self._s / (self._s**2 + λ2)      # σinv = σ/(σ^2 + λ^2)
+            X[:,j] = self._V @ (Sinv * self._Utb[:,j])  # xj = V Sinvj U.T bj
+
+            if self.compute_extras:
+                λ2s.append(λ2)
+                regconds.append(abs(Sinv.max() / Sinv.min()))
+
+        # Compute residuals and condition numbers if desired.
+        if self.compute_extras:
+            self.misfit_ = np.sum((self._A @ X - self._b)**2, axis=0)
+            self.residual_ = self.misfit_ + np.array(λ2s)*np.sum(X**2, axis=0)
+            self.regcond_ = np.array(regconds)
+
+        return X
 
 
 class SolverTikhonov(_BaseSolver):
@@ -162,6 +264,30 @@ class SolverTikhonov(_BaseSolver):
     If b is two-dimensional, the problem is solved in the Frobenius norm:
 
         min_{X} ||AX - B||_F^2 + ||PX||_F^2,    P > 0 (SPD matrix).
+
+    Attributes
+    ----------
+    k : int
+        Number of equations in the least-squares problem (number of rows of A).
+
+    d : int
+        Number of unknowns to learn in each problem (number of columns of A).
+
+    compute_extras : bool
+        If True, predict() records the remaining attributes listed below.
+
+    cond_ : float
+        Condition number of the matrix A.
+
+    regcond_ : float
+        Condition number of the regularized A, [A.T|P.T].T.
+
+    misfit_ : float
+        Data misfit ||Ax - b||_2^2, or ||AX - B||_F^2 if b is two-dimensional.
+
+    residual_ : float
+        Problem residual ||Ax - b||_2^2 + ||Px||_2^2,
+        or ||AX - B||_F^2 + ||PX||_F^2 if b is two-dimensional.
     """
     def __init__(self, compute_extras=False, check_regularizer=False):
         """Set behavior parameters.
@@ -203,7 +329,6 @@ class SolverTikhonov(_BaseSolver):
 
         # Save what is needed for extra outputs if desired.
         if self.compute_extras:
-            self.extras = {}
             self._A = A
             self._b = b
             self.cond_ = np.linalg.cond(A)
@@ -247,25 +372,6 @@ class SolverTikhonov(_BaseSolver):
             Least-squares solution. If `b` is a two-dimensional array, then
             each column is a solution to the regularized least-squares problem
             with the corresponding column of b.
-
-        **If compute_extras is True, the following attributes are saved.**
-
-        misfit_: float
-            Residual (data misfit) of the non-regularized problem:
-            * if `b` is one-dimensional: ||Ax - b||_2^2
-            * if `b` is two-dimensional: ||Ax - b||_F^2
-
-        residual_ : float
-            Residual of the regularized problem:
-            * if `b` is one-dimensional: ||Ax - b||_2^2 + ||λx||_2^2
-            * if `b` is two-dimensional: ||Ax - b||_F^2 + ||λx||_F^2
-
-        cond_ : float
-            Condition number of A, σ_max(A) / σ_min(A).
-
-        regcond_ : float
-            Condition number of regularized A, σ_max(G) / σ_min(G) where
-            G = [A.T | P.T].T is the augmented data matrix.
         """
         # Construct and solve the augmented problem.
         lhs = self._AtA + self._process_regularizer(P)
@@ -292,6 +398,33 @@ class SolverTikhonovDecoupled(SolverTikhonov):
     the same data matrix but a different Tikhonov regularizer,
 
         min_{x_i} ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2.
+
+    Attributes
+    ----------
+    k : int
+        Number of equations in the least-squares problem (number of rows of A).
+
+    d : int
+        Number of unknowns to learn in each problem (number of columns of A).
+
+    r : int
+        Number of independent least-squares problems (number of columns of B).
+
+    compute_extras : bool
+        If True, predict() records the remaining attributes listed below.
+
+    cond_ : float
+        Condition number of the matrix A.
+
+    regcond_ : (r,) ndarray
+        Effective condition numbers of the regularized A, [A.T| (P_i I).T].T,
+        for i = 1,...,r.
+
+    misfit_ : (r,) ndarray
+        Data misfits ||Ax_i - b_i||_2^2, i = 1,...,r.
+
+    residual_ : (r,) ndarray
+        Problem residuals ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2, i = 1,...,r.
     """
     def fit(self, A, B):
         """Prepare to solve the least-squares problem via the normal equations.
@@ -311,7 +444,7 @@ class SolverTikhonovDecoupled(SolverTikhonov):
         return SolverTikhonov.fit(self, A, B)
 
     def predict(self, Ps):
-        """Solve the least-squares problem with regularization matrices Ps.
+        """Solve the least-squares problems with regularization matrices Ps.
 
         Parameters
         ----------
@@ -324,23 +457,6 @@ class SolverTikhonovDecoupled(SolverTikhonov):
         X : (d,r) ndarray
             Least-squares solution; each column is a solution to the
             problem with the corresponding column of B.
-
-        **If compute_extras is True, the following attributes are saved.**
-
-
-        misfit_: float
-            Residual (data misfit) of the raw problem: ||AX - B||_F^2
-
-        residual_ : list of r floats
-            Residuals of the regularized problems:
-            ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2.
-
-        cond_ : float
-            Condition number of A, σ_max(A) / σ_min(A).
-
-        regcond_ : list of r floats
-            Condition numbers of regularized A, σ_max(G) / σ_min(G) where
-            G = [A.T | P.T].T is the augmented data matrix.
         """
         if hasattr(Ps, "__len__") and len(Ps) != self.r:
             raise ValueError("len(Ps) != number of columns of B")
@@ -348,8 +464,7 @@ class SolverTikhonovDecoupled(SolverTikhonov):
         # Allocate space for the solution and initialize extras if desired.
         X = np.empty((self.d,self.r))
         if self.compute_extras:
-            misfit = 0
-            residuals = []
+            Px_norms = []
             regconds = []
 
         # Solve each independent problem (iteratively for now).
@@ -360,16 +475,15 @@ class SolverTikhonovDecoupled(SolverTikhonov):
 
             # Compute extras if desired.
             if self.compute_extras:
-                misfit += np.sum((self._A @ X[:,j] - self._b[:,j])**2)
                 Px = P * X[:,j] if P.ndim == 1 else P @ X[:,j]
-                residuals.append(misfit + np.sum(Px**2))
+                Px_norms.append(np.sum(Px**2))
                 regconds.append(np.sqrt(np.linalg.cond(lhs)))
 
         # Record extras if desired.
         if self.compute_extras:
-            self.misfit_ = misfit
-            self.residual_ = residuals
-            self.regcond_ = regconds
+            self.misfit_ = np.sum((self._A @ X - self._b)**2, axis=0)
+            self.residual_ = self.misfit_ + np.array(Px_norms)
+            self.regcond_ = np.array(regconds)
 
         return X
 
@@ -390,15 +504,15 @@ def solver(A, b, P, **kwargs):
         The "right-hand side" vector. If a two-dimensional array, then r
         independent least-squares problems are solved.
 
-    P : float >= 0, (d,) narray, (d,d) ndarray, or sequence of length r
+    P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
         Tikhonov regularization parameter(s). The regularization matrix in the
         least-squares problem depends on the format of the argument:
         * float >= 0: `P`*I, a scaled identity matrix.
         * (d,) ndarray: diag(P), a diagonal matrix.
         * (d,d) ndarray: the matrix `P`.
-        * sequence : the jth entry in the sequence is the regularization
-            parameter for the jth column of `b`. Only valid if `b` is two-
-            dimensional and has r columns.
+        * sequence of length r : the jth entry in the sequence is the
+            regularization parameter for the jth column of `b`. Only valid if
+            `b` is two-dimensional and has exactly r columns.
 
     **kwargs
         Additional arguments for the solver object.
@@ -419,22 +533,31 @@ def solver(A, b, P, **kwargs):
         Least-squares solver object, with a predict() method mapping the
         regularization factor to the least-squares solution.
     """
-    # If P is a scalar, solve the corresponding L2 problem.
+    d = A.shape[1]
+
+    # P is a scalar: single L2-regularized problem.
     if np.isscalar(P):
-        if "check_regularizer" in kwargs:                  # pragma: no cover
+        if "check_regularizer" in kwargs:                   # pragma: no cover
             kwargs.pop("check_regularizer")
         solver = SolverL2(**kwargs)
 
-    # If P is a single matrix, solve the corresponding Tikhonov problem.
-    elif isinstance(P, np.ndarray) and (P.shape==(A.shape[1],) or P.ndim==2):
+    # P is a sequence of r scalars: decoupled L2-regularized problems.
+    elif b.ndim == 2 and np.shape(P) == (b.shape[1],):
+        if "check_regularizer" in kwargs:                   # pragma: no cover
+            kwargs.pop("check_regularizer")
+        solver = SolverL2Decoupled(**kwargs)
+
+    # P is a dxd matrix (or a 1D array of length d for diagonal P):
+    # single Tikhonov-regularized problem.
+    elif isinstance(P, np.ndarray) and (P.shape in [(d,), (d,d)]):
         solver = SolverTikhonov(**kwargs)
 
-    # If P is a sequence, decouple the problem by column.
-    elif isinstance(P, (np.ndarray, list, types.GeneratorType)):
+    # P is a sequence of r matrices: decoupled Tikhonov-regularized problems.
+    elif b.ndim == 2 and np.shape(P) in [(b.shape[1],d), (b.shape[1],d,d)]:
         solver = SolverTikhonovDecoupled(**kwargs)
 
     else:
-        raise ValueError(f"invalid input P of type '{type(P).__name__}'")
+        raise ValueError(f"invalid or misaligned input P")
 
     return solver.fit(A, b)
 
@@ -453,15 +576,15 @@ def solve(A, b, P=0, **kwargs):
         The "right-hand side" vector. If a two-dimensional array, then r
         independent least-squares problems are solved.
 
-    P : float >= 0, (d,) narray, (d,d) ndarray, or sequence of length r
+    P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
         Tikhonov regularization parameter(s). The regularization matrix in the
         least-squares problem depends on the format of the argument:
         * float >= 0: `P`*I, a scaled identity matrix.
         * (d,) ndarray: diag(P), a diagonal matrix.
         * (d,d) ndarray: the matrix `P`.
-        * sequence : the jth entry in the sequence is the regularization
-            parameter for the jth column of `b`. Only valid if `b` is two-
-            dimensional.
+        * sequence of length r : the jth entry in the sequence is the
+            regularization parameter for the jth column of `b`. Only valid if
+            `b` is two-dimensional and has exactly r columns.
 
     **kwargs
         Additional arguments for the solver object.
