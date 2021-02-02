@@ -41,6 +41,7 @@ class _InferredMixin:
                 raise ValueError(f"invalid training input "
                                  f"({label}.shape[0] != m={self.m})")
 
+    # Fitting -----------------------------------------------------------------
     def _process_fit_arguments(self, Vr, X, rhs, U):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get projected data for the Operator Inference least-squares problem.
@@ -76,17 +77,13 @@ class _InferredMixin:
         U : (m,k) ndarray
             Inputs, potentially reshaped.
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=False)
         self._check_inputargs(U, 'U')
+        self._clear()
 
-        # Store basis and dimensions.
-        if Vr is not None:
-            self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
-        else:
-            self.n = None               # No full dimension.
-            self.r = X.shape[0]         # Reduced dimension.
+        # Store basis and reduced dimension.
         self.Vr = Vr
+        if Vr is None:
+            self.r = X.shape[0]
 
         # Ensure training data sets have consistent sizes.
         if self.has_inputs:
@@ -95,7 +92,6 @@ class _InferredMixin:
             self.m = U.shape[0]         # Input dimension.
             self._check_training_data_shapes([X, rhs, U], ["X", "Xdot", "U"])
         else:
-            self.m = None               # No input dimension.
             self._check_training_data_shapes([X, rhs], ["X", "Xdot"])
 
         # Project states and rhs to the reduced subspace (if not done already).
@@ -144,7 +140,6 @@ class _InferredMixin:
 
         return np.hstack(D)
 
-    # TODO: move this to _NonparametricMixin, use as operator_matrix_ setter.
     def _extract_operators(self, O):
         """Extract and save the inferred operators from the block-matrix
         solution to the least-squares problem.
@@ -159,34 +154,24 @@ class _InferredMixin:
         if self.has_constant:           # Constant term (one-dimensional).
             self.c_ = O[:,i:i+1][:,0]
             i += 1
-        else:
-            self.c_ = None
 
         if self.has_linear:             # Linear state matrix.
             self.A_ = O[:,i:i+self.r]
             i += self.r
-        else:
-            self.A_ = None
 
         if self.has_quadratic:          # (compact) Qudadratic state matrix.
             _r2 = self.r * (self.r + 1) // 2
             self.H_ = O[:,i:i+_r2]
             i += _r2
-        else:
-            self.H_ = None
 
         if self.has_cubic:              # (compact) Cubic state matrix.
             _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
             self.G_ = O[:,i:i+_r3]
             i += _r3
-        else:
-            self.G_ = None
 
         if self.has_inputs:             # Linear input matrix.
             self.B_ = O[:,i:i+self.m]
             i += self.m
-        else:
-            self.B_ = None
 
         return
 
@@ -236,7 +221,6 @@ class _InferredMixin:
         """
         Otrp = self.solver_.predict(P)
         self._extract_operators(Otrp.T)
-        self._init_f_()
 
     def fit(self, Vr, X, rhs, U, P, **kwargs):
         """Solve for the reduced model operators via ordinary least squares.

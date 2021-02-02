@@ -27,6 +27,97 @@ from ...utils import (expand_Hc, compress_H,
 # Affine intrusive mixin (private) ============================================
 class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
     """Mixin class for affinely parametric intrusive reduced model classes."""
+    # Fitting -----------------------------------------------------------------
+    def _process_fit_arguments(self, Vr, affines, operators):
+        """Validate the arguments to fit() and set the basis."""
+        # Verify affine expansions.
+        self._check_affines_keys(affines)
+        self._check_operators_keys(operators)
+
+        # Reset all variables and store basis.
+        self._clear()
+        self.Vr = Vr
+
+    def _project_operators(self, affines, operators):
+        """Project the full-order operators to the reduced-order space."""
+        if self.has_quadratic or self.has_cubic:
+            Vr2 = np.kron(self.Vr, self.Vr)
+
+        # Project FOM operators.
+        if self.has_constant:               # Constant term.
+            if 'c' in affines:
+                self.c = AffineOperator(affines['c'], operators['c'])
+                self.c_ = AffineOperator(affines['c'],
+                                         [self.Vr.T @ c
+                                          for c in self.c.matrices])
+            else:
+                self.c = operators['c']
+                self.c_ = self.Vr.T @ self.c
+
+        if self.has_linear:                 # Linear state matrix.
+            if 'A' in affines:
+                self.A = AffineOperator(affines['A'], operators['A'])
+                self.A_ = AffineOperator(affines['A'],
+                                         [self.Vr.T @ A @ self.Vr
+                                          for A in self.A.matrices])
+            else:
+                self.A = operators['A']
+                self.A_ = self.Vr.T @ self.A @ self.Vr
+
+        if self.has_quadratic:              # Quadratic state matrix.
+            _n2 = self.n * (self.n + 1) // 2
+            if 'H' in affines:
+                H_or_Hc = AffineOperator(affines['H'], operators['H'])
+                if H_or_Hc.shape == (self.n,_n2):
+                    self.H = AffineOperator(affines['H'],
+                                            [expand_Hc(Hc)
+                                             for Hc in H_or_Hc.matrices])
+                else:
+                    self.H = H_or_Hc
+                self.H_ = AffineOperator(affines['H'],
+                                         [compress_H(self.Vr.T @ H @ Vr2)
+                                          for H in self.H.matrices])
+            else:
+                self.H = operators['H']
+                self.H_ = self.Vr.T @ self.H @ Vr2
+
+        if self.has_cubic:                  # Cubic state matrix.
+            _n3 = self.n * (self.n + 1) * (self.n + 2) // 6
+            Vr3 = np.kron(self.Vr, Vr2)
+            if 'G' in affines:
+                G_or_Gc = AffineOperator(affines['G'], operators['G'])
+                if G_or_Gc.shape == (self.n,_n3):
+                    self.G = AffineOperator(affines['G'],
+                                            [expand_Gc(Gc)
+                                             for Gc in G_or_Gc.matrices])
+                else:
+                    self.G = G_or_Gc
+                self.G_ = AffineOperator(affines['G'],
+                                         [compress_G(self.Vr.T @ G @ Vr3)
+                                          for G in self.G.matrices])
+            else:
+                self.G = operators['G']
+                self.G_ = self.Vr.T @ self.G @ Vr3
+
+        if self.has_inputs:                 # Linear input matrix.
+            if 'B' in affines:
+                B = AffineOperator(affines['B'], operators['B'])
+                if len(B.shape) == 1:
+                    B = AffineOperator(affines['B'],
+                                       [b.reshape((-1,1)) for b in B.matrices])
+                self.m = B.shape[1]
+                self.B = B
+                self.B_ = AffineOperator(affines['B'],
+                                         [self.Vr.T @ B
+                                          for B in self.B.matrices])
+            else:
+                B = operators['B']
+                if B.ndim == 1:
+                    B = B.reshape((-1,1))
+                self.m = B.shape[1]
+                self.B = B
+                self.B_ = self.Vr.T @ self.B
+
     def fit(self, Vr, affines, operators):
         """Solve for the reduced model operators via intrusive projection.
 
@@ -63,133 +154,8 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
         -------
         self
         """
-        # Verify modelform, affines, and operators.
-        self._check_modelform(trained=False)
-        self._check_affines_keys(affines)
-        self._check_operators_keys(operators)
-
-        # Store dimensions.
-        self.Vr = Vr
-        self.n, self.r = self.Vr.shape      # Dim of system, num basis vectors.
-
-        # Project FOM operators.
-        if self.has_constant:               # Constant term.
-            if 'c' in affines:
-                self.c = AffineOperator(affines['c'], operators['c'])
-                if self.c.shape != (self.n,):
-                    raise ValueError("basis Vr and FOM operator c not aligned")
-                self.c_ = AffineOperator(affines['c'],
-                                          [self.Vr.T @ c
-                                           for c in self.c.matrices])
-            else:
-                self.c = operators['c']
-                if self.c.shape != (self.n,):
-                    raise ValueError("basis Vr and FOM operator c not aligned")
-                self.c_ = self.Vr.T @ self.c
-        else:
-            self.c, self.c_ = None, None
-
-        if self.has_linear:                 # Linear state matrix.
-            if 'A' in affines:
-                self.A = AffineOperator(affines['A'], operators['A'])
-                if self.A.shape != (self.n,self.n):
-                    raise ValueError("basis Vr and FOM operator A not aligned")
-                self.A_ = AffineOperator(affines['A'],
-                                          [self.Vr.T @ A @ self.Vr
-                                           for A in self.A.matrices])
-            else:
-                self.A = operators['A']
-                if self.A.shape != (self.n,self.n):
-                    raise ValueError("basis Vr and FOM operator A not aligned")
-                self.A_ = self.Vr.T @ self.A @ self.Vr
-        else:
-            self.A, self.A_ = None, None
-
-        if self.has_quadratic:              # Quadratic state matrix.
-            _n2 = self.n * (self.n + 1) // 2
-            Vr2 = np.kron(self.Vr, self.Vr)
-            if 'H' in affines:
-                H_or_Hc = AffineOperator(affines['H'], operators['H'])
-                if H_or_Hc.shape == (self.n,self.n**2):     # It's H.
-                    self.H = H_or_Hc
-                elif H_or_Hc.shape == (self.n,_n2):         # It's Hc.
-                    self.H = AffineOperator(affines['H'],
-                                            [expand_Hc(Hc)
-                                             for Hc in H_or_Hc.matrices])
-                else:
-                    raise ValueError("basis Vr and FOM operator H not aligned")
-                self.H_ = AffineOperator(affines['H'],
-                                         [compress_H(self.Vr.T @ H @ Vr2)
-                                          for H in self.H.matrices])
-            else:
-                H_or_Hc = operators['H']
-                if H_or_Hc.shape == (self.n,self.n**2):     # It's H.
-                    self.H = H_or_Hc
-                elif H_or_Hc.shape == (self.n,_n2):         # It's Hc.
-                    self.H = expand_Hc(H_or_Hc)
-                else:
-                    raise ValueError("basis Vr and FOM operator H not aligned")
-                self.H_ = compress_H(self.Vr.T @ self.H @ Vr2)
-        else:
-            self.H, self.H_ = None, None
-
-        if self.has_cubic:                  # Cubic state matrix.
-            _n3 = self.n * (self.n + 1) * (self.n + 2) // 6
-            Vr3 = np.kron(np.kron(self.Vr, self.Vr), self.Vr)
-            if 'G' in affines:
-                G_or_Gc = AffineOperator(affines['G'], operators['G'])
-                if G_or_Gc.shape == (self.n,self.n**3):     # It's G.
-                    self.G = G_or_Gc
-                elif G_or_Gc.shape == (self.n,_n3):         # It's Gc.
-                    self.G = AffineOperator(affines['G'],
-                                             [expand_Gc(Gc)
-                                              for Gc in G_or_Gc.matrices])
-                else:
-                    raise ValueError("basis Vr and FOM operator G not aligned")
-
-                self.G_ = AffineOperator(affines['G'],
-                                          [compress_G(self.Vr.T @ G @ Vr3)
-                                           for G in self.G.matrices])
-            else:
-                G_or_Gc = operators['G']
-                if G_or_Gc.shape == (self.n,self.n**3):     # It's G.
-                    self.G = G_or_Gc
-                elif G_or_Gc.shape == (self.n,_n3):         # It's Gc.
-                    self.G = expand_Gc(G_or_Gc)
-                else:
-                    raise ValueError("basis Vr and FOM operator G not aligned")
-                self.G_ = compress_G(self.Vr.T @ self.G @ Vr3)
-        else:
-            self.G, self.G_ = None, None
-
-        if self.has_inputs:                 # Linear input matrix.
-            if 'B' in affines:
-                self.B = AffineOperator(affines['B'], operators['B'])
-                if self.B.shape[0] != self.n:
-                    raise ValueError("basis Vr and FOM operator B not aligned")
-                if len(self.B.shape) == 2:
-                    self.m = self.B.shape[1]
-                else:                                   # One-dimensional input
-                    self.B = AffineOperator(affines['B'],
-                                             [B.reshape((-1,1))
-                                              for B in self.B.matrices])
-                    self.m = 1
-                self.B_ = AffineOperator(affines['B'],
-                                          [self.Vr.T @ B
-                                           for B in self.B.matrices])
-            else:
-                self.B = operators['B']
-                if self.B.shape[0] != self.n:
-                    raise ValueError("basis Vr and FOM operator B not aligned")
-                if self.B.ndim == 2:
-                    self.m = self.B.shape[1]
-                else:                                   # One-dimensional input
-                    self.B = self.B.reshape((-1,1))
-                    self.m = 1
-                self.B_ = self.Vr.T @ self.B
-        else:
-            self.B, self.B_, self.m = None, None, None
-
+        self._process_fit_arguments(Vr, affines, operators)
+        self._project_operators(affines, operators)
         return self
 
 
@@ -312,14 +278,7 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
             The approximate solutions to the full-order system, including the
             given initial condition.
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(U, 'U')
-
-        # TODO: Make sure the parameter µ has the correct dimension.
-        # Use the affine structure of the operators to construct a new model.
-        model = self(µ)
-        return model.predict(x0, niters, U)
+        return self(µ).predict(x0, niters, U)
 
 
 class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
@@ -459,14 +418,8 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
         Returns
         -------
         X_ROM : (n,nt) ndarray
-            The approximate solution to the full-order system over `t`.
+            The reduced-order approximation to the full-order system over `t`.
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(u, 'u')
-
-        # TODO: Make sure the parameter µ has the correct dimension.
-        # Use the affine structure of the operators to construct a new model.
         model = self(µ)
         out = model.predict(x0, t, u, **options)
         self.sol_ = model.sol_

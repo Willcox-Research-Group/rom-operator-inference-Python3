@@ -150,7 +150,7 @@ def test_load_model():
         assert hasattr(model, attr)
     assert model.modelform == "HG"
     assert model.r == r
-    assert model.m is None
+    assert model.m == 0
     assert model.c_ is None
     assert model.A_ is None
     assert np.allclose(model.H_, H_)

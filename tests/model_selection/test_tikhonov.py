@@ -76,7 +76,7 @@ def test_best_bounded_reg():
     assert isinstance(best_reg, float)
     assert best_reg > 0
     assert isinstance(rom, roi.InferredContinuousROM)
-    rom._check_modelform(trained=True)
+    rom._check_is_trained()
 
     # Test 2: no basis, with inputs.
     u = lambda t: np.random.random(size=U.shape[0])
@@ -94,4 +94,4 @@ def test_best_bounded_reg():
     assert isinstance(best_reg, float)
     assert best_reg > 0
     assert isinstance(rom, roi.InferredContinuousROM)
-    rom._check_modelform(trained=True)
+    rom._check_is_trained()

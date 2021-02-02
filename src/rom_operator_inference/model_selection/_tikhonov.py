@@ -72,7 +72,7 @@ def Lcurve(rom, regs, fit_args, discrete=False):
     for reg in regs:
         rom.fit(*fit_args, reg, compute_extras=True)
         residuals.append(rom.solver_.misfit_)
-        norms.append(np.sum(rom.operator_matrix_**2))
+        norms.append(np.sum(rom.O_**2))
 
     return _plot_Lcurve(regs, residuals, norms, discrete)
 

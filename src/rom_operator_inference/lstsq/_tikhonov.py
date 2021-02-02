@@ -343,8 +343,8 @@ class SolverTikhonov(_BaseSolver):
 
         # One-dimensional input (diagonals of the regularization matrix).
         if P.shape == (self.d,):
-            if np.any(P <= 0):
-                raise ValueError("diagonal P must be positive definite")
+            if np.any(P < 0):
+                raise ValueError("diagonal P must be positive semi-definite")
             return np.diag(P**2)
 
         # Two-dimensional input (the regularization matrix).

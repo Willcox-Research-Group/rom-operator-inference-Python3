@@ -28,89 +28,272 @@ class _BaseROM:
     _MODEL_KEYS = "cAHGB"       # Constant, Linear, Quadratic, Cubic, Input.
 
     def __init__(self, modelform):
+        """Set the modelform."""
         if not isinstance(self, (_ContinuousROM, _DiscreteROM)):
             raise RuntimeError("abstract class instantiation "
                                "(use _ContinuousROM or _DiscreteROM)")
         self.modelform = modelform
-        self.n, self.m, self.r = None, None, None
 
+    def _clear(self):
+        """Set private attributes as None, erasing any previously stored basis,
+        dimensions, or ROM operators.
+        """
+        self.__m = None if self.has_inputs else 0
+        self.__r = None
+        self.__Vr = None
+        self.__c_ = None
+        self.__A_ = None
+        self.__H_ = None
+        self.__G_ = None
+        self.__B_ = None
+
+    # Properties: modelform ---------------------------------------------------
     @property
     def modelform(self):
+        """Structure of the reduced-order model."""
         return self.__form
 
     @modelform.setter
     def modelform(self, form):
-        self.__form = ''.join(sorted(form,
-                                    key=lambda k: self._MODEL_KEYS.find(k)))
+        """Set the modelform, which – if successful – resets the entire ROM."""
+        form = ''.join(sorted(form, key=lambda k: self._MODEL_KEYS.find(k)))
+        for key in form:
+            if key not in self._MODEL_KEYS:
+                raise ValueError(f"invalid modelform key '{key}'; options "
+                                 "are " + ', '.join(self._MODEL_KEYS))
+        self.__form = form
+        self._clear()
 
     @property
     def has_constant(self):
+        """Whether or not the ROM has a constant term c."""
         return "c" in self.modelform
 
     @property
     def has_linear(self):
+        """Whether or not the ROM has a linear state term Ax."""
         return "A" in self.modelform
 
     @property
     def has_quadratic(self):
+        """Whether or not the ROM has a quadratic state term H(x ⊗ x)."""
         return "H" in self.modelform
 
     @property
     def has_cubic(self):
+        """Whether or not the ROM has a cubic state term G(x ⊗ x ⊗ x)."""
         return "G" in self.modelform
 
     @property
     def has_inputs(self):
+        """Whether or not the ROM has an input term Bu."""
         return "B" in self.modelform
 
     # @property
     # def has_outputs(self):
     #     return "C" in self._form
 
-    def _check_modelform(self, trained=False):
-        """Ensure that self.modelform is valid."""
-        for key in self.modelform:
-            if key not in self._MODEL_KEYS:
-                raise ValueError(f"invalid modelform key '{key}'; options "
-                                 "are " + ', '.join(self._MODEL_KEYS))
+    # Properties: dimensions --------------------------------------------------
+    @property
+    def n(self):
+        """Dimension of the full-order model."""
+        return self.Vr.shape[0] if self.Vr is not None else None
 
-        if trained:
-            fixmsg = "call fit() to train model"
+    @n.setter
+    def n(self, n):
+        """Setting this dimension is not allowed, it is always Vr.shape[0]."""
+        raise AttributeError("can't set attribute (n = Vr.shape[0])")
 
-            # Ensure required dimensions are not set to None.
-            if self.r is None:
-                raise AttributeError(f"null reduced dimension 'r'; {fixmsg}")
-            if self.has_inputs and (self.m is None):
-                raise AttributeError(f"null input dimension 'm'; {fixmsg}")
-            shapes = {
-                        "c_": (self.r, ),
-                        "A_": (self.r, self.r),
-                        "H_": (self.r, self.r*(self.r + 1)//2),
-                        "G_": (self.r, self.r*(self.r + 1)*(self.r + 2)//6),
-                        "B_": (self.r, self.m),
-                     }
+    @property
+    def m(self):
+        """Dimension of the input term, if present."""
+        return self.__m
 
-            for key in self._MODEL_KEYS:
-                s = key+'_'
-                # Ensure all operator attributes exist.
-                if not hasattr(self, s):
-                    raise AttributeError(f"attribute '{s}' missing; {fixmsg}")
-                attr = getattr(self, s)
-                if key in self.modelform:
-                    # Ensure required operators are not set to None.
-                    if attr is None:
-                        raise AttributeError(f"attribute '{s}' is None; "
-                                             f"{fixmsg}")
-                    # Check shapes of required operators.
-                    if attr.shape != shapes[s]:
-                        raise ValueError(f"'{s}.shape' must be {shapes[s]} for"
-                                         f" r = {self.r} (got {attr.shape})")
-                # Ensure nonrequired operators are set to None.
-                elif key not in self.modelform and attr is not None:
-                    raise AttributeError(f"attribute '{s}' should be None; "
-                                         f"{fixmsg}")
+    @m.setter
+    def m(self, m):
+        """Set input dimension; only allowed if 'B' in modelform
+        and the operator B_ is None.
+        """
+        if not self.has_inputs and m != 0:
+            raise AttributeError("can't set attribute ('B' not in modelform)")
+        elif self.B_ is not None:
+            raise AttributeError("can't set attribute (m = B_.shape[1])")
+        self.__m = m
 
-    def _set_operators(self, Vr, c_=None, A_=None, H_=None, G_=None, B_=None):
+    @property
+    def r(self):
+        """Dimension of the reduced-order model."""
+        return self.__r
+
+    @r.setter
+    def r(self, r):
+        """Set ROM dimension; only allowed if the basis Vr is None."""
+        if self.Vr is not None:
+            raise AttributeError("can't set attribute (r = Vr.shape[1])")
+        if any(op is not None for op in self.operators.values()):
+            raise AttributeError("can't set attribute (call fit() to reset)")
+        self.__r = r
+
+    # Properties: basis -------------------------------------------------------
+    @property
+    def Vr(self):
+        """Basis for the linear reduced space (e.g., POD ), of shape (n,r)."""
+        return self.__Vr
+
+    @Vr.setter
+    def Vr(self, Vr):
+        """Set the basis, thereby fixing the dimensions n and r."""
+        self.__Vr = Vr
+        if Vr is not None:
+            self.__r = Vr.shape[1]
+
+    @Vr.deleter
+    def Vr(self):
+        self.__Vr = None
+
+    # Properties: reduced-order operators -------------------------------------
+    @property
+    def c_(self):
+        """ROM constant operator, of shape (r,)."""
+        return self.__c_
+
+    @c_.setter
+    def c_(self, c_):
+        self._check_operator_matches_modelform(c_, 'c')
+        if c_ is not None:
+            self._check_rom_operator_shape(c_, 'c')
+        self.__c_ = c_
+
+    @property
+    def A_(self):
+        """ROM linear state operator, of shape (r,r)."""
+        return self.__A_
+
+    @A_.setter
+    def A_(self, A_):
+        # TODO: what happens if model.A_ = something but model.r is None?
+        self._check_operator_matches_modelform(A_, 'A')
+        if A_ is not None:
+            self._check_rom_operator_shape(A_, 'A')
+        self.__A_ = A_
+
+    @property
+    def H_(self):
+        """ROM quadratic state opeator, of shape (r,r(r+1)/2)."""
+        return self.__H_
+
+    @H_.setter
+    def H_(self, H_):
+        self._check_operator_matches_modelform(H_, 'H')
+        if H_ is not None:
+            if H_.shape == (self.r, self.r**2):
+                H_ = compress_H(H_)
+            self._check_rom_operator_shape(H_, 'H')
+        self.__H_ = H_
+
+    @property
+    def G_(self):
+        """ROM cubic state operator, of shape (r,r(r+1)(r+2)/6)."""
+        return self.__G_
+
+    @G_.setter
+    def G_(self, G_):
+        self._check_operator_matches_modelform(G_, 'G')
+        if G_ is not None:
+            if G_.shape == (self.r, self.r**3):
+                G_ = compress_G(G_)
+            self._check_rom_operator_shape(G_, 'G')
+        self.__G_ = G_
+
+    @property
+    def B_(self):
+        """ROM input operator, of shape (r,m)."""
+        return self.__B_
+
+    @B_.setter
+    def B_(self, B_):
+        self._check_operator_matches_modelform(B_, 'B')
+        if B_ is not None:
+            self._check_rom_operator_shape(B_, 'B')
+        self.__B_ = B_
+
+    @property
+    def operators(self):
+        """A dictionary of the current ROM operators."""
+        return {"c_": self.c_,
+                "A_": self.A_,
+                "H_": self.H_,
+                "G_": self.G_,
+                "B_": self.B_}
+
+    # Validation methods ------------------------------------------------------
+    def _check_operator_matches_modelform(self, operator, key):
+        """Raise a TypeError if the given operator is incompatible with the
+        modelform.
+
+        Parameters
+        ----------
+        operator : ndarray or None
+            Operator (ndarray, etc.) data to be attached as an attribute.
+
+        key : str
+            A single character from 'cAHGB', indicating which operator to set.
+        """
+        if (key in self.modelform) and (operator is None):
+            raise TypeError(f"'{key}' in modelform requires {key}_ != None")
+        if (key not in self.modelform) and (operator is not None):
+            raise TypeError(f"'{key}' not in modelform requires {key}_ = None")
+
+    def _check_rom_operator_shape(self, operator, key):
+        """Ensure that the given operator has the correct shape."""
+        # First, check that the required dimensions exist.
+        if self.r is None:
+            raise AttributeError("no reduced dimension 'r' (call fit())")
+        if key == 'B' and (self.m is None):
+            raise AttributeError(f"no input dimension 'm' (call fit())")
+        r, m = self.r, self.m
+
+        # Check operator shape.
+        if key == "c" and operator.shape != (r,):
+            raise ValueError(f"c_.shape = {operator.shape}, "
+                             f"must be (r,) with r = {r}")
+        elif key == "A" and operator.shape != (r,r):
+            raise ValueError(f"A_.shape = {operator.shape}, "
+                             f"must be (r,r) with r = {r}")
+        elif key == "H" and operator.shape != (r, r*(r + 1)//2):
+            raise ValueError(f"H_.shape = {operator.shape}, must be "
+                             f"(r,r(r+1)/2) with r = {r}")
+        elif key == "G" and operator.shape != (r, r*(r + 1)*(r + 2)//6):
+            raise ValueError(f"G_.shape = {operator.shape}, must be "
+                             f"(r,r(r+1)(r+2)/6) with r = {r}")
+        elif key == "B" and operator.shape != (r,m):
+            raise ValueError(f"B_.shape = {operator.shape}, must be "
+                             f"(r,m) with r = {r}, m = {m}")
+
+    def _check_inputargs(self, u, argname):
+        """Check that self.has_inputs agrees with input arguments."""
+        # TODO (?): replace with _check_operator_matches_modelform().
+        if self.has_inputs and u is None:
+            raise ValueError(f"argument '{argname}' required"
+                             " since 'B' in modelform")
+
+        if not self.has_inputs and u is not None:
+            raise ValueError(f"argument '{argname}' invalid"
+                             " since 'B' in modelform")
+
+    def _check_is_trained(self):
+        """Ensure that the model is trained and ready for prediction."""
+        operators = self.operators
+        try:
+            for key in self.modelform:
+                op = operators[key+'_']
+                self._check_operator_matches_modelform(op, key)
+                self._check_rom_operator_shape(op, key)
+        except Exception as e:
+            raise AttributeError("model not trained (call fit())") from e
+
+    # Methods -----------------------------------------------------------------
+    def set_operators(self, Vr, c_=None, A_=None, H_=None, G_=None, B_=None):
         """Set the ROM operators and corresponding dimensions.
 
         Parameters
@@ -120,65 +303,55 @@ class _BaseROM:
             If None, then r is inferred from one of the reduced operators.
 
         c_ : (r,) ndarray or None
-            Reduced constant term, or None if 'c' is not in `modelform`.
+            Reduced-order constant term.
 
         A_ : (r,r) ndarray or None
-            Reduced linear state matrix, or None if 'c' is not in `modelform`.
+            Reduced-order linear state matrix.
 
         H_ : (r,r(r+1)/2) ndarray or None
-            Reduced (compact) quadratic state matrix, or None if 'H' is not in
-            `modelform`.
+            Reduced-order (compact) quadratic state matrix.
 
         G_ : (r,r(r+1)(r+2)/6) ndarray or None
-            Reduced (compact) cubic state matrix (compact), or None if 'G' is
-            not in `modelform`.
+            Reduced-order (compact) cubic state matrix.
 
         B_ : (r,m) ndarray or None
-            Reduced input matrix, or None if 'B' is not in `modelform`.
+            Reduced-order input matrix.
 
         Returns
         -------
         self
         """
-        self._check_modelform(trained=False)
+        self._clear()
+        operators = [c_, A_, H_, G_, B_]
 
-        # Insert the basis (if given) and determine dimensions.
+        # Save the low-dimensional basis. Sets self.n and self.r if given.
         self.Vr = Vr
-        if Vr is not None:
-            self.n, self.r = Vr.shape
+
+        # Set the input dimension 'm'.
+        if self.has_inputs:
+            if B_ is not None:
+                self.m = 1 if len(B_.shape) == 1 else B_.shape[1]
         else:
-            # Determine the dimension r from the existing operators.
-            self.n = None
-            for op in [c_, A_, H_, G_, B_]:
+            self.m = 0
+
+        # Determine the ROM dimension 'r' if no basis was given.
+        if Vr is None:
+            self.r = None
+            for op in operators:
                 if op is not None:
                     self.r = op.shape[0]
                     break
-        self.m = None if B_ is None else 1 if B_.ndim == 1 else B_.shape[1]
 
-        # Insert the operators.
-        _r2, _r3 = self.r*(self.r + 1)//2, self.r*(self.r + 1)*(self.r + 2)//6
-        self.c_, self.A_, self.B_ = c_, A_, B_
-        self.H_ = H_ if (H_ is None or H_.shape[1] == _r2) else compress_H(H_)
-        self.G_ = G_ if (G_ is None or G_.shape[1] == _r3) else compress_G(G_)
+        # Insert the operators. Raises exceptions if shapes are bad, etc.
+        self.c_, self.A_, self.H_, self.G_, self.B_, = c_, A_, H_, G_, B_
 
-        # Construct the complete reduced model operator from the arguments.
-        self._init_f_()
         return self
-
-    def _check_inputargs(self, u, argname):
-        """Check that self.has_inputs agrees with input arguments."""
-        if self.has_inputs and u is None:
-            raise ValueError(f"argument '{argname}' required"
-                             " since 'B' in modelform")
-
-        if not self.has_inputs and u is not None:
-            raise ValueError(f"argument '{argname}' invalid"
-                             " since 'B' in modelform")
 
     def project(self, S, label="input"):
         """Check the dimensions of S and project it if needed."""
         if S.shape[0] not in (self.r, self.n):
             raise ValueError(f"{label} not aligned with Vr, dimension 0")
+            # TODO: better message, what if Vr is None?
         return self.Vr.T @ S if S.shape[0] == self.n else S
 
 
@@ -190,31 +363,42 @@ class _DiscreteROM(_BaseROM):
     The problem may also be parametric, i.e., x and f may depend on an
     independent parameter µ.
     """
-    def _init_f_(self):
-        """Define the attribute self.f_ based on the computed operators."""
-        self._check_modelform(trained=True)
+    modelform = property(_BaseROM.modelform.fget,
+                         _BaseROM.modelform.fset,
+                         _BaseROM.modelform.fdel,
+    """Structure of the reduced-order model. Each character
+    indicates the presence of a different term in the model:
+    'c' : Constant term c
+    'A' : Linear state term Ax.
+    'H' : Quadratic state term H(x⊗x).
+    'G' : Cubic state term G(x⊗x⊗x).
+    'B' : Input term Bu.
+    For example, modelform=="AB" means f(x,u) = Ax + Bu.
+    """)
 
-        # Gather the pieces of the function.
-        rhs = []
-        namespace = {"self": self}
+    def f_(self, x_, u=None):
+        """ROM function for discrete models.
+
+        Parameters
+        ----------
+        x_ : (r,) ndarray
+            Reduced state vector.
+
+        u : (m,) ndarray or None
+            Input vector corresponding to x_.
+        """
+        x_new = np.zeros(self.r, dtype=float)
         if self.has_constant:
-            rhs.append("self.c_")
+            x_new += self.c_
         if self.has_linear:
-            rhs.append("(self.A_ @ x_)")
+            x_new += self.A_ @ x_
         if self.has_quadratic:
-            rhs.append("(self.H_ @ kron2c(x_))")
-            namespace["kron2c"] = kron2c
+            x_new += self.H_ @ kron2c(x_)
         if self.has_cubic:
-            rhs.append("(self.G_ @ kron3c(x_))")
-            namespace["kron3c"] = kron3c
+            x_new += self.G_ @ kron3c(x_)
         if self.has_inputs:
-            lhs = "lambda x_,u: "
-            rhs.append("(self.B_ @ u)")
-        else:
-            lhs = "lambda x_: "
-
-        # Evaluate the pieces and bind them to the object as a lambda function.
-        self.f_ = eval(lhs + " + ".join(rhs), namespace)
+            x_new += self.B_ @ u
+        return x_new
 
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
@@ -225,14 +409,14 @@ class _DiscreteROM(_BaseROM):
         Parameters
         ----------
         x0 : (n,) or (r,) ndarray
-            The initial state vector, either full order (n-vector) or projected
-            to reduced order (r-vector).
+            Initial state vector, either full order (n-vector) or projected to
+            reduced order (r-vector).
 
         niters : int
-            The number of times to step the system forward.
+            Number of times to step the system forward.
 
         U : (m,niters-1) ndarray
-            The inputs for the next niters-1 time steps.
+            Inputs for the next niters-1 time steps.
 
         Returns
         -------
@@ -242,12 +426,11 @@ class _DiscreteROM(_BaseROM):
             reduced r-dimensional subspace (r,niters). Otherwise, map solutions
             to the full n-dimensional space with Vr (n,niters).
         """
-        # Verify modelform.
-        self._check_modelform(trained=True)
-        self._check_inputargs(U, 'U')
+        self._check_is_trained()
 
-        # Project initial conditions (if needed).
-        x0_ = self.project(x0, 'x0')
+        # Process inputs.
+        self._check_inputargs(U, 'U')   # Check input/modelform consistency.
+        x0_ = self.project(x0, 'x0')    # Project initial conditions if needed.
 
         # Verify iteration argument.
         if not isinstance(niters, int) or niters < 0:
@@ -284,31 +467,45 @@ class _ContinuousROM(_BaseROM):
     The problem may also be parametric, i.e., x and f may depend on an
     independent parameter µ.
     """
-    def _init_f_(self):
-        """Define the attribute self.f_ based on the computed operators."""
-        self._check_modelform(trained=True)
+    modelform = property(_BaseROM.modelform.fget,
+                         _BaseROM.modelform.fset,
+                         _BaseROM.modelform.fdel,
+    """Structure of the reduced-order model. Each character
+    indicates the presence of a different term in the model:
+    'c' : Constant term c
+    'A' : Linear state term Ax(t).
+    'H' : Quadratic state term H(x⊗x)(t).
+    'G' : Cubic state term G(x⊗x⊗x)(t).
+    'B' : Input term Bu(t).
+    For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
+    """)
 
-        # Gather the pieces of the function.
-        rhs = []
-        namespace = {"self": self}
+    def f_(self, t, x_, u=None):
+        """ROM function for continuous models.
+
+        Parameters
+        ----------
+        t : float
+            Time, a scalar.
+
+        x_ : (r,) ndarray
+            Reduced state vector corresponding to time `t`.
+
+        u : func(float) -> (m,)
+            Input function that maps time `t` to an input vector of length m.
+        """
+        dxdt = np.zeros(self.r, dtype=float)
         if self.has_constant:
-            rhs.append("self.c_")
+            dxdt += self.c_
         if self.has_linear:
-            rhs.append("(self.A_ @ x_)")
+            dxdt += self.A_ @ x_
         if self.has_quadratic:
-            rhs.append("(self.H_ @ kron2c(x_))")
-            namespace["kron2c"] = kron2c
+            dxdt += self.H_ @ kron2c(x_)
         if self.has_cubic:
-            rhs.append("(self.G_ @ kron3c(x_))")
-            namespace["kron3c"] = kron3c
+            dxdt += self.G_ @ kron3c(x_)
         if self.has_inputs:
-            lhs = "lambda t,x_,u: "
-            rhs.append("(self.B_ @ u(t))")
-        else:
-            lhs = "lambda t,x_: "
-
-        # Evaluate the pieces and bind them to the object as a lambda function.
-        self.f_ = eval(lhs + " + ".join(rhs), namespace)
+            dxdt += self.B_ @ u(t)
+        return dxdt
 
     def fit(self, *args, **kwargs):             # pragma: no cover
         raise NotImplementedError("fit() must be implemented by child classes")
@@ -355,12 +552,11 @@ class _ContinuousROM(_BaseROM):
             r-dimensional subspace (r,nt). Otherwise, map the solutions to the
             full n-dimensional space with Vr (n,nt).
         """
-        # Verify modelform.
-        self._check_modelform(trained=True)
-        self._check_inputargs(u, 'u')
+        self._check_is_trained()
 
-        # Project initial conditions (if needed).
-        x0_ = self.project(x0, 'x0')
+        # Process inputs.
+        self._check_inputargs(u, 'u')   # Check input/modelform consistency.
+        x0_ = self.project(x0, 'x0')    # Project initial conditions if needed.
 
         # Verify time domain.
         if t.ndim != 1:
@@ -415,21 +611,22 @@ class _ContinuousROM(_BaseROM):
 class _NonparametricMixin:
     """Mixin class for non-parametric reduced model classes."""
     @property
-    def operator_matrix_(self):
-        """The r x d(r,m) Operator matrix O = [c | A | H | G | B]."""
-        self._check_modelform(trained=True)
-        ops = []
+    def O_(self):
+        """The r x d(r,m) Operator matrix O_ = [ c_ | A_ | H_ | G_ | B_ ]."""
+        self._check_is_trained()
+
+        blocks = []
         if self.has_constant:
-            ops.append(self.c_.reshape((-1,1)))
+            blocks.append(self.c_.reshape((-1,1)))
         if self.has_linear:
-            ops.append(self.A_)
+            blocks.append(self.A_)
         if self.has_quadratic:
-            ops.append(self.H_)
+            blocks.append(self.H_)
         if self.has_cubic:
-            ops.append(self.G_)
+            blocks.append(self.G_)
         if self.has_inputs:
-            ops.append(self.B_)
-        return np.hstack(ops)
+            blocks.append(self.B_)
+        return np.hstack(blocks)
 
     def __str__(self):
         """String representation: the structure of the model."""
@@ -468,8 +665,7 @@ class _NonparametricMixin:
             If True and the specified file already exists, overwrite the file.
             If False and the specified file already exists, raise an error.
         """
-        # Ensure that the model is trained (or there is nothing to save).
-        self._check_modelform(trained=True)
+        self._check_is_trained()
 
         # Ensure the file is saved in HDF5 format.
         if not savefile.endswith(".h5"):
@@ -506,25 +702,34 @@ class _ParametricMixin:
     """Mixin class for parametric reduced model classes."""
     def __call__(self, µ):
         """Construct the reduced model corresponding to the parameter µ."""
+        if isinstance(self, _DiscreteROM):
+            ModelClass = _DiscreteParametricEvaluationROM
+        elif isinstance(self, _ContinuousROM):
+            ModelClass = _ContinuousParametricEvaluationROM
+        else:
+            raise RuntimeError
+
+        self._check_is_trained()
+
+        # TODO: Make sure the parameter µ has the correct dimension.
         c_ = self.c_(µ) if callable(self.c_) else self.c_
         A_ = self.A_(µ) if callable(self.A_) else self.A_
         H_ = self.H_(µ) if callable(self.H_) else self.H_
         G_ = self.G_(µ) if callable(self.G_) else self.G_
         B_ = self.B_(µ) if callable(self.B_) else self.B_
-        cl = _DiscreteROM if isinstance(self, _DiscreteROM) else _ContinuousROM
-        return cl(self.modelform)._set_operators(Vr=self.Vr,
-                                                 c_=c_, A_=A_,
-                                                 H_=H_, G_=G_, B_=B_)
+
+        return ModelClass(self.modelform).set_operators(Vr=self.Vr,
+                                                        c_=c_, A_=A_,
+                                                        H_=H_, G_=G_, B_=B_)
 
     def __str__(self):
         """String representation: the structure of the model."""
-        if not hasattr(self, "c_"):             # Untrained -> Nonparametric
-            return _NonparametricMixin.__str__(self)
-        discrete = isinstance(self, _DiscreteROM)
 
+        discrete = isinstance(self, _DiscreteROM)
         x = "x_{j}" if discrete else "x(t)"
         u = "u_{j}" if discrete else "u(t)"
         lhs = "x_{j+1}" if discrete else "dx / dt"
+
         out = []
         if self.has_constant:
             out.append("c(µ)" if callable(self.c_)  else "c")
@@ -541,6 +746,16 @@ class _ParametricMixin:
             B = "B(µ)" if callable(self.B_)  else "B"
             out.append(B + f"{u}")
         return f"Reduced-order model structure: {lhs} = "+" + ".join(out)
+
+
+class _DiscreteParametricEvaluationROM(_NonparametricMixin, _DiscreteROM):
+    """Discrete-time ROM that is the evaluation of a parametric ROM."""
+    pass
+
+
+class _ContinuousParametricEvaluationROM( _NonparametricMixin, _ContinuousROM):
+    """Continuous-time ROM that is the evaluation of a parametric ROM."""
+    pass
 
 
 # Future additions ------------------------------------------------------------

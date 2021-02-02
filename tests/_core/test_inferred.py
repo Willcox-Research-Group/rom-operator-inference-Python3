@@ -14,7 +14,8 @@ from . import MODEL_KEYS, MODEL_FORMS, _get_data
 class TestInferredMixin:
     """Test _core._inferred._InferredMixin."""
 
-    class Dummy(roi._core._base._BaseROM, roi._core._inferred._InferredMixin):
+    class Dummy(roi._core._inferred._InferredMixin,
+                roi._core._base._BaseROM):
         def __init__(self, modelform):
             self.modelform = modelform
 
@@ -22,11 +23,9 @@ class TestInferredMixin:
         """Test _core._inferred._InferredMixin._check_training_data_shapes().
         """
         # Get test data.
-        n, k, m, r = 60, 50, 20, 10
-        X, Xdot, U = _get_data(n, k, m)
-        model = roi._core._inferred._InferredMixin()
-        model.n = n
-        model.m = m
+        k, m, r = 50, 20, 10
+        X, Xdot, U = _get_data(r, k, m)
+        model = self.Dummy("A")
         model.r = r
         labels = ["X", "Xdot", "U"]
 
@@ -42,6 +41,8 @@ class TestInferredMixin:
             "training data not aligned (Xdot.shape[1] != X.shape[1])"
 
         # Try to fit the model with misaligned X and U.
+        model.modelform = "AB"
+        model.r, model.m = r, m
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X, Xdot, U[:,:-1]], labels)
         assert ex.value.args[0] == \
@@ -51,7 +52,7 @@ class TestInferredMixin:
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X[:-1,:], Xdot, U], labels)
         assert ex.value.args[0] == \
-            f"invalid training set (X.shape[0] != n={n} or r={r})"
+            f"invalid training set (X.shape[0] != n=None or r={r})"
 
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X, Xdot, U[:-1,:]], labels)
@@ -62,10 +63,9 @@ class TestInferredMixin:
         model._check_training_data_shapes([X, Xdot], ["X", "Xdot"])
         model._check_training_data_shapes([X, Xdot, U], ["X", "Xdot", "U"])
 
-    def test_process_fit_arguments(self):
+    def test_process_fit_arguments(self, n=60, k=500, m=20, r=10):
         """Test _core._inferred._InferredMixin._process_fit_arguments()."""
         # Get test data.
-        n, k, m, r = 60, 500, 20, 10
         X, rhs, U = _get_data(n, k, m)
         U1d = U[0,:]
         Vr = la.svd(X)[0][:,:r]
@@ -99,21 +99,22 @@ class TestInferredMixin:
         assert model.n == n
         assert model.r == r
         assert model.Vr is Vr
-        assert model.m is None
+        assert model.m == 0
         assert np.allclose(X_, Vr.T @ X)
         assert np.allclose(rhs_, Vr.T @ rhs)
         assert U_ is None
 
-    def test_assemble_data_matrix(self):
+    def test_assemble_data_matrix(self, k=500, m=20, r=10):
         """Test _core._inferred._InferredMixin._assemble_data_matrix()."""
         # Get test data.
-        k, m, r = 500, 20, 10
         X_, _, U = _get_data(r, k, m)
 
         model = self.Dummy("c")
-        model.m, model.r = m, r
         for form in MODEL_FORMS:
             model.modelform = form
+            model.r = r
+            if 'B' in form:
+                model.m = m
             D = model._assemble_data_matrix(X_, U)
             d = roi.lstsq.lstsq_size(form, r, m if 'B' in form else 0)
             assert D.shape == (k,d)
@@ -136,9 +137,8 @@ class TestInferredMixin:
         assert D.shape == (k, 2)
         assert np.allclose(D, np.column_stack((np.ones(k), U[0])))
 
-    def test_extract_operators(self):
+    def test_extract_operators(self, m=2, r=10):
         """Test _core._inferred._InferredMixin._extract_operators()."""
-        r, m = 10, 2
         shapes = {
                     "c_": (r,),
                     "A_": (r,r),
@@ -147,11 +147,13 @@ class TestInferredMixin:
                     "B_": (r,m),
                  }
 
-        model = self.Dummy("c")
-        model.r = r
+        model = self.Dummy("")
+
         for form in MODEL_FORMS:
             model.modelform = form
-            model.m = m if 'B' in form else 0
+            model.r = r
+            if 'B' in form:
+                model.m = m
             d = roi.lstsq.lstsq_size(form, r, model.m)
             O = np.random.random((r,d))
             model._extract_operators(O)

@@ -42,10 +42,9 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         Us : list of s (m,k) ndarrays (or None)
             Inputs, potentially reshaped. Us[i] corresponds to µ[i].
         """
-        # Check modelform, affines dictionary, and inputs.
-        self._check_modelform(trained=False)
         # TODO: self.p = self._check_params(µs): extract self.p and check for consistent sizes.
         self._check_inputargs(Us, 'Us')
+        self._clear()
         is_continuous = issubclass(ModelClass, _ContinuousROM)
 
         # Check that parameters are one-dimensional.
@@ -66,13 +65,10 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
             raise ValueError("num parameter samples != num input "
                              f"training sets ({s} != {len(Us)})")
 
-        # Store basis and dimensions.
-        if Vr is not None:
-            self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
-        else:
-            self.n = None               # No full dimension.
-            self.r = Xs[0].shape[0]     # Reduced dimension.
+        # Store basis and reduced dimension.
         self.Vr = Vr
+        if Vr is None:
+            self.r = Xs[0].shape[0]
 
         # Ensure training data sets have consistent sizes.
         if self.has_inputs:
@@ -91,7 +87,6 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
                     self._check_training_data_shapes([Xs[i], Us[i]],
                                                      [f"Xs[{i}]", f"Us[{i}]"])
         else:
-            self.m = None
             Us = [None] * s
             if is_continuous:
                 for i in range(s):
@@ -163,10 +158,10 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         # Select the interpolator based on the parameter dimension.
         if self.p == 1:
             Interpolator = interp.CubicSpline
-        elif self.p == 2:
-            Interpolator = _Interp2DMulti
+        # elif self.p == 2:
+        #     Interpolator = _Interp2DMulti
         else:
-            print("MODELS TRAINED BUT INTERPOLATION NOT IMPLEMENTED FOR p > 2")
+            print("MODELS TRAINED BUT INTERPOLATION NOT IMPLEMENTED FOR p > 1")
             return self
 
         # Construct interpolators.
@@ -177,8 +172,6 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
                 op = Interpolator(µs, ops)
                 op.shape = ops[0].shape
                 setattr(self, f"{atr}_", op)        # self.c_ = op
-            else:
-                setattr(self, f"{atr}_", None)      # self.c_ = None
 
         return self
 
@@ -342,12 +335,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
             The approximate solutions to the full-order system, including the
             given initial condition.
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(U, 'U')
-
-        model = self(µ)     # See __call__().
-        return model.predict(x0, niters, U)
+        return self(µ).predict(x0, niters, U)
 
 
 class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousROM):
@@ -530,13 +518,9 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousR
         Returns
         -------
         X_ROM : (n,nt) ndarray
-            The approximate solution to the full-order system over `t`.
+            The reduced-order approximation to the full-order system over `t`.
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(u, 'u')
-
-        model = self(µ)     # See __call__().
+        model = self(µ)
         out = model.predict(x0, t, u, **options)
         self.sol_ = model.sol_
         return out

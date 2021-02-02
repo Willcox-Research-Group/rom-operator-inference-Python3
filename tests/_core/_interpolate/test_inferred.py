@@ -19,14 +19,13 @@ class TestInterpolatedInferredMixin:
 # Interpolated inferred models (public) =======================================
 class TestInterpolatedInferredDiscreteROM:
     """Test _core._interpolate._inferred.InterpolatedInferredDiscreteROM."""
-    def test_fit(self):
+    def test_fit(self, n=20, m=4, k=500, r=3):
         """Test
         _core._interpolate._inferred.InterpolatedInferredDiscreteROM.fit().
         """
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
         # Get data for fitting.
-        n, m, k, r = 50, 10, 100, 5
         X1, _, U1 = _get_data(n, k, m)
         X2, U2 = X1+1, U1+1
         Xs = [X1, X2]
@@ -152,14 +151,11 @@ class TestInterpolatedInferredContinuousROM:
         assert model.Vr is None
         assert model.n is None
 
-    def test_predict(self):
+    def test_predict(self, n=50, m=10, k=100, r=3):
         """Test
         _core._interpolate._inferred.InterpolatedInferredContinuousROM.predict().
         """
-        model = roi.InterpolatedInferredContinuousROM("cAH")
-
         # Get data for fitting.
-        n, m, k, r = 50, 10, 100, 5
         X1, Xdot1, U1 = _get_data(n, k, m)
         X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
         Xs = [X1, X2]
@@ -172,15 +168,16 @@ class TestInterpolatedInferredContinuousROM:
         x0 = np.zeros(n)
         nt = 5
         t = np.linspace(0, .01*nt, nt)
-        u = lambda t: np.zeros(10)
+        u = lambda t: np.zeros(m)
 
         # Fit / predict with no inputs.
+        model = roi.InterpolatedInferredContinuousROM("AH")
         model.fit(Vr, ps, Xs, Xdots)
         model.predict(1, x0, t)
         model.predict(1.5, x0, t)
 
         # Fit / predict with inputs.
-        model.modelform = "cAHB"
+        model = roi.InterpolatedInferredContinuousROM("AHB")
         model.fit(Vr, ps, Xs, Xdots, Us)
         model.predict(1, x0, t, u)
         model.predict(1.5, x0, t, u)

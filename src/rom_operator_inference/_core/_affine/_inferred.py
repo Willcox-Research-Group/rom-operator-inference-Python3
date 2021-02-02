@@ -29,11 +29,16 @@ from ... import lstsq
 class _AffineInferredMixin(_InferredMixin, _AffineMixin):
     """Mixin class for affinely parametric inferred reduced model classes."""
 
+    # Validation --------------------------------------------------------------
     def _check_affines(self, affines, µs):
         """Check the affines argument, including checking for rank deficiency.
         """
         # Ensure there are not surplus keys.
         self._check_affines_keys(affines)
+
+        # Make sure the affine functions are scalar-valued functions.
+        for θs in affines.values():
+            AffineOperator.validate_coeffs(θs, µs[0])
 
         # Check for rank deficiencies in the data matrix.
         for key, θs in affines.items():
@@ -44,9 +49,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                                  "affine structure and parameter samples",
                                  la.LinAlgWarning, stacklevel=2)
 
-        for a in affines.values():
-            AffineOperator(a).validate_coeffs(µs[0])
-
+    # Fitting -----------------------------------------------------------------
     def _process_fit_arguments(self, Vr, µs, affines, Xs, rhss, Us):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get projected data for the Operator Inference least-squares problem.
@@ -95,12 +98,12 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         Us : list of s (m,k) ndarrays or None
             Inputs, potentially reshaped. Us[i] corresponds to µ[i].
         """
-        # Check modelform, affines dictionary, and inputs.
-        self._check_modelform(trained=False)
+        # Check affines expansions, and inputs.
         # TODO: self.p = self._check_params(µs):
         #       extract self.p and check for consistent sizes.
         self._check_affines(affines, µs)
         self._check_inputargs(Us, 'Us')
+        self._clear()
 
         # Check that the number of params matches the number of training sets.
         s = len(µs)
@@ -114,13 +117,10 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             raise ValueError("num parameter samples != num input "
                              f"training sets ({s} != {len(Us)})")
 
-        # Store basis and dimensions.
-        if Vr is not None:
-            self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
-        else:
-            self.n = None               # No full dimension.
-            self.r = Xs[0].shape[0]     # Reduced dimension.
+        # Store basis and reduced dimension.
         self.Vr = Vr
+        if Vr is None:
+            self.r = Xs[0].shape[0]
 
         # Ensure training data sets have consistent sizes.
         if self.has_inputs:
@@ -133,7 +133,6 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 self._check_training_data_shapes([Xs[i], rhss[i], Us[i]],
                                     [f"Xs[{i}]", f"Xdots[{i}]", f"Us[{i}]"])
         else:
-            self.m = None
             for i in range(s):
                 self._check_training_data_shapes([Xs[i], rhss[i]],
                                                  [f"Xs[{i}]", f"Xdots[{i}]"])
@@ -254,8 +253,6 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             else:
                 self.c_ = O[:,i:i+1][:,0]
                 i += 1
-        else:
-            self.c_ = None
 
         if self.has_linear:             # Linear state term.
             if 'A' in affines:
@@ -267,8 +264,6 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             else:
                 self.A_ = O[:,i:i+self.r]
                 i += self.r
-        else:
-            self.A_ = None
 
         if self.has_quadratic:          # (compact) Quadratic state term.
             _r2 = self.r * (self.r + 1) // 2
@@ -281,8 +276,6 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             else:
                 self.H_ = O[:,i:i+_r2]
                 i += _r2
-        else:
-            self.H_ = None
 
         if self.has_cubic:              # (compact) Cubic state term.
             _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
@@ -295,8 +288,6 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             else:
                 self.G_ = O[:,i:i+_r3]
                 i += _r3
-        else:
-            self.G_ = None
 
         if self.has_inputs:             # Linear input term.
             if 'B' in affines:
@@ -308,8 +299,6 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             else:
                 self.B_ = O[:,i:i+self.m]
                 i += self.m
-        else:
-            self.B_ = None
 
     def _construct_solver(self, Vr, µs, affines, Xs, rhss, Us, P, **kwargs):
         """Construct a solver object mapping the regularizer P to solutions
@@ -546,14 +535,7 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
             The reduced-order solutions to the full-order system, including
             the (projected) given initial condition.
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(U, 'U')
-
-        # TODO: Make sure the parameter µ has the correct dimension.
-        # Use the affine structure of the operators to construct a new model.
-        model = self(µ)
-        return model.predict(x0, niters, U)
+        return self(µ).predict(x0, niters, U)
 
 
 class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
@@ -722,15 +704,9 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
 
         Returns
         -------
-        X_ROM: (n,nt) ndarray
+        X_ROM : (n,nt) ndarray
             The reduced-order approximation to the full-order system over `t`.
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(u, 'u')
-
-        # TODO: Make sure the parameter µ has the correct dimension.
-        # Use the affine structure of the operators to construct a new model.
         model = self(µ)
         out = model.predict(x0, t, u, **options)
         self.sol_ = model.sol_

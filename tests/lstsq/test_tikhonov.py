@@ -207,10 +207,10 @@ class TestSolverTikhonov:
 
         # Try with bad regularizers.
         P = np.ones(d)
-        P[-1] = 0
+        P[-1] = -1
         with pytest.raises(ValueError) as ex:
             solver._process_regularizer(P)
-        assert ex.value.args[0] == "diagonal P must be positive definite"
+        assert ex.value.args[0] == "diagonal P must be positive semi-definite"
 
         P = np.eye(d)
         P[-1,-1] = 0

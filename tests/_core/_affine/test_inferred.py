@@ -15,8 +15,8 @@ from .. import MODEL_KEYS, MODEL_FORMS, _get_data
 class TestAffineInferredMixin:
     """Test _core._affine._inferred._AffineInferredMixin."""
 
-    class Dummy(roi._core._base._BaseROM,
-                roi._core._affine._inferred._AffineInferredMixin):
+    class Dummy(roi._core._affine._inferred._AffineInferredMixin,
+                roi._core._base._BaseROM):
         def __init__(self, modelform):
             self.modelform = modelform
 
@@ -35,7 +35,7 @@ class TestAffineInferredMixin:
 
         affines = {"c": [lambda µ: µ[0], lambda µ: µ[1], lambda µ: µ[2]],
                    "A": [lambda µ: µ[0], lambda µ: µ[2]**2]}
-        model.modelform = "cA"
+        model = self.Dummy("cA")
         with pytest.warns(la.LinAlgWarning) as wn:
             model._check_affines(affines, [[1, 3, 1], [1, 2, 1]])
         assert len(wn) == 2
@@ -114,14 +114,14 @@ class TestAffineInferredMixin:
             assert np.all(U_.reshape(-1) == U)
 
         # With basis and no input.
-        model.modelform = "cAHG"
+        model = self.Dummy("cAHG")
         affs = {key:val for key,val in affines.items() if key != "B"}
         Xs_, rhss_, Us_ = model._process_fit_arguments(Vr, µs, affs,
                                                        Xs, rhss, None)
         assert model.n == n
         assert model.r == r
         assert model.Vr is Vr
-        assert model.m is None
+        assert model.m == 0
         for X, X_ in zip(Xs, Xs_):
             assert np.allclose(X_, Vr.T @ X)
         for rhs, rhs_ in zip(rhss, rhss_):
@@ -147,10 +147,11 @@ class TestAffineInferredMixin:
         Us1d = [U[0,:]]*s
 
         # Test with each possible modelform.
-        model = self.Dummy("c")
-        model.m, model.r = m, r
         for form in MODEL_FORMS:
-            model.modelform = form
+            model = self.Dummy(form)
+            model.r = r
+            if 'B' in form:
+                model.m = m
             D = model._assemble_data_matrix(µs, affines, Xs_, Us)
             d = roi.lstsq.lstsq_size(form, r, m if 'B' in form else 0, affines)
             assert D.shape == (k*s,d)
@@ -173,7 +174,7 @@ class TestAffineInferredMixin:
                 assert np.allclose(D[:,rr:], np.kron(θB, U.T))
 
         # Try with one-dimensional inputs as a 1D array.
-        model.modelform = "B"
+        model = self.Dummy("B")
         model.m = 1
         D = model._assemble_data_matrix(µs, affines, Xs_, Us1d)
         d = roi.lstsq.lstsq_size(model.modelform, r, model.m, affines)
@@ -181,11 +182,10 @@ class TestAffineInferredMixin:
         θB = np.array([[θ(µ) for θ in affines["B"]] for µ in µs])
         assert np.allclose(D, np.kron(θB, U[0].reshape((-1,1))))
 
-    def test_extract_operators(self):
+    def test_extract_operators(self, k=200, m=5, r=10, s=10):
         """Test _core._affine._inferred.
                 _AffineInferredMixin._extract_operators().
         """
-        k, m, r, s = 200, 5, 10, 10
         X_, _, U = _get_data(r, k, m)
         θs = [lambda µ: np.sin(µ[0]), lambda µ: µ[0] + µ[1],
               lambda µ: np.cos(µ[1]), lambda µ: np.sin(µ[1])]
@@ -203,11 +203,11 @@ class TestAffineInferredMixin:
                     "B_": (r,m),
                  }
 
-        model = self.Dummy("c")
-        model.r = r
         for form in MODEL_FORMS:
-            model.modelform = form
-            model.m = m if 'B' in form else 0
+            model = self.Dummy(form)
+            model.r = r
+            if 'B' in form:
+                model.m = m
             d = roi.lstsq.lstsq_size(form, r, model.m, affines)
             O = np.random.random((r,d))
             model._extract_operators(affines, O)
@@ -249,7 +249,7 @@ class TestAffineInferredMixin:
         # Run fit() for each possible model form.
         for form in MODEL_FORMS:
             args[2] = {key:val for key,val in affines.items() if key in form}
-            model.modelform = form
+            model = ModelClass(form)
             model.fit(*args, Us=Us if "B" in form else None)
 
             args[2] = {} # Non-affine case.
@@ -266,12 +266,12 @@ class TestAffineInferredMixin:
             assert model.c_.shape == (r,)
             assert model.B_.shape == (r,m)
 
-        model.modelform = "cAHGB"
+        model = ModelClass("cAHGB")
         model.fit(*args, Us=Us)
         _test_output_shapes(model)
 
         # Fit the model with 1D inputs (1D array for B)
-        model.modelform = "cAHGB"
+        model = ModelClass("cAHGB")
         model.fit(*args, Us=np.ones((s,k)))
         m = 1
         _test_output_shapes(model)

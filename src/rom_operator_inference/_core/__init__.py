@@ -145,6 +145,6 @@ def load_model(loadfile):
         # TODO: loading (and saving) for Parametric operators.
 
     # Construct the model.
-    model = ModelClass(modelform)._set_operators(Vr, **operators)
+    model = ModelClass(modelform).set_operators(Vr, **operators)
 
     return model

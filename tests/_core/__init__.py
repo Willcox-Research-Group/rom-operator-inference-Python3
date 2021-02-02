@@ -16,7 +16,7 @@ MODEL_FORMS = [''.join(s) for k in range(1, len(MODEL_KEYS)+1)
 
 # Helper functions for testing ================================================
 def _get_data(n=60, k=25, m=20):
-    """Get fake snapshot, velocity, and input data."""
+    """Get fake snapshot, time derivative, and input data."""
     X = np.random.random((n,k))
     Xdot = np.random.random((n,k))
     U = np.ones((m,k))
@@ -57,4 +57,4 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
     if "B" in modelform:
         operators['B_'] = B
 
-    return ModelClass(modelform)._set_operators(Vr, **operators)
+    return ModelClass(modelform).set_operators(Vr, **operators)
