@@ -174,5 +174,5 @@ def test_minimal_projection_error(set_up_basis_data):
     assert len(plt.gcf().get_axes()) == 1
     roi.pre.minimal_projection_error(X, V, [1e-4, 1e-6, 1e-10], plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    plt.interactive(status)
     plt.close("all")
+    plt.interactive(status)

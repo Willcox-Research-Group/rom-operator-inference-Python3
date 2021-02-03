@@ -16,14 +16,163 @@ __all__ = [
 import numpy as np
 
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
-
-from ..utils import (expand_Hc as Hc2H, compress_H as H2Hc,
-                     expand_Gc as Gc2G, compress_G as G2Gc)
+from ..utils import expand_H, compress_H, expand_G, compress_G
 
 
 class _IntrusiveMixin:
     """Mixin class for reduced model classes that use intrusive projection."""
-    def _check_operators(self, operators):
+    def _clear(self):
+        """Set private attributes as None, erasing any previously stored basis,
+        dimensions, or ROM operators.
+        """
+        self._BaseROM__m = None if self.has_inputs else 0
+        self._BaseROM__c_ = None
+        self._BaseROM__A_ = None
+        self._BaseROM__H_ = None
+        self._BaseROM__G_ = None
+        self._BaseROM__B_ = None
+        self.__Vr = None
+        self.__c = None
+        self.__A = None
+        self.__H = None
+        self.__G = None
+        self.__B = None
+
+    # Properties: dimensions --------------------------------------------------
+    @property
+    def r(self):
+        """Dimension of the reduced-order model."""
+        return self.Vr.shape[1] if self.Vr is not None else None
+
+    @r.setter
+    def r(self, r):
+        """Setting this dimension is not allowed, it is always Vr.shape[1]."""
+        raise AttributeError("can't set attribute (r = Vr.shape[1])")
+
+    # Properties: basis -------------------------------------------------------
+    @property
+    def Vr(self):
+        """Basis for the linear reduced space (e.g., POD ), of shape (n,r)."""
+        return self.__Vr
+
+    @Vr.setter
+    def Vr(self, Vr):
+        """Set the basis, also defining the dimensions n and r."""
+        if Vr is None:
+            raise AttributeError("Vr=None not allowed for intrusive ROMs")
+        self.__Vr = Vr
+
+    @Vr.deleter
+    def Vr(self):
+        self.__Vr = None
+
+    # Properties: full-order operators ----------------------------------------
+    @property
+    def c(self):
+        """FOM constant operator, of shape (n,)."""
+        return self.__c
+
+    @c.setter
+    def c(self, c):
+        self._check_operator_matches_modelform(c, 'c')
+        if c is not None:
+            self._check_fom_operator_shape(c, 'c') ##
+        self.__c = c
+
+    @property
+    def A(self):
+        """FOM linear state operator, of shape (n,n)."""
+        return self.__A
+
+    @A.setter
+    def A(self, A):
+        self._check_operator_matches_modelform(A, 'A')
+        if A is not None:
+            self._check_fom_operator_shape(A, 'A')
+        self.__A = A
+
+    @property
+    def H(self):
+        """FOM quadratic state opeator, of shape (n,n^2)."""
+        return self.__H
+
+    @H.setter
+    def H(self, H):
+        self._check_operator_matches_modelform(H, 'H')
+        if H is not None:
+            if H.shape == (self.n, self.n*(self.n + 1)//2):
+                H = expand_H(H)
+            self._check_fom_operator_shape(H, 'H')
+        self.__H = H
+
+    @property
+    def G(self):
+        """FOM cubic state operator, of shape (n,r(r+1)(r+2)/6)."""
+        return self.__G
+
+    @G.setter
+    def G(self, G):
+        self._check_operator_matches_modelform(G, 'G')
+        if G is not None:
+            if G.shape == (self.n, self.n*(self.n + 1)*(self.n + 2)//6):
+                G = expand_G(G)
+            self._check_fom_operator_shape(G, 'G')
+        self.__G = G
+
+    @property
+    def B(self):
+        """FOM input operator, of shape (n,m)."""
+        return self.__B
+
+    @B.setter
+    def B(self, B):
+        self._check_operator_matches_modelform(B, 'B')
+        if B is not None:
+            self._check_fom_operator_shape(B, 'B')
+        self.__B = B
+
+    @property
+    def operators(self):
+        """A dictionary of the current FOM and ROM operators."""
+        return {"c" : self.c,
+                "A" : self.A,
+                "H" : self.H,
+                "G" : self.G,
+                "B" : self.B,
+                "c_": self.c_,
+                "A_": self.A_,
+                "H_": self.H_,
+                "G_": self.G_,
+                "B_": self.B_}
+
+    # Validation --------------------------------------------------------------
+    def _check_fom_operator_shape(self, operator, key):
+        """Ensure that the given operator has the correct shape."""
+        # Check that the required dimensions exist.
+        if self.Vr is None:
+            raise AttributeError("no basis 'Vr' (call fit())")
+        if key == 'B' and (self.m is None):
+            raise AttributeError(f"no input dimension 'm' (call fit())")
+        n, m = self.n, self.m
+
+        # Check operator shapes.
+        if key == "c" and operator.shape != (n,):
+            raise ValueError(f"c.shape = {operator.shape}, "
+                             f"must be (n,) with n = {n}")
+        elif key == "A" and operator.shape != (n,n):
+            raise ValueError(f"A.shape = {operator.shape}, "
+                             f"must be (n,n) with n = {n}")
+        elif key == "H" and operator.shape != (n, n**2):
+            raise ValueError(f"H.shape = {operator.shape}, must be "
+                             f"(n,n**2) with n = {n}")
+        elif key == "G" and operator.shape != (n, n**3):
+            raise ValueError(f"G.shape = {operator.shape}, must be "
+                             f"(n,n**3) with n = {n}")
+        elif key == "B" and operator.shape != (n,m):
+            raise ValueError(f"B.shape = {operator.shape}, must be "
+                             f"(n,m) with n = {n}, m = {m}")
+
+    def _check_operators_keys(self, operators):
         """Check the keys of the `operators` argument."""
         # Check for missing operator keys.
         missing = [repr(key) for key in self.modelform if key not in operators]
@@ -37,6 +186,43 @@ class _IntrusiveMixin:
             _noun = "key" + ('' if len(surplus) == 1 else 's')
             raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
 
+    # Fitting -----------------------------------------------------------------
+    def _process_fit_arguments(self, Vr, operators):
+        """Validate the arguments to fit() and set the basis."""
+        self._check_operators_keys(operators)
+        self._clear()
+        self.Vr = Vr
+
+    def _project_operators(self, operators):
+        """Project the full-order operators to the reduced-order space."""
+        if self.has_quadratic or self.has_cubic:
+            Vr2 = np.kron(self.Vr, self.Vr)
+
+        # Project FOM operators.
+        if self.has_constant:           # Constant term.
+            self.c = operators['c']
+            self.c_ = self.Vr.T @ self.c
+
+        if self.has_linear:             # Linear state matrix.
+            self.A = operators['A']
+            self.A_ = self.Vr.T @ self.A @ self.Vr
+
+        if self.has_quadratic:          # Quadratic state matrix.
+            self.H = operators['H']
+            self.H_ = self.Vr.T @ self.H @ Vr2
+
+        if self.has_cubic:              # Cubic state matrix.
+            self.G = operators['G']
+            self.G_ = self.Vr.T @ self.G @ np.kron(self.Vr, Vr2)
+
+        if self.has_inputs:             # Linear input matrix.
+            B = operators['B']
+            if B.ndim == 1:
+                B = B.reshape((-1,1))
+            self.m = B.shape[1]
+            self.B = B
+            self.B_ = self.Vr.T @ self.B
+
     def fit(self, Vr, operators):
         """Compute the reduced model operators via intrusive projection.
 
@@ -47,89 +233,20 @@ class _IntrusiveMixin:
             This cannot be set to None, as it is required for projection.
 
         operators: dict(str -> ndarray)
-            The operators that define the full-order model f.
+            The operators that define the full-order model.
             Keys must match the modelform:
-            * 'c': constant term c.
-            * 'A': linear state matrix A.
-            * 'H': quadratic state matrix H (either full H or compact Hc).
-            * 'G': cubic state matrix H (either full G or compact Gc).
-            * 'B': input matrix B.
+            * 'c': (n,) constant term c.
+            * 'A': (n,n) linear state matrix A.
+            * 'H': (n,n**2) quadratic state matrix H.
+            * 'G': (n,n**3) cubic state matrix G.
+            * 'B': (n,m) input matrix B.
 
         Returns
         -------
         self
         """
-        # Verify modelform.
-        self._check_modelform()
-        self._check_operators(operators)
-
-        # Store dimensions.
-        self.Vr = Vr
-        self.n, self.r = Vr.shape           # Dim of system, num basis vectors.
-
-        # Project FOM operators.
-        if self.has_constant:               # Constant term.
-            self.c = operators['c']
-            if self.c.shape != (self.n,):
-                raise ValueError("basis Vr and FOM operator c not aligned")
-            self.c_ = self.Vr.T @ self.c
-        else:
-            self.c, self.c_ = None, None
-
-        if self.has_linear:                 # Linear state matrix.
-            self.A = operators['A']
-            if self.A.shape != (self.n,self.n):
-                raise ValueError("basis Vr and FOM operator A not aligned")
-            self.A_ = self.Vr.T @ self.A @ self.Vr
-        else:
-            self.A, self.A_ = None, None
-
-        if self.has_quadratic:              # Quadratic state matrix.
-            H_or_Hc = operators['H']
-            _n2 = self.n * (self.n + 1) // 2
-            if H_or_Hc.shape == (self.n,self.n**2):         # It's H.
-                self.H = H_or_Hc
-                self.Hc = H2Hc(self.H)
-            elif H_or_Hc.shape == (self.n,_n2):             # It's Hc.
-                self.Hc = H_or_Hc
-                self.H = Hc2H(self.Hc)
-            else:
-                raise ValueError("basis Vr and FOM operator H not aligned")
-            H_ = self.Vr.T @ self.H @ np.kron(self.Vr, self.Vr)
-            self.Hc_ = H2Hc(H_)
-        else:
-            self.Hc, self.H, self.Hc_ = None, None, None
-
-        if self.has_cubic:
-            G_or_Gc = operators['G']
-            _n3 = self.n * (self.n + 1) * (self.n + 2) // 6
-            if G_or_Gc.shape == (self.n,self.n**3):         # It's G.
-                self.G = G_or_Gc
-                self.Gc = G2Gc(self.G)
-            elif G_or_Gc.shape == (self.n,_n3):             # It's Gc.
-                self.Gc = G_or_Gc
-                self.G = Gc2G(self.Gc)
-            else:
-                raise ValueError("basis Vr and FOM operator G not aligned")
-            G_ = self.Vr.T @ self.G @ np.kron(self.Vr,np.kron(self.Vr,self.Vr))
-            self.Gc_ = G2Gc(G_)
-        else:
-            self.Gc, self.G, self.Gc_ = None, None, None
-
-        if self.has_inputs:                 # Linear input matrix.
-            self.B = operators['B']
-            if self.B.shape[0] != self.n:
-                raise ValueError("basis Vr and FOM operator B not aligned")
-            if self.B.ndim == 2:
-                self.m = self.B.shape[1]
-            else:                                   # One-dimensional input
-                self.B = self.B.reshape((-1,1))
-                self.m = 1
-            self.B_ = self.Vr.T @ self.B
-        else:
-            self.B, self.B_, self.m = None, None, None
-
-        self._construct_f_()
+        self._process_fit_arguments(Vr, operators)
+        self._project_operators(operators)
         return self
 
 
@@ -150,89 +267,37 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
         indicates the presence of a different term in the model:
         'c' : Constant term c
         'A' : Linear state term Ax.
-        'H' : Quadratic state term H(x⊗x).
-        'G' : Cubic state term G(x⊗x⊗x).
+        'H' : Quadratic state term H(x ⊗ x).
+        'G' : Cubic state term G(x ⊗ x ⊗ x).
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax.
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x).
-
-    has_cubic : bool
-        Whether or not there is a cubic state term G(x⊗x⊗x).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu.
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    datacond_ : float
-        Condition number of the raw data matrix for the least-squares problem.
-
-    dataregcond_ : float
-        Condition number of the regularized data matrix for the least-squares
-        problem. Same as datacond_ if there is no regularization.
-
-    residual_ : float
-        The squared Frobenius-norm residual of the regularized least-squares
-        problem for computing the reduced-order model operators.
-
-    misfit_ : float
-        The squared Frobenius-norm data misfit of the (nonregularized)
-        least-squares problem for computing the reduced-order model operators.
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)/2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : (r,r**3) ndarray or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used
-        directly in solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : callable((r,) ndarray, (m,) ndarray) -> (r,)
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
-        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and inputs if appropriate) to reduced state. Calculated in fit().
     """
-    pass
+    def f(self, x, u=None):
+        """Full-order model for discrete models.
+
+        Parameters
+        ----------
+        x : (n,) ndarray
+            Full state vector.
+
+        u : (m,) ndarray or None
+            Input vector corresponding to x.
+        """
+        x_new = np.zeros(self.n, dtype=float)
+        if self.has_quadratic or self.has_cubic:
+            x2 = np.kron(x, x)
+        if self.has_constant:
+            x_new += self.c
+        if self.has_linear:
+            x_new += self.A @ x
+        if self.has_quadratic:
+            x_new += self.H @ x2
+        if self.has_cubic:
+            x_new += self.G @ np.kron(x, x2)
+        if self.has_inputs:
+            x_new += self.B @ u
+        return x_new
+
 
 
 class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
@@ -252,97 +317,35 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
         indicates the presence of a different term in the model:
         'c' : Constant term c
         'A' : Linear state term Ax(t).
-        'H' : Quadratic state term H(x⊗x)(t).
+        'H' : Quadratic state term H(x(t) ⊗ x(t)).
         'B' : Input term Bu(t).
-        For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax(t).
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x)(t).
-
-    has_cubic : bool
-        Whether or not there is a cubic state term G(x⊗x⊗x)(t).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu(t).
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the projected reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    c : (n,) ndarray or None
-        FOM constant term, or None if 'c' is not in `modelform`.
-
-    A : (n,n) ndarray or None
-        FOM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc : (n,n(n+1)/2) ndarray or None
-        FOM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`.
-
-    H : (n,n**2) ndarray or None
-        FOM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`.
-
-    Gc : (n,n(n+1)(n+2)/6) ndarray or None
-        FOM cubic state matrix (compact), or None if 'G' is not in `modelform`.
-
-    G : (n,n**3) ndarray or None
-        FOM cubic state matrix (full), or None if 'G' is not in `modelform`.
-
-    B : (n,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)/2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used in
-        solving the ROM.
-
-    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : (r,r**3) ndarray or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used in
-        solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : callable(float, (r,) ndarray, func?) -> (r,) ndarray
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(t, x_) if 'B' is not in `modelform` (no inputs) and
-        f_(t, x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and possibly an input function) to reduced state. Calculated in fit().
-
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
+        For example, modelform = "AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
     """
-    pass
+    def f(self, t, x, u=None):
+        """Full-order model function for continuous models.
+
+        Parameters
+        ----------
+        t : float
+            Time, a scalar.
+
+        x : (n,) ndarray
+            Full state vector corresponding to time `t`.
+
+        u : func(float) -> (m,)
+            Input function that maps time `t` to an input vector of length m.
+        """
+        dxdt = np.zeros(self.n, dtype=float)
+        if self.has_quadratic or self.has_cubic:
+            x2 = np.kron(x, x)
+        if self.has_constant:
+            dxdt += self.c
+        if self.has_linear:
+            dxdt += self.A @ x
+        if self.has_quadratic:
+            dxdt += self.H @ x2
+        if self.has_cubic:
+            dxdt += self.G @ np.kron(x, x2)
+        if self.has_inputs:
+            dxdt += self.B @ u(t)
+        return dxdt

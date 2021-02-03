@@ -16,21 +16,213 @@ __all__ = [
 import numpy as np
 
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
-from ..utils import lstsq_reg, kron2c, kron3c
+from .. import lstsq
+from ..utils import kron2c, kron3c
 
 
 class _InferredMixin:
     """Mixin class for reduced model classes that use Operator Inference."""
 
-    @staticmethod
-    def _check_training_data_shapes(datasets):
+    def _check_training_data_shapes(self, datasets, labels):
         """Ensure that each data set has the same number of columns."""
-        k = datasets[0].shape[1]
-        for data in datasets:
-            if data.shape[1] != k:
-                raise ValueError("data sets not aligned, dimension 1")
+        for data, label in zip(datasets, labels):
+            # Ensure each data set is two-dimensional.
+            if data.ndim != 2:
+                raise ValueError(f"{label} must be two-dimensional")
+            # Ensure each data set has the same number of columns.
+            if data.shape[1] != datasets[0].shape[1]:
+                raise ValueError("training data not aligned "
+                                 f"({label}.shape[1] != {labels[0]}.shape[1])")
+            # Validate the number of rows.
+            if label.startswith("X") and data.shape[0] not in (self.n, self.r):
+                raise ValueError(f"invalid training set ({label}.shape[0] "
+                                 f"!= n={self.n} or r={self.r})")
+            elif label.startswith("U") and data.shape[0] != self.m:
+                raise ValueError(f"invalid training input "
+                                 f"({label}.shape[0] != m={self.m})")
 
-    def fit(self, Vr, X, rhs, U=None, P=0):
+    # Fitting -----------------------------------------------------------------
+    def _process_fit_arguments(self, Vr, X, rhs, U):
+        """Do sanity checks, extract dimensions, check and fix data sizes, and
+        get projected data for the Operator Inference least-squares problem.
+
+        Parameters
+        ----------
+        Vr : (n,r) ndarray or None
+            The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, X and rhs are assumed to already be projected (r,k).
+
+        X : (n,k) or (r,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
+
+        rhs : (n,k) or (r,k) ndarray
+            Column-wise next-iteration (discrete model) or time derivative
+            (continuous model) training data. Each column is a snapshot, and
+            either full order (n rows) or projected to reduced order (r rows).
+
+        U : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
+
+        Returns
+        -------
+        X_ : (r,k) ndarray
+            Projected state snapshots.
+
+        rhs_ : (r,k) ndarray
+            Projected right-hand-side data.
+
+        U : (m,k) ndarray
+            Inputs, potentially reshaped.
+        """
+        self._check_inputargs(U, 'U')
+        self._clear()
+
+        # Store basis and reduced dimension.
+        self.Vr = Vr
+        if Vr is None:
+            self.r = X.shape[0]
+
+        # Ensure training data sets have consistent sizes.
+        if self.has_inputs:
+            if U.ndim == 1:             # Reshape one-dimensional inputs.
+                U = U.reshape((1,-1))
+            self.m = U.shape[0]         # Input dimension.
+            self._check_training_data_shapes([X, rhs, U], ["X", "Xdot", "U"])
+        else:
+            self._check_training_data_shapes([X, rhs], ["X", "Xdot"])
+
+        # Project states and rhs to the reduced subspace (if not done already).
+        X_ = self.project(X, 'X')
+        rhs_ = self.project(rhs, 'rhs')
+
+        return X_, rhs_, U
+
+    def _assemble_data_matrix(self, X_, U):
+        """Construct the Operator Inference data matrix D from projected data.
+
+        If modelform="cAHB", this is D = [1 | X_.T | (X_ ⊗ X_).T | U.T].
+
+        Parameters
+        ----------
+        X_ : (r,k) ndarray
+            Column-wise projected snapshot training data.
+
+        U : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array.
+
+        Returns
+        -------
+        D : (k,d(r,m)) ndarray
+            Operator Inference data matrix (no regularization).
+        """
+        D = []
+        if self.has_constant:           # Constant term.
+            D.append(np.ones((X_.shape[1],1)))
+
+        if self.has_linear:             # Linear state term.
+            D.append(X_.T)
+
+        if self.has_quadratic:          # (compact) Quadratic state term.
+            D.append(kron2c(X_).T)
+
+        if self.has_cubic:              # (compact) Cubic state term.
+            D.append(kron3c(X_).T)
+
+        if self.has_inputs:             # Linear input term.
+            if (self.m == U.ndim == 1) or (self.m is None and U.ndim == 1):
+                U = U.reshape((1,-1))
+                self.m = 1
+            D.append(U.T)
+
+        return np.hstack(D)
+
+    def _extract_operators(self, O):
+        """Extract and save the inferred operators from the block-matrix
+        solution to the least-squares problem.
+
+        Parameters
+        ----------
+        O : (r,d(r,m)) ndarray
+            Block matrix of ROM operator coefficients, the transpose of the
+            solution to the Operator Inference linear least-squares problem.
+        """
+        i = 0
+        if self.has_constant:           # Constant term (one-dimensional).
+            self.c_ = O[:,i:i+1][:,0]
+            i += 1
+
+        if self.has_linear:             # Linear state matrix.
+            self.A_ = O[:,i:i+self.r]
+            i += self.r
+
+        if self.has_quadratic:          # (compact) Qudadratic state matrix.
+            _r2 = self.r * (self.r + 1) // 2
+            self.H_ = O[:,i:i+_r2]
+            i += _r2
+
+        if self.has_cubic:              # (compact) Cubic state matrix.
+            _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
+            self.G_ = O[:,i:i+_r3]
+            i += _r3
+
+        if self.has_inputs:             # Linear input matrix.
+            self.B_ = O[:,i:i+self.m]
+            i += self.m
+
+        return
+
+    def _construct_solver(self, Vr, X, rhs, U, P, **kwargs):
+        """Construct a solver object mapping the regularizer P to solutions
+        of the Operator Inference least-squares problem.
+
+        Parameters
+        ----------
+        Vr : (n,r) ndarray or None
+            The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, X and rhs are assumed to already be projected (r,k).
+
+        X : (n,k) or (r,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
+
+        rhs : (n,k) or (r,k) ndarray
+            Column-wise next-iteration (discrete model) or time derivative
+            (continuous model) training data. Each column is a snapshot, and
+            either full order (n rows) or projected to reduced order (r rows).
+
+        U : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
+            input), then U may be a one-dimensional array. Required if 'B' is
+            in `modelform`; must be None if 'B' is not in `modelform`.
+
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB". This parameter is used here
+            only to determine the correct type of solver.
+        """
+        X_, rhs_, U = self._process_fit_arguments(Vr, X, rhs, U)
+        D = self._assemble_data_matrix(X_, U)
+        self.solver_ = lstsq.solver(D, rhs_.T, P, **kwargs)
+
+    def _evaluate_solver(self, P):
+        """Evaluate the least-squares solver with regularizer P.
+
+        Parameters
+        ----------
+        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + m when `modelform`="AB".
+        """
+        Otrp = self.solver_.predict(P)
+        self._extract_operators(Otrp.T)
+
+    def fit(self, Vr, X, rhs, U, P, **kwargs):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -44,7 +236,7 @@ class _InferredMixin:
             either full order (n rows) or projected to reduced order (r rows).
 
         rhs : (n,k) or (r,k) ndarray
-            Column-wise next-iteration (discrete model) or velocity
+            Column-wise next-iteration (discrete model) or time derivative
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
 
@@ -54,114 +246,20 @@ class _InferredMixin:
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
-            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
+
+        **kwargs
+            Additional arguments for the least-squares solver.
+            See lstsq.solvers().
 
         Returns
         -------
         self
         """
-        # Check modelform and inputs.
-        self._check_modelform()
-        self._check_inputargs(U, 'U')
-
-        # Store dimensions and check that number of samples is consistent.
-        if Vr is not None:
-            self.n, self.r = Vr.shape   # Full dimension, reduced dimension.
-        else:
-            self.n = None
-            self.r = X.shape[0]
-        _tocheck = [X, rhs]
-        if self.has_inputs:             # Input dimension.
-            if U.ndim == 1:
-                U = U.reshape((1,-1))
-                self.m = 1
-            else:
-                self.m = U.shape[0]
-            _tocheck.append(U)
-        else:
-            self.m = None
-        self._check_training_data_shapes(_tocheck)
-        k = X.shape[1]
-
-        # Project states and rhs to the reduced subspace (if not done already).
-        self.Vr = Vr
-        X_ = self.project(X, 'X')
-        rhs_ = self.project(rhs, 'rhs')
-
-        # Construct the "Data matrix" D = [X^T, (X ⊗ X)^T, U^T, 1].
-        D_blocks = []
-        if self.has_constant:
-            D_blocks.append(np.ones((k,1)))
-
-        if self.has_linear:
-            D_blocks.append(X_.T)
-
-        if self.has_quadratic:
-            X2_ = kron2c(X_)
-            D_blocks.append(X2_.T)
-            _r2 = X2_.shape[0]  # = r(r+1)/2, size of compact quadratic Kron.
-
-        if self.has_cubic:
-            X3_ = kron3c(X_)
-            D_blocks.append(X3_.T)
-            _r3 = X3_.shape[0]  # = r(r+1)(r+2)/6, size of compact cubic Kron.
-
-        if self.has_inputs:
-            D_blocks.append(U.T)
-            m = U.shape[0]
-            self.m = m
-
-        D = np.hstack(D_blocks)
-        R = rhs_.T
-
-        # Solve for the reduced-order model operators via least squares.
-        Otrp, res, _, sval = lstsq_reg(D, R, P)
-
-        # Record info about the least squares solution.
-        # Condition number of the raw data matrix.
-        self.datacond_ = np.linalg.cond(D)
-        # Condition number of regularized data matrix.
-        self.dataregcond_ = abs(sval[0]/sval[-1]) if sval[-1] > 0 else np.inf
-        # Squared Frobenius data misfit (without regularization).
-        self.misfit_ = np.sum(((D @ Otrp) - R)**2)
-        # Squared Frobenius residual of the regularized least squares problem.
-        self.residual_ = np.sum(res) if res.size > 0 else self.misfit_
-
-        # Extract the reduced operators from Otrp.
-        i = 0
-        if self.has_constant:
-            self.c_ = Otrp[i:i+1][0]        # Note that c_ is one-dimensional.
-            i += 1
-        else:
-            self.c_ = None
-
-        if self.has_linear:
-            self.A_ = Otrp[i:i+self.r].T
-            i += self.r
-        else:
-            self.A_ = None
-
-        if self.has_quadratic:
-            self.Hc_ = Otrp[i:i+_r2].T
-            i += _r2
-        else:
-            self.Hc_ = None
-
-        if self.has_cubic:
-            self.Gc_ = Otrp[i:i+_r3].T
-            i += _r3
-        else:
-            self.Gc_ = None
-
-        if self.has_inputs:
-            self.B_ = Otrp[i:i+self.m].T
-            i += self.m
-        else:
-            self.B_ = None
-
-        self._construct_f_()
+        self._construct_solver(Vr, X, rhs, U, P, **kwargs)
+        self._evaluate_solver(P)
         return self
 
 
@@ -187,85 +285,8 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         'G' : Cubic state term G(x⊗x⊗x).
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax.
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x).
-
-    has_cubic : bool
-        Whether or not there is a cubic state term G(x⊗x⊗x).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu.
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    datacond_ : float
-        Condition number of the raw data matrix for the least-squares problem.
-
-    dataregcond_ : float
-        Condition number of the regularized data matrix for the least-squares
-        problem. Same as datacond_ if there is no regularization.
-
-    residual_ : float
-        The squared Frobenius-norm residual of the regularized least-squares
-        problem for computing the reduced-order model operators.
-
-    misfit_ : float
-        The squared Frobenius-norm data misfit of the (nonregularized)
-        least-squares problem for computing the reduced-order model operators.
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)/2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : (r,r**3) ndarray or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used
-        directly in solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : callable((r,) ndarray, (m,) ndarray) -> (r,)
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
-        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and inputs if appropriate) to reduced state. Calculated in fit().
     """
-    def fit(self, Vr, X, U=None, P=0):
+    def fit(self, Vr, X, U=None, P=0, **kwargs):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -284,9 +305,13 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
-            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
+
+        **kwargs
+            Additional arguments for the least-squares solver.
+            See lstsq.solvers().
 
         Returns
         -------
@@ -295,7 +320,7 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         return _InferredMixin.fit(self, Vr,
                                   X[:,:-1], X[:,1:],    # x_j's and x_{j+1}'s.
                                   U[...,:X.shape[1]-1] if U is not None else U,
-                                  P)
+                                  P, **kwargs)
 
 
 class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
@@ -319,89 +344,8 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         'G' : Cubic state term G(x⊗x⊗x)(t).
         'B' : Input term Bu(t).
         For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax(t).
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x)(t).
-
-    has_cubic : bool
-        Whether or not there is a cubic state term G(x⊗x⊗x)(t).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu(t).
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    datacond_ : float
-        Condition number of the raw data matrix for the least-squares problem.
-
-    dataregcond_ : float
-        Condition number of the regularized data matrix for the least-squares
-        problem. Same as datacond_ if there is no regularization.
-
-    residual_ : float
-        The squared Frobenius-norm residual of the regularized least-squares
-        problem for computing the reduced-order model operators.
-
-    misfit_ : float
-        The squared Frobenius-norm data misfit of the (nonregularized)
-        least-squares problem for computing the reduced-order model operators.
-
-    c_ : (r,) ndarray or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : (r,r) ndarray or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    Hc_ : (r,r(r+1)/2) ndarray or None
-        Learned ROM quadratic state matrix (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    H_ : (r,r**2) ndarray or None
-        Learned ROM quadratic state matrix (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hc_ if desired; not used
-        directly in solving the ROM.
-
-    Gc_ : (r,r(r+1)(r+2)/6) ndarray or None
-        Learned ROM cubic state matrix (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    G_ : (r,r**3) ndarray or None
-        Learned ROM cubic state matrix (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gc_ if desired; not used
-        directly in solving the ROM.
-
-    B_ : (r,m) ndarray or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    f_ : callable(float, (r,) ndarray, func?) -> (r,) ndarray
-        The complete learned ROM operator, defined by c_, A_, Hc_, and/or B_.
-        The signature is f_(t, x_) if 'B' is not in `modelform` (no inputs) and
-        f_(t, x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and possibly an input function) to reduced state. Calculated in fit().
-
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    def fit(self, Vr, X, Xdot, U=None, P=0):
+    def fit(self, Vr, X, Xdot, U=None, P=0, **kwargs):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -415,8 +359,9 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
             either full order (n rows) or projected to reduced order (r rows).
 
         Xdot : (n,k) or (r,k) ndarray
-            Column-wise velocity training data (each column is a snapshot),
-            either full order (n rows) or projected to reduced order (r rows).
+            Column-wise time derivative training data (each column is a
+            snapshot), either full order (n rows) or projected to reduced
+            order (r rows).
 
         U : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -424,12 +369,16 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
-            Tikhonov regularization factor(s); see utils.lstsq_reg(). Here, d
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
+
+        **kwargs
+            Additional arguments for the least-squares solver.
+            See lstsq.solvers().
 
         Returns
         -------
         self
         """
-        return _InferredMixin.fit(self, Vr, X, Xdot, U, P)
+        return _InferredMixin.fit(self, Vr, X, Xdot, U, P, **kwargs)

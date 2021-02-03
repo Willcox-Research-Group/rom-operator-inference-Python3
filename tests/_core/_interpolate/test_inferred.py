@@ -7,7 +7,7 @@ from scipy import linalg as la
 
 import rom_operator_inference as roi
 
-from .. import _LSTSQ_REPORTS, _get_data
+from .. import _get_data
 
 
 # Interpolated inferred mixin (private) =======================================
@@ -19,14 +19,13 @@ class TestInterpolatedInferredMixin:
 # Interpolated inferred models (public) =======================================
 class TestInterpolatedInferredDiscreteROM:
     """Test _core._interpolate._inferred.InterpolatedInferredDiscreteROM."""
-    def test_fit(self):
+    def test_fit(self, n=20, m=4, k=500, r=3):
         """Test
         _core._interpolate._inferred.InterpolatedInferredDiscreteROM.fit().
         """
         model = roi.InterpolatedInferredDiscreteROM("cAH")
 
         # Get data for fitting.
-        n, m, k, r = 50, 10, 100, 5
         X1, _, U1 = _get_data(n, k, m)
         X2, U2 = X1+1, U1+1
         Xs = [X1, X2]
@@ -35,26 +34,20 @@ class TestInterpolatedInferredDiscreteROM:
         Vr = la.svd(np.hstack(Xs))[0][:,:r]
 
         # Try with non-scalar parameters.
-        with pytest.raises(ValueError) as ex:
-            model.fit(Vr, [np.array([1,1]), np.array([2,2])], Xs)
-        assert ex.value.args[0] == "only scalar parameter values are supported"
+        # with pytest.raises(ValueError) as ex:
+        #     model.fit(Vr, [np.array([1,1]), np.array([2,2])], Xs)
+        # assert ex.value.args[0] == "only scalar parameter values are supported"
 
         # Try with bad number of Xs.
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, ps, [X1, X2, X2+1])
-        assert ex.value.args[0] == \
-            "num parameter samples != num state snapshot sets (2 != 3)"
-
-        # Try with varying input sizes.
-        model.modelform = "cAHB"
-        with pytest.raises(ValueError) as ex:
-            model.fit(Vr, ps, Xs, [U1, U2[:-1]])
-        assert ex.value.args[0] == "control inputs not aligned"
+        assert ex.value.args[0] == "num parameter samples != num state " \
+                                   "snapshot training sets (2 != 3)"
 
         # Fit correctly with no inputs.
         model.modelform = "cAH"
         model.fit(Vr, ps, Xs)
-        for attr in ["models_", "fs_"] + [s[:-1]+"s_" for s in _LSTSQ_REPORTS]:
+        for attr in ["models_", "fs_"]:
             assert hasattr(model, attr)
             assert len(getattr(model, attr)) == len(model.models_)
 
@@ -87,9 +80,9 @@ class TestInterpolatedInferredDiscreteROM:
         Vr = la.svd(np.hstack(Xs))[0][:,:r]
 
         # Parameters for predicting.
-        x0 = np.random.random(n)
+        x0 = np.zeros(n)
         niters = 5
-        U = np.ones((m,niters))
+        U = np.zeros((m,niters))
 
         # Fit / predict with no inputs.
         model.fit(Vr, ps, Xs)
@@ -122,32 +115,26 @@ class TestInterpolatedInferredContinuousROM:
         Vr = la.svd(np.hstack(Xs))[0][:,:r]
 
         # Try with non-scalar parameters.
-        with pytest.raises(ValueError) as ex:
-            model.fit(Vr, [np.array([1,1]), np.array([2,2])], Xs, Xdots)
-        assert ex.value.args[0] == "only scalar parameter values are supported"
+        # with pytest.raises(ValueError) as ex:
+        #     model.fit(Vr, [np.array([1,1]), np.array([2,2])], Xs, Xdots)
+        # assert ex.value.args[0] == "only scalar parameter values are supported"
 
         # Try with bad number of Xs.
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, ps, [X1, X2, X2+1], Xdots)
-        assert ex.value.args[0] == \
-            "num parameter samples != num state snapshot sets (2 != 3)"
+        assert ex.value.args[0] == "num parameter samples != num state " \
+                                   "snapshot training sets (2 != 3)"
 
         # Try with bad number of Xdots.
         with pytest.raises(ValueError) as ex:
             model.fit(Vr, ps, Xs, Xdots + [Xdot1])
-        assert ex.value.args[0] == \
-            "num parameter samples != num velocity snapshot sets (2 != 3)"
-
-        # Try with varying input sizes.
-        model.modelform = "cAHB"
-        with pytest.raises(ValueError) as ex:
-            model.fit(Vr, ps, Xs, Xdots, [U1, U2[:-1]])
-        assert ex.value.args[0] == "control inputs not aligned"
+        assert ex.value.args[0] == "num parameter samples != num time " \
+                                   "derivative training sets (2 != 3)"
 
         # Fit correctly with no inputs.
         model.modelform = "cAH"
         model.fit(Vr, ps, Xs, Xdots)
-        for attr in ["models_", "fs_"] + [s[:-1]+"s_" for s in _LSTSQ_REPORTS]:
+        for attr in ["models_", "fs_"]:
             assert hasattr(model, attr)
             assert len(getattr(model, attr)) == len(model.models_)
 
@@ -164,14 +151,11 @@ class TestInterpolatedInferredContinuousROM:
         assert model.Vr is None
         assert model.n is None
 
-    def test_predict(self):
+    def test_predict(self, n=50, m=10, k=100, r=3):
         """Test
         _core._interpolate._inferred.InterpolatedInferredContinuousROM.predict().
         """
-        model = roi.InterpolatedInferredContinuousROM("cAH")
-
         # Get data for fitting.
-        n, m, k, r = 50, 10, 100, 5
         X1, Xdot1, U1 = _get_data(n, k, m)
         X2, Xdot2, U2 = X1+1, Xdot1.copy(), U1+1
         Xs = [X1, X2]
@@ -181,18 +165,19 @@ class TestInterpolatedInferredContinuousROM:
         Vr = la.svd(np.hstack(Xs))[0][:,:r]
 
         # Parameters for predicting.
-        x0 = np.random.random(n)
+        x0 = np.zeros(n)
         nt = 5
         t = np.linspace(0, .01*nt, nt)
-        u = lambda t: np.ones(10)
+        u = lambda t: np.zeros(m)
 
         # Fit / predict with no inputs.
+        model = roi.InterpolatedInferredContinuousROM("AH")
         model.fit(Vr, ps, Xs, Xdots)
         model.predict(1, x0, t)
         model.predict(1.5, x0, t)
 
         # Fit / predict with inputs.
-        model.modelform = "cAHB"
+        model = roi.InterpolatedInferredContinuousROM("AHB")
         model.fit(Vr, ps, Xs, Xdots, Us)
         model.predict(1, x0, t, u)
         model.predict(1.5, x0, t, u)

@@ -9,6 +9,7 @@ Classes
 __all__ = []
 
 import numpy as np
+import scipy.interpolate as interp
 
 from .._base import _ParametricMixin
 
@@ -31,19 +32,9 @@ class _InterpolatedMixin(_ParametricMixin):
         return [m.H_ for m in self.models_] if self.has_quadratic else None
 
     @property
-    def Hcs_(self):
-        """The compact quadratic state matrices for each submodel."""
-        return [m.Hc_ for m in self.models_] if self.has_quadratic else None
-
-    @property
     def Gs_(self):
         """The full cubic state matrices for each submodel."""
         return [m.G_ for m in self.models_] if self.has_cubic else None
-
-    @property
-    def Gcs_(self):
-        """The compact cubic state matrices for each submodel."""
-        return [m.Gc_ for m in self.models_] if self.has_cubic else None
 
     @property
     def Bs_(self):
@@ -54,30 +45,6 @@ class _InterpolatedMixin(_ParametricMixin):
     def fs_(self):
         """The reduced-order operators for each submodel."""
         return [m.f_ for m in self.models_]
-
-    @property
-    def dataconds_(self):
-        """The condition numbers of the raw data matrices for each submodel."""
-        return np.array([m.datacond_ for m in self.models_])
-
-    @property
-    def dataregconds_(self):
-        """The condition numbers of the regularized data matrices for each
-        submodel.
-        """
-        return np.array([m.dataregcond_ for m in self.models_])
-
-    @property
-    def residuals_(self):
-        """The regularized least-squares residuals for each submodel."""
-        return np.array([m.residual_ for m in self.models_])
-
-    @property
-    def misfits_(self):
-        """The (nonregularized) least-squares data misfits for each
-        submodel.
-        """
-        return np.array([m.misfit_ for m in self.models_])
 
     def __len__(self):
         """The number of trained models."""

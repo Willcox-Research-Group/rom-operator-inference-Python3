@@ -81,15 +81,15 @@ def test_kron3c(n_tests=50):
 
 
 # Matricized tensor management ================================================
-# utils.expand_Hc() -----------------------------------------------------------
-def _test_expand_Hc_single(r):
-    """Do one test of utils._kronecker.expand_Hc()."""
+# utils.expand_H() -----------------------------------------------------------
+def _test_expand_H_single(r):
+    """Do one test of utils._kronecker.expand_H()."""
     x = np.random.random(r)
 
-    # Do a valid expand_Hc() calculation and check dimensions.
+    # Do a valid expand_H() calculation and check dimensions.
     s = r*(r+1)//2
     Hc = np.random.random((r,s))
-    H = roi.utils.expand_Hc(Hc)
+    H = roi.utils.expand_H(Hc)
     assert H.shape == (r,r**2)
 
     # Check that Hc(x^2) == H(x⊗x).
@@ -103,20 +103,20 @@ def _test_expand_Hc_single(r):
         assert np.allclose(subH, subH.T)
 
 
-def test_expand_Hc(n_tests=100):
-    """Test utils._kronecker.expand_Hc()."""
-    # Try to do expand_Hc() with a bad second dimension.
+def test_expand_H(n_tests=100):
+    """Test utils._kronecker.expand_H()."""
+    # Try to do expand_H() with a bad second dimension.
     r = 5
     sbad = r*(r+3)//2
     Hc = np.random.random((r, sbad))
     with pytest.raises(ValueError) as exc:
-        roi.utils.expand_Hc(Hc)
+        roi.utils.expand_H(Hc)
     assert exc.value.args[0] == \
         f"invalid shape (r,s) = {(r,sbad)} with s != r(r+1)/2"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 100, n_tests):
-        _test_expand_Hc_single(r)
+        _test_expand_H_single(r)
 
 
 # utils.compress_H() ----------------------------------------------------------
@@ -134,8 +134,8 @@ def _test_compress_H_single(r):
     Hxx = H @ np.kron(x,x)
     assert np.allclose(Hxx, Hc @ roi.utils.kron2c(x))
 
-    # Check that expand_Hc() and compress_H() are inverses up to symmetry.
-    H2 = roi.utils.expand_Hc(Hc)
+    # Check that expand_H() and compress_H() are inverses up to symmetry.
+    H2 = roi.utils.expand_H(Hc)
     Ht = H.reshape((r,r,r))
     Htnew = np.empty_like(Ht)
     for l in range(r):
@@ -159,15 +159,15 @@ def test_compress_H(n_tests=100):
         _test_compress_H_single(r)
 
 
-# utils.expand_Gc() -----------------------------------------------------------
-def _test_expand_Gc_single(r):
-    """Do one test of utils._kronecker.expand_Gc()."""
+# utils.expand_G() -----------------------------------------------------------
+def _test_expand_G_single(r):
+    """Do one test of utils._kronecker.expand_G()."""
     x = np.random.random(r)
 
-    # Do a valid expand_Hc() calculation and check dimensions.
+    # Do a valid expand_H() calculation and check dimensions.
     s = r*(r+1)*(r+2)//6
     Gc = np.random.random((r,s))
-    G = roi.utils.expand_Gc(Gc)
+    G = roi.utils.expand_G(Gc)
     assert G.shape == (r,r**3)
 
     # Check that Gc(x^3) == G(x⊗x⊗x).
@@ -181,20 +181,20 @@ def _test_expand_Gc_single(r):
         assert np.allclose(subG, subG.T)
 
 
-def test_expand_Gc(n_tests=50):
-    """Test utils._kronecker.expand_Gc()."""
-    # Try to do expand_Gc() with a bad second dimension.
+def test_expand_G(n_tests=50):
+    """Test utils._kronecker.expand_G()."""
+    # Try to do expand_G() with a bad second dimension.
     r = 5
     sbad = r*(r+1)*(r+3)//6
     Gc = np.random.random((r, sbad))
     with pytest.raises(ValueError) as exc:
-        roi.utils.expand_Gc(Gc)
+        roi.utils.expand_G(Gc)
     assert exc.value.args[0] == \
         f"invalid shape (r,s) = {(r,sbad)} with s != r(r+1)(r+2)/6"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 30, n_tests):
-        _test_expand_Gc_single(r)
+        _test_expand_G_single(r)
 
 
 # utils.compress_G() ----------------------------------------------------------
@@ -212,8 +212,8 @@ def _test_compress_G_single(r):
     Gxxx = G @ np.kron(x,np.kron(x,x))
     assert np.allclose(Gxxx, Gc @ roi.utils.kron3c(x))
 
-    # Check that expand_Gc() and compress_G() are "inverses."
-    assert np.allclose(Gc, roi.utils.compress_G(roi.utils.expand_Gc(Gc)))
+    # Check that expand_G() and compress_G() are "inverses."
+    assert np.allclose(Gc, roi.utils.compress_G(roi.utils.expand_G(Gc)))
 
 
 def test_compress_G(n_tests=50):

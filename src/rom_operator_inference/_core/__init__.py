@@ -136,26 +136,15 @@ def load_model(loadfile):
         if 'A' in modelform:
             operators["A_"] = data["operators/A_"][:]
         if 'H' in modelform:
-            operators["Hc_"] = data["operators/Hc_"][:]
+            operators["H_"] = data["operators/H_"][:]
         if 'G' in modelform:
-            operators["Gc_"] = data["operators/Gc_"][:]
+            operators["G_"] = data["operators/G_"][:]
         if 'B' in modelform:
             operators["B_"] = data["operators/B_"][:]
-
-        # Load any other saved attributes.
-        if "other" in data:
-            attrs = {key: dset[0] if dset.shape == (1,) else dset[:]
-                                   for key, dset in data["other"].items()}
-        else:
-            attrs = {}
 
         # TODO: loading (and saving) for Parametric operators.
 
     # Construct the model.
-    model = ModelClass(modelform)._set_operators(Vr, **operators)
-
-    # Attach extra attributes.
-    for key, val in attrs.items():
-        setattr(model, key, val)
+    model = ModelClass(modelform).set_operators(Vr, **operators)
 
     return model

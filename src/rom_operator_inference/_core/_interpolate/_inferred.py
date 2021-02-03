@@ -14,7 +14,7 @@ __all__ = [
           ]
 
 import numpy as np
-from scipy.interpolate import CubicSpline
+import scipy.interpolate as interp
 
 from ._base import _InterpolatedMixin
 from .._base import _DiscreteROM, _ContinuousROM
@@ -26,6 +26,74 @@ from .._inferred import (_InferredMixin,
 # Interpolated inferred mixin (private) =======================================
 class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
     """Mixin for interpolatory ROM classes that use Operator Inference."""
+
+    def _process_fit_arguments(self, ModelClass, Vr, µs, Xs, Xdots, Us):
+        """Do sanity checks, extract dimensions, check and fix data sizes, and
+        get perpare arguments for individual Operator Inference ROMs.
+
+        Returns
+        -------
+        is_continuous : bool
+            Whether or not ModelClass is a subclass of _ContinuousROM.
+
+        Xdots : list of s (r,k) ndarrays (or None)
+            Right-hand-side data. rhss_[i] corresponds to µ[i].
+
+        Us : list of s (m,k) ndarrays (or None)
+            Inputs, potentially reshaped. Us[i] corresponds to µ[i].
+        """
+        # TODO: self.p = self._check_params(µs): extract self.p and check for consistent sizes.
+        self._check_inputargs(Us, 'Us')
+        self._clear()
+        is_continuous = issubclass(ModelClass, _ContinuousROM)
+
+        # Check that parameters are one-dimensional.
+        µs = np.array(µs)
+        self.p = µs.ndim
+
+        # Check that the number of params matches the number of training sets.
+        s = µs.shape[0]
+        if len(Xs) != s:
+            raise ValueError("num parameter samples != num state snapshot "
+                             f"training sets ({s} != {len(Xs)})")
+        if is_continuous and len(Xdots) != s:
+            raise ValueError("num parameter samples != num time derivative "
+                             f"training sets ({s} != {len(Xdots)})")
+        elif not is_continuous:
+            Xdots = [None] * s
+        if self.has_inputs and len(Us) != s:
+            raise ValueError("num parameter samples != num input "
+                             f"training sets ({s} != {len(Us)})")
+
+        # Store basis and reduced dimension.
+        self.Vr = Vr
+        if Vr is None:
+            self.r = Xs[0].shape[0]
+
+        # Ensure training data sets have consistent sizes.
+        if self.has_inputs:
+            if not isinstance(Us, list):
+                Us = list(Us)
+            self.m = 1 if Us[0].ndim == 1 else Us[0].shape[0]
+            for i in range(s):
+                if Us[i].ndim == 1:     # Reshape one-dimensional inputs.
+                    Us[i] = Us[i].reshape((1,-1))
+                if is_continuous:
+                    self._check_training_data_shapes([Xs[i], Xdots[i], Us[i]],
+                                                     [f"Xs[{i}]",
+                                                      f"Xdots[{i}]",
+                                                      f"Us[{i}]"])
+                else:
+                    self._check_training_data_shapes([Xs[i], Us[i]],
+                                                     [f"Xs[{i}]", f"Us[{i}]"])
+        else:
+            Us = [None] * s
+            if is_continuous:
+                for i in range(s):
+                    self._check_training_data_shapes([Xs[i], Xdots[i]],
+                                                     [f"Xs[{i}]",
+                                                      f"Xdots[{i}]"])
+        return is_continuous, µs, Xdots, Us
 
     def fit(self, ModelClass, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
@@ -69,49 +137,9 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         -------
         self
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=False)
-        self._check_inputargs(Us, 'Us')
-        is_continuous = issubclass(ModelClass, _ContinuousROM)
-
-        # Check that parameters are one-dimensional.
-        if not np.isscalar(µs[0]):
-            raise ValueError("only scalar parameter values are supported")
-
-        # Check that the number of params matches the number of snapshot sets.
-        s = len(µs)
-        if len(Xs) != s:
-            raise ValueError("num parameter samples != num state snapshot "
-                             f"sets ({s} != {len(Xs)})")
-        if is_continuous and len(Xdots) != s:
-            raise ValueError("num parameter samples != num velocity snapshot "
-                             f"sets ({s} != {len(Xdots)})")
-        elif not is_continuous:
-            Xdots = [None] * s
-
-        # Check and store dimensions.
-        if Vr is not None:
-            self.n, self.r = Vr.shape
-        else:
-            self.n = None
-            self.r = Xs[0].shape[0]
-        self.m = None
-
-        # Check that the arrays in each list have the same number of columns.
-        _tocheck = [Xs]
-        if is_continuous:
-            _tocheck.append(Xdots)
-        if self.has_inputs:
-            self.m = Us[0].shape[0] if Us[0].ndim == 2 else 1
-            # Check that the input dimension is the same in each data set.
-            for U in Us:
-                m = U.shape[0] if U.ndim == 2 else 1
-                if m != self.m:
-                    raise ValueError("control inputs not aligned")
-        else:
-            Us = [None]*s
-        for dataset in _tocheck:
-            self._check_training_data_shapes(dataset)
+        continuous, µs, Xdots, Us = self._process_fit_arguments(ModelClass,
+                                                               Vr, µs,
+                                                               Xs, Xdots, Us)
 
         # TODO: figure out how to handle P (scalar, array, list(arrays)).
 
@@ -120,27 +148,35 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         self.models_ = []
         for µ, X, Xdot, U in zip(µs, Xs, Xdots, Us):
             model = ModelClass(self.modelform)
-            if is_continuous:
+            if continuous:
                 model.fit(Vr, X, Xdot, U, P)
             else:
                 model.fit(Vr, X, U, P)
             model.parameter = µ
             self.models_.append(model)
 
+        # Select the interpolator based on the parameter dimension.
+        if self.p == 1:
+            Interpolator = interp.CubicSpline
+        else:
+            print("MODELS TRAINED BUT INTERPOLATION NOT IMPLEMENTED FOR p > 1")
+            return self
+
         # Construct interpolators.
-        self.c_ = CubicSpline(µs, self.cs_)  if self.has_constant  else None
-        self.A_ = CubicSpline(µs, self.As_)  if self.has_linear    else None
-        self.Hc_= CubicSpline(µs, self.Hcs_) if self.has_quadratic else None
-        self.H_ = CubicSpline(µs, self.Hs_)  if self.has_quadratic else None
-        self.Gc_= CubicSpline(µs, self.Gcs_) if self.has_cubic     else None
-        self.G_ = CubicSpline(µs, self.Gs_)  if self.has_cubic     else None
-        self.B_ = CubicSpline(µs, self.Bs_)  if self.has_inputs    else None
+        for lbl, atr in zip(["constant","linear","quadratic","cubic","inputs"],
+                            ["c",       "A",     "H",        "G",    "B"]):
+            if getattr(self, f"has_{lbl}"):         # if self.has_constant
+                ops = getattr(self, f"{atr}s_")     # ops = self.cs_
+                op = Interpolator(µs, ops)
+                op.shape = ops[0].shape
+                setattr(self, f"{atr}_", op)        # self.c_ = op
 
         return self
 
 
 # Interpolated inferred models (public) =======================================
-class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
+class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin,
+                                      _DiscreteROM):
     """Reduced order model for a high-dimensional discrete dynamical system,
     parametrized by a scalar µ, of the form
 
@@ -162,91 +198,6 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
         'G' : Cubic state term G(x⊗x⊗x).
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c.
-
-    has_linear : bool
-        Whether or not there is a linear state term Ax.
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(x⊗x).
-
-    has_cubic : bool
-        Whether or not there is a cubic state term G(x⊗x⊗x).
-
-    has_inputs : bool
-        Whether or not there is a linear input term Bu.
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    s : int
-        The number of training parameter samples, hence also the number of
-        reduced models computed via inference and used in the interpolation.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    dataconds_ : (s,) ndarray
-        Condition numbers of the raw data matrices for each least-squares
-        problem.
-
-    dataregconds_ : (s,) ndarray
-        Condition numbers of the regularized data matrices for each
-        least-squares problem.
-
-    residuals_ : (s,) ndarray
-        The squared Frobenius-norm residuals of the regularized least-squares
-        problems for computing each set of reduced-order model operators.
-
-    misfits_ : (s,) ndarray
-        The squared Frobenius-norm data misfits of the (nonregularized)
-        least-squares problems for computing each set of reduced-order model
-        operators.
-
-    cs_ : list of s (r,) ndarrays or None
-        Learned ROM constant terms, or None if 'c' is not in `modelform`.
-
-    As_ : list of s (r,r) ndarrays or None
-        Learned ROM linear state matrices, or None if 'A' not in `modelform`.
-
-    Hcs_ : list of s (r,r(r+1)/2) ndarrays or None
-        Learned ROM quadratic state matrices (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    Hs_ : list of s (r,r**2) ndarrays or None
-        Learned ROM quadratic state matrices (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hcs_ if desired; not used in
-        solving the ROM.
-
-    Gcs_ : list of s (r,r(r+1)(r+2)/6) ndarrays or None
-        Learned ROM cubic state matrices (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    Gs_ : list of s (r,r**3) ndarrays or None
-        Learned ROM cubic state matrices (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gcs_ if desired; not used in
-        solving the ROM.
-
-    Bs_ : list of s (r,m) ndarrays or None
-        Learned ROM input matrices, or None if 'B' not in `modelform`.
-
-    fs_ : list of func(float, (r,) ndarray) -> (r,) ndarray
-        The complete ROM operators for each parameter sample, defined by
-        cs_, As_, and/or Hcs_.
-
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
     def fit(self, Vr, µs, Xs, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
@@ -281,7 +232,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
         self
         """
         return _InterpolatedInferredMixin.fit(self, InferredDiscreteROM,
-                                      Vr, µs, Xs, None, Us, P)
+                                              Vr, µs, Xs, None, Us, P)
 
     def predict(self, µ, x0, niters, U=None):
         """Construct a ROM for the parameter µ by interolating the entries of
@@ -308,15 +259,11 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
             The approximate solutions to the full-order system, including the
             given initial condition.
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(U, 'U')
-
-        model = self(µ)     # See __call__().
-        return model.predict(x0, niters, U)
+        return self(µ).predict(x0, niters, U)
 
 
-class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousROM):
+class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin,
+                                        _ContinuousROM):
     """Reduced order model for a system of high-dimensional ODEs, parametrized
     by a scalar µ, of the form
 
@@ -338,91 +285,6 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousR
         'H' : Cubic state term G(µ)(x⊗x⊗x)(t).
         'B' : Input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c(µ).
-
-    has_linear : bool
-        Whether or not there is a linear state term A(µ)x(t).
-
-    has_quadratic : bool
-        Whether or not there is a quadratic state term H(µ)(x⊗x)(t).
-
-    has_cubic : bool
-        Whether or not there is a cubic state term G(µ)(x⊗x⊗x)(t).
-
-    has_inputs : bool
-        Whether or not there is a linear input term B(µ)u(t).
-
-    n : int
-        The dimension of the original model.
-
-    r : int
-        The dimension of the learned reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    s : int
-        The number of training parameter samples, hence also the number of
-        reduced models computed via inference and used in the interpolation.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    dataconds_ : (s,) ndarray
-        Condition numbers of the raw data matrices for each least-squares
-        problem.
-
-    dataregconds_ : (s,) ndarray
-        Condition numbers of the regularized data matrices for each
-        least-squares problem.
-
-    residuals_ : (s,) ndarray
-        The squared Frobenius-norm residuals of the regularized least-squares
-        problems for computing each set of reduced-order model operators.
-
-    misfits_ : (s,) ndarray
-        The squared Frobenius-norm data misfits of the (nonregularized)
-        least-squares problems for computing each set of reduced-order model
-        operators.
-
-    cs_ : list of s (r,) ndarrays or None
-        Learned ROM constant terms, or None if 'c' is not in `modelform`.
-
-    As_ : list of s (r,r) ndarrays or None
-        Learned ROM linear state matrices, or None if 'A' not in `modelform`.
-
-    Hcs_ : list of s (r,r(r+1)/2) ndarrays or None
-        Learned ROM quadratic state matrices (compact), or None if 'H' is not
-        in `modelform`. Used internally instead of the larger H_.
-
-    Hs_ : list of s (r,r**2) ndarrays or None
-        Learned ROM quadratic state matrices (full size), or None if 'H' is not
-        in `modelform`. Computed on the fly from Hcs_ if desired; not used in
-        solving the ROM.
-
-    Gcs_ : list of s (r,r(r+1)(r+2)/6) ndarrays or None
-        Learned ROM cubic state matrices (compact), or None if 'G' is not
-        in `modelform`. Used internally instead of the larger G_.
-
-    Gs_ : list of s (r,r**3) ndarrays or None
-        Learned ROM cubic state matrices (full size), or None if 'G' is not
-        in `modelform`. Computed on the fly from Gcs_ if desired; not used in
-        solving the ROM.
-
-    Bs_ : list of s (r,m) ndarrays or None
-        Learned ROM input matrices, or None if 'B' not in `modelform`.
-
-    fs_ : list of func(float, (r,) ndarray) -> (r,) ndarray
-        The complete ROM operators for each parameter sample, defined by
-        cs_, As_, and/or Hcs_.
-
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
     def fit(self, Vr, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
@@ -443,9 +305,10 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousR
             The ith array Xs[i] corresponds to the ith parameter, µs[i].
 
         Xdots : list of s (n,k) or (r,k) ndarrays
-            Column-wise velocity training data (each column is a snapshot),
-            either full order (n rows) ro projected to reduced order (r rows).
-            The ith array Xdots[i] corresponds to the ith parameter, µs[i].
+            Column-wise time derivative training data (each column is a
+            snapshot), either full order (n rows) or projected to reduced
+            order (r rows). The ith array Xdots[i] corresponds to the ith
+            parameter, µs[i].
 
         Us : list of s (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -462,7 +325,7 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousR
         self
         """
         return _InterpolatedInferredMixin.fit(self, InferredContinuousROM,
-                                      Vr, µs, Xs, Xdots, Us, P)
+                                              Vr, µs, Xs, Xdots, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by interolating the entries of
@@ -506,13 +369,9 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousR
         Returns
         -------
         X_ROM : (n,nt) ndarray
-            The approximate solution to the full-order system over `t`.
+            The reduced-order approximation to the full-order system over `t`.
         """
-        # Check modelform and inputs.
-        self._check_modelform(trained=True)
-        self._check_inputargs(u, 'u')
-
-        model = self(µ)     # See __call__().
+        model = self(µ)
         out = model.predict(x0, t, u, **options)
         self.sol_ = model.sol_
         return out

@@ -61,7 +61,7 @@ def test_load_model():
     # Get test operators.
     n, m, r = 20, 2, 5
     Vr = np.random.random((n,r))
-    c_, A_, H_, Hc_, G_, Gc_, B_ = _get_operators(n=r, m=m)
+    c_, A_, H_, G_, B_ = _get_operators(n=r, m=m)
 
     # Try loading a file that does not exist.
     target = "loadmodeltest.h5"
@@ -110,15 +110,15 @@ def test_load_model():
         assert isinstance(mdl, roi.InferredDiscreteROM)
         for attr in ["modelform",
                      "n", "r", "m",
-                     "c_", "A_", "Hc_", "Gc_", "B_", "Vr"]:
+                     "c_", "A_", "H_", "G_", "B_", "Vr"]:
             assert hasattr(mdl, attr)
         assert mdl.modelform == "cAB"
         assert model.r == r
         assert model.m == m
         assert np.allclose(mdl.c_, c_)
         assert np.allclose(mdl.A_, A_)
-        assert mdl.Hc_ is None
-        assert mdl.Gc_ is None
+        assert mdl.H_ is None
+        assert mdl.G_ is None
         assert np.allclose(mdl.B_, B_)
 
     # Load the file correctly.
@@ -139,22 +139,22 @@ def test_load_model():
     with h5py.File(target, 'a') as f:
         f["meta"].attrs["modelclass"] = "InferredContinuousROM"
         f["meta"].attrs["modelform"] = "HG"
-        f.create_dataset("operators/Hc_", data=Hc_)
-        f.create_dataset("operators/Gc_", data=Gc_)
+        f.create_dataset("operators/H_", data=H_)
+        f.create_dataset("operators/G_", data=G_)
 
     model = roi.load_model(target)
     assert isinstance(model, roi.InferredContinuousROM)
     for attr in ["modelform",
                  "n", "r", "m",
-                 "c_", "A_", "Hc_", "Gc_", "B_", "Vr"]:
+                 "c_", "A_", "H_", "G_", "B_", "Vr"]:
         assert hasattr(model, attr)
     assert model.modelform == "HG"
     assert model.r == r
-    assert model.m is None
+    assert model.m == 0
     assert model.c_ is None
     assert model.A_ is None
-    assert np.allclose(model.Hc_, Hc_)
-    assert np.allclose(model.Gc_, Gc_)
+    assert np.allclose(model.H_, H_)
+    assert np.allclose(model.G_, G_)
     assert model.B_ is None
     assert np.allclose(model.Vr, Vr)
     assert model.n == n

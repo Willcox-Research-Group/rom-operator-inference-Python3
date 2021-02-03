@@ -27,66 +27,59 @@ class AffineOperator:
 
     Attributes
     ----------
-    nterms : int
-        The number of terms in the sum defining the linear operator.
-
-    coefficient_functions : list of `nterms` callables
-        The coefficient scalar-valued functions that define the operator.
+    coefficient_functions : list of q callables
+        Coefficient scalar-valued functions that define the operator.
         Each must take the same sized input and return a scalar.
 
-    matrices : list of `nterms` ndarrays of the same shape
-        The component matrices defining the linear operator.
+    matrices : list of q ndarrays, all of the same shape
+        Component matrices defining the linear operator.
     """
-    def __init__(self, coeffs, matrices=None):
-        """Save the coefficient functions and component matrices (optional).
+    def __init__(self, coeffs, matrices):
+        """Save the coefficient functions and component matrices.
 
         Parameters
         ----------
-        coeffs : list of `nterms` callables
-            The coefficient scalar-valued functions that define the operator.
+        coeffs : list of q callables
+            Coefficient scalar-valued functions that define the operator.
             Each must take the same sized input and return a scalar.
 
-        matrices : list of `nterms` ndarrays of the same shape
-            The component matrices defining the linear operator.
-            Can also be assigned later by setting the `matrices` attribute.
+        matrices : list of q ndarrays, all of the same shape
+            Component matrices defining the linear operator.
         """
-        self.coefficient_functions = coeffs
-        self._nterms = len(coeffs)
-        if matrices:
-            self.matrices = matrices
-        else:
-            self._ready = False
+        if any(not callable(θ) for θ in coeffs):
+            raise TypeError("coefficients of affine operator must be callable")
+        self.__θs = coeffs
+
+        # Check that the right number of terms are included.
+        # if (n_coeffs := len(coeffs) != (n_matrices := len(matrices)):
+        n_coeffs, n_matrices = len(coeffs), len(matrices)
+        if n_coeffs != n_matrices:
+            raise ValueError(f"{n_coeffs} = len(coeffs) "
+                             f"!= len(matrices) = {n_matrices}")
+
+        # Check that each matrix in the list has the same shape.
+        shape = matrices[0].shape
+        if any(A.shape != shape for A in matrices):
+            raise ValueError("affine component matrix shapes do not match")
+
+        self.__As = matrices
 
     @property
-    def nterms(self):
-        """The number of component matrices."""
-        return self._nterms
+    def coefficient_functions(self):
+        return self.__θs
 
     @property
     def matrices(self):
         """The component matrices."""
-        return self._matrices
+        return self.__As
 
-    @matrices.setter
-    def matrices(self, ms):
-        """Set the component matrices, checking that the shapes are equal."""
-        if len(ms) != self.nterms:
-            _noun = "matrix" if self.nterms == 1 else "matrices"
-            raise ValueError(f"expected {self.nterms} {_noun}, got {len(ms)}")
+    @property
+    def shape(self):
+        """Shape: the shape of the component matrices."""
+        return self.matrices[0].shape
 
-        # Check that each matrix in the list has the same shape.
-        shape = ms[0].shape
-        for m in ms:
-            if m.shape != shape:
-                raise ValueError("affine operator matrix shapes do not match "
-                                 f"({m.shape} != {shape})")
-
-        # Store matrix list and shape, and mark as ready (for __call__()).
-        self._matrices = ms
-        self.shape = shape
-        self._ready = True
-
-    def validate_coeffs(self, µ):
+    @staticmethod
+    def validate_coeffs(θs, µ):
         """Check that each coefficient function 1) is a callable function,
         2) takes in the right sized inputs, and 3) returns scalar values.
 
@@ -95,20 +88,22 @@ class AffineOperator:
         µ : float or (p,) ndarray
             A test input for the coefficient functions.
         """
-        for θ in self.coefficient_functions:
+        for θ in θs:
             if not callable(θ):
-                raise ValueError("coefficients of affine operator must be "
-                                 "callable functions")
+                raise TypeError("coefficient functions of affine operator "
+                                 "must be callable")
             elif not np.isscalar(θ(µ)):
                 raise ValueError("coefficient functions of affine operator "
                                  "must return a scalar")
 
     def __call__(self, µ):
         """Evaluate the affine operator at the given parameter."""
-        if not self._ready:
-            raise RuntimeError("component matrices not initialized!")
         return np.sum([θi(µ)*Ai for θi,Ai in zip(self.coefficient_functions,
                                                  self.matrices)], axis=0)
+
+    def __len__(self):
+        """Length: number of terms in the affine expansion."""
+        return len(self.coefficient_functions)
 
     def __eq__(self, other):
         """Test whether the component matrices of two AffineOperator objects
@@ -116,25 +111,20 @@ class AffineOperator:
         """
         if not isinstance(other, AffineOperator):
             return False
-        if self.nterms != other.nterms:
+        if len(self) != len(other):
             return False
-        if not (self._ready and other._ready):
-            return False
-        return all([np.allclose(self.matrices[l], other.matrices[l])
-                                            for l in range(self.nterms)])
+        return all(np.allclose(left, right)
+                   for left, right in zip(self.matrices, other.matrices))
+
 
 # Affine base mixin (private) =================================================
 class _AffineMixin(_ParametricMixin):
     """Mixin class for affinely parametric reduced model classes."""
-
-    def _check_affines(self, affines, µ=None):
+    # Validation --------------------------------------------------------------
+    def _check_affines_keys(self, affines):
         """Check the keys of the affines argument."""
         # Check for unnecessary affine keys.
         surplus = [repr(key) for key in affines if key not in self.modelform]
         if surplus:
             _noun = "key" + ('' if len(surplus) == 1 else 's')
             raise KeyError(f"invalid affine {_noun} {', '.join(surplus)}")
-
-        if µ is not None:
-            for a in affines.values():
-                AffineOperator(a).validate_coeffs(µ)
