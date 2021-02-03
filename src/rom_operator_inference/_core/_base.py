@@ -377,7 +377,7 @@ class _DiscreteROM(_BaseROM):
     """)
 
     def f_(self, x_, u=None):
-        """ROM function for discrete models.
+        """Reduced-order model function for discrete models.
 
         Parameters
         ----------
@@ -481,7 +481,7 @@ class _ContinuousROM(_BaseROM):
     """)
 
     def f_(self, t, x_, u=None):
-        """ROM function for continuous models.
+        """Reduced-order model function for continuous models.
 
         Parameters
         ----------

@@ -330,17 +330,16 @@ class TestDiscreteROM:
         model = roi._core._base._DiscreteROM("cA")
         model.r = r
         model.c_, model.A_ = c_, A_
-        model.H_, model.G_, model.B_ = None, None, None
         x_ = np.random.random(r)
         y_ = c_ + A_ @ x_
         assert np.allclose(model.f_(x_), y_)
         assert np.allclose(model.f_(x_, -1), y_)
 
-        model = model = roi._core._base._DiscreteROM("HGB")
+        model = roi._core._base._DiscreteROM("HGB")
         model.r, model.m = r, m
         model.H_, model.G_, model.B_ = H_, G_, B_
-        model.c_, model.A_ = None, None
         u = np.random.random(m)
+        x_ = np.random.random(r)
         y_ = H_ @ roi.utils.kron2c(x_) + G_ @ roi.utils.kron3c(x_) + B_ @ u
         assert np.allclose(model.f_(x_, u), y_)
 
@@ -439,7 +438,6 @@ class TestContinuousROM:
         model = roi._core._base._ContinuousROM("cA")
         model.r = r
         model.c_, model.A_ = c_, A_
-        model.H_, model.G_, model.B_ = None, None, None
         x_ = np.random.random(r)
         y_ = c_ + A_ @ x_
         assert np.allclose(model.f_(0, x_), y_)
@@ -449,11 +447,11 @@ class TestContinuousROM:
         model = roi._core._base._ContinuousROM("HGB")
         model.r, model.m = r, m
         model.H_, model.G_, model.B_ = H_, G_, B_
-        model.c_, model.A_ = None, None
         uu = np.random.random(m)
-        u = lambda t: uu
+        u = lambda t: uu + t
         y_ = H_ @ roi.utils.kron2c(x_) + G_ @ roi.utils.kron3c(x_) + B_ @ uu
         assert np.allclose(model.f_(0, x_, u), y_)
+        y_ = H_ @ roi.utils.kron2c(x_) + G_ @ roi.utils.kron3c(x_) + B_ @(uu+1)
         assert np.allclose(model.f_(1, x_, u), y_)
 
     def test_fit(self):

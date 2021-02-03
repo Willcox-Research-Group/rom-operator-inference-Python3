@@ -292,6 +292,29 @@ class TestIntrusiveMixin:
 # Useable classes (public) ====================================================
 class TestIntrusiveDiscreteROM:
     """Test _core._intrusive.IntrusiveDiscreteROM."""
+    def test_f(self, n=5, m=2):
+        """Test _core._intrusive.IntrusiveDiscreteROM.f()."""
+        c, A, H, G, B = _get_operators(n, m, expanded=True)
+        Vr = np.zeros((n,n//2))
+
+        model = roi._core._intrusive.IntrusiveDiscreteROM("cA")
+        model.Vr = Vr
+        model.c, model.A = c, A
+        x = np.random.random(n)
+        y = c + A @ x
+        assert np.allclose(model.f(x), y)
+        assert np.allclose(model.f(x, -1), y)
+
+        model = roi._core._intrusive.IntrusiveDiscreteROM("HGB")
+        model.Vr = Vr
+        model.m = m
+        model.H, model.G, model.B = H, G, B
+        u = np.random.random(m)
+        x = np.random.random(n)
+        x2 = np.kron(x, x)
+        y = H @ x2 + G @ np.kron(x, x2) + B @ u
+        assert np.allclose(model.f(x, u), y)
+
     def test_fit(self):
         """Test _core._intrusive.IntrusiveDiscreteROM.fit()."""
         TestIntrusiveMixin()._test_fit(roi.IntrusiveDiscreteROM)
@@ -299,6 +322,34 @@ class TestIntrusiveDiscreteROM:
 
 class TestIntrusiveContinuousROM:
     """Test _core._intrusive.IntrusiveContinuousROM."""
+    def test_f(self, n=5, m=2):
+        """Test _core._intrusive.IntrusiveContinuousROM.f()."""
+        c, A, H, G, B = _get_operators(n, m, expanded=True)
+        Vr = np.zeros((n, n//2))
+
+        # Check that the constructed f takes the right number of arguments.
+        model = roi._core._intrusive.IntrusiveContinuousROM("cA")
+        model.Vr = Vr
+        model.c, model.A = c, A
+        x = np.random.random(n)
+        y = c + A @ x
+        assert np.allclose(model.f(0, x), y)
+        assert np.allclose(model.f(1, x), y)
+        assert np.allclose(model.f(1, x, -1), y)
+
+        model = roi._core._intrusive.IntrusiveContinuousROM("HGB")
+        model.Vr = Vr
+        model.m = m
+        model.H, model.G, model.B = H, G, B
+        uu = np.random.random(m)
+        u = lambda t: uu + t
+        x = np.random.random(n)
+        x2 = np.kron(x, x)
+        y = H @ x2 + G @ np.kron(x, x2) + B @ uu
+        assert np.allclose(model.f(0, x, u), y)
+        y = H @ x2 + G @ np.kron(x, x2) + B @ (uu + 1)
+        assert np.allclose(model.f(1, x, u), y)
+
     def test_fit(self):
         """Test _core._intrusive.IntrusiveContinuousROM.fit()."""
         TestIntrusiveMixin()._test_fit(roi.IntrusiveContinuousROM)

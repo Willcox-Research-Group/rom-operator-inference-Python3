@@ -317,6 +317,12 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
     B : (n,m) ndarray or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
 
+    f : callable((n,) ndarray, (m,) ndarray) -> (n,)
+        The learned ROM operator defined by the reduced-order matrices.
+        The signature is f(x) if 'B' is not in `modelform` (no inputs) and
+        f(x, u) if 'B' is in `modelform`. That is, f maps full states
+        (and inputs if appropriate) to full states.
+
     c_ : (r,) ndarray or None
         Learned ROM constant term, or None if 'c' is not in `modelform`.
 
@@ -337,10 +343,35 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
     f_ : callable((r,) ndarray, (m,) ndarray) -> (r,)
         The learned ROM operator defined by the reduced-order matrices.
         The signature is f_(x_) if 'B' is not in `modelform` (no inputs) and
-        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced state
-        (and inputs if appropriate) to reduced state. Defined in fit().
+        f_(x_, u) if 'B' is in `modelform`. That is, f_ maps reduced states
+        (and inputs if appropriate) to reduced states.
     """
-    pass
+    def f(self, x, u=None):
+        """Full-order model for discrete models.
+
+        Parameters
+        ----------
+        x : (n,) ndarray
+            Full state vector.
+
+        u : (m,) ndarray or None
+            Input vector corresponding to x.
+        """
+        x_new = np.zeros(self.n, dtype=float)
+        if self.has_quadratic or self.has_cubic:
+            x2 = np.kron(x, x)
+        if self.has_constant:
+            x_new += self.c
+        if self.has_linear:
+            x_new += self.A @ x
+        if self.has_quadratic:
+            x_new += self.H @ x2
+        if self.has_cubic:
+            x_new += self.G @ np.kron(x, x2)
+        if self.has_inputs:
+            x_new += self.B @ u
+        return x_new
+
 
 
 class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
@@ -409,6 +440,12 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
     B : (n,m) ndarray or None
         Learned ROM input matrix, or None if 'B' is not in `modelform`.
 
+    f : callable(float, (n,) ndarray, func?) -> (n,) ndarray
+        The FOM operator defined by the full-order matrices.
+        The signature is f(t, x) if 'B' is not in `modelform` (no inputs) and
+        f(t, x, u) otherwise. That is, f maps full states (and an input
+        function if appropriate) to full states. Defined in fit().
+
     c_ : (r,) ndarray or None
         Learned ROM constant term, or None if 'c' is not in `modelform`.
 
@@ -430,10 +467,37 @@ class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,
         The learned ROM operator defined by the reduced-order matrices.
         The signature is f_(t, x_) if 'B' is not in `modelform` (no inputs) and
         f_(t, x_, u) otherwise. That is, f_ maps reduced states (and an input
-        function if appropriate) to reduced states. Defined in fit().
+        function if appropriate) to reduced states.
 
     sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
         of integrating the learned ROM in predict(). For more details, see
         https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
-    pass
+    def f(self, t, x, u=None):
+        """Full-order model function for continuous models.
+
+        Parameters
+        ----------
+        t : float
+            Time, a scalar.
+
+        x : (n,) ndarray
+            Full state vector corresponding to time `t`.
+
+        u : func(float) -> (m,)
+            Input function that maps time `t` to an input vector of length m.
+        """
+        dxdt = np.zeros(self.n, dtype=float)
+        if self.has_quadratic or self.has_cubic:
+            x2 = np.kron(x, x)
+        if self.has_constant:
+            dxdt += self.c
+        if self.has_linear:
+            dxdt += self.A @ x
+        if self.has_quadratic:
+            dxdt += self.H @ x2
+        if self.has_cubic:
+            dxdt += self.G @ np.kron(x, x2)
+        if self.has_inputs:
+            dxdt += self.B @ u(t)
+        return dxdt
