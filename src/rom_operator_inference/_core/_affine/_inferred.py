@@ -78,7 +78,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             The ith array Xs[i] corresponds to the ith parameter, µs[i].
 
         rhss : list of s (n,k) ndarrays (or (s,n,k) ndarray)
-            Column-wise next-iteration (discrete model) or velocity
+            Column-wise next-iteration (discrete model) or time derivative
             (continuous model) training data. The ith array, rhss[i],
             corresponds to the ith parameter, µs[i].
 
@@ -356,7 +356,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             The ith array Xs[i] corresponds to the ith parameter, µs[i].
 
         rhss : list of s (n,k) ndarrays (or (s,n,k) ndarray)
-            Column-wise next-iteration (discrete model) or velocity
+            Column-wise next-iteration (discrete model) or time derivative
             (continuous model) training data. The ith array, rhss[i],
             corresponds to the ith parameter, µs[i].
 
@@ -640,7 +640,7 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
             The ith array, Xs[i], corresponds to the ith parameter, µs[i].
 
         Xdots : list of s (n,k) ndarrys (or (s,n,k) ndarray)
-            Column-wise velocity training data. The ith array, Xdots[i],
+            Column-wise time derivative training data. The ith array, Xdots[i],
             corresponds to the ith parameter, µs[i].
 
         Us : list of s (m,k-1) or (k-1,) ndarrays or None

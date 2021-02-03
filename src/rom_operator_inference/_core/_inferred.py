@@ -57,7 +57,7 @@ class _InferredMixin:
             either full order (n rows) or projected to reduced order (r rows).
 
         rhs : (n,k) or (r,k) ndarray
-            Column-wise next-iteration (discrete model) or velocity
+            Column-wise next-iteration (discrete model) or time derivative
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
 
@@ -190,7 +190,7 @@ class _InferredMixin:
             either full order (n rows) or projected to reduced order (r rows).
 
         rhs : (n,k) or (r,k) ndarray
-            Column-wise next-iteration (discrete model) or velocity
+            Column-wise next-iteration (discrete model) or time derivative
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
 
@@ -236,7 +236,7 @@ class _InferredMixin:
             either full order (n rows) or projected to reduced order (r rows).
 
         rhs : (n,k) or (r,k) ndarray
-            Column-wise next-iteration (discrete model) or velocity
+            Column-wise next-iteration (discrete model) or time derivative
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
 
@@ -497,8 +497,9 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
             either full order (n rows) or projected to reduced order (r rows).
 
         Xdot : (n,k) or (r,k) ndarray
-            Column-wise velocity training data (each column is a snapshot),
-            either full order (n rows) or projected to reduced order (r rows).
+            Column-wise time derivative training data (each column is a
+            snapshot), either full order (n rows) or projected to reduced
+            order (r rows).
 
         U : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar

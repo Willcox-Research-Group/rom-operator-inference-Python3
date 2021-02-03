@@ -455,9 +455,10 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousR
             The ith array Xs[i] corresponds to the ith parameter, µs[i].
 
         Xdots : list of s (n,k) or (r,k) ndarrays
-            Column-wise velocity training data (each column is a snapshot),
-            either full order (n rows) ro projected to reduced order (r rows).
-            The ith array Xdots[i] corresponds to the ith parameter, µs[i].
+            Column-wise time derivative training data (each column is a
+            snapshot), either full order (n rows) or projected to reduced
+            order (r rows). The ith array Xdots[i] corresponds to the ith
+            parameter, µs[i].
 
         Us : list of s (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
