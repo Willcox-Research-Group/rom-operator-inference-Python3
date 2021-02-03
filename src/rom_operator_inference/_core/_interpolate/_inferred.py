@@ -16,7 +16,7 @@ __all__ = [
 import numpy as np
 import scipy.interpolate as interp
 
-from ._base import _InterpolatedMixin, _Interp2DMulti
+from ._base import _InterpolatedMixin
 from .._base import _DiscreteROM, _ContinuousROM
 from .._inferred import (_InferredMixin,
                         InferredDiscreteROM,
@@ -158,8 +158,6 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         # Select the interpolator based on the parameter dimension.
         if self.p == 1:
             Interpolator = interp.CubicSpline
-        # elif self.p == 2:
-        #     Interpolator = _Interp2DMulti
         else:
             print("MODELS TRAINED BUT INTERPOLATION NOT IMPLEMENTED FOR p > 1")
             return self
@@ -177,7 +175,8 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
 
 
 # Interpolated inferred models (public) =======================================
-class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
+class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin,
+                                      _DiscreteROM):
     """Reduced order model for a high-dimensional discrete dynamical system,
     parametrized by a scalar µ, of the form
 
@@ -338,7 +337,8 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin, _DiscreteROM):
         return self(µ).predict(x0, niters, U)
 
 
-class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin, _ContinuousROM):
+class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin,
+                                        _ContinuousROM):
     """Reduced order model for a system of high-dimensional ODEs, parametrized
     by a scalar µ, of the form
 
