@@ -410,53 +410,6 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         * 'G' : Cubic state term G(µ)(x⊗x⊗x)(t).
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c(µ).
-
-    has_linear : bool
-        Whether or not there is a linear term A(µ)x(t).
-
-    has_quadratic : bool
-        Whether or not there is a quadratic term H(µ)(x⊗x)(t).
-
-    has_cubic : bool
-        Whether or not there is a cubic term G(µ)(x⊗x⊗x)(t).
-
-    has_inputs : bool
-        Whether or not there is an input term B(µ)u(t).
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the projected reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    c_ : callable(µ) -> (r,) ndarray; (r,) ndarray; or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : callable(µ) -> (r,r) ndarray; (r,r) ndarray; or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    H_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
-        Learned ROM (compact) quadratic state matrix, or None if 'H' is not in
-        `modelform`.
-
-    G_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
-          (r,r(r+1)(r+2)//6) ndarray; or None
-        Learned ROM (compact) cubic state matrix, or None if 'G' is not in
-        `modelform`.
-
-    B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
     """
     def fit(self, Vr, µs, affines, Xs, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
@@ -560,57 +513,6 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         * 'G' : Cubic state term G(µ)(x⊗x⊗x)(t)
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
-
-    Attributes
-    ----------
-    has_consant : bool
-        Whether or not there is a constant term c(µ).
-
-    has_linear : bool
-        Whether or not there is a linear term A(µ)x(t).
-
-    has_quadratic : bool
-        Whether or not there is a quadratic term H(µ)(x⊗x)(t).
-
-    has_cubic : bool
-        Whether or not there is a cubic term G(µ)(x⊗x⊗x)(t).
-
-    has_inputs : bool
-        Whether or not there is an input term B(µ)u(t).
-
-    n : int
-        The dimension of the original full-order model (x.size).
-
-    r : int
-        The dimension of the projected reduced-order model (x_.size).
-
-    m : int or None
-        The dimension of the input u(t), or None if 'B' is not in `modelform`.
-
-    Vr : (n,r) ndarray
-        The basis for the linear reduced space (e.g., POD basis matrix).
-
-    c_ : callable(µ) -> (r,) ndarray; (r,) ndarray; or None
-        Learned ROM constant term, or None if 'c' is not in `modelform`.
-
-    A_ : callable(µ) -> (r,r) ndarray; (r,r) ndarray; or None
-        Learned ROM linear state matrix, or None if 'A' is not in `modelform`.
-
-    H_ : callable(µ) -> (r,r(r+1)//2) ndarray; (r,r(r+1)//2) ndarray; or None
-        Learned ROM (compact) quadratic state matrix, or None if 'H' is not in
-        `modelform`.
-
-    G_ : callable(µ) -> (r,r(r+1)(r+2)//6) ndarray;
-          (r,r(r+1)(r+2)//6) ndarray; or None
-        Learned ROM (compact) cubic state matrix, or None if 'G' is not in
-        `modelform`.
-
-    B_ : callable(µ) -> (r,m) ndarray; (r,m) ndarray; or None
-        Learned ROM input matrix, or None if 'B' is not in `modelform`.
-
-    sol_ : Bunch object returned by scipy.integrate.solve_ivp(), the result
-        of integrating the learned ROM in predict(). For more details, see
-        https://docs.scipy.org/doc/scipy/reference/integrate.html.
     """
     def fit(self, Vr, µs, affines, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,

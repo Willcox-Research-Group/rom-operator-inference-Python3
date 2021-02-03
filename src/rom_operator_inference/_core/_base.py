@@ -764,4 +764,3 @@ class _ContinuousParametricEvaluationROM( _NonparametricMixin, _ContinuousROM):
 # TODO: Account for state / input interactions (N?).
 # TODO: jacobians for each model form in the continuous case.
 # TODO: self.p = parameter size for parametric classes (+ shape checking)
-# TODO: _[construct->assemble]_data_matrix()
