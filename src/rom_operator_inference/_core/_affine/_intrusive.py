@@ -20,8 +20,7 @@ from .._base import _ContinuousROM, _DiscreteROM
 from .._intrusive import (_IntrusiveMixin,
                           IntrusiveDiscreteROM,
                           IntrusiveContinuousROM)
-from ...utils import (expand_Hc, compress_H,
-                      expand_Gc, compress_G, kron2c, kron3c)
+from ...utils import expand_H, compress_H, expand_G, compress_G
 
 
 # Affine intrusive mixin (private) ============================================
@@ -70,7 +69,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
                 H_or_Hc = AffineOperator(affines['H'], operators['H'])
                 if H_or_Hc.shape == (self.n,_n2):
                     self.H = AffineOperator(affines['H'],
-                                            [expand_Hc(Hc)
+                                            [expand_H(Hc)
                                              for Hc in H_or_Hc.matrices])
                 else:
                     self.H = H_or_Hc
@@ -88,7 +87,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
                 G_or_Gc = AffineOperator(affines['G'], operators['G'])
                 if G_or_Gc.shape == (self.n,_n3):
                     self.G = AffineOperator(affines['G'],
-                                            [expand_Gc(Gc)
+                                            [expand_G(Gc)
                                              for Gc in G_or_Gc.matrices])
                 else:
                     self.G = G_or_Gc

@@ -16,8 +16,7 @@ __all__ = [
 import numpy as np
 
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
-from ..utils import (expand_Hc, compress_H,
-                     expand_Gc, compress_G)
+from ..utils import expand_H, compress_H, expand_G, compress_G
 
 
 class _IntrusiveMixin:
@@ -102,7 +101,7 @@ class _IntrusiveMixin:
         self._check_operator_matches_modelform(H, 'H')
         if H is not None:
             if H.shape == (self.n, self.n*(self.n + 1)//2):
-                H = expand_Hc(H)
+                H = expand_H(H)
             self._check_fom_operator_shape(H, 'H')
         self.__H = H
 
@@ -116,7 +115,7 @@ class _IntrusiveMixin:
         self._check_operator_matches_modelform(G, 'G')
         if G is not None:
             if G.shape == (self.n, self.n*(self.n + 1)*(self.n + 2)//6):
-                G = expand_Gc(G)
+                G = expand_G(G)
             self._check_fom_operator_shape(G, 'G')
         self.__G = G
 

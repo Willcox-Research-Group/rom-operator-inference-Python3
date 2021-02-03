@@ -1,5 +1,6 @@
 .PHONY: clean install test deploy
 
+
 REMOVE = rm -rfv
 PYTHON = python3
 PYTEST = pytest --cov rom_operator_inference tests --cov-report html
@@ -15,8 +16,10 @@ clean:
 	find . -type d -name ".ipynb_checkpoints" | xargs $(REMOVE)
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
 
+
 install: clean
 	$(PYTHON) -m pip install .
+
 
 test: install
 	# $(PYTHON) check_docs.py

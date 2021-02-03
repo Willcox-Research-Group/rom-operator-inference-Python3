@@ -5,9 +5,9 @@ __all__ = [
             "kron2c",
             "kron3c",
             "compress_H",
-            "expand_Hc",
+            "expand_H",
             "compress_G",
-            "expand_Gc",
+            "expand_G",
           ]
 
 import itertools
@@ -100,7 +100,7 @@ def compress_H(H):
     return Hc
 
 
-def expand_Hc(Hc):
+def expand_H(Hc):
     """Calculate the matricized quadratic operator that operates on the full
     Kronecker product.
 
@@ -174,7 +174,7 @@ def compress_G(G):
     return Gc
 
 
-def expand_Gc(Gc):
+def expand_G(Gc):
     """Calculate the matricized quadratic operator that operates on the full
     cubic Kronecker product.
 
