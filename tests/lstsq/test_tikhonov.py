@@ -11,18 +11,32 @@ import rom_operator_inference as roi
 class TestBaseSolver:
     """Test lstsq._tikhonov._BaseSolver."""
     def test_properties(self, k=10, d=4, r=3):
-        """Test lstsq._tikhonov._BaseSolver properties k, d, and r."""
+        """Test lstsq._tikhonov._BaseSolver properties A, B, k, d, and r."""
         solver = roi.lstsq._tikhonov._BaseSolver()
         for attr in "ABkdr":
             assert hasattr(solver, attr)
             assert getattr(solver, attr) is None
-        solver.A = np.empty((k,d))
-        solver.B = np.empty((k,r))
+        A = np.random.standard_normal((k,d))
+        B = np.random.standard_normal((k,r))
+        solver._BaseSolver__A = A
+        solver._BaseSolver__B = B
+        assert solver.A is A
+        assert solver.B is B
         assert solver.k == k
         assert solver.d == d
         assert solver.r == r
-        solver.B = np.empty((k,1))
+        solver._BaseSolver__B = np.empty((k,1))
         assert solver.r == 1
+
+        for attr in "AB":
+            with pytest.raises(AttributeError) as ex:
+                setattr(solver, attr, A)
+            assert ex.value.args[0] == "can't set attribute (call fit())"
+
+        for attr in "kdr":
+            with pytest.raises(AttributeError) as ex:
+                setattr(solver, attr, 10)
+            assert ex.value.args[0] == "can't set attribute"
 
     def test_process_fit_arguments(self, k=10, d=4, r=3):
         """Test lstsq._tikhonov._BaseSolver._process_fit_arguments()."""
@@ -235,7 +249,9 @@ class TestSolverTikhonov:
     """Test lstsq._tikhonov.SolverTikhonov."""
     def test_process_regularizer(self, k=20, d=11, r=3):
         solver = roi.lstsq.SolverTikhonov()
-        solver.A = np.empty((k,d))
+        A = np.random.standard_normal((k,d))
+        B = np.random.standard_normal((k,r))
+        solver._process_fit_arguments(A, B)
 
         # Try with bad regularizer type.
         with pytest.raises(TypeError) as ex:

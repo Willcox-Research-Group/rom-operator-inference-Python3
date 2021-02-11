@@ -32,8 +32,27 @@ class _BaseSolver:
         compute_extras : bool
             If True, record residual / conditioning information as attributes.
         """
-        self.A, self.B = None, None
+        self.__A, self.__B = None, None
         self.compute_extras = compute_extras
+
+    # Properties: matrices ----------------------------------------------------
+    @property
+    def A(self):
+        """(k,d) ndarray : "left-hand side" data matrix."""
+        return self.__A
+
+    @A.setter
+    def A(self, A):
+        raise AttributeError("can't set attribute (call fit())")
+
+    @property
+    def B(self):
+        """(k,r) ndarray : "right-hand side" matrix B = [ b_1 | ... | b_r ]."""
+        return self.__B
+
+    @B.setter
+    def B(self, B):
+        raise AttributeError("can't set attribute (call fit())")
 
     # Properties: matrix dimensions -------------------------------------------
     @property
@@ -75,7 +94,7 @@ class _BaseSolver:
         if k < d:
             warnings.warn("original least-squares system is underdetermined!",
                           la.LinAlgWarning, stacklevel=2)
-        self.A = A
+        self.__A = A
 
         # Check dimensions of b.
         if B.ndim == 1:
@@ -84,7 +103,7 @@ class _BaseSolver:
             raise ValueError("`B` must be one- or two-dimensional")
         if B.shape[0] != k:
             raise ValueError("inputs not aligned: A.shape[0] != B.shape[0]")
-        self.B = B
+        self.__B = B
 
     # Main methods ------------------------------------------------------------
     def fit(*args, **kwargs):
