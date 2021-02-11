@@ -175,7 +175,7 @@ class _InferredMixin:
 
         return
 
-    def _construct_solver(self, Vr, X, rhs, U, P, **kwargs):
+    def _construct_solver(self, Vr, X, rhs, U, P):
         """Construct a solver object mapping the regularizer P to solutions
         of the Operator Inference least-squares problem.
 
@@ -207,7 +207,7 @@ class _InferredMixin:
         """
         X_, rhs_, U = self._process_fit_arguments(Vr, X, rhs, U)
         D = self._assemble_data_matrix(X_, U)
-        self.solver_ = lstsq.solver(D, rhs_.T, P, **kwargs)
+        self.solver_ = lstsq.solver(D, rhs_.T, P)
 
     def _evaluate_solver(self, P):
         """Evaluate the least-squares solver with regularizer P.
@@ -222,7 +222,7 @@ class _InferredMixin:
         Otrp = self.solver_.predict(P)
         self._extract_operators(Otrp.T)
 
-    def fit(self, Vr, X, rhs, U, P, **kwargs):
+    def fit(self, Vr, X, rhs, U, P):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -250,15 +250,11 @@ class _InferredMixin:
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
 
-        **kwargs
-            Additional arguments for the least-squares solver.
-            See lstsq.solvers().
-
         Returns
         -------
         self
         """
-        self._construct_solver(Vr, X, rhs, U, P, **kwargs)
+        self._construct_solver(Vr, X, rhs, U, P)
         self._evaluate_solver(P)
         return self
 
@@ -286,7 +282,7 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
     """
-    def fit(self, Vr, X, U=None, P=0, **kwargs):
+    def fit(self, Vr, X, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -309,10 +305,6 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
 
-        **kwargs
-            Additional arguments for the least-squares solver.
-            See lstsq.solvers().
-
         Returns
         -------
         self
@@ -320,7 +312,7 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         return _InferredMixin.fit(self, Vr,
                                   X[:,:-1], X[:,1:],    # x_j's and x_{j+1}'s.
                                   U[...,:X.shape[1]-1] if U is not None else U,
-                                  P, **kwargs)
+                                  P)
 
 
 class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
@@ -345,7 +337,7 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         'B' : Input term Bu(t).
         For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
     """
-    def fit(self, Vr, X, Xdot, U=None, P=0, **kwargs):
+    def fit(self, Vr, X, Xdot, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -373,12 +365,8 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
 
-        **kwargs
-            Additional arguments for the least-squares solver.
-            See lstsq.solvers().
-
         Returns
         -------
         self
         """
-        return _InferredMixin.fit(self, Vr, X, Xdot, U, P, **kwargs)
+        return _InferredMixin.fit(self, Vr, X, Xdot, U, P)

@@ -300,7 +300,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 self.B_ = O[:,i:i+self.m]
                 i += self.m
 
-    def _construct_solver(self, Vr, µs, affines, Xs, rhss, Us, P, **kwargs):
+    def _construct_solver(self, Vr, µs, affines, Xs, rhss, Us, P):
         """Construct a solver object mapping the regularizer P to solutions
         of the Operator Inference least-squares problem.
 
@@ -313,7 +313,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         Xs_, rhss_, Us = self._process_fit_arguments(Vr, µs, affines,
                                                      Xs, rhss, Us)
         D = self._assemble_data_matrix(µs, affines, Xs_, Us)
-        self.solver_ = lstsq.solver(D, np.hstack(rhss_).T, P, **kwargs)
+        self.solver_ = lstsq.solver(D, np.hstack(rhss_).T, P)
 
     def _evaluate_solver(self, affines, P):
         """Evaluate the least-squares solver with regularizer P.
@@ -328,7 +328,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         Otrp = self.solver_.predict(P)
         self._extract_operators(affines, Otrp.T)
 
-    def fit(self, Vr, µs, affines, Xs, rhss, Us=None, P=0, **kwargs):
+    def fit(self, Vr, µs, affines, Xs, rhss, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
         For terms with affine structure, solve for the component operators.
 
@@ -373,15 +373,11 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             data matrix for the least-squares problem, e.g., d = r + m for a
             linear model with inputs.
 
-        **kwargs
-            Additional arguments for the least-squares solver.
-            See lstsq.solvers().
-
         Returns
         -------
         self
         """
-        self._construct_solver(Vr, µs, affines, Xs, rhss, Us, P, **kwargs)
+        self._construct_solver(Vr, µs, affines, Xs, rhss, Us, P)
         self._evaluate_solver(affines, P)
         return self
 
