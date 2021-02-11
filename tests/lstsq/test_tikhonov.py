@@ -234,7 +234,7 @@ class TestSolverL2Decoupled:
 class TestSolverTikhonov:
     """Test lstsq._tikhonov.SolverTikhonov."""
     def test_process_regularizer(self, k=20, d=11, r=3):
-        solver = roi.lstsq.SolverTikhonov(check_regularizer=True)
+        solver = roi.lstsq.SolverTikhonov()
         solver.A = np.empty((k,d))
 
         # Try with bad regularizer type.
@@ -243,18 +243,12 @@ class TestSolverTikhonov:
         assert ex.value.args[0] == \
             "regularization matrix must be a NumPy array"
 
-        # Try with bad regularizers.
+        # Try with bad diagonal regularizer.
         P = np.ones(d)
         P[-1] = -1
         with pytest.raises(ValueError) as ex:
             solver._process_regularizer(P)
         assert ex.value.args[0] == "diagonal P must be positive semi-definite"
-
-        P = np.eye(d)
-        P[-1,-1] = 0
-        with pytest.raises(ValueError) as ex:
-            solver._process_regularizer(P)
-        assert ex.value.args[0] == "regularizer P is rank deficient"
 
         # Try with bad regularizer shapes.
         P = np.empty(d-1)
@@ -271,12 +265,16 @@ class TestSolverTikhonov:
 
         # Correct usage
         P = np.full(d, 2)
-        P2 = solver._process_regularizer(P)
-        assert np.all(P2 == np.diag(np.full(d, 4)))
+        PP, PtP = solver._process_regularizer(P)
+        assert PP.shape == (d,d)
+        assert PtP.shape == (d,d)
+        assert np.all(PP == 2*np.eye(d))
+        assert np.all(PtP == np.diag(np.full(d, 4)))
 
         P = np.eye(d) + np.diag(np.ones(d-1), -1)
-        P2 = solver._process_regularizer(P)
-        assert np.all(P2 == P.T @ P)
+        PP, PtP = solver._process_regularizer(P)
+        assert P is PP
+        assert np.all(PtP == P.T @ P)
 
     def test_fit(self, k=20, d=10, r=5):
         """Test lstsq._tikhonov.SolverTikhonov.fit()."""
@@ -295,12 +293,10 @@ class TestSolverTikhonov:
         assert hasattr(solver, "cond_")
         assert np.isclose(solver.cond_, np.linalg.cond(A))
 
-    def test_predict(self, k=20, d=10, r=5):
+    def test_predict(self, k=40, d=15, r=5):
         """Test lstsq._tikhonov.SolverTikhonov.predict()."""
-        solver1D = roi.lstsq.SolverTikhonov(compute_extras=True,
-                                            check_regularizer=False)
-        solver2D = roi.lstsq.SolverTikhonov(compute_extras=True,
-                                            check_regularizer=False)
+        solver1D = roi.lstsq.SolverTikhonov(compute_extras=True)
+        solver2D = roi.lstsq.SolverTikhonov(compute_extras=True)
 
         # Try predicting before fitting.
         with pytest.raises(AttributeError) as ex:
@@ -372,16 +368,36 @@ class TestSolverTikhonov:
         assert solver1D.misfit_ < solver1D.residual_
         assert np.allclose(solver1D.misfit_, la.norm(A @ x1 - b, ord=2)**2)
         assert np.isclose(solver1D.cond_, np.linalg.cond(A))
-
         x2 = solver1D.predict(np.ones(d))
+
+        # Test with a severely ill-conditioned system.
+        A = np.random.standard_normal((k,d))
+        U,s,Vt = la.svd(A, full_matrices=False)
+        s[-5:] = 1e-18
+        s /= np.arange(1, s.size+1)**2
+        A = U @ np.diag(s) @ Vt
+        B = np.random.standard_normal((k,r))
+
+        # No regularization.
+        solver2D.fit(A, B)
+        assert solver2D.cond_ > 1e15
+        X1 = la.lstsq(A, B)[0]
+        X2 = solver2D.predict(Z)
+        assert np.allclose(X1, X2)
+
+        # Some regularization.
+        Apad = np.vstack((A, I))
+        Bpad = np.concatenate((B, np.zeros((d, r))))
+        X1 = la.lstsq(Apad, Bpad)[0]
+        X2 = solver2D.predict(I)
+        assert np.allclose(X1, X2)
 
 
 class TestSolverTikhonovDecoupled:
     """Test lstsq._tikhonov.SolverTikhonovDecoupled."""
     def test_predict(self, k=20, d=10):
         """Test lstsq._tikhonov.SolverTikhonovDecoupled.predict()."""
-        solver = roi.lstsq.SolverTikhonovDecoupled(compute_extras=True,
-                                                   check_regularizer=False)
+        solver = roi.lstsq.SolverTikhonovDecoupled(compute_extras=True)
         Ps = [np.eye(d), np.full(d, 2)]
         r = len(Ps)
         A = np.random.random((k,d))
@@ -398,6 +414,38 @@ class TestSolverTikhonovDecoupled:
             solver.predict(Ps[:1])
         assert ex.value.args[0] == "len(Ps) != number of columns of B"
 
+        Apad1 = np.vstack((A, Ps[0]))
+        Apad2 = np.vstack((A, np.diag(Ps[1])))
+        Bpad = np.vstack((B, np.zeros((d,2))))
+        xx1 = la.lstsq(Apad1, Bpad[:,0])[0]
+        xx2 = la.lstsq(Apad2, Bpad[:,1])[0]
+        X1 = np.column_stack([xx1, xx2])
+        X2 = solver.predict(Ps)
+        assert np.allclose(X1, X2)
+        assert solver.misfit_.shape == (2,)
+        assert solver.residual_.shape == (2,)
+        assert np.all(solver.misfit_ <= solver.residual_)
+        assert np.isclose(solver.misfit_.sum(),
+                          la.norm(A @ X1 - B, ord='fro')**2)
+        assert np.isclose(solver.cond_, np.linalg.cond(A))
+
+        # Test with a severely ill-conditioned system.
+        A = np.random.standard_normal((k,d))
+        U,s,Vt = la.svd(A, full_matrices=False)
+        s[-5:] = 1e-18
+        s /= np.arange(1, s.size+1)**2
+        A = U @ np.diag(s) @ Vt
+        B = np.random.standard_normal((k,r))
+
+        # No regularization.
+        solver.fit(A, B)
+        Z = np.zeros(d)
+        assert solver.cond_ > 1e15
+        X1 = la.lstsq(A, B)[0]
+        X2 = solver.predict([Z, Z])
+        assert np.allclose(X1, X2)
+
+        # Some regularization.
         Apad1 = np.vstack((A, Ps[0]))
         Apad2 = np.vstack((A, np.diag(Ps[1])))
         Bpad = np.vstack((B, np.zeros((d,2))))

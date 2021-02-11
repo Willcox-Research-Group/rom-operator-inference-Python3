@@ -283,15 +283,6 @@ class SolverTikhonov(_BaseSolver):
 
     Attributes
     ----------
-    k : int
-        Number of equations in the least-squares problem (number of rows of A).
-
-    d : int
-        Number of unknowns to learn in each problem (number of columns of A).
-
-    r : int
-        Number of independent least-squares problems (number of columns of B).
-
     compute_extras : bool
         If True, predict() records the remaining attributes listed below.
 
@@ -307,26 +298,6 @@ class SolverTikhonov(_BaseSolver):
     residual_ : float
         Problem residual (with regularization) ||AX - B||_F^2 + ||PX||_F^2.
     """
-    def __init__(self, compute_extras=False, check_regularizer=False):
-        """Set behavior parameters.
-
-        Parameters
-        ----------
-        compute_extras : bool
-            If True, record residual / conditioning information as attributes:
-            * cond_: condition number of the matrix A.
-            * regcond_: condition number of the regularized matrix [A.T|P.T].T.
-            * misfit_: data misfit ||Ax - b||^2.
-            * residual_: problem residual ||Ax - b||^2 + ||Px||^2.
-
-        check_regularizer : bool
-            If True, ensure that a regularization matrix is full rank (via
-            numpy.linalg.matrix_rank()) before attempting to solve the
-            corresponding least-squares problem. Expensive for large problems.
-        """
-        _BaseSolver.__init__(self, compute_extras)
-        self.check_regularizer = check_regularizer
-
     def fit(self, A, B):
         """Prepare to solve the least-squares problem via the normal equations.
 
@@ -344,8 +315,6 @@ class SolverTikhonov(_BaseSolver):
         self._rhs = self.A.T @ self.B
         self._AtA = self.A.T @ self.A
 
-        ## TODO: pad b for traditional solver (not solving Normal Eqns directly)?
-
         # Save what is needed for extra outputs if desired.
         if self.compute_extras:
             self.cond_ = np.linalg.cond(A)
@@ -362,17 +331,13 @@ class SolverTikhonov(_BaseSolver):
         if P.shape == (self.d,):
             if np.any(P < 0):
                 raise ValueError("diagonal P must be positive semi-definite")
-            return np.diag(P**2)
+            return np.diag(P), np.diag(P**2)
 
         # Two-dimensional input (the regularization matrix).
-        elif P.shape == (self.d,self.d):
-            if self.check_regularizer and np.linalg.matrix_rank(P) != self.d:
-                raise ValueError("regularizer P is rank deficient")
-            return P.T @ P
-
-        # Anything else is invalid.
-        else:
+        elif P.shape != (self.d,self.d):
             raise ValueError("P.shape != (d,d) or (d,) where d = A.shape[1]")
+
+        return P, P.T @ P
 
     def predict(self, P):
         """Solve the least-squares problem with regularization matrix P.
@@ -392,32 +357,26 @@ class SolverTikhonov(_BaseSolver):
         if not hasattr(self, "_AtA"):
             raise AttributeError("lstsq solver not trained (call fit())")
         # Construct and solve the augmented problem.
-        lhs = self._AtA + self._process_regularizer(P)
+        P, PtP = self._process_regularizer(P)
+        lhs = self._AtA + PtP
 
-        # # TODO TODO TODO
-        # if self.compute_extras or self.check_conditioning:
-        #     lhscond = np.linalg.cond(lhs)
-        # # Switch to using la.lstsq() with padding for ill-conditioned problems.
-        # if self._check_conditioning and 1 / lhscond < np.finfo(lhs.dtype).eps:
-        #     warnings.warn("modified normal equations highly ill-conditioned, "
-        #                   "switching to more accurate lstsq routine",
-        #                   la.LinAlgWarning, stacklevel=2)
-        #     X = la.lstsq(np.vstack())[]TODO
-        # else:
-        #     X = la.solve(lhs, self._rhs, assume_a="sym")
-        # # TODO TODO TODO
-        X = la.solve(lhs, self._rhs, assume_a="sym")
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", category=la.LinAlgWarning)
+            try:
+                # Attempt to solve the problem via the normal equations.
+                X = la.solve(lhs, self._rhs, assume_a="pos")
+            except (la.LinAlgError, la.LinAlgWarning) as e:
+                # For ill-conditioned normal equations, use la.lstsq().
+                print(f"normal equations solve failed, switching lstsq solver")
+                Bpad = np.vstack((self.B, np.zeros((self.d, self.r))))
+                X = la.lstsq(np.vstack((self.A, P)), Bpad)[0]
 
         # Compute residuals and condition numbers if desired.
         if self.compute_extras:
-            if P.ndim == 1:
-                PX = P.reshape((-1,1)) * X
-            else:
-                PX = P @ X
             # Data misfit (no regularization): ||AX - B||_F^2.
             self.misfit_ = np.sum((self.A @ X - self.B)**2)
             # Problem residual: ||AX - B||_F^2 + ||PX||_F^2.
-            self.residual_ = self.misfit_ + np.sum(PX**2)
+            self.residual_ = self.misfit_ + np.sum((P @ X)**2)
             # Conditioning of regularized problem: cond([A.T | P.T].T).
             self.regcond_ = np.sqrt(np.linalg.cond(lhs))
 
@@ -475,15 +434,24 @@ class SolverTikhonovDecoupled(SolverTikhonov):
             regconds = []
 
         # Solve each independent problem (iteratively for now).
-        for j, P, rhs in zip(range(self.r), Ps, self._rhs.T):
-            # Construct and solve the augmented problem.
-            lhs = self._AtA + self._process_regularizer(P)
-            X[:,j] = la.solve(lhs, self._rhs[:,j], assume_a="sym")
+        Bpad = None
+        for j, [P, rhs] in enumerate(zip(Ps, self._rhs.T)):
+            P, PtP = self._process_regularizer(P)
+            lhs = self._AtA + PtP
+            with warnings.catch_warnings():
+                warnings.filterwarnings("error", category=la.LinAlgWarning)
+                try:
+                    # Attempt to solve the problem via the normal equations.
+                    X[:,j] = la.solve(lhs, self._rhs[:,j], assume_a="pos")
+                except (la.LinAlgError, la.LinAlgWarning) as e:
+                    # For ill-conditioned normal equations, use la.lstsq().
+                    if Bpad is None:
+                        Bpad = np.vstack((self.B, np.zeros((self.d, self.r))))
+                    X[:,j] = la.lstsq(np.vstack((self.A, P)), Bpad[:,j])[0]
 
             # Compute extras if desired.
             if self.compute_extras:
-                Px = P * X[:,j] if P.ndim == 1 else P @ X[:,j]
-                Px_norms.append(np.sum(Px**2))
+                Px_norms.append(np.sum((P @ X[:,j])**2))
                 regconds.append(np.sqrt(np.linalg.cond(lhs)))
 
         # Record extras if desired.
@@ -528,10 +496,6 @@ def solver(A, B, P, **kwargs):
             - regcond_: condition number of the regularized matrix [A.T|P.T].T.
             - misfit_: data misfit ||Ax - b||^2.
             - residual_: problem residual ||Ax - b||^2 + ||Px||^2.
-        * check_regularizer : bool
-            If True, ensure that a regularization matrix is full rank (via
-            numpy.linalg.matrix_rank()) before attempting to solve the
-            corresponding least-squares problem. Expensive for large problems.
 
     Returns
     -------
@@ -545,14 +509,10 @@ def solver(A, B, P, **kwargs):
 
     # P is a scalar: single L2-regularized problem.
     if np.isscalar(P):
-        if "check_regularizer" in kwargs:                   # pragma: no cover
-            kwargs.pop("check_regularizer")
         solver = SolverL2(**kwargs)
 
     # P is a sequence of r scalars: decoupled L2-regularized problems.
     elif np.shape(P) == (B.shape[1],):
-        if "check_regularizer" in kwargs:                   # pragma: no cover
-            kwargs.pop("check_regularizer")
         solver = SolverL2Decoupled(**kwargs)
 
     # P is a dxd matrix (or a 1D array of length d for diagonal P):
@@ -601,10 +561,6 @@ def solve(A, B, P=0, **kwargs):
             - regcond_: condition number of the regularized matrix [A.T|P.T].T.
             - misfit_: data misfit ||Ax - b||^2.
             - residual_: problem residual ||Ax - b||^2 + ||Px||^2.
-        * check_regularizer : bool
-            If True, ensure that a regularization matrix is full rank (via
-            numpy.linalg.matrix_rank()) before attempting to solve the
-            corresponding least-squares problem. Expensive for large problems.
 
     Returns
     -------
