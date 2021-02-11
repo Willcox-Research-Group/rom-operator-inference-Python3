@@ -652,8 +652,8 @@ def solve(A, B, P=0):
         * (d,) ndarray: diag(P), a diagonal matrix.
         * (d,d) ndarray: the matrix `P`.
         * sequence of length r : the jth entry in the sequence is the
-            regularization hyperparameter for the jth column of `b`. Only valid if
-            `b` is two-dimensional and has exactly r columns.
+            regularization hyperparameter for the jth column of `b`. Only
+            valid if `b` is two-dimensional and has exactly r columns.
 
     Returns
     -------
