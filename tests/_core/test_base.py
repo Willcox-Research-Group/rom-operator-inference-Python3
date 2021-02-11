@@ -320,6 +320,28 @@ class TestBaseROM:
             S_ = model.project(model.Vr.T @ S, label)
             assert S_.shape == (r,k)
 
+    def test_fit(self):
+        """Test _core._base._BaseROM.fit()."""
+        model = self.Dummy("A")
+        with pytest.raises(NotImplementedError) as ex:
+            model.fit()
+        assert ex.value.args[0] == "fit() implemented by child classes"
+
+        with pytest.raises(NotImplementedError) as ex:
+            model.fit(1, 2, 3, 4, 5, 6, 7, a=8)
+        assert ex.value.args[0] == "fit() implemented by child classes"
+
+    def test_predict(self):
+        """Test _core._base._BaseROM.fit()."""
+        model = self.Dummy("A")
+        with pytest.raises(NotImplementedError) as ex:
+            model.predict()
+        assert ex.value.args[0] == "predict() implemented by child classes"
+
+        with pytest.raises(NotImplementedError) as ex:
+            model.predict(1, 2, 3, 4, 5, 6, 7, a=8)
+        assert ex.value.args[0] == "predict() implemented by child classes"
+
 
 class TestDiscreteROM:
     """Test _core._base._DiscreteROM."""
@@ -342,19 +364,6 @@ class TestDiscreteROM:
         x_ = np.random.random(r)
         y_ = H_ @ roi.utils.kron2c(x_) + G_ @ roi.utils.kron3c(x_) + B_ @ u
         assert np.allclose(model.f_(x_, u), y_)
-
-    def test_fit(self):
-        """Test _core._base._DiscreteROM.fit()."""
-        model = roi._core._base._DiscreteROM("A")
-        with pytest.raises(NotImplementedError) as ex:
-            model.fit()
-        assert ex.value.args[0] == \
-            "fit() must be implemented by child classes"
-
-        with pytest.raises(NotImplementedError) as ex:
-            model.fit(1, 2, 3, 4, 5, 6, 7, a=8)
-        assert ex.value.args[0] == \
-            "fit() must be implemented by child classes"
 
     def test_predict(self):
         """Test _core._base._DiscreteROM.predict()."""
@@ -453,19 +462,6 @@ class TestContinuousROM:
         assert np.allclose(model.f_(0, x_, u), y_)
         y_ = H_ @ roi.utils.kron2c(x_) + G_ @ roi.utils.kron3c(x_) + B_ @(uu+1)
         assert np.allclose(model.f_(1, x_, u), y_)
-
-    def test_fit(self):
-        """Test _core._base._ContinuousROM.fit()."""
-        model = roi._core._base._ContinuousROM("A")
-        with pytest.raises(NotImplementedError) as ex:
-            model.fit()
-        assert ex.value.args[0] == \
-            "fit() must be implemented by child classes"
-
-        with pytest.raises(NotImplementedError) as ex:
-            model.fit(1, 2, 3, 4, 5, 6, 7, a=8)
-        assert ex.value.args[0] == \
-            "fit() must be implemented by child classes"
 
     def test_predict(self):
         """Test _core._base._ContinuousROM.predict()."""

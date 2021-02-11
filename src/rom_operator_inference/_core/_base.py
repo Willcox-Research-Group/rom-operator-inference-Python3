@@ -354,6 +354,12 @@ class _BaseROM:
             # TODO: better message, what if Vr is None?
         return self.Vr.T @ S if S.shape[0] == self.n else S
 
+    def fit(*args, **kwargs):
+        raise NotImplementedError("fit() implemented by child classes")
+
+    def predict(*args, **kwargs):
+        raise NotImplementedError("predict() implemented by child classes")
+
 
 class _DiscreteROM(_BaseROM):
     """Base class for models that solve the discrete ROM problem,
@@ -399,9 +405,6 @@ class _DiscreteROM(_BaseROM):
         if self.has_inputs:
             x_new += self.B_ @ u
         return x_new
-
-    def fit(self, *args, **kwargs):             # pragma: no cover
-        raise NotImplementedError("fit() must be implemented by child classes")
 
     def predict(self, x0, niters, U=None):
         """Step forward the learned ROM `niters` steps.
@@ -507,9 +510,6 @@ class _ContinuousROM(_BaseROM):
             dxdt += self.B_ @ u(t)
         return dxdt
 
-    def fit(self, *args, **kwargs):             # pragma: no cover
-        raise NotImplementedError("fit() must be implemented by child classes")
-
     def predict(self, x0, t, u=None, **options):
         """Simulate the learned ROM with scipy.integrate.solve_ivp().
 
@@ -600,7 +600,7 @@ class _ContinuousROM(_BaseROM):
                               **options)        # with these solver options.
 
         # Raise warnings if the integration failed.
-        if not self.sol_.success:               # pragma: no cover
+        if not self.sol_.success:                           # pragma: no cover
             warnings.warn(self.sol_.message, IntegrationWarning)
 
         # Reconstruct the approximation to the full-order model.
