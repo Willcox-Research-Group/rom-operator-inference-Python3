@@ -35,7 +35,7 @@ setuptools.setup(
     # Technical details: source code, dependencies, test suite.
     packages=setuptools.find_packages(where="src"),
     package_dir={"": "src"},
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     install_requires=[
         "h5py>=2.9.0",
         "numpy>=1.16",
