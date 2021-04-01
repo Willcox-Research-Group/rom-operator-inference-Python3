@@ -250,7 +250,7 @@ class _BaseROM:
         if self.r is None:
             raise AttributeError("no reduced dimension 'r' (call fit())")
         if key == 'B' and (self.m is None):
-            raise AttributeError(f"no input dimension 'm' (call fit())")
+            raise AttributeError("no input dimension 'm' (call fit())")
         r, m = self.r, self.m
 
         # Check operator shape.
@@ -570,7 +570,11 @@ class _ContinuousROM(_BaseROM):
                 if np.isscalar(out):
                     if self.m == 1:     # u : R -> R, wrap output as array.
                         _u = u
-                        u = lambda s: np.array([_u(s)])
+
+                        def u(s):
+                            """Wrap scalar inputs as a 2D array"""
+                            return np.array([_u(s)])
+
                     else:               # u : R -> R, but m != 1.
                         raise ValueError("input function u() must return"
                                          f" ndarray of shape (m,)={(self.m,)}")
@@ -732,9 +736,9 @@ class _ParametricMixin:
 
         out = []
         if self.has_constant:
-            out.append("c(µ)" if callable(self.c_)  else "c")
+            out.append("c(µ)" if callable(self.c_) else "c")
         if self.has_linear:
-            A = "A(µ)" if callable(self.A_)  else "A"
+            A = "A(µ)" if callable(self.A_) else "A"
             out.append(A + f"{x}")
         if self.has_quadratic:
             H = "H(µ)" if callable(self.H_) else "H"
@@ -743,7 +747,7 @@ class _ParametricMixin:
             G = "G(µ)" if callable(self.G_) else "G"
             out.append(G + f"({x} ⊗ {x} ⊗ {x})")
         if self.has_inputs:
-            B = "B(µ)" if callable(self.B_)  else "B"
+            B = "B(µ)" if callable(self.B_) else "B"
             out.append(B + f"{u}")
         return f"Reduced-order model structure: {lhs} = "+" + ".join(out)
 
@@ -753,7 +757,7 @@ class _DiscreteParametricEvaluationROM(_NonparametricMixin, _DiscreteROM):
     pass
 
 
-class _ContinuousParametricEvaluationROM( _NonparametricMixin, _ContinuousROM):
+class _ContinuousParametricEvaluationROM(_NonparametricMixin, _ContinuousROM):
     """Continuous-time ROM that is the evaluation of a parametric ROM."""
     pass
 

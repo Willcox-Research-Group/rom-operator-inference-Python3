@@ -16,7 +16,7 @@ __all__ = [
 import numpy as np
 
 from ._base import _DiscreteROM, _ContinuousROM, _NonparametricMixin
-from ..utils import expand_H, compress_H, expand_G, compress_G
+from ..utils import expand_H, expand_G
 
 
 class _IntrusiveMixin:
@@ -76,7 +76,7 @@ class _IntrusiveMixin:
     def c(self, c):
         self._check_operator_matches_modelform(c, 'c')
         if c is not None:
-            self._check_fom_operator_shape(c, 'c') ##
+            self._check_fom_operator_shape(c, 'c')
         self.__c = c
 
     @property
@@ -134,11 +134,11 @@ class _IntrusiveMixin:
     @property
     def operators(self):
         """A dictionary of the current FOM and ROM operators."""
-        return {"c" : self.c,
-                "A" : self.A,
-                "H" : self.H,
-                "G" : self.G,
-                "B" : self.B,
+        return {"c": self.c,
+                "A": self.A,
+                "H": self.H,
+                "G": self.G,
+                "B": self.B,
                 "c_": self.c_,
                 "A_": self.A_,
                 "H_": self.H_,
@@ -152,7 +152,7 @@ class _IntrusiveMixin:
         if self.Vr is None:
             raise AttributeError("no basis 'Vr' (call fit())")
         if key == 'B' and (self.m is None):
-            raise AttributeError(f"no input dimension 'm' (call fit())")
+            raise AttributeError("no input dimension 'm' (call fit())")
         n, m = self.n, self.m
 
         # Check operator shapes.
@@ -297,7 +297,6 @@ class IntrusiveDiscreteROM(_IntrusiveMixin, _NonparametricMixin, _DiscreteROM):
         if self.has_inputs:
             x_new += self.B @ u
         return x_new
-
 
 
 class IntrusiveContinuousROM(_IntrusiveMixin, _NonparametricMixin,

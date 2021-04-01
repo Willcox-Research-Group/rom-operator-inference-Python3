@@ -26,22 +26,22 @@ $ python3 -m pip install --user rom-operator-inference
 
 ### Usage
 
-Given a basis matrix `Vr`, snapshot data `X`, and snapshot time derivatives `Xdot`, the following code learns a reduced model for a problem of the form d**x** / dt = **c** + **Ax**(t), then solves the reduced system for 0 ≤ t ≤ 1.
+Given a basis matrix `Vr`, snapshot data `X`, and snapshot time derivatives `Xdot`, the following code learns a reduced-order model for a problem of the form d**x** / dt = **c** + **Ax**(t), then solves the reduced system for 0 ≤ t ≤ 1.
 
 ```python
 import numpy as np
-import rom_operator_inference as roi
+import rom_operator_inference as opinf
 
-# Define a model of the form  dx / dt = c + Ax(t).
->>> model = roi.InferredContinuousROM(modelform="cA")
+# Define a reduced-order model of the form  dx / dt = c + Ax(t).
+>>> rom = opinf.InferredContinuousROM(modelform="cA")
 
 # Fit the model to snapshot data X, the time derivatives Xdot,
 # and the linear basis Vr by solving for the operators c_ and A_.
->>> model.fit(Vr, X, Xdot)
+>>> rom.fit(Vr, X, Xdot)
 
 # Simulate the learned model over the time domain [0,1] with 100 timesteps.
 >>> t = np.linspace(0, 1, 100)
->>> x_ROM = model.predict(X[:,0], t)
+>>> x_ROM = rom.predict(X[:,0], t)
 ```
 
 
@@ -58,8 +58,8 @@ The [`examples/`](https://github.com/Willcox-Research-Group/rom-operator-inferen
 ---
 
 **Contributors**:
-[Renee Swischuk](https://github.com/swischuk),
 [Shane McQuarrie](https://github.com/shanemcq18),
+[Renee Swischuk](https://github.com/swischuk),
 [Elizabeth Qian](https://github.com/elizqian),
 [Boris Kramer](http://kramer.ucsd.edu/),
 [Karen Willcox](https://kiwi.oden.utexas.edu/).

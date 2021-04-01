@@ -17,9 +17,7 @@ import numpy as np
 
 from ._base import AffineOperator, _AffineMixin
 from .._base import _ContinuousROM, _DiscreteROM
-from .._intrusive import (_IntrusiveMixin,
-                          IntrusiveDiscreteROM,
-                          IntrusiveContinuousROM)
+from .._intrusive import _IntrusiveMixin
 from ...utils import expand_H, compress_H, expand_G, compress_G
 
 

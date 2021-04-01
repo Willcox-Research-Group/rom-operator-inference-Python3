@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 from scipy import linalg as la
 
-import rom_operator_inference as roi
+import rom_operator_inference as opinf
 
 
 class TestBaseSolver:
@@ -13,7 +13,7 @@ class TestBaseSolver:
     # Properties --------------------------------------------------------------
     def test_properties(self, k=10, d=4, r=3):
         """Test lstsq._tikhonov._BaseSolver properties A, B, k, d, and r."""
-        solver = roi.lstsq._tikhonov._BaseSolver()
+        solver = opinf.lstsq._tikhonov._BaseSolver()
         for attr in "ABkdr":
             assert hasattr(solver, attr)
             assert getattr(solver, attr) is None
@@ -43,7 +43,7 @@ class TestBaseSolver:
     # Validation --------------------------------------------------------------
     def test_process_fit_arguments(self, k=10, d=4, r=3):
         """Test lstsq._tikhonov._BaseSolver._process_fit_arguments()."""
-        solver = roi.lstsq._tikhonov._BaseSolver()
+        solver = opinf.lstsq._tikhonov._BaseSolver()
         A = np.empty((k,d))
         B = np.empty((k,r))
 
@@ -89,7 +89,7 @@ class TestBaseSolver:
 
     def test_check_is_trained(self, k=10, d=4, r=3):
         """Test lstsq._tikhonov._BaseSolver._check_is_trained()."""
-        solver = roi.lstsq._tikhonov._BaseSolver()
+        solver = opinf.lstsq._tikhonov._BaseSolver()
 
         # Try before calling _process_fit_arguments().
         with pytest.raises(AttributeError) as ex:
@@ -111,7 +111,7 @@ class TestBaseSolver:
     # Main methods ------------------------------------------------------------
     def test_fit(self):
         """Test lstsq._tikhonov._BaseSolver.fit()."""
-        solver = roi.lstsq._tikhonov._BaseSolver()
+        solver = opinf.lstsq._tikhonov._BaseSolver()
         with pytest.raises(NotImplementedError) as ex:
             solver.fit()
         assert ex.value.args[0] == "fit() implemented by child classes"
@@ -122,7 +122,7 @@ class TestBaseSolver:
 
     def test_predict(self):
         """Test lstsq._tikhonov._BaseSolver.fit()."""
-        solver = roi.lstsq._tikhonov._BaseSolver()
+        solver = opinf.lstsq._tikhonov._BaseSolver()
         with pytest.raises(NotImplementedError) as ex:
             solver.predict()
         assert ex.value.args[0] == "predict() implemented by child classes"
@@ -134,7 +134,7 @@ class TestBaseSolver:
     # Post-processing ---------------------------------------------------------
     def test_cond(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov._BaseSolver.cond()."""
-        solver = roi.lstsq._tikhonov._BaseSolver()
+        solver = opinf.lstsq._tikhonov._BaseSolver()
 
         # Try before calling _process_fit_arguments().
         with pytest.raises(AttributeError) as ex:
@@ -162,7 +162,7 @@ class TestBaseSolver:
 
     def test_misfit(self, k=20, d=10, r=4):
         """Test lstsq._tikhonov._BaseSolver.misfit()."""
-        solver = roi.lstsq._tikhonov._BaseSolver()
+        solver = opinf.lstsq._tikhonov._BaseSolver()
 
         # Try before calling _process_fit_arguments().
         with pytest.raises(AttributeError) as ex:
@@ -200,9 +200,7 @@ class TestSolverL2:
     """Test lstsq._tikhonov.SolverL2."""
     # Validation --------------------------------------------------------------
     def test_process_regularizer(self, k=20, d=11, r=3):
-        solver = roi.lstsq.SolverL2()
-        A = np.empty((k,d))
-        B = np.empty((k,r))
+        solver = opinf.lstsq.SolverL2()
 
         # Try with nonscalar regularizer.
         with pytest.raises(TypeError) as ex:
@@ -216,28 +214,28 @@ class TestSolverL2:
         assert ex.value.args[0] == \
             "regularization hyperparameter λ must be non-negative"
 
-        l = np.random.uniform()
-        assert solver._process_regularizer(l) == l**2
+        λ = np.random.uniform()
+        assert solver._process_regularizer(λ) == λ**2
 
     # Helper methods ----------------------------------------------------------
     def test_Σinv(self, d=10, ntests=5):
         """Test lstsq._tikhonov.SolverL2._Σinv()"""
-        solver = roi.lstsq.SolverL2()
+        solver = opinf.lstsq.SolverL2()
         Σ = np.random.standard_normal(d)
         solver._Σ = Σ
-        for l in [0] + np.random.uniform(1, 10, ntests).tolist():
-            assert np.allclose(solver._Σinv(l), Σ / (Σ**2 + l**2))
+        for λ in [0] + np.random.uniform(1, 10, ntests).tolist():
+            assert np.allclose(solver._Σinv(λ), Σ / (Σ**2 + λ**2))
 
     # Main methods ------------------------------------------------------------
     def test_fit(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov.SolverL2.fit()."""
-        solver = roi.lstsq.SolverL2()
+        solver = opinf.lstsq.SolverL2()
         A = np.random.standard_normal((k,d))
         B = np.random.standard_normal((k,r))
 
         solver.fit(A, B)
-        for attr, shape in zip(["_V",  "_Σ", "_UtB",   "A",   "B"],
-                               [(d,d), (d,),  (d,r), (k,d), (k,r)]):
+        for attr, shape in [("_V", (d,d)), ("_Σ", (d,)),
+                            ("_UtB", (d,r)), ("A", (k,d)), ("B", (k,r))]:
             assert hasattr(solver, attr)
             obj = getattr(solver, attr)
             assert isinstance(obj, np.ndarray)
@@ -245,8 +243,8 @@ class TestSolverL2:
 
     def test_predict(self, m=20, n=10, k=5):
         """Test lstsq._tikhonov.SolverL2.predict()."""
-        solver1D = roi.lstsq.SolverL2()
-        solver2D = roi.lstsq.SolverL2()
+        solver1D = opinf.lstsq.SolverL2()
+        solver2D = opinf.lstsq.SolverL2()
         A = np.random.random((m,n))
         B = np.random.random((m,k))
         b = B[:,0]
@@ -286,7 +284,7 @@ class TestSolverL2:
     # Post-processing ---------------------------------------------------------
     def test_cond(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov.SolverL2.cond()."""
-        solver = roi.lstsq.SolverL2()
+        solver = opinf.lstsq.SolverL2()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -313,7 +311,7 @@ class TestSolverL2:
 
     def test_regcond(self, k=20, d=11, r=3, ntests=5):
         """Test lstsq._tikhonov.SolverL2.regcond()."""
-        solver = roi.lstsq.SolverL2()
+        solver = opinf.lstsq.SolverL2()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -325,21 +323,21 @@ class TestSolverL2:
         B = np.zeros((d,r))
         solver.fit(A, B)
         assert np.isclose(solver.regcond(0), d)
-        for l in np.random.uniform(1, 10, ntests):
-            assert np.isclose(solver.regcond(l),
-                              np.sqrt((d**2 + l**2)/(1 + l**2)))
+        for λ in np.random.uniform(1, 10, ntests):
+            assert np.isclose(solver.regcond(λ),
+                              np.sqrt((d**2 + λ**2)/(1 + λ**2)))
 
         # Rectangular, dense tests.
         A = np.random.standard_normal((k,d))
         B = np.random.standard_normal((k,r))
         solver.fit(A, B)
-        for l in np.random.uniform(1, 10, ntests):
-            Apad = np.vstack((A, l*np.eye(d)))
-            assert np.isclose(solver.regcond(l), np.linalg.cond(Apad))
+        for λ in np.random.uniform(1, 10, ntests):
+            Apad = np.vstack((A, λ*np.eye(d)))
+            assert np.isclose(solver.regcond(λ), np.linalg.cond(Apad))
 
     def test_residual(self, k=20, d=11, r=3, ntests=5):
         """Test lstsq._tikhonov.SolverL2.residual()."""
-        solver = roi.lstsq.SolverL2()
+        solver = opinf.lstsq.SolverL2()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -358,12 +356,12 @@ class TestSolverL2:
 
         # Two-dimensional tests.
         X = np.random.standard_normal((d,r))
-        for l in [0] + np.random.uniform(1, 10, ntests).tolist():
-            residual = solver.residual(X, l)
+        for λ in [0] + np.random.uniform(1, 10, ntests).tolist():
+            residual = solver.residual(X, λ)
             assert isinstance(residual, np.ndarray)
             assert residual.shape == (r,)
             ans = la.norm(A @ X - B, ord=2, axis=0)**2
-            ans += la.norm(l*np.eye(d) @ X, ord=2, axis=0)**2
+            ans += la.norm(λ*np.eye(d) @ X, ord=2, axis=0)**2
             assert np.allclose(residual, ans)
 
         # One-dimensional tests.
@@ -371,10 +369,10 @@ class TestSolverL2:
         solver.fit(A, b)
         assert solver.r == 1
         x = np.random.standard_normal(d)
-        for l in [0] + np.random.uniform(0, 10, ntests).tolist():
-            residual = solver.residual(x, l)
+        for λ in [0] + np.random.uniform(0, 10, ntests).tolist():
+            residual = solver.residual(x, λ)
             assert isinstance(residual, float)
-            ans = np.linalg.norm(A @ x - b)**2 + np.linalg.norm(l*x)**2
+            ans = np.linalg.norm(A @ x - b)**2 + np.linalg.norm(λ*x)**2
             assert np.isclose(residual, ans)
 
 
@@ -383,7 +381,7 @@ class TestSolverL2Decoupled:
     # Validation --------------------------------------------------------------
     def test_check_λs(self, k=10, d=6, r=3):
         """Test lstsq._tikhonov.SolverL2Decoupled._check_λs()."""
-        solver = roi.lstsq.SolverL2Decoupled()
+        solver = opinf.lstsq.SolverL2Decoupled()
         A = np.empty((k,d))
         B = np.empty((k,r))
         solver._process_fit_arguments(A, B)
@@ -405,7 +403,7 @@ class TestSolverL2Decoupled:
         r = len(λs)
         A = np.random.random((k,d))
         B = np.random.random((k,r))
-        solver = roi.lstsq.SolverL2Decoupled()
+        solver = opinf.lstsq.SolverL2Decoupled()
 
         # Try predicting before fitting.
         with pytest.raises(AttributeError) as ex:
@@ -418,8 +416,8 @@ class TestSolverL2Decoupled:
             solver.predict(λs[:-1])
         assert ex.value.args[0] == "len(λs) != number of columns of B"
 
-        I = np.eye(d)
-        Apads = [np.vstack((A, λ*I)) for λ in λs]
+        Id = np.eye(d)
+        Apads = [np.vstack((A, λ*Id)) for λ in λs]
         Bpad = np.vstack((B, np.zeros((d,r))))
         X1 = np.column_stack([la.lstsq(Apad, Bpad[:,j])[0]
                               for j,Apad in enumerate(Apads)])
@@ -429,7 +427,7 @@ class TestSolverL2Decoupled:
     # Post-processing ---------------------------------------------------------
     def test_regcond(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov.SolverL2Decoupled.regcond()."""
-        solver = roi.lstsq.SolverL2Decoupled()
+        solver = opinf.lstsq.SolverL2Decoupled()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -441,22 +439,22 @@ class TestSolverL2Decoupled:
         B = np.zeros((d,r))
         solver.fit(A, B)
         assert np.allclose(solver.regcond([0]*r), [d]*r)
-        l = np.random.uniform(1, 10, r)
-        assert np.allclose(solver.regcond(l),
-                           np.sqrt((d**2 + l**2)/(1 + l**2)))
+        λ = np.random.uniform(1, 10, r)
+        assert np.allclose(solver.regcond(λ),
+                           np.sqrt((d**2 + λ**2)/(1 + λ**2)))
 
         # Rectangular, dense tests.
         A = np.random.standard_normal((k,d))
         B = np.random.standard_normal((k,r))
         solver.fit(A, B)
-        l = np.random.uniform(1, 10, r)
-        I = np.eye(d)
-        conds = [np.linalg.cond(np.vstack((A, ll*I))) for ll in l]
-        assert np.allclose(solver.regcond(l), conds)
+        λ = np.random.uniform(1, 10, r)
+        Id = np.eye(d)
+        conds = [np.linalg.cond(np.vstack((A, λλ*Id))) for λλ in λ]
+        assert np.allclose(solver.regcond(λ), conds)
 
     def test_residual(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov.SolverL2Decoupled.residual()."""
-        solver = roi.lstsq.SolverL2Decoupled()
+        solver = opinf.lstsq.SolverL2Decoupled()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -488,7 +486,7 @@ class TestSolverTikhonov:
     """Test lstsq._tikhonov.SolverTikhonov."""
     # Validation --------------------------------------------------------------
     def test_process_regularizer(self, k=20, d=11, r=3):
-        solver = roi.lstsq.SolverTikhonov()
+        solver = opinf.lstsq.SolverTikhonov()
         A = np.random.standard_normal((k,d))
         B = np.random.standard_normal((k,r))
         solver._process_fit_arguments(A, B)
@@ -532,7 +530,7 @@ class TestSolverTikhonov:
     # Helper methods ----------------------------------------------------------
     def test_lhs(self, d=11, ntests=5):
         """Test lstsq._tikhonov.SolverTikhonov._lhs()."""
-        solver = roi.lstsq.SolverTikhonov()
+        solver = opinf.lstsq.SolverTikhonov()
         A_or_B = np.empty((d,d))
         solver._process_fit_arguments(A_or_B, A_or_B)
 
@@ -554,13 +552,13 @@ class TestSolverTikhonov:
     # Main methods ------------------------------------------------------------
     def test_fit(self, k=20, d=10, r=5):
         """Test lstsq._tikhonov.SolverTikhonov.fit()."""
-        solver = roi.lstsq.SolverTikhonov()
+        solver = opinf.lstsq.SolverTikhonov()
         A = np.random.standard_normal((k,d))
         B = np.random.standard_normal((k,r))
 
         solver.fit(A, B)
-        for attr, shape in zip([  "A",   "B", "_AtA", "_rhs"],
-                               [(k,d), (k,r),  (d,d),  (d,r)]):
+        for attr, shape in [("A", (k,d)), ("B", (k,r)),
+                            ("_AtA", (d,d)), ("_rhs", (d,r))]:
             assert hasattr(solver, attr)
             obj = getattr(solver, attr)
             assert isinstance(obj, np.ndarray)
@@ -568,8 +566,8 @@ class TestSolverTikhonov:
 
     def test_predict(self, k=40, d=15, r=5):
         """Test lstsq._tikhonov.SolverTikhonov.predict()."""
-        solver1D = roi.lstsq.SolverTikhonov()
-        solver2D = roi.lstsq.SolverTikhonov()
+        solver1D = opinf.lstsq.SolverTikhonov()
+        solver2D = opinf.lstsq.SolverTikhonov()
 
         # Try predicting before fitting.
         with pytest.raises(AttributeError) as ex:
@@ -594,25 +592,24 @@ class TestSolverTikhonov:
         assert np.allclose(X1, X2)
 
         # Test with regularization, b.ndim = 1.
-        I = np.eye(d)
-        Apad = np.vstack((A, I))
+        Id = np.eye(d)
+        Apad = np.vstack((A, Id))
         bpad = np.concatenate((b, np.zeros(d)))
         x1 = la.lstsq(Apad, bpad)[0]
-        x2 = solver1D.predict(I)
+        x2 = solver1D.predict(Id)
         assert np.allclose(x1, x2)
 
         # Test with regularization, b.ndim = 2.
         Bpad = np.concatenate((B, np.zeros((d, r))))
         X1 = la.lstsq(Apad, Bpad)[0]
-        X2 = solver2D.predict(I)
+        X2 = solver2D.predict(Id)
         assert np.allclose(X1, X2)
 
         # Test with underdetermined system and regularization.
-        I = np.eye(d)
-        Apad = np.vstack((A, I))
+        Apad = np.vstack((A, Id))
         bpad = np.concatenate((b, np.zeros(d)))
         x1 = la.lstsq(Apad, bpad)[0]
-        x2 = solver1D.predict(I)
+        x2 = solver1D.predict(Id)
 
         assert np.allclose(x1, x2)
         x2 = solver1D.predict(np.ones(d))
@@ -633,16 +630,16 @@ class TestSolverTikhonov:
         assert np.allclose(X1, X2)
 
         # Some regularization.
-        Apad = np.vstack((A, I))
+        Apad = np.vstack((A, Id))
         Bpad = np.concatenate((B, np.zeros((d, r))))
         X1 = la.lstsq(Apad, Bpad)[0]
-        X2 = solver2D.predict(I)
+        X2 = solver2D.predict(Id)
         assert np.allclose(X1, X2)
 
     # Post-processing ---------------------------------------------------------
     def test_regcond(self, k=20, d=11, r=3, ntests=5):
         """Test lstsq._tikhonov.SolverTikhonov.regcond()."""
-        solver = roi.lstsq.SolverTikhonov()
+        solver = opinf.lstsq.SolverTikhonov()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -655,18 +652,18 @@ class TestSolverTikhonov:
         Z = np.zeros(d)
         solver.fit(A, B)
         assert np.isclose(solver.regcond(Z), d)
-        l = np.random.uniform(1, 10, d)
-        l.sort()
-        assert np.isclose(solver.regcond(l),
-                          np.sqrt((d**2 + l[-1]**2)/(1 + l[0]**2)))
+        λ = np.random.uniform(1, 10, d)
+        λ.sort()
+        assert np.isclose(solver.regcond(λ),
+                          np.sqrt((d**2 + λ[-1]**2)/(1 + λ[0]**2)))
 
         # Rectangular, dense tests.
         A = np.random.standard_normal((k,d))
         B = np.random.standard_normal((k,r))
         solver.fit(A, B)
-        for l in np.random.uniform(1, 10, ntests):
-            cond = np.linalg.cond(np.vstack((A, l*np.eye(d))))
-            assert np.isclose(solver.regcond(np.array([l]*d)), cond)
+        for λ in np.random.uniform(1, 10, ntests):
+            cond = np.linalg.cond(np.vstack((A, λ*np.eye(d))))
+            assert np.isclose(solver.regcond(np.array([λ]*d)), cond)
 
             P = np.random.standard_normal((d,d))
             cond = np.linalg.cond(np.vstack((A, P)))
@@ -674,7 +671,7 @@ class TestSolverTikhonov:
 
     def test_residual(self, k=20, d=11, r=3, ntests=5):
         """Test lstsq._tikhonov.SolverTikhonov.residual()."""
-        solver = roi.lstsq.SolverTikhonov()
+        solver = opinf.lstsq.SolverTikhonov()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -720,7 +717,7 @@ class TestSolverTikhonovDecoupled:
     # Validation --------------------------------------------------------------
     def test_check_Ps(self, k=10, d=6, r=3):
         """Test lstsq._tikhonov.SolverTikhonovDecoupled._check_Ps()."""
-        solver = roi.lstsq.SolverTikhonovDecoupled()
+        solver = opinf.lstsq.SolverTikhonovDecoupled()
         A = np.empty((k,d))
         B = np.empty((k,r))
         solver._process_fit_arguments(A, B)
@@ -739,7 +736,7 @@ class TestSolverTikhonovDecoupled:
     # Main methods ------------------------------------------------------------
     def test_predict(self, k=20, d=10):
         """Test lstsq._tikhonov.SolverTikhonovDecoupled.predict()."""
-        solver = roi.lstsq.SolverTikhonovDecoupled()
+        solver = opinf.lstsq.SolverTikhonovDecoupled()
         Ps = [np.eye(d), np.full(d, 2)]
         r = len(Ps)
         A = np.random.random((k,d))
@@ -794,7 +791,7 @@ class TestSolverTikhonovDecoupled:
     # Post-processing ---------------------------------------------------------
     def test_regcond(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov.SolverTikhonovDecoupled.regcond()."""
-        solver = roi.lstsq.SolverTikhonovDecoupled()
+        solver = opinf.lstsq.SolverTikhonovDecoupled()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -807,10 +804,10 @@ class TestSolverTikhonovDecoupled:
         z = np.zeros(d)
         solver.fit(A, B)
         assert np.allclose(solver.regcond([z]*r), [d]*r)
-        l = np.random.uniform(1, 10, r)
-        Ps = [ll*np.ones(d) for ll in l]
+        λ = np.random.uniform(1, 10, r)
+        Ps = [λλ*np.ones(d) for λλ in λ]
         assert np.allclose(solver.regcond(Ps),
-                           np.sqrt((d**2 + l**2)/(1 + l**2)))
+                           np.sqrt((d**2 + λ**2)/(1 + λ**2)))
 
         # Rectangular, dense tests.
         A = np.random.standard_normal((k,d))
@@ -822,7 +819,7 @@ class TestSolverTikhonovDecoupled:
 
     def test_residual(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov.SolverTikhonovDecoupled.residual()."""
-        solver = roi.lstsq.SolverTikhonovDecoupled()
+        solver = opinf.lstsq.SolverTikhonovDecoupled()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -861,35 +858,35 @@ def test_solver(m=20, n=10, k=5):
 
     # Bad number of regularization parameters.
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.solver(A, B, λs[:k-2])
+        opinf.lstsq.solver(A, B, λs[:k-2])
     assert ex.value.args[0] == "invalid or misaligned input P"
 
     # Bad number of regularization matrices.
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.solver(A, B, Ps[:k-2])
+        opinf.lstsq.solver(A, B, Ps[:k-2])
     assert ex.value.args[0] == "invalid or misaligned input P"
 
     # Try to solve 1D problem with multiple regularizations.
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.solver(A, B[:,0], Ps)
+        opinf.lstsq.solver(A, B[:,0], Ps)
     assert ex.value.args[0] == "invalid or misaligned input P"
 
     # Bad type for regularization.
     with pytest.raises(ValueError) as ex:
-        roi.lstsq.solver(A, B, {})
+        opinf.lstsq.solver(A, B, {})
     assert ex.value.args[0] == "invalid or misaligned input P"
 
     # Correct usage.
-    solver = roi.lstsq.solver(A, B, 0)
-    assert isinstance(solver, roi.lstsq.SolverL2)
-    solver = roi.lstsq.solver(A, B, λs[0])
-    assert isinstance(solver, roi.lstsq.SolverL2)
-    solver = roi.lstsq.solver(A, B, λs)
-    assert isinstance(solver, roi.lstsq.SolverL2Decoupled)
-    solver = roi.lstsq.solver(A, B, Ps[0])
-    assert isinstance(solver, roi.lstsq.SolverTikhonov)
-    solver = roi.lstsq.solver(A, B, Ps)
-    assert isinstance(solver, roi.lstsq.SolverTikhonovDecoupled)
-    solver = roi.lstsq.solver(A, B, Ps_diag)
-    assert isinstance(solver, roi.lstsq.SolverTikhonovDecoupled)
-    roi.lstsq.solve(A, B, 0)
+    solver = opinf.lstsq.solver(A, B, 0)
+    assert isinstance(solver, opinf.lstsq.SolverL2)
+    solver = opinf.lstsq.solver(A, B, λs[0])
+    assert isinstance(solver, opinf.lstsq.SolverL2)
+    solver = opinf.lstsq.solver(A, B, λs)
+    assert isinstance(solver, opinf.lstsq.SolverL2Decoupled)
+    solver = opinf.lstsq.solver(A, B, Ps[0])
+    assert isinstance(solver, opinf.lstsq.SolverTikhonov)
+    solver = opinf.lstsq.solver(A, B, Ps)
+    assert isinstance(solver, opinf.lstsq.SolverTikhonovDecoupled)
+    solver = opinf.lstsq.solver(A, B, Ps_diag)
+    assert isinstance(solver, opinf.lstsq.SolverTikhonovDecoupled)
+    opinf.lstsq.solve(A, B, 0)

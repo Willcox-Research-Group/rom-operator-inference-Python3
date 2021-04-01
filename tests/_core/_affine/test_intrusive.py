@@ -3,19 +3,18 @@
 
 import pytest
 import numpy as np
-from scipy import linalg as la
 
-import rom_operator_inference as roi
+import rom_operator_inference as opinf
 
 from .test_base import TestAffineMixin
-from .. import _get_data, _get_operators, MODEL_FORMS, MODEL_KEYS
+from .. import _get_operators, MODEL_FORMS, MODEL_KEYS
 
 
 # Affine intrusive mixin (private) ============================================
 class TestAffineIntrusiveMixin:
     """Test _core._affine._intrusive._AffineIntrusiveMixin."""
-    class Dummy(roi._core._affine._intrusive._AffineIntrusiveMixin,
-                roi._core._base._BaseROM):
+    class Dummy(opinf._core._affine._intrusive._AffineIntrusiveMixin,
+                opinf._core._base._BaseROM):
         def __init__(self, modelform):
             self.modelform = modelform
 
@@ -37,16 +36,16 @@ class TestAffineIntrusiveMixin:
         # Get test data.
         Vr = np.random.random((n,r))
         shapes = {
-                    "c":   (n,),
-                    "A":   (n,n),
-                    "H":   (n,n**2),
-                    "G":   (n,n**3),
-                    "B":   (n,m),
-                    "c_":  (r,),
-                    "A_":  (r,r),
-                    "H_":  (r,r*(r+1)//2),
-                    "G_":  (r,r*(r+1)*(r+2)//6),
-                    "B_":  (r,m),
+                    "c": (n,),
+                    "A": (n,n),
+                    "H": (n,n**2),
+                    "G": (n,n**3),
+                    "B": (n,m),
+                    "c_": (r,),
+                    "A_": (r,r),
+                    "H_": (r,r*(r+1)//2),
+                    "G_": (r,r*(r+1)*(r+2)//6),
+                    "B_": (r,m),
                  }
 
         # Get test operators.
@@ -125,7 +124,8 @@ class TestAffineIntrusiveMixin:
         assert model.B_.shape == (r,1)
 
         # TEST SET 2: Nontrivial affines.
-        ident = lambda a: a
+        def ident(a):
+            return a
         affines = {"c": [ident, ident],
                    "A": [ident, ident, ident],
                    "H": [ident],
@@ -200,13 +200,13 @@ class TestAffineIntrusiveMixin:
                 rom_op = getattr(model, attr)
                 if prefix in form:
                     assert isinstance(fom_op,
-                                      roi._core._affine.AffineOperator)
+                                      opinf._core._affine.AffineOperator)
                     assert fom_op.shape == shapes[prefix]
                     assert len(fom_op.matrices) == len(operators[prefix])
                     for fom_op, op in zip(fom_op.matrices, operators[prefix]):
                         assert np.all(fom_op == op)
                     assert isinstance(rom_op,
-                                      roi._core._affine.AffineOperator)
+                                      opinf._core._affine.AffineOperator)
                     assert rom_op.shape == shapes[attr]
                     assert len(rom_op.matrices) == len(operators[prefix])
                 else:
@@ -222,7 +222,7 @@ class TestAffineIntrusiveMixin:
         Hc = np.random.random((n,n*(n + 1)//2))
         Gc = np.random.random((n,n*(n + 1)*(n + 2)//6))
         model._project_operators({"H": [ident], "G": [ident]},
-                                 {"H": [Hc],    "G": [Gc]})
+                                 {"H": [Hc], "G": [Gc]})
         assert model.H.shape == (n,n**2)
         assert model.G.shape == (n,n**3)
 
@@ -251,7 +251,8 @@ class TestAffineIntrusiveMixin:
                 model.fit(Vr, {}, ops)
 
         # TEST SET 2: Nontrivial affines.
-        ident = lambda a: a
+        def ident(a):
+            return a
         affines = {"c": [ident, ident],
                    "A": [ident, ident, ident],
                    "H": [ident],
@@ -279,19 +280,23 @@ class TestAffineIntrusiveDiscreteROM:
     """Test _core._affine._intrusive.AffineIntrusiveDiscreteROM."""
     def test_fit(self):
         """Test _core._affine._intrusive.AffineIntrusiveDiscreteROM.fit()."""
-        TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveDiscreteROM)
+        TestAffineIntrusiveMixin()._test_fit(opinf.AffineIntrusiveDiscreteROM)
 
     def test_predict(self):
-        """Test _core._affine._intrusive.AffineIntrusiveDiscreteROM.predict()."""
-        TestAffineMixin()._test_predict(roi.AffineIntrusiveDiscreteROM)
+        """Test _core._affine._intrusive.AffineIntrusiveDiscreteROM.predict().
+        """
+        TestAffineMixin()._test_predict(opinf.AffineIntrusiveDiscreteROM)
 
 
 class TestAffineIntrusiveContinuousROM:
     """Test _core._affine._intrusive.AffineIntrusiveContinuousROM."""
     def test_fit(self):
         """Test _core._affine._intrusive.AffineIntrusiveContinuousROM.fit()."""
-        TestAffineIntrusiveMixin()._test_fit(roi.AffineIntrusiveContinuousROM)
+        TestAffineIntrusiveMixin()._test_fit(
+            opinf.AffineIntrusiveContinuousROM)
 
     def test_predict(self):
-        """Test _core._affine._intrusive.AffineIntrusiveContinuousROM.predict()."""
-        TestAffineMixin()._test_predict(roi.AffineIntrusiveContinuousROM)
+        """Test
+        _core._affine._intrusive.AffineIntrusiveContinuousROM.predict().
+        """
+        TestAffineMixin()._test_predict(opinf.AffineIntrusiveContinuousROM)

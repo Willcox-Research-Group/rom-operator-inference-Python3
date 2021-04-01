@@ -46,7 +46,7 @@ def lstsq_size(modelform, r, m=0, affines=None):
     """
     has_inputs = 'B' in modelform
     if has_inputs and m == 0:
-        raise ValueError(f"argument m > 0 required since 'B' in modelform")
+        raise ValueError("argument m > 0 required since 'B' in modelform")
     if not has_inputs and m != 0:
         raise ValueError(f"argument m={m} invalid since 'B' in modelform")
 
@@ -54,7 +54,7 @@ def lstsq_size(modelform, r, m=0, affines=None):
         affines = {}
 
     qs = [(len(affines[op]) if (op in affines and op in modelform)
-           else 1 if op in modelform else 0)  for op in "cAHGB"]
+           else 1 if op in modelform else 0) for op in "cAHGB"]
     rs = [1, r, r*(r+1)//2, r*(r+1)*(r+2)//6, m]
 
     return sum(qq*rr for qq, rr in zip(qs, rs))

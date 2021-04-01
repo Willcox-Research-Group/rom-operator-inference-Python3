@@ -18,9 +18,7 @@ import scipy.linalg as la
 
 from ._base import AffineOperator, _AffineMixin
 from .._base import _ContinuousROM, _DiscreteROM
-from .._inferred import (_InferredMixin,
-                         InferredDiscreteROM,
-                         InferredContinuousROM)
+from .._inferred import _InferredMixin
 from ...utils import kron2c, kron3c
 from ... import lstsq
 
@@ -131,7 +129,8 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 if Us[i].ndim == 1:     # Reshape one-dimensional inputs.
                     Us[i] = Us[i].reshape((1,-1))
                 self._check_training_data_shapes([Xs[i], rhss[i], Us[i]],
-                                    [f"Xs[{i}]", f"Xdots[{i}]", f"Us[{i}]"])
+                                                 [f"Xs[{i}]",
+                                                  f"Xdots[{i}]", f"Us[{i}]"])
         else:
             for i in range(s):
                 self._check_training_data_shapes([Xs[i], rhss[i]],
@@ -218,7 +217,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
 
         return np.vstack(D_rows)
 
-    def _extract_operators(self, affines, O):
+    def _extract_operators(self, affines, Ohat):
         """Extract and save the inferred operators from the block-matrix
         solution to the least-squares problem, constructing AffineOperators
         as indicated by the affine structure.
@@ -236,33 +235,31 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             For example, if the constant term has the affine structure
             c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
 
-        O : (r,d(r,m)) ndarray
+        Ohat : (r,d(r,m)) ndarray
             Block matrix of ROM operator coefficients, the transpose of the
             solution to the Operator Inference linear least-squares problem.
         """
-        # TODO: do this programmatically. for op in self._MODEL_KEYS...
-
         i = 0
         if self.has_constant:           # Constant term (one-dimensional).
             if 'c' in affines:
                 cs_ = []
                 for j in range(len(affines['c'])):
-                    cs_.append(O[:,i:i+1][:,0])
+                    cs_.append(Ohat[:,i:i+1][:,0])
                     i += 1
                 self.c_ = AffineOperator(affines['c'], cs_)
             else:
-                self.c_ = O[:,i:i+1][:,0]
+                self.c_ = Ohat[:,i:i+1][:,0]
                 i += 1
 
         if self.has_linear:             # Linear state term.
             if 'A' in affines:
                 As_ = []
                 for j in range(len(affines['A'])):
-                    As_.append(O[:,i:i+self.r])
+                    As_.append(Ohat[:,i:i+self.r])
                     i += self.r
                 self.A_ = AffineOperator(affines['A'], As_)
             else:
-                self.A_ = O[:,i:i+self.r]
+                self.A_ = Ohat[:,i:i+self.r]
                 i += self.r
 
         if self.has_quadratic:          # (compact) Quadratic state term.
@@ -270,11 +267,11 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             if 'H' in affines:
                 Hcs_ = []
                 for j in range(len(affines['H'])):
-                    Hcs_.append(O[:,i:i+_r2])
+                    Hcs_.append(Ohat[:,i:i+_r2])
                     i += _r2
                 self.H_ = AffineOperator(affines['H'], Hcs_)
             else:
-                self.H_ = O[:,i:i+_r2]
+                self.H_ = Ohat[:,i:i+_r2]
                 i += _r2
 
         if self.has_cubic:              # (compact) Cubic state term.
@@ -282,22 +279,22 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             if 'G' in affines:
                 Gcs_ = []
                 for j in range(len(affines['G'])):
-                    Gcs_.append(O[:,i:i+_r3])
+                    Gcs_.append(Ohat[:,i:i+_r3])
                     i += _r3
                 self.G_ = AffineOperator(affines['G'], Gcs_)
             else:
-                self.G_ = O[:,i:i+_r3]
+                self.G_ = Ohat[:,i:i+_r3]
                 i += _r3
 
         if self.has_inputs:             # Linear input term.
             if 'B' in affines:
                 Bs_ = []
                 for j in range(len(affines['B'])):
-                    Bs_.append(O[:,i:i+self.m])
+                    Bs_.append(Ohat[:,i:i+self.m])
                     i += self.m
                 self.B_ = AffineOperator(affines['B'], Bs_)
             else:
-                self.B_ = O[:,i:i+self.m]
+                self.B_ = Ohat[:,i:i+self.m]
                 i += self.m
 
     def _construct_solver(self, Vr, µs, affines, Xs, rhss, Us, P):
@@ -325,8 +322,8 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
         """
-        Otrp = self.solver_.predict(P)
-        self._extract_operators(affines, Otrp.T)
+        OhatT = self.solver_.predict(P)
+        self._extract_operators(affines, OhatT.T)
 
     def fit(self, Vr, µs, affines, Xs, rhss, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
@@ -456,7 +453,7 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
 
         return _AffineInferredMixin.fit(self, Vr, µs, affines,
                                         [X[:,:-1] for X in Xs],
-                                        [X[:,1:]  for X in Xs],
+                                        [X[:, 1:] for X in Xs],
                                         Us, P)
 
     def predict(self, µ, x0, niters, U=None):

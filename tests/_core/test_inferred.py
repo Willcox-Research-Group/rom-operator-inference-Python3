@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 from scipy import linalg as la
 
-import rom_operator_inference as roi
+import rom_operator_inference as opinf
 
 from . import MODEL_KEYS, MODEL_FORMS, _get_data
 
@@ -14,8 +14,8 @@ from . import MODEL_KEYS, MODEL_FORMS, _get_data
 class TestInferredMixin:
     """Test _core._inferred._InferredMixin."""
 
-    class Dummy(roi._core._inferred._InferredMixin,
-                roi._core._base._BaseROM):
+    class Dummy(opinf._core._inferred._InferredMixin,
+                opinf._core._base._BaseROM):
         def __init__(self, modelform):
             self.modelform = modelform
 
@@ -116,16 +116,16 @@ class TestInferredMixin:
             if 'B' in form:
                 model.m = m
             D = model._assemble_data_matrix(X_, U)
-            d = roi.lstsq.lstsq_size(form, r, m if 'B' in form else 0)
+            d = opinf.lstsq.lstsq_size(form, r, m if 'B' in form else 0)
             assert D.shape == (k,d)
 
             # Spot check.
             if form == "c":
                 assert np.allclose(D, np.ones((k,1)))
             elif form == "H":
-                assert np.allclose(D, roi.utils.kron2c(X_).T)
+                assert np.allclose(D, opinf.utils.kron2c(X_).T)
             elif form == "G":
-                assert np.allclose(D, roi.utils.kron3c(X_).T)
+                assert np.allclose(D, opinf.utils.kron3c(X_).T)
             elif form == "AB":
                 assert np.allclose(D[:,:r], X_.T)
                 assert np.allclose(D[:,r:], U.T)
@@ -154,9 +154,9 @@ class TestInferredMixin:
             model.r = r
             if 'B' in form:
                 model.m = m
-            d = roi.lstsq.lstsq_size(form, r, model.m)
-            O = np.random.random((r,d))
-            model._extract_operators(O)
+            d = opinf.lstsq.lstsq_size(form, r, model.m)
+            Ohat = np.random.random((r,d))
+            model._extract_operators(Ohat)
             for prefix in MODEL_KEYS:
                 attr = prefix+'_'
                 assert hasattr(model, attr)
@@ -181,7 +181,7 @@ class TestInferredMixin:
         Vr = la.svd(X)[0][:,:r]
         args_n = [X]
         args_r = [Vr.T @ X]
-        if issubclass(ModelClass, roi._core._inferred._ContinuousROM):
+        if issubclass(ModelClass, opinf._core._inferred._ContinuousROM):
             args_n.append(Xdot)
             args_r.append(Vr.T @ Xdot)
 
@@ -206,11 +206,11 @@ class TestInferredDiscreteROM:
     """Test _core._inferred.InferredDiscreteROM."""
     def test_fit(self):
         """Test _core._inferred.InferredDiscreteROM.fit()."""
-        TestInferredMixin()._test_fit(roi.InferredDiscreteROM)
+        TestInferredMixin()._test_fit(opinf.InferredDiscreteROM)
 
 
 class TestInferredContinuousROM:
     """Test _core._inferred.InferredContinuousROM."""
     def test_fit(self):
         """Test _core._inferred.InferredContinuousROM.fit()."""
-        TestInferredMixin()._test_fit(roi.InferredContinuousROM)
+        TestInferredMixin()._test_fit(opinf.InferredContinuousROM)

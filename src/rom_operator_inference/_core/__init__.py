@@ -106,7 +106,8 @@ def load_model(loadfile):
     model : ROM class
         The trained reduced-order model.
     """
-    import os, h5py
+    import os
+    import h5py
 
     if not os.path.isfile(loadfile):
         raise FileNotFoundError(loadfile)
@@ -121,7 +122,7 @@ def load_model(loadfile):
         modelclass = data["meta"].attrs["modelclass"]
         try:
             ModelClass = eval(modelclass)
-        except NameError as ex:
+        except NameError:
             raise ValueError(f"invalid modelclass '{modelclass}' (meta.attrs)")
         # is_parametric = issubclass(ModelClass, _ParametricMixin)
         modelform = data["meta"].attrs["modelform"]

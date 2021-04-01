@@ -6,6 +6,12 @@ import re
 from collections import defaultdict
 
 
+# Helper functions ============================================================
+def up_one(f):
+    """Get the file name in the folder above the current working directory."""
+    return os.path.abspath(os.path.join("..", f))
+
+
 # Global variables ============================================================
 README = "README.md"
 SETUP = "setup.py"
@@ -13,7 +19,6 @@ INIT = os.path.join("src", "rom_operator_inference", "__init__.py")
 
 # Locate files if tests are being run directly from the tests/ directory.
 if not os.path.isfile(README) and os.path.basename(os.getcwd()) == "tests":
-    up_one = lambda f: os.path.abspath(os.path.join("..", f))
     README = up_one(README)
     SETUP = up_one(SETUP)
     INIT = up_one(INIT)
@@ -26,7 +31,6 @@ SAFELIST = ["Download"]
 
 
 # Tests =======================================================================
-
 def test_version_numbers():
     """Check that the version number in setup.py and __init__.py match."""
     file1, file2 = VNFILES
@@ -52,8 +56,7 @@ def test_author_links():
     for key, value in MDLINK.findall(data):
         links[key].add(value)
 
-    badrefs = [k for k,v in links.items()
-                 if k not in SAFELIST and len(v) > 1]
+    badrefs = [k for k,v in links.items() if k not in SAFELIST and len(v) > 1]
     if badrefs:
         raise SyntaxError(f"Bad references in {README} (nonunique link)"
                           "\n\t" + '\n\t'.join(badrefs))

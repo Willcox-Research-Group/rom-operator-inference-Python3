@@ -8,9 +8,6 @@ Classes
 
 __all__ = []
 
-import numpy as np
-import scipy.interpolate as interp
-
 from .._base import _ParametricMixin
 
 

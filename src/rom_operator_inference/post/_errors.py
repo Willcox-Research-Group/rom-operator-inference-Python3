@@ -177,9 +177,11 @@ def Lp_error(X, Y, t=None, p=2):
             raise ValueError("time t must be one-dimensional")
         if X.shape[-1] != t.shape[0]:
             raise ValueError("truth X not aligned with time t")
-        pnorm = lambda Z: (np.trapz(np.sum(np.abs(Z)**p, axis=0), t))**(1/p)
+        def pnorm(Z):
+            return (np.trapz(np.sum(np.abs(Z)**p, axis=0), t))**(1/p)
     elif p == np.inf:
-        pnorm = lambda Z: np.max(np.abs(Z), axis=0).max()
+        def pnorm(Z):
+            return np.max(np.abs(Z), axis=0).max()
 
     # Compute the error.
     return _absolute_and_relative_error(X, Y, pnorm)

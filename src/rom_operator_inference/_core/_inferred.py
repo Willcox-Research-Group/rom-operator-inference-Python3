@@ -140,37 +140,37 @@ class _InferredMixin:
 
         return np.hstack(D)
 
-    def _extract_operators(self, O):
+    def _extract_operators(self, Ohat):
         """Extract and save the inferred operators from the block-matrix
         solution to the least-squares problem.
 
         Parameters
         ----------
-        O : (r,d(r,m)) ndarray
+        Ohat : (r,d(r,m)) ndarray
             Block matrix of ROM operator coefficients, the transpose of the
             solution to the Operator Inference linear least-squares problem.
         """
         i = 0
         if self.has_constant:           # Constant term (one-dimensional).
-            self.c_ = O[:,i:i+1][:,0]
+            self.c_ = Ohat[:,i:i+1][:,0]
             i += 1
 
         if self.has_linear:             # Linear state matrix.
-            self.A_ = O[:,i:i+self.r]
+            self.A_ = Ohat[:,i:i+self.r]
             i += self.r
 
         if self.has_quadratic:          # (compact) Qudadratic state matrix.
             _r2 = self.r * (self.r + 1) // 2
-            self.H_ = O[:,i:i+_r2]
+            self.H_ = Ohat[:,i:i+_r2]
             i += _r2
 
         if self.has_cubic:              # (compact) Cubic state matrix.
             _r3 = self.r * (self.r + 1) * (self.r + 2) // 6
-            self.G_ = O[:,i:i+_r3]
+            self.G_ = Ohat[:,i:i+_r3]
             i += _r3
 
         if self.has_inputs:             # Linear input matrix.
-            self.B_ = O[:,i:i+self.m]
+            self.B_ = Ohat[:,i:i+self.m]
             i += self.m
 
         return
@@ -219,8 +219,8 @@ class _InferredMixin:
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
         """
-        Otrp = self.solver_.predict(P)
-        self._extract_operators(Otrp.T)
+        OhatT = self.solver_.predict(P)
+        self._extract_operators(np.atleast_2d(OhatT.T))
 
     def fit(self, Vr, X, rhs, U, P):
         """Solve for the reduced model operators via ordinary least squares.

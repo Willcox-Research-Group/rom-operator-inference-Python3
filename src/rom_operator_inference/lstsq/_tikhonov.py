@@ -427,9 +427,9 @@ class SolverTikhonov(_BaseSolver):
             try:
                 # Attempt to solve the problem via the normal equations.
                 X = la.solve(lhs, self._rhs, assume_a="pos")
-            except (la.LinAlgError, la.LinAlgWarning) as e:
+            except (la.LinAlgError, la.LinAlgWarning):
                 # For ill-conditioned normal equations, use la.lstsq().
-                print(f"normal equations solve failed, switching lstsq solver")
+                print("normal equations solve failed, switching lstsq solver")
                 Bpad = np.vstack((self.B, np.zeros((self.d, self.r))))
                 X = la.lstsq(np.vstack((self.A, P)), Bpad)[0]
 
@@ -520,7 +520,7 @@ class SolverTikhonovDecoupled(SolverTikhonov):
                 try:
                     # Attempt to solve the problem via the normal equations.
                     X[:,j] = la.solve(lhs, self._rhs[:,j], assume_a="pos")
-                except (la.LinAlgError, la.LinAlgWarning) as e:
+                except (la.LinAlgError, la.LinAlgWarning):
                     # For ill-conditioned normal equations, use la.lstsq().
                     if Bpad is None:
                         Bpad = np.vstack((self.B, np.zeros((self.d, self.r))))
@@ -590,14 +590,14 @@ def solver(A, B, P):
         The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
 
     P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
-        Tikhonov regularization hyperparameter(s). The regularization matrix in the
-        least-squares problem depends on the format of the argument:
+        Tikhonov regularization hyperparameter(s). The regularization matrix
+        in the least-squares problem depends on the format of the argument:
         * float >= 0: `P`*I, a scaled identity matrix.
         * (d,) ndarray: diag(P), a diagonal matrix.
         * (d,d) ndarray: the matrix `P`.
         * sequence of length r : the jth entry in the sequence is the
-            regularization hyperparameter for the jth column of `b`. Only valid if
-            `b` is two-dimensional and has exactly r columns.
+            regularization hyperparameter for the jth column of `b`. Only
+            valid if `b` is two-dimensional and has exactly r columns.
 
     Returns
     -------
@@ -627,7 +627,7 @@ def solver(A, B, P):
         solver = SolverTikhonovDecoupled()
 
     else:
-        raise ValueError(f"invalid or misaligned input P")
+        raise ValueError("invalid or misaligned input P")
 
     return solver.fit(A, B)
 
@@ -646,8 +646,8 @@ def solve(A, B, P=0):
         The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
 
     P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
-        Tikhonov regularization hyperparameter(s). The regularization matrix in the
-        least-squares problem depends on the format of the argument:
+        Tikhonov regularization hyperparameter(s). The regularization matrix
+        in the least-squares problem depends on the format of the argument:
         * float >= 0: `P`*I, a scaled identity matrix.
         * (d,) ndarray: diag(P), a diagonal matrix.
         * (d,d) ndarray: the matrix `P`.

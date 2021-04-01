@@ -9,8 +9,9 @@ __all__ = [
 
 import numpy as np
 
+
 # Finite difference stencils ==================================================
-def _fwd4(y, dt):                                           # pragma: no cover
+def _fwd4(y, dt):
     """Compute the first derivative of a uniformly-spaced-in-time array with a
     fourth-order forward difference scheme.
 
@@ -18,6 +19,9 @@ def _fwd4(y, dt):                                           # pragma: no cover
     ----------
     y : (5,...) ndarray
         Data to differentiate. The derivative is taken along the first axis.
+
+    dt : float
+        Time step (the uniform spacing).
 
     Returns
     -------
@@ -27,7 +31,7 @@ def _fwd4(y, dt):                                           # pragma: no cover
     return (-25*y[0] + 48*y[1] - 36*y[2] + 16*y[3] - 3*y[4]) / (12*dt)
 
 
-def _fwd6(y, dt):                                           # pragma: no cover
+def _fwd6(y, dt):
     """Compute the first derivative of a uniformly-spaced-in-time array with a
     sixth-order forward difference scheme.
 
@@ -36,13 +40,16 @@ def _fwd6(y, dt):                                           # pragma: no cover
     y : (7,...) ndarray
         Data to differentiate. The derivative is taken along the first axis.
 
+    dt : float
+        Time step (the uniform spacing).
+
     Returns
     -------
     dy0 : float or (...) ndarray
         Approximate derivative of y at the first entry, i.e., dy[0] / dt.
     """
-    return (-147*y[0] + 360*y[1] - 450*y[2] + 400*y[3] - 225*y[4] \
-                                              + 72*y[5] - 10*y[6]) / (60*dt)
+    return (- 147*y[0] + 360*y[1] - 450*y[2]
+            + 400*y[3] - 225*y[4] + 72*y[5] - 10*y[6]) / (60*dt)
 
 
 # Main routines ===============================================================
@@ -81,17 +88,17 @@ def xdot_uniform(X, dt, order=2):
     Xdot = np.empty_like(X)
     n,k = X.shape
     if order == 4:
-        # Central difference on interior
+        # Central difference on interior.
         Xdot[:,2:-2] = (X[:,:-4] - 8*X[:,1:-3] + 8*X[:,3:-1] - X[:,4:])/(12*dt)
 
-        # Forward difference on the front.
+        # Forward / backward differences on the front / end.
         for j in range(2):
             Xdot[:,j] = _fwd4(X[:,j:j+5].T, dt)                 # Forward
             Xdot[:,-j-1] = -_fwd4(X[:,-j-5:k-j].T[::-1], dt)    # Backward
 
     elif order == 6:
-        # Central difference on interior
-        Xdot[:,3:-3] = (-X[:,:-6] + 9*X[:,1:-5] - 45*X[:,2:-4] \
+        # Central difference on interior.
+        Xdot[:,3:-3] = (- X[:,:-6] + 9*X[:,1:-5] - 45*X[:,2:-4]
                         + 45*X[:,4:-2] - 9*X[:,5:-1] + X[:,6:]) / (60*dt)
 
         # Forward / backward differences on the front / end.
@@ -170,13 +177,13 @@ def xdot(X, *args, **kwargs):
         Approximate time derivative of the snapshot data. The jth column is
         the derivative dx / dt corresponding to the jth snapshot, X[:,j].
     """
-    n_args = len(args)          # Number of positional arguments (excluding X).
-    n_kwargs = len(kwargs)      # Number of keyword arguments.
-    n_total = n_args + n_kwargs # Total number of arguments (excluding X).
+    n_args = len(args)              # Number of positional args (excluding X).
+    n_kwargs = len(kwargs)          # Number of keyword args.
+    n_total = n_args + n_kwargs     # Total number of args (excluding X).
 
     if n_total == 0:
         raise TypeError("at least one other argument required (dt or t)")
-    elif n_total == 1:              # There is only one other argument.
+    elif n_total == 1:                  # There is only one other argument.
         if n_kwargs == 1:               # It is a keyword argument.
             arg_name = list(kwargs.keys())[0]
             if arg_name == "dt":

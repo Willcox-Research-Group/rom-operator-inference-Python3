@@ -91,7 +91,7 @@ class AffineOperator:
         for θ in θs:
             if not callable(θ):
                 raise TypeError("coefficient functions of affine operator "
-                                 "must be callable")
+                                "must be callable")
             elif not np.isscalar(θ(µ)):
                 raise ValueError("coefficient functions of affine operator "
                                  "must return a scalar")

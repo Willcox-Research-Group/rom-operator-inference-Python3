@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 import scipy.linalg as la
 
-import rom_operator_inference as roi
+import rom_operator_inference as opinf
 
 from .test_base import TestAffineMixin
 from .. import MODEL_KEYS, MODEL_FORMS, _get_data
@@ -15,8 +15,8 @@ from .. import MODEL_KEYS, MODEL_FORMS, _get_data
 class TestAffineInferredMixin:
     """Test _core._affine._inferred._AffineInferredMixin."""
 
-    class Dummy(roi._core._affine._inferred._AffineInferredMixin,
-                roi._core._base._BaseROM):
+    class Dummy(opinf._core._affine._inferred._AffineInferredMixin,
+                opinf._core._base._BaseROM):
         def __init__(self, modelform):
             self.modelform = modelform
 
@@ -153,7 +153,8 @@ class TestAffineInferredMixin:
             if 'B' in form:
                 model.m = m
             D = model._assemble_data_matrix(µs, affines, Xs_, Us)
-            d = roi.lstsq.lstsq_size(form, r, m if 'B' in form else 0, affines)
+            d = opinf.lstsq.lstsq_size(form, r, m if 'B' in form else 0,
+                                       affines)
             assert D.shape == (k*s,d)
 
             # Spot check.
@@ -162,10 +163,10 @@ class TestAffineInferredMixin:
                 assert np.allclose(D, np.kron(θc, np.ones((k,1))))
             elif form == "H":
                 θH = np.array([[θ(µ) for θ in affines["H"]] for µ in µs])
-                assert np.allclose(D, np.kron(θH, roi.utils.kron2c(X_).T))
+                assert np.allclose(D, np.kron(θH, opinf.utils.kron2c(X_).T))
             elif form == "G":
                 θG = np.array([[θ(µ) for θ in affines["G"]] for µ in µs])
-                assert np.allclose(D, np.kron(θG, roi.utils.kron3c(X_).T))
+                assert np.allclose(D, np.kron(θG, opinf.utils.kron3c(X_).T))
             elif form == "AB":
                 θA = np.array([[θ(µ) for θ in affines["A"]] for µ in µs])
                 θB = np.array([[θ(µ) for θ in affines["B"]] for µ in µs])
@@ -177,7 +178,7 @@ class TestAffineInferredMixin:
         model = self.Dummy("B")
         model.m = 1
         D = model._assemble_data_matrix(µs, affines, Xs_, Us1d)
-        d = roi.lstsq.lstsq_size(model.modelform, r, model.m, affines)
+        d = opinf.lstsq.lstsq_size(model.modelform, r, model.m, affines)
         assert D.shape == (k*s, d)
         θB = np.array([[θ(µ) for θ in affines["B"]] for µ in µs])
         assert np.allclose(D, np.kron(θB, U[0].reshape((-1,1))))
@@ -189,7 +190,6 @@ class TestAffineInferredMixin:
         X_, _, U = _get_data(r, k, m)
         θs = [lambda µ: np.sin(µ[0]), lambda µ: µ[0] + µ[1],
               lambda µ: np.cos(µ[1]), lambda µ: np.sin(µ[1])]
-        µs = np.arange(1, 2*s+1).reshape((s,2))
         affines = {"c": θs[:2],
                    "A": θs,
                    "H": θs[:1],
@@ -208,15 +208,16 @@ class TestAffineInferredMixin:
             model.r = r
             if 'B' in form:
                 model.m = m
-            d = roi.lstsq.lstsq_size(form, r, model.m, affines)
-            O = np.random.random((r,d))
-            model._extract_operators(affines, O)
+            d = opinf.lstsq.lstsq_size(form, r, model.m, affines)
+            Ohat = np.random.random((r,d))
+            model._extract_operators(affines, Ohat)
             for prefix in MODEL_KEYS:
                 attr = prefix+'_'
                 assert hasattr(model, attr)
                 value = getattr(model, attr)
                 if prefix in form:
-                    assert isinstance(value, roi._core._affine.AffineOperator)
+                    assert isinstance(value,
+                                      opinf._core._affine.AffineOperator)
                     assert value.shape == shapes[attr]
                 else:
                     assert value is None
@@ -228,7 +229,8 @@ class TestAffineInferredMixin:
         _core._affine._inferred.AffineInferredContinuousROM.fit().
         """
         model = ModelClass("cAHB")
-        is_continuous = issubclass(ModelClass, roi._core._base._ContinuousROM)
+        is_continuous = issubclass(ModelClass,
+                                   opinf._core._base._ContinuousROM)
 
         # Get test data.
         n, k, m, r, s = 50, 200, 5, 10, 10
@@ -252,7 +254,7 @@ class TestAffineInferredMixin:
             model = ModelClass(form)
             model.fit(*args, Us=Us if "B" in form else None)
 
-            args[2] = {} # Non-affine case.
+            args[2] = {}    # Non-affine case.
             model.fit(*args, Us=Us if "B" in form else None)
 
         def _test_output_shapes(model):
@@ -282,21 +284,21 @@ class TestAffineInferredDiscreteROM:
     """Test _core._affine._inferred.AffineInferredDiscreteROM."""
     def test_fit(self):
         """Test _core._affine._inferred.AffineInferredDiscreteROM.fit()."""
-        TestAffineInferredMixin()._test_fit(roi.AffineInferredDiscreteROM)
+        TestAffineInferredMixin()._test_fit(opinf.AffineInferredDiscreteROM)
 
     def test_predict(self):
         """Test _core._affine._inferred.AffineInferredDiscreteROM.predict()."""
-        TestAffineMixin()._test_predict(roi.AffineInferredDiscreteROM)
+        TestAffineMixin()._test_predict(opinf.AffineInferredDiscreteROM)
 
 
 class TestAffineInferredContinuousROM:
     """Test _core._affine._inferred.AffineInferredContinuousROM."""
     def test_fit(self):
         """Test _core._affine._inferred.AffineInferredContinuousROM.fit()."""
-        TestAffineInferredMixin()._test_fit(roi.AffineInferredContinuousROM)
+        TestAffineInferredMixin()._test_fit(opinf.AffineInferredContinuousROM)
 
     def test_predict(self):
         """Test _core._affine._inferred.
                 AffineInferredContinuousROM.predict().
         """
-        TestAffineMixin()._test_predict(roi.AffineInferredContinuousROM)
+        TestAffineMixin()._test_predict(opinf.AffineInferredContinuousROM)

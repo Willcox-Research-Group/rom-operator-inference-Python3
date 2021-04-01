@@ -4,14 +4,14 @@
 import itertools
 import numpy as np
 
-import rom_operator_inference as roi
+import rom_operator_inference as opinf
 
 
 # Global variables for testsing ===============================================
-MODEL_KEYS = roi._core._base._BaseROM._MODEL_KEYS
+MODEL_KEYS = opinf._core._base._BaseROM._MODEL_KEYS
 
 MODEL_FORMS = [''.join(s) for k in range(1, len(MODEL_KEYS)+1)
-                           for s in itertools.combinations(MODEL_KEYS, k)]
+               for s in itertools.combinations(MODEL_KEYS, k)]
 
 
 # Helper functions for testing ================================================
@@ -37,11 +37,11 @@ def _get_operators(n=60, m=20, expanded=False):
 def _trainedmodel(continuous, modelform, Vr, m=20):
     """Construct a base class with model operators already constructed."""
     if continuous == "inferred":
-        ModelClass = roi.InferredContinuousROM
+        ModelClass = opinf.InferredContinuousROM
     elif continuous:
-        ModelClass = roi._core._base._ContinuousROM
+        ModelClass = opinf._core._base._ContinuousROM
     else:
-        ModelClass = roi._core._base._DiscreteROM
+        ModelClass = opinf._core._base._DiscreteROM
 
     n,r = Vr.shape
     c, A, H, G, B = _get_operators(r, m)

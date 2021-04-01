@@ -108,7 +108,6 @@ def scale(X, scale_to, scale_from=None):
     learning = (scale_from is None)
     if learning:
         scale_from = np.min(X), np.max(X)
-        means = np.mean(X)
 
     # Check scales.
     if len(scale_to) != 2:
@@ -129,7 +128,9 @@ def scale(X, scale_to, scale_from=None):
 
 def mean_shift(X):                              # pragma nocover
     np.warnings.warn("mean_shift() has been renamed shift()",
-                   DeprecationWarning, stacklevel=1)
+                     DeprecationWarning, stacklevel=1)
     a,b = shift(X)
     return b,a
+
+
 mean_shift.__doc__ = "\nDEPRECATED! use shift().\n\n" + shift.__doc__

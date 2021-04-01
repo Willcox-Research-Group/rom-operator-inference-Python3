@@ -77,7 +77,7 @@ def pod_basis(X, r=None, mode="dense", **options):
 
         # Compute all but the last svd vectors / values (maximum allowed)
         V, svdvals, _ = spla.svds(X, r, which="LM",
-                                   return_singular_vectors='u', **options)
+                                  return_singular_vectors='u', **options)
         V = V[:,::-1]
         svdvals = svdvals[::-1]
 
@@ -290,14 +290,19 @@ def minimal_projection_error(X, V, eps, plot=False):
 
 def significant_svdvals(*args, **kwargs):       # pragma nocover
     np.warnings.warn("significant_svdvals() has been renamed svdval_decay()",
-                   DeprecationWarning, stacklevel=1)
+                     DeprecationWarning, stacklevel=1)
     return svdval_decay(*args, **kwargs)
+
+
 significant_svdvals.__doc__ = "\nDEPRECATED! use svdval_decay().\n\n" \
                         + svdval_decay.__doc__
 
+
 def energy_capture(*args, **kwargs):            # pragma nocover
     np.warnings.warn("energy_capture() has been renamed cumulative_energy()",
-                   DeprecationWarning, stacklevel=1)
+                     DeprecationWarning, stacklevel=1)
     return cumulative_energy(*args, **kwargs)
+
+
 energy_capture.__doc__ = "\nDEPRECATED! use cumulative_energy().\n\n" \
                         + cumulative_energy.__doc__

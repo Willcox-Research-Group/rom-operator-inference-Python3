@@ -19,8 +19,8 @@ import scipy.interpolate as interp
 from ._base import _InterpolatedMixin
 from .._base import _DiscreteROM, _ContinuousROM
 from .._inferred import (_InferredMixin,
-                        InferredDiscreteROM,
-                        InferredContinuousROM)
+                         InferredDiscreteROM,
+                         InferredContinuousROM)
 
 
 # Interpolated inferred mixin (private) =======================================
@@ -42,7 +42,8 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         Us : list of s (m,k) ndarrays (or None)
             Inputs, potentially reshaped. Us[i] corresponds to µ[i].
         """
-        # TODO: self.p = self._check_params(µs): extract self.p and check for consistent sizes.
+        # TODO: self.p = self._check_params(µs)
+        # ^extract self.p and check for consistent sizes.^
         self._check_inputargs(Us, 'Us')
         self._clear()
         is_continuous = issubclass(ModelClass, _ContinuousROM)
@@ -138,8 +139,8 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         self
         """
         continuous, µs, Xdots, Us = self._process_fit_arguments(ModelClass,
-                                                               Vr, µs,
-                                                               Xs, Xdots, Us)
+                                                                Vr, µs,
+                                                                Xs, Xdots, Us)
 
         # TODO: figure out how to handle P (scalar, array, list(arrays)).
 
@@ -163,8 +164,8 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
             return self
 
         # Construct interpolators.
-        for lbl, atr in zip(["constant","linear","quadratic","cubic","inputs"],
-                            ["c",       "A",     "H",        "G",    "B"]):
+        for lbl, atr in [("constant", "c"), ("linear", "A"),
+                         ("quadratic", "H"), ("cubic", "G"), ("inputs", "B")]:
             if getattr(self, f"has_{lbl}"):         # if self.has_constant
                 ops = getattr(self, f"{atr}s_")     # ops = self.cs_
                 op = Interpolator(µs, ops)

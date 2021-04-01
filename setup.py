@@ -7,14 +7,16 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="rom_operator_inference",
-    version="1.2.1",
+    version="1.2.2",
 
     # Package description, license, and keywords.
-    description="Operator inference for data-driven, non-intrusive model reduction of dynamical systems.",
+    description="Operator inference for data-driven, "
+                "non-intrusive model reduction of dynamical systems.",
     license="MIT",
     long_description=readme_text,
     long_description_content_type="text/markdown",
-    url="https://github.com/Willcox-Research-Group/rom-operator-inference-Python3",
+    url="https://github.com/Willcox-Research-Group/"
+        "rom-operator-inference-Python3",
     classifiers=[
         "Programming Language :: Python :: 3",
         "Natural Language :: English",
@@ -40,8 +42,11 @@ setuptools.setup(
         "scipy>=1.3",
         "matplotlib>=3.0",
         "scikit-learn>=0.18",
-      ],
+    ],
     setup_requires=["pytest-runner"],
     test_suite="pytest",
-    tests_require=["pytest"],
+    tests_require=[
+        "pytest>6.0.2",
+        "flake8>=3.9.0",
+    ],
 )
