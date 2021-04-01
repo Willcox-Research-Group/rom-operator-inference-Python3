@@ -35,7 +35,7 @@ setuptools.setup(
     # Technical details: source code, dependencies, test suite.
     packages=setuptools.find_packages(where="src"),
     package_dir={"": "src"},
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     install_requires=[
         "h5py>=2.9.0",
         "numpy>=1.16",
@@ -46,7 +46,7 @@ setuptools.setup(
     setup_requires=["pytest-runner"],
     test_suite="pytest",
     tests_require=[
-        "pytest>6.0.2",
+        "pytest>=6.0.2",
         "flake8>=3.9.0",
     ],
 )
