@@ -2,7 +2,7 @@
 [![Top language](https://img.shields.io/github/languages/top/Willcox-Research-Group/rom-operator-inference-python3)](https://www.python.org)
 ![Code size](https://img.shields.io/github/languages/code-size/Willcox-Research-Group/rom-operator-inference-python3)
 [![Issues](https://img.shields.io/github/issues/Willcox-Research-Group/rom-operator-inference-python3)](https://github.com/Willcox-Research-Group/rom-operator-inference-python3/issues)
-[![Latest commit](https://img.shields.io/github/last-commit/Willcox-Research-Group/rom-operator-inference-python3)](https://github.com/Willcox-Research-Group/rom-operator-inference-python3/commits/master)
+[![Latest commit](https://img.shields.io/github/last-commit/Willcox-Research-Group/rom-operator-inference-python3)](https://github.com/Willcox-Research-Group/rom-operator-inference-python3/commits/main)
 [![Documentation](https://img.shields.io/badge/Documentation-WIKI-important)](https://github.com/Willcox-Research-Group/rom-operator-inference-python3/wiki)
 
 # Operator Inference in Python
@@ -47,10 +47,10 @@ import rom_operator_inference as roi
 
 ## Examples
 
-The [`examples/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/master/examples) folder contains scripts and notebooks that set up and run several examples:
-- [`examples/tutorial.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/tutorial.ipynb): A walkthrough of a very simple heat equation example.
-- [`examples/heat_1D.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/heat_1D.ipynb): A more complicated one-dimensional heat equation example [\[1\]](#references).
-- [`examples/data_driven_heat.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/master/examples/data_driven_heat.ipynb): A purely data-driven example using data generated from a one-dimensional heat equation [\[4\]](#references).
+The [`examples/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/examples) folder contains scripts and notebooks that set up and run several examples:
+- [`examples/tutorial.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/main/examples/tutorial.ipynb): A walkthrough of a very simple heat equation example.
+- [`examples/heat_1D.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/main/examples/heat_1D.ipynb): A more complicated one-dimensional heat equation example [\[1\]](#references).
+- [`examples/data_driven_heat.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/main/examples/data_driven_heat.ipynb): A purely data-driven example using data generated from a one-dimensional heat equation [\[4\]](#references).
 <!-- - `examples/TODO.ipynb`: Burgers' equation [\[1\]](#references). -->
 <!-- - `examples/TODO.ipynb`: Euler equation [\[2\]](#references). -->
 <!-- This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions. -->
