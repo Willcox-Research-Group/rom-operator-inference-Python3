@@ -47,6 +47,7 @@ setuptools.setup(
     test_suite="pytest",
     tests_require=[
         "pytest>=6.0.2",
+        "pytest-cov>=2.12.1",
         "flake8>=3.9.0",
     ],
 )

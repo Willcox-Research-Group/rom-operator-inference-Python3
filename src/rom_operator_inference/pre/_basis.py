@@ -263,7 +263,7 @@ def minimal_projection_error(X, V, eps, plot=False):
     # Calculate the projection errors.
     X_norm = la.norm(X, ord="fro")
     rs = np.arange(1, V.shape[1])
-    errors = np.empty_like(rs, dtype=np.float)
+    errors = np.empty(rs.shape, dtype=float)
     for r in rs:
         # Get the POD basis of rank r and calculate the projection error.
         Vr = V[:,:r]

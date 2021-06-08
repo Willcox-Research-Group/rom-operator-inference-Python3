@@ -177,7 +177,7 @@ class TestBaseSolver:
         X = np.random.standard_normal((d+1,r-1))
         with pytest.raises(ValueError) as ex:
             solver.misfit(X)
-        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d,r)"
+        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d, r)"
 
         # Two-dimensional case.
         X = np.random.standard_normal((d,r))
@@ -352,7 +352,7 @@ class TestSolverL2:
         X = np.random.standard_normal((d+1,r-1))
         with pytest.raises(ValueError) as ex:
             solver.residual(X, 0)
-        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d,r)"
+        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d, r)"
 
         # Two-dimensional tests.
         X = np.random.standard_normal((d,r))
@@ -469,7 +469,7 @@ class TestSolverL2Decoupled:
         X = np.random.standard_normal((d+1,r-1))
         with pytest.raises(ValueError) as ex:
             solver.residual(X, [0]*r)
-        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d,r)"
+        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d, r)"
 
         # Correct usage.
         X = np.random.standard_normal((d,r))
@@ -685,8 +685,8 @@ class TestSolverTikhonov:
         # Try with badly shaped X.
         X = np.random.standard_normal((d+1,r-1))
         with pytest.raises(ValueError) as ex:
-            solver.residual(X, np.empty(d))
-        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d,r)"
+            solver.residual(X, np.ones(d))
+        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d, r)"
 
         # Two-dimensional tests.
         X = np.random.standard_normal((d,r))
@@ -835,7 +835,7 @@ class TestSolverTikhonovDecoupled:
         X = np.random.standard_normal((d+1,r-1))
         with pytest.raises(ValueError) as ex:
             solver.residual(X, [z]*r)
-        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d,r)"
+        assert ex.value.args[0] == f"X.shape = {(d+1,r-1)} != {(d,r)} = (d, r)"
 
         # Correct usage.
         X = np.random.standard_normal((d,r))

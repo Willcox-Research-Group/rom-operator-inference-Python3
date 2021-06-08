@@ -136,7 +136,7 @@ class _BaseSolver:
             X = X.reshape((-1,1))
         if X.shape != (self.d,self.r):
             raise ValueError(f"X.shape = {X.shape} != "
-                             f"{(self.d,self.r)} = (d,r)")
+                             f"{(self.d,self.r)} = (d, r)")
         resids = np.sum((self.A @ X - self.B)**2, axis=0)
         return resids[0] if self.r == 1 else resids
 
