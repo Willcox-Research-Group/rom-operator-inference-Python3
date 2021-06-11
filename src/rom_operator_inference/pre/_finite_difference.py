@@ -53,15 +53,15 @@ def _fwd6(y, dt):
 
 
 # Main routines ===============================================================
-def xdot_uniform(X, dt, order=2):
+def xdot_uniform(states, dt, order=2):
     """Approximate the time derivatives for a chunk of snapshots that are
     uniformly spaced in time.
 
     Parameters
     ----------
-    X : (n,k) ndarray
-        The data to estimate the derivative of. The jth column is a snapshot
-        that corresponds to the jth time step, i.e., X[:,j] = x(t[j]).
+    states : (n,k) ndarray
+        States to estimate the derivative of. The jth column is a snapshot
+        that corresponds to the jth time step, i.e., states[:,j] = x(t[j]).
 
     dt : float
         The time step between the snapshots, i.e., t[j+1] - t[j] = dt.
@@ -74,19 +74,20 @@ def xdot_uniform(X, dt, order=2):
     -------
     Xdot : (n,k) ndarray
         Approximate time derivative of the snapshot data. The jth column is
-        the derivative dx / dt corresponding to the jth snapshot, X[:,j].
+        the derivative dx / dt corresponding to the jth snapshot, states[:,j].
     """
     # Check dimensions and input types.
-    if X.ndim != 2:
-        raise ValueError("data X must be two-dimensional")
+    if states.ndim != 2:
+        raise ValueError("states must be two-dimensional")
     if not np.isscalar(dt):
         raise TypeError("time step dt must be a scalar (e.g., float)")
 
     if order == 2:
-        return np.gradient(X, dt, edge_order=2, axis=1)
+        return np.gradient(states, dt, edge_order=2, axis=1)
 
-    Xdot = np.empty_like(X)
-    n,k = X.shape
+    X = states
+    Xdot = np.empty_like(states)
+    n,k = states.shape
     if order == 4:
         # Central difference on interior.
         Xdot[:,2:-2] = (X[:,:-4] - 8*X[:,1:-3] + 8*X[:,3:-1] - X[:,4:])/(12*dt)
@@ -113,15 +114,15 @@ def xdot_uniform(X, dt, order=2):
     return Xdot
 
 
-def xdot_nonuniform(X, t):
+def xdot_nonuniform(states, t):
     """Approximate the time derivatives for a chunk of snapshots with a
     second-order finite difference scheme.
 
     Parameters
     ----------
-    X : (n,k) ndarray
-        The data to estimate the derivative of. The jth column is a snapshot
-        that corresponds to the jth time step, i.e., X[:,j] = x(t[j]).
+    states : (n,k) ndarray
+        States to estimate the derivative of. The jth column is a snapshot
+        that corresponds to the jth time step, i.e., states[:,j] = x(t[j]).
 
     t : (k,) ndarray
         The times corresponding to the snapshots. May not be uniformly spaced.
@@ -132,30 +133,30 @@ def xdot_nonuniform(X, t):
     -------
     Xdot : (n,k) ndarray
         Approximate time derivative of the snapshot data. The jth column is
-        the derivative dx / dt corresponding to the jth snapshot, X[:,j].
+        the derivative dx / dt corresponding to the jth snapshot, states[:,j].
     """
     # Check dimensions.
-    if X.ndim != 2:
-        raise ValueError("data X must be two-dimensional")
+    if states.ndim != 2:
+        raise ValueError("states must be two-dimensional")
     if t.ndim != 1:
         raise ValueError("time t must be one-dimensional")
-    if X.shape[-1] != t.shape[0]:
-        raise ValueError("data X not aligned with time t")
+    if states.shape[-1] != t.shape[0]:
+        raise ValueError("states not aligned with time t")
 
     # Compute the derivative with a second-order difference scheme.
-    return np.gradient(X, t, edge_order=2, axis=-1)
+    return np.gradient(states, t, edge_order=2, axis=-1)
 
 
-def xdot(X, *args, **kwargs):
+def xdot(states, *args, **kwargs):
     """Approximate the time derivatives for a chunk of snapshots with a finite
     difference scheme. Calls xdot_uniform() or xdot_nonuniform(), depending on
     the arguments.
 
     Parameters
     ----------
-    X : (n,k) ndarray
-        The data to estimate the derivative of. The jth column is a snapshot
-        that corresponds to the jth time step, i.e., X[:,j] = x(t[j]).
+    states : (n,k) ndarray
+        States to estimate the derivative of. The jth column is a snapshot
+        that corresponds to the jth time step, i.e., states[:,j] = x(t[j]).
 
     Additional parameters
     ---------------------
@@ -175,7 +176,7 @@ def xdot(X, *args, **kwargs):
     -------
     Xdot : (n,k) ndarray
         Approximate time derivative of the snapshot data. The jth column is
-        the derivative dx / dt corresponding to the jth snapshot, X[:,j].
+        the derivative dx / dt corresponding to the jth snapshot, states[:,j].
     """
     n_args = len(args)              # Number of positional args (excluding X).
     n_kwargs = len(kwargs)          # Number of keyword args.
@@ -210,4 +211,4 @@ def xdot(X, *args, **kwargs):
         raise TypeError("xdot() takes from 2 to 3 positional arguments "
                         f"but {n_total+1} were given")
 
-    return func(X, *args, **kwargs)
+    return func(states, *args, **kwargs)

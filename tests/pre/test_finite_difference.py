@@ -62,7 +62,7 @@ def test_xdot_uniform(set_up_uniform_difference_data):
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
         opinf.pre.xdot_uniform(Y[:,0], dt, order=2)
-    assert exc.value.args[0] == "data X must be two-dimensional"
+    assert exc.value.args[0] == "states must be two-dimensional"
 
     # Try with bad order.
     with pytest.raises(NotImplementedError) as exc:
@@ -86,7 +86,7 @@ def test_xdot_nonuniform(set_up_nonuniform_difference_data):
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
         opinf.pre.xdot_nonuniform(Y[:,0], t)
-    assert exc.value.args[0] == "data X must be two-dimensional"
+    assert exc.value.args[0] == "states must be two-dimensional"
 
     # Try with bad time shape.
     with pytest.raises(ValueError) as exc:
@@ -95,7 +95,7 @@ def test_xdot_nonuniform(set_up_nonuniform_difference_data):
 
     with pytest.raises(ValueError) as exc:
         opinf.pre.xdot_nonuniform(Y, np.hstack((t,t)))
-    assert exc.value.args[0] == "data X not aligned with time t"
+    assert exc.value.args[0] == "states not aligned with time t"
 
 
 def test_xdot(set_up_uniform_difference_data,

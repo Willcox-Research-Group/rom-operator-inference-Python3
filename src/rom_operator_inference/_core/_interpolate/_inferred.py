@@ -27,7 +27,7 @@ from .._inferred import (_InferredMixin,
 class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
     """Mixin for interpolatory ROM classes that use Operator Inference."""
 
-    def _process_fit_arguments(self, ModelClass, basis, µs, Xs, Xdots, Us):
+    def _process_fit_arguments(self, ModelClass, basis, µs, states, Xdots, Us):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get perpare arguments for individual Operator Inference ROMs.
 
@@ -54,9 +54,9 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
 
         # Check that the number of params matches the number of training sets.
         s = µs.shape[0]
-        if len(Xs) != s:
+        if len(states) != s:
             raise ValueError("num parameter samples != num state snapshot "
-                             f"training sets ({s} != {len(Xs)})")
+                             f"training sets ({s} != {len(states)})")
         if is_continuous and len(Xdots) != s:
             raise ValueError("num parameter samples != num time derivative "
                              f"training sets ({s} != {len(Xdots)})")
@@ -69,7 +69,7 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         # Store basis and reduced dimension.
         self.basis = basis
         if basis is None:
-            self.r = Xs[0].shape[0]
+            self.r = states[0].shape[0]
 
         # Ensure training data sets have consistent sizes.
         if self.has_inputs:
@@ -80,23 +80,24 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
                 if Us[i].ndim == 1:     # Reshape one-dimensional inputs.
                     Us[i] = Us[i].reshape((1,-1))
                 if is_continuous:
-                    self._check_training_data_shapes([Xs[i], Xdots[i], Us[i]],
+                    self._check_training_data_shapes([states[i],
+                                                      Xdots[i], Us[i]],
                                                      [f"Xs[{i}]",
                                                       f"Xdots[{i}]",
                                                       f"Us[{i}]"])
                 else:
-                    self._check_training_data_shapes([Xs[i], Us[i]],
+                    self._check_training_data_shapes([states[i], Us[i]],
                                                      [f"Xs[{i}]", f"Us[{i}]"])
         else:
             Us = [None] * s
             if is_continuous:
                 for i in range(s):
-                    self._check_training_data_shapes([Xs[i], Xdots[i]],
+                    self._check_training_data_shapes([states[i], Xdots[i]],
                                                      [f"Xs[{i}]",
                                                       f"Xdots[{i}]"])
         return is_continuous, µs, Xdots, Us
 
-    def fit(self, ModelClass, basis, µs, Xs, Xdots, Us=None, P=0):
+    def fit(self, ModelClass, basis, µs, states, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
 
@@ -108,20 +109,20 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
 
         basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
-            If None, Xs and rhss are assumed to already be projected (r,k).
+            If None, states and rhss are assumed to already be projected (r,k).
 
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
-        Xs : list of s (n,k) or (r,k) ndarrays
+        states : list of s (n,k) or (r,k) ndarrays
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-            The ith array Xs[i] corresponds to the ith parameter, µs[i].
+            The ith array states[i] corresponds to the ith parameter, µs[i].
 
         Xdots : list of s (n,k) or (r,k) ndarrays or None
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-            The ith array Xs[i] corresponds to the ith parameter, µs[i].
+            The ith array states[i] corresponds to the ith parameter, µs[i].
             Igored if the model is discrete (according to `ModelClass`).
 
         Us : list of s (m,k) or (k,) ndarrays or None
@@ -140,14 +141,15 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         """
         continuous, µs, Xdots, Us = self._process_fit_arguments(ModelClass,
                                                                 basis, µs,
-                                                                Xs, Xdots, Us)
+                                                                states, Xdots,
+                                                                Us)
 
         # TODO: figure out how to handle P (scalar, array, list(arrays)).
 
         # Train one model per parameter sample.
         self.basis = basis
         self.models_ = []
-        for µ, X, Xdot, U in zip(µs, Xs, Xdots, Us):
+        for µ, X, Xdot, U in zip(µs, states, Xdots, Us):
             model = ModelClass(self.modelform)
             if continuous:
                 model.fit(basis, X, Xdot, U, P)
@@ -200,7 +202,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin,
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
     """
-    def fit(self, basis, µs, Xs, Us=None, P=0):
+    def fit(self, basis, µs, states, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
 
@@ -208,15 +210,15 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin,
         ----------
         basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
-            If None, Xs are assumed to already be projected (r,k).
+            If None, states are assumed to already be projected (r,k).
 
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
-        Xs : list of s (n,k) or (r,k) ndarrays
+        states : list of s (n,k) or (r,k) ndarrays
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-            The ith array Xs[i] corresponds to the ith parameter, µs[i].
+            The ith array states[i] corresponds to the ith parameter, µs[i].
 
         Us : list of s (m,k-1) or (k-1,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
@@ -233,7 +235,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin,
         self
         """
         return _InterpolatedInferredMixin.fit(self, InferredDiscreteROM,
-                                              basis, µs, Xs, None, Us, P)
+                                              basis, µs, states, None, Us, P)
 
     def predict(self, µ, x0, niters, U=None):
         """Construct a ROM for the parameter µ by interolating the entries of
@@ -287,23 +289,23 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin,
         'B' : Input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
     """
-    def fit(self, basis, µs, Xs, Xdots, Us=None, P=0):
+    def fit(self, basis, µs, states, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
 
         Parameters
         ----------
         basis : (n,r) ndarray or None
-            The basis for the linear reduced space (e.g., POD basis matrix).
-            If None, Xs and Xdots are assumed to already be projected (r,k).
+            Basis for the linear reduced space (e.g., POD basis matrix).
+            If None, states and ddts are assumed to already be projected (r,k).
 
         µs : (s,) ndarray
             Parameter values at which the snapshot data is collected.
 
-        Xs : list of s (n,k) or (r,k) ndarrays
+        states : list of s (n,k) or (r,k) ndarrays
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-            The ith array Xs[i] corresponds to the ith parameter, µs[i].
+            The ith array states[i] corresponds to the ith parameter, µs[i].
 
         Xdots : list of s (n,k) or (r,k) ndarrays
             Column-wise time derivative training data (each column is a
@@ -326,7 +328,7 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin,
         self
         """
         return _InterpolatedInferredMixin.fit(self, InferredContinuousROM,
-                                              basis, µs, Xs, Xdots, Us, P)
+                                              basis, µs, states, Xdots, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by interolating the entries of

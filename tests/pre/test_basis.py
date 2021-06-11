@@ -147,7 +147,7 @@ def test_minimal_projection_error(set_up_basis_data):
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
         opinf.pre.minimal_projection_error(np.ravel(X), V, 1e-14, plot=False)
-    assert exc.value.args[0] == "data X must be two-dimensional"
+    assert exc.value.args[0] == "states must be two-dimensional"
 
     # Try with bad basis shape.
     with pytest.raises(ValueError) as exc:

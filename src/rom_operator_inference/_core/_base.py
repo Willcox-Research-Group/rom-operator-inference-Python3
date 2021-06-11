@@ -424,7 +424,7 @@ class _DiscreteROM(_BaseROM):
 
         Returns
         -------
-        X_ROM : (n,niters) or (r,niters) ndarray
+        states : (n,niters) or (r,niters) ndarray
             The approximate solution to the system, including the given
             initial condition. If the basis is None, return solutions in the
             reduced r-dimensional subspace (r,niters). Otherwise, map solutions
@@ -441,8 +441,8 @@ class _DiscreteROM(_BaseROM):
             raise ValueError("argument 'niters' must be a nonnegative integer")
 
         # Create the solution array and fill in the initial condition.
-        X_ = np.empty((self.r,niters))
-        X_[:,0] = x0_.copy()
+        states = np.empty((self.r,niters))
+        states[:,0] = x0_.copy()
 
         # Run the iteration.
         if self.has_inputs:
@@ -454,13 +454,13 @@ class _DiscreteROM(_BaseROM):
                 raise ValueError("invalid input shape "
                                  f"({U.shape} != {(self.m,niters-1)}")
             for j in range(niters-1):
-                X_[:,j+1] = self.f_(X_[:,j], U[:,j])    # f(xj,uj)
+                states[:,j+1] = self.f_(states[:,j], U[:,j])    # f(xj,uj)
         else:
             for j in range(niters-1):
-                X_[:,j+1] = self.f_(X_[:,j])            # f(xj)
+                states[:,j+1] = self.f_(states[:,j])            # f(xj)
 
         # Reconstruct the approximation to the full-order model if possible.
-        return self.basis @ X_ if self.basis is not None else X_
+        return self.basis @ states if self.basis is not None else states
 
 
 class _ContinuousROM(_BaseROM):
@@ -551,7 +551,7 @@ class _ContinuousROM(_BaseROM):
 
         Returns
         -------
-        X_ROM : (n,nt) or (r,nt) ndarray
+        states : (n,nt) or (r,nt) ndarray
             The approximate solution to the system over the time domain `t`.
             If the basis is None, return solutions in the reduced
             r-dimensional subspace (r,nt). Otherwise, map the solutions to the
