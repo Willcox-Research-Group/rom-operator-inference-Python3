@@ -42,13 +42,13 @@ class _InferredMixin:
                                  f"({label}.shape[0] != m={self.m})")
 
     # Fitting -----------------------------------------------------------------
-    def _process_fit_arguments(self, Vr, X, rhs, U):
+    def _process_fit_arguments(self, basis, X, rhs, U):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get projected data for the Operator Inference least-squares problem.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, X and rhs are assumed to already be projected (r,k).
 
@@ -81,8 +81,8 @@ class _InferredMixin:
         self._clear()
 
         # Store basis and reduced dimension.
-        self.Vr = Vr
-        if Vr is None:
+        self.basis = basis
+        if basis is None:
             self.r = X.shape[0]
 
         # Ensure training data sets have consistent sizes.
@@ -175,13 +175,13 @@ class _InferredMixin:
 
         return
 
-    def _construct_solver(self, Vr, X, rhs, U, P):
+    def _construct_solver(self, basis, X, rhs, U, P):
         """Construct a solver object mapping the regularizer P to solutions
         of the Operator Inference least-squares problem.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, X and rhs are assumed to already be projected (r,k).
 
@@ -205,7 +205,7 @@ class _InferredMixin:
             e.g., d = r + m when `modelform`="AB". This parameter is used here
             only to determine the correct type of solver.
         """
-        X_, rhs_, U = self._process_fit_arguments(Vr, X, rhs, U)
+        X_, rhs_, U = self._process_fit_arguments(basis, X, rhs, U)
         D = self._assemble_data_matrix(X_, U)
         self.solver_ = lstsq.solver(D, rhs_.T, P)
 
@@ -222,12 +222,12 @@ class _InferredMixin:
         OhatT = self.solver_.predict(P)
         self._extract_operators(np.atleast_2d(OhatT.T))
 
-    def fit(self, Vr, X, rhs, U, P):
+    def fit(self, basis, X, rhs, U, P):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, X and rhs are assumed to already be projected (r,k).
 
@@ -254,7 +254,7 @@ class _InferredMixin:
         -------
         self
         """
-        self._construct_solver(Vr, X, rhs, U, P)
+        self._construct_solver(basis, X, rhs, U, P)
         self._evaluate_solver(P)
         return self
 
@@ -282,12 +282,12 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
     """
-    def fit(self, Vr, X, U=None, P=0):
+    def fit(self, basis, X, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, X is assumed to already be projected (r,k).
 
@@ -309,7 +309,7 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         -------
         self
         """
-        return _InferredMixin.fit(self, Vr,
+        return _InferredMixin.fit(self, basis,
                                   X[:,:-1], X[:,1:],    # x_j's and x_{j+1}'s.
                                   U[...,:X.shape[1]-1] if U is not None else U,
                                   P)
@@ -337,12 +337,12 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         'B' : Input term Bu(t).
         For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
     """
-    def fit(self, Vr, X, Xdot, U=None, P=0):
+    def fit(self, basis, X, Xdot, U=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, X and Xdot are assumed to already be projected (r,k).
 
@@ -369,4 +369,4 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         -------
         self
         """
-        return _InferredMixin.fit(self, Vr, X, Xdot, U, P)
+        return _InferredMixin.fit(self, basis, X, Xdot, U, P)

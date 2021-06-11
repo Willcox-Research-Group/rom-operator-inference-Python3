@@ -18,46 +18,46 @@ class TestIntrusiveMixin:
             self.modelform = modelform
 
     def test_dimension_properties(self, n=20, m=3, r=7):
-        """Test the properties _core._base._BaseROM.(n|r|Vr)."""
+        """Test the properties _core._base._BaseROM.(n|r|basis)."""
         rom = self.Dummy("cH")
         assert rom.n is None
         assert rom.m == 0
         assert rom.r is None
-        assert rom.Vr is None
+        assert rom.basis is None
 
         # Try setting n explicitly.
         with pytest.raises(AttributeError) as ex:
             rom.n = n+1
-        assert ex.value.args[0] == "can't set attribute (n = Vr.shape[0])"
+        assert ex.value.args[0] == "can't set attribute (n = basis.shape[0])"
 
         # Try setting r explicitly.
         with pytest.raises(AttributeError) as ex:
             rom.r = r+1
-        assert ex.value.args[0] == "can't set attribute (r = Vr.shape[1])"
+        assert ex.value.args[0] == "can't set attribute (r = basis.shape[1])"
 
         # Correct assignment.
-        Vr = np.random.random((n,r))
-        rom.Vr = Vr
+        basis = np.random.random((n,r))
+        rom.basis = basis
         assert rom.n == n
         assert rom.m == 0
         assert rom.r == r
-        assert rom.Vr is Vr
+        assert rom.basis is basis
 
         # Correct cleanup.
-        del rom.Vr
-        assert rom.Vr is None
+        del rom.basis
+        assert rom.basis is None
         assert rom.n is None
         assert rom.r is None
 
-        # Try setting Vr to None.
+        # Try setting basis to None.
         rom = self.Dummy("AB")
         assert rom.n is None
         assert rom.m is None
         assert rom.r is None
-        assert rom.Vr is None
+        assert rom.basis is None
         with pytest.raises(AttributeError) as ex:
-            rom.Vr = None
-        assert ex.value.args[0] == "Vr=None not allowed for intrusive ROMs"
+            rom.basis = None
+        assert ex.value.args[0] == "basis=None not allowed for intrusive ROMs"
 
     def test_operator_properties(self, n=10, m=4, r=2):
         """Test the properties _core._base._BaseROM.(c_|A_|H_|G_|B_)."""
@@ -65,7 +65,7 @@ class TestIntrusiveMixin:
         c_, A_, H_, G_, B_ = rom_operators = _get_operators(r, m)
 
         rom = self.Dummy(self.Dummy._MODEL_KEYS)
-        rom.Vr = np.zeros((n,r))
+        rom.basis = np.zeros((n,r))
         rom.m = m
 
         for fom_key, op, op_ in zip("cAHGB", fom_operators, rom_operators):
@@ -93,18 +93,18 @@ class TestIntrusiveMixin:
         rom = self.Dummy("A")
         with pytest.raises(AttributeError) as ex:
             rom._check_fom_operator_shape(A, 'A')
-        assert ex.value.args[0] == "no basis 'Vr' (call fit())"
+        assert ex.value.args[0] == "no basis (call fit())"
 
         # Try correct match but dimension 'm' is missing.
         rom = self.Dummy("B")
-        rom.Vr = np.zeros((n,r))
+        rom.basis = np.zeros((n,r))
         with pytest.raises(AttributeError) as ex:
             rom._check_fom_operator_shape(B, 'B')
         assert ex.value.args[0] == "no input dimension 'm' (call fit())"
 
         # Try with dimensions set, but improper shapes.
         rom = self.Dummy(self.Dummy._MODEL_KEYS)
-        rom.Vr = np.zeros((n,r))
+        rom.basis = np.zeros((n,r))
         rom.m = m
 
         with pytest.raises(ValueError) as ex:
@@ -166,21 +166,21 @@ class TestIntrusiveMixin:
 
     def test_process_fit_arguments(self, n=30, r=10):
         """Test _core._intrusive._IntrusiveMixin._process_fit_arguments()."""
-        Vr = np.random.random((n,r))
+        basis = np.random.random((n,r))
 
         rom = self.Dummy("c")
         operators = {k:None for k in rom.modelform}
 
         # Correct usage.
-        rom._process_fit_arguments(Vr, operators)
+        rom._process_fit_arguments(basis, operators)
         assert rom.n == n
         assert rom.r == r
-        assert rom.Vr is Vr
+        assert rom.basis is basis
 
     def test_project_operators(self, n=7, m=5, r=3):
         """Test _core._intrusive._IntrusiveMixin._project_operators()."""
         # Get test data.
-        Vr = np.random.random((n,r))
+        basis = np.random.random((n,r))
         shapes = {
                     "c": (n,),
                     "A": (n,n),
@@ -196,14 +196,14 @@ class TestIntrusiveMixin:
 
         # Initialize the test ROM.
         rom = self.Dummy("cAHGB")
-        rom.Vr = Vr
+        rom.basis = basis
 
         # Get test operators.
         c, A, H, G, B = _get_operators(n, m, expanded=True)
         operators = {"c":c, "A":A, "H":H, "G":G, "B":B}
         B1d = B[:,0]
 
-        # Try to fit the ROM with operators that are misaligned with Vr.
+        # Try to fit the ROM with operators that are misaligned with the basis.
         cbad = c[::2]
         Abad = A[:,:-2]
         Hbad = H[:,1:]
@@ -238,7 +238,7 @@ class TestIntrusiveMixin:
         # Test each modelform.
         for form in MODEL_FORMS:
             rom = self.Dummy(form)
-            rom.Vr = Vr
+            rom.basis = basis
             ops = {key:val for key,val in operators.items() if key in form}
             rom._project_operators(ops)
             for prefix in MODEL_KEYS:
@@ -262,7 +262,7 @@ class TestIntrusiveMixin:
 
         # Fit the ROM with 1D inputs (1D array for B)
         rom = self.Dummy("cAHB")
-        rom.Vr = Vr
+        rom.basis = basis
         rom._project_operators({"c":c, "A":A, "H":H, "B":B1d})
         assert rom.m == 1
         assert rom.B.shape == (n,1)
@@ -271,7 +271,7 @@ class TestIntrusiveMixin:
     def _test_fit(self, ModelClass, n=7, m=5, r=3):
         """Test _core._intrusive._IntrusiveMixin.fit()."""
         # Get test data.
-        Vr = np.random.random((n,r))
+        basis = np.random.random((n,r))
 
         # Get test operators.
         c, A, H, G, B = _get_operators(n, m, expanded=True)
@@ -282,10 +282,10 @@ class TestIntrusiveMixin:
         for form in MODEL_FORMS:
             rom = ModelClass(form)
             ops = {key:val for key,val in operators.items() if key in form}
-            rom.fit(Vr, ops)
+            rom.fit(basis, ops)
             if "B" in form:         # Also test with one-dimensional inputs.
                 ops["B"] = B1d
-                rom.fit(Vr, ops)
+                rom.fit(basis, ops)
 
 
 # Useable classes (public) ====================================================
@@ -294,10 +294,10 @@ class TestIntrusiveDiscreteROM:
     def test_f(self, n=5, m=2):
         """Test _core._intrusive.IntrusiveDiscreteROM.f()."""
         c, A, H, G, B = _get_operators(n, m, expanded=True)
-        Vr = np.zeros((n,n//2))
+        basis = np.zeros((n,n//2))
 
         rom = opinf._core._intrusive.IntrusiveDiscreteROM("cA")
-        rom.Vr = Vr
+        rom.basis = basis
         rom.c, rom.A = c, A
         x = np.random.random(n)
         y = c + A @ x
@@ -305,7 +305,7 @@ class TestIntrusiveDiscreteROM:
         assert np.allclose(rom.f(x, -1), y)
 
         rom = opinf._core._intrusive.IntrusiveDiscreteROM("HGB")
-        rom.Vr = Vr
+        rom.basis = basis
         rom.m = m
         rom.H, rom.G, rom.B = H, G, B
         u = np.random.random(m)
@@ -324,11 +324,11 @@ class TestIntrusiveContinuousROM:
     def test_f(self, n=5, m=2):
         """Test _core._intrusive.IntrusiveContinuousROM.f()."""
         c, A, H, G, B = _get_operators(n, m, expanded=True)
-        Vr = np.zeros((n, n//2))
+        basis = np.zeros((n, n//2))
 
         # Check that the constructed f takes the right number of arguments.
         rom = opinf._core._intrusive.IntrusiveContinuousROM("cA")
-        rom.Vr = Vr
+        rom.basis = basis
         rom.c, rom.A = c, A
         x = np.random.random(n)
         y = c + A @ x
@@ -337,7 +337,7 @@ class TestIntrusiveContinuousROM:
         assert np.allclose(rom.f(1, x, -1), y)
 
         rom = opinf._core._intrusive.IntrusiveContinuousROM("HGB")
-        rom.Vr = Vr
+        rom.basis = basis
         rom.m = m
         rom.H, rom.G, rom.B = H, G, B
         uu = np.random.random(m)

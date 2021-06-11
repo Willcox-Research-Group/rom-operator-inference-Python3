@@ -27,7 +27,7 @@ from .._inferred import (_InferredMixin,
 class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
     """Mixin for interpolatory ROM classes that use Operator Inference."""
 
-    def _process_fit_arguments(self, ModelClass, Vr, µs, Xs, Xdots, Us):
+    def _process_fit_arguments(self, ModelClass, basis, µs, Xs, Xdots, Us):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get perpare arguments for individual Operator Inference ROMs.
 
@@ -67,8 +67,8 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
                              f"training sets ({s} != {len(Us)})")
 
         # Store basis and reduced dimension.
-        self.Vr = Vr
-        if Vr is None:
+        self.basis = basis
+        if basis is None:
             self.r = Xs[0].shape[0]
 
         # Ensure training data sets have consistent sizes.
@@ -96,7 +96,7 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
                                                       f"Xdots[{i}]"])
         return is_continuous, µs, Xdots, Us
 
-    def fit(self, ModelClass, Vr, µs, Xs, Xdots, Us=None, P=0):
+    def fit(self, ModelClass, basis, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
 
@@ -106,7 +106,7 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
             ROM class, either _ContinuousROM or _DiscreteROM, to use for the
             newly constructed model.
 
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, Xs and rhss are assumed to already be projected (r,k).
 
@@ -139,20 +139,20 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         self
         """
         continuous, µs, Xdots, Us = self._process_fit_arguments(ModelClass,
-                                                                Vr, µs,
+                                                                basis, µs,
                                                                 Xs, Xdots, Us)
 
         # TODO: figure out how to handle P (scalar, array, list(arrays)).
 
         # Train one model per parameter sample.
-        self.Vr = Vr
+        self.basis = basis
         self.models_ = []
         for µ, X, Xdot, U in zip(µs, Xs, Xdots, Us):
             model = ModelClass(self.modelform)
             if continuous:
-                model.fit(Vr, X, Xdot, U, P)
+                model.fit(basis, X, Xdot, U, P)
             else:
-                model.fit(Vr, X, U, P)
+                model.fit(basis, X, U, P)
             model.parameter = µ
             self.models_.append(model)
 
@@ -200,13 +200,13 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin,
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
     """
-    def fit(self, Vr, µs, Xs, Us=None, P=0):
+    def fit(self, basis, µs, Xs, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, Xs are assumed to already be projected (r,k).
 
@@ -233,7 +233,7 @@ class InterpolatedInferredDiscreteROM(_InterpolatedInferredMixin,
         self
         """
         return _InterpolatedInferredMixin.fit(self, InferredDiscreteROM,
-                                              Vr, µs, Xs, None, Us, P)
+                                              basis, µs, Xs, None, Us, P)
 
     def predict(self, µ, x0, niters, U=None):
         """Construct a ROM for the parameter µ by interolating the entries of
@@ -287,13 +287,13 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin,
         'B' : Input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
     """
-    def fit(self, Vr, µs, Xs, Xdots, Us=None, P=0):
+    def fit(self, basis, µs, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         contructing one ROM per parameter value.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, Xs and Xdots are assumed to already be projected (r,k).
 
@@ -326,7 +326,7 @@ class InterpolatedInferredContinuousROM(_InterpolatedInferredMixin,
         self
         """
         return _InterpolatedInferredMixin.fit(self, InferredContinuousROM,
-                                              Vr, µs, Xs, Xdots, Us, P)
+                                              basis, µs, Xs, Xdots, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):
         """Construct a ROM for the parameter µ by interolating the entries of

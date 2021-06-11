@@ -31,38 +31,38 @@ class TestInterpolatedInferredDiscreteROM:
         Xs = [X1, X2]
         Us = [U1, U2]
         ps = [1, 2]
-        Vr = la.svd(np.hstack(Xs))[0][:,:r]
+        basis = la.svd(np.hstack(Xs))[0][:,:r]
 
         # Try with non-scalar parameters.
         # with pytest.raises(ValueError) as ex:
-        #     rom.fit(Vr, [np.array([1,1]), np.array([2,2])], Xs)
+        #     rom.fit(basis, [np.array([1,1]), np.array([2,2])], Xs)
         # assert ex.value.args[0] == "only scalar parameter values
         #     are supported"
 
         # Try with bad number of Xs.
         with pytest.raises(ValueError) as ex:
-            rom.fit(Vr, ps, [X1, X2, X2+1])
+            rom.fit(basis, ps, [X1, X2, X2+1])
         assert ex.value.args[0] == "num parameter samples != num state " \
                                    "snapshot training sets (2 != 3)"
 
         # Fit correctly with no inputs.
         rom.modelform = "cAH"
-        rom.fit(Vr, ps, Xs)
+        rom.fit(basis, ps, Xs)
         for attr in ["models_", "fs_"]:
             assert hasattr(rom, attr)
             assert len(getattr(rom, attr)) == len(rom.models_)
 
         # Fit correctly with inputs.
         rom.modelform = "cAHGB"
-        rom.fit(Vr, ps, Xs, Us)
+        rom.fit(basis, ps, Xs, Us)
 
         assert len(rom) == len(ps)
 
-        # Test again with Vr = None and projected inputs.
-        Xs_ = [Vr.T @ X for X in Xs]
+        # Test again with basis = None and projected inputs.
+        Xs_ = [basis.T @ X for X in Xs]
         rom.fit(None, ps, Xs_, Us)
         assert len(rom) == len(ps)
-        assert rom.Vr is None
+        assert rom.basis is None
         assert rom.n is None
 
     def test_predict(self):
@@ -78,7 +78,7 @@ class TestInterpolatedInferredDiscreteROM:
         Xs = [X1, X2]
         Us = [U1, U2]
         ps = [1, 2]
-        Vr = la.svd(np.hstack(Xs))[0][:,:r]
+        basis = la.svd(np.hstack(Xs))[0][:,:r]
 
         # Parameters for predicting.
         x0 = np.zeros(n)
@@ -86,13 +86,13 @@ class TestInterpolatedInferredDiscreteROM:
         U = np.zeros((m,niters))
 
         # Fit / predict with no inputs.
-        rom.fit(Vr, ps, Xs)
+        rom.fit(basis, ps, Xs)
         rom.predict(1, x0, niters)
         rom.predict(1.5, x0, niters)
 
         # Fit / predict with inputs.
         rom.modelform = "cAHB"
-        rom.fit(Vr, ps, Xs, Us)
+        rom.fit(basis, ps, Xs, Us)
         rom.predict(1, x0, niters, U)
         rom.predict(1.5, x0, niters, U)
 
@@ -113,44 +113,44 @@ class TestInterpolatedInferredContinuousROM:
         Xdots = [Xdot1, Xdot2]
         Us = [U1, U2]
         ps = [1, 2]
-        Vr = la.svd(np.hstack(Xs))[0][:,:r]
+        basis = la.svd(np.hstack(Xs))[0][:,:r]
 
         # Try with non-scalar parameters.
         # with pytest.raises(ValueError) as ex:
-        #     rom.fit(Vr, [np.array([1,1]), np.array([2,2])], Xs, Xdots)
+        #     rom.fit(basis, [np.array([1,1]), np.array([2,2])], Xs, Xdots)
         # assert ex.value.args[0] == "only scalar parameter values
         #     are supported"
 
         # Try with bad number of Xs.
         with pytest.raises(ValueError) as ex:
-            rom.fit(Vr, ps, [X1, X2, X2+1], Xdots)
+            rom.fit(basis, ps, [X1, X2, X2+1], Xdots)
         assert ex.value.args[0] == "num parameter samples != num state " \
                                    "snapshot training sets (2 != 3)"
 
         # Try with bad number of Xdots.
         with pytest.raises(ValueError) as ex:
-            rom.fit(Vr, ps, Xs, Xdots + [Xdot1])
+            rom.fit(basis, ps, Xs, Xdots + [Xdot1])
         assert ex.value.args[0] == "num parameter samples != num time " \
                                    "derivative training sets (2 != 3)"
 
         # Fit correctly with no inputs.
         rom.modelform = "cAH"
-        rom.fit(Vr, ps, Xs, Xdots)
+        rom.fit(basis, ps, Xs, Xdots)
         for attr in ["models_", "fs_"]:
             assert hasattr(rom, attr)
             assert len(getattr(rom, attr)) == len(rom.models_)
 
         # Fit correctly with inputs.
         rom.modelform = "cAHB"
-        rom.fit(Vr, ps, Xs, Xdots, Us)
+        rom.fit(basis, ps, Xs, Xdots, Us)
         assert len(rom) == len(ps)
 
-        # Test again with Vr = None and projected inputs.
-        Xs_ = [Vr.T @ X for X in Xs]
-        Xdots_ = [Vr.T @ Xdot for Xdot in Xdots]
+        # Test again with basis = None and projected inputs.
+        Xs_ = [basis.T @ X for X in Xs]
+        Xdots_ = [basis.T @ Xdot for Xdot in Xdots]
         rom.fit(None, ps, Xs_, Xdots_, Us)
         assert len(rom) == len(ps)
-        assert rom.Vr is None
+        assert rom.basis is None
         assert rom.n is None
 
     def test_predict(self, n=50, m=10, k=100, r=3):
@@ -164,7 +164,7 @@ class TestInterpolatedInferredContinuousROM:
         Xdots = [Xdot1, Xdot2]
         Us = [U1, U2]
         ps = [1, 2]
-        Vr = la.svd(np.hstack(Xs))[0][:,:r]
+        basis = la.svd(np.hstack(Xs))[0][:,:r]
 
         # Parameters for predicting.
         x0 = np.zeros(n)
@@ -175,12 +175,12 @@ class TestInterpolatedInferredContinuousROM:
 
         # Fit / predict with no inputs.
         rom = opinf.InterpolatedInferredContinuousROM("AH")
-        rom.fit(Vr, ps, Xs, Xdots)
+        rom.fit(basis, ps, Xs, Xdots)
         rom.predict(1, x0, t)
         rom.predict(1.5, x0, t)
 
         # Fit / predict with inputs.
         rom = opinf.InterpolatedInferredContinuousROM("AHB")
-        rom.fit(Vr, ps, Xs, Xdots, Us)
+        rom.fit(basis, ps, Xs, Xdots, Us)
         rom.predict(1, x0, t, u)
         rom.predict(1.5, x0, t, u)

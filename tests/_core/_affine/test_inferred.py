@@ -56,7 +56,7 @@ class TestAffineInferredMixin:
         X, rhs, U = _get_data(n, k, m)
         Xs, rhss, Us = [X]*s, [rhs]*s, [U]*s
         Us1d = [U[0,:]]*s
-        Vr = np.random.random((n,r))
+        basis = np.random.random((n,r))
 
         # Get test parameters and affine functions.
         θs = [lambda µ: µ, lambda µ: µ**2, lambda µ: µ**3, lambda µ: µ**4]
@@ -70,32 +70,32 @@ class TestAffineInferredMixin:
         # Try with mismatched number of parameters and data sets.
         model = self.Dummy("cAHGB")
         with pytest.raises(ValueError) as ex:
-            model._process_fit_arguments(Vr, µs, affines, Xs[:-1], rhss, Us)
+            model._process_fit_arguments(basis, µs, affines, Xs[:-1], rhss, Us)
         assert ex.value.args[0] == \
             "num parameter samples != num state snapshot training sets " \
             f"({s} != {s-1})"
 
         with pytest.raises(ValueError) as ex:
-            model._process_fit_arguments(Vr, µs, affines, Xs, rhss[:-2], Us)
+            model._process_fit_arguments(basis, µs, affines, Xs, rhss[:-2], Us)
         assert ex.value.args[0] == \
             f"num parameter samples != num rhs training sets ({s} != {s-2})"
 
         with pytest.raises(ValueError) as ex:
-            model._process_fit_arguments(Vr, µs, affines, Xs, rhss, Us[:-3])
+            model._process_fit_arguments(basis, µs, affines, Xs, rhss, Us[:-3])
         assert ex.value.args[0] == \
             f"num parameter samples != num input training sets ({s} != {s-3})"
 
         # With basis and input.
-        Xs_, rhss_, Us_ = model._process_fit_arguments(Vr, µs, affines,
+        Xs_, rhss_, Us_ = model._process_fit_arguments(basis, µs, affines,
                                                        Xs, rhss, Us)
         assert model.n == n
         assert model.r == r
-        assert model.Vr is Vr
+        assert model.basis is basis
         assert model.m == m
         for X, X_ in zip(Xs, Xs_):
-            assert np.allclose(X_, Vr.T @ X)
+            assert np.allclose(X_, basis.T @ X)
         for rhs, rhs_ in zip(rhss, rhss_):
-            assert np.allclose(rhs_, Vr.T @ rhs)
+            assert np.allclose(rhs_, basis.T @ rhs)
         assert Us_ is Us
 
         # Without basis and with a one-dimensional input.
@@ -103,7 +103,7 @@ class TestAffineInferredMixin:
                                                        Xs, rhss, Us1d)
         assert model.n is None
         assert model.r == n
-        assert model.Vr is None
+        assert model.basis is None
         assert model.m == 1
         for X, X_ in zip(Xs, Xs_):
             assert np.all(X_ == X)
@@ -116,16 +116,16 @@ class TestAffineInferredMixin:
         # With basis and no input.
         model = self.Dummy("cAHG")
         affs = {key:val for key,val in affines.items() if key != "B"}
-        Xs_, rhss_, Us_ = model._process_fit_arguments(Vr, µs, affs,
+        Xs_, rhss_, Us_ = model._process_fit_arguments(basis, µs, affs,
                                                        Xs, rhss, None)
         assert model.n == n
         assert model.r == r
-        assert model.Vr is Vr
+        assert model.basis is basis
         assert model.m == 0
         for X, X_ in zip(Xs, Xs_):
-            assert np.allclose(X_, Vr.T @ X)
+            assert np.allclose(X_, basis.T @ X)
         for rhs, rhs_ in zip(rhss, rhss_):
-            assert np.allclose(rhs_, Vr.T @ rhs)
+            assert np.allclose(rhs_, basis.T @ rhs)
         assert Us_ is None
 
     def test_assemble_data_matrix(self):
@@ -235,7 +235,7 @@ class TestAffineInferredMixin:
         # Get test data.
         n, k, m, r, s = 50, 200, 5, 10, 10
         X, Xdot, U = _get_data(n, k, m)
-        Vr = la.svd(X)[0][:,:r]
+        basis = la.svd(X)[0][:,:r]
         θs = [lambda µ: µ, lambda µ: µ**2, lambda µ: µ**3, lambda µ: µ**4]
         µs = np.arange(1, s+1)
         affines = {"c": θs[:2],
@@ -244,7 +244,7 @@ class TestAffineInferredMixin:
                    "G": θs[:1],
                    "B": θs[:3]}
         Xs, Xdots, Us = [X]*s, [Xdot]*s, [U]*s
-        args = [Vr, µs, affines, Xs]
+        args = [basis, µs, affines, Xs]
         if is_continuous:
             args.insert(3, Xdots)
 

@@ -68,17 +68,17 @@ class TestInferredMixin:
         # Get test data.
         X, rhs, U = _get_data(n, k, m)
         U1d = U[0,:]
-        Vr = la.svd(X)[0][:,:r]
+        basis = la.svd(X)[0][:,:r]
 
         # With basis and input.
         model = self.Dummy("AB")
-        X_, rhs_, U_ = model._process_fit_arguments(Vr, X, rhs, U)
+        X_, rhs_, U_ = model._process_fit_arguments(basis, X, rhs, U)
         assert model.n == n
         assert model.r == r
-        assert model.Vr is Vr
+        assert model.basis is basis
         assert model.m == m
-        assert np.allclose(X_, Vr.T @ X)
-        assert np.allclose(rhs_, Vr.T @ rhs)
+        assert np.allclose(X_, basis.T @ X)
+        assert np.allclose(rhs_, basis.T @ rhs)
         assert U_ is U
 
         # Without basis and with a one-dimensional input.
@@ -86,7 +86,7 @@ class TestInferredMixin:
         X_, rhs_, U_ = model._process_fit_arguments(None, X, rhs, U1d)
         assert model.n is None
         assert model.r == n
-        assert model.Vr is None
+        assert model.basis is None
         assert model.m == 1
         assert X_ is X
         assert rhs_ is rhs
@@ -95,13 +95,13 @@ class TestInferredMixin:
 
         # With basis and no input.
         model.modelform = "cA"
-        X_, rhs_, U_ = model._process_fit_arguments(Vr, X, rhs, None)
+        X_, rhs_, U_ = model._process_fit_arguments(basis, X, rhs, None)
         assert model.n == n
         assert model.r == r
-        assert model.Vr is Vr
+        assert model.basis is basis
         assert model.m == 0
-        assert np.allclose(X_, Vr.T @ X)
-        assert np.allclose(rhs_, Vr.T @ rhs)
+        assert np.allclose(X_, basis.T @ X)
+        assert np.allclose(rhs_, basis.T @ rhs)
         assert U_ is None
 
     def test_assemble_data_matrix(self, k=500, m=20, r=10):
@@ -178,26 +178,26 @@ class TestInferredMixin:
         n, k, m, r = 60, 500, 20, 10
         X, Xdot, U = _get_data(n, k, m)
         U1d = U[0,:]
-        Vr = la.svd(X)[0][:,:r]
+        basis = la.svd(X)[0][:,:r]
         args_n = [X]
-        args_r = [Vr.T @ X]
+        args_r = [basis.T @ X]
         if issubclass(ModelClass, opinf._core._inferred._ContinuousROM):
             args_n.append(Xdot)
-            args_r.append(Vr.T @ Xdot)
+            args_r.append(basis.T @ Xdot)
 
         # Fit the model with each modelform.
         for form in MODEL_FORMS:
             model.modelform = form
             if "B" in form:
                 # Two-dimensional inputs.
-                model.fit(Vr, *args_n, U)           # With basis.
+                model.fit(basis, *args_n, U)        # With basis.
                 model.fit(None, *args_r, U)         # Without basis.
                 # One-dimensional inputs.
-                model.fit(Vr, *args_n, U1d)         # With basis.
+                model.fit(basis, *args_n, U1d)      # With basis.
                 model.fit(None, *args_r, U1d)       # Without basis.
             else:
                 # No inputs.
-                model.fit(Vr, *args_n)              # With basis.
+                model.fit(basis, *args_n)           # With basis.
                 model.fit(None, *args_r)            # Without basis.
 
 

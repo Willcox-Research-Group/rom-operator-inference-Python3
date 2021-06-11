@@ -20,21 +20,21 @@ class TestAffineIntrusiveMixin:
 
     def test_process_fit_arguments(self, n=30, r=10):
         """Test _core._intrusive._IntrusiveMixin._process_fit_arguments()."""
-        Vr = np.random.random((n,r))
+        basis = np.random.random((n,r))
 
         model = self.Dummy("c")
         operators = {k:None for k in model.modelform}
 
         # Correct usage.
-        model._process_fit_arguments(Vr, operators, operators)
+        model._process_fit_arguments(basis, operators, operators)
         assert model.n == n
         assert model.r == r
-        assert model.Vr is Vr
+        assert model.basis is basis
 
     def test_project_operators(self, n=7, m=5, r=3):
         """Test _core._intrusive._IntrusiveMixin._project_operators()."""
         # Get test data.
-        Vr = np.random.random((n,r))
+        basis = np.random.random((n,r))
         shapes = {
                     "c": (n,),
                     "A": (n,n),
@@ -54,7 +54,7 @@ class TestAffineIntrusiveMixin:
         B1d = B[:,0]
 
         # TEST SET 1: Ensure affines={} acts like vanilla intrusive.
-        # Try to fit the model with operators that are misaligned with Vr.
+        # Try to fit the model with operators that are misaligned w/ the basis.
         cbad = c[::2]
         Abad = A[:,:-2]
         Hbad = H[:,1:]
@@ -63,7 +63,7 @@ class TestAffineIntrusiveMixin:
 
         # Initialize the test model.
         model = self.Dummy(self.Dummy._MODEL_KEYS)
-        model.Vr = Vr
+        model.basis = basis
 
         with pytest.raises(ValueError) as ex:
             model._project_operators({},{"c":cbad, "A":A, "H":H, "G":G, "B":B})
@@ -93,7 +93,7 @@ class TestAffineIntrusiveMixin:
         # Test each modelform.
         for form in MODEL_FORMS:
             model = self.Dummy(form)
-            model.Vr = Vr
+            model.basis = basis
             ops = {key:val for key,val in operators.items() if key in form}
             model._project_operators({}, ops)
             for prefix in MODEL_KEYS:
@@ -117,7 +117,7 @@ class TestAffineIntrusiveMixin:
 
         # Fit the model with 1D inputs (1D array for B)
         model = self.Dummy("cAHB")
-        model.Vr = Vr
+        model.basis = basis
         model._project_operators({}, {"c":c, "A":A, "H":H, "B":B1d})
         assert model.m == 1
         assert model.B.shape == (n,1)
@@ -138,7 +138,7 @@ class TestAffineIntrusiveMixin:
                      "B": [B, B]}
 
         model = self.Dummy(self.Dummy._MODEL_KEYS)
-        model.Vr = Vr
+        model.basis = basis
 
         with pytest.raises(ValueError) as ex:
             model._project_operators(affines, {"c": [cbad,cbad],
@@ -188,7 +188,7 @@ class TestAffineIntrusiveMixin:
         # Test each modelform.
         for form in MODEL_FORMS:
             model = self.Dummy(form)
-            model.Vr = Vr
+            model.basis = basis
             ops = {key:val for key,val in operators.items() if key in form}
             afs = {key:val for key,val in affines.items() if key in form}
             model._project_operators(afs, ops)
@@ -218,7 +218,7 @@ class TestAffineIntrusiveMixin:
                 assert model.m == 0
 
         model = self.Dummy("HG")
-        model.Vr = Vr
+        model.basis = basis
         Hc = np.random.random((n,n*(n + 1)//2))
         Gc = np.random.random((n,n*(n + 1)*(n + 2)//6))
         model._project_operators({"H": [ident], "G": [ident]},
@@ -233,7 +233,7 @@ class TestAffineIntrusiveMixin:
         _core._affine._intrusive.AffineIntrusiveContinuousROM.fit().
         """
         # Get test data.
-        Vr = np.random.random((n,r))
+        basis = np.random.random((n,r))
 
         # TEST SET 1: Ensure affines={} acts like vanilla intrusive.
         # Get test operators.
@@ -245,10 +245,10 @@ class TestAffineIntrusiveMixin:
         for form in MODEL_FORMS:
             model = ModelClass(form)
             ops = {key:val for key,val in operators.items() if key in form}
-            model.fit(Vr, {}, ops)
+            model.fit(basis, {}, ops)
             if "B" in form:         # Also test with one-dimensional inputs.
                 ops["B"] = B1d
-                model.fit(Vr, {}, ops)
+                model.fit(basis, {}, ops)
 
         # TEST SET 2: Nontrivial affines.
         def ident(a):
@@ -269,10 +269,10 @@ class TestAffineIntrusiveMixin:
             model = ModelClass(form)
             ops = {key:val for key,val in operators.items() if key in form}
             afs = {key:val for key,val in affines.items() if key in form}
-            model.fit(Vr, afs, ops)
+            model.fit(basis, afs, ops)
             if "B" in form:         # Also test with one-dimensional inputs.
                 ops["B"] = [B1d, B1d]
-                model.fit(Vr, afs, ops)
+                model.fit(basis, afs, ops)
 
 
 # Affine intrusive models (public) ============================================

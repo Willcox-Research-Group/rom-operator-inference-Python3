@@ -51,7 +51,7 @@ class TestBaseROM:
         # Check initial attributes exist.
         rom = self.Dummy("cAB")
         assert hasattr(rom, "modelform")
-        assert hasattr(rom, "Vr")
+        assert hasattr(rom, "basis")
         assert hasattr(rom, "n")
         assert hasattr(rom, "m")
         assert hasattr(rom, "r")
@@ -65,7 +65,7 @@ class TestBaseROM:
         assert hasattr(rom, "H_")
         assert hasattr(rom, "G_")
         assert hasattr(rom, "B_")
-        assert rom.Vr is None
+        assert rom.basis is None
         assert rom.n is None
         assert rom.m is None
         assert rom.r is None
@@ -103,39 +103,39 @@ class TestBaseROM:
         assert rom.B_ is None
 
     def test_dimension_properties(self, n=20, m=3, r=7):
-        """Test the properties _core._base._BaseROM.(n|r|Vr)."""
+        """Test the properties _core._base._BaseROM.(n|r|basis)."""
         rom = self.Dummy("cH")
         assert rom.n is None
         assert rom.m == 0
         assert rom.r is None
-        assert rom.Vr is None
+        assert rom.basis is None
 
-        # Case 1: Vr != None
-        Vr = np.random.random((n,r))
-        rom.Vr = Vr
+        # Case 1: basis != None
+        basis = np.random.random((n,r))
+        rom.basis = basis
         assert rom.n == n
         assert rom.m == 0
         assert rom.r == r
-        assert rom.Vr is Vr
+        assert rom.basis is basis
 
-        # Try setting n with Vr already set.
+        # Try setting n with basis already set.
         with pytest.raises(AttributeError) as ex:
             rom.n = n+1
-        assert ex.value.args[0] == "can't set attribute (n = Vr.shape[0])"
+        assert ex.value.args[0] == "can't set attribute (n = basis.shape[0])"
 
         # Try setting m with no inputs.
         with pytest.raises(AttributeError) as ex:
             rom.m = 1
         assert ex.value.args[0] == "can't set attribute ('B' not in modelform)"
 
-        # Try setting r with Vr already set.
+        # Try setting r with basis already set.
         with pytest.raises(AttributeError) as ex:
             rom.r = r+1
-        assert ex.value.args[0] == "can't set attribute (r = Vr.shape[1])"
+        assert ex.value.args[0] == "can't set attribute (r = basis.shape[1])"
 
-        # Case 2: Vr = None
-        del rom.Vr
-        assert rom.Vr is None
+        # Case 2: basis = None
+        del rom.basis
+        assert rom.basis is None
         assert rom.n is None
         rom = self.Dummy("AB")
         assert rom.m is None
@@ -272,17 +272,17 @@ class TestBaseROM:
 
     def test_set_operators(self, n=60, m=10, r=12):
         """Test _core._base._BaseROM.set_operators()."""
-        Vr = np.random.random((n, r))
+        basis = np.random.random((n, r))
         c, A, H, G, B = _get_operators(r, m)
 
         # Test correct usage.
-        rom = self.Dummy("cAH").set_operators(Vr=Vr, c_=c, A_=A, H_=H)
+        rom = self.Dummy("cAH").set_operators(basis=basis, c_=c, A_=A, H_=H)
         assert isinstance(rom, self.Dummy)
         assert rom.modelform == "cAH"
         assert rom.n == n
         assert rom.r == r
         assert rom.m == 0
-        assert rom.Vr is Vr
+        assert rom.basis is basis
         assert rom.c_ is c
         assert rom.A_ is A
         assert rom.H_ is H
@@ -295,7 +295,7 @@ class TestBaseROM:
         assert rom.n is None
         assert rom.r == r
         assert rom.m == m
-        assert rom.Vr is None
+        assert rom.basis is None
         assert rom.c_ is None
         assert rom.A_ is None
         assert rom.H_ is None
@@ -306,16 +306,16 @@ class TestBaseROM:
         """Test _core._base._BaseROM.project()."""
         X, Xdot, _ = _get_data(n, k, 2)
         rom = self.Dummy("c")
-        rom.Vr = la.svd(X)[0][:,:r]
+        rom.basis = la.svd(X)[0][:,:r]
 
         with pytest.raises(ValueError) as ex:
             rom.project(X[:-1,:], 'X')
-        assert ex.value.args[0] == "X not aligned with Vr, dimension 0"
+        assert ex.value.args[0] == "X not aligned with basis, dimension 0"
 
         for S, label in [(X, 'X'), (Xdot, 'Xdot')]:
             S_ = rom.project(S, label)
             assert S_.shape == (r,k)
-            S_ = rom.project(rom.Vr.T @ S, label)
+            S_ = rom.project(rom.basis.T @ S, label)
             assert S_.shape == (r,k)
 
     def test_fit(self):
@@ -371,18 +371,18 @@ class TestDiscreteROM:
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
         X = _get_data(n, k, m)[0]
-        Vr = la.svd(X)[0][:,:r]
+        basis = la.svd(X)[0][:,:r]
 
         niters = 5
         x0 = X[:,0]
         U = np.ones((m, niters-1))
 
         # Try to predict with invalid initial condition.
-        x0_ = Vr.T @ x0
-        rom = _trainedmodel(False, "cAHB", Vr, m)
+        x0_ = basis.T @ x0
+        rom = _trainedmodel(False, "cAHB", basis, m)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0_[:-1], niters, U)
-        assert ex.value.args[0] == "x0 not aligned with Vr, dimension 0"
+        assert ex.value.args[0] == "x0 not aligned with basis, dimension 0"
 
         # Try to predict with bad niters argument.
         with pytest.raises(ValueError) as ex:
@@ -391,47 +391,47 @@ class TestDiscreteROM:
             "argument 'niters' must be a nonnegative integer"
 
         # Try to predict with badly-shaped discrete inputs.
-        rom = _trainedmodel(False, "cAHB", Vr, m)
+        rom = _trainedmodel(False, "cAHB", basis, m)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, niters, np.random.random((m-1, niters-1)))
         assert ex.value.args[0] == \
             f"invalid input shape ({(m-1,niters-1)} != {(m,niters-1)}"
 
-        rom = _trainedmodel(False, "cAHB", Vr, m=1)
+        rom = _trainedmodel(False, "cAHB", basis, m=1)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, niters, np.random.random((2, niters-1)))
         assert ex.value.args[0] == \
             f"invalid input shape ({(2,niters-1)} != {(1,niters-1)}"
 
         # Try to predict with continuous inputs.
-        rom = _trainedmodel(False, "cAHB", Vr, m)
+        rom = _trainedmodel(False, "cAHB", basis, m)
         with pytest.raises(TypeError) as ex:
             rom.predict(x0, niters, lambda t: np.ones(m-1))
-        assert ex.value.args[0] == "input U must be an array, not a callable"
+        assert ex.value.args[0] == "inputs must be an array, not a callable"
 
         for form in MODEL_FORMS:
             if "B" not in form:             # No control inputs.
-                rom = _trainedmodel(False, form, Vr, None)
+                rom = _trainedmodel(False, form, basis, None)
                 out = rom.predict(x0, niters)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n,niters)
             else:                           # Has Control inputs.
                 # Predict with 2D inputs.
-                rom = _trainedmodel(False, form, Vr, m)
+                rom = _trainedmodel(False, form, basis, m)
                 out = rom.predict(x0, niters, U)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n,niters)
 
                 # Predict with 1D inputs.
-                rom = _trainedmodel(False, form, Vr, 1)
+                rom = _trainedmodel(False, form, basis, 1)
                 out = rom.predict(x0, niters, np.ones(niters))
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n,niters)
 
         # Predict with no basis gives result in low-dimensional space.
-        rom = _trainedmodel(False, "cA", Vr, None)
-        rom.Vr = None
-        out = rom.predict(Vr.T @ x0, niters)
+        rom = _trainedmodel(False, "cA", basis, None)
+        rom.basis = None
+        out = rom.predict(basis.T @ x0, niters)
         assert isinstance(out, np.ndarray)
         assert out.shape == (r,niters)
 
@@ -469,7 +469,7 @@ class TestContinuousROM:
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
         X = _get_data(n, k, m)[0]
-        Vr = la.svd(X)[0][:,:r]
+        basis = la.svd(X)[0][:,:r]
 
         nt = 5
         x0 = X[:,0]
@@ -479,11 +479,11 @@ class TestContinuousROM:
         Upred = np.ones((m, nt))
 
         # Try to predict with invalid initial condition.
-        x0_ = Vr.T @ x0
-        rom = _trainedmodel(True, "cAHB", Vr, m)
+        x0_ = basis.T @ x0
+        rom = _trainedmodel(True, "cAHB", basis, m)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0_[1:], t, u)
-        assert ex.value.args[0] == "x0 not aligned with Vr, dimension 0"
+        assert ex.value.args[0] == "x0 not aligned with basis, dimension 0"
 
         # Try to predict with bad time array.
         with pytest.raises(ValueError) as ex:
@@ -493,33 +493,33 @@ class TestContinuousROM:
         # Predict without inputs.
         for form in MODEL_FORMS:
             if "B" not in form:
-                rom = _trainedmodel(True, form, Vr, None)
+                rom = _trainedmodel(True, form, basis, None)
                 out = rom.predict(x0, t)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n,t.size)
 
         # Predict with no basis gives result in low-dimensional space.
-        rom = _trainedmodel(True, "cA", Vr, None)
-        rom.Vr = None
-        out = rom.predict(Vr.T @ x0, t)
+        rom = _trainedmodel(True, "cA", basis, None)
+        rom.basis = None
+        out = rom.predict(basis.T @ x0, t)
         assert isinstance(out, np.ndarray)
         assert out.shape == (r,t.size)
 
         # Try to predict with badly-shaped discrete inputs.
-        rom = _trainedmodel(True, "cAHB", Vr, m)
+        rom = _trainedmodel(True, "cAHB", basis, m)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, t, np.random.random((m-1, nt)))
         assert ex.value.args[0] == \
             f"invalid input shape ({(m-1,nt)} != {(m,nt)}"
 
-        rom = _trainedmodel(True, "cAHB", Vr, m=1)
+        rom = _trainedmodel(True, "cAHB", basis, m=1)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, t, np.random.random((2, nt)))
         assert ex.value.args[0] == \
             f"invalid input shape ({(2,nt)} != {(1,nt)}"
 
         # Try to predict with badly-shaped continuous inputs.
-        rom = _trainedmodel(True, "cAHB", Vr, m)
+        rom = _trainedmodel(True, "cAHB", basis, m)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, t, lambda t: np.ones(m-1))
         assert ex.value.args[0] == \
@@ -529,7 +529,7 @@ class TestContinuousROM:
         assert ex.value.args[0] == \
             f"input function u() must return ndarray of shape (m,)={(m,)}"
 
-        rom = _trainedmodel(True, "cAHB", Vr, m=1)
+        rom = _trainedmodel(True, "cAHB", basis, m=1)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, t, u)
         assert ex.value.args[0] == \
@@ -537,7 +537,7 @@ class TestContinuousROM:
             " or scalar"
 
         # Try to predict with continuous inputs with bad return type
-        rom = _trainedmodel(True, "cAHB", Vr, m)
+        rom = _trainedmodel(True, "cAHB", basis, m)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, t, lambda t: set([5]))
         assert ex.value.args[0] == \
@@ -546,7 +546,7 @@ class TestContinuousROM:
         for form in MODEL_FORMS:
             if "B" in form:
                 # Predict with 2D inputs.
-                rom = _trainedmodel(True, form, Vr, m)
+                rom = _trainedmodel(True, form, basis, m)
                 # continuous input.
                 out = rom.predict(x0, t, u)
                 assert isinstance(out, np.ndarray)
@@ -557,7 +557,7 @@ class TestContinuousROM:
                 assert out.shape == (n,nt)
 
                 # Predict with 1D inputs.
-                rom = _trainedmodel(True, form, Vr, 1)
+                rom = _trainedmodel(True, form, basis, 1)
                 # continuous input.
                 out = rom.predict(x0, t, lambda t: 1)
                 assert isinstance(out, np.ndarray)
@@ -643,8 +643,8 @@ class TestNonparametricMixin:
 
         # Get a test model.
         n, m, r = 15, 2, 5
-        Vr = np.random.random((n,r))
-        rom = _trainedmodel("inferred", "cAHGB", Vr, m)
+        basis = np.random.random((n,r))
+        rom = _trainedmodel("inferred", "cAHGB", basis, m)
 
         def _checkfile(filename, mdl, hasbasis):
             assert os.path.isfile(filename)
@@ -658,8 +658,8 @@ class TestNonparametricMixin:
 
                 # Check basis
                 if hasbasis:
-                    assert "Vr" in data
-                    assert np.allclose(data["Vr"], Vr)
+                    assert "basis" in data
+                    assert np.allclose(data["basis"], basis)
 
                 # Check operators
                 assert "operators" in data
@@ -694,35 +694,35 @@ class TestNonparametricMixin:
         rom.save(target, save_basis=True, overwrite=True)
         _checkfile(target, rom, True)
 
-        rom = _trainedmodel("inferred", "c", Vr, 0)
+        rom = _trainedmodel("inferred", "c", basis, 0)
         rom.save(target, overwrite=True)
         _checkfile(target, rom, True)
 
-        rom = _trainedmodel("inferred", "AB", Vr, m)
-        rom.Vr = None
+        rom = _trainedmodel("inferred", "AB", basis, m)
+        rom.basis = None
         rom.save(target, save_basis=True, overwrite=True)
         _checkfile(target, rom, False)
 
         # Check that save() and load() are inverses.
-        rom.Vr = Vr
+        rom.basis = basis
         rom.save(target, save_basis=True, overwrite=True)
         rom2 = opinf.load(target)
         for attr in ["n", "m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)
-        for attr in ["A_", "B_", "Vr"]:
+        for attr in ["A_", "B_", "basis"]:
             assert np.allclose(getattr(rom, attr), getattr(rom2, attr))
         for attr in ["c_", "H_", "G_"]:
             assert getattr(rom, attr) is getattr(rom2, attr) is None
 
-        # Check Vr = None functionality.
-        rom.Vr = None
+        # Check basis = None functionality.
+        rom.basis = None
         rom.save(target, overwrite=True)
         rom2 = opinf.load(target)
         for attr in ["m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_",]:
             assert np.allclose(getattr(rom, attr), getattr(rom2, attr))
-        for attr in ["n", "c_", "H_", "G_", "Vr"]:
+        for attr in ["n", "c_", "H_", "G_", "basis"]:
             assert getattr(rom, attr) is getattr(rom2, attr) is None
 
         os.remove(target)

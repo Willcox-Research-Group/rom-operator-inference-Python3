@@ -38,27 +38,27 @@ def test_pod_basis(set_up_basis_data):
         vals_r = vals[:r]
 
         # Via scipy.linalg.svd().
-        Vr, svdvals = opinf.pre.pod_basis(X, r, mode="dense")
-        assert Vr.shape == (n,r)
-        assert np.allclose(Vr, Ur)
+        basis, svdvals = opinf.pre.pod_basis(X, r, mode="dense")
+        assert basis.shape == (n,r)
+        assert np.allclose(basis, Ur)
         assert svdvals.shape == (r,)
         assert np.allclose(svdvals, vals_r)
 
         # Via scipy.sparse.linalg.svds() (ARPACK).
-        Vr, svdvals = opinf.pre.pod_basis(X, r, mode="sparse")
-        assert Vr.shape == (n,r)
+        basis, svdvals = opinf.pre.pod_basis(X, r, mode="sparse")
+        assert basis.shape == (n,r)
         for j in range(r):      # Make sure the columns have the same sign.
-            if not np.isclose(Ur[0,j], Vr[0,j]):
-                Vr[:,j] = -Vr[:,j]
-        assert np.allclose(Vr, Ur)
+            if not np.isclose(Ur[0,j], basis[0,j]):
+                basis[:,j] = -basis[:,j]
+        assert np.allclose(basis, Ur)
         assert svdvals.shape == (r,)
         assert np.allclose(svdvals, vals_r)
 
         # Via sklearn.utils.extmath.randomized_svd().
-        Vr, svdvals = opinf.pre.pod_basis(X, r, mode="randomized")
-        assert Vr.shape == (n,r)
+        basis, svdvals = opinf.pre.pod_basis(X, r, mode="randomized")
+        assert basis.shape == (n,r)
         # Light accuracy test (equality not guaranteed by randomized SVD).
-        assert la.norm(np.abs(Vr) - np.abs(Ur)) < 5
+        assert la.norm(np.abs(basis) - np.abs(Ur)) < 5
         assert svdvals.shape == (r,)
         assert la.norm(svdvals - vals_r) < 3
 
@@ -133,9 +133,9 @@ def test_cumulative_energy(set_up_basis_data):
 def test_projection_error(set_up_basis_data):
     """Test pre._basis.projection_error()."""
     X = set_up_basis_data
-    Vr = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
+    basis = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
 
-    err = opinf.pre.projection_error(X, Vr)
+    err = opinf.pre.projection_error(X, basis)
     assert np.isscalar(err) and err >= 0
 
 
@@ -152,7 +152,7 @@ def test_minimal_projection_error(set_up_basis_data):
     # Try with bad basis shape.
     with pytest.raises(ValueError) as exc:
         opinf.pre.minimal_projection_error(X, V[0], 1e-14, plot=False)
-    assert exc.value.args[0] == "basis V must be two-dimensional"
+    assert exc.value.args[0] == "basis must be two-dimensional"
 
     # Single cutoffs.
     r = opinf.pre.minimal_projection_error(X, V, 1e-14, plot=False)

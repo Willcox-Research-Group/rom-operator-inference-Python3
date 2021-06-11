@@ -25,7 +25,7 @@ from ...utils import expand_H, compress_H, expand_G, compress_G
 class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
     """Mixin class for affinely parametric intrusive reduced model classes."""
     # Fitting -----------------------------------------------------------------
-    def _process_fit_arguments(self, Vr, affines, operators):
+    def _process_fit_arguments(self, basis, affines, operators):
         """Validate the arguments to fit() and set the basis."""
         # Verify affine expansions.
         self._check_affines_keys(affines)
@@ -33,33 +33,33 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
 
         # Reset all variables and store basis.
         self._clear()
-        self.Vr = Vr
+        self.basis = basis
 
     def _project_operators(self, affines, operators):
         """Project the full-order operators to the reduced-order space."""
         if self.has_quadratic or self.has_cubic:
-            Vr2 = np.kron(self.Vr, self.Vr)
+            basis2 = np.kron(self.basis, self.basis)
 
         # Project FOM operators.
         if self.has_constant:               # Constant term.
             if 'c' in affines:
                 self.c = AffineOperator(affines['c'], operators['c'])
                 self.c_ = AffineOperator(affines['c'],
-                                         [self.Vr.T @ c
+                                         [self.basis.T @ c
                                           for c in self.c.matrices])
             else:
                 self.c = operators['c']
-                self.c_ = self.Vr.T @ self.c
+                self.c_ = self.basis.T @ self.c
 
         if self.has_linear:                 # Linear state matrix.
             if 'A' in affines:
                 self.A = AffineOperator(affines['A'], operators['A'])
                 self.A_ = AffineOperator(affines['A'],
-                                         [self.Vr.T @ A @ self.Vr
+                                         [self.basis.T @ A @ self.basis
                                           for A in self.A.matrices])
             else:
                 self.A = operators['A']
-                self.A_ = self.Vr.T @ self.A @ self.Vr
+                self.A_ = self.basis.T @ self.A @ self.basis
 
         if self.has_quadratic:              # Quadratic state matrix.
             _n2 = self.n * (self.n + 1) // 2
@@ -72,15 +72,15 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
                 else:
                     self.H = H_or_Hc
                 self.H_ = AffineOperator(affines['H'],
-                                         [compress_H(self.Vr.T @ H @ Vr2)
+                                         [compress_H(self.basis.T @ H @ basis2)
                                           for H in self.H.matrices])
             else:
                 self.H = operators['H']
-                self.H_ = self.Vr.T @ self.H @ Vr2
+                self.H_ = self.basis.T @ self.H @ basis2
 
         if self.has_cubic:                  # Cubic state matrix.
             _n3 = self.n * (self.n + 1) * (self.n + 2) // 6
-            Vr3 = np.kron(self.Vr, Vr2)
+            basis3 = np.kron(self.basis, basis2)
             if 'G' in affines:
                 G_or_Gc = AffineOperator(affines['G'], operators['G'])
                 if G_or_Gc.shape == (self.n,_n3):
@@ -90,11 +90,11 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
                 else:
                     self.G = G_or_Gc
                 self.G_ = AffineOperator(affines['G'],
-                                         [compress_G(self.Vr.T @ G @ Vr3)
+                                         [compress_G(self.basis.T @ G @ basis3)
                                           for G in self.G.matrices])
             else:
                 self.G = operators['G']
-                self.G_ = self.Vr.T @ self.G @ Vr3
+                self.G_ = self.basis.T @ self.G @ basis3
 
         if self.has_inputs:                 # Linear input matrix.
             if 'B' in affines:
@@ -105,7 +105,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
                 self.m = B.shape[1]
                 self.B = B
                 self.B_ = AffineOperator(affines['B'],
-                                         [self.Vr.T @ B
+                                         [self.basis.T @ B
                                           for B in self.B.matrices])
             else:
                 B = operators['B']
@@ -113,14 +113,14 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
                     B = B.reshape((-1,1))
                 self.m = B.shape[1]
                 self.B = B
-                self.B_ = self.Vr.T @ self.B
+                self.B_ = self.basis.T @ self.B
 
-    def fit(self, Vr, affines, operators):
+    def fit(self, basis, affines, operators):
         """Solve for the reduced model operators via intrusive projection.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        basis : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
             This cannot be set to None, as it is required for projection.
 
@@ -151,7 +151,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
         -------
         self
         """
-        self._process_fit_arguments(Vr, affines, operators)
+        self._process_fit_arguments(basis, affines, operators)
         self._project_operators(affines, operators)
         return self
 

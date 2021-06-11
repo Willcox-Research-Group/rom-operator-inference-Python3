@@ -125,13 +125,13 @@ class TestAffineMixin:
         # Get test data.
         n, k, m, r = 60, 50, 20, 10
         X = _get_data(n, k, m)[0]
-        Vr = la.svd(X)[0][:,:r]
+        basis = la.svd(X)[0][:,:r]
 
         # Get test operators.
         def ident(a):
             return a
         c, A, H, G, B = _get_operators(r, m)
-        rom.Vr = Vr
+        rom.basis = basis
         rom.c_ = opinf.AffineOperator([ident, ident], [c,c])
         rom.A_ = opinf.AffineOperator([ident, ident, ident], [A,A,A])
         rom.H_ = opinf.AffineOperator([ident], [H])

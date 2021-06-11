@@ -125,7 +125,7 @@ def load(loadfile):
         modelform = data["meta"].attrs["modelform"]
 
         # Load basis if present.
-        Vr = data["Vr"][:] if "Vr" in data else None
+        basis = data["basis"][:] if "basis" in data else None
 
         # Load operators.
         operators = {}
@@ -143,6 +143,6 @@ def load(loadfile):
         # TODO: loading (and saving) for Parametric operators.
 
     # Construct the model.
-    model = ModelClass(modelform).set_operators(Vr, **operators)
+    model = ModelClass(modelform).set_operators(basis, **operators)
 
     return model

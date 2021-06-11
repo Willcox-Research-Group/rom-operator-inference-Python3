@@ -34,7 +34,7 @@ def _get_operators(n=60, m=20, expanded=False):
     return c, A, H, G, B
 
 
-def _trainedmodel(continuous, modelform, Vr, m=20):
+def _trainedmodel(continuous, modelform, basis, m=20):
     """Construct a base class with model operators already constructed."""
     if continuous == "inferred":
         ModelClass = opinf.InferredContinuousROM
@@ -43,7 +43,7 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
     else:
         ModelClass = opinf._core._base._DiscreteROM
 
-    n,r = Vr.shape
+    n,r = basis.shape
     c, A, H, G, B = _get_operators(r, m)
     operators = {}
     if "c" in modelform:
@@ -57,4 +57,4 @@ def _trainedmodel(continuous, modelform, Vr, m=20):
     if "B" in modelform:
         operators['B_'] = B
 
-    return ModelClass(modelform).set_operators(Vr, **operators)
+    return ModelClass(modelform).set_operators(basis, **operators)

@@ -48,13 +48,13 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                                  la.LinAlgWarning, stacklevel=2)
 
     # Fitting -----------------------------------------------------------------
-    def _process_fit_arguments(self, Vr, µs, affines, Xs, rhss, Us):
+    def _process_fit_arguments(self, basis, µs, affines, Xs, rhss, Us):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get projected data for the Operator Inference least-squares problem.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        basis : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
         µs : list of s scalars or (p,) ndarrays
@@ -116,8 +116,8 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                              f"training sets ({s} != {len(Us)})")
 
         # Store basis and reduced dimension.
-        self.Vr = Vr
-        if Vr is None:
+        self.basis = basis
+        if basis is None:
             self.r = Xs[0].shape[0]
 
         # Ensure training data sets have consistent sizes.
@@ -297,17 +297,17 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 self.B_ = Ohat[:,i:i+self.m]
                 i += self.m
 
-    def _construct_solver(self, Vr, µs, affines, Xs, rhss, Us, P):
+    def _construct_solver(self, basis, µs, affines, Xs, rhss, Us, P):
         """Construct a solver object mapping the regularizer P to solutions
         of the Operator Inference least-squares problem.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, X and rhs are assumed to already be projected (r,k).
         """
-        Xs_, rhss_, Us = self._process_fit_arguments(Vr, µs, affines,
+        Xs_, rhss_, Us = self._process_fit_arguments(basis, µs, affines,
                                                      Xs, rhss, Us)
         D = self._assemble_data_matrix(µs, affines, Xs_, Us)
         self.solver_ = lstsq.solver(D, np.hstack(rhss_).T, P)
@@ -325,13 +325,13 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         OhatT = self.solver_.predict(P)
         self._extract_operators(affines, OhatT.T)
 
-    def fit(self, Vr, µs, affines, Xs, rhss, Us=None, P=0):
+    def fit(self, basis, µs, affines, Xs, rhss, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
         For terms with affine structure, solve for the component operators.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        basis : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
         µs : list of s scalars or (p,) ndarrays
@@ -374,7 +374,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         -------
         self
         """
-        self._construct_solver(Vr, µs, affines, Xs, rhss, Us, P)
+        self._construct_solver(basis, µs, affines, Xs, rhss, Us, P)
         self._evaluate_solver(affines, P)
         return self
 
@@ -404,13 +404,13 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
     """
-    def fit(self, Vr, µs, affines, Xs, Us=None, P=0):
+    def fit(self, basis, µs, affines, Xs, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         using solution trajectories from multiple examples.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        basis : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
         µs : (s,) ndarray
@@ -451,7 +451,7 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         if Us is not None:
             Us = [U[...,:X.shape[1]-1] for U,X in zip(Us, Xs)]
 
-        return _AffineInferredMixin.fit(self, Vr, µs, affines,
+        return _AffineInferredMixin.fit(self, basis, µs, affines,
                                         [X[:,:-1] for X in Xs],
                                         [X[:, 1:] for X in Xs],
                                         Us, P)
@@ -507,13 +507,13 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
     """
-    def fit(self, Vr, µs, affines, Xs, Xdots, Us=None, P=0):
+    def fit(self, basis, µs, affines, Xs, Xdots, Us=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         using solution trajectories from multiple examples.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        basis : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
 
         µs : (s,) ndarray
@@ -556,7 +556,7 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         self
         """
         return _AffineInferredMixin.fit(self,
-                                        Vr, µs, affines,
+                                        basis, µs, affines,
                                         Xs, Xdots, Us, P)
 
     def predict(self, µ, x0, t, u=None, **options):

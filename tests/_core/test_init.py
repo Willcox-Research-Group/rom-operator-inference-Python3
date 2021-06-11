@@ -60,7 +60,7 @@ def test_load():
     """Test load()."""
     # Get test operators.
     n, m, r = 20, 2, 5
-    Vr = np.random.random((n,r))
+    basis = np.random.random((n,r))
     c_, A_, H_, G_, B_ = _get_operators(n=r, m=m)
 
     # Clean up after old tests if needed.
@@ -107,7 +107,7 @@ def test_load():
         assert isinstance(mdl, opinf.InferredDiscreteROM)
         for attr in ["modelform",
                      "n", "r", "m",
-                     "c_", "A_", "H_", "G_", "B_", "Vr"]:
+                     "c_", "A_", "H_", "G_", "B_", "basis"]:
             assert hasattr(mdl, attr)
         assert mdl.modelform == "cAB"
         assert mdl.r == r
@@ -121,15 +121,15 @@ def test_load():
     # Load the file correctly.
     rom = opinf.load(target)
     _check_model(rom)
-    assert rom.Vr is None
+    assert rom.basis is None
     assert rom.n is None
 
     # Add the basis and then load the file correctly.
     with h5py.File(target, 'a') as f:
-        f.create_dataset("Vr", data=Vr)
+        f.create_dataset("basis", data=basis)
     rom = opinf.load(target)
     _check_model(rom)
-    assert np.allclose(rom.Vr, Vr)
+    assert np.allclose(rom.basis, basis)
     assert rom.n == n
 
     # One additional test to cover other cases.
@@ -143,7 +143,7 @@ def test_load():
     assert isinstance(rom, opinf.InferredContinuousROM)
     for attr in ["modelform",
                  "n", "r", "m",
-                 "c_", "A_", "H_", "G_", "B_", "Vr"]:
+                 "c_", "A_", "H_", "G_", "B_", "basis"]:
         assert hasattr(rom, attr)
     assert rom.modelform == "HG"
     assert rom.r == r
@@ -153,7 +153,7 @@ def test_load():
     assert np.allclose(rom.H_, H_)
     assert np.allclose(rom.G_, G_)
     assert rom.B_ is None
-    assert np.allclose(rom.Vr, Vr)
+    assert np.allclose(rom.basis, basis)
     assert rom.n == n
 
     # Clean up.

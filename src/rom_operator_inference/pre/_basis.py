@@ -53,7 +53,7 @@ def pod_basis(X, r=None, mode="dense", **options):
 
     Returns
     -------
-    Vr : (n,r) ndarray
+    basis : (n,r) ndarray
         The first r POD basis vectors of X. Each column is one basis vector.
 
     svdvals : (r,) ndarray
@@ -197,8 +197,8 @@ def cumulative_energy(singular_values, thresh, plot=False):
     return ranks[0] if one_thresh else ranks
 
 
-def projection_error(X, Vr):
-    """Calculate the projection error induced by the reduced basis Vr, given by
+def projection_error(X, basis):
+    """Calculate the projection error induced by the basis Vr, given by
 
         err = ||X - Vr Vr^T X|| / ||X||,
 
@@ -210,18 +210,18 @@ def projection_error(X, Vr):
         A 2D matrix of k snapshots where each column is a single snapshot, or a
         single 1D snapshot. If 2D, use the Frobenius norm; if 1D, the l2 norm.
 
-    Vr : (n,r) ndarray
-        The reduced basis of rank r. Each column is one basis vector.
+    basis : (n,r) ndarray
+        Basis of rank r. Each column is one basis vector.
 
     Returns
     -------
     error : float
-        The projection error.
+        Projection error.
     """
-    return la.norm(X - Vr @ Vr.T @ X) / la.norm(X)
+    return la.norm(X - basis @ basis.T @ X) / la.norm(X)
 
 
-def minimal_projection_error(X, V, eps, plot=False):
+def minimal_projection_error(X, basis, eps, plot=False):
     """Compute the number of POD basis vectors required to obtain a projection
     error less than eps. The projection error is defined by
 
@@ -234,9 +234,9 @@ def minimal_projection_error(X, V, eps, plot=False):
     X : (n,k) ndarray
         A matrix of k snapshots. Each column is a single snapshot.
 
-    V : (n,rmax) ndarray
+    basis : (n,rmax) ndarray
         The first rmax POD basis vectors of X. Each column is one basis vector.
-        The projection error is calculated for each Vr = V[:,:r] for r <= rmax.
+        The projection error is calculated with Vr = basis[:,:r] for r <= rmax.
 
     eps : float or list(float)
         Cutoff value(s) for the projection error.
@@ -254,19 +254,19 @@ def minimal_projection_error(X, V, eps, plot=False):
     # Check dimensions.
     if X.ndim != 2:
         raise ValueError("data X must be two-dimensional")
-    if V.ndim != 2:
-        raise ValueError("basis V must be two-dimensional")
+    if basis.ndim != 2:
+        raise ValueError("basis must be two-dimensional")
     one_eps = np.isscalar(eps)
     if one_eps:
         eps = [eps]
 
     # Calculate the projection errors.
     X_norm = la.norm(X, ord="fro")
-    rs = np.arange(1, V.shape[1])
+    rs = np.arange(1, basis.shape[1])
     errors = np.empty(rs.shape, dtype=float)
     for r in rs:
         # Get the POD basis of rank r and calculate the projection error.
-        Vr = V[:,:r]
+        Vr = basis[:,:r]
         errors[r-1] = la.norm(X - Vr @ Vr.T @ X, ord="fro") / X_norm
     # Calculate the ranks needed to get under each cutoff value.
     ranks = [np.count_nonzero(errors > ep)+1 for ep in eps]

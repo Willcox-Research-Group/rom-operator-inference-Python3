@@ -40,7 +40,7 @@ class _BaseROM:
         """
         self.__m = None if self.has_inputs else 0
         self.__r = None
-        self.__Vr = None
+        self.__basis = None
         self.__c_ = None
         self.__A_ = None
         self.__H_ = None
@@ -97,12 +97,12 @@ class _BaseROM:
     @property
     def n(self):
         """Dimension of the full-order model."""
-        return self.Vr.shape[0] if self.Vr is not None else None
+        return self.basis.shape[0] if self.basis is not None else None
 
     @n.setter
     def n(self, n):
-        """Setting this dimension is not allowed, it is always Vr.shape[0]."""
-        raise AttributeError("can't set attribute (n = Vr.shape[0])")
+        """Setting this dimension is not allowed."""
+        raise AttributeError("can't set attribute (n = basis.shape[0])")
 
     @property
     def m(self):
@@ -127,29 +127,29 @@ class _BaseROM:
 
     @r.setter
     def r(self, r):
-        """Set ROM dimension; only allowed if the basis Vr is None."""
-        if self.Vr is not None:
-            raise AttributeError("can't set attribute (r = Vr.shape[1])")
+        """Set ROM dimension; only allowed if the basis is None."""
+        if self.basis is not None:
+            raise AttributeError("can't set attribute (r = basis.shape[1])")
         if any(op is not None for op in self.operators.values()):
             raise AttributeError("can't set attribute (call fit() to reset)")
         self.__r = r
 
     # Properties: basis -------------------------------------------------------
     @property
-    def Vr(self):
+    def basis(self):
         """Basis for the linear reduced space (e.g., POD ), of shape (n,r)."""
-        return self.__Vr
+        return self.__basis
 
-    @Vr.setter
-    def Vr(self, Vr):
+    @basis.setter
+    def basis(self, basis):
         """Set the basis, thereby fixing the dimensions n and r."""
-        self.__Vr = Vr
-        if Vr is not None:
-            self.__r = Vr.shape[1]
+        self.__basis = basis
+        if basis is not None:
+            self.__r = basis.shape[1]
 
-    @Vr.deleter
-    def Vr(self):
-        self.__Vr = None
+    @basis.deleter
+    def basis(self):
+        self.__basis = None
 
     # Properties: reduced-order operators -------------------------------------
     @property
@@ -293,12 +293,13 @@ class _BaseROM:
             raise AttributeError("model not trained (call fit())") from e
 
     # Methods -----------------------------------------------------------------
-    def set_operators(self, Vr, c_=None, A_=None, H_=None, G_=None, B_=None):
+    def set_operators(self, basis,
+                      c_=None, A_=None, H_=None, G_=None, B_=None):
         """Set the ROM operators and corresponding dimensions.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray or None
+        basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, then r is inferred from one of the reduced operators.
 
@@ -325,7 +326,7 @@ class _BaseROM:
         operators = [c_, A_, H_, G_, B_]
 
         # Save the low-dimensional basis. Sets self.n and self.r if given.
-        self.Vr = Vr
+        self.basis = basis
 
         # Set the input dimension 'm'.
         if self.has_inputs:
@@ -335,7 +336,7 @@ class _BaseROM:
             self.m = 0
 
         # Determine the ROM dimension 'r' if no basis was given.
-        if Vr is None:
+        if basis is None:
             self.r = None
             for op in operators:
                 if op is not None:
@@ -350,9 +351,9 @@ class _BaseROM:
     def project(self, S, label="input"):
         """Check the dimensions of S and project it if needed."""
         if S.shape[0] not in (self.r, self.n):
-            raise ValueError(f"{label} not aligned with Vr, dimension 0")
-            # TODO: better message, what if Vr is None?
-        return self.Vr.T @ S if S.shape[0] == self.n else S
+            raise ValueError(f"{label} not aligned with basis, dimension 0")
+            # TODO: better message, what if basis is None?
+        return self.basis.T @ S if S.shape[0] == self.n else S
 
     def fit(*args, **kwargs):
         raise NotImplementedError("fit() implemented by child classes")
@@ -406,7 +407,7 @@ class _DiscreteROM(_BaseROM):
             x_new += self.B_ @ u
         return x_new
 
-    def predict(self, x0, niters, U=None):
+    def predict(self, x0, niters, inputs=None):
         """Step forward the learned ROM `niters` steps.
 
         Parameters
@@ -418,21 +419,21 @@ class _DiscreteROM(_BaseROM):
         niters : int
             Number of times to step the system forward.
 
-        U : (m,niters-1) ndarray
+        inputs : (m,niters-1) ndarray
             Inputs for the next niters-1 time steps.
 
         Returns
         -------
         X_ROM : (n,niters) or (r,niters) ndarray
             The approximate solution to the system, including the given
-            initial condition. If the basis Vr is None, return solutions in the
+            initial condition. If the basis is None, return solutions in the
             reduced r-dimensional subspace (r,niters). Otherwise, map solutions
-            to the full n-dimensional space with Vr (n,niters).
+            to the full n-dimensional space with the basis (n,niters).
         """
         self._check_is_trained()
 
         # Process inputs.
-        self._check_inputargs(U, 'U')   # Check input/modelform consistency.
+        self._check_inputargs(inputs, 'inputs')
         x0_ = self.project(x0, 'x0')    # Project initial conditions if needed.
 
         # Verify iteration argument.
@@ -445,10 +446,10 @@ class _DiscreteROM(_BaseROM):
 
         # Run the iteration.
         if self.has_inputs:
-            if callable(U):
-                raise TypeError("input U must be an array, not a callable")
+            if callable(inputs):
+                raise TypeError("inputs must be an array, not a callable")
             # Validate shape of input, reshaping if input is 1d.
-            U = np.atleast_2d(U)
+            U = np.atleast_2d(inputs)
             if U.ndim != 2 or U.shape[0] != self.m or U.shape[1] < niters - 1:
                 raise ValueError("invalid input shape "
                                  f"({U.shape} != {(self.m,niters-1)}")
@@ -459,7 +460,7 @@ class _DiscreteROM(_BaseROM):
                 X_[:,j+1] = self.f_(X_[:,j])            # f(xj)
 
         # Reconstruct the approximation to the full-order model if possible.
-        return self.Vr @ X_ if self.Vr is not None else X_
+        return self.basis @ X_ if self.basis is not None else X_
 
 
 class _ContinuousROM(_BaseROM):
@@ -510,7 +511,7 @@ class _ContinuousROM(_BaseROM):
             dxdt += self.B_ @ u(t)
         return dxdt
 
-    def predict(self, x0, t, u=None, **options):
+    def predict(self, x0, t, u=None, reconstruct=True, **options):
         """Simulate the learned ROM with scipy.integrate.solve_ivp().
 
         Parameters
@@ -526,6 +527,10 @@ class _ContinuousROM(_BaseROM):
             The input as a function of time (preferred) or the input at the
             times `t`. If given as an array, u(t) is approximated by a cubic
             spline interpolating the known data points.
+
+        reconstruct : bool
+            If True and the basis is not None, map the solutions to the full
+            n-dimensional space.
 
         options
             Arguments for solver.integrate.solve_ivp(), such as the following:
@@ -548,9 +553,9 @@ class _ContinuousROM(_BaseROM):
         -------
         X_ROM : (n,nt) or (r,nt) ndarray
             The approximate solution to the system over the time domain `t`.
-            If the basis Vr is None, return solutions in the reduced
+            If the basis is None, return solutions in the reduced
             r-dimensional subspace (r,nt). Otherwise, map the solutions to the
-            full n-dimensional space with Vr (n,nt).
+            full n-dimensional space with the basis (n,nt).
         """
         self._check_is_trained()
 
@@ -608,7 +613,9 @@ class _ContinuousROM(_BaseROM):
             warnings.warn(self.sol_.message, IntegrationWarning)
 
         # Reconstruct the approximation to the full-order model.
-        return self.Vr @ self.sol_.y if self.Vr is not None else self.sol_.y
+        if reconstruct and (self.basis is not None):
+            return self.basis @ self.sol_.y
+        return self.sol_.y
 
 
 # Mixins for parametric / nonparametric classes (private) =====================
@@ -662,7 +669,7 @@ class _NonparametricMixin:
             will be tacked on to the end.
 
         savebasis : bool
-            If True, save the basis Vr as well as the reduced operators.
+            If True, save the basis as well as the reduced operators.
             If False, only save reduced operators.
 
         overwrite : bool
@@ -686,8 +693,8 @@ class _NonparametricMixin:
             meta.attrs["modelform"] = self.modelform
 
             # Store basis (optionally) if it exists.
-            if (self.Vr is not None) and save_basis:
-                f.create_dataset("Vr", data=self.Vr)
+            if (self.basis is not None) and save_basis:
+                f.create_dataset("basis", data=self.basis)
 
             # Store reduced operators.
             if self.has_constant:
@@ -722,7 +729,7 @@ class _ParametricMixin:
         G_ = self.G_(µ) if callable(self.G_) else self.G_
         B_ = self.B_(µ) if callable(self.B_) else self.B_
 
-        return ModelClass(self.modelform).set_operators(Vr=self.Vr,
+        return ModelClass(self.modelform).set_operators(basis=self.basis,
                                                         c_=c_, A_=A_,
                                                         H_=H_, G_=G_, B_=B_)
 

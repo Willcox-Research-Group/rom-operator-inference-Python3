@@ -31,7 +31,7 @@ class _IntrusiveMixin:
         self._BaseROM__H_ = None
         self._BaseROM__G_ = None
         self._BaseROM__B_ = None
-        self.__Vr = None
+        self.__basis = None
         self.__c = None
         self.__A = None
         self.__H = None
@@ -42,29 +42,29 @@ class _IntrusiveMixin:
     @property
     def r(self):
         """Dimension of the reduced-order model."""
-        return self.Vr.shape[1] if self.Vr is not None else None
+        return self.basis.shape[1] if self.basis is not None else None
 
     @r.setter
     def r(self, r):
-        """Setting this dimension is not allowed, it is always Vr.shape[1]."""
-        raise AttributeError("can't set attribute (r = Vr.shape[1])")
+        """Setting this dimension is not allowed."""
+        raise AttributeError("can't set attribute (r = basis.shape[1])")
 
     # Properties: basis -------------------------------------------------------
     @property
-    def Vr(self):
+    def basis(self):
         """Basis for the linear reduced space (e.g., POD ), of shape (n,r)."""
-        return self.__Vr
+        return self.__basis
 
-    @Vr.setter
-    def Vr(self, Vr):
+    @basis.setter
+    def basis(self, basis):
         """Set the basis, also defining the dimensions n and r."""
-        if Vr is None:
-            raise AttributeError("Vr=None not allowed for intrusive ROMs")
-        self.__Vr = Vr
+        if basis is None:
+            raise AttributeError("basis=None not allowed for intrusive ROMs")
+        self.__basis = basis
 
-    @Vr.deleter
-    def Vr(self):
-        self.__Vr = None
+    @basis.deleter
+    def basis(self):
+        self.__basis = None
 
     # Properties: full-order operators ----------------------------------------
     @property
@@ -149,8 +149,8 @@ class _IntrusiveMixin:
     def _check_fom_operator_shape(self, operator, key):
         """Ensure that the given operator has the correct shape."""
         # Check that the required dimensions exist.
-        if self.Vr is None:
-            raise AttributeError("no basis 'Vr' (call fit())")
+        if self.basis is None:
+            raise AttributeError("no basis (call fit())")
         if key == 'B' and (self.m is None):
             raise AttributeError("no input dimension 'm' (call fit())")
         n, m = self.n, self.m
@@ -187,33 +187,33 @@ class _IntrusiveMixin:
             raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
 
     # Fitting -----------------------------------------------------------------
-    def _process_fit_arguments(self, Vr, operators):
+    def _process_fit_arguments(self, basis, operators):
         """Validate the arguments to fit() and set the basis."""
         self._check_operators_keys(operators)
         self._clear()
-        self.Vr = Vr
+        self.basis = basis
 
     def _project_operators(self, operators):
         """Project the full-order operators to the reduced-order space."""
         if self.has_quadratic or self.has_cubic:
-            Vr2 = np.kron(self.Vr, self.Vr)
+            basis2 = np.kron(self.basis, self.basis)
 
         # Project FOM operators.
         if self.has_constant:           # Constant term.
             self.c = operators['c']
-            self.c_ = self.Vr.T @ self.c
+            self.c_ = self.basis.T @ self.c
 
         if self.has_linear:             # Linear state matrix.
             self.A = operators['A']
-            self.A_ = self.Vr.T @ self.A @ self.Vr
+            self.A_ = self.basis.T @ self.A @ self.basis
 
         if self.has_quadratic:          # Quadratic state matrix.
             self.H = operators['H']
-            self.H_ = self.Vr.T @ self.H @ Vr2
+            self.H_ = self.basis.T @ self.H @ basis2
 
         if self.has_cubic:              # Cubic state matrix.
             self.G = operators['G']
-            self.G_ = self.Vr.T @ self.G @ np.kron(self.Vr, Vr2)
+            self.G_ = self.basis.T @ self.G @ np.kron(self.basis, basis2)
 
         if self.has_inputs:             # Linear input matrix.
             B = operators['B']
@@ -221,14 +221,14 @@ class _IntrusiveMixin:
                 B = B.reshape((-1,1))
             self.m = B.shape[1]
             self.B = B
-            self.B_ = self.Vr.T @ self.B
+            self.B_ = self.basis.T @ self.B
 
-    def fit(self, Vr, operators):
+    def fit(self, basis, operators):
         """Compute the reduced model operators via intrusive projection.
 
         Parameters
         ----------
-        Vr : (n,r) ndarray
+        basis : (n,r) ndarray
             The basis for the linear reduced space (e.g., POD basis matrix).
             This cannot be set to None, as it is required for projection.
 
@@ -245,7 +245,7 @@ class _IntrusiveMixin:
         -------
         self
         """
-        self._process_fit_arguments(Vr, operators)
+        self._process_fit_arguments(basis, operators)
         self._project_operators(operators)
         return self
 
