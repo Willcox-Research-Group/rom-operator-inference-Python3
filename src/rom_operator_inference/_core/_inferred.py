@@ -34,15 +34,16 @@ class _InferredMixin:
                 raise ValueError("training data not aligned "
                                  f"({label}.shape[1] != {labels[0]}.shape[1])")
             # Validate the number of rows.
-            if label.startswith("X") and data.shape[0] not in (self.n, self.r):
+            if label in ["states", "Xdot"] and data.shape[0] not in (self.n,
+                                                                     self.r):
                 raise ValueError(f"invalid training set ({label}.shape[0] "
                                  f"!= n={self.n} or r={self.r})")
-            elif label.startswith("U") and data.shape[0] != self.m:
+            elif label == "inputs" and data.shape[0] != self.m:
                 raise ValueError(f"invalid training input "
                                  f"({label}.shape[0] != m={self.m})")
 
     # Fitting -----------------------------------------------------------------
-    def _process_fit_arguments(self, basis, states, rhs, U):
+    def _process_fit_arguments(self, basis, states, rhs, inputs):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get projected data for the Operator Inference least-squares problem.
 
@@ -61,9 +62,9 @@ class _InferredMixin:
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
 
-        U : (m,k) or (k,) ndarray or None
-            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
+        inputs : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. May be a
+            one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         Returns
@@ -74,10 +75,10 @@ class _InferredMixin:
         rhs_ : (r,k) ndarray
             Projected right-hand-side data.
 
-        U : (m,k) ndarray
+        inputs : (m,k) ndarray
             Inputs, potentially reshaped.
         """
-        self._check_inputargs(U, 'U')
+        self._check_inputargs(inputs, 'inputs')
         self._clear()
 
         # Store basis and reduced dimension.
@@ -87,21 +88,21 @@ class _InferredMixin:
 
         # Ensure training data sets have consistent sizes.
         if self.has_inputs:
-            if U.ndim == 1:             # Reshape one-dimensional inputs.
-                U = U.reshape((1,-1))
-            self.m = U.shape[0]         # Input dimension.
-            self._check_training_data_shapes([states, rhs, U],
-                                             ["X", "Xdot", "U"])
+            if inputs.ndim == 1:        # Reshape one-dimensional inputs.
+                inputs = inputs.reshape((1,-1))
+            self.m = inputs.shape[0]    # Input dimension.
+            self._check_training_data_shapes([states, rhs, inputs],
+                                             ["states", "Xdot", "inputs"])
         else:
-            self._check_training_data_shapes([states, rhs], ["X", "Xdot"])
+            self._check_training_data_shapes([states, rhs], ["states", "Xdot"])
 
         # Project states and rhs to the reduced subspace (if not done already).
         states_ = self.project(states, 'states')
         rhs_ = self.project(rhs, 'rhs')
 
-        return states_, rhs_, U
+        return states_, rhs_, inputs
 
-    def _assemble_data_matrix(self, states_, U):
+    def _assemble_data_matrix(self, states_, inputs):
         """Construct the Operator Inference data matrix D from projected data.
 
         If modelform="cAHB", this is D = [1 | X_.T | (X_ ⊗ X_).T | U.T],
@@ -113,9 +114,9 @@ class _InferredMixin:
         states_ : (r,k) ndarray
             Column-wise projected snapshot training data.
 
-        U : (m,k) or (k,) ndarray or None
-            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array.
+        inputs : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. May be a
+            one-dimensional array if m=1 (scalar input).
 
         Returns
         -------
@@ -136,10 +137,10 @@ class _InferredMixin:
             D.append(kron3c(states_).T)
 
         if self.has_inputs:             # Linear input term.
-            if (self.m == U.ndim == 1) or (self.m is None and U.ndim == 1):
-                U = U.reshape((1,-1))
+            if inputs.ndim == 1 and (self.m is None or self.m == 1):
+                inputs = inputs.reshape((1,-1))
                 self.m = 1
-            D.append(U.T)
+            D.append(inputs.T)
 
         return np.hstack(D)
 
@@ -178,7 +179,7 @@ class _InferredMixin:
 
         return
 
-    def _construct_solver(self, basis, states, rhs, U, P):
+    def _construct_solver(self, basis, states, rhs, inputs, P):
         """Construct a solver object mapping the regularizer P to solutions
         of the Operator Inference least-squares problem.
 
@@ -197,9 +198,9 @@ class _InferredMixin:
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
 
-        U : (m,k) or (k,) ndarray or None
-            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
+        inputs : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. May be a
+            one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
@@ -208,8 +209,9 @@ class _InferredMixin:
             e.g., d = r + m when `modelform`="AB". This parameter is used here
             only to determine the correct type of solver.
         """
-        states_, rhs_, U = self._process_fit_arguments(basis, states, rhs, U)
-        D = self._assemble_data_matrix(states_, U)
+        states_, rhs_, inputs = self._process_fit_arguments(basis, states,
+                                                            rhs, inputs)
+        D = self._assemble_data_matrix(states_, inputs)
         self.solver_ = lstsq.solver(D, rhs_.T, P)
 
     def _evaluate_solver(self, P):
@@ -225,7 +227,7 @@ class _InferredMixin:
         OhatT = self.solver_.predict(P)
         self._extract_operators(np.atleast_2d(OhatT.T))
 
-    def fit(self, basis, states, rhs, U, P):
+    def fit(self, basis, states, rhs, inputs, P):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -243,9 +245,9 @@ class _InferredMixin:
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
 
-        U : (m,k) or (k,) ndarray or None
-            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
+        inputs : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. May be a
+            one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
@@ -257,7 +259,7 @@ class _InferredMixin:
         -------
         self
         """
-        self._construct_solver(basis, states, rhs, U, P)
+        self._construct_solver(basis, states, rhs, inputs, P)
         self._evaluate_solver(P)
         return self
 
@@ -285,7 +287,7 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
     """
-    def fit(self, basis, states, U=None, P=0):
+    def fit(self, basis, states, inputs=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -298,9 +300,9 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
 
-        U : (m,k-1) or (k-1,) ndarray or None
-            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
+        inputs : (m,k-1) or (k-1,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. May be a
+            one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
@@ -312,11 +314,10 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         -------
         self
         """
-        k = states.shape[1]
-        return _InferredMixin.fit(self, basis,
-                                  states[:,:-1], states[:,1:],
-                                  U[...,:k-1] if U is not None else U,
-                                  P)
+        if inputs is not None:
+            inputs = inputs[...,:(states.shape[1] - 1)]
+        return _InferredMixin.fit(self, basis, states[:,:-1], states[:,1:],
+                                  inputs, P)
 
 
 class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
@@ -341,7 +342,7 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         'B' : Input term Bu(t).
         For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
     """
-    def fit(self, basis, states, Xdot, U=None, P=0):
+    def fit(self, basis, states, Xdot, inputs=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -359,9 +360,9 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
             snapshot), either full order (n rows) or projected to reduced
             order (r rows).
 
-        U : (m,k) or (k,) ndarray or None
-            Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
+        inputs : (m,k) or (k,) ndarray or None
+            Column-wise inputs corresponding to the snapshots. May be a
+            one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
@@ -373,4 +374,4 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         -------
         self
         """
-        return _InferredMixin.fit(self, basis, states, Xdot, U, P)
+        return _InferredMixin.fit(self, basis, states, Xdot, inputs, P)

@@ -48,7 +48,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                                  la.LinAlgWarning, stacklevel=2)
 
     # Fitting -----------------------------------------------------------------
-    def _process_fit_arguments(self, basis, µs, affines, states, rhss, Us):
+    def _process_fit_arguments(self, basis, µs, affines, states, rhss, inputs):
         """Do sanity checks, extract dimensions, check and fix data sizes, and
         get projected data for the Operator Inference least-squares problem.
 
@@ -80,27 +80,27 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             (continuous model) training data. The ith array, rhss[i],
             corresponds to the ith parameter, µs[i].
 
-        Us : list of s (m,k) or (k,) ndarrays or None
+        inputs : list of s (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
-            in `modelform`; must be None if 'B' is not in `modelform`.
+            input), then inputs may be one-dimensional arrays. Required if 'B'
+            is in `modelform`; must be None if 'B' is not in `modelform`.
 
         Returns
         -------
         states_ : list of s (r,k) ndarrays
-            Projected state snapshots. states_[i] corresponds to µ[i].
+            Projected state snapshots; states_[i] corresponds to µs[i].
 
         rhss_ : list of s (r,k) ndarrays
-            Projected right-hand-side data. rhss_[i] corresponds to µ[i].
+            Projected right-hand-side data; rhss_[i] corresponds to µs[i].
 
-        Us : list of s (m,k) ndarrays or None
-            Inputs, potentially reshaped. Us[i] corresponds to µ[i].
+        inputs : list of s (m,k) ndarrays or None
+            Inputs, potentially reshaped; inputs[i] corresponds to µs[i].
         """
         # Check affines expansions, and inputs.
         # TODO: self.p = self._check_params(µs):
         #       extract self.p and check for consistent sizes.
         self._check_affines(affines, µs)
-        self._check_inputargs(Us, 'Us')
+        self._check_inputargs(inputs, 'inputs')
         self._clear()
 
         # Check that the number of params matches the number of training sets.
@@ -111,9 +111,9 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         if len(rhss) != s:
             raise ValueError("num parameter samples != num rhs "
                              f"training sets ({s} != {len(rhss)})")
-        if self.has_inputs and len(Us) != s:
+        if self.has_inputs and len(inputs) != s:
             raise ValueError("num parameter samples != num input "
-                             f"training sets ({s} != {len(Us)})")
+                             f"training sets ({s} != {len(inputs)})")
 
         # Store basis and reduced dimension.
         self.basis = basis
@@ -122,15 +122,17 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
 
         # Ensure training data sets have consistent sizes.
         if self.has_inputs:
-            if not isinstance(Us, list):
-                Us = list(Us)
-            self.m = 1 if Us[0].ndim == 1 else Us[0].shape[0]
+            if not isinstance(inputs, list):
+                inputs = list(inputs)
+            self.m = 1 if inputs[0].ndim == 1 else inputs[0].shape[0]
             for i in range(s):
-                if Us[i].ndim == 1:     # Reshape one-dimensional inputs.
-                    Us[i] = Us[i].reshape((1,-1))
-                self._check_training_data_shapes([states[i], rhss[i], Us[i]],
+                if inputs[i].ndim == 1:     # Reshape one-dimensional inputs.
+                    inputs[i] = inputs[i].reshape((1,-1))
+                self._check_training_data_shapes([states[i],
+                                                  rhss[i], inputs[i]],
                                                  [f"Xs[{i}]",
-                                                  f"Xdots[{i}]", f"Us[{i}]"])
+                                                  f"Xdots[{i}]",
+                                                  f"inputs[{i}]"])
         else:
             for i in range(s):
                 self._check_training_data_shapes([states[i], rhss[i]],
@@ -140,9 +142,9 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         states_ = [self.project(X, 'X') for X in states]
         rhss_ = [self.project(rhs, 'rhs') for rhs in rhss]
 
-        return states_, rhss_, Us
+        return states_, rhss_, inputs
 
-    def _assemble_data_matrix(self, µs, affines, states_, Us):
+    def _assemble_data_matrix(self, µs, affines, states_, inputs):
         """Construct the Operator Inference data matrix D from projected data.
 
         Parameters
@@ -165,9 +167,9 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             Column-wise snapshot projected training data.
             The ith array, states_[i], corresponds to the ith parameter, µs[i].
 
-        Us_ : list of s (m,k_i) or (k_i,) ndarrays or None
+        inputs : list of s (m,k_i) or (k_i,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a list of one-dimensional arrays.
+            input), may be a list of one-dimensional arrays.
 
         Returns
         -------
@@ -205,7 +207,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                     row.append(X3_.T)
 
             if self.has_inputs:         # Linear input term.
-                U = Us[i]
+                U = inputs[i]
                 if self.m == U.ndim == 1:
                     U = U.reshape((1,-1))
                 if 'B' in affines:
@@ -297,7 +299,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
                 self.B_ = Ohat[:,i:i+self.m]
                 i += self.m
 
-    def _construct_solver(self, basis, µs, affines, states, rhss, Us, P):
+    def _construct_solver(self, basis, µs, affines, states, rhss, inputs, P):
         """Construct a solver object mapping the regularizer P to solutions
         of the Operator Inference least-squares problem.
 
@@ -307,9 +309,11 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, X and rhs are assumed to already be projected (r,k).
         """
-        states_, rhss_, Us = self._process_fit_arguments(basis, µs, affines,
-                                                         states, rhss, Us)
-        D = self._assemble_data_matrix(µs, affines, states_, Us)
+        states_, rhss_, inputs = self._process_fit_arguments(basis, µs,
+                                                             affines,
+                                                             states, rhss,
+                                                             inputs)
+        D = self._assemble_data_matrix(µs, affines, states_, inputs)
         self.solver_ = lstsq.solver(D, np.hstack(rhss_).T, P)
 
     def _evaluate_solver(self, affines, P):
@@ -325,7 +329,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         OhatT = self.solver_.predict(P)
         self._extract_operators(affines, OhatT.T)
 
-    def fit(self, basis, µs, affines, states, rhss, Us=None, P=0):
+    def fit(self, basis, µs, affines, states, rhss, inputs=None, P=0):
         """Solve for the reduced model operators via ordinary least squares.
         For terms with affine structure, solve for the component operators.
 
@@ -357,9 +361,9 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
             (continuous model) training data. The ith array, rhss[i],
             corresponds to the ith parameter, µs[i].
 
-        Us : list of s (m,k) or (k,) ndarrays or None
+        inputs : list of s (m,k) or (k,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
+            input), may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : (d,d) ndarray or float
@@ -374,7 +378,7 @@ class _AffineInferredMixin(_InferredMixin, _AffineMixin):
         -------
         self
         """
-        self._construct_solver(basis, µs, affines, states, rhss, Us, P)
+        self._construct_solver(basis, µs, affines, states, rhss, inputs, P)
         self._evaluate_solver(affines, P)
         return self
 
@@ -404,7 +408,7 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
     """
-    def fit(self, basis, µs, affines, states, Us=None, P=0):
+    def fit(self, basis, µs, affines, states, inputs=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         using solution trajectories from multiple examples.
 
@@ -430,9 +434,9 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
             Column-wise snapshot training data (each column is a snapshot).
             The ith array states[i] corresponds to the ith parameter, µs[i].
 
-        Us : list of s (m,k-1) or (k-1,) ndarrays or None
+        inputs : list of s (m,k-1) or (k-1,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
+            input), may be a one-dimensional array. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : (d,d) ndarray or float
@@ -448,15 +452,15 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         self
         """
         # Truncate extra inputs as needed.
-        if Us is not None:
-            Us = [U[...,:X.shape[1]-1] for U,X in zip(Us, states)]
+        if inputs is not None:
+            inputs = [U[...,:X.shape[1]-1] for U,X in zip(inputs, states)]
 
         return _AffineInferredMixin.fit(self, basis, µs, affines,
                                         [X[:,:-1] for X in states],
                                         [X[:, 1:] for X in states],
-                                        Us, P)
+                                        inputs, P)
 
-    def predict(self, µ, x0, niters, U=None):
+    def predict(self, µ, x0, niters, inputs=None):
         """Construct a ROM for the parameter µ by exploiting the affine
         structure of the ROM operators, then step the resulting ROM forward
         `niters` steps.
@@ -472,8 +476,8 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
         niters : int
             The number of times to step the system forward.
 
-        U : (m,niters-1) ndarray
-            The inputs for the next niters-1 time steps.
+        inputs : (m,niters-1) ndarray
+            Inputs for the next niters-1 time steps.
 
         Returns
         -------
@@ -481,7 +485,7 @@ class AffineInferredDiscreteROM(_AffineInferredMixin, _DiscreteROM):
             The reduced-order solutions to the full-order system, including
             the (projected) given initial condition.
         """
-        return self(µ).predict(x0, niters, U)
+        return self(µ).predict(x0, niters, inputs)
 
 
 class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
@@ -507,7 +511,7 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
     """
-    def fit(self, basis, µs, affines, states, Xdots, Us=None, P=0):
+    def fit(self, basis, µs, affines, states, Xdots, inputs=None, P=0):
         """Solve for the reduced model operators via ordinary least squares,
         using solution trajectories from multiple examples.
 
@@ -538,9 +542,9 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
             Column-wise time derivative training data. The ith array, Xdots[i],
             corresponds to the ith parameter, µs[i].
 
-        Us : list of s (m,k-1) or (k-1,) ndarrays or None
+        inputs : list of s (m,k-1) or (k-1,) ndarrays or None
             Column-wise inputs corresponding to the snapshots. If m=1 (scalar
-            input), then U may be a one-dimensional array. Required if 'B' is
+            input), may be one-dimensional arrays. Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         P : (d,d) ndarray or float
@@ -557,9 +561,9 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         """
         return _AffineInferredMixin.fit(self,
                                         basis, µs, affines,
-                                        states, Xdots, Us, P)
+                                        states, Xdots, inputs, P)
 
-    def predict(self, µ, x0, t, u=None, **options):
+    def predict(self, µ, x0, t, input_func=None, **options):
         """Construct a ROM for the parameter µ by exploiting the affine
         structure of the ROM operators, then simulate the resulting ROM with
         scipy.integrate.solve_ivp().
@@ -575,9 +579,9 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
         t : (nt,) ndarray
             The time domain over which to integrate the reduced-order system.
 
-        u : callable or (m,nt) ndarray
-            The input as a function of time (preferred) or the input at the
-            times `t`. If given as an array, u(t) is approximated by a cubic
+        input_func : callable or (m,nt) ndarray
+            Input as a function of time (preferred) or the input at the
+            times `t`. If given as an array, approximated by a cubic
             spline interpolating the known data points.
 
         options
@@ -603,6 +607,6 @@ class AffineInferredContinuousROM(_AffineInferredMixin, _ContinuousROM):
             The reduced-order approximation to the full-order system over `t`.
         """
         model = self(µ)
-        out = model.predict(x0, t, u, **options)
+        out = model.predict(x0, t, input_func, **options)
         self.sol_ = model.sol_
         return out

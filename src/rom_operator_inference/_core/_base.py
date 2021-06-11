@@ -511,7 +511,7 @@ class _ContinuousROM(_BaseROM):
             dxdt += self.B_ @ u(t)
         return dxdt
 
-    def predict(self, x0, t, u=None, reconstruct=True, **options):
+    def predict(self, x0, t, input_func=None, reconstruct=True, **options):
         """Simulate the learned ROM with scipy.integrate.solve_ivp().
 
         Parameters
@@ -523,10 +523,10 @@ class _ContinuousROM(_BaseROM):
         t : (nt,) ndarray
             The time domain over which to integrate the reduced-order system.
 
-        u : callable or (m,nt) ndarray
-            The input as a function of time (preferred) or the input at the
-            times `t`. If given as an array, u(t) is approximated by a cubic
-            spline interpolating the known data points.
+        input_func : callable or (m,nt) ndarray
+            Input as a function of time (preferred) or the input at the
+            times `t`. If given as an array, a cubic spline interpolates the
+            known data points as needed.
 
         reconstruct : bool
             If True and the basis is not None, map the solutions to the full
@@ -560,7 +560,7 @@ class _ContinuousROM(_BaseROM):
         self._check_is_trained()
 
         # Process inputs.
-        self._check_inputargs(u, 'u')   # Check input/modelform consistency.
+        self._check_inputargs(input_func, 'input_func')
         x0_ = self.project(x0, 'x0')    # Project initial conditions if needed.
 
         # Verify time domain.
@@ -570,37 +570,40 @@ class _ContinuousROM(_BaseROM):
 
         # Interpret control input argument `u`.
         if self.has_inputs:
-            if callable(u):         # If u is a function, check output shape.
-                out = u(t[0])
+            if callable(input_func):
+                out = input_func(t[0])
                 if np.isscalar(out):
                     if self.m == 1:     # u : R -> R, wrap output as array.
-                        _u = u
+                        _u = input_func
 
-                        def u(s):
+                        def input_func(s):
                             """Wrap scalar inputs as a 2D array"""
                             return np.array([_u(s)])
 
                     else:               # u : R -> R, but m != 1.
-                        raise ValueError("input function u() must return"
-                                         f" ndarray of shape (m,)={(self.m,)}")
+                        raise ValueError("input_func() must return ndarray"
+                                         f" of shape (m,)={(self.m,)}")
                 elif not isinstance(out, np.ndarray):
-                    raise ValueError("input function u() must return"
-                                     f" ndarray of shape (m,)={(self.m,)}")
+                    raise ValueError("input_func() must return ndarray"
+                                     f" of shape (m,)={(self.m,)}")
                 elif out.shape != (self.m,):
-                    message = "input function u() must return" \
-                              f" ndarray of shape (m,)={(self.m,)}"
+                    message = "input_func() must return ndarray" \
+                              f" of shape (m,)={(self.m,)}"
                     if self.m == 1:
                         raise ValueError(message + " or scalar")
                     raise ValueError(message)
-            else:                   # u is an (m,nt) array.
-                U = np.atleast_2d(u)
+            else:                   # input_func not callable ((m,nt) array).
+                U = np.atleast_2d(input_func)
                 if U.shape != (self.m,nt):
                     raise ValueError("invalid input shape "
                                      f"({U.shape} != {(self.m,nt)}")
-                u = CubicSpline(t, U, axis=1)
+                input_func = CubicSpline(t, U, axis=1)
+            def fun(t, x_):
+                return self.f_(t, x_, input_func)
+        else:
+            fun = self.f_  # (t, x_)
 
         # Integrate the reduced-order model.
-        fun = (lambda t,x_: self.f_(t, x_, u)) if self.has_inputs else self.f_
         self.sol_ = solve_ivp(fun,              # Integrate f_(t, x_, u)
                               [t[0], t[-1]],    # over this time interval
                               x0_,              # with this initial condition

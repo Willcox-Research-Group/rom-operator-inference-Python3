@@ -523,17 +523,17 @@ class TestContinuousROM:
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, t, lambda t: np.ones(m-1))
         assert ex.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(m,)}"
+            f"input_func() must return ndarray of shape (m,)={(m,)}"
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, t, lambda t: 1)
         assert ex.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(m,)}"
+            f"input_func() must return ndarray of shape (m,)={(m,)}"
 
         rom = _trainedmodel(True, "cAHB", basis, m=1)
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, t, u)
         assert ex.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(1,)}" \
+            f"input_func() must return ndarray of shape (m,)={(1,)}" \
             " or scalar"
 
         # Try to predict with continuous inputs with bad return type
@@ -541,7 +541,7 @@ class TestContinuousROM:
         with pytest.raises(ValueError) as ex:
             rom.predict(x0, t, lambda t: set([5]))
         assert ex.value.args[0] == \
-            f"input function u() must return ndarray of shape (m,)={(m,)}"
+            f"input_func() must return ndarray of shape (m,)={(m,)}"
 
         for form in MODEL_FORMS:
             if "B" in form:

@@ -27,18 +27,18 @@ class TestInferredMixin:
         X, Xdot, U = _get_data(r, k, m)
         model = self.Dummy("A")
         model.r = r
-        labels = ["X", "Xdot", "U"]
+        labels = ["states", "Xdot", "inputs"]
 
         # Try to fit the model with a single snapshot.
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X[:,0], Xdot[:,0]], labels[:2])
-        assert ex.value.args[0] == "X must be two-dimensional"
+        assert ex.value.args[0] == "states must be two-dimensional"
 
         # Try to fit the model with misaligned X and Xdot.
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X, Xdot[:,1:-1]], labels[:2])
         assert ex.value.args[0] == \
-            "training data not aligned (Xdot.shape[1] != X.shape[1])"
+            "training data not aligned (Xdot.shape[1] != states.shape[1])"
 
         # Try to fit the model with misaligned X and U.
         model.modelform = "AB"
@@ -46,22 +46,23 @@ class TestInferredMixin:
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X, Xdot, U[:,:-1]], labels)
         assert ex.value.args[0] == \
-            "training data not aligned (U.shape[1] != X.shape[1])"
+            "training data not aligned (inputs.shape[1] != states.shape[1])"
 
         # Try with misaligned inputs (bad number of rows).
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X[:-1,:], Xdot, U], labels)
         assert ex.value.args[0] == \
-            f"invalid training set (X.shape[0] != n=None or r={r})"
+            f"invalid training set (states.shape[0] != n=None or r={r})"
 
         with pytest.raises(ValueError) as ex:
             model._check_training_data_shapes([X, Xdot, U[:-1,:]], labels)
         assert ex.value.args[0] == \
-            f"invalid training input (U.shape[0] != m={m})"
+            f"invalid training input (inputs.shape[0] != m={m})"
 
         # Correct usage.
-        model._check_training_data_shapes([X, Xdot], ["X", "Xdot"])
-        model._check_training_data_shapes([X, Xdot, U], ["X", "Xdot", "U"])
+        model._check_training_data_shapes([X, Xdot], ["states", "Xdot"])
+        model._check_training_data_shapes([X, Xdot, U],
+                                          ["states", "Xdot", "inputs"])
 
     def test_process_fit_arguments(self, n=60, k=500, m=20, r=10):
         """Test _core._inferred._InferredMixin._process_fit_arguments()."""

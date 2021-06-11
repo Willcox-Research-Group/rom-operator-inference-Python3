@@ -252,10 +252,10 @@ class TestAffineInferredMixin:
         for form in MODEL_FORMS:
             args[2] = {key:val for key,val in affines.items() if key in form}
             model = ModelClass(form)
-            model.fit(*args, Us=Us if "B" in form else None)
+            model.fit(*args, inputs=Us if "B" in form else None)
 
             args[2] = {}    # Non-affine case.
-            model.fit(*args, Us=Us if "B" in form else None)
+            model.fit(*args, inputs=Us if "B" in form else None)
 
         def _test_output_shapes(model):
             """Test shapes of output operators for modelform="cAHGB"."""
@@ -269,12 +269,12 @@ class TestAffineInferredMixin:
             assert model.B_.shape == (r,m)
 
         model = ModelClass("cAHGB")
-        model.fit(*args, Us=Us)
+        model.fit(*args, inputs=Us)
         _test_output_shapes(model)
 
         # Fit the model with 1D inputs (1D array for B)
         model = ModelClass("cAHGB")
-        model.fit(*args, Us=np.ones((s,k)))
+        model.fit(*args, inputs=np.ones((s,k)))
         m = 1
         _test_output_shapes(model)
 
