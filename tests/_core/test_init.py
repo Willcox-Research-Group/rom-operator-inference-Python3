@@ -56,8 +56,8 @@ def test_select_model_class():
         is opinf.InterpolatedInferredContinuousROM
 
 
-def test_load_model():
-    """Test load_model()."""
+def test_load():
+    """Test load()."""
     # Get test operators.
     n, m, r = 20, 2, 5
     Vr = np.random.random((n,r))
@@ -73,7 +73,7 @@ def test_load_model():
         pass
 
     with pytest.raises(ValueError) as ex:
-        rom = opinf.load_model(target)
+        rom = opinf.load(target)
     assert ex.value.args[0] == "invalid save format (meta/ not found)"
 
     # Make a (mostly) compatible HDF5 file to start with.
@@ -84,7 +84,7 @@ def test_load_model():
         meta.attrs["modelform"] = "cAB"
 
     with pytest.raises(ValueError) as ex:
-        rom = opinf.load_model(target)
+        rom = opinf.load(target)
     assert ex.value.args[0] == "invalid save format (operators/ not found)"
 
     # Store the arrays.
@@ -95,7 +95,7 @@ def test_load_model():
 
     # Try to load the file, which has a bad modelclass attribute.
     with pytest.raises(ValueError) as ex:
-        rom = opinf.load_model(target)
+        rom = opinf.load(target)
     assert ex.value.args[0] == \
         "invalid modelclass 'InferredDiscreteROOM' (meta.attrs)"
 
@@ -119,7 +119,7 @@ def test_load_model():
         assert np.allclose(mdl.B_, B_)
 
     # Load the file correctly.
-    rom = opinf.load_model(target)
+    rom = opinf.load(target)
     _check_model(rom)
     assert rom.Vr is None
     assert rom.n is None
@@ -127,7 +127,7 @@ def test_load_model():
     # Add the basis and then load the file correctly.
     with h5py.File(target, 'a') as f:
         f.create_dataset("Vr", data=Vr)
-    rom = opinf.load_model(target)
+    rom = opinf.load(target)
     _check_model(rom)
     assert np.allclose(rom.Vr, Vr)
     assert rom.n == n
@@ -139,7 +139,7 @@ def test_load_model():
         f.create_dataset("operators/H_", data=H_)
         f.create_dataset("operators/G_", data=G_)
 
-    rom = opinf.load_model(target)
+    rom = opinf.load(target)
     assert isinstance(rom, opinf.InferredContinuousROM)
     for attr in ["modelform",
                  "n", "r", "m",

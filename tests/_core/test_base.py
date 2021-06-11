@@ -634,8 +634,8 @@ class TestNonparametricMixin:
         assert str(rom) == \
             "Reduced-order model structure: x_{j+1} = H(x_{j} ⊗ x_{j})"
 
-    def test_save_model(self):
-        """Test _core._base._NonparametricMixin.save_model()."""
+    def test_save(self):
+        """Test _core._base._NonparametricMixin.save()."""
         # Clean up after old tests.
         target = "savemodeltest.h5"
         if os.path.isfile(target):              # pragma: no cover
@@ -684,29 +684,29 @@ class TestNonparametricMixin:
                 else:
                     assert "B_" not in data["operators"]
 
-        rom.save_model(target[:-3], save_basis=False)
+        rom.save(target[:-3], save_basis=False)
         _checkfile(target, rom, False)
 
         with pytest.raises(FileExistsError) as ex:
-            rom.save_model(target, overwrite=False)
-        assert ex.value.args[0] == target
+            rom.save(target, overwrite=False)
+        assert ex.value.args[0] == f"{target} (use overwrite=True to ignore)"
 
-        rom.save_model(target, save_basis=True, overwrite=True)
+        rom.save(target, save_basis=True, overwrite=True)
         _checkfile(target, rom, True)
 
         rom = _trainedmodel("inferred", "c", Vr, 0)
-        rom.save_model(target, overwrite=True)
+        rom.save(target, overwrite=True)
         _checkfile(target, rom, True)
 
         rom = _trainedmodel("inferred", "AB", Vr, m)
         rom.Vr = None
-        rom.save_model(target, save_basis=True, overwrite=True)
+        rom.save(target, save_basis=True, overwrite=True)
         _checkfile(target, rom, False)
 
-        # Check that save_model() and load_model() are inverses.
+        # Check that save() and load() are inverses.
         rom.Vr = Vr
-        rom.save_model(target, save_basis=True, overwrite=True)
-        rom2 = opinf.load_model(target)
+        rom.save(target, save_basis=True, overwrite=True)
+        rom2 = opinf.load(target)
         for attr in ["n", "m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_", "Vr"]:
@@ -716,8 +716,8 @@ class TestNonparametricMixin:
 
         # Check Vr = None functionality.
         rom.Vr = None
-        rom.save_model(target, overwrite=True)
-        rom2 = opinf.load_model(target)
+        rom.save(target, overwrite=True)
+        rom2 = opinf.load(target)
         for attr in ["m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_",]:

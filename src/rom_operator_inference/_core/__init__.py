@@ -92,7 +92,7 @@ def select_model_class(time, rom_strategy, parametric=False):
         raise NotImplementedError("model type invalid or not implemented")
 
 
-def load_model(loadfile):
+def load(loadfile):
     """Load a serialized model from an HDF5 file, created previously from
     a ROM object's save_model() method.
 

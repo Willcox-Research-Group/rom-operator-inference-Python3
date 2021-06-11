@@ -651,7 +651,7 @@ class _NonparametricMixin:
             out.append(f"B{u}")
         return f"Reduced-order model structure: {lhs} = " + " + ".join(out)
 
-    def save_model(self, savefile, save_basis=True, overwrite=False):
+    def save(self, savefile, save_basis=True, overwrite=False):
         """Serialize the learned model, saving it in HDF5 format.
         The model can then be loaded with rom_operator_inference.load_model().
 
@@ -677,7 +677,7 @@ class _NonparametricMixin:
 
         # Prevent overwriting and existing file on accident.
         if os.path.isfile(savefile) and not overwrite:
-            raise FileExistsError(savefile)
+            raise FileExistsError(f"{savefile} (use overwrite=True to ignore)")
 
         with h5py.File(savefile, 'w') as f:
             # Store metadata: ROM class and model form.
