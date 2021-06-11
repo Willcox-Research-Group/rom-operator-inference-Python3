@@ -63,16 +63,13 @@ def test_load_model():
     Vr = np.random.random((n,r))
     c_, A_, H_, G_, B_ = _get_operators(n=r, m=m)
 
-    # Try loading a file that does not exist.
-    target = "loadmodeltest.h5"
+    # Clean up after old tests if needed.
+    target = "_loadmodeltest.h5"
     if os.path.isfile(target):                  # pragma: no cover
         os.remove(target)
-    with pytest.raises(FileNotFoundError) as ex:
-        rom = opinf.load_model(target)
-    assert ex.value.args[0] == target
 
     # Make an empty HDF5 file to start with.
-    with h5py.File(target, 'w') as f:
+    with h5py.File(target, 'w'):
         pass
 
     with pytest.raises(ValueError) as ex:

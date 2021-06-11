@@ -109,9 +109,6 @@ def load_model(loadfile):
     import os
     import h5py
 
-    if not os.path.isfile(loadfile):
-        raise FileNotFoundError(loadfile)
-
     with h5py.File(loadfile, 'r') as data:
         if "meta" not in data:
             raise ValueError("invalid save format (meta/ not found)")

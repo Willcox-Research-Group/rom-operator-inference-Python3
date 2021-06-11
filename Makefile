@@ -23,7 +23,7 @@ lint:
 
 
 install: clean
-	$(PYTHON) -m pip install .
+	$(PYTHON) -m pip install --use-feature=in-tree-build .
 
 
 test: lint install
@@ -35,4 +35,3 @@ deploy: test
 	git checkout master
 	$(PYTHON) setup.py sdist bdist_wheel
 	$(PYTHON) -m twine upload dist/*
-
