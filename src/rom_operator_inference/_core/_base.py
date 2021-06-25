@@ -26,6 +26,7 @@ from ..utils import compress_H, compress_G, kron2c, kron3c
 class _BaseROM:
     """Base class for all rom_operator_inference reduced model classes."""
     _MODEL_KEYS = "cAHGB"       # Constant, Linear, Quadratic, Cubic, Input.
+    _RHS_LABEL = "rhs"
 
     def __init__(self, modelform):
         """Set the modelform."""
@@ -370,6 +371,7 @@ class _DiscreteROM(_BaseROM):
     The problem may also be parametric, i.e., x and f may depend on an
     independent parameter µ.
     """
+    _RHS_LABEL = "nextstates"
     modelform = property(_BaseROM.modelform.fget,
                          _BaseROM.modelform.fset,
                          _BaseROM.modelform.fdel,
@@ -471,6 +473,7 @@ class _ContinuousROM(_BaseROM):
     The problem may also be parametric, i.e., x and f may depend on an
     independent parameter µ.
     """
+    _RHS_LABEL = "ddts"
     modelform = property(_BaseROM.modelform.fget,
                          _BaseROM.modelform.fset,
                          _BaseROM.modelform.fdel,
@@ -714,6 +717,22 @@ class _NonparametricMixin:
 
 class _ParametricMixin:
     """Mixin class for parametric reduced model classes."""
+    def _check_number_of_training_datasets(self, s, datasets):
+        """Ensure that each data set has the same number of entries as
+        the number of parameter samples.
+
+        Parameters
+        ----------
+        p : int
+            Number of parameter samples.
+        datasets: list of (ndarray, str) tuples
+            Datasets paired with labels, e.g., [(X, "states"), (dX, "ddts")].
+        """
+        for data, label in datasets:
+            if len(data) != s:
+                raise ValueError(f"len({label}) = {len(data)} "
+                                 f"!= {s} = len(params)")
+
     def __call__(self, µ):
         """Construct the reduced model corresponding to the parameter µ."""
         if isinstance(self, _DiscreteROM):

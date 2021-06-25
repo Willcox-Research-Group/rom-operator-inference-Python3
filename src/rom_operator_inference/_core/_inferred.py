@@ -23,24 +23,40 @@ from ..utils import kron2c, kron3c
 class _InferredMixin:
     """Mixin class for reduced model classes that use Operator Inference."""
 
-    def _check_training_data_shapes(self, datasets, labels):
-        """Ensure that each data set has the same number of columns."""
-        for data, label in zip(datasets, labels):
-            # Ensure each data set is two-dimensional.
-            if data.ndim != 2:
-                raise ValueError(f"{label} must be two-dimensional")
-            # Ensure each data set has the same number of columns.
-            if data.shape[1] != datasets[0].shape[1]:
-                raise ValueError("training data not aligned "
-                                 f"({label}.shape[1] != {labels[0]}.shape[1])")
-            # Validate the number of rows.
-            if label in ["states", "Xdot"] and data.shape[0] not in (self.n,
-                                                                     self.r):
-                raise ValueError(f"invalid training set ({label}.shape[0] "
-                                 f"!= n={self.n} or r={self.r})")
-            elif label == "inputs" and data.shape[0] != self.m:
-                raise ValueError(f"invalid training input "
-                                 f"({label}.shape[0] != m={self.m})")
+    def _check_training_data_shapes(self, datasets):
+        """Ensure that each data set has the same number of columns and a
+        valid number or rows (determined by the basis).
+
+        Parameters
+        ----------
+        datasets: list of (ndarray, str) tuples
+            Datasets paired with labels, e.g., [(X, "states"), (dX, "ddts")].
+        """
+        data0, label0 = datasets[0]
+        for data, label in datasets:
+            if label == "inputs":
+                if self.m != 1:     # inputs.shape = (m,k)
+                    if data.ndim != 2:
+                        raise ValueError("inputs must be two-dimensional "
+                                         "(m > 1)")
+                    if data.shape[0] != self.m:
+                        raise ValueError(f"inputs.shape[0] = {data.shape[0]} "
+                                         f"!= {self.m} = m")
+                else:               # inputs.shape = (1,k) or (k,)
+                    if data.ndim not in (1,2):
+                        raise ValueError("inputs must be one- or "
+                                         "two-dimensional (m = 1)")
+                    if data.ndim == 2 and data.shape[0] != 1:
+                        raise ValueError("inputs.shape != (1,k) (m = 1)")
+            else:
+                if data.ndim != 2:
+                    raise ValueError(f"{label} must be two-dimensional")
+                if data.shape[0] not in (self.n, self.r):
+                    raise ValueError(f"{label}.shape[0] != n or r "
+                                     f"(n={self.n}, r={self.r})")
+            if data.shape[-1] != data0.shape[-1]:
+                raise ValueError(f"{label}.shape[-1] = {data.shape[-1]} "
+                                 f"!= {data0.shape[-1]} = {label0}.shape[-1]")
 
     # Fitting -----------------------------------------------------------------
     def _process_fit_arguments(self, basis, states, rhs, inputs):
@@ -51,17 +67,14 @@ class _InferredMixin:
         ----------
         basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
-            If None, states and rhs are assumed to already be projected (r,k).
-
+            If None, states and rhs are assumed to already be projected.
         states : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-
         rhs : (n,k) or (r,k) ndarray
             Column-wise next-iteration (discrete model) or time derivative
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
-
         inputs : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
@@ -71,12 +84,8 @@ class _InferredMixin:
         -------
         states_ : (r,k) ndarray
             Projected state snapshots.
-
         rhs_ : (r,k) ndarray
             Projected right-hand-side data.
-
-        inputs : (m,k) ndarray
-            Inputs, potentially reshaped.
         """
         self._check_inputargs(inputs, 'inputs')
         self._clear()
@@ -86,21 +95,20 @@ class _InferredMixin:
         if basis is None:
             self.r = states.shape[0]
 
-        # Ensure training data sets have consistent sizes.
+        # Get input dimension if needed.
+        to_check = [(states, "states"), (rhs, self._RHS_LABEL)]
         if self.has_inputs:
-            if inputs.ndim == 1:        # Reshape one-dimensional inputs.
-                inputs = inputs.reshape((1,-1))
-            self.m = inputs.shape[0]    # Input dimension.
-            self._check_training_data_shapes([states, rhs, inputs],
-                                             ["states", "Xdot", "inputs"])
-        else:
-            self._check_training_data_shapes([states, rhs], ["states", "Xdot"])
+            self.m = 1 if inputs.ndim == 1 else inputs.shape[0]
+            to_check.append((inputs, "inputs"))
 
-        # Project states and rhs to the reduced subspace (if not done already).
-        states_ = self.project(states, 'states')
-        rhs_ = self.project(rhs, 'rhs')
+        # Ensure training data sets have consistent sizes.
+        self._check_training_data_shapes(to_check)
 
-        return states_, rhs_, inputs
+        # Project states and rhs to the reduced subspace (if needed).
+        states_ = self.project(states, "states")
+        rhs_ = self.project(rhs, self._RHS_LABEL)
+
+        return states_, rhs_
 
     def _assemble_data_matrix(self, states_, inputs):
         """Construct the Operator Inference data matrix D from projected data.
@@ -113,7 +121,6 @@ class _InferredMixin:
         ----------
         states_ : (r,k) ndarray
             Column-wise projected snapshot training data.
-
         inputs : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input).
@@ -137,10 +144,7 @@ class _InferredMixin:
             D.append(kron3c(states_).T)
 
         if self.has_inputs:             # Linear input term.
-            if inputs.ndim == 1 and (self.m is None or self.m == 1):
-                inputs = inputs.reshape((1,-1))
-                self.m = 1
-            D.append(inputs.T)
+            D.append(np.atleast_2d(inputs).T)
 
         return np.hstack(D)
 
@@ -179,78 +183,69 @@ class _InferredMixin:
 
         return
 
-    def _construct_solver(self, basis, states, rhs, inputs, P):
-        """Construct a solver object mapping the regularizer P to solutions
+    def _construct_solver(self, basis, states, rhs, inputs, regularizer):
+        """Construct a solver object mapping the regularizer to solutions
         of the Operator Inference least-squares problem.
 
         Parameters
         ----------
         basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
-            If None, states and rhs are assumed to already be projected (r,k).
-
+            If None, states and rhs are assumed to already be projected.
         states : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-
         rhs : (n,k) or (r,k) ndarray
             Column-wise next-iteration (discrete model) or time derivative
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
-
         inputs : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-
-        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+        regularizer : float >= 0, (d,d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB". This parameter is used here
             only to determine the correct type of solver.
         """
-        states_, rhs_, inputs = self._process_fit_arguments(basis, states,
-                                                            rhs, inputs)
+        states_, rhs_ = self._process_fit_arguments(basis, states, rhs, inputs)
         D = self._assemble_data_matrix(states_, inputs)
-        self.solver_ = lstsq.solver(D, rhs_.T, P)
+        self.solver_ = lstsq.solver(D, rhs_.T, regularizer)
 
-    def _evaluate_solver(self, P):
-        """Evaluate the least-squares solver with regularizer P.
+    def _evaluate_solver(self, regularizer):
+        """Evaluate the least-squares solver with the given regularizer.
 
         Parameters
         ----------
-        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+        regularizer : float >= 0, (d,d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
         """
-        OhatT = self.solver_.predict(P)
+        OhatT = self.solver_.predict(regularizer)
         self._extract_operators(np.atleast_2d(OhatT.T))
 
-    def fit(self, basis, states, rhs, inputs, P):
+    def fit(self, basis, states, rhs, inputs, regularizer):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
         ----------
         basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
-            If None, states and rhs are assumed to already be projected (r,k).
-
+            If None, states and rhs are assumed to already be projected.
         states : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-
         rhs : (n,k) or (r,k) ndarray
             Column-wise next-iteration (discrete model) or time derivative
             (continuous model) training data. Each column is a snapshot, and
             either full order (n rows) or projected to reduced order (r rows).
-
         inputs : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-
-        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+        regularizer : float >= 0, (d,d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
@@ -259,8 +254,8 @@ class _InferredMixin:
         -------
         self
         """
-        self._construct_solver(basis, states, rhs, inputs, P)
-        self._evaluate_solver(P)
+        self._construct_solver(basis, states, rhs, inputs, regularizer)
+        self._evaluate_solver(regularizer)
         return self
 
 
@@ -287,7 +282,7 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
     """
-    def fit(self, basis, states, inputs=None, P=0):
+    def fit(self, basis, states, nextstates=None, inputs=None, regularizer=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
@@ -295,17 +290,20 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
             If None, states is assumed to already be projected (r,k).
-
         states : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-
-        inputs : (m,k-1) or (k-1,) ndarray or None
+        nextstates : (n,k) or (r,k) ndarray or None
+            Column-wise snapshot training data corresponding to the next
+            iteration of the state snapshots, i.e.,
+            F(states[:,j]) = nextstates[:,j] where F is the full-order model.
+            If None, assume state j+1 is the iteration after state j, i.e.,
+            F(states[:,j]) = states[:,j+1].
+        inputs : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-
-        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+        regularizer : float >= 0, (d,d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
@@ -314,10 +312,13 @@ class InferredDiscreteROM(_InferredMixin, _NonparametricMixin, _DiscreteROM):
         -------
         self
         """
+        if nextstates is None:
+            nextstates = states[:,1:]
+            states = states[:,:-1]
         if inputs is not None:
-            inputs = inputs[...,:(states.shape[1] - 1)]
-        return _InferredMixin.fit(self, basis, states[:,:-1], states[:,1:],
-                                  inputs, P)
+            inputs = inputs[...,:states.shape[1]]
+        return _InferredMixin.fit(self, basis,
+                                  states, nextstates, inputs, regularizer)
 
 
 class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
@@ -342,30 +343,26 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         'B' : Input term Bu(t).
         For example, modelform=="AB" means f(t,x(t),u(t)) = Ax(t) + Bu(t).
     """
-    def fit(self, basis, states, Xdot, inputs=None, P=0):
+    def fit(self, basis, states, ddts, inputs=None, regularizer=0):
         """Solve for the reduced model operators via ordinary least squares.
 
         Parameters
         ----------
         basis : (n,r) ndarray or None
             The basis for the linear reduced space (e.g., POD basis matrix).
-            If None, states and Xdot are assumed to already be projected (r,k).
-
+            If None, states and ddts are assumed to already be projected (r,k).
         states : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-
-        Xdot : (n,k) or (r,k) ndarray
+        ddts : (n,k) or (r,k) ndarray
             Column-wise time derivative training data (each column is a
             snapshot), either full order (n rows) or projected to reduced
             order (r rows).
-
         inputs : (m,k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-
-        P : float >= 0 or (d,d) ndarray or list of r (floats or (d,d) ndarrays)
+        regularizer : float >= 0 or (d,d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
@@ -374,4 +371,5 @@ class InferredContinuousROM(_InferredMixin, _NonparametricMixin,
         -------
         self
         """
-        return _InferredMixin.fit(self, basis, states, Xdot, inputs, P)
+        return _InferredMixin.fit(self, basis,
+                                  states, ddts, inputs, regularizer)

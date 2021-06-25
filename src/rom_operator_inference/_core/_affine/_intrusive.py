@@ -121,7 +121,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
         Parameters
         ----------
         basis : (n,r) ndarray
-            The basis for the linear reduced space (e.g., POD basis matrix).
+            Basis for the linear reduced space (e.g., POD basis matrix).
             This cannot be set to None, as it is required for projection.
 
         affines : dict(str -> list(callables))
@@ -136,7 +136,7 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
             c(µ) = θ1(µ)c1 + θ2(µ)c2 + θ3(µ)c3, then 'c' -> [θ1, θ2, θ3].
 
         operators: dict(str -> ndarray or list(ndarrays))
-            The operators that define the full-order model f(t,x;µ).
+            Operators that define the full-order model f(t,x;µ).
             Keys must match the modelform:
             * 'c': Constant term c(µ).
             * 'A': Linear state matrix A(µ).
@@ -172,7 +172,7 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
     Parameters
     ----------
     modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
+        Structure of the desired reduced-order model. Each character
         indicates the presence of a different term in the model:
         'c' : Constant term c
         'A' : Linear state term Ax.
@@ -181,7 +181,7 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
         'B' : Input term Bu.
         For example, modelform=="AB" means f(x,u) = Ax + Bu.
     """
-    def predict(self, µ, x0, niters, U=None):
+    def predict(self, µ, x0, niters, inputs=None):
         """Construct a ROM for the parameter µ by exploiting the affine
         structure of the ROM operators, then step the resulting ROM forward
         `niters` steps.
@@ -189,25 +189,25 @@ class AffineIntrusiveDiscreteROM(_AffineIntrusiveMixin, _DiscreteROM):
         Parameters
         ----------
         µ : (p,) ndarray
-            The parameter of interest for the prediction.
+            Parameter of interest for the prediction.
 
         x0 : (n,) or (r,) ndarray
-            The initial state vector, either full order (n-vector) or projected
+            Initial state vector, either full order (n-vector) or projected
             to reduced order (r-vector).
 
         niters : int
-            The number of times to step the system forward.
+            Number of times to step the system forward.
 
-        U : (m,niters-1) ndarray
-            The inputs for the next niters-1 time steps.
+        inputs : (m,niters-1) ndarray
+            Inputs for the next niters-1 time steps.
 
         Returns
         -------
         X_ROM : (n,niters) ndarray
-            The approximate solutions to the full-order system, including the
+            Approximate solutions to the full-order system, including the
             given initial condition.
         """
-        return self(µ).predict(x0, niters, U)
+        return self(µ).predict(x0, niters, inputs)
 
 
 class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
@@ -225,7 +225,7 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
     Parameters
     ----------
     modelform : str containing 'c', 'A', 'H', and/or 'B'
-        The structure of the desired reduced-order model. Each character
+        Structure of the desired reduced-order model. Each character
         indicates the presence of a different term in the model:
         * 'c' : Constant term c(µ).
         * 'A' : Linear state term A(µ)x(t).
@@ -234,7 +234,7 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
         * 'B' : Linear input term B(µ)u(t).
         For example, modelform=="cA" means f(t, x(t); µ) = c(µ) + A(µ)x(t;µ).
     """
-    def predict(self, µ, x0, t, u=None, **options):
+    def predict(self, µ, x0, t, input_func=None, **options):
         """Construct a ROM for the parameter µ by exploiting the affine
         structure of the ROM operators, then simulate the resulting ROM with
         scipy.integrate.solve_ivp().
@@ -242,24 +242,24 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
         Parameters
         ----------
         µ : (p,) ndarray
-            The parameter of interest for the prediction.
+            Parameter of interest for the prediction.
 
         x0 : (n,) or (r,) ndarray
-            The initial state vector, either full order (n-vector) or projected
+            Initial state vector, either full order (n-vector) or projected
             to reduced order (r-vector).
 
         t : (nt,) ndarray
-            The time domain over which to integrate the reduced-order system.
+            Time domain over which to integrate the reduced-order system.
 
-        u : callable or (m,nt) ndarray
-            The input as a function of time (preferred) or the input at the
+        input_func : callable or (m,nt) ndarray
+            Input as a function of time (preferred) or the input at the
             times `t`. If given as an array, u(t) is approximated by a cubic
             spline interpolating the known data points.
 
         options
             Arguments for solver.integrate.solve_ivp(), such as the following:
             method : str
-                The ODE solver for the reduced-order system.
+                ODE solver for the reduced-order system.
                 * 'RK45' (default): Explicit Runge-Kutta method of order 5(4).
                 * 'RK23': Explicit Runge-Kutta method of order 3(2).
                 * 'Radau': Implicit Runge-Kutta method of the Radau IIA family
@@ -270,15 +270,15 @@ class AffineIntrusiveContinuousROM(_AffineIntrusiveMixin, _ContinuousROM):
                 * 'LSODA': Adams/BDF method with automatic stiffness detection
                     and switching. This wraps the Fortran solver from ODEPACK.
             max_step : float
-                The maximimum allowed integration step size.
+                Maximimum allowed integration step size.
             See https://docs.scipy.org/doc/scipy/reference/integrate.html.
 
         Returns
         -------
         X_ROM : (n,nt) ndarray
-            The reduced-order approximation to the full-order system over `t`.
+            Reduced-order approximation to the full-order system over `t`.
         """
         model = self(µ)
-        out = model.predict(x0, t, u, **options)
+        out = model.predict(x0, t, input_func, **options)
         self.sol_ = model.sol_
         return out

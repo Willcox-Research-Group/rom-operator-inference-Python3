@@ -42,8 +42,7 @@ class TestInterpolatedInferredDiscreteROM:
         # Try with bad number of Xs.
         with pytest.raises(ValueError) as ex:
             rom.fit(basis, ps, [X1, X2, X2+1])
-        assert ex.value.args[0] == "num parameter samples != num state " \
-                                   "snapshot training sets (2 != 3)"
+        assert ex.value.args[0] == "len(states) = 3 != 2 = len(params)"
 
         # Fit correctly with no inputs.
         rom.modelform = "cAH"
@@ -54,13 +53,12 @@ class TestInterpolatedInferredDiscreteROM:
 
         # Fit correctly with inputs.
         rom.modelform = "cAHGB"
-        rom.fit(basis, ps, Xs, Us)
-
+        rom.fit(basis, ps, Xs, inputs=Us)
         assert len(rom) == len(ps)
 
-        # Test again with basis = None and projected inputs.
+        # Test again with basis=None and projected inputs.
         Xs_ = [basis.T @ X for X in Xs]
-        rom.fit(None, ps, Xs_, Us)
+        rom.fit(None, ps, Xs_, inputs=Us)
         assert len(rom) == len(ps)
         assert rom.basis is None
         assert rom.n is None
@@ -92,7 +90,7 @@ class TestInterpolatedInferredDiscreteROM:
 
         # Fit / predict with inputs.
         rom.modelform = "cAHB"
-        rom.fit(basis, ps, Xs, Us)
+        rom.fit(basis, ps, Xs, inputs=Us)
         rom.predict(1, x0, niters, U)
         rom.predict(1.5, x0, niters, U)
 
@@ -124,14 +122,12 @@ class TestInterpolatedInferredContinuousROM:
         # Try with bad number of Xs.
         with pytest.raises(ValueError) as ex:
             rom.fit(basis, ps, [X1, X2, X2+1], Xdots)
-        assert ex.value.args[0] == "num parameter samples != num state " \
-                                   "snapshot training sets (2 != 3)"
+        assert ex.value.args[0] == "len(states) = 3 != 2 = len(params)"
 
         # Try with bad number of Xdots.
         with pytest.raises(ValueError) as ex:
             rom.fit(basis, ps, Xs, Xdots + [Xdot1])
-        assert ex.value.args[0] == "num parameter samples != num time " \
-                                   "derivative training sets (2 != 3)"
+        assert ex.value.args[0] == "len(ddts) = 3 != 2 = len(params)"
 
         # Fit correctly with no inputs.
         rom.modelform = "cAH"
@@ -148,7 +144,7 @@ class TestInterpolatedInferredContinuousROM:
         # Test again with basis = None and projected inputs.
         Xs_ = [basis.T @ X for X in Xs]
         Xdots_ = [basis.T @ Xdot for Xdot in Xdots]
-        rom.fit(None, ps, Xs_, Xdots_, Us)
+        rom.fit(None, ps, Xs_, Xdots_, inputs=Us)
         assert len(rom) == len(ps)
         assert rom.basis is None
         assert rom.n is None

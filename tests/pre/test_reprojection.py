@@ -46,7 +46,7 @@ def test_reproject_discrete(n=50, m=5, r=3):
         return A @ x + B1d * u
     X_ = opinf.pre.reproject_discrete(f, basis, x0, k, U1d)
     assert X_.shape == (r,k)
-    rom = opinf.InferredDiscreteROM("AB").fit(basis, X_, U1d)
+    rom = opinf.InferredDiscreteROM("AB").fit(basis, X_, inputs=U1d)
     assert np.allclose(X_, basis.T @ rom.predict(X_[:,0], k, U1d))
     assert np.allclose(rom.A_, basis.T @ A @ basis)
     assert np.allclose(rom.B_.flatten(), basis.T @ B1d)
@@ -56,7 +56,7 @@ def test_reproject_discrete(n=50, m=5, r=3):
         return A @ x + B @ u
     X_ = opinf.pre.reproject_discrete(f, basis, x0, k, U)
     assert X_.shape == (r,k)
-    rom = opinf.InferredDiscreteROM("AB").fit(basis, X_, U)
+    rom = opinf.InferredDiscreteROM("AB").fit(basis, X_, inputs=U)
     assert np.allclose(X_, basis.T @ rom.predict(X_[:,0], k, U))
     assert np.allclose(rom.A_, basis.T @ A @ basis)
     assert np.allclose(rom.B_, basis.T @ B)

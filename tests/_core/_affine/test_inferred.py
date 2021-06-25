@@ -71,23 +71,19 @@ class TestAffineInferredMixin:
         model = self.Dummy("cAHGB")
         with pytest.raises(ValueError) as ex:
             model._process_fit_arguments(basis, µs, affines, Xs[:-1], rhss, Us)
-        assert ex.value.args[0] == \
-            "num parameter samples != num state snapshot training sets " \
-            f"({s} != {s-1})"
+        assert ex.value.args[0] == f"len(states) = {s-1} != {s} = len(params)"
 
         with pytest.raises(ValueError) as ex:
             model._process_fit_arguments(basis, µs, affines, Xs, rhss[:-2], Us)
-        assert ex.value.args[0] == \
-            f"num parameter samples != num rhs training sets ({s} != {s-2})"
+        assert ex.value.args[0] == f"len(rhs) = {s-2} != {s} = len(params)"
 
         with pytest.raises(ValueError) as ex:
             model._process_fit_arguments(basis, µs, affines, Xs, rhss, Us[:-3])
-        assert ex.value.args[0] == \
-            f"num parameter samples != num input training sets ({s} != {s-3})"
+        assert ex.value.args[0] == f"len(inputs) = {s-3} != {s} = len(params)"
 
         # With basis and input.
-        Xs_, rhss_, Us_ = model._process_fit_arguments(basis, µs, affines,
-                                                       Xs, rhss, Us)
+        Xs_, rhss_ = model._process_fit_arguments(basis, µs, affines,
+                                                  Xs, rhss, Us)
         assert model.n == n
         assert model.r == r
         assert model.basis is basis
@@ -96,11 +92,10 @@ class TestAffineInferredMixin:
             assert np.allclose(X_, basis.T @ X)
         for rhs, rhs_ in zip(rhss, rhss_):
             assert np.allclose(rhs_, basis.T @ rhs)
-        assert Us_ is Us
 
         # Without basis and with a one-dimensional input.
-        Xs_, rhss_, Us_ = model._process_fit_arguments(None, µs, affines,
-                                                       Xs, rhss, Us1d)
+        Xs_, rhss_ = model._process_fit_arguments(None, µs, affines,
+                                                  Xs, rhss, Us1d)
         assert model.n is None
         assert model.r == n
         assert model.basis is None
@@ -109,15 +104,12 @@ class TestAffineInferredMixin:
             assert np.all(X_ == X)
         for rhs, rhs_ in zip(rhss, rhss_):
             assert np.all(rhs_ == rhs)
-        for U, U_ in zip(Us1d, Us_):
-            assert U_.shape == (1,k)
-            assert np.all(U_.reshape(-1) == U)
 
         # With basis and no input.
         model = self.Dummy("cAHG")
         affs = {key:val for key,val in affines.items() if key != "B"}
-        Xs_, rhss_, Us_ = model._process_fit_arguments(basis, µs, affs,
-                                                       Xs, rhss, None)
+        Xs_, rhss_ = model._process_fit_arguments(basis, µs, affs,
+                                                  Xs, rhss, None)
         assert model.n == n
         assert model.r == r
         assert model.basis is basis
@@ -126,7 +118,6 @@ class TestAffineInferredMixin:
             assert np.allclose(X_, basis.T @ X)
         for rhs, rhs_ in zip(rhss, rhss_):
             assert np.allclose(rhs_, basis.T @ rhs)
-        assert Us_ is None
 
     def test_assemble_data_matrix(self):
         """Test _core._affine._inferred.

@@ -24,45 +24,59 @@ class TestInferredMixin:
         """
         # Get test data.
         k, m, r = 50, 20, 10
-        X, Xdot, U = _get_data(r, k, m)
+        X, dX, U = _get_data(r, k, m)
         model = self.Dummy("A")
         model.r = r
-        labels = ["states", "Xdot", "inputs"]
+
+        def _test(args, message):
+            with pytest.raises(ValueError) as ex:
+                model._check_training_data_shapes(args)
+            assert ex.value.args[0] == message
 
         # Try to fit the model with a single snapshot.
-        with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes([X[:,0], Xdot[:,0]], labels[:2])
-        assert ex.value.args[0] == "states must be two-dimensional"
+        args = [(X[:,0], "states"), (dX, "dX")]
+        _test(args, "states must be two-dimensional")
 
-        # Try to fit the model with misaligned X and Xdot.
-        with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes([X, Xdot[:,1:-1]], labels[:2])
-        assert ex.value.args[0] == \
-            "training data not aligned (Xdot.shape[1] != states.shape[1])"
+        # Try to fit the model with misaligned X and dX.
+        args = [(X, "staaates"), (dX[:,1:-1], "dXs")]
+        _test(args, f"dXs.shape[-1] = {k-2:d} != {k:d} = staaates.shape[-1]")
 
         # Try to fit the model with misaligned X and U.
         model.modelform = "AB"
         model.r, model.m = r, m
-        with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes([X, Xdot, U[:,:-1]], labels)
-        assert ex.value.args[0] == \
-            "training data not aligned (inputs.shape[1] != states.shape[1])"
+        args = [(X, "states"), (dX, "dX"), (U[:,1:-1], "inputs")]
+        _test(args, f"inputs.shape[-1] = {k-2:d} != {k} = states.shape[-1]")
 
-        # Try with misaligned inputs (bad number of rows).
-        with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes([X[:-1,:], Xdot, U], labels)
-        assert ex.value.args[0] == \
-            f"invalid training set (states.shape[0] != n=None or r={r})"
+        # Try with bad number of rows in states.
+        args = [(X[:-1,:], "states"), (dX, "dX"), (U, "inputs")]
+        _test(args, f"states.shape[0] != n or r (n=None, r={r})")
 
-        with pytest.raises(ValueError) as ex:
-            model._check_training_data_shapes([X, Xdot, U[:-1,:]], labels)
-        assert ex.value.args[0] == \
-            f"invalid training input (inputs.shape[0] != m={m})"
+        # Try with one-dimensional inputs when not allowed.
+        model.m = 2
+        args = [(X, "states"), (dX, "dX"), (U[:,0], "inputs")]
+        _test(args, "inputs must be two-dimensional (m > 1)")
+
+        # Try with bad number of rows in inputs.
+        model.m = m
+        args = [(X, "states"), (dX, "dX"), (U[:-1,:], "inputs")]
+        _test(args, f"inputs.shape[0] = {m-1} != {m} = m")
+
+        # Try with bad dimension in inputs with m = 1.
+        model.m = 1
+        args = [(U.reshape(1,1,-1), "inputs")]
+        _test(args, "inputs must be one- or two-dimensional (m = 1)")
+
+        # Try with bad two-dimensional inputs with m = 1.
+        model.m = 1
+        args = [(U.reshape(-1,1), "inputs")]
+        _test(args, "inputs.shape != (1,k) (m = 1)")
 
         # Correct usage.
-        model._check_training_data_shapes([X, Xdot], ["states", "Xdot"])
-        model._check_training_data_shapes([X, Xdot, U],
-                                          ["states", "Xdot", "inputs"])
+        args = [(X, "states"), (dX, "dX")]
+        model._check_training_data_shapes(args)
+        args.append((U, "inputs"))
+        model.m = m
+        model._check_training_data_shapes(args)
 
     def test_process_fit_arguments(self, n=60, k=500, m=20, r=10):
         """Test _core._inferred._InferredMixin._process_fit_arguments()."""
@@ -73,37 +87,33 @@ class TestInferredMixin:
 
         # With basis and input.
         model = self.Dummy("AB")
-        X_, rhs_, U_ = model._process_fit_arguments(basis, X, rhs, U)
+        X_, rhs_ = model._process_fit_arguments(basis, X, rhs, U)
         assert model.n == n
         assert model.r == r
         assert model.basis is basis
         assert model.m == m
         assert np.allclose(X_, basis.T @ X)
         assert np.allclose(rhs_, basis.T @ rhs)
-        assert U_ is U
 
         # Without basis and with a one-dimensional input.
         model.modelform = "cHB"
-        X_, rhs_, U_ = model._process_fit_arguments(None, X, rhs, U1d)
+        X_, rhs_ = model._process_fit_arguments(None, X, rhs, U1d)
         assert model.n is None
         assert model.r == n
         assert model.basis is None
         assert model.m == 1
         assert X_ is X
         assert rhs_ is rhs
-        assert U_.shape == (1,k)
-        assert np.allclose(U_.reshape(-1), U)
 
         # With basis and no input.
         model.modelform = "cA"
-        X_, rhs_, U_ = model._process_fit_arguments(basis, X, rhs, None)
+        X_, rhs_ = model._process_fit_arguments(basis, X, rhs, None)
         assert model.n == n
         assert model.r == r
         assert model.basis is basis
         assert model.m == 0
         assert np.allclose(X_, basis.T @ X)
         assert np.allclose(rhs_, basis.T @ rhs)
-        assert U_ is None
 
     def test_assemble_data_matrix(self, k=500, m=20, r=10):
         """Test _core._inferred._InferredMixin._assemble_data_matrix()."""
@@ -191,11 +201,11 @@ class TestInferredMixin:
             model.modelform = form
             if "B" in form:
                 # Two-dimensional inputs.
-                model.fit(basis, *args_n, U)        # With basis.
-                model.fit(None, *args_r, U)         # Without basis.
+                model.fit(basis, *args_n, inputs=U)        # With basis.
+                model.fit(None, *args_r, inputs=U)         # Without basis.
                 # One-dimensional inputs.
-                model.fit(basis, *args_n, U1d)      # With basis.
-                model.fit(None, *args_r, U1d)       # Without basis.
+                model.fit(basis, *args_n, inputs=U1d)      # With basis.
+                model.fit(None, *args_r, inputs=U1d)       # Without basis.
             else:
                 # No inputs.
                 model.fit(basis, *args_n)           # With basis.
