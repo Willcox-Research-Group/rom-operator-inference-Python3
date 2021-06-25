@@ -5,18 +5,16 @@ __all__ = [
             "pod_basis",
             "svdval_decay",
             "cumulative_energy",
+            "residual_energy",
             "projection_error",
             "minimal_projection_error",
-            # DEPRECATIONS:
-            "significant_svdvals",
-            "energy_capture",
           ]
 
 import numpy as np
-from scipy import linalg as la
-from scipy.sparse import linalg as spla
-from sklearn.utils import extmath as sklmath
-from matplotlib import pyplot as plt
+import scipy. linalg as la
+import scipy.sparse.linalg as spla
+import sklearn.utils.extmath as sklmath
+import matplotlib.pyplot as plt
 
 
 # Basis computation ===========================================================
@@ -29,13 +27,11 @@ def pod_basis(states, r=None, mode="dense", **options):
     ----------
     states : (n,k) ndarray
         A matrix of k snapshots. Each column is a single snapshot.
-
     r : int
-        The number of POD basis vectors and singular values to compute.
+        Number of POD basis vectors and singular values to compute.
         If None (default), compute the full SVD.
-
     mode : str
-        The strategy to use for computing the truncated SVD of states. Options:
+        Strategy to use for computing the truncated SVD of states. Options:
         * "dense" (default): Use scipy.linalg.svd() to compute the SVD.
             May be inefficient or intractable for very large matrices.
         * "sparse": Use scipy.sparse.linalg.svds() to compute the SVD.
@@ -44,7 +40,6 @@ def pod_basis(states, r=None, mode="dense", **options):
         * "randomized": Compute an approximate SVD with a randomized approach
             using sklearn.utils.extmath.randomized_svd(). This gives faster
             results at the cost of some accuracy.
-
     options
         Additional parameters for the SVD solver, which depends on `mode`:
         * "dense": scipy.linalg.svd()
@@ -55,7 +50,6 @@ def pod_basis(states, r=None, mode="dense", **options):
     -------
     basis : (n,r) ndarray
         First r POD basis vectors. Each column is one basis vector.
-
     svdvals : (r,) ndarray
         First r singular values (highest magnitute first).
     """
@@ -100,20 +94,21 @@ def pod_basis(states, r=None, mode="dense", **options):
 
 
 # Reduced dimension selection =================================================
-def svdval_decay(singular_values, eps, plot=False):
-    """Count the number of singular values that are greater than eps.
+def svdval_decay(singular_values, tol, plot=False, ax=None):
+    """Count the number of singular values that are greater than tol.
 
     Parameters
     ----------
     singular_values : (n,) ndarray
         Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
-
-    eps : float or list(float)
+    tol : float or list(float)
         Cutoff value(s) for the singular values.
-
     plot : bool
         If True, plot the singular values and the cutoff value(s) against the
         singular value index.
+    ax : plt.Axes or None
+        Matplotlib Axes to plot the results on if plot = True.
+        If not given, a new single-axes figure is created.
 
     Returns
     -------
@@ -121,31 +116,31 @@ def svdval_decay(singular_values, eps, plot=False):
         The number of singular values greater than the cutoff value(s).
     """
     # Calculate the number of singular values above the cutoff value(s).
-    one_eps = np.isscalar(eps)
-    if one_eps:
-        eps = [eps]
+    one_tol = np.isscalar(tol)
+    if one_tol:
+        tol = [tol]
     singular_values = np.array(singular_values)
-    ranks = [np.count_nonzero(singular_values > ep) for ep in eps]
+    ranks = [np.count_nonzero(singular_values > ε) for ε in tol]
 
     if plot:
         # Visualize singular values and cutoff value(s).
-        ax = plt.gca()
+        if ax is None:
+            ax = plt.figure().add_subplot(111)
         j = np.arange(1, singular_values.size + 1)
         ax.semilogy(j, singular_values, 'C0*', ms=10, mew=0, zorder=3)
         ax.set_xlim((0,j.size))
         ylim = ax.get_ylim()
-        for ep,r in zip(eps, ranks):
-            ax.hlines(ep, 0, r, color="black", linewidth=.5, alpha=.75)
-            ax.vlines(r, ylim[0], singular_values[r-1] if r > 0 else ep,
-                      color="black", linewidth=.5, alpha=.75)
+        for ε,r in zip(tol, ranks):
+            ax.axhline(ε, color="black", linewidth=.5, alpha=.75)
+            ax.axvline(r, color="black", linewidth=.5, alpha=.75)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index $j$")
         ax.set_ylabel(r"Singular value $\sigma_j$")
 
-    return ranks[0] if one_eps else ranks
+    return ranks[0] if one_tol else ranks
 
 
-def cumulative_energy(singular_values, thresh, plot=False):
+def cumulative_energy(singular_values, thresh, plot=False, ax=None):
     """Compute the number of singular values needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
@@ -155,13 +150,14 @@ def cumulative_energy(singular_values, thresh, plot=False):
     ----------
     singular_values : (n,) ndarray
         Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
-
     thresh : float or list(float)
         Energy capture threshold(s).
-
     plot : bool
         If True, plot the singular values and the cumulative energy against
         the singular value index (linear scale).
+    ax : plt.Axes or None
+        Matplotlib Axes to plot the results on if plot = True.
+        If not given, a new single-axes figure is created.
 
     Returns
     -------
@@ -170,31 +166,81 @@ def cumulative_energy(singular_values, thresh, plot=False):
         energy capture threshold.
     """
     # Calculate the cumulative energy.
-    svdvals2 = np.array(singular_values)**2
+    svdvals2 = np.sort(singular_values)[::-1]**2
     cum_energy = np.cumsum(svdvals2) / np.sum(svdvals2)
 
     # Determine the points at which the cumulative energy passes the threshold.
     one_thresh = np.isscalar(thresh)
     if one_thresh:
         thresh = [thresh]
-    ranks = [np.searchsorted(cum_energy, th) + 1 for th in thresh]
+    ranks = [int(np.searchsorted(cum_energy, ξ)) + 1 for ξ in thresh]
 
     if plot:
         # Visualize cumulative energy and threshold value(s).
-        ax = plt.gca()
+        if ax is None:
+            ax = plt.figure().add_subplot(111)
         j = np.arange(1, singular_values.size + 1)
         ax.plot(j, cum_energy, 'C2.-', ms=10, lw=1, zorder=3)
         ax.set_xlim(0, j.size)
-        ylim = ax.get_ylim()
-        for th,r in zip(thresh, ranks):
-            ax.hlines(th, 0, r, color="black", linewidth=.5, alpha=.5)
-            ax.vlines(r, ylim[0], cum_energy[r-1] if r > 0 else th,
-                      color="black", linewidth=.5, alpha=.5)
-        ax.set_ylim(ylim)
+        for ξ,r in zip(thresh, ranks):
+            ax.axhline(ξ, color="black", linewidth=.5, alpha=.5)
+            ax.axvline(r, color="black", linewidth=.5, alpha=.5)
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Cumulative energy")
 
     return ranks[0] if one_thresh else ranks
+
+
+def residual_energy(singular_values, tol, plot=False, ax=None):
+    """Compute the number of singular values needed such that the residual
+    energy drops beneath the given tolerance. The residual energy of j
+    singular values is defined by
+
+        residual_j = 1 - sum(singular_values[:j]**2) / sum(singular_values**2).
+
+    Parameters
+    ----------
+    singular_values : (n,) ndarray
+        Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
+    tol : float or list(float)
+        Energy residual tolerance(s).
+    plot : bool
+        If True, plot the singular values and the residual energy against
+        the singular value index (log scale).
+    ax : plt.Axes or None
+        Matplotlib Axes to plot the results on if plot = True.
+        If not given, a new single-axes figure is created.
+
+    Returns
+    -------
+    ranks : int or list(int)
+        Number of singular values required to for the residual energy to drop
+        beneath each tolerance.
+    """
+    # Calculate the cumulative energy.
+    svdvals2 = np.sort(singular_values)[::-1]**2
+    res_energy = 1 - (np.cumsum(svdvals2) / np.sum(svdvals2))
+
+    # Determine the points when the residual energy dips under the tolerance.
+    one_tol = np.isscalar(tol)
+    if one_tol:
+        tol = [tol]
+    ranks = [np.count_nonzero(res_energy > ε) + 1 for ε in tol]
+
+    if plot:
+        # Visualize residual energy and tolerance value(s).
+        if ax is None:
+            ax = plt.figure().add_subplot(111)
+        j = np.arange(1, singular_values.size + 1)
+        ax.semilogy(j, res_energy, 'C1.-', ms=10, lw=1, zorder=3)
+        ax.set_xlim(0, j.size)
+        for ε,r in zip(tol, ranks):
+            ax.axhline(ε, color="black", linewidth=.5, alpha=.5)
+            ax.axvline(r, color="black", linewidth=.5, alpha=.5)
+        ax.set_xlabel(r"Singular value index")
+        ax.set_ylabel(r"Residual energy")
+
+    return ranks[0] if one_tol else ranks
 
 
 def projection_error(states, basis):
@@ -205,9 +251,8 @@ def projection_error(states, basis):
     Parameters
     ----------
     states : (n,k) or (k,) ndarray
-        A 2D matrix of k snapshots where each column is a single snapshot, or a
+        Matrix of k snapshots where each column is a single snapshot, or a
         single 1D snapshot. If 2D, use the Frobenius norm; if 1D, the l2 norm.
-
     basis : (n,r) ndarray
         Basis of rank r. Each column is one basis vector.
 
@@ -219,9 +264,9 @@ def projection_error(states, basis):
     return la.norm(states - basis @ basis.T @ states) / la.norm(states)
 
 
-def minimal_projection_error(states, basis, eps, plot=False):
+def minimal_projection_error(states, basis, tol, plot=False, ax=None):
     """Compute the number of POD basis vectors required to obtain a projection
-    error less than eps. The projection error on the states X induced by the
+    error less than tol. The projection error on the states X induced by the
     basis Vr is defined by
 
         err = ||X - Vr Vr^T X||_F / ||X||_F.
@@ -229,15 +274,12 @@ def minimal_projection_error(states, basis, eps, plot=False):
     Parameters
     ----------
     states : (n,k) ndarray
-        A matrix of k snapshots. Each column is a single snapshot.
-
+        Matrix of k snapshots. Each column is a single snapshot.
     basis : (n,rmax) ndarray
         First rmax POD basis vectors. Each column is one basis vector.
         The projection error is calculated with Vr = basis[:,:r] for r <= rmax.
-
-    eps : float or list(float)
+    tol : float or list(float)
         Cutoff value(s) for the projection error.
-
     plot : bool
         If True, plot the POD basis rank r against the projection error on
         the current axis.
@@ -245,7 +287,7 @@ def minimal_projection_error(states, basis, eps, plot=False):
     Returns
     -------
     ranks : int or list(int)
-        The number of POD basis vectors required to obtain a projection error
+        Number of POD basis vectors required to obtain a projection error
         less than each cutoff value.
     """
     # Check dimensions.
@@ -253,9 +295,9 @@ def minimal_projection_error(states, basis, eps, plot=False):
         raise ValueError("states must be two-dimensional")
     if basis.ndim != 2:
         raise ValueError("basis must be two-dimensional")
-    one_eps = np.isscalar(eps)
-    if one_eps:
-        eps = [eps]
+    one_tol = np.isscalar(tol)
+    if one_tol:
+        tol = [tol]
 
     # Calculate the projection errors.
     X_norm = la.norm(states, ord="fro")
@@ -266,40 +308,19 @@ def minimal_projection_error(states, basis, eps, plot=False):
         Vr = basis[:,:r]
         errors[r-1] = la.norm(states - Vr @ Vr.T @ states, ord="fro") / X_norm
     # Calculate the ranks needed to get under each cutoff value.
-    ranks = [np.count_nonzero(errors > ep)+1 for ep in eps]
+    ranks = [np.count_nonzero(errors > ε)+1 for ε in tol]
 
     if plot:
-        ax = plt.gca()
+        if ax is None:
+            ax = plt.figure().add_subplot(111)
         ax.semilogy(rs, errors, 'C1.-', ms=4, zorder=3)
         ax.set_xlim((0,rs.size))
         ylim = ax.get_ylim()
-        for ep,r in zip(eps, ranks):
-            ax.hlines(ep, 0, r+1, color="black", linewidth=1)
-            ax.vlines(r, ylim[0], ep, color="black", linewidth=1)
+        for ε,r in zip(tol, ranks):
+            ax.axhline(ε, color="black", linewidth=.5, alpha=.5)
+            ax.axvline(r, color="black", linewidth=.5, alpha=.5)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"POD basis rank $r$")
         ax.set_ylabel(r"Projection error")
 
-    return ranks[0] if one_eps else ranks
-
-
-# DEPRECATIONS ================================================================
-
-def significant_svdvals(*args, **kwargs):       # pragma nocover
-    np.warnings.warn("significant_svdvals() has been renamed svdval_decay()",
-                     DeprecationWarning, stacklevel=1)
-    return svdval_decay(*args, **kwargs)
-
-
-significant_svdvals.__doc__ = "\nDEPRECATED! use svdval_decay().\n\n" \
-                        + svdval_decay.__doc__
-
-
-def energy_capture(*args, **kwargs):            # pragma nocover
-    np.warnings.warn("energy_capture() has been renamed cumulative_energy()",
-                     DeprecationWarning, stacklevel=1)
-    return cumulative_energy(*args, **kwargs)
-
-
-energy_capture.__doc__ = "\nDEPRECATED! use cumulative_energy().\n\n" \
-                        + cumulative_energy.__doc__
+    return ranks[0] if one_tol else ranks

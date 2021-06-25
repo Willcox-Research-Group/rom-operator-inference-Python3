@@ -101,16 +101,25 @@ def test_cumulative_energy(set_up_basis_data):
     """Test pre._basis.cumulative_energy()."""
     X = set_up_basis_data
     svdvals = la.svdvals(X)
+    energy = np.cumsum(svdvals**2)/np.sum(svdvals**2)
+
+    def _test(r, thresh):
+        assert isinstance(r, int)
+        assert r >= 1
+        assert energy[r-1] >= thresh
+        assert np.all(energy[:r-2] < thresh)
 
     # Single threshold.
-    r = opinf.pre.cumulative_energy(svdvals, .9, plot=False)
-    assert isinstance(r, np.int64) and r >= 1
+    thresh = .9
+    r = opinf.pre.cumulative_energy(svdvals, thresh, plot=False)
+    _test(r, thresh)
 
     # Multiple thresholds.
-    rs = opinf.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
+    thresh = [.9, .99, .999]
+    rs = opinf.pre.cumulative_energy(svdvals, thresh, plot=False)
     assert isinstance(rs, list)
-    for r in rs:
-        assert isinstance(r, np.int64) and r >= 1
+    for r,t in zip(rs, thresh):
+        _test(r, t)
     assert rs == sorted(rs)
 
     # Plotting.
@@ -128,6 +137,42 @@ def test_cumulative_energy(set_up_basis_data):
     rs = opinf.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
     assert len(rs) == 3
     assert rs == [1, 2, 3]
+
+
+def test_residual_energy(set_up_basis_data):
+    """Test pre._basis.residual_energy()."""
+    X = set_up_basis_data
+    svdvals = la.svdvals(X)
+    resid = 1 - np.cumsum(svdvals**2)/np.sum(svdvals**2)
+
+    def _test(r, tol):
+        assert isinstance(r, int)
+        assert r >= 1
+        assert resid[r-1] <= tol
+        assert np.all(resid[:r-2] > tol)
+
+    # Single tolerance.
+    tol = 1e-2
+    r = opinf.pre.residual_energy(svdvals, tol, plot=False)
+    _test(r, tol)
+
+    # Multiple tolerances.
+    tols = [1e-2, 1e-4, 1e-6]
+    rs = opinf.pre.residual_energy(svdvals, tols, plot=False)
+    assert isinstance(rs, list)
+    for r,t in zip(rs,tols):
+        _test(r,t)
+    assert rs == sorted(rs)
+
+    # Plotting.
+    status = plt.isinteractive()
+    plt.ion()
+    rs = opinf.pre.residual_energy(svdvals, 1e-3, plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    rs = opinf.pre.cumulative_energy(svdvals, [1e-2, 1e-4, 1e-6], plot=True)
+    assert len(plt.gcf().get_axes()) == 1
+    plt.interactive(status)
+    plt.close("all")
 
 
 def test_projection_error(set_up_basis_data):

@@ -116,7 +116,7 @@ class _InterpolatedInferredMixin(_InferredMixin, _InterpolatedMixin):
         # Select the interpolator based on the parameter dimension.
         if self.p == 1:
             Interpolator = interp.CubicSpline
-        else:
+        else:                                   # pragma: no cover
             print("MODELS TRAINED BUT INTERPOLATION NOT IMPLEMENTED FOR p > 1")
             return self
 
