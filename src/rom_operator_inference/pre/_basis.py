@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 
 # Basis computation ===========================================================
-def pod_basis(states, r=None, mode="dense", **options):
+def pod_basis(states, r=None, mode="dense", return_W=False, **options):
     """Compute the POD basis of rank r corresponding to the states.
     This function does NOT shift or scale data before computing the basis.
     This function is a simple wrapper for various SVD methods.
@@ -40,6 +40,8 @@ def pod_basis(states, r=None, mode="dense", **options):
         * "randomized": Compute an approximate SVD with a randomized approach
             using sklearn.utils.extmath.randomized_svd(). This gives faster
             results at the cost of some accuracy.
+    return_W : bool
+        If True, also return the first r *right* singular vectors.
     options
         Additional parameters for the SVD solver, which depends on `mode`:
         * "dense": scipy.linalg.svd()
@@ -50,8 +52,10 @@ def pod_basis(states, r=None, mode="dense", **options):
     -------
     basis : (n,r) ndarray
         First r POD basis vectors. Each column is one basis vector.
-    svdvals : (r,) ndarray
-        First r singular values (highest magnitute first).
+    svdvals : (n,), (k,), or (r,) ndarray
+        Singular values (highest magnitute first). Always return as many
+        singular values as are calculated: r for mode="randomize", and min(n,k)
+        otherwise.
     """
     # Validate the rank.
     rmax = min(states.shape)
@@ -61,7 +65,7 @@ def pod_basis(states, r=None, mode="dense", **options):
         raise ValueError(f"invalid POD rank r = {r} (need 1 <= r <= {rmax})")
 
     if mode == "dense" or mode == "simple":
-        V, svdvals, _ = la.svd(states, full_matrices=False, **options)
+        V, svdvals, Wt = la.svd(states, full_matrices=False, **options)
 
     elif mode == "sparse" or mode == "arpack":
         get_smallest = False
@@ -70,27 +74,29 @@ def pod_basis(states, r=None, mode="dense", **options):
             get_smallest = True
 
         # Compute all but the last svd vectors / values (maximum allowed)
-        V, svdvals, _ = spla.svds(states, r, which="LM",
-                                  return_singular_vectors='u', **options)
+        V, svdvals, Wt = spla.svds(states, r, which="LM",
+                                   return_singular_vectors='u', **options)
         V = V[:,::-1]
         svdvals = svdvals[::-1]
+        # Wt = TODO
 
         # Get the smallest vector / value separately.
         if get_smallest:
-            V1, smallest, _ = spla.svds(states, 1, which="SM",
+            V1, smallest, W = spla.svds(states, 1, which="SM",
                                         return_singular_vectors='u', **options)
             V = np.concatenate((V, V1), axis=1)
             svdvals = np.concatenate((svdvals, smallest))
             r += 1
 
     elif mode == "randomized":
-        V, svdvals, _ = sklmath.randomized_svd(states, r, **options)
+        V, svdvals, Wt = sklmath.randomized_svd(states, r, **options)
 
     else:
         raise NotImplementedError(f"invalid mode '{mode}'")
 
-    # Return the first 'r' values.
-    return V[:,:r], svdvals[:r]
+    # Return the first 'r' basis vectors and all of the singular values.
+    return V[:,:r], svdvals
+    # TODO: if return_W is True: also return Wt[:r].T or W[:,:r].
 
 
 # Reduced dimension selection =================================================
