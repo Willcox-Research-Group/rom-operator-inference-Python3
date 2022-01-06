@@ -1,3 +1,4 @@
+(sec-preprocessing)=
 # Preprocessing
 
 These sections describe how to preprocess state snapshot data and choose the low-dimensional basis.

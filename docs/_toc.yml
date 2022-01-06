@@ -10,6 +10,7 @@ parts:
     - file: content/opinf/intro.md
     - file: content/opinf/mathematics.md
     - file: content/opinf/notation.md
+    - file: content/opinf/literature.md
     - file: content/opinf/bibliography.md
 
   # How to use the package.
