@@ -11,7 +11,7 @@ import rom_operator_inference as opinf
 
 # Basis computation ===========================================================
 def test_pod_basis(set_up_basis_data):
-    """Test pre._basis.pod_basis() on a small case with the ARPACK solver."""
+    """Test pre._basis.pod_basis()."""
     X = set_up_basis_data
     n,k = X.shape
 
@@ -20,47 +20,51 @@ def test_pod_basis(set_up_basis_data):
     with pytest.raises(ValueError) as exc:
         opinf.pre.pod_basis(X, rmax+1)
     assert exc.value.args[0] == \
-        f"invalid POD rank r = {rmax+1} (need 1 <= r <= {rmax})"
+        f"invalid POD rank r = {rmax+1} (need 1 ≤ r ≤ {rmax})"
 
     with pytest.raises(ValueError) as exc:
         opinf.pre.pod_basis(X, -1)
     assert exc.value.args[0] == \
-        f"invalid POD rank r = -1 (need 1 <= r <= {rmax})"
+        f"invalid POD rank r = -1 (need 1 ≤ r ≤ {rmax})"
 
     # Try with an invalid mode.
     with pytest.raises(NotImplementedError) as exc:
         opinf.pre.pod_basis(X, None, mode="full")
     assert exc.value.args[0] == "invalid mode 'full'"
 
-    U, vals, _ = la.svd(X, full_matrices=False)
+    U, vals, Wt = la.svd(X, full_matrices=False)
     for r in [2, 10, rmax]:
         Ur = U[:,:r]
         vals_r = vals[:r]
+        Wr = Wt[:r,:].T
+        Id = np.eye(r)
 
-        # Via scipy.linalg.svd().
-        basis, svdvals = opinf.pre.pod_basis(X, r, mode="dense")
-        assert basis.shape == (n,r)
-        assert np.allclose(basis, Ur)
-        assert svdvals.shape == (r,)
-        assert np.allclose(svdvals, vals_r)
+        for mode in ("dense", "sparse", "randomized"):
 
-        # Via scipy.sparse.linalg.svds() (ARPACK).
-        basis, svdvals = opinf.pre.pod_basis(X, r, mode="sparse")
-        assert basis.shape == (n,r)
-        for j in range(r):      # Make sure the columns have the same sign.
-            if not np.isclose(Ur[0,j], basis[0,j]):
-                basis[:,j] = -basis[:,j]
-        assert np.allclose(basis, Ur)
-        assert svdvals.shape == (r,)
-        assert np.allclose(svdvals, vals_r)
+            print(r, mode)
+            basis, svdvals = opinf.pre.pod_basis(X, r, mode=mode)
+            _, _, W = opinf.pre.pod_basis(X, r, mode=mode, return_W=True)
+            assert basis.shape == (n,r)
+            assert np.allclose(basis.T @ basis, Id)
+            assert W.shape == (k,r)
+            assert np.allclose(W.T @ W, Id)
 
-        # Via sklearn.utils.extmath.randomized_svd().
-        basis, svdvals = opinf.pre.pod_basis(X, r, mode="randomized")
-        assert basis.shape == (n,r)
-        # Light accuracy test (equality not guaranteed by randomized SVD).
-        assert la.norm(np.abs(basis) - np.abs(Ur)) < 5
-        assert svdvals.shape == (r,)
-        assert la.norm(svdvals - vals_r) < 3
+            if mode == "dense":
+                assert svdvals.shape == (rmax,)
+            if mode in ("sparse", "randomized"):
+                assert svdvals.shape == (r,)
+                # Make sure the basis vectors have the same sign.
+                for j in range(r):
+                    if not np.isclose(basis[0,j], Ur[0,j]):
+                        basis[:,j] *= -1
+                    if not np.isclose(W[0,j], Wr[0,j]):
+                        W[:,j] *= -1
+
+            if mode != "randomized":
+                # Accuracy tests (none for randomized SVD).
+                assert np.allclose(basis, Ur)
+                assert np.allclose(svdvals[:r], vals_r)
+                assert np.allclose(W, Wr)
 
 
 # Reduced dimension selection =================================================
@@ -173,49 +177,3 @@ def test_residual_energy(set_up_basis_data):
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
-
-
-def test_projection_error(set_up_basis_data):
-    """Test pre._basis.projection_error()."""
-    X = set_up_basis_data
-    basis = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
-
-    err = opinf.pre.projection_error(X, basis)
-    assert np.isscalar(err) and err >= 0
-
-
-def test_minimal_projection_error(set_up_basis_data):
-    """Test pre._basis.minimal_projection_error()."""
-    X = set_up_basis_data
-    V = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
-
-    # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
-        opinf.pre.minimal_projection_error(np.ravel(X), V, 1e-14, plot=False)
-    assert exc.value.args[0] == "states must be two-dimensional"
-
-    # Try with bad basis shape.
-    with pytest.raises(ValueError) as exc:
-        opinf.pre.minimal_projection_error(X, V[0], 1e-14, plot=False)
-    assert exc.value.args[0] == "basis must be two-dimensional"
-
-    # Single cutoffs.
-    r = opinf.pre.minimal_projection_error(X, V, 1e-14, plot=False)
-    assert isinstance(r, int) and r >= 1
-
-    # Multiple cutoffs.
-    rs = opinf.pre.minimal_projection_error(X, V, [1e-10, 1e-12], plot=False)
-    assert isinstance(rs, list)
-    for r in rs:
-        assert isinstance(r, int) and r >= 1
-    assert rs == sorted(rs)
-
-    # Plotting
-    status = plt.isinteractive()
-    plt.ion()
-    opinf.pre.minimal_projection_error(X, V, .0001, plot=True)
-    assert len(plt.gcf().get_axes()) == 1
-    opinf.pre.minimal_projection_error(X, V, [1e-4, 1e-6, 1e-10], plot=True)
-    assert len(plt.gcf().get_axes()) == 1
-    plt.close("all")
-    plt.interactive(status)

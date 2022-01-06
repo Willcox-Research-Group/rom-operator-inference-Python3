@@ -6,8 +6,6 @@ __all__ = [
             "svdval_decay",
             "cumulative_energy",
             "residual_energy",
-            "projection_error",
-            "minimal_projection_error",
           ]
 
 import numpy as np
@@ -20,14 +18,12 @@ import matplotlib.pyplot as plt
 # Basis computation ===========================================================
 def pod_basis(states, r=None, mode="dense", return_W=False, **options):
     """Compute the POD basis of rank r corresponding to the states.
-    This function does NOT shift or scale data before computing the basis.
-    This function is a simple wrapper for various SVD methods.
 
     Parameters
     ----------
     states : (n,k) ndarray
-        A matrix of k snapshots. Each column is a single snapshot.
-    r : int
+        Matrix of k snapshots. Each column is a single snapshot of dimension n.
+    r : int or None
         Number of POD basis vectors and singular values to compute.
         If None (default), compute the full SVD.
     mode : str
@@ -51,21 +47,25 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
     Returns
     -------
     basis : (n,r) ndarray
-        First r POD basis vectors. Each column is one basis vector.
+        First r POD basis vectors (left singular vectors).
+        Each column is a single basis vector of dimension n.
     svdvals : (n,), (k,), or (r,) ndarray
-        Singular values (highest magnitute first). Always return as many
-        singular values as are calculated: r for mode="randomize", and min(n,k)
-        otherwise.
+        Singular values in descending order. Always returns as many as are
+        calculated: r for mode="randomize" and mode="sparse", min(n,k) for.
+    W : (k,r) ndarray
+        First r **right** singular vectors, as columns.
+        **Only returned if return_W=True.**
     """
     # Validate the rank.
     rmax = min(states.shape)
     if r is None:
         r = rmax
     if r > rmax or r < 1:
-        raise ValueError(f"invalid POD rank r = {r} (need 1 <= r <= {rmax})")
+        raise ValueError(f"invalid POD rank r = {r} (need 1 ≤ r ≤ {rmax})")
 
     if mode == "dense" or mode == "simple":
         V, svdvals, Wt = la.svd(states, full_matrices=False, **options)
+        W = Wt.T
 
     elif mode == "sparse" or mode == "arpack":
         get_smallest = False
@@ -73,30 +73,36 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
             r -= 1
             get_smallest = True
 
-        # Compute all but the last svd vectors / values (maximum allowed)
+        # Compute all but the last svd vectors / values (maximum allowed).
         V, svdvals, Wt = spla.svds(states, r, which="LM",
-                                   return_singular_vectors='u', **options)
+                                   return_singular_vectors=True, **options)
         V = V[:,::-1]
         svdvals = svdvals[::-1]
-        # Wt = TODO
+        W = Wt[::-1,:].T
 
         # Get the smallest vector / value separately.
         if get_smallest:
-            V1, smallest, W = spla.svds(states, 1, which="SM",
-                                        return_singular_vectors='u', **options)
+            V1, smallest, W1 = spla.svds(states, 1, which="SM",
+                                         return_singular_vectors='u',
+                                         **options)
+            print(f"W1.shape: {W1.shape}")
             V = np.concatenate((V, V1), axis=1)
             svdvals = np.concatenate((svdvals, smallest))
+            W = np.concatenate((W, W1.T), axis=1)
             r += 1
 
     elif mode == "randomized":
+        if "random_state" not in options:
+            options["random_state"] = None
         V, svdvals, Wt = sklmath.randomized_svd(states, r, **options)
+        W = Wt.T
 
     else:
         raise NotImplementedError(f"invalid mode '{mode}'")
 
-    # Return the first 'r' basis vectors and all of the singular values.
+    if return_W:
+        return V[:,:r], svdvals, W[:,:r]
     return V[:,:r], svdvals
-    # TODO: if return_W is True: also return Wt[:r].T or W[:,:r].
 
 
 # Reduced dimension selection =================================================
@@ -245,88 +251,5 @@ def residual_energy(singular_values, tol, plot=False, ax=None):
             ax.axvline(r, color="black", linewidth=.5, alpha=.5)
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Residual energy")
-
-    return ranks[0] if one_tol else ranks
-
-
-def projection_error(states, basis):
-    """Calculate the projection error on the states X induced by the basis Vr:
-
-        err = ||X - Vr Vr^T X|| / ||X||.
-
-    Parameters
-    ----------
-    states : (n,k) or (k,) ndarray
-        Matrix of k snapshots where each column is a single snapshot, or a
-        single 1D snapshot. If 2D, use the Frobenius norm; if 1D, the l2 norm.
-    basis : (n,r) ndarray
-        Basis of rank r. Each column is one basis vector.
-
-    Returns
-    -------
-    error : float
-        Projection error.
-    """
-    return la.norm(states - basis @ basis.T @ states) / la.norm(states)
-
-
-def minimal_projection_error(states, basis, tol, plot=False, ax=None):
-    """Compute the number of POD basis vectors required to obtain a projection
-    error less than tol. The projection error on the states X induced by the
-    basis Vr is defined by
-
-        err = ||X - Vr Vr^T X||_F / ||X||_F.
-
-    Parameters
-    ----------
-    states : (n,k) ndarray
-        Matrix of k snapshots. Each column is a single snapshot.
-    basis : (n,rmax) ndarray
-        First rmax POD basis vectors. Each column is one basis vector.
-        The projection error is calculated with Vr = basis[:,:r] for r <= rmax.
-    tol : float or list(float)
-        Cutoff value(s) for the projection error.
-    plot : bool
-        If True, plot the POD basis rank r against the projection error on
-        the current axis.
-
-    Returns
-    -------
-    ranks : int or list(int)
-        Number of POD basis vectors required to obtain a projection error
-        less than each cutoff value.
-    """
-    # Check dimensions.
-    if states.ndim != 2:
-        raise ValueError("states must be two-dimensional")
-    if basis.ndim != 2:
-        raise ValueError("basis must be two-dimensional")
-    one_tol = np.isscalar(tol)
-    if one_tol:
-        tol = [tol]
-
-    # Calculate the projection errors.
-    X_norm = la.norm(states, ord="fro")
-    rs = np.arange(1, basis.shape[1])
-    errors = np.empty(rs.shape, dtype=float)
-    for r in rs:
-        # Get the POD basis of rank r and calculate the projection error.
-        Vr = basis[:,:r]
-        errors[r-1] = la.norm(states - Vr @ Vr.T @ states, ord="fro") / X_norm
-    # Calculate the ranks needed to get under each cutoff value.
-    ranks = [np.count_nonzero(errors > ε)+1 for ε in tol]
-
-    if plot:
-        if ax is None:
-            ax = plt.figure().add_subplot(111)
-        ax.semilogy(rs, errors, 'C1.-', ms=4, zorder=3)
-        ax.set_xlim((0,rs.size))
-        ylim = ax.get_ylim()
-        for ε,r in zip(tol, ranks):
-            ax.axhline(ε, color="black", linewidth=.5, alpha=.5)
-            ax.axvline(r, color="black", linewidth=.5, alpha=.5)
-        ax.set_ylim(ylim)
-        ax.set_xlabel(r"POD basis rank $r$")
-        ax.set_ylabel(r"Projection error")
 
     return ranks[0] if one_tol else ranks
