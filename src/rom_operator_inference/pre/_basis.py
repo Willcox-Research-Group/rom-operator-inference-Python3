@@ -152,7 +152,7 @@ def svdval_decay(singular_values, tol, plot=False, ax=None):
     return ranks[0] if one_tol else ranks
 
 
-def cumulative_energy(singular_values, thresh, plot=False, ax=None):
+def cumulative_energy(singular_values, thresh=.9999, plot=False, ax=None):
     """Compute the number of singular values needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
@@ -163,7 +163,7 @@ def cumulative_energy(singular_values, thresh, plot=False, ax=None):
     singular_values : (n,) ndarray
         Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
     thresh : float or list(float)
-        Energy capture threshold(s).
+        Energy capture threshold(s). Default is 99.99%.
     plot : bool
         If True, plot the singular values and the cumulative energy against
         the singular value index (linear scale).
@@ -203,7 +203,7 @@ def cumulative_energy(singular_values, thresh, plot=False, ax=None):
     return ranks[0] if one_thresh else ranks
 
 
-def residual_energy(singular_values, tol, plot=False, ax=None):
+def residual_energy(singular_values, tol=1e-6, plot=False, ax=None):
     """Compute the number of singular values needed such that the residual
     energy drops beneath the given tolerance. The residual energy of j
     singular values is defined by
@@ -215,7 +215,7 @@ def residual_energy(singular_values, tol, plot=False, ax=None):
     singular_values : (n,) ndarray
         Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
     tol : float or list(float)
-        Energy residual tolerance(s).
+        Energy residual tolerance(s). Default is 10^-6.
     plot : bool
         If True, plot the singular values and the residual energy against
         the singular value index (log scale).
