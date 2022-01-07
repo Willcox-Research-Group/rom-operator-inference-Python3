@@ -30,7 +30,7 @@ def test_reproject_discrete(n=50, m=5, r=3):
     # Try with bad initial condition shape.
     with pytest.raises(ValueError) as exc:
         opinf.pre.reproject_discrete(lambda x: x, basis, x0[:-1], k)
-    assert exc.value.args[0] == "basis and initial condition x0 not aligned"
+    assert exc.value.args[0] == "basis and initial condition not aligned"
 
     # Linear case, no inputs.
     def f(x):
@@ -97,7 +97,7 @@ def test_reproject_continuous(n=100, m=20, r=10):
     with pytest.raises(ValueError) as exc:
         opinf.pre.reproject_continuous(lambda x:x, basis, X[:-1,:])
     assert exc.value.args[0] == \
-        f"X and basis not aligned, first dimension {n-1} != {n}"
+        f"states and basis not aligned, first dimension {n-1} != {n}"
 
     # Linear case, no inputs.
     def f(x):
