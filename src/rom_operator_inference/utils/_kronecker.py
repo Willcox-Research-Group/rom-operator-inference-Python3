@@ -4,6 +4,8 @@
 __all__ = [
             "kron2c",
             "kron3c",
+            "kron2c_indices",
+            "kron3c_indices",
             "compress_H",
             "expand_H",
             "compress_G",
@@ -15,7 +17,7 @@ import numpy as np
 import scipy.special as special
 
 
-# Kronecker (Khatri-Rao) products =============================================
+# Compact Kronecker (Khatri-Rao) products =====================================
 def kron2c(x, checkdim=False):
     """Calculate the unique terms of the quadratic Kronecker product x ⊗ x.
 
@@ -59,6 +61,30 @@ def kron3c(x, checkdim=False):
     lens = special.binom(np.arange(2, len(x)+2), 2).astype(int)
     return np.concatenate([x[i] * x2[:lens[i]]
                            for i in range(x.shape[0])], axis=0)
+
+
+# Index generation for fast compact Kronecker product evaluation ==============
+def kron2c_indices(r):
+    """Construct masks for compact quadratic and cubic Kronecker."""
+    mask = np.zeros((r*(r+1)//2, 2), dtype=int)
+    count = 0
+    for i in range(r):
+        for j in range(i+1):
+            mask[count,:] = (i,j)
+            count += 1
+    return mask
+
+
+def kron3c_indices(r):
+    """Construct masks for compact quadratic and cubic Kronecker."""
+    mask = np.zeros((r*(r+1)*(r+2)//6, 3), dtype=int)
+    count = 0
+    for i in range(r):
+        for j in range(i+1):
+            for k in range(j+1):
+                mask[count,:] = (i,j,k)
+                count += 1
+    return mask
 
 
 # Matricized tensor management ================================================

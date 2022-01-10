@@ -7,6 +7,53 @@ import numpy as np
 import rom_operator_inference as opinf
 
 
+# Index generation for fast self-product kronecker evaluation =================
+def test_kron2c_indices(n_tests=100):
+    """Test utils._kronecker.kron2c_indices()."""
+    mask = opinf.utils.kron2c_indices(4)
+    assert np.all(mask == np.array([[0, 0],
+                                    [1, 0], [1, 1],
+                                    [2, 0], [2, 1], [2, 2],
+                                    [3, 0], [3, 1], [3, 2], [3, 3]],
+                                   dtype=int))
+    submask = opinf.utils.kron2c_indices(3)
+    assert np.allclose(submask, mask[:6])
+
+    r = 10
+    _r2 = r * (r + 1) // 2
+    mask = opinf.utils.kron2c_indices(r)
+    assert mask.shape == (_r2, 2)
+    assert np.all(mask[0] == 0)
+    assert np.all(mask[-1] == r - 1)
+    assert mask.sum(axis=0)[0] == sum(i*(i+1) for i in range(r))
+
+    # Ensure consistency with utils.kron2c().
+    for _ in range(n_tests):
+        x = np.random.random(r)
+        assert np.allclose(np.prod(x[mask], axis=1), opinf.utils.kron2c(x))
+
+
+def test_kron3c_indices(n_tests=100):
+    """Test utils._kronecker.kron3c_indices()."""
+    mask = opinf.utils.kron3c_indices(2)
+    assert np.all(mask == np.array([[0, 0, 0],
+                                    [1, 0, 0], [1, 1, 0], [1, 1, 1]],
+                                   dtype=int))
+
+    r = 10
+    mask = opinf.utils.kron3c_indices(r)
+    _r3 = r * (r + 1) * (r + 2) // 6
+    mask = opinf.utils.kron3c_indices(r)
+    assert mask.shape == (_r3, 3)
+    assert np.all(mask[0] == 0)
+    assert np.all(mask[-1] == r - 1)
+
+    # Ensure consistency with utils.kron3c().
+    for _ in range(n_tests):
+        x = np.random.random(r)
+        assert np.allclose(np.prod(x[mask], axis=1), opinf.utils.kron3c(x))
+
+
 # Kronecker (Khatri-Rao) products =============================================
 # utils.kron2c() --------------------------------------------------------------
 def _test_kron2c_single_vector(n):
