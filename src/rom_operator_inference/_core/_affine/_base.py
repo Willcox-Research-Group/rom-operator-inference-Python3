@@ -1,5 +1,5 @@
 # _core/_affine/_base.py
-"""Base for ROMs with affine parametric dependence..
+"""Base for ROMs with affine parametric dependence.
 
 Classes
 -------
@@ -18,7 +18,7 @@ from .._base import _ParametricMixin
 
 # Affine operator (public) ====================================================
 class AffineOperator:
-    """Class for representing a linear operator with affine structure, i.e.,
+    """Class for representing an operator with affine structure, i.e.,
 
         A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i}.
 
@@ -32,7 +32,7 @@ class AffineOperator:
         Each must take the same sized input and return a scalar.
 
     matrices : list of q ndarrays, all of the same shape
-        Component matrices defining the linear operator.
+        Component matrices defining the operator.
     """
     def __init__(self, coeffs, matrices):
         """Save the coefficient functions and component matrices.
@@ -44,7 +44,7 @@ class AffineOperator:
             Each must take the same sized input and return a scalar.
 
         matrices : list of q ndarrays, all of the same shape
-            Component matrices defining the linear operator.
+            Component matrices defining the operator.
         """
         if any(not callable(θ) for θ in coeffs):
             raise TypeError("coefficients of affine operator must be callable")
