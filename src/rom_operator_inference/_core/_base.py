@@ -19,7 +19,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.integrate import solve_ivp, IntegrationWarning
 
-from ..utils import compress_H, compress_G, kron2c, kron3c
+from ..utils import compress_quadratic, compress_cubic, kron2c, kron3c
 
 
 # Base classes (private) ======================================================
@@ -188,7 +188,7 @@ class _BaseROM:
         self._check_operator_matches_modelform(H_, 'H')
         if H_ is not None:
             if H_.shape == (self.r, self.r**2):
-                H_ = compress_H(H_)
+                H_ = compress_quadratic(H_)
             self._check_rom_operator_shape(H_, 'H')
         self.__H_ = H_
 
@@ -202,7 +202,7 @@ class _BaseROM:
         self._check_operator_matches_modelform(G_, 'G')
         if G_ is not None:
             if G_.shape == (self.r, self.r**3):
-                G_ = compress_G(G_)
+                G_ = compress_cubic(G_)
             self._check_rom_operator_shape(G_, 'G')
         self.__G_ = G_
 

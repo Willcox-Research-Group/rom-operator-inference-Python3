@@ -8,7 +8,6 @@ import numpy as np
 
 from .operators import (ConstantOperator, LinearOperator,
                         QuadraticOperator, CubicOperator)
-from ..utils import compress_H, compress_G
 
 
 # Base classes (private) ======================================================
@@ -172,8 +171,9 @@ class _BaseROM(abc.ABC):
     def c_(self, c_):
         self._check_operator_matches_modelform(c_, 'c')
         if c_ is not None:
+            c_ = ConstantOperator(c_)
             self._check_rom_operator_shape(c_, 'c')
-        self.__c_ = ConstantOperator(c_)
+        self.__c_ = c_
 
     @property
     def A_(self):
@@ -185,8 +185,9 @@ class _BaseROM(abc.ABC):
         # TODO: what happens if model.A_ = something but model.r is None?
         self._check_operator_matches_modelform(A_, 'A')
         if A_ is not None:
+            A_ = LinearOperator(A_, square=True)
             self._check_rom_operator_shape(A_, 'A')
-        self.__A_ = LinearOperator(A_, square=True)
+        self.__A_ = A_
 
     @property
     def H_(self):
@@ -197,10 +198,9 @@ class _BaseROM(abc.ABC):
     def H_(self, H_):
         self._check_operator_matches_modelform(H_, 'H')
         if H_ is not None:
-            if H_.shape == (self.r, self.r**2):
-                H_ = compress_H(H_)
+            H_ = QuadraticOperator(H_)
             self._check_rom_operator_shape(H_, 'H')
-        self.__H_ = QuadraticOperator(H_)
+        self.__H_ = H_
 
     @property
     def G_(self):
@@ -211,10 +211,9 @@ class _BaseROM(abc.ABC):
     def G_(self, G_):
         self._check_operator_matches_modelform(G_, 'G')
         if G_ is not None:
-            if G_.shape == (self.r, self.r**3):
-                G_ = compress_G(G_)
+            G_ = CubicOperator(G_)
             self._check_rom_operator_shape(G_, 'G')
-        self.__G_ = CubicOperator(G_)
+        self.__G_ = G_
 
     @property
     def B_(self):
@@ -225,8 +224,9 @@ class _BaseROM(abc.ABC):
     def B_(self, B_):
         self._check_operator_matches_modelform(B_, 'B')
         if B_ is not None:
+            B_ = LinearOperator(B_, square=False)
             self._check_rom_operator_shape(B_, 'B')
-        self.__B_ = LinearOperator(B_, square=False)
+        self.__B_ = B_
 
     def __getitem__(self, key):
         if key == "c_":

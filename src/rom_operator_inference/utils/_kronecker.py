@@ -6,10 +6,10 @@ __all__ = [
             "kron3c",
             "kron2c_indices",
             "kron3c_indices",
-            "compress_H",
-            "expand_H",
-            "compress_G",
-            "expand_G",
+            "compress_quadratic",
+            "expand_quadratic",
+            "compress_cubic",
+            "expand_cubic",
           ]
 
 import itertools
@@ -88,7 +88,7 @@ def kron3c_indices(r):
 
 
 # Matricized tensor management ================================================
-def compress_H(H):
+def compress_quadratic(H):
     """Calculate the matricized quadratic operator that operates on the compact
     Kronecker product.
 
@@ -126,7 +126,7 @@ def compress_H(H):
     return Hc
 
 
-def expand_H(Hc):
+def expand_quadratic(Hc):
     """Calculate the matricized quadratic operator that operates on the full
     Kronecker product.
 
@@ -162,7 +162,7 @@ def expand_H(Hc):
     return H
 
 
-def compress_G(G):
+def compress_cubic(G):
     """Calculate the matricized cubic operator that operates on the compact
     cubic Kronecker product.
 
@@ -202,7 +202,7 @@ def compress_G(G):
     return Gc
 
 
-def expand_G(Gc):
+def expand_cubic(Gc):
     """Calculate the matricized quadratic operator that operates on the full
     cubic Kronecker product.
 

@@ -203,7 +203,7 @@ class TestQuadraticOperator:
         H = np.random.random((r, r**2))
         op = opinf._newcore.QuadraticOperator(H)
         assert op.shape == (r, r*(r + 1)//2)
-        assert np.allclose(op.entries, opinf.utils.compress_H(H))
+        assert np.allclose(op.entries, opinf.utils.compress_quadratic(H))
 
         # Compressed operator.
         r = 4
@@ -274,7 +274,7 @@ class TestCubicOperator:
         G = np.random.random((r, r**3))
         op = opinf._newcore.CubicOperator(G)
         assert op.shape == (r, r*(r + 1)*(r + 2)//6)
-        assert np.allclose(op.entries, opinf.utils.compress_G(G))
+        assert np.allclose(op.entries, opinf.utils.compress_cubic(G))
 
         # Compressed operator.
         r = 5

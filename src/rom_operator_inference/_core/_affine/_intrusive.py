@@ -18,7 +18,8 @@ import numpy as np
 from ._base import AffineOperator, _AffineMixin
 from .._base import _ContinuousROM, _DiscreteROM
 from .._intrusive import _IntrusiveMixin
-from ...utils import expand_H, compress_H, expand_G, compress_G
+from ...utils import (expand_quadratic, compress_quadratic,
+                      expand_cubic, compress_cubic)
 
 
 # Affine intrusive mixin (private) ============================================
@@ -67,12 +68,13 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
                 H_or_Hc = AffineOperator(affines['H'], operators['H'])
                 if H_or_Hc.shape == (self.n,_n2):
                     self.H = AffineOperator(affines['H'],
-                                            [expand_H(Hc)
+                                            [expand_quadratic(Hc)
                                              for Hc in H_or_Hc.matrices])
                 else:
                     self.H = H_or_Hc
                 self.H_ = AffineOperator(affines['H'],
-                                         [compress_H(self.basis.T @ H @ basis2)
+                                         [compress_quadratic(
+                                             self.basis.T @ H @ basis2)
                                           for H in self.H.matrices])
             else:
                 self.H = operators['H']
@@ -85,12 +87,13 @@ class _AffineIntrusiveMixin(_IntrusiveMixin, _AffineMixin):
                 G_or_Gc = AffineOperator(affines['G'], operators['G'])
                 if G_or_Gc.shape == (self.n,_n3):
                     self.G = AffineOperator(affines['G'],
-                                            [expand_G(Gc)
+                                            [expand_cubic(Gc)
                                              for Gc in G_or_Gc.matrices])
                 else:
                     self.G = G_or_Gc
                 self.G_ = AffineOperator(affines['G'],
-                                         [compress_G(self.basis.T @ G @ basis3)
+                                         [compress_cubic(
+                                             self.basis.T @ G @ basis3)
                                           for G in self.G.matrices])
             else:
                 self.G = operators['G']
