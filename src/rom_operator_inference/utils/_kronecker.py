@@ -180,6 +180,8 @@ def compress_G(G):
         The matricized cubic tensor that operates on the compact cubic
         Kronecker product. Here s = r * (r+1) * (r+2) / 6.
     """
+    # TODO: only check that r3 is a perfect cube, not necessarily r**3
+    # (may be useful for cubic interactions of input or for systems).
     r = G.shape[0]
     r3 = G.shape[1]
     if r3 != r**3:

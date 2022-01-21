@@ -9,5 +9,5 @@ GitHub:
 
 __version__ = "1.3.0"
 
-from ._core import *
+from ._newcore import *
 from . import lstsq, pre, post, utils
