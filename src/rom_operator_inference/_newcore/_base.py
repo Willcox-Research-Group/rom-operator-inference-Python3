@@ -3,6 +3,8 @@
 
 __all__ = []
 
+# TODO: save() and load() here?
+
 import abc
 import numpy as np
 
@@ -26,6 +28,8 @@ class _BaseROM(abc.ABC):
     def __str__(self):
         """String representation: the structure of the model."""
         lhs, q, u = self._LHS_LABEL, self._STATE_LABEL, self._INPUT_LABEL
+        # NOTE: won't work for operators that are yet to be instantiated.
+        # out = [op._str(u if op is self.B_ else q) for op in self]
         out = []
         if self.has_constant:
             out.append("c")
@@ -137,9 +141,8 @@ class _BaseROM(abc.ABC):
         """Set ROM dimension; only allowed if the basis is None."""
         if self.basis is not None:
             raise AttributeError("can't set attribute (r = basis.shape[1])")
-        # TODO: replace this line
-        # if any(op is not None for op in self.operators.values()):
-        #     raise AttributeError("can't set attribute (call fit() to reset)")
+        if any(op is not None for op in self):
+            raise AttributeError("can't set attribute (call fit() to reset)")
         self.__r = r
 
     # Properties: basis -------------------------------------------------------
@@ -171,7 +174,7 @@ class _BaseROM(abc.ABC):
     def c_(self, c_):
         self._check_operator_matches_modelform(c_, 'c')
         if c_ is not None:
-            c_ = ConstantOperator(c_)
+            c_ = ConstantOperator(c_, symbol='c')
             self._check_rom_operator_shape(c_, 'c')
         self.__c_ = c_
 
@@ -185,7 +188,7 @@ class _BaseROM(abc.ABC):
         # TODO: what happens if model.A_ = something but model.r is None?
         self._check_operator_matches_modelform(A_, 'A')
         if A_ is not None:
-            A_ = LinearOperator(A_, square=True)
+            A_ = LinearOperator(A_, symbol='A')
             self._check_rom_operator_shape(A_, 'A')
         self.__A_ = A_
 
@@ -198,7 +201,7 @@ class _BaseROM(abc.ABC):
     def H_(self, H_):
         self._check_operator_matches_modelform(H_, 'H')
         if H_ is not None:
-            H_ = QuadraticOperator(H_)
+            H_ = QuadraticOperator(H_, symbol='H')
             self._check_rom_operator_shape(H_, 'H')
         self.__H_ = H_
 
@@ -211,7 +214,7 @@ class _BaseROM(abc.ABC):
     def G_(self, G_):
         self._check_operator_matches_modelform(G_, 'G')
         if G_ is not None:
-            G_ = CubicOperator(G_)
+            G_ = CubicOperator(G_, symbol='G')
             self._check_rom_operator_shape(G_, 'G')
         self.__G_ = G_
 
@@ -224,22 +227,9 @@ class _BaseROM(abc.ABC):
     def B_(self, B_):
         self._check_operator_matches_modelform(B_, 'B')
         if B_ is not None:
-            B_ = LinearOperator(B_, square=False)
+            B_ = LinearOperator(B_, symbol='B')
             self._check_rom_operator_shape(B_, 'B')
         self.__B_ = B_
-
-    def __getitem__(self, key):
-        if key == "c_":
-            return self.c_
-        elif key == "A_":
-            return self.A_
-        elif key == "H_":
-            return self.H_
-        elif key == "G_":
-            return self.G_
-        elif key == "B_":
-            return self.B_
-        raise KeyError(key)
 
     def __iter__(self):
         for key in self.modelform:
@@ -309,86 +299,6 @@ class _BaseROM(abc.ABC):
             raise AttributeError("model not trained (call fit())") from e
 
     # Public methods ----------------------------------------------------------
-    def project_state(self, S, label="input"):
-        """Check the dimensions of S and project it if needed."""
-        if S.shape[0] not in (self.r, self.n):
-            raise ValueError(f"{label} not aligned with basis, dimension 0")
-            # TODO: better message, what if basis is None?
-        return self.basis.T @ S if S.shape[0] == self.n else S
-
-    def project_operators(self, operators):
-        """Project the full-order operators to the reduced-order space.
-
-        Parameters
-        ----------
-        operators : dict(str -> ndarray)
-            Dictionary of known full-order operators.
-            Corresponding reduced-order operators are computed directly
-            through projection; remaining operators are inferred.
-            Keys must match the modelform, values are ndarrays:
-            * 'c': (n,) constant term c.
-            * 'A': (n,n) linear state matrix A.
-            * 'H': (n,n**2) quadratic state matrix H.
-            * 'G': (n,n**3) cubic state matrix G.
-            * 'B': (n,m) input matrix B.
-        """
-        # TODO: allow reduced-order operators as well in `operators`?
-        # Do nothing if there are no operators to project.
-        if operators is None or len(operators) == 0:
-            return
-
-        # Ensure that there is a basis.
-        if self.basis is None:
-            raise ValueError("basis required to project full-order operators")
-
-        # Validate the keys of the operator dictionary.
-        surplus = [repr(key)
-                   for key in operators.keys() if key not in self.modelform]
-        if surplus:
-            _noun = "key" + ('' if len(surplus) == 1 else 's')
-            raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
-
-        # Project full-order operators.
-        if self.has_quadratic or self.has_cubic:
-            basis2 = np.kron(self.basis, self.basis)
-
-        if 'c' in operators:            # Constant term.
-            c = operators['c']              # c = multiple of vector of ones.
-            if np.isscalar(c):
-                c = np.full(self.n, c)
-            self.c_ = self.basis.T @ operators['c']
-
-        if 'A' in operators:            # Linear state matrix.
-            A = operators['A']
-            if isinstance(A, str) and A == "I":
-                A = 1
-            if np.isscalar(A):              # A = multiple of identity.
-                self.A_ = A * np.eye(self.r)
-            else:
-                self.A_ = self.basis.T @ A @ self.basis
-
-        if 'H' in operators:            # Quadratic state matrix.
-            H = operators['H']
-            # TODO: fast projection.
-            # TODO: special case for q^2.
-            self.H_ = self.basis.T @ H @ basis2
-
-        if 'G' in operators:            # Cubic state matrix.
-            G = operators['G']
-            # TODO: fast projection?
-            # TODO: special case for q^3.
-            self.G_ = self.basis.T @ G @ np.kron(self.basis, basis2)
-
-        if 'B' in operators:            # Linear input matrix.
-            B = operators['B']
-            if B.ndim == 1:
-                B = B.reshape((-1,1))
-            self.m = B.shape[1]
-            self.B_ = self.basis.T @ B
-
-        # Save keys of projected operators.
-        self._projected_operators_ = ''.join(operators.keys())
-
     def set_operators(self, basis,
                       c_=None, A_=None, H_=None, G_=None, B_=None):
         """Set the ROM operators and corresponding dimensions.
@@ -439,17 +349,97 @@ class _BaseROM(abc.ABC):
 
         return self
 
+    def project_state(self, S, label="argument"):
+        """Check the dimensions of S and project it if needed."""
+        if S.shape[0] not in (self.r, self.n):
+            raise ValueError(f"{label} not aligned with basis, dimension 0")
+            # TODO: better message, what if basis is None?
+        return self.basis.T @ S if S.shape[0] == self.n else S
+
+    def project_operators(self, operators):
+        """Project the full-order operators to the reduced-order space.
+
+        Parameters
+        ----------
+        operators : dict(str -> ndarray)
+            Dictionary of known full-order operators.
+            Corresponding reduced-order operators are computed directly
+            through projection; remaining operators are inferred.
+            Keys must match the modelform, values are ndarrays:
+            * 'c': (n,) constant term c.
+            * 'A': (n,n) linear state matrix A.
+            * 'H': (n,n**2) quadratic state matrix H.
+            * 'G': (n,n**3) cubic state matrix G.
+            * 'B': (n,m) input matrix B.
+        """
+        # TODO: allow reduced-order operators as well in `operators`?
+        # Do nothing if there are no operators to project.
+        if operators is None or len(operators) == 0:
+            return
+
+        # Ensure that there is a basis.
+        if self.basis is None:
+            raise ValueError("basis required to project full-order operators")
+
+        # Validate the keys of the operator dictionary.
+        surplus = [repr(key)
+                   for key in operators.keys() if key not in self.modelform]
+        if surplus:
+            _noun = "key" + ('' if len(surplus) == 1 else 's')
+            raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
+
+        # Project full-order operators.
+        if self.has_quadratic or self.has_cubic:
+            basis2 = np.kron(self.basis, self.basis)
+
+        if 'c' in operators:            # Constant term.
+            c = operators['c']              # c = multiple of vector of ones.
+            if np.isscalar(c):
+                c = np.full(self.n, c)
+            self.c_ = self.basis.T @ c
+
+        if 'A' in operators:            # Linear state matrix.
+            A = operators['A']
+            if isinstance(A, str) and A == "I":
+                A = 1
+            if np.isscalar(A):              # A = multiple of identity.
+                A = A * np.eye(self.n)
+            self.A_ = self.basis.T @ A @ self.basis
+
+        if 'H' in operators:            # Quadratic state matrix.
+            H = operators['H']
+            # TODO: fast projection.
+            # TODO: special case for q^2.
+            self.H_ = self.basis.T @ H @ basis2
+
+        if 'G' in operators:            # Cubic state matrix.
+            G = operators['G']
+            # TODO: fast projection?
+            # TODO: special case for q^3.
+            self.G_ = self.basis.T @ G @ np.kron(self.basis, basis2)
+
+        if 'B' in operators:            # Linear input matrix.
+            B = operators['B']
+            if B.ndim == 1:
+                B = B.reshape((-1,1))
+            self.m = B.shape[1]
+            self.B_ = self.basis.T @ B
+
+        # Save keys of projected operators.
+        self._projected_operators_ = ''.join(operators.keys())
+
     # Abstract methods (must be implemented by child classes) -----------------
     @abc.abstractmethod
     def fit(*args, **kwargs):
-        raise NotImplementedError("fit() implemented by child classes")
+        raise NotImplementedError                       # pragma: no cover
 
     @abc.abstractmethod
     def predict(*args, **kwargs):
-        raise NotImplementedError("predict() implemented by child classes")
+        raise NotImplementedError                       # pragma: no cover
 
 
 # Future additions ------------------------------------------------------------
-# TODO: Account for state / input interactions (N?).
-# TODO: jacobians for each model form in the continuous case.
+# TODO: Account for state / input interactions (N?),
+# TODO: Account for quadratic input interactions? Is that redundant?
+# TODO: Jacobians for each model form in the continuous case.
 # TODO: self.p = parameter size for parametric classes (+ shape checking)

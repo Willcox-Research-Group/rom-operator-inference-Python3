@@ -36,11 +36,15 @@ class _BaseOperator(abc.ABC):
         Actual NumPy array representing the operator.
     shape : tuple
         Shape of the operator entries array.
+    symbol : str
+        Mathematical symbol for the operator, e.g., 'A' or 'H'.
+        Used in the string representation of the operator and associated ROM.
     """
     @abc.abstractmethod
-    def __init__(self, entries):
-        """Set operator entries."""
+    def __init__(self, entries, symbol):
+        """Set operator entries and save operator name."""
         self.__entries = entries
+        self.symbol = symbol
 
     @staticmethod
     def _validate_entries(entries):
@@ -63,8 +67,12 @@ class _BaseOperator(abc.ABC):
         return self.entries.shape
 
     @abc.abstractmethod
-    def __call__(self, *args, **kwargs):
-        raise NotImplementedError
+    def _str(self):
+        raise NotImplementedError                           # pragma: no cover
+
+    @abc.abstractmethod
+    def __call__(*args, **kwargs):
+        raise NotImplementedError                           # pragma: no cover
 
     def __eq__(self, other):
         """Test whether two Operator objects are numerically equal."""
@@ -76,7 +84,7 @@ class _BaseOperator(abc.ABC):
 # Non-parametric operators ====================================================
 class ConstantOperator(_BaseOperator):
     """Constant terms."""
-    def __init__(self, entries):
+    def __init__(self, entries, symbol='c'):
         self._validate_entries(entries)
 
         # Flatten operator if needed or report dimension error.
@@ -86,10 +94,13 @@ class ConstantOperator(_BaseOperator):
             else:
                 raise ValueError("constant operator must be one-dimensional")
 
-        _BaseOperator.__init__(self, entries)
+        _BaseOperator.__init__(self, entries, symbol)
 
     def __call__(self, *args):
         return self.entries
+
+    def _str(self, label=None):
+        return self.symbol
 
 
 class LinearOperator(_BaseOperator):
@@ -102,21 +113,22 @@ class LinearOperator(_BaseOperator):
     >>> q = np.random.random(10)
     >>> A(q)                        # Evaluate Aq.
     """
-    def __init__(self, entries, square=False):
+    def __init__(self, entries, symbol='A'):
         """Check dimensions and set operator entries."""
         self._validate_entries(entries)
 
         if entries.ndim == 1:
             entries = entries.reshape((-1, 1))
-        if square and (entries.shape[0] != entries.shape[1]):
-            raise ValueError("expected square array for linear operator")
         if entries.ndim != 2:
             raise ValueError("linear operator must be two-dimensional")
 
-        _BaseOperator.__init__(self, entries)
+        _BaseOperator.__init__(self, entries, symbol)
 
     def __call__(self, q):
         return self.entries @ np.atleast_1d(q)
+
+    def _str(self, label):
+        return f"{self.symbol}{label}"
 
 
 class QuadraticOperator(_BaseOperator):
@@ -130,7 +142,7 @@ class QuadraticOperator(_BaseOperator):
     >>> q = np.random.random(10)
     >>> H(q)                        # Evaluate H[q ⊗ q].
     """
-    def __init__(self, entries):
+    def __init__(self, entries, symbol='H'):
         """Check dimensions and set operator entries."""
         self._validate_entries(entries)
 
@@ -146,25 +158,31 @@ class QuadraticOperator(_BaseOperator):
             raise ValueError("invalid dimensions for quadratic operator")
         self._mask = kron2c_indices(r1)
 
-        _BaseOperator.__init__(self, entries)
+        _BaseOperator.__init__(self, entries, symbol)
 
     def __call__(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
 
+    def _str(self, label):
+        return f"{self.symbol}[{label} ⊗ {label}]"
 
-class CrossQuadraticOperator(QuadraticOperator):
-    """Quadratic terms of different states / inputs (full Kronecker)."""
-    def __init__(self, entries):
-        self._validate_entries(entries)
 
-        _BaseOperator.__init__(self, entries)
-
-    def __call__(self, q1, q2):
-        return self.entries @ np.kron(q1, q2)
-        # TODO: what about two-dimensional inputs?
-        # la.khatri_rao() will do this, but that *requires* that the
-        # inputs q1 and q2 are both two-dimensional.
-        # TODO: and what about scalar inputs? (special case of r=1 or m=1).
+# class CrossQuadraticOperator(QuadraticOperator):
+#     """Quadratic terms of different states / inputs (full Kronecker)."""
+#     def __init__(self, entries, symbol='N'):
+#         self._validate_entries(entries)
+#
+#         _BaseOperator.__init__(self, entries, symbol)
+#
+#     def __call__(self, q1, q2):
+#         return self.entries @ np.kron(q1, q2)
+#         # TODO: what about two-dimensional inputs?
+#         # la.khatri_rao() will do this, but that *requires* that the
+#         # inputs q1 and q2 are both two-dimensional.
+#         # TODO: and what about scalar inputs? (special case of r=1 or m=1).
+#
+#     def _str(self, label1, label2):
+#         return f"{self.symbol}[{label1} ⊗ {label2}]"
 
 
 class CubicOperator(_BaseOperator):
@@ -177,7 +195,7 @@ class CubicOperator(_BaseOperator):
     >>> q = np.random.random(10)
     >>> G(q)                        # Evaluate G[q ⊗ q ⊗ q].
     """
-    def __init__(self, entries):
+    def __init__(self, entries, symbol='G'):
         self._validate_entries(entries)
 
         # TODO: allow reshaping from three-dimensional tensor?
@@ -192,13 +210,17 @@ class CubicOperator(_BaseOperator):
             raise ValueError("invalid dimensions for cubic operator")
         self._mask = kron3c_indices(r1)
 
-        _BaseOperator.__init__(self, entries)
+        _BaseOperator.__init__(self, entries, symbol)
 
     def __call__(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
 
+    def _str(self, label):
+        return f"{self.symbol}[{label} ⊗ {label} ⊗ {label}]"
+
 
 # Affine parametric operators =================================================
+# TODO: symbol (for printing)
 # class _BaseAffineOperator(abc.ABC):
 #     """Base class for representing operators with affine structure, i.e.,
 #

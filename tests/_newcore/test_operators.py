@@ -12,19 +12,18 @@ class TestBaseOperator:
     """Test _newcore.operators._BaseOperator."""
     class Dummy(opinf._newcore.operators._BaseOperator):
         """Instantiable version of _newcore.operators._BaseOperator."""
-        def __init__(self, entries):
-            super().__init__(entries)
+        def __init__(self, entries, symbol=''):
+            super().__init__(entries, symbol)
 
-        def __call__(self, *args, **kwargs):
+        def __call__(*args, **kwargs):
             pass
 
-    class Dummy2(opinf._newcore.operators._BaseOperator):
-        """Instantiable version of _newcore.operators._BaseOperator."""
-        def __init__(self, entries):
-            super().__init__(entries)
-
-        def __call__(self, *args, **kwargs):
+        def _str(self, *args, **kwargs):
             pass
+
+    class Dummy2(Dummy):
+        """Another instantiable version of _newcore.operators._BaseOperator."""
+        pass
 
     def test_init(self):
         """Test _newcore.operators._BaseOperator.__init__()."""
@@ -102,6 +101,11 @@ class TestConstantOperator:
         assert op([1, 2]) is c
         assert op([1], 2) is c
 
+    def test_str(self):
+        """Test _newcore.operators.ConstantOperator._str()."""
+        c = opinf._newcore.ConstantOperator(np.random.random(10), symbol='c')
+        assert c._str() == 'c'
+
 
 class TestLinearOperator:
     """Test _newcore.operators.LinearOperator."""
@@ -114,30 +118,25 @@ class TestLinearOperator:
             opinf._newcore.LinearOperator(Abad)
         assert ex.value.args[0] == "linear operator must be two-dimensional"
 
-        # Violate square requirement.
+        # No violation, nonsquare.
         A = Abad.reshape((4,3))
-        with pytest.raises(ValueError) as ex:
-            opinf._newcore.LinearOperator(A, square=True)
-        assert ex.value.args[0] == "expected square array for linear operator"
-
-        # No violation if square not a requirement.
-        op = opinf._newcore.LinearOperator(A, square=False)
+        op = opinf._newcore.LinearOperator(A)
         assert op.entries is A
 
         # Correct square usage.
         A = A[:3,:3]
-        op = opinf._newcore.LinearOperator(A, square=True)
+        op = opinf._newcore.LinearOperator(A)
         assert op.entries is A
 
         # Special case: "one-dimensional" operator.
         B = np.arange(5)
-        op = opinf._newcore.LinearOperator(B, square=False)
+        op = opinf._newcore.LinearOperator(B)
         assert op.shape == (5,1)
         assert np.all(op.entries[:,0] == B)
 
         # Special case: "scalar" operator.
         A = np.array([10])
-        op = opinf._newcore.LinearOperator(A, square=True)
+        op = opinf._newcore.LinearOperator(A)
         assert op.shape == (1,1)
         assert op.entries[0,0] == A[0]
 
@@ -146,34 +145,42 @@ class TestLinearOperator:
 
         # Special case: A is 1x1 (e.g., ROM state dimension = 1)
         A = np.random.random((1,1))
-        op = opinf._newcore.LinearOperator(A, square=False)
+        op = opinf._newcore.LinearOperator(A)
         x = np.random.random()
         assert np.allclose(op(x), A[0,0] * x)
 
         # Scalar inputs (e.g., ROM state dimension > 1 but input dimension = 1)
         B = np.random.random(10)
-        op = opinf._newcore.LinearOperator(B, square=False)
+        op = opinf._newcore.LinearOperator(B)
         x = np.random.random()
         assert np.allclose(op(x), B * x)
 
         # 1D inputs (usual case)
-        def _check1D(A, square):
+        def _check1D(A):
             x = np.random.random(A.shape[-1])
-            op = opinf._newcore.LinearOperator(A, square=square)
+            op = opinf._newcore.LinearOperator(A)
             assert np.allclose(op(x), A @ x)
 
-        _check1D(np.random.random((4,3)), False)
-        _check1D(np.random.random((4,4)), True)
-        _check1D(np.random.random((4,1)), False)
+        _check1D(np.random.random((4,3)))
+        _check1D(np.random.random((4,4)))
+        _check1D(np.random.random((4,1)))
 
         # 2D inputs (for applying to data residual)
-        def _check2D(A, square):
+        def _check2D(A):
             X = np.random.random((A.shape[-1], 20))
-            op = opinf._newcore.LinearOperator(A, square=square)
+            op = opinf._newcore.LinearOperator(A)
             assert np.allclose(op(X), A @ X)
 
-        _check2D(np.random.random((10,3)), False)
-        _check2D(np.random.random((6,6)), True)
+        _check2D(np.random.random((10,3)))
+        _check2D(np.random.random((6,6)))
+
+    def test_str(self):
+        """Test _newcore.operators.LinearOperator._str()."""
+        A = opinf._newcore.LinearOperator(np.random.random((10, 10)),
+                                          symbol='A')
+        assert A._str("q(t)") == "Aq(t)"
+        A.symbol = "B"
+        assert A._str("u_{j}") == "Bu_{j}"
 
 
 class TestQuadraticOperator:
@@ -234,6 +241,13 @@ class TestQuadraticOperator:
         for _ in range(ntrials):
             x = np.random.random()
             assert np.allclose(op(x), H[0,0] * x**2)
+
+    def test_str(self):
+        """Test _newcore.operators.QuadraticOperator._str()."""
+        H = opinf._newcore.QuadraticOperator(np.random.random((10, 100)),
+                                             symbol='H')
+        assert H._str("q_{j}") == "H[q_{j} ⊗ q_{j}]"
+        assert H._str("u(t)") == "H[u(t) ⊗ u(t)]"
 
 
 # class TestCrossQuadraticOperator:
@@ -307,6 +321,11 @@ class TestCubicOperator:
             x = np.random.random()
             assert np.allclose(op(x), G[0,0] * x**3)
 
+    def test_str(self):
+        """Test _newcore.operators.CubicOperator._str()."""
+        G = opinf._newcore.CubicOperator(np.random.random((10, 1000)),
+                                         symbol='G')
+        assert G._str("q(t)") == "G[q(t) ⊗ q(t) ⊗ q(t)]"
 
 # # Affine-parametric base class ==============================================
 # class TestBaseAffineOperator:
