@@ -3,7 +3,7 @@
 
 __all__ = []
 
-# TODO: save() and load() here?
+# TODO: custom DimensionalityError for dimension mismatches.
 
 import abc
 import numpy as np
@@ -231,6 +231,56 @@ class _BaseROM(abc.ABC):
             self._check_rom_operator_shape(B_, 'B')
         self.__B_ = B_
 
+    def _set_operators(self, basis,
+                       c_=None, A_=None, H_=None, G_=None, B_=None):
+        """Set the ROM operators and corresponding dimensions.
+
+        Parameters
+        ----------
+        basis : (n,r) ndarray or None
+            Basis for the linear reduced space (e.g., POD basis matrix).
+            If None, then r is inferred from one of the reduced operators.
+        c_ : (r,) ndarray or None
+            Reduced-order constant term.
+        A_ : (r,r) ndarray or None
+            Reduced-order linear state matrix.
+        H_ : (r,r(r+1)/2) ndarray or None
+            Reduced-order (compact) quadratic state matrix.
+        G_ : (r,r(r+1)(r+2)/6) ndarray or None
+            Reduced-order (compact) cubic state matrix.
+        B_ : (r,m) ndarray or None
+            Reduced-order input matrix.
+
+        Returns
+        -------
+        self
+        """
+        self._clear()
+        operators = [c_, A_, H_, G_, B_]
+
+        # Save the low-dimensional basis. Sets self.n and self.r if given.
+        self.basis = basis
+
+        # Set the input dimension 'm'.
+        if self.has_inputs:
+            if B_ is not None:
+                self.m = 1 if len(B_.shape) == 1 else B_.shape[1]
+        else:
+            self.m = 0
+
+        # Determine the ROM dimension 'r' if no basis was given.
+        if basis is None:
+            self.r = None
+            for op in operators:
+                if op is not None:
+                    self.r = op.shape[0]
+                    break
+
+        # Insert the operators. Raises exceptions if shapes are bad, etc.
+        self.c_, self.A_, self.H_, self.G_, self.B_, = c_, A_, H_, G_, B_
+
+        return self
+
     def __iter__(self):
         for key in self.modelform:
             yield getattr(self, f"{key}_")
@@ -298,65 +348,8 @@ class _BaseROM(abc.ABC):
         except Exception as e:
             raise AttributeError("model not trained (call fit())") from e
 
-    # Public methods ----------------------------------------------------------
-    def set_operators(self, basis,
-                      c_=None, A_=None, H_=None, G_=None, B_=None):
-        """Set the ROM operators and corresponding dimensions.
-
-        Parameters
-        ----------
-        basis : (n,r) ndarray or None
-            Basis for the linear reduced space (e.g., POD basis matrix).
-            If None, then r is inferred from one of the reduced operators.
-        c_ : (r,) ndarray or None
-            Reduced-order constant term.
-        A_ : (r,r) ndarray or None
-            Reduced-order linear state matrix.
-        H_ : (r,r(r+1)/2) ndarray or None
-            Reduced-order (compact) quadratic state matrix.
-        G_ : (r,r(r+1)(r+2)/6) ndarray or None
-            Reduced-order (compact) cubic state matrix.
-        B_ : (r,m) ndarray or None
-            Reduced-order input matrix.
-
-        Returns
-        -------
-        self
-        """
-        self._clear()
-        operators = [c_, A_, H_, G_, B_]
-
-        # Save the low-dimensional basis. Sets self.n and self.r if given.
-        self.basis = basis
-
-        # Set the input dimension 'm'.
-        if self.has_inputs:
-            if B_ is not None:
-                self.m = 1 if len(B_.shape) == 1 else B_.shape[1]
-        else:
-            self.m = 0
-
-        # Determine the ROM dimension 'r' if no basis was given.
-        if basis is None:
-            self.r = None
-            for op in operators:
-                if op is not None:
-                    self.r = op.shape[0]
-                    break
-
-        # Insert the operators. Raises exceptions if shapes are bad, etc.
-        self.c_, self.A_, self.H_, self.G_, self.B_, = c_, A_, H_, G_, B_
-
-        return self
-
-    def project_state(self, S, label="argument"):
-        """Check the dimensions of S and project it if needed."""
-        if S.shape[0] not in (self.r, self.n):
-            raise ValueError(f"{label} not aligned with basis, dimension 0")
-            # TODO: better message, what if basis is None?
-        return self.basis.T @ S if S.shape[0] == self.n else S
-
-    def project_operators(self, operators):
+    # Projection / reconstruction ---------------------------------------------
+    def _project_operators(self, operators):
         """Project the full-order operators to the reduced-order space.
 
         Parameters
@@ -400,7 +393,7 @@ class _BaseROM(abc.ABC):
 
         if 'A' in operators:            # Linear state matrix.
             A = operators['A']
-            if isinstance(A, str) and A == "I":
+            if isinstance(A, str) and A.lower() in ("i", "id", "identity"):
                 A = 1
             if np.isscalar(A):              # A = multiple of identity.
                 A = A * np.eye(self.n)
@@ -428,15 +421,73 @@ class _BaseROM(abc.ABC):
         # Save keys of projected operators.
         self._projected_operators_ = ''.join(operators.keys())
 
-    # Abstract methods (must be implemented by child classes) -----------------
+    def project(self, S, label="argument"):
+        """Project a high-dimensional state to its low-dimensional
+        representation.
+
+        Parameters
+        ----------
+        S : (n,...) or (r,...) ndarray
+            High- or low-dimensional state vector or a collection of these.
+            If S.shape[0] == r (already low-dimensional), do nothing.
+        label : str
+            Name for S (used only in error reporting).
+
+        Returns
+        -------
+        S_ : (r,...) ndarray
+            Low-dimensional projection of S.
+        """
+        if self.r is None:
+            raise AttributeError("reduced dimension not set")
+        if S.shape[0] not in (self.r, self.n):
+            if self.basis is None:
+                raise AttributeError("basis not set")
+            raise ValueError(f"{label} not aligned with basis")
+        return (self.basis.T @ S) if S.shape[0] == self.n else S
+
+    def reconstruct(self, S_, label="argument"):
+        """Reconstruct a high-dimensional state from its low-dimensional
+        representation.
+
+        Parameters
+        ----------
+        S_ : (r,...) ndarray
+            Low-dimensional state vector or a collection of these.
+        label : str
+            Name for S_ (used only in error reporting).
+
+        Returns
+        -------
+        S : (n,...) ndarray
+            High-dimensional reconstruction of S_.
+        """
+        if self.basis is None:
+            raise AttributeError("basis not set")
+        if S_.shape[0] != self.r:
+            raise ValueError(f"{label} not aligned with basis")
+        return self.basis @ S_
+
+    # Abstract public methods (must be implemented by child classes) ----------
     @abc.abstractmethod
     def fit(*args, **kwargs):
+        """Train the reduced-order model with the specified data."""
         raise NotImplementedError                       # pragma: no cover
 
     @abc.abstractmethod
     def predict(*args, **kwargs):
+        """Solve the reduced-order model with the specified conditions."""
         raise NotImplementedError                       # pragma: no cover
 
+    @abc.abstractmethod
+    def save(*args, **kwargs):
+        """Save the reduced-order structure / operators in HDF5 format."""
+        raise NotImplementedError                       # pragma: no cover
+
+    @abc.abstractmethod
+    def load(*args, **kwargs):
+        """Load a previously saved reduced-order model from an HDF5 file."""
+        raise NotImplementedError                       # pragma: no cover
 
 # Future additions ------------------------------------------------------------
 # TODO: Account for state / input interactions (N?),
