@@ -50,4 +50,4 @@ def _trainedmodel(ModelClass, modelform, basis, m=20):
     if "B" in modelform:
         operators['B_'] = B
 
-    return ModelClass(modelform).set_operators(basis, **operators)
+    return ModelClass(modelform)._set_operators(basis, **operators)

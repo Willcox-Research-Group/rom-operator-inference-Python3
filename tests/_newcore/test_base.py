@@ -1,6 +1,8 @@
 # _newcore/test_base.py
 """Tests for rom_operator_inference._newcore._base.py."""
 
+# TODO: test __eq__().
+
 import pytest
 import numpy as np
 

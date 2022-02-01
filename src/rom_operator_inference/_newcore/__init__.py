@@ -3,5 +3,5 @@
 
 from .operators import *
 from .nonparametric import *
-# from .affine import *
-# from .interpolate import *
+# import affine
+# import interpolate

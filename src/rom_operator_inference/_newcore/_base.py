@@ -145,6 +145,18 @@ class _BaseROM(abc.ABC):
             raise AttributeError("can't set attribute (call fit() to reset)")
         self.__r = r
 
+    @property
+    def _r2(self):
+        """Dimension of the compact quadratic Kronecker product."""
+        r = self.r
+        return r * (r + 1) // 2
+
+    @property
+    def _r3(self):
+        """Dimension of the compact cubic Kronecker product."""
+        r = self.r
+        return r * (r + 1) * (r + 2) // 6
+
     # Properties: basis -------------------------------------------------------
     @property
     def basis(self):
@@ -156,9 +168,9 @@ class _BaseROM(abc.ABC):
         """Set the basis, thereby fixing the dimensions n and r."""
         self.__basis = basis
         if basis is not None:
-            self.__r = basis.shape[1]
             if basis.shape[0] < basis.shape[1]:
                 raise ValueError("basis must be n x r with n > r")
+            self.__r = basis.shape[1]
 
     @basis.deleter
     def basis(self):
@@ -284,6 +296,28 @@ class _BaseROM(abc.ABC):
     def __iter__(self):
         for key in self.modelform:
             yield getattr(self, f"{key}_")
+
+    def __eq__(self, other):
+        """Two ROMs are equal if they are of the same type and have the same
+        bases and reduced-order operators.
+        """
+        if self.__class__ != other.__class__:
+            return False
+        if self.modelform != other.modelform:
+            return False
+        if self.basis is None:
+            if other.basis is not None:
+                return False
+        else:
+            if other.basis is None:
+                return False
+            if not np.allclose(self.basis, other.basis):
+                return False
+        for opL, opR in zip(self, other):
+            if not (opL is opR is None) or np.allclose(opL.entries,
+                                                       opR.entries):
+                return False
+        return True
 
     # Validation methods ------------------------------------------------------
     def _check_operator_matches_modelform(self, operator, key):
