@@ -144,71 +144,71 @@ class TestNonparametricOpInfROM:
     def test_process_fit_arguments(self, n=60, k=500, m=20, r=10):
         """Test _NonparametricOpInfROM._process_fit_arguments()."""
         # Get test data.
-        Q, rhs, U = _get_data(n, k, m)
+        Q, lhs, U = _get_data(n, k, m)
         U1d = U[0,:]
         Vr = la.svd(Q)[0][:,:r]
         ones = np.ones(k)
 
         # With basis and input.
         rom = self.Dummy("AB")
-        Q_, rhs_ = rom._process_fit_arguments(Vr, Q, rhs, U, None)
+        Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, U, None)
         assert rom.n == n
         assert rom.r == r
         assert rom.basis is Vr
         assert rom.m == m
         assert np.allclose(Q_, Vr.T @ Q)
-        assert np.allclose(rhs_, Vr.T @ rhs)
+        assert np.allclose(lhs_, Vr.T @ lhs)
 
         # Without basis and with a one-dimensional input.
         rom.modelform = "cHB"
-        Q_, rhs_ = rom._process_fit_arguments(None, Q, rhs, U1d, None)
+        Q_, lhs_ = rom._process_fit_arguments(None, Q, lhs, U1d, None)
         assert rom.n is None
         assert rom.r == n
         assert rom.basis is None
         assert rom.m == 1
         assert Q_ is Q
-        assert rhs_ is rhs
+        assert lhs_ is lhs
 
         # With basis and no input.
         rom.modelform = "cA"
-        Q_, rhs_ = rom._process_fit_arguments(Vr, Q, rhs, None, None)
+        Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, None, None)
         assert rom._projected_operators_ == ""
         assert rom.n == n
         assert rom.r == r
         assert rom.basis is Vr
         assert rom.m == 0
         assert np.allclose(Q_, Vr.T @ Q)
-        assert np.allclose(rhs_, Vr.T @ rhs)
+        assert np.allclose(lhs_, Vr.T @ lhs)
 
         # With known operators for A.
         c, A, H, G, B = _get_operators(n, m, expanded=True)
         rom.modelform = "AHB"
-        Q_, rhs_ = rom._process_fit_arguments(Vr, Q, rhs, U, {"A": A})
+        Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, U, {"A": A})
         assert rom._projected_operators_ == "A"
-        assert np.allclose(rhs_, Vr.T @ (rhs - (A @ Vr @ Q_)))
+        assert np.allclose(lhs_, Vr.T @ (lhs - (A @ Vr @ Q_)))
 
         # With known operators for c and B.
         rom.modelform = "cAHB"
-        Q_, rhs_ = rom._process_fit_arguments(Vr, Q, rhs, U, {"B": B, "c": c})
+        Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, U, {"B": B, "c": c})
         assert sorted(rom._projected_operators_) == sorted("Bc")
-        lhstrue = Vr.T @ (rhs - B @ U - np.outer(c, ones))
-        assert np.allclose(rhs_, lhstrue)
+        lhstrue = Vr.T @ (lhs - B @ U - np.outer(c, ones))
+        assert np.allclose(lhs_, lhstrue)
 
         # Special case: m = inputs.ndim = 1
         U1d = U[0]
         B1d = B[:,0]
-        Q_, rhs_ = rom._process_fit_arguments(Vr, Q, rhs, U1d, {"B": B1d})
+        Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, U1d, {"B": B1d})
         assert rom.m == 1
         assert rom._projected_operators_ == "B"
-        assert np.allclose(rhs_, Vr.T @ (rhs - np.outer(B1d, ones)))
+        assert np.allclose(lhs_, Vr.T @ (lhs - np.outer(B1d, ones)))
 
         # Fully intrusive.
         rom.modelform = "cA"
-        Q_, rhs_ = rom._process_fit_arguments(Vr, Q, rhs, None,
+        Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, None,
                                               {"c": c, "A":A})
         assert sorted(rom._projected_operators_) == sorted("cA")
         assert Q_ is None
-        assert rhs_ is None
+        assert lhs_ is None
 
     def test_assemble_data_matrix(self, k=500, m=20, r=10):
         """Test _NonparametricOpInfROM._assemble_data_matrix()."""
@@ -383,6 +383,7 @@ class TestNonparametricOpInfROM:
         rom.save(target, save_basis=True, overwrite=True)
         rom2 = rom.load(target)
         assert rom2 is not rom
+        assert rom2 == rom
         assert np.all(rom2.basis == rom.basis)
         for attr in ["n", "m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)
@@ -397,6 +398,7 @@ class TestNonparametricOpInfROM:
         rom.basis = None
         rom.save(target, overwrite=True)
         rom2 = rom.load(target)
+        assert rom2 is not rom
         assert rom2 == rom
         for attr in ["m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)

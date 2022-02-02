@@ -302,20 +302,26 @@ class _BaseROM(abc.ABC):
         bases and reduced-order operators.
         """
         if self.__class__ != other.__class__:
+            print("chkpt 1")
             return False
         if self.modelform != other.modelform:
+            print("chkpt 2")
             return False
         if self.basis is None:
             if other.basis is not None:
+                print("chkpt 3")
                 return False
         else:
             if other.basis is None:
+                print("chkpt 4")
                 return False
             if not np.allclose(self.basis, other.basis):
+                print("chkpt 5")
                 return False
         for opL, opR in zip(self, other):
-            if not (opL is opR is None) or np.allclose(opL.entries,
-                                                       opR.entries):
+            if not ((opL is opR is None) or (np.allclose(opL.entries,
+                                                         opR.entries))):
+                print("chkpt 6")
                 return False
         return True
 
