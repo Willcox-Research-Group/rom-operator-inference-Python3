@@ -1,5 +1,5 @@
 # utils/test_kronecker.py
-"""Tests for rom_operator_inference.utils._kronecker.py."""
+"""Tests for rom_operator_inference.utils._kronecker."""
 
 import pytest
 import numpy as np
@@ -128,15 +128,15 @@ def test_kron3c(n_tests=50):
 
 
 # Matricized tensor management ================================================
-# utils.expand_H() -----------------------------------------------------------
-def _test_expand_H_single(r):
-    """Do one test of utils._kronecker.expand_H()."""
+# utils.expand_quadratic() ----------------------------------------------------
+def _test_expand_quadratic_single(r):
+    """Do one test of utils._kronecker.expand_quadratic()."""
     x = np.random.random(r)
 
-    # Do a valid expand_H() calculation and check dimensions.
+    # Do a valid expand_quadratic() calculation and check dimensions.
     s = r*(r+1)//2
     Hc = np.random.random((r,s))
-    H = opinf.utils.expand_H(Hc)
+    H = opinf.utils.expand_quadratic(Hc)
     assert H.shape == (r,r**2)
 
     # Check that Hc(x^2) == H(x⊗x).
@@ -150,39 +150,40 @@ def _test_expand_H_single(r):
         assert np.allclose(subH, subH.T)
 
 
-def test_expand_H(n_tests=100):
-    """Test utils._kronecker.expand_H()."""
-    # Try to do expand_H() with a bad second dimension.
+def test_expand_quadratic(n_tests=100):
+    """Test utils._kronecker.expand_quadratic()."""
+    # Try to do expand_quadratic() with a bad second dimension.
     r = 5
     sbad = r*(r+3)//2
     Hc = np.random.random((r, sbad))
     with pytest.raises(ValueError) as exc:
-        opinf.utils.expand_H(Hc)
+        opinf.utils.expand_quadratic(Hc)
     assert exc.value.args[0] == \
         f"invalid shape (r,s) = {(r,sbad)} with s != r(r+1)/2"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 100, n_tests):
-        _test_expand_H_single(r)
+        _test_expand_quadratic_single(r)
 
 
-# utils.compress_H() ----------------------------------------------------------
-def _test_compress_H_single(r):
-    """Do one test of utils._kronecker.compress_H()."""
+# utils.compress_quadratic() --------------------------------------------------
+def _test_compress_quadratic_single(r):
+    """Do one test of utils._kronecker.compress_quadratic()."""
     x = np.random.random(r)
 
-    # Do a valid compress_H() calculation and check dimensions.
+    # Do a valid compress_quadratic() calculation and check dimensions.
     H = np.random.random((r,r**2))
     s = r*(r+1)//2
-    Hc = opinf.utils.compress_H(H)
+    Hc = opinf.utils.compress_quadratic(H)
     assert Hc.shape == (r,s)
 
     # Check that Hc(x^2) == H(x⊗x).
     Hxx = H @ np.kron(x,x)
     assert np.allclose(Hxx, Hc @ opinf.utils.kron2c(x))
 
-    # Check that expand_H() and compress_H() are inverses up to symmetry.
-    H2 = opinf.utils.expand_H(Hc)
+    # Check that expand_quadratic() and compress_quadratic()
+    # are inverses up to symmetry.
+    H2 = opinf.utils.expand_quadratic(Hc)
     Ht = H.reshape((r,r,r))
     Htnew = np.empty_like(Ht)
     for i in range(r):
@@ -190,31 +191,31 @@ def _test_compress_H_single(r):
     assert np.allclose(H2, Htnew.reshape(H.shape))
 
 
-def test_compress_H(n_tests=100):
-    """Test utils._kronecker.compress_H()."""
-    # Try to do compress_H() with a bad second dimension.
+def test_compress_quadratic(n_tests=100):
+    """Test utils._kronecker.compress_quadratic()."""
+    # Try to do compress_quadratic() with a bad second dimension.
     r = 5
     r2bad = r**2 + 1
     H = np.random.random((r, r2bad))
     with pytest.raises(ValueError) as exc:
-        opinf.utils.compress_H(H)
+        opinf.utils.compress_quadratic(H)
     assert exc.value.args[0] == \
         f"invalid shape (r,a) = {(r,r2bad)} with a != r**2"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 100, n_tests):
-        _test_compress_H_single(r)
+        _test_compress_quadratic_single(r)
 
 
-# utils.expand_G() -----------------------------------------------------------
-def _test_expand_G_single(r):
-    """Do one test of utils._kronecker.expand_G()."""
+# utils.expand_cubic() --------------------------------------------------------
+def _test_expand_cubic_single(r):
+    """Do one test of utils._kronecker.expand_cubic()."""
     x = np.random.random(r)
 
-    # Do a valid expand_H() calculation and check dimensions.
+    # Do a valid expand_cubic() calculation and check dimensions.
     s = r*(r+1)*(r+2)//6
     Gc = np.random.random((r,s))
-    G = opinf.utils.expand_G(Gc)
+    G = opinf.utils.expand_cubic(Gc)
     assert G.shape == (r,r**3)
 
     # Check that Gc(x^3) == G(x⊗x⊗x).
@@ -228,52 +229,53 @@ def _test_expand_G_single(r):
         assert np.allclose(subG, subG.T)
 
 
-def test_expand_G(n_tests=50):
-    """Test utils._kronecker.expand_G()."""
-    # Try to do expand_G() with a bad second dimension.
+def test_expand_cubic(n_tests=50):
+    """Test utils._kronecker.expand_cubic()."""
+    # Try to do expand_cubic() with a bad second dimension.
     r = 5
     sbad = r*(r+1)*(r+3)//6
     Gc = np.random.random((r, sbad))
     with pytest.raises(ValueError) as exc:
-        opinf.utils.expand_G(Gc)
+        opinf.utils.expand_cubic(Gc)
     assert exc.value.args[0] == \
         f"invalid shape (r,s) = {(r,sbad)} with s != r(r+1)(r+2)/6"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 30, n_tests):
-        _test_expand_G_single(r)
+        _test_expand_cubic_single(r)
 
 
-# utils.compress_G() ----------------------------------------------------------
-def _test_compress_G_single(r):
-    """Do one test of utils._kronecker.compress_G()."""
+# utils.compress_cubic() ------------------------------------------------------
+def _test_compress_cubic_single(r):
+    """Do one test of utils._kronecker.compress_cubic()."""
     x = np.random.random(r)
 
-    # Do a valid compress_G() calculation and check dimensions.
+    # Do a valid compress_cubic() calculation and check dimensions.
     G = np.random.random((r,r**3))
     s = r*(r+1)*(r+2)//6
-    Gc = opinf.utils.compress_G(G)
+    Gc = opinf.utils.compress_cubic(G)
     assert Gc.shape == (r,s)
 
     # Check that Gc(x^3) == G(x⊗x⊗x).
     Gxxx = G @ np.kron(x,np.kron(x,x))
     assert np.allclose(Gxxx, Gc @ opinf.utils.kron3c(x))
 
-    # Check that expand_G() and compress_G() are "inverses."
-    assert np.allclose(Gc, opinf.utils.compress_G(opinf.utils.expand_G(Gc)))
+    # Check that expand_cubic() and compress_cubic() are "inverses."
+    G_new = opinf.utils.expand_cubic(Gc)
+    assert np.allclose(Gc, opinf.utils.compress_cubic(G_new))
 
 
-def test_compress_G(n_tests=50):
-    """Test utils._kronecker.compress_G()."""
-    # Try to do compress_H() with a bad second dimension.
+def test_compress_cubic(n_tests=50):
+    """Test utils._kronecker.compress_cubic()."""
+    # Try to do compress_cubic() with a bad second dimension.
     r = 5
     r3bad = r**3 + 1
     G = np.random.random((r, r3bad))
     with pytest.raises(ValueError) as exc:
-        opinf.utils.compress_G(G)
+        opinf.utils.compress_cubic(G)
     assert exc.value.args[0] == \
         f"invalid shape (r,a) = {(r,r3bad)} with a != r**3"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 30, n_tests):
-        _test_compress_G_single(r)
+        _test_compress_cubic_single(r)

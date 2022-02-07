@@ -1,5 +1,5 @@
 # pre/test_reprojection.py
-"""Tests for rom_operator_inference.pre._reprojection.py"""
+"""Tests for rom_operator_inference.pre._reprojection."""
 
 import pytest
 import numpy as np
@@ -37,43 +37,44 @@ def test_reproject_discrete(n=50, m=5, r=3):
         return A @ x
     X_ = opinf.pre.reproject_discrete(f, basis, x0, k)
     assert X_.shape == (r,k)
-    rom = opinf.InferredDiscreteROM("A").fit(basis, X_)
+    rom = opinf.DiscreteOpInfROM("A").fit(basis, X_)
     assert np.allclose(basis @ X_, rom.predict(X_[:,0], k))
-    assert np.allclose(rom.A_, basis.T @ A @ basis)
+    assert np.allclose(rom.A_.entries, basis.T @ A @ basis)
 
     # Linear case, 1D inputs.
     def f(x, u):
         return A @ x + B1d * u
     X_ = opinf.pre.reproject_discrete(f, basis, x0, k, U1d)
     assert X_.shape == (r,k)
-    rom = opinf.InferredDiscreteROM("AB").fit(basis, X_, inputs=U1d)
+    rom = opinf.DiscreteOpInfROM("AB").fit(basis, X_, inputs=U1d)
     assert np.allclose(X_, basis.T @ rom.predict(X_[:,0], k, U1d))
-    assert np.allclose(rom.A_, basis.T @ A @ basis)
-    assert np.allclose(rom.B_.flatten(), basis.T @ B1d)
+    assert np.allclose(rom.A_.entries, basis.T @ A @ basis)
+    assert np.allclose(rom.B_.entries.flatten(), basis.T @ B1d)
 
     # Linear case, 2D inputs.
     def f(x, u):
         return A @ x + B @ u
     X_ = opinf.pre.reproject_discrete(f, basis, x0, k, U)
     assert X_.shape == (r,k)
-    rom = opinf.InferredDiscreteROM("AB").fit(basis, X_, inputs=U)
+    rom = opinf.DiscreteOpInfROM("AB").fit(basis, X_, inputs=U)
     assert np.allclose(X_, basis.T @ rom.predict(X_[:,0], k, U))
-    assert np.allclose(rom.A_, basis.T @ A @ basis)
-    assert np.allclose(rom.B_, basis.T @ B)
+    assert np.allclose(rom.A_.entries, basis.T @ A @ basis)
+    assert np.allclose(rom.B_.entries, basis.T @ B)
 
     # Quadratic case, no inputs.
     def f(x):
         return A @ x + H @ np.kron(x,x)
     X_ = opinf.pre.reproject_discrete(f, basis, x0, k)
     assert X_.shape == (r,k)
-    rom = opinf.InferredDiscreteROM("AH").fit(basis, X_)
+    rom = opinf.DiscreteOpInfROM("AH").fit(basis, X_)
     assert np.allclose(X_, basis.T @ rom.predict(X_[:,0], k))
-    assert np.allclose(rom.A_, basis.T @ A @ basis, atol=1e-6, rtol=1e-6)
+    assert np.allclose(rom.A_.entries,
+                       basis.T @ A @ basis, atol=1e-6, rtol=1e-6)
     H_ = basis.T @ H @ np.kron(basis, basis)
     for _ in range(10):
         x_ = np.random.random(r)
         x2_ = np.kron(x_, x_)
-        assert np.allclose(rom.H_ @ opinf.utils.kron2c(x_), H_ @ x2_)
+        assert np.allclose(rom.H_(x_), H_ @ x2_)
 
 
 def test_reproject_continuous(n=100, m=20, r=10):
@@ -105,8 +106,8 @@ def test_reproject_continuous(n=100, m=20, r=10):
     X_, Xdot_ = opinf.pre.reproject_continuous(f, basis, X)
     assert X_.shape == (r,k)
     assert Xdot_.shape == (r,k)
-    rom = opinf.InferredContinuousROM("A").fit(basis, X_, Xdot_)
-    assert np.allclose(rom.A_, basis.T @ A @ basis)
+    rom = opinf.ContinuousOpInfROM("A").fit(basis, X_, Xdot_)
+    assert np.allclose(rom.A_.entries, basis.T @ A @ basis)
 
     # Linear case, 1D inputs.
     def f(x, u):
@@ -114,9 +115,9 @@ def test_reproject_continuous(n=100, m=20, r=10):
     X_, Xdot_ = opinf.pre.reproject_continuous(f, basis, X, U1d)
     assert X_.shape == (r,k)
     assert Xdot_.shape == (r,k)
-    rom = opinf.InferredContinuousROM("AB").fit(basis, X_, Xdot_, U1d)
-    assert np.allclose(rom.A_, basis.T @ A @ basis)
-    assert np.allclose(rom.B_.flatten(), basis.T @ B1d)
+    rom = opinf.ContinuousOpInfROM("AB").fit(basis, X_, Xdot_, U1d)
+    assert np.allclose(rom.A_.entries, basis.T @ A @ basis)
+    assert np.allclose(rom.B_.entries.flatten(), basis.T @ B1d)
 
     # Linear case, 2D inputs.
     def f(x, u):
@@ -124,9 +125,9 @@ def test_reproject_continuous(n=100, m=20, r=10):
     X_, Xdot_ = opinf.pre.reproject_continuous(f, basis, X, U)
     assert X_.shape == (r,k)
     assert Xdot_.shape == (r,k)
-    rom = opinf.InferredContinuousROM("AB").fit(basis, X_, Xdot_, U)
-    assert np.allclose(rom.A_, basis.T @ A @ basis)
-    assert np.allclose(rom.B_, basis.T @ B)
+    rom = opinf.ContinuousOpInfROM("AB").fit(basis, X_, Xdot_, U)
+    assert np.allclose(rom.A_.entries, basis.T @ A @ basis)
+    assert np.allclose(rom.B_.entries, basis.T @ B)
 
     # Quadratic case, no inputs.
     def f(x):
@@ -134,10 +135,10 @@ def test_reproject_continuous(n=100, m=20, r=10):
     X_, Xdot_ = opinf.pre.reproject_continuous(f, basis, X)
     assert X_.shape == (r,k)
     assert Xdot_.shape == (r,k)
-    rom = opinf.InferredContinuousROM("AH").fit(basis, X_, Xdot_)
-    assert np.allclose(rom.A_, basis.T @ A @ basis)
+    rom = opinf.ContinuousOpInfROM("AH").fit(basis, X_, Xdot_)
+    assert np.allclose(rom.A_.entries, basis.T @ A @ basis)
     H_ = basis.T @ H @ np.kron(basis, basis)
     for _ in range(10):
         x_ = np.random.random(r)
         x2_ = np.kron(x_, x_)
-        assert np.allclose(rom.H_ @ opinf.utils.kron2c(x_), H_ @ x2_)
+        assert np.allclose(rom.H_(x_), H_ @ x2_)
