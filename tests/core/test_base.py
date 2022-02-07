@@ -1,5 +1,5 @@
-# _newcore/test_base.py
-"""Tests for rom_operator_inference._newcore._base.py."""
+# core/test_base.py
+"""Tests for rom_operator_inference.core._base."""
 
 # TODO: test __eq__().
 
@@ -12,9 +12,9 @@ from . import MODEL_FORMS, _get_data, _get_operators
 
 
 class TestBaseROM:
-    """Test _newcore._base._BaseROM."""
+    """Test core._base._BaseROM."""
 
-    class Dummy(opinf._newcore._base._BaseROM):
+    class Dummy(opinf.core._base._BaseROM):
         """Instantiable version of _BaseROM."""
         _LHS_LABEL = "dq / dt"
         _STATE_LABEL = "q(t)"
@@ -33,7 +33,7 @@ class TestBaseROM:
             pass
 
     def test_str(self):
-        """Test _newcore._base._BaseROM.__str__() (string representation)."""
+        """Test core._base._BaseROM.__str__() (string representation)."""
         # Continuous ROMs
         rom = self.Dummy("A")
         assert str(rom) == \
@@ -71,7 +71,7 @@ class TestBaseROM:
         self.Dummy._INPUT_LABEL = "u"
 
     def test_modelform_properties(self, n=10, r=3, m=5):
-        """Test the properties related to _newcore._base._BaseROM.modelform."""
+        """Test the properties related to core._base._BaseROM.modelform."""
         c_, A_, H_, G_, B_ = _get_operators(r, m)
 
         # Try with invalid modelform.
@@ -79,7 +79,7 @@ class TestBaseROM:
             self.Dummy("bad_form")
         assert ex.value.args[0] == \
             "invalid modelform key 'b'; options are " \
-            f"{', '.join(opinf._newcore._base._BaseROM._MODELFORM_KEYS)}"
+            f"{', '.join(opinf.core._base._BaseROM._MODELFORM_KEYS)}"
 
         # Check initial attributes exist.
         rom = self.Dummy("BAc")
@@ -139,7 +139,7 @@ class TestBaseROM:
         assert rom.B_ is None
 
     def test_dimension_properties(self, n=20, m=3, r=7):
-        """Test the properties _newcore._base._BaseROM.(n|r|basis)."""
+        """Test the properties core._base._BaseROM.(n|r|basis)."""
         rom = self.Dummy("cH")
         assert rom.n is None
         assert rom.m == 0
@@ -196,7 +196,7 @@ class TestBaseROM:
         assert ex.value.args[0] == "basis must be n x r with n > r"
 
     def test_operator_properties(self, m=4, r=7):
-        """Test the properties _newcore._base._BaseROM.(c_|A_|H_|G_|B_)."""
+        """Test the properties core._base._BaseROM.(c_|A_|H_|G_|B_)."""
         c, A, H, G, B = operators = _get_operators(r, m)
 
         rom = self.Dummy(self.Dummy._MODELFORM_KEYS)
@@ -213,7 +213,7 @@ class TestBaseROM:
         rom.G_ = np.random.random((r,r**3))
 
     def test_set_operators(self, n=60, m=10, r=12):
-        """Test _newcore._base._BaseROM._set_operators()."""
+        """Test core._base._BaseROM._set_operators()."""
         basis = np.random.random((n, r))
         c, A, H, G, B = _get_operators(r, m)
 
@@ -245,7 +245,7 @@ class TestBaseROM:
         assert rom.B_.entries is B
 
     def test_iter(self, m=2, r=6):
-        """Test _newcore._base._BaseROM.__iter__()."""
+        """Test core._base._BaseROM.__iter__()."""
         rom = self.Dummy("cAH")
         oplist = list(rom)
         assert len(oplist) == 3
@@ -259,7 +259,7 @@ class TestBaseROM:
 
     # Validation methods ------------------------------------------------------
     def test_check_operator_matches_modelform(self):
-        """Test _newcore._base._BaseROM._check_operator_matches_modelform()."""
+        """Test core._base._BaseROM._check_operator_matches_modelform()."""
         # Try key in modelform but operator None.
         rom = self.Dummy(self.Dummy._MODELFORM_KEYS)
         for key in rom._MODELFORM_KEYS:
@@ -277,7 +277,7 @@ class TestBaseROM:
                 f"'{key}' not in modelform requires {key}_ = None"
 
     def test_check_rom_operator_shape(self, m=4, r=7):
-        """Test _newcore._base._BaseROM._check_rom_operator_shape()."""
+        """Test core._base._BaseROM._check_rom_operator_shape()."""
         c, A, H, G, B = operators = _get_operators(r, m)
 
         # Try correct match but dimension 'r' is missing.
@@ -344,7 +344,7 @@ class TestBaseROM:
             "argument 'u' invalid since 'B' in modelform"
 
     def test_is_trained(self, m=4, r=7):
-        """Test _newcore._base._BaseROM._check_is_trained()."""
+        """Test core._base._BaseROM._check_is_trained()."""
         operators = _get_operators(r, m)
         rom = self.Dummy(self.Dummy._MODELFORM_KEYS)
 
@@ -360,7 +360,7 @@ class TestBaseROM:
 
     # Projection / reconstruction ---------------------------------------------
     def test_project_operators(self, n=7, m=5, r=3):
-        """Test _newcore._base._BaseROM._project_operators()."""
+        """Test core._base._BaseROM._project_operators()."""
         # Get test data.
         basis = np.random.random((n,r))
         shapes = {
@@ -478,7 +478,7 @@ class TestBaseROM:
         # TODO: Special case: G(q) = q^3
 
     def test_project(self, n=60, k=50, r=10):
-        """Test _newcore._base._BaseROM.project()."""
+        """Test core._base._BaseROM.project()."""
         Q, Qdot, _ = _get_data(n, k, 2)
         rom = self.Dummy("c")
 
@@ -509,7 +509,7 @@ class TestBaseROM:
             assert np.all(S_ == S[:r,:])
 
     def test_reconstruct(self, n=60, k=20, r=8):
-        """Test _newcore._base._BaseROM.reconstruct()."""
+        """Test core._base._BaseROM.reconstruct()."""
         Q_, Qdot_, _ = _get_data(r, k, 2)
         rom = self.Dummy("c")
 

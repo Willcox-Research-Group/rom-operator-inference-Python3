@@ -1,4 +1,4 @@
-# _core/__init__.py
+# core/__init__.py
 """Global variables and helper routines for setting up core tests."""
 
 import itertools
@@ -8,10 +8,10 @@ import rom_operator_inference as opinf
 
 
 # Global variables for testsing ===============================================
-MODEL_KEYS = opinf._core._base._BaseROM._MODEL_KEYS
+MODELFORM_KEYS = opinf.core._base._BaseROM._MODELFORM_KEYS
 
-MODEL_FORMS = [''.join(s) for k in range(1, len(MODEL_KEYS)+1)
-               for s in itertools.combinations(MODEL_KEYS, k)]
+MODEL_FORMS = [''.join(s) for k in range(1, len(MODELFORM_KEYS)+1)
+               for s in itertools.combinations(MODELFORM_KEYS, k)]
 
 
 # Helper functions for testing ================================================
@@ -34,15 +34,8 @@ def _get_operators(n=60, m=20, expanded=False):
     return c, A, H, G, B
 
 
-def _trainedmodel(continuous, modelform, basis, m=20):
+def _trainedmodel(ModelClass, modelform, basis, m=20):
     """Construct a base class with model operators already constructed."""
-    if continuous == "inferred":
-        ModelClass = opinf.InferredContinuousROM
-    elif continuous:
-        ModelClass = opinf._core._base._ContinuousROM
-    else:
-        ModelClass = opinf._core._base._DiscreteROM
-
     n,r = basis.shape
     c, A, H, G, B = _get_operators(r, m)
     operators = {}
@@ -57,4 +50,10 @@ def _trainedmodel(continuous, modelform, basis, m=20):
     if "B" in modelform:
         operators['B_'] = B
 
-    return ModelClass(modelform).set_operators(basis, **operators)
+    return ModelClass(modelform)._set_operators(basis, **operators)
+
+
+def _isoperator(op):
+    """Return True if `op` is a valid nonparametric 'Operator' object."""
+    _BaseOp = opinf.core.operators._nonparametric._BaseNonparametricOperator
+    return isinstance(op, _BaseOp)

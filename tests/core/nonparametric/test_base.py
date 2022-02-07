@@ -1,7 +1,5 @@
-# _newcore/test_nonparametric.py
-"""Tests for rom_operator_inference._newcore.nonparametric.py."""
-
-# TODO: test public OpInfROM classes (fit(), predict()).
+# core/nonparametric/test_base.py
+"""Tests for rom_operator_inference.core.nonparametric._base."""
 
 import os
 import h5py
@@ -11,15 +9,14 @@ from scipy import linalg as la
 
 import rom_operator_inference as opinf
 
-from . import (MODELFORM_KEYS, MODEL_FORMS,
-               _get_data, _get_operators, _trainedmodel)
+from .. import (MODELFORM_KEYS, MODEL_FORMS,
+                _get_data, _get_operators, _trainedmodel, _isoperator)
 
 
-# Base nonparametric OpInf class ==============================================
 class TestNonparametricOpInfROM:
-    """Test _newcore.nonparametric._NonparametricOpInfROM."""
+    """Test core.nonparametric._base._NonparametricOpInfROM."""
 
-    class Dummy(opinf._newcore.nonparametric._NonparametricOpInfROM):
+    class Dummy(opinf.core.nonparametric._base._NonparametricOpInfROM):
         """Instantiable version of _NonparametricOpInfROM."""
         _LHS_ARGNAME = "ddts"
 
@@ -49,7 +46,7 @@ class TestNonparametricOpInfROM:
         assert np.all(rom.operator_matrix_ == G)
 
     def test_data_matrix_(self, k=500, m=20, r=10):
-        """Test _core.nonparametric._NonparametricOpInfROM.data_matrix_.
+        """Test core.nonparametric._base._NonparametricOpInfROM.data_matrix_.
         This is essentially a spot check for _assemble_data_matrix().
         """
         Q, Qdot, U = _get_data(r, k, m)
@@ -268,14 +265,13 @@ class TestNonparametricOpInfROM:
                 assert hasattr(rom, attr)
                 value = getattr(rom, attr)
                 if prefix in form:
-                    assert isinstance(value,
-                                      opinf._newcore.operators._BaseOperator)
+                    assert _isoperator(value)
                     assert value.shape == shapes[attr]
                 else:
                     assert value is None
 
     def test_fit(self):
-        """Test _core.nonparametric._NonparametricOpInfROM.fit()."""
+        """Test core.nonparametric._base._NonparametricOpInfROM.fit()."""
         # Get test data.
         n, k, m, r = 60, 500, 20, 10
         Q, Qdot, U = _get_data(n, k, m)
@@ -305,14 +301,14 @@ class TestNonparametricOpInfROM:
         _, A, _, _, B = _get_operators(n, m)
         rom.fit(basis, None, None, None, known_operators={"A": A, "B": B})
         assert rom.solver_ is None
-        assert isinstance(rom.A_, opinf._newcore.operators._BaseOperator)
-        assert isinstance(rom.B_, opinf._newcore.operators._BaseOperator)
+        assert _isoperator(rom.A_)
+        assert _isoperator(rom.B_)
         assert np.allclose(rom.A_.entries, basis.T @ A @ basis)
         assert np.allclose(rom.B_.entries, basis.T @ B)
 
     # Model persistence -------------------------------------------------------
     def test_save(self, n=15, m=2, r=3, target="_savemodeltest.h5"):
-        """Test _newcore.nonparametric._NonparametricOpInfROM.save()."""
+        """Test core.nonparametric._base._NonparametricOpInfROM.save()."""
         # Clean up after old tests.
         if os.path.isfile(target):              # pragma: no cover
             os.remove(target)
@@ -389,7 +385,7 @@ class TestNonparametricOpInfROM:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_"]:
             got = getattr(rom2, attr)
-            assert isinstance(got, opinf._newcore.operators._BaseOperator)
+            assert _isoperator(got)
             assert np.all(getattr(rom, attr).entries == got.entries)
         for attr in ["c_", "H_", "G_"]:
             assert getattr(rom, attr) is getattr(rom2, attr) is None
@@ -404,7 +400,7 @@ class TestNonparametricOpInfROM:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_",]:
             got = getattr(rom2, attr)
-            assert isinstance(got, opinf._newcore.operators._BaseOperator)
+            assert _isoperator(got)
             assert np.all(getattr(rom, attr).entries == got.entries)
         for attr in ["n", "c_", "H_", "G_", "basis"]:
             assert getattr(rom, attr) is getattr(rom2, attr) is None
@@ -412,7 +408,7 @@ class TestNonparametricOpInfROM:
         os.remove(target)
 
     def test_load(self, n=20, m=2, r=5, target="_loadmodeltest.h5"):
-        """Test _newcore.nonparametric._NonparametricOpInfROM.load()."""
+        """Test core.nonparametric._base._NonparametricOpInfROM.load()."""
         # Get test operators.
         Vr = np.random.random((n,r))
         c_, A_, H_, G_, B_ = _get_operators(n=r, m=m)
@@ -455,8 +451,7 @@ class TestNonparametricOpInfROM:
             assert rom.r == r
             assert rom.m == m
             for attr in ["c_", "A_", "B_"]:
-                assert isinstance(getattr(rom, attr),
-                                  opinf._newcore.operators._BaseOperator)
+                assert _isoperator(getattr(rom, attr))
             assert np.all(rom.c_.entries == c_)
             assert np.all(rom.A_.entries == A_)
             assert rom.H_ is None
@@ -493,8 +488,7 @@ class TestNonparametricOpInfROM:
         assert rom.r == r
         assert rom.m == 0
         for attr in ["H_", "G_"]:
-            assert isinstance(getattr(rom, attr),
-                              opinf._newcore.operators._BaseOperator)
+            assert _isoperator(getattr(rom, attr))
         assert rom.c_ is None
         assert rom.A_ is None
         assert np.all(rom.H_.entries == H_)
@@ -505,42 +499,3 @@ class TestNonparametricOpInfROM:
 
         # Clean up.
         os.remove(target)
-
-
-# Useable classes (public) ====================================================
-class TestSteadyOpInfROM:
-    pass
-
-
-class TestDiscreteOpInfROM:
-    pass
-
-
-class TestContinuousOpInfROM:
-    pass
-
-
-# Frozen classes (evaluations of parametric ROMs) =============================
-class TestFrozenMixin:
-
-    class Dummy(opinf._newcore.nonparametric._FrozenMixin,
-                opinf._newcore.nonparametric._NonparametricOpInfROM):
-        """Instantiable version of _FrozenMixin."""
-        def predict(*args, **kwargs):
-            pass
-
-    def test_disabled(self):
-        """Test _newcore.nonparametric._FrozenMixin.fit()."""
-        rom = self.Dummy("A")
-
-        # Test disabled data_matrix_ property.
-        assert rom.data_matrix_ is None
-        rom.solver_ = "A"
-        assert rom.data_matrix_ is None
-
-        # Test disabled fit().
-        with pytest.raises(NotImplementedError) as ex:
-            rom.fit(None, None, known_operators=None)
-        assert ex.value.args[0] == \
-            ("fit() is disabled for this class, call fit() "
-             "on the parametric ROM object")
