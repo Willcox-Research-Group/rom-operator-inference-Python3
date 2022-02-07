@@ -1,13 +1,12 @@
-# _core/_base.py
+# core/_base.py
 """Base class for all reduced-order model classes."""
 
 __all__ = []
 
-# TODO: custom DimensionalityError for dimension mismatches.
-
 import abc
 import numpy as np
 
+# from ._exceptions import DimensionalityError
 from .operators import (ConstantOperator, LinearOperator,
                         QuadraticOperator, CubicOperator)
 
