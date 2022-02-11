@@ -56,6 +56,13 @@ class TestBaseNonparametricOperator:
         A[0,0] = 0
         func(A)
 
+    def test_getitem(self):
+        """Test _BaseNonparametricOperator.__getitem__()."""
+        A = np.random.random((8, 6))
+        op = self.Dummy(A)
+        for s in [slice(2), (slice(1), slice(1,3)), slice(1, 4, 2)]:
+            assert np.all(op[s] == A[s])
+
     def test_eq(self):
         """Test _BaseNonparametricOperator.__eq__()."""
         A = np.arange(12).reshape((4,3))

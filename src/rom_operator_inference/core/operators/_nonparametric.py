@@ -65,6 +65,10 @@ class _BaseNonparametricOperator(abc.ABC):
     def __call__(*args, **kwargs):
         raise NotImplementedError                           # pragma: no cover
 
+    def __getitem__(self, key):
+        """Slice into the discrete representation of the operator."""
+        return self.entries[key]
+
     def __eq__(self, other):
         """Test whether two Operator objects are numerically equal."""
         if not isinstance(other, self.__class__):

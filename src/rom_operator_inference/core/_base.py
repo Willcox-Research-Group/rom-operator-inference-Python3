@@ -301,26 +301,20 @@ class _BaseROM(abc.ABC):
         bases and reduced-order operators.
         """
         if self.__class__ != other.__class__:
-            print("chkpt 1")
             return False
         if self.modelform != other.modelform:
-            print("chkpt 2")
             return False
         if self.basis is None:
             if other.basis is not None:
-                print("chkpt 3")
                 return False
         else:
             if other.basis is None:
-                print("chkpt 4")
                 return False
             if not np.allclose(self.basis, other.basis):
-                print("chkpt 5")
                 return False
         for opL, opR in zip(self, other):
             if not ((opL is opR is None) or (np.allclose(opL.entries,
                                                          opR.entries))):
-                print("chkpt 6")
                 return False
         return True
 
@@ -460,52 +454,87 @@ class _BaseROM(abc.ABC):
         # Save keys of projected operators.
         self._projected_operators_ = ''.join(operators.keys())
 
-    def project(self, S, label="argument"):
+    def project(self, state, label="argument"):
         """Project a high-dimensional state to its low-dimensional
         representation.
 
         Parameters
         ----------
-        S : (n,...) or (r,...) ndarray
+        state : (n,...) or (r,...) ndarray
             High- or low-dimensional state vector or a collection of these.
-            If S.shape[0] == r (already low-dimensional), do nothing.
+            If state.shape[0] == r (already low-dimensional), do nothing.
         label : str
-            Name for S (used only in error reporting).
+            Name for state (used only in error reporting).
 
         Returns
         -------
-        S_ : (r,...) ndarray
-            Low-dimensional projection of S.
+        state_ : (r,...) ndarray
+            Low-dimensional projection of state.
         """
         if self.r is None:
             raise AttributeError("reduced dimension not set")
-        if S.shape[0] not in (self.r, self.n):
+        if state.shape[0] not in (self.r, self.n):
             if self.basis is None:
                 raise AttributeError("basis not set")
             raise ValueError(f"{label} not aligned with basis")
-        return (self.basis.T @ S) if S.shape[0] == self.n else S
+        return (self.basis.T @ state) if state.shape[0] == self.n else state
 
-    def reconstruct(self, S_, label="argument"):
+    def reconstruct(self, state_, label="argument"):
         """Reconstruct a high-dimensional state from its low-dimensional
         representation.
 
         Parameters
         ----------
-        S_ : (r,...) ndarray
+        state_ : (r,...) ndarray
             Low-dimensional state vector or a collection of these.
         label : str
-            Name for S_ (used only in error reporting).
+            Name for state_ (used only in error reporting).
 
         Returns
         -------
-        S : (n,...) ndarray
-            High-dimensional reconstruction of S_.
+        state : (n,...) ndarray
+            High-dimensional reconstruction of state_.
         """
         if self.basis is None:
             raise AttributeError("basis not set")
-        if S_.shape[0] != self.r:
+        if state_.shape[0] != self.r:
             raise ValueError(f"{label} not aligned with basis")
-        return self.basis @ S_
+        return self.basis @ state_
+
+    # ROM evaluation ----------------------------------------------------------
+    def evaluate(self, state_, input_=None):
+        """Evaluate the right-hand side of the model, i.e., the f() of
+
+        * g = f(q, u)                   (steady state)
+        * q_{j+1} = f(q_{j}, u_{j})     (discrete time)
+        * dq / dt = f(q(t), u(t))       (continuous time)
+
+        Parameters
+        ----------
+        state_ : (r,) ndarray
+            Low-dimensional state vector.
+        input_ : (m,) ndarray or None
+            Input vector corresponding to the state.
+
+        Returns
+        -------
+        f(state_, input_): (r,) ndarray
+            Evaluation of the right-hand side of the model.
+        """
+        out = np.zeros_like(self.r, dtype=float)
+        if self.has_constant:
+            out += self.c_()
+        if self.has_linear:
+            out += self.A_(state_)
+        if self.has_quadratic:
+            out += self.H_(state_)
+        if self.has_cubic:
+            out += self.G_(state_)
+        if self.has_inputs:
+            out += self.B_(input_)
+        return out
+
+    # TODO: jacobian(self, state_)
 
     # Abstract public methods (must be implemented by child classes) ----------
     @abc.abstractmethod

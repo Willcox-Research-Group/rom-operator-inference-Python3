@@ -283,7 +283,7 @@ class _NonparametricOpInfROM(_BaseROM):
 
     def fit(self, basis, states, lhs, inputs=None,
             regularizer=0, known_operators=None):
-        """Solve for the reduced-order operators via least-squares regression.
+        """Learn the reduced-order model operators from data.
 
         Parameters
         ----------
@@ -307,11 +307,11 @@ class _NonparametricOpInfROM(_BaseROM):
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
-        known_operators : dict
-            Dictionary of known full-order or reduced-order operators.
+        known_operators : dict or None
+            Dictionary of known full-order operators.
             Corresponding reduced-order operators are computed directly
-            through projection; remaining operators are inferred.
-            Keys must match the modelform, values are ndarrays:
+            through projection; remaining operators are inferred from data.
+            Keys must match the modelform; values are ndarrays:
             * 'c': (n,) constant term c.
             * 'A': (n,n) linear state matrix A.
             * 'H': (n,n**2) quadratic state matrix H.
