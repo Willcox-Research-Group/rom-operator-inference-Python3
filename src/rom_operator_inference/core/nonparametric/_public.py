@@ -16,7 +16,7 @@ from .._base import _BaseROM
 from ._base import _NonparametricOpInfROM
 
 
-class SteadyOpInfROM(_NonparametricOpInfROM):
+class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
     """Reduced-order model for the nonparametric steady state problem
 
         g = f(q).

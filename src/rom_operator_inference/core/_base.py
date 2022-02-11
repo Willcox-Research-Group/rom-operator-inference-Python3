@@ -313,8 +313,7 @@ class _BaseROM(abc.ABC):
             if not np.allclose(self.basis, other.basis):
                 return False
         for opL, opR in zip(self, other):
-            if not ((opL is opR is None) or (np.allclose(opL.entries,
-                                                         opR.entries))):
+            if not (opL is opR is None) and opL != opR:
                 return False
         return True
 

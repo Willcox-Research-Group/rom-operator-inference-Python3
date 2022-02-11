@@ -257,6 +257,53 @@ class TestBaseROM:
         for romop, trueop in zip(rom, operators):
             assert romop.entries is trueop
 
+    def test_eq(self, n=10, r=3):
+        """Test core._base._BaseROM.__eq__()."""
+
+        class Dummy2(self.Dummy):
+            """Distinct copy of Dummy"""
+            pass
+
+        # Different class.
+        romL = self.Dummy("A")
+        romR = Dummy2("A")
+        assert not (romL == romR)
+        assert romL != romR
+
+        # Different modelform.
+        romR = self.Dummy("cA")
+        assert romL != romR
+
+        # No basis or operators.
+        romR.modelform = "A"
+        assert romL == romR
+
+        # Different bases.
+        Vr = np.random.random((n,r))
+        romL.basis = Vr
+        assert romL != romR
+        romL.basis = None
+        romR.basis = Vr
+        assert romL != romR
+        romL.basis = Vr
+        romR.basis = 2 * Vr
+        assert romL != romR
+
+        # Same basis, no operators.
+        romR.basis = Vr
+        assert romL == romR
+
+        # Different operators.
+        A = np.random.random((r,r))
+        romL.A_ = A
+        assert romL != romR
+        romR.A_ = 2 * A
+        assert romL != romR
+
+        # Same everything.
+        romR.A_ = A
+        assert romL == romR
+
     # Validation methods ------------------------------------------------------
     def test_check_operator_matches_modelform(self):
         """Test core._base._BaseROM._check_operator_matches_modelform()."""
