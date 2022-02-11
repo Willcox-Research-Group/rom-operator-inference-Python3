@@ -114,7 +114,7 @@ class _NonparametricOpInfROM(_BaseROM):
             self.r = states.shape[0]
         self._check_inputargs(inputs, "inputs")
         to_check = [(states, "states"), (lhs, self._LHS_ARGNAME)]
-        if self.has_inputs:
+        if 'B' in self.modelform:
             if self.m is None:
                 self.m = 1 if inputs.ndim == 1 else inputs.shape[0]
             to_check.append((inputs, "inputs"))

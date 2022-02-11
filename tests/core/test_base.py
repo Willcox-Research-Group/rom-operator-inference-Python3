@@ -89,11 +89,6 @@ class TestBaseROM:
         assert hasattr(rom, "n")
         assert hasattr(rom, "m")
         assert hasattr(rom, "r")
-        assert hasattr(rom, "has_constant")
-        assert hasattr(rom, "has_linear")
-        assert hasattr(rom, "has_quadratic")
-        assert hasattr(rom, "has_cubic")
-        assert hasattr(rom, "has_inputs")
         assert hasattr(rom, "c_")
         assert hasattr(rom, "A_")
         assert hasattr(rom, "H_")
@@ -114,11 +109,6 @@ class TestBaseROM:
         rom = self.Dummy("cGA")
         assert rom.modelform == "cAG"
         assert rom.m == 0
-        assert rom.has_constant is True
-        assert rom.has_linear is True
-        assert rom.has_quadratic is False
-        assert rom.has_cubic is True
-        assert rom.has_inputs is False
         assert rom.c_ is None
         assert rom.A_ is None
         assert rom.H_ is None
@@ -127,11 +117,6 @@ class TestBaseROM:
 
         rom = self.Dummy("BHc")
         assert rom.modelform == "cHB"
-        assert rom.has_constant is True
-        assert rom.has_linear is False
-        assert rom.has_quadratic is True
-        assert rom.has_cubic is False
-        assert rom.has_inputs is True
         assert rom.c_ is None
         assert rom.A_ is None
         assert rom.H_ is None
@@ -376,14 +361,14 @@ class TestBaseROM:
     def test_check_inputargs(self):
         """Test _BaseROM._check_inputargs()."""
 
-        # Try with has_inputs = True but without inputs.
+        # Try with 'B' in modelform but without inputs.
         rom = self.Dummy("cB")
         with pytest.raises(ValueError) as ex:
             rom._check_inputargs(None, 'U')
         assert ex.value.args[0] == \
             "argument 'U' required since 'B' in modelform"
 
-        # Try with has_inputs = False but with inputs.
+        # Try without 'B' in modelform but with inputs.
         rom = self.Dummy("cA")
         with pytest.raises(ValueError) as ex:
             rom._check_inputargs(1, 'u')

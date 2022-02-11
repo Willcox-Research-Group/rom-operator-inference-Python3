@@ -30,15 +30,15 @@ class _BaseROM(abc.ABC):
         # NOTE: won't work for operators that are yet to be instantiated.
         # out = [op._str(u if op is self.B_ else q) for op in self]
         out = []
-        if self.has_constant:
+        if 'c' in self.modelform:
             out.append("c")
-        if self.has_linear:
+        if 'A' in self.modelform:
             out.append(f"A{q}")
-        if self.has_quadratic:
+        if 'H' in self.modelform:
             out.append(f"H[{q} ⊗ {q}]")
-        if self.has_cubic:
+        if 'G' in self.modelform:
             out.append(f"G[{q} ⊗ {q} ⊗ {q}]")
-        if self.has_inputs:
+        if 'B' in self.modelform:
             out.append(f"B{u}")
         return f"Reduced-order model structure: {lhs} = " + " + ".join(out)
 
@@ -46,7 +46,7 @@ class _BaseROM(abc.ABC):
         """Set private attributes as None, erasing any previously stored basis,
         dimensions, or ROM operators.
         """
-        self.__m = None if self.has_inputs else 0
+        self.__m = None if 'B' in self.modelform else 0
         self.__r = None
         self.__basis = None
         self.__c_ = None
@@ -74,35 +74,6 @@ class _BaseROM(abc.ABC):
         self.__form = form
         self._clear()
 
-    @property
-    def has_constant(self):
-        """Whether or not the ROM has a constant term c."""
-        return "c" in self.modelform
-
-    @property
-    def has_linear(self):
-        """Whether or not the ROM has a linear state term Aq."""
-        return "A" in self.modelform
-
-    @property
-    def has_quadratic(self):
-        """Whether or not the ROM has a quadratic state term H(q ⊗ q)."""
-        return "H" in self.modelform
-
-    @property
-    def has_cubic(self):
-        """Whether or not the ROM has a cubic state term G(q ⊗ q ⊗ q)."""
-        return "G" in self.modelform
-
-    @property
-    def has_inputs(self):
-        """Whether or not the ROM has an input term Bu."""
-        return "B" in self.modelform
-
-    # @property
-    # def has_outputs(self):
-    #     return "C" in self._form
-
     # Properties: dimensions --------------------------------------------------
     @property
     def n(self):
@@ -124,7 +95,7 @@ class _BaseROM(abc.ABC):
         """Set input dimension; only allowed if 'B' in modelform
         and the operator B_ is None.
         """
-        if not self.has_inputs and m != 0:
+        if 'B' not in self.modelform and m != 0:
             raise AttributeError("can't set attribute ('B' not in modelform)")
         elif self.B_ is not None:
             raise AttributeError("can't set attribute (m = B_.shape[1])")
@@ -273,7 +244,7 @@ class _BaseROM(abc.ABC):
         self.basis = basis
 
         # Set the input dimension 'm'.
-        if self.has_inputs:
+        if 'B' in self.modelform:
             if B_ is not None:
                 self.m = 1 if len(B_.shape) == 1 else B_.shape[1]
         else:
@@ -361,12 +332,12 @@ class _BaseROM(abc.ABC):
                              f"(r,m) with r = {r}, m = {m}")
 
     def _check_inputargs(self, u, argname):
-        """Check that self.has_inputs agrees with input arguments."""
-        if self.has_inputs and u is None:
+        """Check that the modelform agrees with input arguments."""
+        if 'B' in self.modelform and u is None:
             raise ValueError(f"argument '{argname}' required"
                              " since 'B' in modelform")
 
-        if not self.has_inputs and u is not None:
+        if 'B' not in self.modelform and u is not None:
             raise ValueError(f"argument '{argname}' invalid"
                              " since 'B' in modelform")
 
@@ -414,7 +385,7 @@ class _BaseROM(abc.ABC):
             raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
 
         # Project full-order operators.
-        if self.has_quadratic or self.has_cubic:
+        if ('H' in self.modelform) or ('G' in self.modelform):
             basis2 = np.kron(self.basis, self.basis)
 
         if 'c' in operators:            # Constant term.
@@ -521,15 +492,15 @@ class _BaseROM(abc.ABC):
             Evaluation of the right-hand side of the model.
         """
         out = np.zeros_like(self.r, dtype=float)
-        if self.has_constant:
+        if 'c' in self.modelform:
             out += self.c_()
-        if self.has_linear:
+        if 'A' in self.modelform:
             out += self.A_(state_)
-        if self.has_quadratic:
+        if 'H' in self.modelform:
             out += self.H_(state_)
-        if self.has_cubic:
+        if 'G' in self.modelform:
             out += self.G_(state_)
-        if self.has_inputs:
+        if 'B' in self.modelform:
             out += self.B_(input_)
         return out
 

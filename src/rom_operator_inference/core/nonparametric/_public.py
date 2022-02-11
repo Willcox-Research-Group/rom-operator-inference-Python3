@@ -218,7 +218,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         states_[:,0] = state0_.copy()
 
         # Run the iteration.
-        if self.has_inputs:
+        if 'B' in self.modelform:
             if callable(inputs):
                 raise TypeError("inputs must be NumPy array, not callable")
             # Validate shape of input, reshaping if input is 1d.
@@ -391,7 +391,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         nt = t.shape[0]
 
         # Interpret control input argument `input_func`.
-        if self.has_inputs:
+        if 'B' in self.inputs:
             if not callable(input_func):
                 # input_func must be (m,nt) ndarray. Interploate -> callable.
                 U = np.atleast_2d(input_func)
