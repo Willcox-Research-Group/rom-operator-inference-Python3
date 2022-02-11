@@ -1,5 +1,5 @@
 # pre/_shift_scale.py
-"""Tools for preprocessing data."""
+"""Tools for preprocessing state snapshot data."""
 
 __all__ = [
             "shift",

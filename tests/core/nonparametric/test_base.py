@@ -270,41 +270,49 @@ class TestNonparametricOpInfROM:
                 else:
                     assert value is None
 
-    def test_fit(self):
+    def test_fit(self, ModelClass=None, n=60, k=500, m=20, r=10):
         """Test core.nonparametric._base._NonparametricOpInfROM.fit()."""
+        if ModelClass is None:
+            ModelClass = self.Dummy
+        skipinput = ModelClass in [
+            opinf.core.nonparametric._public.SteadyOpInfROM,
+        ]
+
         # Get test data.
-        n, k, m, r = 60, 500, 20, 10
-        Q, Qdot, U = _get_data(n, k, m)
+        Q, F, U = _get_data(n, k, m)
         U1d = U[0,:]
-        basis = la.svd(Q)[0][:,:r]
-        args_n = [Q, Qdot]
-        args_r = [basis.T @ Q, basis.T @ Qdot]
+        Vr = la.svd(Q)[0][:,:r]
+        args_n = [Q, F]
+        args_r = [Vr.T @ Q, Vr.T @ F]
 
         # Fit the rom with each modelform.
-        rom = self.Dummy("c")
+        rom = ModelClass("c")
         for form in MODEL_FORMS:
-            rom.modelform = form
             if "B" in form:
+                if skipinput:
+                    continue
+                rom.modelform = form
                 # Two-dimensional inputs.
-                rom.fit(basis, *args_n, inputs=U)        # With basis.
-                rom.fit(None, *args_r, inputs=U)         # Without basis.
+                rom.fit(Vr, *args_n, inputs=U)          # With basis.
+                rom.fit(None, *args_r, inputs=U)        # Without basis.
                 # One-dimensional inputs.
-                rom.fit(basis, *args_n, inputs=U1d)      # With basis.
-                rom.fit(None, *args_r, inputs=U1d)       # Without basis.
+                rom.fit(Vr, *args_n, inputs=U1d)        # With basis.
+                rom.fit(None, *args_r, inputs=U1d)      # Without basis.
             else:
+                rom.modelform = form
                 # No inputs.
-                rom.fit(basis, *args_n, inputs=None)     # With basis.
-                rom.fit(None, *args_r, inputs=None)      # Without basis.
+                rom.fit(Vr, *args_n)                    # With basis.
+                rom.fit(None, *args_r)                  # Without basis.
 
         # Special case: fully intrusive.
-        rom.modelform = "AB"
-        _, A, _, _, B = _get_operators(n, m)
-        rom.fit(basis, None, None, None, known_operators={"A": A, "B": B})
+        rom.modelform = "cA"
+        c, A, _, _, _ = _get_operators(n, m)
+        rom.fit(Vr, None, None, known_operators={"c": c, "A": A})
         assert rom.solver_ is None
+        assert _isoperator(rom.c_)
         assert _isoperator(rom.A_)
-        assert _isoperator(rom.B_)
-        assert np.allclose(rom.A_.entries, basis.T @ A @ basis)
-        assert np.allclose(rom.B_.entries, basis.T @ B)
+        assert np.allclose(rom.c_.entries, Vr.T @ c)
+        assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
 
     # Model persistence -------------------------------------------------------
     def test_save(self, n=15, m=2, r=3, target="_savemodeltest.h5"):

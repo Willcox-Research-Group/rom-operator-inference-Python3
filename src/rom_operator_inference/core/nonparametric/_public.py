@@ -26,7 +26,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
 
     Parameters
     ----------
-    modelform : str containing 'A', 'H', and/or 'G'
+    modelform : str containing 'c', 'A', 'H', and/or 'G'
         The structure of the reduced-order model. Each character
         indicates the presence of a different term in the model:
         'A' : Linear state term Aq.
@@ -43,13 +43,14 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
                          _BaseROM.modelform.fdel,
     """Structure of the reduced-order model. Each character
     indicates the presence of a different term in the model:
+    'c' : Constant state term c.
     'A' : Linear state term Aq.
     'H' : Quadratic state term H[q ⊗ q].
     'G' : Cubic state term G[q ⊗ q ⊗ q].
     For example, modelform="AH" means f(q) = Aq + H[q ⊗ q].
     """)
 
-    # TODO: disallow constant or input terms?
+    # TODO: disallow input terms?
 
     def evaluate(self, state_):
         """Evaluate the right-hand side of the model, i.e., f(q).
@@ -66,10 +67,44 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         """
         return _BaseROM.evaluate(self, state_, None)
 
-    def fit(self, *args, **kwargs):
-        raise NotImplementedError("TODO")
+    def fit(self, basis, states, forcing=None,
+            regularizer=0, known_operators=None):
+        """Learn the reduced-order model operators from data.
 
-    def predict(self, g):
+        Parameters
+        ----------
+        basis : (n,r) ndarray or None
+            The basis for the linear reduced space (e.g., POD basis matrix).
+            If None, states is assumed to already be projected (r,k).
+        states : (n,k) or (r,k) ndarray
+            Column-wise snapshot training data (each column is a snapshot),
+            either full order (n rows) or projected to reduced order (r rows).
+        forcing : (n,k) or (r,k) ndarray or None
+            Column-wise forcing data corresponding to the training snapshots,
+            either full order (n rows) or projected to reduced order (r rows).
+        regularizer : float >= 0, (d,d) ndarray or list of r of these
+            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
+            is the number of unknowns in each decoupled least-squares problem,
+            e.g., d = r + r(r+1)/2 when `modelform`="AH".
+        known_operators : dict or None
+            Dictionary of known full-order operators.
+            Corresponding reduced-order operators are computed directly
+            through projection; remaining operators are inferred from data.
+            Keys must match the modelform; values are ndarrays:
+            * 'c': (n,) constant term c.
+            * 'A': (n,n) linear state matrix A.
+            * 'H': (n,n**2) quadratic state matrix H.
+            * 'G': (n,n**3) cubic state matrix G.
+
+        Returns
+        -------
+        self
+        """
+        return _NonparametricOpInfROM.fit(self, basis,
+                                          states, forcing, None,
+                                          regularizer, known_operators)
+
+    def predict(self, forcing, guess=None):
         raise NotImplementedError("TODO")
 
 
@@ -109,6 +144,30 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
     'B' : Input term Bu_{j}.
     For example, modelform="AB" means f(q, u) = Aq + Bu.
     """)
+
+    # TODO: convenience method for dealing with multiple trajectories (bursts).
+    # @staticmethod
+    # def stack_training_states(statelist):
+    #     """Translate a collection of state trajectories to
+    #     (states, nextstates) arrays that are appropriate arguments for fit().
+    #
+    #     Parameters
+    #     ----------
+    #     statelist : list of s (n, k_i) ndarrays
+    #         Collection of state trajectories from various initial conditions.
+    #         Q = statelist[i] is the snapshot matrix for Q.shape[1] iterations
+    #         starting at initial condition q0 = Q[i,0].
+    #
+    #     Returns
+    #     -------
+    #     states : (n, sum_i(k_i)-s) ndarray
+    #         States
+    #     nextstates : (n, sum_i(k_i)-s) ndarray
+    #         Nextstates
+    #     """
+    #     states = np.hstack([Q[:,:-1] for Q in statelist])
+    #     nextstates = np.hstack([Q[:,1:] for Q in statelist])
+    #     return states, nextstates
 
     def evaluate(self, state_, input_=None):
         r"""Evaluate the right-hand side of the model, i.e., the f() of
@@ -170,7 +229,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         -------
         self
         """
-        if nextstates is None:
+        if nextstates is None and states is not None:
             nextstates = states[:,1:]
             states = states[:,:-1]
         if inputs is not None:
