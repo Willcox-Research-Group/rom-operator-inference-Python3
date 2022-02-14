@@ -1,6 +1,9 @@
 # PDFs
 *.pdf
 
+# Built documentation
+docs/_build/
+
 # Extra Python files
 *.py[cod]
 __pycache__/

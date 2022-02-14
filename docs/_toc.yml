@@ -1,0 +1,56 @@
+# Table of contents
+# Learn more at https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: content/index.md
+parts:
+  # Introduction / summary, mathematical statement, literature.
+  - caption: Operator Inference
+    chapters:
+    - file: content/opinf/intro.md
+    - file: content/opinf/mathematics.md
+    - file: content/opinf/notation.md
+    - file: content/opinf/literature.md
+    - file: content/opinf/bibliography.md
+
+  # How to use the package.
+  - caption: Package Usage
+    chapters:
+    - file: content/usage/installation.md
+    - file: content/usage/romclasses/index.md
+      sections:
+      - file: content/usage/romclasses/continuous.md
+      - file: content/usage/romclasses/discrete.md
+      - file: content/usage/romclasses/steady.md
+      - file: content/usage/romclasses/interpolate.md
+      - file: content/usage/romclasses/affine.md
+      - file: content/usage/romclasses/intrusive.md
+    - file: content/usage/solvers/index.md
+      sections:
+      - file: content/usage/solvers/tikhonov.md
+      - file: content/usage/solvers/tsvd.md
+      - file: content/usage/solvers/qr.md
+    - file: content/usage/preprocessing/index.md
+      sections:
+      - file: content/usage/preprocessing/scaling.md
+      - file: content/usage/preprocessing/basis.md
+    - file: content/usage/postprocessing/index.md
+      sections:
+      - file: content/usage/postprocessing/reconstruction.md
+      - file: content/usage/postprocessing/error.md
+    - file: content/usage/utilities/index.md
+      sections:
+      - file: content/usage/utilities/kronecker.md
+      - file: content/usage/utilities/integrate.md
+
+  # Complete numerical examples.
+  - caption: Examples
+    chapters:
+    - file: content/examples/tutorial.ipynb
+    - file: content/examples/heat_1D.ipynb
+    - file: content/examples/gallery.md
+
+  # Non-narrative API documentation (TODO: automate generation).
+  - caption: API Documentation
+    chapters:
+    - file: content/api/dummy.md
