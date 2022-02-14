@@ -6,6 +6,7 @@ __all__ = [
             "svdval_decay",
             "cumulative_energy",
             "residual_energy",
+            "projection_error",
           ]
 
 import numpy as np
@@ -253,3 +254,33 @@ def residual_energy(singular_values, tol=1e-6, plot=False, ax=None):
         ax.set_ylabel(r"Residual energy")
 
     return ranks[0] if one_tol else ranks
+
+
+def projection_error(states, basis):
+    """Calculate the absolute and relative projection errors induced by
+    projecting states to a low dimensional basis, i.e.,
+
+        absolute_error = ||Q - Vr Vr^T Q||_F,
+        relative_error = ||Q - Vr Vr^T Q||_F / ||Q||_F
+
+    where Q = states and Vr = basis. Note that Vr Vr^T is the orthogonal
+    projector onto subspace of R^n defined by the basis.
+
+    Parameters
+    ----------
+    states : (n,k) or (k,) ndarray
+        Matrix of k snapshots where each column is a single snapshot, or a
+        single 1D snapshot. If 2D, use the Frobenius norm; if 1D, the l2 norm.
+    Vr : (n,r) ndarray
+        Low-dimensional basis of rank r. Each column is one basis vector.
+
+    Returns
+    -------
+    absolute_error : float
+        Absolute projection error ||Q - Vr Vr^T Q||_F.
+    relative_error : float
+        Relative projection error ||Q - Vr Vr^T Q||_F / ||Q||_F.
+    """
+    norm_of_states = la.norm(states)
+    absolute_error = la.norm(states - basis @ (basis.T @ states))
+    return absolute_error, absolute_error / norm_of_states
