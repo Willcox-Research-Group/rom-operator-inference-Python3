@@ -84,7 +84,7 @@ Common preprocessing steps include
 3. Scaling / nondimensionalizing the variables represented in the state.
 
 See TODO
-and {cite}`QKPW2020LiftAndLearn,MHW2020regOpInfCombustion,SKHW2020ROMCombustion` for examples of step 1.
+and {cite}`QKPW2020LiftAndLearn,MHW2021regOpInfCombustion,SKHW2020ROMCombustion` for examples of step 1.
 
 ### Estimating Time Derivatives
 
