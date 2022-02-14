@@ -18,12 +18,12 @@ def test_shift(set_up_basis_data):
     # Try with bad data shape.
     with pytest.raises(ValueError) as ex:
         opinf.pre.shift(np.random.random((3,3,3)))
-    assert ex.value.args[0] == "data X must be two-dimensional"
+    assert ex.value.args[0] == "argument `states` must be two-dimensional"
 
     # Try with bad shift vector.
     with pytest.raises(ValueError) as ex:
         opinf.pre.shift(X, X)
-    assert ex.value.args[0] == "shift_by must be one-dimensional"
+    assert ex.value.args[0] == "argument `shift_by` must be one-dimensional"
 
     # Correct usage.
     Xshifted, xbar = opinf.pre.shift(X)

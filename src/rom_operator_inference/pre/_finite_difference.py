@@ -19,7 +19,6 @@ def _fwd4(y, dt):
     ----------
     y : (5,...) ndarray
         Data to differentiate. The derivative is taken along the first axis.
-
     dt : float
         Time step (the uniform spacing).
 
@@ -39,7 +38,6 @@ def _fwd6(y, dt):
     ----------
     y : (7,...) ndarray
         Data to differentiate. The derivative is taken along the first axis.
-
     dt : float
         Time step (the uniform spacing).
 
@@ -62,10 +60,8 @@ def ddt_uniform(states, dt, order=2):
     states : (n,k) ndarray
         States to estimate the derivative of. The jth column is a snapshot
         that corresponds to the jth time step, i.e., states[:,j] = x(t[j]).
-
     dt : float
         The time step between the snapshots, i.e., t[j+1] - t[j] = dt.
-
     order : int {2, 4, 6}
         The order of the derivative approximation.
         See https://en.wikipedia.org/wiki/Finite_difference_coefficient.
@@ -123,7 +119,6 @@ def ddt_nonuniform(states, t):
     states : (n,k) ndarray
         States to estimate the derivative of. The jth column is a snapshot
         that corresponds to the jth time step, i.e., states[:,j] = x(t[j]).
-
     t : (k,) ndarray
         The times corresponding to the snapshots. May not be uniformly spaced.
         See ddt_uniform() for higher-order computation in the case of

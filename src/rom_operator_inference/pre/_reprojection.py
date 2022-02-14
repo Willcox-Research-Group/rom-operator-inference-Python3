@@ -23,16 +23,12 @@ def reproject_discrete(f, basis, init, niters, inputs=None):
         Function defining the (full-order) discrete dynamical system. Accepts
         a full-order state vector and (optionally) an input vector and returns
         another full-order state vector.
-
     basis : (n,r) ndarray
         Basis for the low-dimensional linear subspace (e.g., POD basis).
-
     init : (n,) ndarray
         Initial condition for the iteration in the high-dimensional space.
-
     niters : int
         The number of iterations to do.
-
     inputs : (m,niters-1) or (niters-1) ndarray
         Control inputs, one for each iteration beyond the initial condition.
 
@@ -75,13 +71,10 @@ def reproject_continuous(f, basis, states, inputs=None):
         Function defining the (full-order) differential equation. Accepts a
         full-order state vector and (optionally) an input vector and returns
         another full-order state vector.
-
     basis : (n,r) ndarray
         Basis for the low-dimensional linear subspace.
-
     states : (n,k) ndarray
         State trajectories (training data).
-
     inputs : (m,k) or (k,) ndarray
         Control inputs corresponding to the state trajectories.
 
@@ -89,7 +82,6 @@ def reproject_continuous(f, basis, states, inputs=None):
     -------
     states_reprojected : (r,k) ndarray
         Re-projected state trajectories in the projected low-dimensional space.
-
     ddts_reprojected : (r,k) ndarray
         Re-projected velocities in the projected low-dimensional space.
     """
