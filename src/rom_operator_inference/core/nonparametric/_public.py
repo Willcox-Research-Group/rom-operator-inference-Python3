@@ -283,7 +283,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             # Validate shape of input, reshaping if input is 1d.
             U = np.atleast_2d(inputs)
             if U.ndim != 2 or U.shape[0] != self.m or U.shape[1] < niters - 1:
-                raise ValueError("input.shape = "
+                raise ValueError("inputs.shape = "
                                  f"({U.shape} != {(self.m,niters-1)}")
             for j in range(niters - 1):
                 states_[:,j+1] = self.evaluate(states_[:,j], U[:,j])
@@ -437,6 +437,8 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             If the basis exists and reconstruct=True, return solutions in the
             original n-dimensional state space (n rows); otherwise, return
             reduced-order state solutions (r rows).
+            A more detailed report on the integration results is stored as
+            the attribute `predict_result_`.
         """
         self._check_is_trained()
 
@@ -450,23 +452,23 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         nt = t.shape[0]
 
         # Interpret control input argument `input_func`.
-        if 'B' in self.inputs:
+        if 'B' in self.modelform:
             if not callable(input_func):
                 # input_func must be (m,nt) ndarray. Interploate -> callable.
                 U = np.atleast_2d(input_func)
                 if U.shape != (self.m,nt):
                     raise ValueError("input_func.shape = "
-                                     f"({U.shape} != {(self.m,nt)}")
+                                     f"{U.shape} != {(self.m,nt)}")
                 input_func = CubicSpline(t, U, axis=1)
 
             # Check dimension of input_func() outputs.
             _tmp = input_func(t[0])
-            _isarray = isinstance(_tmp, np.ndarray)
+            _shape = _tmp.shape if isinstance(_tmp, np.ndarray) else None
             if self.m == 1:
-                if not np.isscalar(_tmp) and not _isarray:
+                if not (np.isscalar(_tmp) or _shape == (1,)):
                     raise ValueError("input_func() must return ndarray"
                                      " of shape (m,) = (1,) or scalar")
-            elif not _isarray or _tmp.shape != (self.m,):
+            elif _shape != (self.m,):
                 raise ValueError("input_func() must return ndarray"
                                  f" of shape (m,) = {(self.m,)}")
 

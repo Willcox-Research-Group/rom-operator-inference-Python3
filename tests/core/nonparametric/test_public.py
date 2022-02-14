@@ -1,15 +1,14 @@
 # core/nonparametric/test_public.py
 """Tests for rom_operator_inference.core.nonparametric._public."""
 
-# TODO: test fit(), predict().
-
 import pytest
 import numpy as np
 import scipy.linalg as la
 
 import rom_operator_inference as opinf
 
-from .. import MODEL_FORMS, _get_data, _get_operators, _isoperator
+from .. import (MODEL_FORMS,
+                _get_data, _get_operators, _trainedmodel, _isoperator)
 
 
 class TestSteadyOpInfROM:
@@ -61,9 +60,9 @@ class TestSteadyOpInfROM:
         assert np.allclose(rom.c_.entries, Vr.T @ c)
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
 
-    def test_predict(self):
-        """Test core.nonparametric._public.SteadyOpInfROM.predict()."""
-        raise NotImplementedError
+    # def test_predict(self):
+    #     """Test core.nonparametric._public.SteadyOpInfROM.predict()."""
+    #     raise NotImplementedError
 
 
 class TestDiscreteOpInfROM:
@@ -136,9 +135,78 @@ class TestDiscreteOpInfROM:
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
         assert np.allclose(rom.B_.entries, Vr.T @ B)
 
-    def test_predict(self):
+    def test_predict(self, n=60, k=40, m=6, r=4):
         """Test core.nonparametric._public.DiscreteOpInfROM.predict()."""
-        raise NotImplementedError
+        # Get test data.
+        Q = _get_data(n, k, m)[0]
+        Vr = la.svd(Q)[0][:,:r]
+        niters = 5
+        q0 = Q[:,0]
+        U = np.ones((m, niters-1))
+
+        # Try to predict with invalid initial condition.
+        q0_ = Vr.T @ q0
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0_[:-1], niters, U)
+        assert ex.value.args[0] == "state0 not aligned with basis"
+
+        # Try to predict with bad niters argument.
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, -18, U)
+        assert ex.value.args[0] == \
+            "argument 'niters' must be a positive integer"
+
+        # Try to predict with badly-shaped discrete inputs.
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, niters, np.random.random((m-1, niters-1)))
+        assert ex.value.args[0] == \
+            f"inputs.shape = ({(m-1,niters-1)} != {(m,niters-1)}"
+
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m=1)
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, niters, np.random.random((2, niters-1)))
+        assert ex.value.args[0] == \
+            f"inputs.shape = ({(2,niters-1)} != {(1,niters-1)}"
+
+        # Try to predict with continuous inputs.
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
+        with pytest.raises(TypeError) as ex:
+            rom.predict(q0, niters, lambda t: np.ones(m-1))
+        assert ex.value.args[0] == "inputs must be NumPy array, not callable"
+
+        for form in MODEL_FORMS:
+            if "B" not in form:             # No control inputs.
+                rom = _trainedmodel(self.ModelClass, form, Vr, None)
+                out = rom.predict(q0, niters, reconstruct=True)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,niters)
+                out2 = rom.predict(q0, niters, reconstruct=False)
+                assert isinstance(out2, np.ndarray)
+                assert out2.shape == (r,niters)
+                assert np.allclose(Vr @ out2, out)
+
+            else:                           # Has Control inputs.
+                # Predict with 2D inputs.
+                rom = _trainedmodel(self.ModelClass, form, Vr, m)
+                out = rom.predict(q0, niters, U, reconstruct=True)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,niters)
+
+                # Predict with 1D inputs.
+                rom = _trainedmodel(self.ModelClass, form, Vr, 1)
+                out = rom.predict(q0, niters, np.ones(niters),
+                                  reconstruct=False)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (r,niters)
+
+        # Predict with no basis gives result in low-dimensional space.
+        rom = _trainedmodel(self.ModelClass, "cA", Vr, None)
+        rom.basis = None
+        out = rom.predict(Vr.T @ q0, niters, reconstruct=True)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,niters)
 
 
 class TestContinuousOpInfROM:
@@ -220,6 +288,112 @@ class TestContinuousOpInfROM:
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
         assert np.allclose(rom.B_.entries, Vr.T @ B)
 
-    def test_predict(self):
+    def test_predict(self, n=60, k=50, m=10, r=6):
         """Test core.nonparametric._public.ContinuousOpInfROM.predict()."""
-        raise NotImplementedError
+        # Get test data.
+        Q = _get_data(n, k, m)[0]
+        Vr = la.svd(Q)[0][:,:r]
+        nt = 5
+        q0 = Q[:,0]
+        t = np.linspace(0, .01*nt, nt)
+
+        def input_func(tt):
+            return tt*np.ones(m)
+
+        Upred = np.column_stack([input_func(tt) for tt in t])
+
+        # Try to predict with invalid initial condition.
+        q0_ = Vr.T @ q0
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0_[1:], t, input_func)
+        assert ex.value.args[0] == "state0 not aligned with basis"
+
+        # Try to predict with bad time array.
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, np.vstack((t,t)), input_func)
+        assert ex.value.args[0] == "time 't' must be one-dimensional"
+
+        # Predict without inputs.
+        for form in MODEL_FORMS:
+            if "B" not in form:
+                rom = _trainedmodel(self.ModelClass, form, Vr, None)
+                out = rom.predict(q0, t, reconstruct=True)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,t.size)
+                out = rom.predict(q0, t, reconstruct=False)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (r,t.size)
+
+        # Predict with no basis gives result in low-dimensional space.
+        rom = _trainedmodel(self.ModelClass, "cA", Vr, None)
+        rom.basis = None
+        out = rom.predict(Vr.T @ q0, t, reconstruct=True)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,t.size)
+
+        # Try to predict with badly-shaped discrete inputs.
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, t, np.random.random((m-1, nt)))
+        assert ex.value.args[0] == \
+            f"input_func.shape = {(m-1,nt)} != {(m,nt)}"
+
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m=1)
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, t, np.random.random((2, nt)))
+        assert ex.value.args[0] == \
+            f"input_func.shape = {(2,nt)} != {(1,nt)}"
+
+        # Try to predict with badly-shaped continuous inputs.
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, t, lambda t: np.ones(m-1))
+        assert ex.value.args[0] == \
+            f"input_func() must return ndarray of shape (m,) = {(m,)}"
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, t, lambda t: 1)
+        assert ex.value.args[0] == \
+            f"input_func() must return ndarray of shape (m,) = {(m,)}"
+
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m=1)
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, t, input_func)
+        assert ex.value.args[0] == \
+            "input_func() must return ndarray of shape (m,) = (1,) or scalar"
+
+        # Try to predict with continuous inputs with bad return type
+        rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
+        with pytest.raises(ValueError) as ex:
+            rom.predict(q0, t, lambda t: set([5]))
+        assert ex.value.args[0] == \
+            f"input_func() must return ndarray of shape (m,) = {(m,)}"
+
+        for form in MODEL_FORMS:
+            if "B" in form:
+                # Predict with 2D inputs.
+                rom = _trainedmodel(self.ModelClass, form, Vr, m)
+                # continuous input.
+                out = rom.predict(q0, t, input_func, reconstruct=True)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,nt)
+                # discrete input.
+                out = rom.predict(q0, t, Upred, reconstruct=False)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (r,nt)
+
+                # Predict with 1D inputs.
+                rom = _trainedmodel(self.ModelClass, form, Vr, 1)
+                # continuous input.
+                out = rom.predict(q0, t, lambda t: 1, reconstruct=True)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,nt)
+                out = rom.predict(q0, t, lambda t: np.array([1]),
+                                  reconstruct=False)
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (r,nt)
+                # discrete input.
+                out = rom.predict(q0, t, np.ones_like(t))
+                assert isinstance(out, np.ndarray)
+                assert out.shape == (n,nt)
+                assert hasattr(rom, "predict_result_")
