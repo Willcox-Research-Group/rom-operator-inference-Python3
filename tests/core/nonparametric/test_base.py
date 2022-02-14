@@ -270,14 +270,8 @@ class TestNonparametricOpInfROM:
                 else:
                     assert value is None
 
-    def test_fit(self, ModelClass=None, n=60, k=500, m=20, r=10):
+    def test_fit(self, n=60, k=500, m=20, r=10):
         """Test core.nonparametric._base._NonparametricOpInfROM.fit()."""
-        if ModelClass is None:
-            ModelClass = self.Dummy
-        skipinput = ModelClass in [
-            opinf.core.nonparametric._public.SteadyOpInfROM,
-        ]
-
         # Get test data.
         Q, F, U = _get_data(n, k, m)
         U1d = U[0,:]
@@ -286,12 +280,10 @@ class TestNonparametricOpInfROM:
         args_r = [Vr.T @ Q, Vr.T @ F]
 
         # Fit the rom with each modelform.
-        rom = ModelClass("c")
+        rom = self.Dummy("c")
         for form in MODEL_FORMS:
+            rom.modelform = form
             if "B" in form:
-                if skipinput:
-                    continue
-                rom.modelform = form
                 # Two-dimensional inputs.
                 rom.fit(Vr, *args_n, inputs=U)          # With basis.
                 rom.fit(None, *args_r, inputs=U)        # Without basis.
@@ -299,20 +291,19 @@ class TestNonparametricOpInfROM:
                 rom.fit(Vr, *args_n, inputs=U1d)        # With basis.
                 rom.fit(None, *args_r, inputs=U1d)      # Without basis.
             else:
-                rom.modelform = form
                 # No inputs.
-                rom.fit(Vr, *args_n)                    # With basis.
-                rom.fit(None, *args_r)                  # Without basis.
+                rom.fit(Vr, *args_n, inputs=None)       # With basis.
+                rom.fit(None, *args_r, inputs=None)     # Without basis.
 
         # Special case: fully intrusive.
-        rom.modelform = "cA"
-        c, A, _, _, _ = _get_operators(n, m)
-        rom.fit(Vr, None, None, known_operators={"c": c, "A": A})
+        rom.modelform = "BA"
+        _, A, _, _, B = _get_operators(n, m)
+        rom.fit(Vr, None, None, known_operators={"A": A, "B": B})
         assert rom.solver_ is None
-        assert _isoperator(rom.c_)
         assert _isoperator(rom.A_)
-        assert np.allclose(rom.c_.entries, Vr.T @ c)
+        assert _isoperator(rom.B_)
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
+        assert np.allclose(rom.B_.entries, Vr.T @ B)
 
     # Model persistence -------------------------------------------------------
     def test_save(self, n=15, m=2, r=3, target="_savemodeltest.h5"):

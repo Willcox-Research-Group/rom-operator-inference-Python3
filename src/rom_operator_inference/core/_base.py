@@ -491,7 +491,7 @@ class _BaseROM(abc.ABC):
         f(state_, input_): (r,) ndarray
             Evaluation of the right-hand side of the model.
         """
-        out = np.zeros_like(self.r, dtype=float)
+        out = np.zeros(self.r, dtype=float)
         if 'c' in self.modelform:
             out += self.c_()
         if 'A' in self.modelform:

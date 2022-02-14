@@ -350,7 +350,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         input_func : callable(float) -> (m,)
             Input function that maps time `t` to an input vector of length m.
         """
-        input_ = None if input_func is None else input_func(t)
+        input_ = None if 'B' not in self.modelform else input_func(t)
         return _BaseROM.evaluate(self, state_, input_)
 
     def fit(self, basis, states, ddts, inputs=None,

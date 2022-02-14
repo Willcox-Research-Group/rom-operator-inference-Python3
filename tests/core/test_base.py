@@ -1,8 +1,6 @@
 # core/test_base.py
 """Tests for rom_operator_inference.core._base."""
 
-# TODO: test __eq__().
-
 import pytest
 import numpy as np
 
@@ -562,3 +560,34 @@ class TestBaseROM:
             S = rom.reconstruct(S_, label)
             assert S.shape == (n,k)
             assert np.allclose(S, rom.basis @ S_)
+
+    # ROM evaluation ----------------------------------------------------------
+    def test_evaluate(self, r=5, m=2):
+        """Test core._base._BaseROM.evaluate()."""
+        c_, A_, H_, G_, B_ = _get_operators(r, m)
+
+        rom = self.Dummy("cA")
+        rom.r = r
+        rom.c_, rom.A_ = c_, A_
+        q_ = np.random.random(r)
+        y_ = c_ + A_ @ q_
+        assert np.allclose(rom.evaluate(q_), y_)
+        assert np.allclose(rom.evaluate(q_, -1), y_)
+
+        kron2c, kron3c = opinf.utils.kron2c, opinf.utils.kron3c
+        rom = self.Dummy("HGB")
+        rom.r, rom.m = r, m
+        rom.H_, rom.G_, rom.B_ = H_, G_, B_
+        u = np.random.random(m)
+        q_ = np.random.random(r)
+        y_ = H_ @ kron2c(q_) + G_ @ kron3c(q_) + B_ @ u
+        assert np.allclose(rom.evaluate(q_, u), y_)
+
+        rom = self.Dummy("AB")
+        rom.r, rom.m = r, 1
+        B1d_ = B_[:,0]
+        rom.A_, rom.B_ = A_, B1d_
+        u = np.random.random()
+        q_ = np.random.random(r)
+        y_ = A_ @ q_ + (B1d_ * u)
+        assert np.allclose(rom.evaluate(q_, u), y_)
