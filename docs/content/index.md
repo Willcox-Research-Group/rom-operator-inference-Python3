@@ -10,7 +10,7 @@
 This package is a Python implementation of Operator Inference for learning projection-based polynomial reduced-order models of dynamical systems.
 The procedure is data-driven and non-intrusive, making it a viable candidate for model reduction of "glass-box" systems where the structure of the governing equations is known but intrusive code queries are unavailable.
 
-```{image} ../images/opinf-summary-cropped.svg
+```{image} ../images/opinf-summary.svg
 :align: center
 :width: 80 %
 ```

@@ -11,7 +11,7 @@ The main steps are the following.
 
 This page reviews each of these steps and shows how to do them with this package.
 
-```{image} ../../images/opinf-summary-cropped.svg
+```{image} ../../images/opinf-summary.svg
 :align: center
 :width: 80 %
 ```
