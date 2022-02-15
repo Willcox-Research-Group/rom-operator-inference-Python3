@@ -1,4 +1,4 @@
-.PHONY: clean lint install test deploy
+.PHONY: clean lint install test deploy docs
 
 
 REMOVE = rm -rfv
@@ -35,3 +35,7 @@ deploy: test
 	git checkout master
 	$(PYTHON) setup.py sdist bdist_wheel
 	$(PYTHON) -m twine upload dist/*
+
+
+docs:
+	jupyter-book build docs

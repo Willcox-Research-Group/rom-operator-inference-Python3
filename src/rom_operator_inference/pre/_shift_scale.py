@@ -1,5 +1,5 @@
 # pre/_shift_scale.py
-"""Tools for preprocessing data."""
+"""Tools for preprocessing state snapshot data."""
 
 __all__ = [
             "shift",
@@ -14,94 +14,95 @@ import numpy as np
 
 
 # Shifting and MinMax scaling =================================================
-def shift(X, shift_by=None):
-    """Shift the columns of X by a vector.
+def shift(states, shift_by=None):
+    """Shift the columns of `states` by a vector.
 
     Parameters
     ----------
-    X : (n,k) ndarray
-        A matrix of k snapshots. Each column is a single snapshot.
+    states : (n,k) ndarray
+        Matrix of k snapshots. Each column is a single snapshot.
     shift_by : (n,) or (n,1) ndarray
-        A vector that is the same size as a single snapshot. If None,
-        set to the mean of the columns of X.
+        Vector that is the same size as a single snapshot. If None,
+        set to the mean of the columns of `states`.
 
     Returns
     -------
-    Xshifted : (n,k) ndarray
-        The matrix such that Xshifted[:,j] = X[:,j] - shift_by for j=0,...,k-1.
-    xbar : (n,) ndarray
-        The shift factor. Since this is a one-dimensional array, it must be
-        reshaped to be applied to a matrix: Xshifted + xbar.reshape((-1,1)).
-        Only returned if shift_by=None.
+    states_shifted : (n,k) ndarray
+        Shifted state matrix, i.e.,
+        states_shifted[:,j] = states[:,j] - shift_by for j = 0, ..., k-1.
+    shift_by : (n,) ndarray
+        Shift factor, returned only if shift_by=None.
+        Since this is a one-dimensional array, it must be reshaped to be
+        applied to a matrix (e.g., states_shifted + shift_by.reshape(-1,1)).
 
     Examples
     --------
-    # Shift X by its mean, then shift Y by the same mean.
-    >>> Xshifted, xbar = pre.shift(X)
-    >>> Yshifted = pre.shift(Y, xbar)
+    # Shift Q by its mean, then shift Y by the same mean.
+    >>> Q_shifted, qbar = pre.shift(Q)
+    >>> Y_shifted = pre.shift(Y, qbar)
 
-    # Shift X by its mean, then undo the transformation by an inverse shift.
-    >>> Xshifted, xbar = pre.shift(X)
-    >>> X_again = pre.shift(Xshifted, -xbar)
+    # Shift Q by its mean, then undo the transformation by an inverse shift.
+    >>> Q_shifted, qbar = pre.shift(Q)
+    >>> Q_again = pre.shift(Q_shifted, -qbar)
     """
     # Check dimensions.
-    if X.ndim != 2:
-        raise ValueError("data X must be two-dimensional")
+    if states.ndim != 2:
+        raise ValueError("argument `states` must be two-dimensional")
 
     # If not shift_by factor is provided, compute the mean column.
     learning = (shift_by is None)
     if learning:
-        shift_by = np.mean(X, axis=1)
+        shift_by = np.mean(states, axis=1)
     elif shift_by.ndim != 1:
-        raise ValueError("shift_by must be one-dimensional")
+        raise ValueError("argument `shift_by` must be one-dimensional")
 
     # Shift the columns by the mean.
-    Xshifted = X - shift_by.reshape((-1,1))
+    states_shifted = states - shift_by.reshape((-1,1))
 
-    return (Xshifted, shift_by) if learning else Xshifted
+    return (states_shifted, shift_by) if learning else states_shifted
 
 
-def scale(X, scale_to, scale_from=None):
-    """Scale the entries of the snapshot matrix X from the interval
+def scale(states, scale_to, scale_from=None):
+    """Scale the entries of the snapshot matrix `states` from the interval
     [scale_from[0], scale_from[1]] to [scale_to[0], scale_to[1]].
     Scaling algorithm follows sklearn.preprocessing.MinMaxScaler.
 
     Parameters
     ----------
-    X : (n,k) ndarray
-        A matrix of k snapshots to be scaled. Each column is a single snapshot.
+    states : (n,k) ndarray
+        Matrix of k snapshots to be scaled. Each column is a single snapshot.
     scale_to : (2,) tuple
-        The desired minimum and maximum of the scaled data.
+        Desired minimum and maximum of the scaled data.
     scale_from : (2,) tuple
-        The minimum and maximum of the snapshot data. If None, learn the
-        scaling from X: scale_from[0] = min(X); scale_from[1] = max(X).
+        Minimum and maximum of the snapshot data. If None, learn the scaling:
+        scale_from[0] = min(states); scale_from[1] = max(states).
 
     Returns
     -------
-    Xscaled : (n,k) ndarray
-        The scaled snapshot matrix.
+    states_scaled : (n,k) ndarray
+        Scaled snapshot matrix.
     scaled_to : (2,) tuple
-        The bounds that the snapshot matrix was scaled to, i.e.,
-        scaled_to[0] = min(Xscaled); scaled_to[1] = max(Xscaled).
+        Bounds that the snapshot matrix was scaled to, i.e.,
+        scaled_to[0] = min(states_scaled); scaled_to[1] = max(states_scaled).
         Only returned if scale_from = None.
     scaled_from : (2,) tuple
-        The minimum and maximum of the snapshot data, i.e., the bounds that
+        Minimum and maximum of the snapshot data, i.e., the bounds that
         the data was scaled from. Only returned if scale_from = None.
 
     Examples
     --------
-    # Scale X to [-1,1] and then scale Y with the same transformation.
-    >>> Xscaled, scaled_to, scaled_from = pre.scale(X, (-1,1))
+    # Scale Q to [-1,1] and then scale Y with the same transformation.
+    >>> Qscaled, scaled_to, scaled_from = pre.scale(Q, (-1,1))
     >>> Yscaled = pre.scale(Y, scaled_to, scaled_from)
 
-    # Scale X to [0,1], then undo the transformation by an inverse scaling.
-    >>> Xscaled, scaled_to, scaled_from = pre.scale(X, (0,1))
-    >>> X_again = pre.scale(Xscaled, scaled_from, scaled_to)
+    # Scale Q to [0,1], then undo the transformation by an inverse scaling.
+    >>> Qscaled, scaled_to, scaled_from = pre.scale(Q, (0,1))
+    >>> Q_again = pre.scale(Qscaled, scaled_from, scaled_to)
     """
     # If no scale_from bounds are provided, learn them.
     learning = (scale_from is None)
     if learning:
-        scale_from = np.min(X), np.max(X)
+        scale_from = np.min(states), np.max(states)
 
     # Check scales.
     if len(scale_to) != 2:
@@ -113,9 +114,9 @@ def scale(X, scale_to, scale_from=None):
     mini, maxi = scale_to
     xmin, xmax = scale_from
     scl = (maxi - mini)/(xmax - xmin)
-    Xscaled = X*scl + (mini - xmin*scl)
+    states_scaled = states*scl + (mini - xmin*scl)
 
-    return (Xscaled, scale_to, scale_from) if learning else Xscaled
+    return (states_scaled, scale_to, scale_from) if learning else states_scaled
 
 
 class SnapshotTransformer:
@@ -140,32 +141,32 @@ class SnapshotTransformer:
     mean_ : (n,) ndarray
         Mean training snapshot. Only recorded if center = True.
     scale_ : float
-        Multiplicative factor of scaling (the m of x -> mx + b).
+        Multiplicative factor of scaling (the a of q -> aq + b).
         Only recorded if scaling != None.
     shift_ : float
-        Additive factor of scaling (the b of x -> mx + b).
+        Additive factor of scaling (the b of q -> aq + b).
         Only recorded if scaling != None.
 
     Notes
     -----
     Snapshot centering (center=True):
-        X' = X - mean(X, axis=1);
-        Guarantees mean(X', axis=1) = [0, ..., 0].
+        Q' = Q - mean(Q, axis=1);
+        Guarantees mean(Q', axis=1) = [0, ..., 0].
     Standard scaling (scaling='standard'):
-        X' = (X - mean(X)) / std(X);
-        Guarantees mean(X') = 0, std(X') = 1.
+        Q' = (Q - mean(Q)) / std(Q);
+        Guarantees mean(Q') = 0, std(Q') = 1.
     Min-max scaling (scaling='minmax'):
-        X' = (X - min(X))/(max(X) - min(X));
-        Guarantees min(X') = 0, max(X') = 1.
+        Q' = (Q - min(Q))/(max(Q) - min(Q));
+        Guarantees min(Q') = 0, max(Q') = 1.
     Symmetric min-max scaling (scaling='minmaxsym'):
-        X' = (X - min(X))*2/(max(X) - min(X)) - 1
-        Guarantees min(X') = -1, max(X') = 1.
+        Q' = (Q - min(Q))*2/(max(Q) - min(Q)) - 1
+        Guarantees min(Q') = -1, max(Q') = 1.
     Maximum absolute scaling (scaling='maxabs'):
-        X' = X / max(abs(X));
-        Guarantees mean(X') = mean(X) / max(abs(X)), max(abs(X')) = 1.
+        Q' = Q / max(abs(Q));
+        Guarantees mean(Q') = mean(Q) / max(abs(Q)), max(abs(Q')) = 1.
     Min-max absolute scaling (scaling='maxabssym'):
-        X' = (X - mean(X)) / max(abs(X - mean(X)));
-        Guarantees mean(X') = 0, max(abs(X')) = 1.
+        Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)));
+        Guarantees mean(Q') = 0, max(abs(Q')) = 1.
     """
     _VALID_SCALINGS = {
         "standard",
@@ -276,9 +277,9 @@ class SnapshotTransformer:
         return ' '.join(out)
 
     @staticmethod
-    def _statistics_report(X):
+    def _statistics_report(Q):
         """Return a string of basis statistics about a data set."""
-        return " | ".join([f"{f(X):>10.3e}"
+        return " | ".join([f"{f(Q):>10.3e}"
                            for f in (np.min, np.mean, np.max, np.std)])
 
     # Persistence -------------------------------------------------------------
@@ -356,12 +357,12 @@ class SnapshotTransformer:
             return False
         return True
 
-    def fit_transform(self, X, inplace=False):
+    def fit_transform(self, states, inplace=False):
         """Learn and apply the transformation.
 
         Parameters
         ----------
-        X : (n,k) ndarray
+        states : (n,k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n.
         inplace : bool
             If True, overwrite the input data during transformation.
@@ -369,16 +370,16 @@ class SnapshotTransformer:
 
         Returns
         -------
-        X'': (n,k) ndarray
+        states_transformed: (n,k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         """
-        Y = X if inplace else X.copy()
+        Y = states if inplace else states.copy()
 
         # Record statistics of the training data.
         if self.verbose:
             report = ["No transformation learned"]
             report.append(self._table_header)
-            report.append(f"X   | {self._statistics_report(X)}")
+            report.append(f"Q   | {self._statistics_report(Y)}")
 
         # Center the snapshots by the mean training snapshot.
         if self.center:
@@ -386,38 +387,38 @@ class SnapshotTransformer:
             Y -= self.mean_.reshape((-1,1))
 
             if self.verbose:
-                report[0] = "Learned mean centering X -> X'"
-                report.append(f"X'  | {self._statistics_report(Y)}")
+                report[0] = "Learned mean centering Q -> Q'"
+                report.append(f"Q'  | {self._statistics_report(Y)}")
 
         # Scale (non-dimensionalize) the centered snapshot entries.
         if self.scaling:
-            # Standard: X' = (X - µ)/σ
+            # Standard: Q' = (Q - µ)/σ
             if self.scaling == "standard":
                 µ = np.mean(Y)
                 σ = np.std(Y)
                 self.scale_ = 1/σ
                 self.shift_ = -µ*self.scale_
 
-            # Min-max: X' = (X - min(X))/(max(X) - min(X))
+            # Min-max: Q' = (Q - min(Q))/(max(Q) - min(Q))
             elif self.scaling == "minmax":
                 Ymin = np.min(Y)
                 Ymax = np.max(Y)
                 self.scale_ = 1/(Ymax - Ymin)
                 self.shift_ = -Ymin*self.scale_
 
-            # Symmetric min-max: X' = (X - min(X))*2/(max(X) - min(X)) - 1
+            # Symmetric min-max: Q' = (Q - min(Q))*2/(max(Q) - min(Q)) - 1
             elif self.scaling == "minmaxsym":
                 Ymin = np.min(Y)
                 Ymax = np.max(Y)
                 self.scale_ = 2/(Ymax - Ymin)
                 self.shift_ = -Ymin*self.scale_ - 1
 
-            # MaxAbs: X' = X / max(abs(X))
+            # MaxAbs: Q' = Q / max(abs(Q))
             elif self.scaling == "maxabs":
                 self.scale_ = 1/np.max(np.abs(Y))
                 self.shift_ = 0
 
-            # maxabssym: X' = (X - mean(X)) / max(abs(X - mean(X)))
+            # maxabssym: Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)))
             elif self.scaling == "maxabssym":
                 µ = np.mean(Y)
                 Y -= µ
@@ -433,22 +434,22 @@ class SnapshotTransformer:
 
             if self.verbose:
                 if self.center:
-                    report[0] += f" and {self.scaling} scaling X' -> X''"
+                    report[0] += f" and {self.scaling} scaling Q' -> Q''"
                 else:
-                    report[0] = f"Learned {self.scaling} scaling X -> X''"
-                report.append(f"X'' | {self._statistics_report(Y)}")
+                    report[0] = f"Learned {self.scaling} scaling Q -> Q''"
+                report.append(f"Q'' | {self._statistics_report(Y)}")
 
         if self.verbose:
             print('\n'.join(report) + '\n')
 
         return Y
 
-    def transform(self, X, inplace=False):
+    def transform(self, states, inplace=False):
         """Apply the learned transformation.
 
         Parameters
         ----------
-        X : (n,k) ndarray
+        states : (n,k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n.
         inplace : bool
             If True, overwrite the input data during transformation.
@@ -456,14 +457,14 @@ class SnapshotTransformer:
 
         Returns
         -------
-        X'': (n,k) ndarray
+        states_transformed: (n,k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         """
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
 
-        Y = X if inplace else X.copy()
+        Y = states if inplace else states.copy()
 
         # Center the snapshots by the mean training snapshot.
         if self.center is True:
@@ -476,12 +477,12 @@ class SnapshotTransformer:
 
         return Y
 
-    def inverse_transform(self, X, inplace=False):
+    def inverse_transform(self, states_transformed, inplace=False):
         """Apply the inverse of the learned transformation.
 
         Parameters
         ----------
-        X : (n,k) ndarray
+        states_transformed : (n,k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         inplace : bool
             If True, overwrite the input data during inverse transformation.
@@ -489,14 +490,14 @@ class SnapshotTransformer:
 
         Returns
         -------
-        X'': (n,k) ndarray
+        states: (n,k) ndarray
             Matrix of k untransformed n-dimensional snapshots.
         """
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
 
-        Y = X if inplace else X.copy()
+        Y = states_transformed if inplace else states_transformed.copy()
 
         # Unscale (re-dimensionalize) the data.
         if self.scaling:
@@ -560,11 +561,11 @@ class SnapshotTransformerMulti:
     ...                                   scaling=(None, "minmax", None))
 
     # Center 6 variables and scale the final variable with a standard scaling.
-    >>> stm = SnapshotTransformerMulti(3, center=True,
+    >>> stm = SnapshotTransformerMulti(6, center=True,
     ...                                   scaling=(None, None, None,
     ...                                            None, None, "standard"))
     # OR
-    >>> stm = SnapshotTransformerMulti(3, center=True, scaling=None)
+    >>> stm = SnapshotTransformerMulti(6, center=True, scaling=None)
     >>> stm[-1].scaling = "standard"
     """
     def __init__(self, num_variables, center=False, scaling=None,
@@ -764,36 +765,36 @@ class SnapshotTransformerMulti:
             return stm
 
     # Main routines -----------------------------------------------------------
-    def _check_shape(self, X):
-        """Verify the shape of the snapshot set X."""
-        if X.shape[0] != self.num_variables * self.n_:
+    def _check_shape(self, Q):
+        """Verify the shape of the snapshot set Q."""
+        if Q.shape[0] != self.num_variables * self.n_:
             raise ValueError("snapshot set must have num_variables * n "
                              f"= {self.num_variables} * {self.n_} "
                              f"= {self.num_variables * self.n_} rows "
-                             f"(got {X.shape[0]})")
+                             f"(got {Q.shape[0]})")
 
     def _is_trained(self):
         """Return True if transform() and inverse_transform() are ready."""
         return all(st._is_trained() for st in self.transformers)
 
-    def _apply(self, method, X, inplace):
-        """Apply a method of each transformer to the corresponding chunk of X.
+    def _apply(self, method, Q, inplace):
+        """Apply a method of each transformer to the corresponding chunk of Q.
         """
         Ys = []
         for st, var, name in zip(self.transformers,
-                                 np.split(X, self.num_variables, axis=0),
+                                 np.split(Q, self.num_variables, axis=0),
                                  self.variable_names):
             if method is SnapshotTransformer.fit_transform and self.verbose:
                 print(f"{name}:")
             Ys.append(method(st, var, inplace=inplace))
-        return X if inplace else np.row_stack(Ys)
+        return Q if inplace else np.row_stack(Ys)
 
-    def fit_transform(self, X, inplace=False):
+    def fit_transform(self, states, inplace=False):
         """Learn and apply the transformation.
 
         Parameters
         ----------
-        X : (n,k) ndarray
+        states : (n,k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n;
             this dimension must be evenly divisible by `num_variables`.
         inplace : bool
@@ -802,19 +803,19 @@ class SnapshotTransformerMulti:
 
         Returns
         -------
-        X'': (n,k) ndarray
+        states_transformed: (n,k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         """
-        Y = self._apply(SnapshotTransformer.fit_transform, X, inplace)
-        self.n_ = X.shape[0] // self.num_variables
+        Y = self._apply(SnapshotTransformer.fit_transform, states, inplace)
+        self.n_ = states.shape[0] // self.num_variables
         return Y
 
-    def transform(self, X, inplace=False):
+    def transform(self, states, inplace=False):
         """Apply the learned transformation.
 
         Parameters
         ----------
-        X : (n,k) ndarray
+        states : (n,k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n;
             this dimension must be evenly divisible by `num_variables`.
         inplace : bool
@@ -823,21 +824,21 @@ class SnapshotTransformerMulti:
 
         Returns
         -------
-        X'': (n,k) ndarray
+        states_transformed: (n,k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         """
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
-        self._check_shape(X)
-        return self._apply(SnapshotTransformer.transform, X, inplace)
+        self._check_shape(states)
+        return self._apply(SnapshotTransformer.transform, states, inplace)
 
-    def inverse_transform(self, X, inplace=False):
+    def inverse_transform(self, states_transformed, inplace=False):
         """Apply the inverse of the learned transformation.
 
         Parameters
         ----------
-        X : (n,k) ndarray
+        states_transformed : (n,k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         inplace : bool
             If True, overwrite the input data during inverse transformation.
@@ -845,11 +846,12 @@ class SnapshotTransformerMulti:
 
         Returns
         -------
-        X'': (n,k) ndarray
+        states: (n,k) ndarray
             Matrix of k untransformed n-dimensional snapshots.
         """
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
-        self._check_shape(X)
-        return self._apply(SnapshotTransformer.inverse_transform, X, inplace)
+        self._check_shape(states_transformed)
+        return self._apply(SnapshotTransformer.inverse_transform,
+                           states_transformed, inplace)

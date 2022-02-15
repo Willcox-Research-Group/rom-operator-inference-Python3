@@ -38,11 +38,9 @@ def _difference_data(t):
 
 @pytest.fixture
 def set_up_uniform_difference_data():
-    t = np.linspace(0, 1, 400)
-    return _difference_data(t)
+    return _difference_data(np.linspace(0, 1, 400))
 
 
 @pytest.fixture
 def set_up_nonuniform_difference_data():
-    t = np.linspace(0, 1, 400)**2
-    return _difference_data(t)
+    return _difference_data(np.linspace(0, 1, 400)**2)
