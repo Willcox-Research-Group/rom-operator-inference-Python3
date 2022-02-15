@@ -2,7 +2,6 @@
 # Run the same tests that would be done locally with `make test`.
 name: CI-tests
 
-
 on:
   push:
     branches:
