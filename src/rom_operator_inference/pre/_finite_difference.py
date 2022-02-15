@@ -179,7 +179,7 @@ def ddt(states, *args, **kwargs):
 
     if n_total == 0:
         raise TypeError("at least one other argument required (dt or t)")
-    elif n_total == 1:              # There is only one other argument.
+    elif n_total == 1:                  # There is only one other argument.
         if n_kwargs == 1:               # It is a keyword argument.
             arg_name = list(kwargs.keys())[0]
             if arg_name == "dt":

@@ -104,7 +104,7 @@ class LinearOperator(_BaseNonparametricOperator):
     Example
     -------
     >>> import numpy as np
-    >>> A = opinf._core.LinearOperator(np.random.random((10, 10)))
+    >>> A = opinf.core.operators.LinearOperator(np.random.random((10, 10)))
     >>> q = np.random.random(10)
     >>> A(q)                        # Evaluate Aq.
     """
@@ -133,7 +133,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
     Example
     -------
     >>> import numpy as np
-    >>> H = opinf._core.QuadraticOperator(np.random.random((10, 100)))
+    >>> H = opinf.core.operators.QuadraticOperator(np.random.random((10, 100)))
     >>> q = np.random.random(10)
     >>> H(q)                        # Evaluate H[q ⊗ q].
     """
@@ -186,7 +186,7 @@ class CubicOperator(_BaseNonparametricOperator):
     Example
     -------
     >>> import numpy as np
-    >>> G = opinf._core.CubicOperator(np.random.random((10, 1000)))
+    >>> G = opinf.core.operators.CubicOperator(np.random.random((10, 1000)))
     >>> q = np.random.random(10)
     >>> G(q)                        # Evaluate G[q ⊗ q ⊗ q].
     """
