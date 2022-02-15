@@ -26,34 +26,23 @@ $ python3 -m pip install --user rom-operator-inference
 
 ### Usage
 
-Given a basis matrix `Vr`, snapshot data `X`, and snapshot time derivatives `Xdot`, the following code learns a reduced-order model for a problem of the form d**x** / dt = **c** + **Ax**(t), then solves the reduced system for 0 ≤ t ≤ 1.
+Given a basis matrix `Vr`, snapshot data `Q`, and snapshot time derivatives `Qdot`, the following code learns a reduced-order model for a problem of the form d**q** / dt = **c** + **Aq**(t), then solves the reduced system for 0 ≤ t ≤ 1.
 
 ```python
 import numpy as np
 import rom_operator_inference as opinf
 
-# Define a reduced-order model of the form  dx / dt = c + Ax(t).
+# Define a reduced-order model of the form  dq / dt = c + Aq(t).
 >>> rom = opinf.InferredContinuousROM(modelform="cA")
 
-# Fit the model to snapshot data X, the time derivatives Xdot,
+# Fit the model to snapshot data Q, the time derivatives Qdot,
 # and the linear basis Vr by solving for the operators c_ and A_.
->>> rom.fit(Vr, X, Xdot)
+>>> rom.fit(Vr, Q, Qdot)
 
 # Simulate the learned model over the time domain [0,1] with 100 timesteps.
 >>> t = np.linspace(0, 1, 100)
->>> x_ROM = rom.predict(X[:,0], t)
+>>> Q_ROM = rom.predict(Q[:,0], t)
 ```
-
-
-## Examples
-
-The [`examples/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/examples) folder contains scripts and notebooks that set up and run several examples:
-- [`examples/tutorial.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/main/examples/tutorial.ipynb): A walkthrough of a very simple heat equation example.
-- [`examples/heat_1D.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/main/examples/heat_1D.ipynb): A more complicated one-dimensional heat equation example [\[1\]](#references).
-- [`examples/data_driven_heat.ipynb`](https://nbviewer.jupyter.org/github/Willcox-Research-Group/rom-operator-inference-Python3/blob/main/examples/data_driven_heat.ipynb): A purely data-driven example using data generated from a one-dimensional heat equation [\[4\]](#references).
-<!-- - `examples/TODO.ipynb`: Burgers' equation [\[1\]](#references). -->
-<!-- - `examples/TODO.ipynb`: Euler equation [\[2\]](#references). -->
-<!-- This example uses MATLAB's Curve Fitting Toolbox to generate the random initial conditions. -->
 
 ---
 
