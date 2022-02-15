@@ -2,6 +2,7 @@
 """Tools for accuracy and error evaluation."""
 
 __all__ = [
+            "projection_error",
             "frobenius_error",
             "lp_error",
             "Lp_error",
@@ -9,6 +10,8 @@ __all__ = [
 
 import numpy as np
 from scipy import linalg as la
+
+from ..pre import projection_error
 
 
 def _absolute_and_relative_error(X, Y, norm):

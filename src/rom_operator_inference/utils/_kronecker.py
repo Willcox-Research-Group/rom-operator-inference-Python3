@@ -25,7 +25,6 @@ def kron2c(x, checkdim=False):
     ----------
     x : (n,) or (n,k) ndarray
         If two-dimensional, the product is computed column-wise (Khatri-Rao).
-
     checkdim : bool
         If true, check that the input `x` is one- or two-dimensional.
 
@@ -46,7 +45,6 @@ def kron3c(x, checkdim=False):
     ----------
     x : (n,) or (n,k) ndarray
         If two-dimensional, the product is computed column-wise (Khatri-Rao).
-
     checkdim : bool
         If true, check that the input `x` is one- or two-dimensional.
 

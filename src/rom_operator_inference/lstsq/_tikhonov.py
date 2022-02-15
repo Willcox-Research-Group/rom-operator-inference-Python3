@@ -75,7 +75,6 @@ class _BaseSolver:
         ----------
         A : (k,d) ndarray
             The "left-hand side" matrix.
-
         B : (k,r) ndarray
             The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
         """
@@ -178,7 +177,6 @@ class SolverL2(_BaseSolver):
         ----------
         A : (k,d) ndarray
             The "left-hand side" matrix.
-
         B : (k,r) ndarray
             The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
         """
@@ -247,7 +245,6 @@ class SolverL2(_BaseSolver):
         X : (d,r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-
         λ : float ≥ 0
             Scalar regularization hyperparameter.
 
@@ -331,7 +328,6 @@ class SolverL2Decoupled(SolverL2):
         X : (d,r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-
         λs : sequence of r floats or (r,) ndarray
             Scalar regularization hyperparameters, one for each column of B.
 
@@ -391,7 +387,6 @@ class SolverTikhonov(_BaseSolver):
         ----------
         A : (k,d) ndarray
             The "left-hand side" matrix.
-
         B : (k,r) ndarray
             The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
         """
@@ -469,7 +464,6 @@ class SolverTikhonov(_BaseSolver):
         X : (d,r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-
         P : (d,d) or (d,) ndarray
             Regularization matrix (or the diagonals of the regularization
             matrix if one-dimensional).
@@ -564,7 +558,6 @@ class SolverTikhonovDecoupled(SolverTikhonov):
         X : (d,r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-
         Ps : sequence of r (d,d) or (d,) ndarrays
             Regularization matrices (or the diagonals of the regularization
             matrices if one-dimensional), one for each column of B.
@@ -592,10 +585,8 @@ def solver(A, B, P):
     ----------
     A : (k,d) ndarray
         The "left-hand side" matrix.
-
     B : (k,r) ndarray
         The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
-
     P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
         Tikhonov regularization hyperparameter(s). The regularization matrix
         in the least-squares problem depends on the format of the argument:
@@ -648,10 +639,8 @@ def solve(A, B, P=0):
     ----------
     A : (k,d) ndarray
         The "left-hand side" matrix.
-
     B : (k,r) ndarray
         The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
-
     P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
         Tikhonov regularization hyperparameter(s). The regularization matrix
         in the least-squares problem depends on the format of the argument:
