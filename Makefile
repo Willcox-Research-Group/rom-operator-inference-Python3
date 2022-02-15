@@ -1,4 +1,4 @@
-.PHONY: clean install test deploy
+.PHONY: clean lint install test deploy docs
 
 
 REMOVE = rm -rfv
@@ -17,14 +17,18 @@ clean:
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
 
 
+lint:
+	$(PYTHON) -m flake8 src
+	$(PYTHON) -m flake8 tests
+
+
 install: clean
-	$(PYTHON) -m pip install .
+	$(PYTHON) -m pip install --use-feature=in-tree-build .
 
 
-test: install
-	# $(PYTHON) check_docs.py
+test: lint install
 	$(PYTHON) -m $(PYTEST)
-	open htmlcov/index.html
+	# open htmlcov/index.html
 
 
 deploy: test
@@ -32,3 +36,6 @@ deploy: test
 	$(PYTHON) setup.py sdist bdist_wheel
 	$(PYTHON) -m twine upload dist/*
 
+
+docs:
+	jupyter-book build docs

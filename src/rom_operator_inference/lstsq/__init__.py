@@ -4,6 +4,7 @@
 from ._tikhonov import *
 
 
+# TODO: rename lstsq_size() -> size()
 def lstsq_size(modelform, r, m=0, affines=None):
     """Calculate the number of columns in the operator matrix O in the Operator
     Inference least-squares problem. This is also the number of columns in the
@@ -44,17 +45,16 @@ def lstsq_size(modelform, r, m=0, affines=None):
     ncols : int
         The number of columns in the Operator Inference least-squares problem.
     """
-    has_inputs = 'B' in modelform
-    if has_inputs and m == 0:
-        raise ValueError(f"argument m > 0 required since 'B' in modelform")
-    if not has_inputs and m != 0:
+    if 'B' in modelform and m == 0:
+        raise ValueError("argument m > 0 required since 'B' in modelform")
+    if 'B' not in modelform and m != 0:
         raise ValueError(f"argument m={m} invalid since 'B' in modelform")
 
     if affines is None:
         affines = {}
 
     qs = [(len(affines[op]) if (op in affines and op in modelform)
-           else 1 if op in modelform else 0)  for op in "cAHGB"]
+           else 1 if op in modelform else 0) for op in "cAHGB"]
     rs = [1, r, r*(r+1)//2, r*(r+1)*(r+2)//6, m]
 
     return sum(qq*rr for qq, rr in zip(qs, rs))

@@ -4,10 +4,12 @@
 __all__ = [
             "kron2c",
             "kron3c",
-            "compress_H",
-            "expand_H",
-            "compress_G",
-            "expand_G",
+            "kron2c_indices",
+            "kron3c_indices",
+            "compress_quadratic",
+            "expand_quadratic",
+            "compress_cubic",
+            "expand_cubic",
           ]
 
 import itertools
@@ -15,7 +17,7 @@ import numpy as np
 import scipy.special as special
 
 
-# Kronecker (Khatri-Rao) products =============================================
+# Compact Kronecker (Khatri-Rao) products =====================================
 def kron2c(x, checkdim=False):
     """Calculate the unique terms of the quadratic Kronecker product x ⊗ x.
 
@@ -23,7 +25,6 @@ def kron2c(x, checkdim=False):
     ----------
     x : (n,) or (n,k) ndarray
         If two-dimensional, the product is computed column-wise (Khatri-Rao).
-
     checkdim : bool
         If true, check that the input `x` is one- or two-dimensional.
 
@@ -44,7 +45,6 @@ def kron3c(x, checkdim=False):
     ----------
     x : (n,) or (n,k) ndarray
         If two-dimensional, the product is computed column-wise (Khatri-Rao).
-
     checkdim : bool
         If true, check that the input `x` is one- or two-dimensional.
 
@@ -61,8 +61,32 @@ def kron3c(x, checkdim=False):
                            for i in range(x.shape[0])], axis=0)
 
 
+# Index generation for fast compact Kronecker product evaluation ==============
+def kron2c_indices(r):
+    """Construct masks for compact quadratic and cubic Kronecker."""
+    mask = np.zeros((r*(r+1)//2, 2), dtype=int)
+    count = 0
+    for i in range(r):
+        for j in range(i+1):
+            mask[count,:] = (i,j)
+            count += 1
+    return mask
+
+
+def kron3c_indices(r):
+    """Construct masks for compact quadratic and cubic Kronecker."""
+    mask = np.zeros((r*(r+1)*(r+2)//6, 3), dtype=int)
+    count = 0
+    for i in range(r):
+        for j in range(i+1):
+            for k in range(j+1):
+                mask[count,:] = (i,j,k)
+                count += 1
+    return mask
+
+
 # Matricized tensor management ================================================
-def compress_H(H):
+def compress_quadratic(H):
     """Calculate the matricized quadratic operator that operates on the compact
     Kronecker product.
 
@@ -100,7 +124,7 @@ def compress_H(H):
     return Hc
 
 
-def expand_H(Hc):
+def expand_quadratic(Hc):
     """Calculate the matricized quadratic operator that operates on the full
     Kronecker product.
 
@@ -136,7 +160,7 @@ def expand_H(Hc):
     return H
 
 
-def compress_G(G):
+def compress_cubic(G):
     """Calculate the matricized cubic operator that operates on the compact
     cubic Kronecker product.
 
@@ -154,6 +178,8 @@ def compress_G(G):
         The matricized cubic tensor that operates on the compact cubic
         Kronecker product. Here s = r * (r+1) * (r+2) / 6.
     """
+    # TODO: only check that r3 is a perfect cube, not necessarily r**3
+    # (may be useful for cubic interactions of input or for systems).
     r = G.shape[0]
     r3 = G.shape[1]
     if r3 != r**3:
@@ -174,7 +200,7 @@ def compress_G(G):
     return Gc
 
 
-def expand_G(Gc):
+def expand_cubic(Gc):
     """Calculate the matricized quadratic operator that operates on the full
     cubic Kronecker product.
 

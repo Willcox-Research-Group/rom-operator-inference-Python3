@@ -1,0 +1,34 @@
+# docs.yml
+# Build the documentation, the same as would be done locally with `make test`.
+name: CI-docs
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade jupyter-book
+      - name: Install package
+        run: |
+          python -m pip install --use-feature=in-tree-build .
+      - name: Compile JupyterBook documentation
+        run: |
+          jupyter-book build --warningiserror docs
