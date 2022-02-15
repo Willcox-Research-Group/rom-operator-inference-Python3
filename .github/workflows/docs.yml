@@ -25,9 +25,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          python -m pip install --upgrade jupyter-book
       - name: Install package
         run: |
-          python -m pip install .
+          python -m pip install --use-feature=in-tree-build .
       - name: Compile JupyterBook documentation
         run: |
           jupyter-book build docs
