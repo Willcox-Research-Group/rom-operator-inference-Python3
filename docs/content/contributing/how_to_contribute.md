@@ -3,9 +3,18 @@
 Thank you for your interest in contributing to `rom_operator_inference`!
 Before you begin, please review our [Code of Conduct](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/blob/main/CODE_OF_CONDUCT.md).
 
+:::{admonition} Summary
+- Changes to the [source code](sec-contrib-anatomy) must be accompanied with updates to corresponding [unit tests](sec-contrib-testing) and [documentation](sec-contrib-docs).
+- Use `Makefile` shortcuts while developing:
+    - `make lint` checks that source code and tests follow the style guide.
+    - `make test` executes all unit tests.
+    - `make docs` compiles the documentation.
+- When all tests pass, make a pull request to the `develop` branch.
+:::
+
 ## Setup
 
-```{important}
+```{attention}
 Contributing to this project requires familiarity with GitHub and `git`.
 If you are unfamiliar with either, start with the [GitHub tutorial](https://docs.github.com/en/get-started/quickstart/hello-world) or the [git tutorial](https://git-scm.com/docs/gittutorial).
 ```
@@ -23,8 +32,12 @@ $ git remote add upstream https://<username>@github.com/Willcox-Research-Group/r
 
 The source repository has three special branches:
 - `main` is reserved for [public PyPi releases](https://pypi.org/project/rom-operator-inference/). _This branch is updated by maintainers only._
-- `develop` is the current development version of the code. **Contributors should make pull requests to `develop`, not `main`.**
+- `develop` is the current development version of the code.
 - `gh-pages` is the same as `main` except that it also contains the current build files for this documentation. _This branch is updated by maintainers only._
+
+```{attention}
+Contributors should make pull requests to the `develop` branch of `Willcox-Research-Group/rom-operator-inference-Python3`, not the `main` branch.
+```
 
 To contribute, get synced with the `develop` branch, then start a new branch for making active changes.
 
@@ -43,25 +56,32 @@ When you're ready, [create a pull request](https://docs.github.com/en/get-starte
 
 The GitHub repository is organized as follows.
 
-- [`src/rom_operator_inference/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/src/rom_operator_inference) contains the actual package code. The code is divided into submodules:
+:::{margin}
+```{note}
+Full examples, like the one you see on the left under the **Examples** heading, are part of the documentation.
+They should be written as Jupyter notebooks and placed in `docs/examples/`.
+```
+:::
+
+- [`src/rom_operator_inference/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/src/rom_operator_inference) contains the actual package code, see the [Source Code Guide](sec-contrib-anatomy). The code is divided into submodules:
     - `core`: operator and reduced-order model classes.
     - `lstsq`: solvers for the linear regression problem at the heart of Operator Inference.
     - `pre`: pre-processing tools (basis computation, state transformations, etc.).
     - `post`: post-processing tools (mostly error evaluation).
     - `utils`: other routines that are not important to casual users, but which advanced users may want access to.
-- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/tests) has tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/rom_operator_inference/`. See [Testing](sec-contrib-testing).
-- [`docs/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/docs) has documentation (including this page!). See [Documentation](sec-contrib-docs).
+- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/rom_operator_inference/`. See [Testing](sec-contrib-testing).
+- [`docs/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/docs) contains documentation (including this page!). See [Documentation](sec-contrib-docs).
 
-```{note}
-Full examples, like the one you see on the left under the **Examples** heading, are part of the documentation.
-They should be written as Jupyter notebooks and placed in `docs/examples/`.
+## Acceptance Standards
+
+:::{margin}
+```{tip}
+The file `Makefile` defines routines that are triggered by the `make` command line utility.
+The aptly named [makefiletutorial.com](https://makefiletutorial.com/) has a pretty good overview of `Makefile` syntax and usage.
 ```
+:::
 
-## Standards
-
-For any changes to be accepted, you must
-1. Write readable code that conforms to our standards. In particular, `make lint` must succeed.
-2. Write or update tests to validate your additions or changes. In particular, `make test` must succeed with full line coverage.
-3. Write or update documentation based on your changes. In particular, `make docs` must succeed.
-
-More on each of these in [Testing](sec-contrib-testing) and [Documentation](sec-contrib-docs).
+For any changes to be accepted, they need to address three things.
+1. [**Source Code.**](sec-contrib-anatomy) Write readable code that conforms to our style guide. In particular, `make lint` must succeed.
+2. [**Unit tests.**](sec-contrib-testing) Write or update tests to validate your additions or changes. In particular, `make test` must succeed with full line coverage.
+3. [**Documentation.**](sec-contrib-docs) Write or update documentation based on your changes. In particular, `make docs` must succeed.

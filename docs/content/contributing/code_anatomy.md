@@ -1,3 +1,4 @@
+(sec-contrib-anatomy)=
 # Source Code Guide
 
 This page is a non-exhaustive overview of the package anatomy.
@@ -8,19 +9,21 @@ The source code is stored in [`src/rom_operator_inference/`](https://github.com/
 - `post`: post-processing tools (mostly error evaluation).
 - `utils`: other routines that don't obviously fit into another submodule. These functions are usually not important for casual users, but advanced users and developers may need access to them.
 
-## Object-oriented Philosophy
+## Conventions
 
-Python is a highly object-oriented language, which is advantageous for building mathematical software with abstract objects.
+### Object-oriented Philosophy
+
+Python is a highly [object-oriented language](https://docs.python.org/3/tutorial/classes.html), which is advantageous for building mathematical software with abstract objects.
 One-off routines (such as computing a POD basis) should be implemented as standalone functions, but a class structure is preferable when possible.
 The package has three main class hierarchies:
 
-- _ROM classes_ encapsulate an entire reduced-order model, such as $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t) + \widehat{\mathbf{B}}\mathbf{u}(t)$ or $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]$. These are the major objects that the user interacts with.
-- _Operator classes_ represent a single operator that forms part of a reduced-order model, e.g., $\widehat{\mathbf{A}}$ or $\widehat{\mathbf{H}}$. Every ROM object has, as attributes, several operator classes.
-- _Solver classes_ handle the regression problem at the heart of Operator Inference.
+- [_ROM classes_](subsec-contrib-romclass) encapsulate an entire reduced-order model, such as $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t) + \widehat{\mathbf{B}}\mathbf{u}(t)$ or $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]$. These are the major objects that the user interacts with.
+- [_Operator classes_](subsec-contrib-opclass) represent a single operator that forms part of a reduced-order model, e.g., $\widehat{\mathbf{A}}$ or $\widehat{\mathbf{H}}$. Every ROM object has, as attributes, several operator classes.
+- [_Solver classes_](subsec-contrib-solverclass) handle the regression problem at the heart of Operator Inference.
 
-## Conventions
+### Scikit-Learn Style
 
-We strive to follow `scikit-learn` conventions and other paradigms that are common in machine learning Python libraries.
+We strive to follow [`scikit-learn` conventions](https://scikit-learn.org/stable/developers/develop.html#api-overview) and other paradigms that are common in machine learning Python libraries.
 Specifically, both ROM classes and solver classes follow these rules.
 - The `fit()` method receives training data and solves an inference problem.
 - Attributes learned during `fit()` end with an underscore, in particular the reduced-order operators `c_`, `A_`, and so on. For consistency, low-dimensional quantities also end with an underscore (e.g., `state` is high dimensional but `state_` is low dimensional).
@@ -31,6 +34,7 @@ See [Linting](sec-contrib-linting) for more.
 
 ## Core Module
 
+(subsec-contrib-opclass)=
 ### Operator Class Hierarchy
 
 The operator classes represent single operators that forms part of a reduced-order model, e.g., $\widehat{\mathbf{A}}$ or $\widehat{\mathbf{H}}(\mu)$.
@@ -58,11 +62,18 @@ An operator $\mathbf{A}(\boldsymbol{\mu}) \in \mathbb{R}^{r \times s}$ depending
     \widehat{\mathbf{A}}^{(p)} \in \mathbb{R}^{r \times s}.
 \end{align*}
 
+TODO
 
 #### Interpolated Operators
 
+(subsec-contrib-romclass)=
 ### ROM Class Hierarchy
+
+The `_BaseROM` class of `core/_base.py` is the base class for all ROMs of the form
+
+TODO
 
 ## Least-squares Module
 
+(subsec-contrib-solverclass)=
 ### Class Hierarchy
