@@ -54,3 +54,11 @@ parts:
   - caption: API Documentation
     chapters:
     - file: content/api/dummy.md
+
+  # Instructions for developers.
+  - caption: Developer Guide
+    chapters:
+    - file: content/contributing/how_to_contribute.md
+    - file: content/contributing/code_anatomy.md
+    - file: content/contributing/testing.md
+    - file: content/contributing/documentation.md
