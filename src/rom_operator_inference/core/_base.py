@@ -27,8 +27,6 @@ class _BaseROM(abc.ABC):
     def __str__(self):
         """String representation: the structure of the model."""
         lhs, q, u = self._LHS_LABEL, self._STATE_LABEL, self._INPUT_LABEL
-        # NOTE: won't work for operators that are yet to be instantiated.
-        # out = [op._str(u if op is self.B_ else q) for op in self]
         out = []
         if 'c' in self.modelform:
             out.append("c")
@@ -156,7 +154,7 @@ class _BaseROM(abc.ABC):
     def c_(self, c_):
         self._check_operator_matches_modelform(c_, 'c')
         if c_ is not None:
-            c_ = ConstantOperator(c_, symbol='c')
+            c_ = ConstantOperator(c_)
             self._check_rom_operator_shape(c_, 'c')
         self.__c_ = c_
 
@@ -170,7 +168,7 @@ class _BaseROM(abc.ABC):
         # TODO: what happens if model.A_ = something but model.r is None?
         self._check_operator_matches_modelform(A_, 'A')
         if A_ is not None:
-            A_ = LinearOperator(A_, symbol='A')
+            A_ = LinearOperator(A_)
             self._check_rom_operator_shape(A_, 'A')
         self.__A_ = A_
 
@@ -183,7 +181,7 @@ class _BaseROM(abc.ABC):
     def H_(self, H_):
         self._check_operator_matches_modelform(H_, 'H')
         if H_ is not None:
-            H_ = QuadraticOperator(H_, symbol='H')
+            H_ = QuadraticOperator(H_)
             self._check_rom_operator_shape(H_, 'H')
         self.__H_ = H_
 
@@ -196,7 +194,7 @@ class _BaseROM(abc.ABC):
     def G_(self, G_):
         self._check_operator_matches_modelform(G_, 'G')
         if G_ is not None:
-            G_ = CubicOperator(G_, symbol='G')
+            G_ = CubicOperator(G_)
             self._check_rom_operator_shape(G_, 'G')
         self.__G_ = G_
 
@@ -209,7 +207,7 @@ class _BaseROM(abc.ABC):
     def B_(self, B_):
         self._check_operator_matches_modelform(B_, 'B')
         if B_ is not None:
-            B_ = LinearOperator(B_, symbol='B')
+            B_ = LinearOperator(B_)
             self._check_rom_operator_shape(B_, 'B')
         self.__B_ = B_
 
