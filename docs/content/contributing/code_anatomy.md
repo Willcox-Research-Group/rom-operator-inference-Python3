@@ -9,7 +9,11 @@ The source code is stored in [`src/rom_operator_inference/`](https://github.com/
 - `post`: post-processing tools (mostly error evaluation).
 - `utils`: other routines that don't obviously fit into another submodule. These functions are usually not important for casual users, but advanced users and developers may need access to them.
 
+---
+
 ## Conventions
+
+See the [Index of Notation](sec-notation) for specific naming conventions for both mathematical exposition and source code variables.
 
 ### Object-oriented Philosophy
 
@@ -32,46 +36,53 @@ Specifically, both ROM classes and solver classes follow these rules.
 In addition, we follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) and other standard Python formatting guidelines.
 See [Linting](sec-contrib-linting) for more.
 
+---
+
 ## Core Module
 
+The `core` module contains all operator and reduced-order model class definitions.
+Read [Rom Classes](sec-romclasses) before starting work here.
+
 (subsec-contrib-opclass)=
-### Operator Class Hierarchy
+### Operator Classes
 
-The operator classes represent single operators that forms part of a reduced-order model, e.g., $\widehat{\mathbf{A}}$ or $\widehat{\mathbf{H}}(\mu)$.
-They are defined in `core/operators`.
+The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that the model consists of, the  $\widehat{\mathbf{A}}$ of $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ for example.
+Operator classes are defined in `core/operators`.
 
-#### Non-parametric Operators
-
-These classes, defined in `core/operators/_nonparametric.py`, define operators whose entries are constant, i.e., that do not depend on external parameters.
+A _non-parametric operator_ has constant entries that do not depend on external parameters.
+These classes are defined in `core/operators/_nonparametric.py`.
 They are initialized with a NumPy array (the entries of the operator), which can be accessed as the `entries` attribute.
 These classes also handle the mappings defined by the operator: for the linear term $\widehat{\mathbf{A}}$ this is simply matrix multiplication $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$; for the quadratic term $\widehat{\mathbf{H}}$ this is the mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, which is done efficiently by computing only the unique terms of the Kronecker product $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$.
 
-Parametric operators, whose entries depend on external parameters, should be callable and evaluate to a non-parametric operator object.
+The non-parametric Operator classes inherit from `core.operators._base._BaseNonparametricOperator`.
+Parametric operators should inherit from `core.operators._base._BaseParametricOperator`.
 
-#### Affine-parametric Operators
+Classes that inherit from `_BaseParametricOperator` should
+1. Be initialized with matrices
+2. Do shape checking on the matrices
+3. Provide access to the matrices (`.entries`, `.matrices`, etc.)
+4. Implement `__call__(self, parameter)` so that it returns an non-parametric operator object:
+```python
+>>> parametric_operator = MyNewParametricOperator(init_args)
+>>> nonparametric_operator = parametric_operator(param)
+>>> isinstance(nonparametric_operator, _BaseNonparametricOperator)
+True
+```
 
-An operator $\mathbf{A}(\boldsymbol{\mu}) \in \mathbb{R}^{r \times s}$ depending on the parameter $\boldsymbol{\mu}\in\mathbb{R}^{d_\mu}$ is called _affine_ if it can be written as the sum
-
-\begin{align*}
-    \widehat{\mathbf{A}}(\boldsymbol{\mu})
-    &= \sum_{p=1}^{\ell}
-        \theta^{(p)}(\boldsymbol{\mu})\widehat{\mathbf{A}}^{(p)},
-    &
-    \theta^{(p)} &:\mathbb{R}^{d_\mu} \to \mathbb{R},
-    &
-    \widehat{\mathbf{A}}^{(p)} \in \mathbb{R}^{r \times s}.
-\end{align*}
-
-TODO
-
-#### Interpolated Operators
+<!-- See `core.operators._affine` for an example. -->
 
 (subsec-contrib-romclass)=
 ### ROM Class Hierarchy
 
-The `_BaseROM` class of `core/_base.py` is the base class for all ROMs of the form
+The `_BaseROM` class of `core/_base.py` is the base class for all reduced-order models.
+
+- The `basis`
+- Dimensional
+
 
 TODO
+
+---
 
 ## Least-squares Module
 

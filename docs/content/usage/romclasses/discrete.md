@@ -28,3 +28,12 @@ $$
     \right\|_2^2.
 \end{align*}
 $$
+
+
+**`DiscreteOpInfROM.predict(state0, niters, U=None)`**: Step forward the learned ROM `niters` steps.
+- **Parameters**
+    - `state0`: Initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state $\mathbf{V}_{r}^{\top}\mathbf{q}$<sub>0</sub>.
+    - `niters`: Number of times to step the system forward.
+    - `U`: Inputs for the next `niters`-1 time steps, as an _m_ x `niters`-1 matrix (or an (`niters`-1)-vector if _m_ = 1). This argument is only required if `'B'` is in `modelform`.
+- **Returns**
+    - `Q_ROM`: _n_ x `niters` matrix of approximate solutions to the full-order system, including the initial condition; or, if `Vr=None` in `fit()`, the _r_ x `niters` solution in the reduced-order space. Each column is one iteration of the solution.

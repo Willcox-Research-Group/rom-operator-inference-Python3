@@ -1,3 +1,4 @@
+(sec-contrib-start)=
 # Getting Started
 
 Thank you for your interest in contributing to `rom_operator_inference`!

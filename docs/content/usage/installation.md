@@ -2,7 +2,7 @@
 
 This page describes how to install `rom_operator_inference` locally.
 
-````{tip}
+:::{tip}
 To check if the package is installed, run the following in the command line.
 
 ```shell
@@ -11,7 +11,7 @@ rom-operator-inference==1.2.1
 ```
 
 No output means the package was not found.
-````
+:::
 
 ## Recommended: Latest Release
 
@@ -22,10 +22,10 @@ This installs the [latest official release](https://github.com/Willcox-Research-
 $ python3 -m pip install --user rom-operator-inference
 ```
 
-```{note}
+:::{note}
 Like most Python packages, `rom_operator_inference` has a few [software dependencies](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/network/dependencies).
 To avoid conflicts with other installed packages, you may want to install [within a virtual environment](https://docs.python.org/3/tutorial/venv.html).
-```
+:::
 
 ## Latest Commit to Main Branch
 
@@ -40,7 +40,7 @@ $ python3 -m pip install git+https://github.com/Willcox-Research-Group/rom-opera
 
 The final option is to download the entire repository (including tests, etc.) and install it from source.
 This also requires [`git`](https://git-scm.com/) and is the first step for contributing.
-<!-- TODO: link to contributing instructions and note on testing. -->
+See the [Developer Guide](sec-contrib-start) if you are interested in contributing.
 
 ```shell
 $ git clone https://github.com/Willcox-Research-Group/rom-operator-inference-Python3.git
