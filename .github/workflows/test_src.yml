@@ -1,16 +1,14 @@
-# tests.yml
+# test_src.yml
 # Run the same tests that would be done locally with `make test`.
-name: CI-tests
+name: CI-src
 
 on:
   push:
     branches:
       - main
-      - develop
   pull_request:
     branches:
       - main
-      - develop
   workflow_dispatch:
 
 jobs:

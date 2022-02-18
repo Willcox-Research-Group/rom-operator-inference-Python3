@@ -12,8 +12,8 @@ from ... import lstsq
 from ...utils import kron2c, kron3c
 
 
-# Base nonparametric OpInf class ==============================================
 class _NonparametricOpInfROM(_BaseROM):
+    """Base class for nonparametric Operator Inference reduced-order models."""
 
     # Properties --------------------------------------------------------------
     @property
