@@ -1,2 +1,0 @@
-# Interpolatory Parametric ROMs
-

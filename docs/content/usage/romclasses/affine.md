@@ -1,4 +1,0 @@
-# Affine Parametric ROMs
-
-TODO
-
