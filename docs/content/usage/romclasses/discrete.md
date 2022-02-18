@@ -1,6 +1,10 @@
 (sec-discrete)=
 # Discrete-time ROMs
 
+:::{attention}
+This page is out of date and under construction.
+:::
+
 The Operator Inference framework can be used to construct reduced-order models for approximating _discrete_ dynamical systems, as may arise from discretizing PDEs in both space and time.
 For instance, we can learn a discrete ROM of the form
 
@@ -29,11 +33,23 @@ $$
 \end{align*}
 $$
 
+## DiscreteOpInfROM
 
-**`DiscreteOpInfROM.predict(state0, niters, U=None)`**: Step forward the learned ROM `niters` steps.
+This class constructs a reduced-order model for the discrete, nonparametric systems via Operator Inference.
+
+**`DiscreteOpInfROM.fit(basis, states, inputs=None, regularizer=0)`**: Compute the operators of the reduced-order model via Operator Inference.
 - **Parameters**
-    - `state0`: Initial state vector, either full order (_n_-vector) or projected to reduced order (_r_-vector). If `Vr=None` in `fit()`, this must be the projected initial state $\mathbf{V}_{r}^{\top}\mathbf{q}$<sub>0</sub>.
-    - `niters`: Number of times to step the system forward.
-    - `U`: Inputs for the next `niters`-1 time steps, as an _m_ x `niters`-1 matrix (or an (`niters`-1)-vector if _m_ = 1). This argument is only required if `'B'` is in `modelform`.
+    - `Vr`: $n \times r$ basis for the linear reduced space on which the full-order model will be projected. Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrix `Q`. If given as `None`, `Q` is assumed to be the projected snapshot matrix $\mathbf{V}_{r}^{\top}\mathbf{Q}$.
+    - `Q`: $n \times k$ snapshot matrix of solutions to the full-order model, or the $r \times k$ projected snapshot matrix $\mathbf{V}_{r}^{\top}\mathbf{Q}$. Each column is one snapshot.
+    - `U`: $m \times (k-1)$ input matrix (or a $(k-1)$-vector if $m = 1$). Each column is the input for the corresponding column of `Q`. Only required when `'B'` is in `modelform`.
+    - `P`: Tikhonov regularization matrix for the least-squares problem; see [`lstsq`](#least-squares-solvers).
 - **Returns**
-    - `Q_ROM`: _n_ x `niters` matrix of approximate solutions to the full-order system, including the initial condition; or, if `Vr=None` in `fit()`, the _r_ x `niters` solution in the reduced-order space. Each column is one iteration of the solution.
+    - Trained `DiscreteOpInfROM` object.
+
+**`DiscreteOpInfROM.predict(state0, niters, inputs=None)`**: Step forward the learned ROM `niters` steps.
+- **Parameters**
+    - `state0`: Initial state vector, either full order ($n$-vector) or projected to reduced order ($r$-vector). If `Vr=None` in `fit()`, this must be the projected initial state $\mathbf{V}_{r}^{\top}\mathbf{q}$<sub>0</sub>.
+    - `niters`: Number of times to step the system forward.
+    - `inputs`: Inputs for the next `niters`-1 time steps, as an $m \times$ `niters`$-1$ matrix (or an (`niters`$-1$)-vector if $m = 1$). This argument is only required if `'B'` is in `modelform`.
+- **Returns**
+    - `Q_ROM`: $n \times$ `niters` matrix of approximate solutions to the full-order system, including the initial condition; or, if `basis=None` in `fit()`, the $r \times $ `niters` solution in the reduced-order space. Each column is one iteration of the solution.
