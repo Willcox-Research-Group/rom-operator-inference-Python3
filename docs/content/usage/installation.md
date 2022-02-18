@@ -1,3 +1,4 @@
+(sec-installation)=
 # Installation
 
 This page describes how to install `rom_operator_inference` locally.

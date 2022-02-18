@@ -20,7 +20,9 @@ The procedure is data-driven and non-intrusive, making it a viable candidate for
 :width: 80 %
 :::
 
-Get started with [**What is Operator Inference?**](sec-opinf-overview) or head straight to the [**Tutorial**](sec-tutorial).
+
+Get started with [**What is Operator Inference?**](sec-opinf-overview) or head straight to [**Installation**](sec-installation) and the [**Tutorial**](sec-tutorial).
+
 <!-- See our [**Literature**](sec-literature) page for a list of technical publications on Operator Inference and the [**Gallery**](sec-gallery) for a list of projects that use this package. -->
 
 ## Contents
