@@ -23,11 +23,6 @@ lint:
 	$(PYTHON) -m flake8 tests
 
 
-lint:
-	$(PYTHON) -m flake8 src
-	$(PYTHON) -m flake8 tests
-
-
 install: clean
 	$(PYTHON) -m pip install --use-feature=in-tree-build .
 

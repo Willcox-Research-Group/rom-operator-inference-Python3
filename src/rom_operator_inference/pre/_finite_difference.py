@@ -22,9 +22,6 @@ def _fwd4(y, dt):
     dt : float
         Time step (the uniform spacing).
 
-    dt : float
-        Time step (the uniform spacing).
-
     Returns
     -------
     dy0 : float or (...) ndarray
@@ -41,9 +38,6 @@ def _fwd6(y, dt):
     ----------
     y : (7,...) ndarray
         Data to differentiate. The derivative is taken along the first axis.
-    dt : float
-        Time step (the uniform spacing).
-
     dt : float
         Time step (the uniform spacing).
 

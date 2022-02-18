@@ -11,12 +11,6 @@ def up_one(f):
     return os.path.abspath(os.path.join("..", f))
 
 
-# Helper functions ============================================================
-def up_one(f):
-    """Get the file name in the folder above the current working directory."""
-    return os.path.abspath(os.path.join("..", f))
-
-
 # Global variables ============================================================
 SETUP = "setup.py"
 INIT = os.path.join("src", "rom_operator_inference", "__init__.py")
