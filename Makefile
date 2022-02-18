@@ -1,4 +1,4 @@
-.PHONY: clean install test deploy
+.PHONY: clean lint install test docs deploy
 
 
 REMOVE = rm -rfv
@@ -15,20 +15,28 @@ clean:
 	find . -type d -name "__pycache__" | xargs $(REMOVE)
 	find . -type d -name ".ipynb_checkpoints" | xargs $(REMOVE)
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
+	find docs -type d -name "_build" | xargs $(REMOVE)
+
+
+lint:
+	$(PYTHON) -m flake8 src
+	$(PYTHON) -m flake8 tests
 
 
 install: clean
-	$(PYTHON) -m pip install .
+	$(PYTHON) -m pip install --use-feature=in-tree-build .
 
 
-test: install
-	# $(PYTHON) check_docs.py
+test: lint install
 	$(PYTHON) -m $(PYTEST)
-	open htmlcov/index.html
+	# open htmlcov/index.html
 
 
-deploy: test
-	git checkout master
+docs:
+	jupyter-book build docs
+
+
+deploy: test docs
+	git checkout main
 	$(PYTHON) setup.py sdist bdist_wheel
 	$(PYTHON) -m twine upload dist/*
-

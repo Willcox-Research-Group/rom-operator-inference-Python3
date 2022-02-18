@@ -14,9 +14,11 @@ import warnings
 import numpy as np
 import scipy.linalg as la
 
+from ._base import _BaseSolver
+
 
 # Solver classes ==============================================================
-class _BaseSolver:
+class _BaseTikhonovSolver(_BaseSolver):
     """Base solver for regularized linear least-squares problems of the form
 
         sum_{i} min_{x_i} ||Ax_i - b_i||^2 + ||P_i x_i||^2.
@@ -75,7 +77,6 @@ class _BaseSolver:
         ----------
         A : (k,d) ndarray
             The "left-hand side" matrix.
-
         B : (k,r) ndarray
             The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
         """
@@ -103,13 +104,6 @@ class _BaseSolver:
         if not trained:
             raise AttributeError("lstsq solver not trained (call fit())")
 
-    # Main methods ------------------------------------------------------------
-    def fit(*args, **kwargs):
-        raise NotImplementedError("fit() implemented by child classes")
-
-    def predict(*args, **kwargs):
-        raise NotImplementedError("predict() implemented by child classes")
-
     # Post-processing ---------------------------------------------------------
     def cond(self):
         """Calculate the 2-norm condition number of the data matrix A."""
@@ -136,12 +130,12 @@ class _BaseSolver:
             X = X.reshape((-1,1))
         if X.shape != (self.d,self.r):
             raise ValueError(f"X.shape = {X.shape} != "
-                             f"{(self.d,self.r)} = (d,r)")
+                             f"{(self.d,self.r)} = (d, r)")
         resids = np.sum((self.A @ X - self.B)**2, axis=0)
         return resids[0] if self.r == 1 else resids
 
 
-class SolverL2(_BaseSolver):
+class SolverL2(_BaseTikhonovSolver):
     """Solve the l2-norm ordinary least-squares problem with L2 regularization:
 
         sum_{i} min_{x_i} ||Ax_i - b_i||_2^2 + ||λx_i||_2^2,    λ ≥ 0,
@@ -178,7 +172,6 @@ class SolverL2(_BaseSolver):
         ----------
         A : (k,d) ndarray
             The "left-hand side" matrix.
-
         B : (k,r) ndarray
             The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
         """
@@ -247,7 +240,6 @@ class SolverL2(_BaseSolver):
         X : (d,r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-
         λ : float ≥ 0
             Scalar regularization hyperparameter.
 
@@ -331,7 +323,6 @@ class SolverL2Decoupled(SolverL2):
         X : (d,r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-
         λs : sequence of r floats or (r,) ndarray
             Scalar regularization hyperparameters, one for each column of B.
 
@@ -346,7 +337,7 @@ class SolverL2Decoupled(SolverL2):
         return self.misfit(X) + λ2s*np.sum(X**2, axis=0)
 
 
-class SolverTikhonov(_BaseSolver):
+class SolverTikhonov(_BaseTikhonovSolver):
     """Solve the l2-norm ordinary least-squares problem with Tikhonov
     regularization:
 
@@ -391,7 +382,6 @@ class SolverTikhonov(_BaseSolver):
         ----------
         A : (k,d) ndarray
             The "left-hand side" matrix.
-
         B : (k,r) ndarray
             The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
         """
@@ -403,7 +393,7 @@ class SolverTikhonov(_BaseSolver):
 
         return self
 
-    def predict(self, P):
+    def predict(self, P, trynormal=True):
         """Solve the least-squares problem with regularization matrix P.
 
         Parameters
@@ -411,6 +401,10 @@ class SolverTikhonov(_BaseSolver):
         P : (d,d) or (d,) ndarray
             Regularization matrix (or the diagonals of the regularization
             matrix if one-dimensional).
+        trynormal : bool
+            If True, attempt to solve the problem via the normal equations,
+            falling back on a full least-squares solver if the problem is
+            too ill-conditioned. If False, skip the normal equations attempt.
 
         Returns
         -------
@@ -422,16 +416,19 @@ class SolverTikhonov(_BaseSolver):
         self._check_is_trained("_AtA")
 
         P, lhs = self._lhs(P)
-        with warnings.catch_warnings():
-            warnings.filterwarnings("error", category=la.LinAlgWarning)
+        if trynormal:
             try:
-                # Attempt to solve the problem via the normal equations.
-                X = la.solve(lhs, self._rhs, assume_a="pos")
-            except (la.LinAlgError, la.LinAlgWarning) as e:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("error", category=la.LinAlgWarning)
+                    # Attempt to solve the problem via the normal equations.
+                    X = la.solve(lhs, self._rhs, assume_a="pos")
+            except (la.LinAlgError, la.LinAlgWarning):
                 # For ill-conditioned normal equations, use la.lstsq().
-                print(f"normal equations solve failed, switching lstsq solver")
-                Bpad = np.vstack((self.B, np.zeros((self.d, self.r))))
-                X = la.lstsq(np.vstack((self.A, P)), Bpad)[0]
+                print("normal equations solve failed, switching lstsq solver")
+                trynormal = False
+        if not trynormal:
+            Bpad = np.vstack((self.B, np.zeros((self.d, self.r))))
+            X = la.lstsq(np.vstack((self.A, P)), Bpad)[0]
 
         return np.ravel(X) if self.r == 1 else X
 
@@ -462,7 +459,6 @@ class SolverTikhonov(_BaseSolver):
         X : (d,r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-
         P : (d,d) or (d,) ndarray
             Regularization matrix (or the diagonals of the regularization
             matrix if one-dimensional).
@@ -520,7 +516,7 @@ class SolverTikhonovDecoupled(SolverTikhonov):
                 try:
                     # Attempt to solve the problem via the normal equations.
                     X[:,j] = la.solve(lhs, self._rhs[:,j], assume_a="pos")
-                except (la.LinAlgError, la.LinAlgWarning) as e:
+                except (la.LinAlgError, la.LinAlgWarning):
                     # For ill-conditioned normal equations, use la.lstsq().
                     if Bpad is None:
                         Bpad = np.vstack((self.B, np.zeros((self.d, self.r))))
@@ -557,7 +553,6 @@ class SolverTikhonovDecoupled(SolverTikhonov):
         X : (d,r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-
         Ps : sequence of r (d,d) or (d,) ndarrays
             Regularization matrices (or the diagonals of the regularization
             matrices if one-dimensional), one for each column of B.
@@ -585,19 +580,17 @@ def solver(A, B, P):
     ----------
     A : (k,d) ndarray
         The "left-hand side" matrix.
-
     B : (k,r) ndarray
         The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
-
     P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
-        Tikhonov regularization hyperparameter(s). The regularization matrix in the
-        least-squares problem depends on the format of the argument:
+        Tikhonov regularization hyperparameter(s). The regularization matrix
+        in the least-squares problem depends on the format of the argument:
         * float >= 0: `P`*I, a scaled identity matrix.
         * (d,) ndarray: diag(P), a diagonal matrix.
         * (d,d) ndarray: the matrix `P`.
         * sequence of length r : the jth entry in the sequence is the
-            regularization hyperparameter for the jth column of `b`. Only valid if
-            `b` is two-dimensional and has exactly r columns.
+            regularization hyperparameter for the jth column of `b`. Only
+            valid if `b` is two-dimensional and has exactly r columns.
 
     Returns
     -------
@@ -627,7 +620,7 @@ def solver(A, B, P):
         solver = SolverTikhonovDecoupled()
 
     else:
-        raise ValueError(f"invalid or misaligned input P")
+        raise ValueError("invalid or misaligned input P")
 
     return solver.fit(A, B)
 
@@ -641,13 +634,11 @@ def solve(A, B, P=0):
     ----------
     A : (k,d) ndarray
         The "left-hand side" matrix.
-
     B : (k,r) ndarray
         The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
-
     P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
-        Tikhonov regularization hyperparameter(s). The regularization matrix in the
-        least-squares problem depends on the format of the argument:
+        Tikhonov regularization hyperparameter(s). The regularization matrix
+        in the least-squares problem depends on the format of the argument:
         * float >= 0: `P`*I, a scaled identity matrix.
         * (d,) ndarray: diag(P), a diagonal matrix.
         * (d,d) ndarray: the matrix `P`.

@@ -1,0 +1,50 @@
+# Book settings.
+# Learn more at https://jupyterbook.org/customize/config.html
+
+title: ""
+author: Willcox Research Group, Oden Institute for Computational Engineering and Sciences
+email: karen.willcox@oden.utexas.edu
+logo: images/opinf-logo.svg
+
+# Information about where the book exists on the web.
+repository:
+  url: https://github.com/Willcox-Research-Group/rom-operator-inference-Python3
+  path_to_book: docs
+  branch: main  # Which branch of the repository should be used when creating links (optional)
+
+# GitHub buttons and other web options.
+# See https://jupyterbook.org/customize/config.html#add-a-link-to-your-repository
+html:
+  home_page_in_navbar: false
+  use_edit_page_button: false
+  use_issues_button: true
+  use_repository_button: true
+
+# Notebooks execution configuration for build.
+# See https://jupyterbook.org/content/execute.html
+execute:
+  execute_notebooks: cache # auto, force, cache, or 'off'.
+
+# Latex output file for PDF builds.
+latex:
+  # latex_engine: pdflatex
+  latex_documents:
+    targetname: documentation.tex
+
+# Bibtex file for citations.
+bibtex_bibfiles:
+  - references.bib
+
+parse:
+  myst_enable_extensions:
+    - amsmath
+    - colon_fence
+    - dollarmath
+    - linkify
+    - substitution
+    - tasklist
+
+sphinx:
+  config: # Use MathJax version 3, which is faster than the default.
+    mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+    # language: en
