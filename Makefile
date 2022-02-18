@@ -1,4 +1,4 @@
-.PHONY: clean lint install test deploy docs
+.PHONY: clean lint install test docs deploy
 
 
 REMOVE = rm -rfv
@@ -31,11 +31,11 @@ test: lint install
 	# open htmlcov/index.html
 
 
-deploy: test
-	git checkout master
-	$(PYTHON) setup.py sdist bdist_wheel
-	$(PYTHON) -m twine upload dist/*
-
-
 docs:
 	jupyter-book build docs
+
+
+deploy: test docs
+	git checkout main
+	$(PYTHON) setup.py sdist bdist_wheel
+	$(PYTHON) -m twine upload dist/*

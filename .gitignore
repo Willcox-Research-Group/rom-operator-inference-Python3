@@ -34,6 +34,7 @@ html/
 *.jpg
 *.mp4
 *.gif
+*.pptx
 
 # Extra Mac files
 *.DS_Store

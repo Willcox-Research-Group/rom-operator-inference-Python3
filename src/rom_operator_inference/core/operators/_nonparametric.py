@@ -1,4 +1,4 @@
-# core/operators/nonparametric.py
+# core/operators/_nonparametric.py
 """Classes for polynomial operators with no external parameter dependencies."""
 
 __all__ = [
@@ -9,77 +9,16 @@ __all__ = [
             "CubicOperator",
           ]
 
-import abc
 import numpy as np
 
 from ...utils import (kron2c_indices, kron3c_indices,
                       compress_quadratic, compress_cubic)
+from ._base import _BaseNonparametricOperator
 
 
-# Base non-parametric operator ================================================
-class _BaseNonparametricOperator(abc.ABC):
-    """Base class for operators that are part of reduced-order models.
-    Call the instantiated object to evaluate the operator on an input.
-
-    Attributes
-    ----------
-    entries : ndarray
-        Actual NumPy array representing the operator.
-    shape : tuple
-        Shape of the operator entries array.
-    symbol : str
-        Mathematical symbol for the operator, e.g., 'A' or 'H'.
-        Used in the string representation of the operator and associated ROM.
-    """
-    @abc.abstractmethod
-    def __init__(self, entries, symbol):
-        """Set operator entries and save operator name."""
-        self.__entries = entries
-        self.symbol = symbol
-
-    @staticmethod
-    def _validate_entries(entries):
-        """Ensure argument is a NumPy array and screen for NaN, Inf entries."""
-        if not isinstance(entries, np.ndarray):
-            raise TypeError("operator entries must be NumPy array")
-        if np.any(np.isnan(entries)):
-            raise ValueError("operator entries must not be NaN")
-        elif np.any(np.isinf(entries)):
-            raise ValueError("operator entries must not be Inf")
-
-    @property
-    def entries(self):
-        """Discrete representation of the operator."""
-        return self.__entries
-
-    @property
-    def shape(self):
-        """Shape of the operator."""
-        return self.entries.shape
-
-    @abc.abstractmethod
-    def _str(self):
-        raise NotImplementedError                           # pragma: no cover
-
-    @abc.abstractmethod
-    def __call__(*args, **kwargs):
-        raise NotImplementedError                           # pragma: no cover
-
-    def __getitem__(self, key):
-        """Slice into the discrete representation of the operator."""
-        return self.entries[key]
-
-    def __eq__(self, other):
-        """Test whether two Operator objects are numerically equal."""
-        if not isinstance(other, self.__class__):
-            return False
-        return np.all(self.entries == other.entries)
-
-
-# Public non-parametric operators =============================================
 class ConstantOperator(_BaseNonparametricOperator):
     """Constant terms."""
-    def __init__(self, entries, symbol='c'):
+    def __init__(self, entries):
         self._validate_entries(entries)
 
         # Flatten operator if needed or report dimension error.
@@ -89,13 +28,10 @@ class ConstantOperator(_BaseNonparametricOperator):
             else:
                 raise ValueError("constant operator must be one-dimensional")
 
-        _BaseNonparametricOperator.__init__(self, entries, symbol)
+        _BaseNonparametricOperator.__init__(self, entries)
 
     def __call__(self, *args):
         return self.entries
-
-    def _str(self, label=None):
-        return self.symbol
 
 
 class LinearOperator(_BaseNonparametricOperator):
@@ -108,7 +44,7 @@ class LinearOperator(_BaseNonparametricOperator):
     >>> q = np.random.random(10)
     >>> A(q)                        # Evaluate Aq.
     """
-    def __init__(self, entries, symbol='A'):
+    def __init__(self, entries):
         """Check dimensions and set operator entries."""
         self._validate_entries(entries)
 
@@ -117,13 +53,10 @@ class LinearOperator(_BaseNonparametricOperator):
         if entries.ndim != 2:
             raise ValueError("linear operator must be two-dimensional")
 
-        _BaseNonparametricOperator.__init__(self, entries, symbol)
+        _BaseNonparametricOperator.__init__(self, entries)
 
     def __call__(self, q):
         return self.entries @ np.atleast_1d(q)
-
-    def _str(self, label):
-        return f"{self.symbol}{label}"
 
 
 class QuadraticOperator(_BaseNonparametricOperator):
@@ -137,7 +70,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
     >>> q = np.random.random(10)
     >>> H(q)                        # Evaluate H[q ⊗ q].
     """
-    def __init__(self, entries, symbol='H'):
+    def __init__(self, entries):
         """Check dimensions and set operator entries."""
         self._validate_entries(entries)
 
@@ -153,13 +86,10 @@ class QuadraticOperator(_BaseNonparametricOperator):
             raise ValueError("invalid dimensions for quadratic operator")
         self._mask = kron2c_indices(r1)
 
-        _BaseNonparametricOperator.__init__(self, entries, symbol)
+        _BaseNonparametricOperator.__init__(self, entries)
 
     def __call__(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
-
-    def _str(self, label):
-        return f"{self.symbol}[{label} ⊗ {label}]"
 
 
 # class CrossQuadraticOperator(QuadraticOperator):
@@ -190,7 +120,7 @@ class CubicOperator(_BaseNonparametricOperator):
     >>> q = np.random.random(10)
     >>> G(q)                        # Evaluate G[q ⊗ q ⊗ q].
     """
-    def __init__(self, entries, symbol='G'):
+    def __init__(self, entries):
         self._validate_entries(entries)
 
         # TODO: allow reshaping from three-dimensional tensor?
@@ -205,10 +135,7 @@ class CubicOperator(_BaseNonparametricOperator):
             raise ValueError("invalid dimensions for cubic operator")
         self._mask = kron3c_indices(r1)
 
-        _BaseNonparametricOperator.__init__(self, entries, symbol)
+        _BaseNonparametricOperator.__init__(self, entries)
 
     def __call__(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
-
-    def _str(self, label):
-        return f"{self.symbol}[{label} ⊗ {label} ⊗ {label}]"

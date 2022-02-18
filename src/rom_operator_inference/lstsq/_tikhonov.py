@@ -14,9 +14,11 @@ import warnings
 import numpy as np
 import scipy.linalg as la
 
+from ._base import _BaseSolver
+
 
 # Solver classes ==============================================================
-class _BaseSolver:
+class _BaseTikhonovSolver(_BaseSolver):
     """Base solver for regularized linear least-squares problems of the form
 
         sum_{i} min_{x_i} ||Ax_i - b_i||^2 + ||P_i x_i||^2.
@@ -102,13 +104,6 @@ class _BaseSolver:
         if not trained:
             raise AttributeError("lstsq solver not trained (call fit())")
 
-    # Main methods ------------------------------------------------------------
-    def fit(*args, **kwargs):
-        raise NotImplementedError("fit() implemented by child classes")
-
-    def predict(*args, **kwargs):
-        raise NotImplementedError("predict() implemented by child classes")
-
     # Post-processing ---------------------------------------------------------
     def cond(self):
         """Calculate the 2-norm condition number of the data matrix A."""
@@ -140,7 +135,7 @@ class _BaseSolver:
         return resids[0] if self.r == 1 else resids
 
 
-class SolverL2(_BaseSolver):
+class SolverL2(_BaseTikhonovSolver):
     """Solve the l2-norm ordinary least-squares problem with L2 regularization:
 
         sum_{i} min_{x_i} ||Ax_i - b_i||_2^2 + ||λx_i||_2^2,    λ ≥ 0,
@@ -342,7 +337,7 @@ class SolverL2Decoupled(SolverL2):
         return self.misfit(X) + λ2s*np.sum(X**2, axis=0)
 
 
-class SolverTikhonov(_BaseSolver):
+class SolverTikhonov(_BaseTikhonovSolver):
     """Solve the l2-norm ordinary least-squares problem with Tikhonov
     regularization:
 

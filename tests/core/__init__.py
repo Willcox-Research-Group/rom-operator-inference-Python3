@@ -55,5 +55,5 @@ def _trainedmodel(ModelClass, modelform, basis, m=20):
 
 def _isoperator(op):
     """Return True if `op` is a valid nonparametric 'Operator' object."""
-    _BaseOp = opinf.core.operators._nonparametric._BaseNonparametricOperator
+    _BaseOp = opinf.core.operators._base._BaseNonparametricOperator
     return isinstance(op, _BaseOp)

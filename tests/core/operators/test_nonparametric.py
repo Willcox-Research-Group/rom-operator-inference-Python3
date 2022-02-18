@@ -10,74 +10,6 @@ import rom_operator_inference as opinf
 _module = opinf.core.operators._nonparametric
 
 
-# Base class ==================================================================
-class TestBaseNonparametricOperator:
-    """Test core.operators._nonparametric._BaseNonparametricOperator."""
-    class Dummy(_module._BaseNonparametricOperator):
-        """Instantiable version of _BaseNonparametricOperator."""
-        def __init__(self, entries, symbol=''):
-            super().__init__(entries, symbol)
-
-        def __call__(*args, **kwargs):
-            pass
-
-        def _str(self, *args, **kwargs):
-            pass
-
-    class Dummy2(Dummy):
-        """A distinct instantiable version of _BaseNonparametricOperator."""
-        pass
-
-    def test_init(self):
-        """Test _BaseNonparametricOperator.__init__()."""
-        A = np.random.random((10,11))
-        op = self.Dummy(A)
-        assert op.entries is A
-
-    def test_validate_entries(self):
-        """Test _BaseNonparametricOperator._validate_entries()."""
-        func = _module._BaseNonparametricOperator._validate_entries
-        with pytest.raises(TypeError) as ex:
-            func([1, 2, 3, 4])
-        assert ex.value.args[0] == "operator entries must be NumPy array"
-
-        A = np.arange(12, dtype=float).reshape((4,3)).T
-        A[0,0] = np.nan
-        with pytest.raises(ValueError) as ex:
-            func(A)
-        assert ex.value.args[0] == "operator entries must not be NaN"
-
-        A[0,0] = np.inf
-        with pytest.raises(ValueError) as ex:
-            func(A)
-        assert ex.value.args[0] == "operator entries must not be Inf"
-
-        # Valid argument, no exceptions raised.
-        A[0,0] = 0
-        func(A)
-
-    def test_getitem(self):
-        """Test _BaseNonparametricOperator.__getitem__()."""
-        A = np.random.random((8, 6))
-        op = self.Dummy(A)
-        for s in [slice(2), (slice(1), slice(1,3)), slice(1, 4, 2)]:
-            assert np.all(op[s] == A[s])
-
-    def test_eq(self):
-        """Test _BaseNonparametricOperator.__eq__()."""
-        A = np.arange(12).reshape((4,3))
-        opA = self.Dummy(A)
-        opA2 = self.Dummy2(A)
-        assert opA != opA2
-
-        opB = self.Dummy(A + 1)
-        assert opA != opB
-
-        opC = self.Dummy(A + 0)
-        assert opA == opC
-
-
-# Non-parametric operators ====================================================
 class TestConstantOperator:
     """Test core.operators._nonparametric.ConstantOperator."""
     def test_init(self):
@@ -110,12 +42,6 @@ class TestConstantOperator:
         assert op(1) is c
         assert op([1, 2]) is c
         assert op([1], 2) is c
-
-    def test_str(self):
-        """Test core.operators._nonparametric.ConstantOperator._str()."""
-        c = opinf.core.operators.ConstantOperator(np.random.random(10),
-                                                  symbol='c')
-        assert c._str() == 'c'
 
 
 class TestLinearOperator:
@@ -185,14 +111,6 @@ class TestLinearOperator:
         _check2D(np.random.random((10,3)))
         _check2D(np.random.random((6,6)))
 
-    def test_str(self):
-        """Test core.operators._nonparametric.LinearOperator._str()."""
-        A = opinf.core.operators.LinearOperator(np.random.random((10, 10)),
-                                                symbol='A')
-        assert A._str("q(t)") == "Aq(t)"
-        A.symbol = "B"
-        assert A._str("u_{j}") == "Bu_{j}"
-
 
 class TestQuadraticOperator:
     """Test core.operators._nonparametric.QuadraticOperator."""
@@ -252,13 +170,6 @@ class TestQuadraticOperator:
         for _ in range(ntrials):
             x = np.random.random()
             assert np.allclose(op(x), H[0,0] * x**2)
-
-    def test_str(self):
-        """Test core.operators._nonparametric.QuadraticOperator._str()."""
-        H = opinf.core.operators.QuadraticOperator(np.random.random((10, 100)),
-                                                   symbol='H')
-        assert H._str("q_{j}") == "H[q_{j} ⊗ q_{j}]"
-        assert H._str("u(t)") == "H[u(t) ⊗ u(t)]"
 
 
 # class TestCrossQuadraticOperator:
@@ -331,9 +242,3 @@ class TestCubicOperator:
         for _ in range(ntrials):
             x = np.random.random()
             assert np.allclose(op(x), G[0,0] * x**3)
-
-    def test_str(self):
-        """Test core.operators._nonparametric.CubicOperator._str()."""
-        G = opinf.core.operators.CubicOperator(np.random.random((10, 1000)),
-                                               symbol='G')
-        assert G._str("q(t)") == "G[q(t) ⊗ q(t) ⊗ q(t)]"
