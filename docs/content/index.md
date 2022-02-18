@@ -8,7 +8,7 @@
 <!-- [![Documentation](https://img.shields.io/badge/Documentation-JupyterBook-important)](sec-api) -->
 
 :::{attention}
-This documentation is for `rom_operator_inference` version `1.3.0`, which has not yet been released.
+This documentation is for `rom_operator_inference` version `2.0.0`, which has not yet been released.
 See the current documentation for version `1.2.1` [here](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki/API-Reference).
 :::
 

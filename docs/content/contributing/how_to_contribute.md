@@ -10,7 +10,7 @@ Before you begin, please review our [Code of Conduct](https://github.com/Willcox
     - `make lint` checks that source code and tests follow the style guide.
     - `make test` executes all unit tests.
     - `make docs` compiles the documentation.
-- When all tests pass, make a pull request to the `develop` branch.
+- When all tests pass, make a pull request to the `main` branch on GitHub.
 :::
 
 ## Setup
@@ -31,27 +31,20 @@ $ git remote add upstream https://<username>@github.com/Willcox-Research-Group/r
 
 ## Branches and Workflow
 
-The source repository has three special branches:
-- `main` is reserved for [public PyPi releases](https://pypi.org/project/rom-operator-inference/). _This branch is updated by maintainers only._
-- `develop` is the current development version of the code.
+The source repository has two special branches:
+- `main` is reserved for [public PyPi releases](https://pypi.org/project/rom-operator-inference/).
 - `gh-pages` is the same as `main` except that it also contains the current build files for this documentation. _This branch is updated by maintainers only._
 
-```{attention}
-Contributors should make pull requests to the `develop` branch of `Willcox-Research-Group/rom-operator-inference-Python3`, not the `main` branch.
-```
-
-To contribute, get synced with the `develop` branch, then start a new branch for making active changes.
+To contribute, get synced with the `main` branch, then start a new branch for making active changes.
 
 ```bash
-$ git branch develop            # Create a local develop branch.
-$ git checkout develop          # Switch to the new local develop branch.
-$ git pull upstream develop     # Update it with the upstream develop branch.
+$ git pull upstream main        # Synchronize main with the source repository.
 $ git branch <mynewbranch>      # Create a new branch to make edits from.
 $ git checkout <mynewbranch>    # Switch to the working branch to do work.
 ```
 
 You are now ready to make edits on your newly created local branch.
-When you're ready, [create a pull request](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-a-pull-request) to merge the changes into `Willcox-Research-Group:develop`.
+When you're ready, [create a pull request](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-a-pull-request) to merge the changes into `Willcox-Research-Group:main`.
 
 ## Repository Organization
 
