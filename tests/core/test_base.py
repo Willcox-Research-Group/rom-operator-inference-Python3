@@ -591,3 +591,34 @@ class TestBaseROM:
         q_ = np.random.random(r)
         y_ = A_ @ q_ + (B1d_ * u)
         assert np.allclose(rom.evaluate(q_, u), y_)
+
+
+# class TestBaseParametricROM:
+#     """Test core._base._BaseParametricROM."""
+#
+#     class Dummy:
+#         """Instantiable version of _BaseROM."""
+#         def fit(*args, **kwargs):
+#             pass
+#
+#         def save(*args, **kwargs):
+#             pass
+#
+#         def load(*args, **kwargs):
+#             pass
+#
+#     class DummyOperator(opinf.core.operators._base._BaseParametricOperator):
+#         def __call__(self, parameter):
+#             pass
+#
+#     def test_p(self):
+#         raise NotImplementedError
+#
+#     def test_call(self):
+#         raise NotImplementedError
+#
+#     def test_predict(self):
+#         raise NotImplementedError
+#
+#     def test_evaluate(self):
+#         raise NotImplementedError
