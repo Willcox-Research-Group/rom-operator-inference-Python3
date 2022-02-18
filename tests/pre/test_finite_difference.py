@@ -49,65 +49,65 @@ def test_fwd6(set_up_uniform_difference_data):
         assert dY0 == dYj[0]
 
 
-def test_xdot_uniform(set_up_uniform_difference_data):
-    """Test pre._finite_difference.xdot_uniform()."""
+def test_ddt_uniform(set_up_uniform_difference_data):
+    """Test pre._finite_difference.ddt_uniform()."""
     dynamicstate = set_up_uniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
     dt = t[1] - t[0]
     for o in [2, 4, 6]:
-        dY_ = opinf.pre.xdot_uniform(Y, dt, order=o)
+        dY_ = opinf.pre.ddt_uniform(Y, dt, order=o)
         assert dY_.shape == Y.shape
         assert np.allclose(dY, dY_, atol=1e-4)
 
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
-        opinf.pre.xdot_uniform(Y[:,0], dt, order=2)
-    assert exc.value.args[0] == "data X must be two-dimensional"
+        opinf.pre.ddt_uniform(Y[:,0], dt, order=2)
+    assert exc.value.args[0] == "states must be two-dimensional"
 
     # Try with bad order.
     with pytest.raises(NotImplementedError) as exc:
-        opinf.pre.xdot_uniform(Y, dt, order=-1)
+        opinf.pre.ddt_uniform(Y, dt, order=-1)
     assert exc.value.args[0] == "invalid order '-1'; valid options: {2, 4, 6}"
 
     # Try with bad dt type.
     with pytest.raises(TypeError) as exc:
-        opinf.pre.xdot_uniform(Y, np.array([dt, 2*dt]), order=-1)
+        opinf.pre.ddt_uniform(Y, np.array([dt, 2*dt]), order=-1)
     assert exc.value.args[0] == "time step dt must be a scalar (e.g., float)"
 
 
-def test_xdot_nonuniform(set_up_nonuniform_difference_data):
-    """Test pre._finite_difference.xdot_nonuniform()."""
+def test_ddt_nonuniform(set_up_nonuniform_difference_data):
+    """Test pre._finite_difference.ddt_nonuniform()."""
     dynamicstate = set_up_nonuniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
-    dY_ = opinf.pre.xdot_nonuniform(Y, t)
+    dY_ = opinf.pre.ddt_nonuniform(Y, t)
     assert dY_.shape == Y.shape
     assert np.allclose(dY, dY_, atol=1e-4)
 
     # Try with bad data shape.
     with pytest.raises(ValueError) as exc:
-        opinf.pre.xdot_nonuniform(Y[:,0], t)
-    assert exc.value.args[0] == "data X must be two-dimensional"
+        opinf.pre.ddt_nonuniform(Y[:,0], t)
+    assert exc.value.args[0] == "states must be two-dimensional"
 
     # Try with bad time shape.
     with pytest.raises(ValueError) as exc:
-        opinf.pre.xdot_nonuniform(Y, np.dstack((t,t)))
+        opinf.pre.ddt_nonuniform(Y, np.dstack((t,t)))
     assert exc.value.args[0] == "time t must be one-dimensional"
 
     with pytest.raises(ValueError) as exc:
-        opinf.pre.xdot_nonuniform(Y, np.hstack((t,t)))
-    assert exc.value.args[0] == "data X not aligned with time t"
+        opinf.pre.ddt_nonuniform(Y, np.hstack((t,t)))
+    assert exc.value.args[0] == "states not aligned with time t"
 
 
-def test_xdot(set_up_uniform_difference_data,
-              set_up_nonuniform_difference_data):
-    """Test pre._finite_difference.xdot()."""
+def test_ddt(set_up_uniform_difference_data,
+             set_up_nonuniform_difference_data):
+    """Test pre._finite_difference.ddt()."""
     # Uniform tests.
     dynamicstate = set_up_uniform_difference_data
     t, Y, dY = dynamicstate.time, dynamicstate.state, dynamicstate.derivative
     dt = t[1] - t[0]
 
     def _single_test(*args, **kwargs):
-        dY_ = opinf.pre.xdot(*args, **kwargs)
+        dY_ = opinf.pre.ddt(*args, **kwargs)
         assert dY_.shape == Y.shape
         assert np.allclose(dY, dY_, atol=1e-4)
 
@@ -129,26 +129,26 @@ def test_xdot(set_up_uniform_difference_data,
 
     # Try with bad arguments.
     with pytest.raises(TypeError) as exc:
-        opinf.pre.xdot(Y)
+        opinf.pre.ddt(Y)
     assert exc.value.args[0] == \
         "at least one other argument required (dt or t)"
 
     with pytest.raises(TypeError) as exc:
-        opinf.pre.xdot(Y, order=2)
+        opinf.pre.ddt(Y, order=2)
     assert exc.value.args[0] == \
         "keyword argument 'order' requires float argument dt"
 
     with pytest.raises(TypeError) as exc:
-        opinf.pre.xdot(Y, other=2)
+        opinf.pre.ddt(Y, other=2)
     assert exc.value.args[0] == \
-        "xdot() got unexpected keyword argument 'other'"
+        "ddt() got unexpected keyword argument 'other'"
 
     with pytest.raises(TypeError) as exc:
-        opinf.pre.xdot(Y, 2)
+        opinf.pre.ddt(Y, 2)
     assert exc.value.args[0] == \
         "invalid argument type '<class 'int'>'"
 
     with pytest.raises(TypeError) as exc:
-        opinf.pre.xdot(Y, dt, 4, None)
+        opinf.pre.ddt(Y, dt, 4, None)
     assert exc.value.args[0] == \
-        "xdot() takes from 2 to 3 positional arguments but 4 were given"
+        "ddt() takes 2 or 3 positional arguments but 4 were given"

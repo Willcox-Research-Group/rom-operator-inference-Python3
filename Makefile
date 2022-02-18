@@ -1,4 +1,4 @@
-.PHONY: clean lint install test deploy
+.PHONY: clean lint install test docs deploy
 
 
 REMOVE = rm -rfv
@@ -15,6 +15,12 @@ clean:
 	find . -type d -name "__pycache__" | xargs $(REMOVE)
 	find . -type d -name ".ipynb_checkpoints" | xargs $(REMOVE)
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
+	find docs -type d -name "_build" | xargs $(REMOVE)
+
+
+lint:
+	$(PYTHON) -m flake8 src
+	$(PYTHON) -m flake8 tests
 
 
 lint:
@@ -31,7 +37,11 @@ test: lint install
 	# open htmlcov/index.html
 
 
-deploy: test
-	git checkout master
+docs:
+	jupyter-book build docs
+
+
+deploy: test docs
+	git checkout main
 	$(PYTHON) setup.py sdist bdist_wheel
 	$(PYTHON) -m twine upload dist/*

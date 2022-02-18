@@ -11,63 +11,67 @@ import rom_operator_inference as opinf
 
 # Basis computation ===========================================================
 def test_pod_basis(set_up_basis_data):
-    """Test pre._basis.pod_basis() on a small case with the ARPACK solver."""
-    X = set_up_basis_data
-    n,k = X.shape
+    """Test pre._basis.pod_basis()."""
+    Q = set_up_basis_data
+    n,k = Q.shape
 
     # Try with an invalid rank.
     rmax = min(n,k)
     with pytest.raises(ValueError) as exc:
-        opinf.pre.pod_basis(X, rmax+1)
+        opinf.pre.pod_basis(Q, rmax+1)
     assert exc.value.args[0] == \
-        f"invalid POD rank r = {rmax+1} (need 1 <= r <= {rmax})"
+        f"invalid POD rank r = {rmax+1} (need 1 ≤ r ≤ {rmax})"
 
     with pytest.raises(ValueError) as exc:
-        opinf.pre.pod_basis(X, -1)
+        opinf.pre.pod_basis(Q, -1)
     assert exc.value.args[0] == \
-        f"invalid POD rank r = -1 (need 1 <= r <= {rmax})"
+        f"invalid POD rank r = -1 (need 1 ≤ r ≤ {rmax})"
 
     # Try with an invalid mode.
     with pytest.raises(NotImplementedError) as exc:
-        opinf.pre.pod_basis(X, None, mode="full")
+        opinf.pre.pod_basis(Q, None, mode="full")
     assert exc.value.args[0] == "invalid mode 'full'"
 
-    U, vals, _ = la.svd(X, full_matrices=False)
+    U, vals, Wt = la.svd(Q, full_matrices=False)
     for r in [2, 10, rmax]:
         Ur = U[:,:r]
         vals_r = vals[:r]
+        Wr = Wt[:r,:].T
+        Id = np.eye(r)
 
-        # Via scipy.linalg.svd().
-        Vr, svdvals = opinf.pre.pod_basis(X, r, mode="dense")
-        assert Vr.shape == (n,r)
-        assert np.allclose(Vr, Ur)
-        assert svdvals.shape == (r,)
-        assert np.allclose(svdvals, vals_r)
+        for mode in ("dense", "sparse", "randomized"):
 
-        # Via scipy.sparse.linalg.svds() (ARPACK).
-        Vr, svdvals = opinf.pre.pod_basis(X, r, mode="sparse")
-        assert Vr.shape == (n,r)
-        for j in range(r):      # Make sure the columns have the same sign.
-            if not np.isclose(Ur[0,j], Vr[0,j]):
-                Vr[:,j] = -Vr[:,j]
-        assert np.allclose(Vr, Ur)
-        assert svdvals.shape == (r,)
-        assert np.allclose(svdvals, vals_r)
+            print(r, mode)
+            basis, svdvals = opinf.pre.pod_basis(Q, r, mode=mode)
+            _, _, W = opinf.pre.pod_basis(Q, r, mode=mode, return_W=True)
+            assert basis.shape == (n,r)
+            assert np.allclose(basis.T @ basis, Id)
+            assert W.shape == (k,r)
+            assert np.allclose(W.T @ W, Id)
 
-        # Via sklearn.utils.extmath.randomized_svd().
-        Vr, svdvals = opinf.pre.pod_basis(X, r, mode="randomized")
-        assert Vr.shape == (n,r)
-        # Light accuracy test (equality not guaranteed by randomized SVD).
-        assert la.norm(np.abs(Vr) - np.abs(Ur)) < 5
-        assert svdvals.shape == (r,)
-        assert la.norm(svdvals - vals_r) < 3
+            if mode == "dense":
+                assert svdvals.shape == (rmax,)
+            if mode in ("sparse", "randomized"):
+                assert svdvals.shape == (r,)
+                # Make sure the basis vectors have the same sign.
+                for j in range(r):
+                    if not np.isclose(basis[0,j], Ur[0,j]):
+                        basis[:,j] *= -1
+                    if not np.isclose(W[0,j], Wr[0,j]):
+                        W[:,j] *= -1
+
+            if mode != "randomized":
+                # Accuracy tests (none for randomized SVD).
+                assert np.allclose(basis, Ur)
+                assert np.allclose(svdvals[:r], vals_r)
+                assert np.allclose(W, Wr)
 
 
 # Reduced dimension selection =================================================
 def test_svdval_decay(set_up_basis_data):
     """Test pre._basis.svdval_decay()."""
-    X = set_up_basis_data
-    svdvals = la.svdvals(X)
+    Q = set_up_basis_data
+    svdvals = la.svdvals(Q)
 
     # Single cutoffs.
     r = opinf.pre.svdval_decay(svdvals, 1e-14, plot=False)
@@ -99,18 +103,27 @@ def test_svdval_decay(set_up_basis_data):
 
 def test_cumulative_energy(set_up_basis_data):
     """Test pre._basis.cumulative_energy()."""
-    X = set_up_basis_data
-    svdvals = la.svdvals(X)
+    Q = set_up_basis_data
+    svdvals = la.svdvals(Q)
+    energy = np.cumsum(svdvals**2)/np.sum(svdvals**2)
+
+    def _test(r, thresh):
+        assert isinstance(r, int)
+        assert r >= 1
+        assert energy[r-1] >= thresh
+        assert np.all(energy[:r-2] < thresh)
 
     # Single threshold.
-    r = opinf.pre.cumulative_energy(svdvals, .9, plot=False)
-    assert isinstance(r, np.int64) and r >= 1
+    thresh = .9
+    r = opinf.pre.cumulative_energy(svdvals, thresh, plot=False)
+    _test(r, thresh)
 
     # Multiple thresholds.
-    rs = opinf.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
+    thresh = [.9, .99, .999]
+    rs = opinf.pre.cumulative_energy(svdvals, thresh, plot=False)
     assert isinstance(rs, list)
-    for r in rs:
-        assert isinstance(r, np.int64) and r >= 1
+    for r,t in zip(rs, thresh):
+        _test(r, t)
     assert rs == sorted(rs)
 
     # Plotting.
@@ -130,47 +143,50 @@ def test_cumulative_energy(set_up_basis_data):
     assert rs == [1, 2, 3]
 
 
-def test_projection_error(set_up_basis_data):
-    """Test pre._basis.projection_error()."""
-    X = set_up_basis_data
-    Vr = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
+def test_residual_energy(set_up_basis_data):
+    """Test pre._basis.residual_energy()."""
+    Q = set_up_basis_data
+    svdvals = la.svdvals(Q)
+    resid = 1 - np.cumsum(svdvals**2)/np.sum(svdvals**2)
 
-    err = opinf.pre.projection_error(X, Vr)
-    assert np.isscalar(err) and err >= 0
+    def _test(r, tol):
+        assert isinstance(r, int)
+        assert r >= 1
+        assert resid[r-1] <= tol
+        assert np.all(resid[:r-2] > tol)
 
+    # Single tolerance.
+    tol = 1e-2
+    r = opinf.pre.residual_energy(svdvals, tol, plot=False)
+    _test(r, tol)
 
-def test_minimal_projection_error(set_up_basis_data):
-    """Test pre._basis.minimal_projection_error()."""
-    X = set_up_basis_data
-    V = la.svd(X, full_matrices=False)[0][:,:X.shape[1]//3]
-
-    # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
-        opinf.pre.minimal_projection_error(np.ravel(X), V, 1e-14, plot=False)
-    assert exc.value.args[0] == "data X must be two-dimensional"
-
-    # Try with bad basis shape.
-    with pytest.raises(ValueError) as exc:
-        opinf.pre.minimal_projection_error(X, V[0], 1e-14, plot=False)
-    assert exc.value.args[0] == "basis V must be two-dimensional"
-
-    # Single cutoffs.
-    r = opinf.pre.minimal_projection_error(X, V, 1e-14, plot=False)
-    assert isinstance(r, int) and r >= 1
-
-    # Multiple cutoffs.
-    rs = opinf.pre.minimal_projection_error(X, V, [1e-10, 1e-12], plot=False)
+    # Multiple tolerances.
+    tols = [1e-2, 1e-4, 1e-6]
+    rs = opinf.pre.residual_energy(svdvals, tols, plot=False)
     assert isinstance(rs, list)
-    for r in rs:
-        assert isinstance(r, int) and r >= 1
+    for r,t in zip(rs,tols):
+        _test(r,t)
     assert rs == sorted(rs)
 
-    # Plotting
+    # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    opinf.pre.minimal_projection_error(X, V, .0001, plot=True)
+    rs = opinf.pre.residual_energy(svdvals, 1e-3, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    opinf.pre.minimal_projection_error(X, V, [1e-4, 1e-6, 1e-10], plot=True)
+    rs = opinf.pre.cumulative_energy(svdvals, [1e-2, 1e-4, 1e-6], plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    plt.close("all")
     plt.interactive(status)
+    plt.close("all")
+
+
+def test_projection_error(set_up_basis_data):
+    """Test pre._basis.projection_error()."""
+    Q = set_up_basis_data
+    Vr = la.svd(Q, full_matrices=False)[0][:,:Q.shape[1]//3]
+
+    abserr, relerr = opinf.pre.projection_error(Q, Vr)
+    assert np.isscalar(abserr)
+    assert abserr >= 0
+    assert np.isscalar(relerr)
+    assert relerr >= 0
+    assert np.isclose(abserr, relerr * la.norm(Q))

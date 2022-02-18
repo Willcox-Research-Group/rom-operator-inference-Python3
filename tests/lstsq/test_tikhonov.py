@@ -8,26 +8,35 @@ from scipy import linalg as la
 import rom_operator_inference as opinf
 
 
-class TestBaseSolver:
-    """Test lstsq._tikhonov._BaseSolver."""
+class TestBaseTikhonovSolver:
+    """Test lstsq._tikhonov._BaseTikhonovSolver."""
+
+    class Dummy(opinf.lstsq._tikhonov._BaseTikhonovSolver):
+        """Instantiable version of _BaseTikhonovSolver."""
+        def fit(*args, **kwargs):
+            pass
+
+        def predict(*args, **kwargs):
+            pass
+
     # Properties --------------------------------------------------------------
     def test_properties(self, k=10, d=4, r=3):
-        """Test lstsq._tikhonov._BaseSolver properties A, B, k, d, and r."""
-        solver = opinf.lstsq._tikhonov._BaseSolver()
+        """Test _BaseTikhonovSolver properties A, B, k, d, and r."""
+        solver = self.Dummy()
         for attr in "ABkdr":
             assert hasattr(solver, attr)
             assert getattr(solver, attr) is None
 
         A = np.random.standard_normal((k,d))
         B = np.random.standard_normal((k,r))
-        solver._BaseSolver__A = A
-        solver._BaseSolver__B = B
+        solver._BaseTikhonovSolver__A = A
+        solver._BaseTikhonovSolver__B = B
         assert solver.A is A
         assert solver.B is B
         assert solver.k == k
         assert solver.d == d
         assert solver.r == r
-        solver._BaseSolver__B = np.empty((k,1))
+        solver._BaseTikhonovSolver__B = np.empty((k,1))
         assert solver.r == 1
 
         for attr in "AB":
@@ -42,8 +51,8 @@ class TestBaseSolver:
 
     # Validation --------------------------------------------------------------
     def test_process_fit_arguments(self, k=10, d=4, r=3):
-        """Test lstsq._tikhonov._BaseSolver._process_fit_arguments()."""
-        solver = opinf.lstsq._tikhonov._BaseSolver()
+        """Test _BaseTikhonovSolver._process_fit_arguments()."""
+        solver = self.Dummy()
         A = np.empty((k,d))
         B = np.empty((k,r))
 
@@ -88,8 +97,8 @@ class TestBaseSolver:
         assert solver.r == 1
 
     def test_check_is_trained(self, k=10, d=4, r=3):
-        """Test lstsq._tikhonov._BaseSolver._check_is_trained()."""
-        solver = opinf.lstsq._tikhonov._BaseSolver()
+        """Test lstsq._tikhonov._BaseTikhonovSolver._check_is_trained()."""
+        solver = self.Dummy()
 
         # Try before calling _process_fit_arguments().
         with pytest.raises(AttributeError) as ex:
@@ -108,33 +117,10 @@ class TestBaseSolver:
         # Correct usage.
         solver._check_is_trained()
 
-    # Main methods ------------------------------------------------------------
-    def test_fit(self):
-        """Test lstsq._tikhonov._BaseSolver.fit()."""
-        solver = opinf.lstsq._tikhonov._BaseSolver()
-        with pytest.raises(NotImplementedError) as ex:
-            solver.fit()
-        assert ex.value.args[0] == "fit() implemented by child classes"
-
-        with pytest.raises(NotImplementedError) as ex:
-            solver.fit(1, 2, 3, 4, 5, 6, 7, a=8)
-        assert ex.value.args[0] == "fit() implemented by child classes"
-
-    def test_predict(self):
-        """Test lstsq._tikhonov._BaseSolver.fit()."""
-        solver = opinf.lstsq._tikhonov._BaseSolver()
-        with pytest.raises(NotImplementedError) as ex:
-            solver.predict()
-        assert ex.value.args[0] == "predict() implemented by child classes"
-
-        with pytest.raises(NotImplementedError) as ex:
-            solver.predict(1, 2, 3, 4, 5, 6, 7, a=8)
-        assert ex.value.args[0] == "predict() implemented by child classes"
-
     # Post-processing ---------------------------------------------------------
     def test_cond(self, k=20, d=11, r=3):
-        """Test lstsq._tikhonov._BaseSolver.cond()."""
-        solver = opinf.lstsq._tikhonov._BaseSolver()
+        """Test lstsq._tikhonov._BaseTikhonovSolver.cond()."""
+        solver = self.Dummy()
 
         # Try before calling _process_fit_arguments().
         with pytest.raises(AttributeError) as ex:
@@ -161,8 +147,8 @@ class TestBaseSolver:
         assert np.isclose(solver.cond(), svals[0] / svals[-1])
 
     def test_misfit(self, k=20, d=10, r=4):
-        """Test lstsq._tikhonov._BaseSolver.misfit()."""
-        solver = opinf.lstsq._tikhonov._BaseSolver()
+        """Test lstsq._tikhonov._BaseTikhonovSolver.misfit()."""
+        solver = self.Dummy()
 
         # Try before calling _process_fit_arguments().
         with pytest.raises(AttributeError) as ex:
