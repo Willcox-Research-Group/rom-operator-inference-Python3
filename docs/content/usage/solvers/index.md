@@ -1,6 +1,10 @@
 (sec-lstsq)=
 # Least-Squares Solvers
 
+:::{attention}
+This page is under construction.
+:::
+
 Options for solving the least-squares regression problem at the heart of Operator Inference, i.e.,
 
 $$
@@ -10,7 +14,7 @@ $$
 $$
 
 where $\mathbf{D}$ is the _data matrix_ containing projected state snapshot data and $\widehat{\mathbf{O}}$ is the _operator matrix_ of unknown operators to be inferred.
-The structure of $\mathbf{D}$ and $\mathbf{O}$ depend on the problem structure, and the definition of $\mathbf{R}$ depends on the temporal context ([continuous time](sec-continuous), [discrete time](sec-discrete), or [steady state](sec-steady)).
+The structure of $\mathbf{D}$ and $\mathbf{O}$ depend on the problem structure, and the definition of $\mathbf{R}$ depends on the temporal context ([continuous time](sec-continuous) or [discrete time](sec-discrete)).
 
 Accessible from `fit()` method...TODO
 

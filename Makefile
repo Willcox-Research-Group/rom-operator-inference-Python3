@@ -15,6 +15,7 @@ clean:
 	find . -type d -name "__pycache__" | xargs $(REMOVE)
 	find . -type d -name ".ipynb_checkpoints" | xargs $(REMOVE)
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
+	find docs -type d -name "_build" | xargs $(REMOVE)
 
 
 lint:
