@@ -38,7 +38,7 @@ def reproject_discrete(f, basis, init, niters, inputs=None):
         Re-projected state trajectories in the projected low-dimensional space.
     """
     # Validate and extract dimensions.
-    n,r = basis.shape
+    n, r = basis.shape
     if init.shape != (n,):
         raise ValueError("basis and initial condition not aligned")
 
@@ -49,13 +49,13 @@ def reproject_discrete(f, basis, init, niters, inputs=None):
     # Run the re-projection iteration.
     if inputs is None:
         for j in range(niters-1):
-            states_[:,j+1] = basis.T @ f(basis @ states_[:,j])
+            states_[:, j+1] = basis.T @ f(basis @ states_[:, j])
     elif inputs.ndim == 1:
         for j in range(niters-1):
-            states_[:,j+1] = basis.T @ f(basis @ states_[:,j], inputs[j])
+            states_[:, j+1] = basis.T @ f(basis @ states_[:, j], inputs[j])
     else:
         for j in range(niters-1):
-            states_[:,j+1] = basis.T @ f(basis @ states_[:,j], inputs[:,j])
+            states_[:, j+1] = basis.T @ f(basis @ states_[:, j], inputs[:, j])
 
     return states_
 
@@ -89,22 +89,22 @@ def reproject_continuous(f, basis, states, inputs=None):
     if states.shape[0] != basis.shape[0]:
         raise ValueError("states and basis not aligned, first dimension "
                          f"{states.shape[0]} != {basis.shape[0]}")
-    n,r = basis.shape
-    _,k = states.shape
+    n, r = basis.shape
+    k = states.shape[1]
 
     # Create the solution arrays.
     states_ = basis.T @ states
-    ddts_ = np.empty((r,k))
+    ddts_ = np.empty((r, k))
 
     # Run the re-projection iteration.
     if inputs is None:
         for j in range(k):
-            ddts_[:,j] = basis.T @ f(basis @ states_[:,j])
+            ddts_[:, j] = basis.T @ f(basis @ states_[:, j])
     elif inputs.ndim == 1:
         for j in range(k):
-            ddts_[:,j] = basis.T @ f(basis @ states_[:,j], inputs[j])
+            ddts_[:, j] = basis.T @ f(basis @ states_[:, j], inputs[j])
     else:
         for j in range(k):
-            ddts_[:,j] = basis.T @ f(basis @ states_[:,j], inputs[:,j])
+            ddts_[:, j] = basis.T @ f(basis @ states_[:, j], inputs[:, j])
 
     return states_, ddts_

@@ -52,9 +52,9 @@ class _BaseAffineOperator(abc.ABC):
             raise TypeError(f"invalid operatortype '{OperatorClass.__name__}'")
         self.__opclass = OperatorClass
 
-        if any(not callable(θ) for θ in coeffs):
+        if any(not callable(theta) for theta in coeffs):
             raise TypeError("coefficients of affine operator must be callable")
-        self.__θs = coeffs
+        self.__thetas = coeffs
 
         # Check that the right number of terms are included.
         # if (n_coeffs := len(coeffs) != (n_matrices := len(matrices)):
@@ -74,7 +74,7 @@ class _BaseAffineOperator(abc.ABC):
     @property
     def coefficient_functions(self):
         """Coefficient scalar-valued functions in the affine expansion."""
-        return self.__θs
+        return self.__thetas
 
     @property
     def matrices(self):
@@ -87,27 +87,27 @@ class _BaseAffineOperator(abc.ABC):
     #     return self.matrices[0].shape
 
     @staticmethod
-    def validate_coeffs(θs, µ):
+    def validate_coeffs(thetas, mu):
         """Check that each coefficient function 1) is a callable function,
         2) takes in the right sized inputs, and 3) returns scalar values.
 
         Parameters
         ----------
-        µ : float or (p,) ndarray
+        mu : float or (p,) ndarray
             A test input for the coefficient functions.
         """
-        for θ in θs:
-            if not callable(θ):
+        for theta in thetas:
+            if not callable(theta):
                 raise TypeError("coefficient functions of affine operator "
                                 "must be callable")
-            elif not np.isscalar(θ(µ)):
+            elif not np.isscalar(theta(mu)):
                 raise ValueError("coefficient functions of affine operator "
                                  "must return a scalar")
 
-    def __call__(self, µ):
+    def __call__(self, mu):
         """Evaluate the affine operator at the given parameter."""
-        entries = np.sum([θi(µ)*Ai for θi,Ai in zip(self.coefficient_functions,
-                                                    self.matrices)],
+        entries = np.sum([thetai(mu)*Ai for thetai, Ai in zip(
+                          self.coefficient_functions, self.matrices)],
                          axis=0)
         return self.__opclass(entries, **self.__kwargs)
 
