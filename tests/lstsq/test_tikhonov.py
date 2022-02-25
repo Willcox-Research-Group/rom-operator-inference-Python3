@@ -193,25 +193,25 @@ class TestSolverL2:
         with pytest.raises(TypeError) as ex:
             solver._process_regularizer([1, 2, 3])
         assert ex.value.args[0] == \
-            "regularization hyperparameter lambda_par must be a scalar"
+            "regularization hyperparameter must be a scalar"
 
         # Negative regularization parameter not allowed.
         with pytest.raises(ValueError) as ex:
             solver._process_regularizer(-1)
         assert ex.value.args[0] == \
-            "regularization hyperparameter lambda_par must be non-negative"
+            "regularization hyperparameter must be non-negative"
 
-        lambda_par = np.random.uniform()
-        assert solver._process_regularizer(lambda_par) == lambda_par**2
+        regularizer = np.random.uniform()
+        assert solver._process_regularizer(regularizer) == regularizer**2
 
     # Helper methods ----------------------------------------------------------
-    def test_sigma_inv(self, d=10, ntests=5):
-        """Test lstsq._tikhonov.SolverL2._sigma_inv()"""
+    def test_inv_svals(self, d=10, ntests=5):
+        """Test lstsq._tikhonov.SolverL2._inv_svals()"""
         solver = opinf.lstsq.SolverL2()
-        sigma = np.random.standard_normal(d)
-        solver._sigma = sigma
+        svals = np.random.standard_normal(d)
+        solver._svals = svals
         for lam in [0] + np.random.uniform(1, 10, ntests).tolist():
-            assert np.allclose(solver._sigma_inv(lam), sigma/(sigma**2+lam**2))
+            assert np.allclose(solver._inv_svals(lam), svals/(svals**2+lam**2))
 
     # Main methods ------------------------------------------------------------
     def test_fit(self, k=20, d=11, r=3):
@@ -221,7 +221,7 @@ class TestSolverL2:
         B = np.random.standard_normal((k, r))
 
         solver.fit(A, B)
-        for attr, shape in [("_V", (d, d)), ("_sigma", (d,)),
+        for attr, shape in [("_V", (d, d)), ("_svals", (d,)),
                             ("_UtB", (d, r)), ("A", (k, d)), ("B", (k, r))]:
             assert hasattr(solver, attr)
             obj = getattr(solver, attr)
@@ -367,8 +367,8 @@ class TestSolverL2:
 class TestSolverL2Decoupled:
     """Test lstsq._tikhonov.SolverL2Decoupled."""
     # Validation --------------------------------------------------------------
-    def test_check_lambdas(self, k=10, d=6, r=3):
-        """Test lstsq._tikhonov.SolverL2Decoupled._check_lambdas()."""
+    def test_check_regularizers(self, k=10, d=6, r=3):
+        """Test lstsq._tikhonov.SolverL2Decoupled._check_regularizers()."""
         solver = opinf.lstsq.SolverL2Decoupled()
         A = np.empty((k, d))
         B = np.empty((k, r))
@@ -376,40 +376,42 @@ class TestSolverL2Decoupled:
         assert solver.r == r
 
         with pytest.raises(TypeError) as ex:
-            solver._check_lambdas(0)
+            solver._check_regularizers(0)
         assert ex.value.args[0] == "object of type 'int' has no len()"
 
         with pytest.raises(ValueError) as ex:
-            solver._check_lambdas([0]*(r-1))
-        assert ex.value.args[0] == "len(lambdas) != number of columns of B"
+            solver._check_regularizers([0]*(r-1))
+        assert ex.value.args[0] == \
+            "len(regularizers) != number of columns of B"
 
-        solver._check_lambdas([0]*r)
+        solver._check_regularizers([0]*r)
 
     # Main methods ------------------------------------------------------------
     def test_predict(self, k=20, d=10):
-        lambdas = np.array([0, 1, 3, 5])
-        r = len(lambdas)
+        regularizers = np.array([0, 1, 3, 5])
+        r = len(regularizers)
         A = np.random.random((k, d))
         B = np.random.random((k, r))
         solver = opinf.lstsq.SolverL2Decoupled()
 
         # Try predicting before fitting.
         with pytest.raises(AttributeError) as ex:
-            solver.predict(lambdas)
+            solver.predict(regularizers)
         assert ex.value.args[0] == "lstsq solver not trained (call fit())"
         solver.fit(A, B)
 
         # Try with the wrong number of regularization parameters.
         with pytest.raises(ValueError) as ex:
-            solver.predict(lambdas[:-1])
-        assert ex.value.args[0] == "len(lambdas) != number of columns of B"
+            solver.predict(regularizers[:-1])
+        assert ex.value.args[0] == \
+            "len(regularizers) != number of columns of B"
 
         Id = np.eye(d)
-        Apads = [np.vstack((A, λ*Id)) for λ in lambdas]
+        Apads = [np.vstack((A, lm*Id)) for lm in regularizers]
         Bpad = np.vstack((B, np.zeros((d, r))))
         X1 = np.column_stack([la.lstsq(Apad, Bpad[:,j])[0]
                               for j,Apad in enumerate(Apads)])
-        X2 = solver.predict(lambdas)
+        X2 = solver.predict(regularizers)
         assert np.allclose(X1, X2)
 
     # Post-processing ---------------------------------------------------------
@@ -794,10 +796,10 @@ class TestSolverTikhonovDecoupled:
         z = np.zeros(d)
         solver.fit(A, B)
         assert np.allclose(solver.regcond([z]*r), [d]*r)
-        lambda_par = np.random.uniform(1, 10, r)
-        Ps = [lm*np.ones(d) for lm in lambda_par]
-        assert np.allclose(solver.regcond(Ps),
-                           np.sqrt((d**2 + lambda_par**2)/(1 + lambda_par**2)))
+        regularizer = np.random.uniform(1, 10, r)
+        Ps = [lm*np.ones(d) for lm in regularizer]
+        true_val = np.sqrt((d**2 + regularizer**2)/(1 + regularizer**2))
+        assert np.allclose(solver.regcond(Ps), true_val)
 
         # Rectangular, dense tests.
         A = np.random.standard_normal((k, d))
@@ -843,13 +845,13 @@ def test_solver(m=20, n=10, k=5):
     """Test lstsq._tikhonov.solve()."""
     A = np.random.random((m,n))
     B = np.random.random((m,k))
-    lambdas = 5 + np.random.random(k)
+    regularizers = 5 + np.random.random(k)
     Ps = [5 + np.random.random((n,n)) for _ in range(k)]
     Ps_diag = [5 + np.random.random(n) for _ in range(k)]
 
     # Bad number of regularization parameters.
     with pytest.raises(ValueError) as ex:
-        opinf.lstsq.solver(A, B, lambdas[:k-2])
+        opinf.lstsq.solver(A, B, regularizers[:k-2])
     assert ex.value.args[0] == "invalid or misaligned input P"
 
     # Bad number of regularization matrices.
@@ -870,9 +872,9 @@ def test_solver(m=20, n=10, k=5):
     # Correct usage.
     solver = opinf.lstsq.solver(A, B, 0)
     assert isinstance(solver, opinf.lstsq.SolverL2)
-    solver = opinf.lstsq.solver(A, B, lambdas[0])
+    solver = opinf.lstsq.solver(A, B, regularizers[0])
     assert isinstance(solver, opinf.lstsq.SolverL2)
-    solver = opinf.lstsq.solver(A, B, lambdas)
+    solver = opinf.lstsq.solver(A, B, regularizers)
     assert isinstance(solver, opinf.lstsq.SolverL2Decoupled)
     solver = opinf.lstsq.solver(A, B, Ps[0])
     assert isinstance(solver, opinf.lstsq.SolverTikhonov)
