@@ -107,7 +107,7 @@ def compress_quadratic(H):
     r = H.shape[0]
     r2 = H.shape[1]
     if r2 != r**2:
-        raise ValueError(f"invalid shape (r,a) = {(r,r2)} with a != r**2")
+        raise ValueError(f"invalid shape (r, a) = {(r, r2)} with a != r**2")
     s = r * (r+1) // 2
     Hc = np.empty((r, s))
 
@@ -115,10 +115,10 @@ def compress_quadratic(H):
     for i in range(r):
         for j in range(i+1):
             if i == j:      # Place column for unique term.
-                Hc[:,fj] = H[:,(i*r)+j]
+                Hc[:, fj] = H[:, (i*r)+j]
             else:           # Combine columns for repeated terms.
-                fill = H[:,(i*r)+j] + H[:,(j*r)+i]
-                Hc[:,fj] = fill
+                fill = H[:, (i*r)+j] + H[:, (j*r)+i]
+                Hc[:, fj] = fill
             fj += 1
 
     return Hc
@@ -130,31 +130,31 @@ def expand_quadratic(Hc):
 
     Parameters
     ----------
-    Hc : (r,s) ndarray
+    Hc : (r, s) ndarray
         The matricized quadratic tensor that operates on the compact Kronecker
         product. Here s = r * (r+1) / 2.
 
     Returns
     -------
-    H : (r,r**2) ndarray
+    H : (r, r**2) ndarray
         The matricized quadratic tensor that operates on the full Kronecker
         product. This is a symmetric operator in the sense that each layer of
-        H.reshape((r,r,r)) is a symmetric (r,r) matrix.
+        H.reshape((r, r, r)) is a symmetric (r, r) matrix.
     """
-    r,s = Hc.shape
+    r, s = Hc.shape
     if s != r*(r+1)//2:
-        raise ValueError(f"invalid shape (r,s) = {(r,s)} with s != r(r+1)/2")
+        raise ValueError(f"invalid shape (r, s) = {(r, s)} with s != r(r+1)/2")
 
-    H = np.empty((r,r**2))
+    H = np.empty((r, r**2))
     fj = 0
     for i in range(r):
         for j in range(i+1):
             if i == j:      # Place column for unique term.
-                H[:,(i*r)+j] = Hc[:,fj]
+                H[:, (i*r)+j] = Hc[:, fj]
             else:           # Distribute columns for repeated terms.
-                fill = Hc[:,fj] / 2
-                H[:,(i*r)+j] = fill
-                H[:,(j*r)+i] = fill
+                fill = Hc[:, fj] / 2
+                H[:, (i*r)+j] = fill
+                H[:, (j*r)+i] = fill
             fj += 1
 
     return H
@@ -166,15 +166,15 @@ def compress_cubic(G):
 
     Parameters
     ----------
-    G : (r,r**3) ndarray
+    G : (r, r**3) ndarray
         The matricized cubic tensor that operates on the full cubic Kronecker
         product. This should be a symmetric operator in the sense that each
-        layer of G.reshape((r,r,r,r)) is a symmetric (r,r,r) tensor, but it is
-        not required.
+        layer of G.reshape((r, r, r, r)) is a symmetric (r, r, r) tensor, but
+        it is not required.
 
     Returns
     -------
-    Gc : (r,s) ndarray
+    Gc : (r, s) ndarray
         The matricized cubic tensor that operates on the compact cubic
         Kronecker product. Here s = r * (r+1) * (r+2) / 6.
     """
@@ -183,7 +183,7 @@ def compress_cubic(G):
     r = G.shape[0]
     r3 = G.shape[1]
     if r3 != r**3:
-        raise ValueError(f"invalid shape (r,a) = {(r,r3)} with a != r**3")
+        raise ValueError(f"invalid shape (r, a) = {(r, r3)} with a != r**3")
     s = r * (r+1) * (r+2) // 6
     Gc = np.empty((r, s))
 
@@ -191,9 +191,9 @@ def compress_cubic(G):
     for i in range(r):
         for j in range(i+1):
             for k in range(j+1):
-                idxs = set(itertools.permutations((i,j,k),3))
-                Gc[:,fj] = np.sum([G[:,(a*r**2)+(b*r)+c] for a,b,c in idxs],
-                                  axis=0)
+                idxs = set(itertools.permutations((i, j, k), 3))
+                Gc[:, fj] = np.sum([G[:, (a*r**2)+(b*r)+c] for a,b,c in idxs],
+                                   axis=0)
                 fj += 1
 
     # assert fj == s
@@ -219,18 +219,18 @@ def expand_cubic(Gc):
     """
     r,s = Gc.shape
     if s != r * (r+1) * (r+2) // 6:
-        raise ValueError(f"invalid shape (r,s) = {(r,s)}"
+        raise ValueError(f"invalid shape (r, s) = {(r, s)}"
                          " with s != r(r+1)(r+2)/6")
 
-    G = np.empty((r,r**3))
+    G = np.empty((r, r**3))
     fj = 0
     for i in range(r):
         for j in range(i+1):
             for k in range(j+1):
-                idxs = set(itertools.permutations((i,j,k),3))
-                fill = Gc[:,fj] / len(idxs)
-                for a,b,c in idxs:
-                    G[:,(a*r**2)+(b*r)+c] = fill
+                idxs = set(itertools.permutations((i, j, k), 3))
+                fill = Gc[:, fj] / len(idxs)
+                for a, b, c in idxs:
+                    G[:, (a*r**2)+(b*r)+c] = fill
                 fj += 1
 
     # assert fj == s
