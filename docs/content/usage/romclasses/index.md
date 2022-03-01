@@ -21,6 +21,7 @@ Here $\widehat{\mathbf{q}} \in \mathbb{R}^{n}$ is the reduced-order state and $\
 <!-- , and $\mu\in\mathbb{R}^{d_\mu}$ represents external parameters. -->
 
 
+(subsec-romclass-constructor)=
 ## Constructor: Define Model Structure
 
 All `ROM` classes are instantiated with a single argument, `modelform`, which is a string denoting the structure of the right-hand side of the reduced-order model, $\widehat{\mathbf{f}}$.

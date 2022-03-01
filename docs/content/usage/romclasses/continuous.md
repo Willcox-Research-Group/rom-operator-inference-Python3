@@ -1,8 +1,8 @@
 (sec-continuous)=
 # Continuous-time ROMs
 
-:::{attention}
-This page is out of date and under construction.
+:::{warning}
+This page is under construction.
 :::
 
 ## ContinuousOpInfROM

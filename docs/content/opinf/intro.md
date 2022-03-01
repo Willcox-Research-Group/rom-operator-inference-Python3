@@ -29,7 +29,7 @@ $$
 $$ (eq:opinf-example-fom)
 
 We call {eq}`eq:opinf-example-fom` the _full-order model_, which often represents a PDE after spatial discretization.
-Given samples of the state $\mathbf{q}(t)$, Operator Inference learns a surrogate system for {eq}`eq:opinf-example-fom` with the much smaller state $\widehat{\mathbf{q}}(t) \in \mathbb{R}^{r}, r \ll n$, and the following polynomial structure:
+Given samples of the state $\mathbf{q}(t)$, Operator Inference learns a surrogate system for {eq}`eq:opinf-example-fom` with the much smaller state $\widehat{\mathbf{q}}(t) \in \mathbb{R}^{r}, r \ll n$ and the following polynomial structure:
 
 $$
     \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
@@ -60,6 +60,8 @@ $$
     = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
     + \widehat{\mathbf{B}}\widehat{\mathbf{u}}(t).
 $$
+
+See [Define Model Structure](subsec-romclass-constructor) for the kinds of terms can be included in the reduced-order model.
 :::
 
 ---
@@ -237,13 +239,13 @@ import rom_operator_inference as opinf
 >>> rom = opinf.ContinuousOpInfROM(modelform="AHB")
 
 # Fit the model (projection and regression).
->>> rom.fit(basis=Vr, states=Q, ddts=Qdot, inputs=U)
+>>> rom.fit(basis=Vr, states=Q, ddts=Qdot, inputs=U, regularizer=1e-6)
 
 # Simulate the learned model over the time domain.
 >>> Q_ROM = rom.predict(Q[:,0], t)
 
 # Compute the error of the ROM prediction.
->>> error = opinf.post.Lp_error(Q, Q_rom)
+>>> absolute_error, relative_error = opinf.post.Lp_error(Q, Q_rom)
 ```
 
 See [**the Tutorial**](sec-tutorial) for a more thorough example.
