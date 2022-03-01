@@ -42,12 +42,12 @@ parts:
       - file: content/usage/utilities/kronecker.md
       # - file: content/usage/utilities/integrate.md
 
-  # Complete numerical examples.
-  - caption: Examples
+  # Complete numerical examples, written in a tutorial style.
+  - caption: Tutorials
     chapters:
-    - file: content/examples/tutorial.ipynb
-    - file: content/examples/heat_1D.ipynb
-    - file: content/examples/gallery.md
+    - file: content/tutorials/basics.ipynb
+    - file: content/tutorials/heat_1D.ipynb
+    - file: content/tutorials/gallery.md
 
   # Non-narrative API documentation (TODO: automate generation).
   # - caption: API Documentation
