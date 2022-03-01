@@ -1,8 +1,8 @@
 (sec-discrete)=
 # Discrete-time ROMs
 
-:::{attention}
-This page is out of date and under construction.
+:::{warning}
+This page is under construction.
 :::
 
 The Operator Inference framework can be used to construct reduced-order models for approximating _discrete_ dynamical systems, as may arise from discretizing PDEs in both space and time.

@@ -1,5 +1,5 @@
 (sec-contrib-start)=
-# Getting Started
+# How to Contribute
 
 Thank you for your interest in contributing to `rom_operator_inference`!
 Before you begin, please review our [Code of Conduct](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/blob/main/CODE_OF_CONDUCT.md).
@@ -52,8 +52,8 @@ The GitHub repository is organized as follows.
 
 :::{margin}
 ```{note}
-Full examples, like the one you see on the left under the **Examples** heading, are part of the documentation.
-They should be written as Jupyter notebooks and placed in `docs/examples/`.
+Full examples, like the one you see on the left under the **Tutorials** heading, are part of the documentation.
+They should be written as Jupyter notebooks and placed in `docs/content/tutorials/`.
 ```
 :::
 
