@@ -145,24 +145,24 @@ class SolverL2(_BaseTikhonovSolver):
         min_{X} ||AX - B||_F^2 + ||λX||_F^2,                    λ ≥ 0.
     """
     # Validation --------------------------------------------------------------
-    def _process_regularizer(self, λ):
-        """Validate the regularization hyperparameter and return λ^2."""
-        if not np.isscalar(λ):
-            raise TypeError("regularization hyperparameter λ must be "
-                            "a scalar")
-        if λ < 0:
-            raise ValueError("regularization hyperparameter λ must be "
+    def _process_regularizer(self, regularizer):
+        """Validate the regularization hyperparameter and return
+        regularizer^2."""
+        if not np.isscalar(regularizer):
+            raise TypeError("regularization hyperparameter must be a scalar")
+        if regularizer < 0:
+            raise ValueError("regularization hyperparameter must be "
                              "non-negative")
-        return λ**2
+        return regularizer**2
 
     # Helper methods ----------------------------------------------------------
-    def _Σinv(self, λ):
+    def _inv_svals(self, regularizer):
         """Compute the regularized inverse singular value matrix,
         Σ^* = Σ (Σ^2 + (λ^2)I)^{-1}. Note Σ^* = Σ^{-1} for λ = 0.
         """
-        λ2 = self._process_regularizer(λ)
-        Σ = self._Σ
-        return 1 / Σ if λ2 == 0 else Σ / (Σ**2 + λ2)
+        regularizer2 = self._process_regularizer(regularizer)
+        svals = self._svals
+        return 1/svals if regularizer2 == 0 else svals/(svals**2+regularizer2)
 
     # Main methods ------------------------------------------------------------
     def fit(self, A, B):
@@ -178,20 +178,20 @@ class SolverL2(_BaseTikhonovSolver):
         self._process_fit_arguments(A, B)
 
         # Compute the SVD of A and save what is needed to solve the problem.
-        U,Σ,Vt = la.svd(self.A, full_matrices=False)
+        U, svals, Vt = la.svd(self.A, full_matrices=False)
         self._V = Vt.T
-        self._Σ = Σ
+        self._svals = svals
         self._UtB = U.T @ self.B
 
         return self
 
-    def predict(self, λ):
+    def predict(self, regularizer):
         """Solve the least-squares problem with the non-negative scalar
         regularization hyperparameter λ.
 
         Parameters
         ----------
-        λ : float ≥ 0
+        regularizer : float ≥ 0
             Scalar regularization hyperparameter.
 
         Returns
@@ -203,23 +203,23 @@ class SolverL2(_BaseTikhonovSolver):
         """
         self._check_is_trained("_V")
 
-        Σinv = self._Σinv(λ).reshape((-1,1))
-        X = self._V @ (Σinv * self._UtB)        # X = V Σinv U.T B
+        svals_inv = self._inv_svals(regularizer).reshape((-1, 1))
+        X = self._V @ (svals_inv * self._UtB)        # X = V svals_inv U.T B
 
         return np.ravel(X) if self.r == 1 else X
 
     # Post-processing ---------------------------------------------------------
     def cond(self):
         """Calculate the 2-norm condition number of the data matrix A."""
-        self._check_is_trained("_Σ")
-        return abs(self._Σ.max() / self._Σ.min())
+        self._check_is_trained("_svals")
+        return abs(self._svals.max() / self._svals.min())
 
-    def regcond(self, λ):
+    def regcond(self, regularizer):
         """Compute the 2-norm condition number of the regularized data matrix.
 
         Parameters
         ----------
-        λ : float ≥ 0
+        regularizer : float ≥ 0
             Scalar regularization hyperparameter.
 
         Returns
@@ -227,11 +227,11 @@ class SolverL2(_BaseTikhonovSolver):
         rc : float ≥ 0
             cond([A.T | λI.T].T), computed from filtered singular values of A.
         """
-        self._check_is_trained("_Σ")
-        Σ2 = self._Σ**2 + self._process_regularizer(λ)
-        return np.sqrt(Σ2.max() / Σ2.min())
+        self._check_is_trained("_svals")
+        svals2 = self._svals**2 + self._process_regularizer(regularizer)
+        return np.sqrt(svals2.max() / svals2.min())
 
-    def residual(self, X, λ):
+    def residual(self, X, regularizer):
         """Calculate the residual of the regularized problem for each column of
         B = [ b_1 | ... | b_r ], i.e., ||Ax_i - b_i||_2^2 + ||λx_i||_2^2.
 
@@ -240,7 +240,7 @@ class SolverL2(_BaseTikhonovSolver):
         X : (d,r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-        λ : float ≥ 0
+        regularizer : float ≥ 0
             Scalar regularization hyperparameter.
 
         Returns
@@ -249,8 +249,8 @@ class SolverL2(_BaseTikhonovSolver):
             Residuals ||Ax_i - b_i||_2^2 + ||λx_i||_2^2, i = 1,...,r.
         """
         self._check_is_trained()
-        λ2 = self._process_regularizer(λ)
-        return self.misfit(X) + λ2*np.sum(X**2, axis=0)
+        regularizer2 = self._process_regularizer(regularizer)
+        return self.misfit(X) + regularizer2*np.sum(X**2, axis=0)
 
 
 class SolverL2Decoupled(SolverL2):
@@ -260,17 +260,18 @@ class SolverL2Decoupled(SolverL2):
         min_{x_i} ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2,    λ_i > 0.
     """
     # Validation --------------------------------------------------------------
-    def _check_λs(self, λs):
-        if len(λs) != self.r:
-            raise ValueError("len(λs) != number of columns of B")
+    def _check_regularizers(self, regularizers):
+        if len(regularizers) != self.r:
+            raise ValueError("len(regularizers) != number of columns of B")
 
     # Main methods ------------------------------------------------------------
-    def predict(self, λs):
-        """Solve the least-squares problem with regularization hyperparameters λs.
+    def predict(self, regularizers):
+        """Solve the least-squares problem with regularization hyperparameters
+        regularizers.
 
         Parameters
         ----------
-        λs : sequence of r floats or (r,) ndarray
+        regularizers : sequence of r floats or (r,) ndarray
             Scalar regularization hyperparameters, one for each column of B.
 
         Returns
@@ -281,25 +282,26 @@ class SolverL2Decoupled(SolverL2):
             The result is flattened to a one-dimensional array if r = 1.
         """
         self._check_is_trained("_V")
-        self._check_λs(λs)
+        self._check_regularizers(regularizers)
 
         # Allocate space for the solution.
-        X = np.empty((self.d,self.r))
+        X = np.empty((self.d, self.r))
 
         # Solve each independent regularized lstsq problem (iteratively).
-        for j, λ in enumerate(λs):
-            Σinv = self._Σinv(λ)
-            X[:,j] = self._V @ (Σinv * self._UtB[:,j])      # X = V Σinv U.T B
+        for j, regularizer in enumerate(regularizers):
+            svals_inv = self._inv_svals(regularizer)
+            # X = V svals_inv U.T B
+            X[:, j] = self._V @ (svals_inv * self._UtB[:, j])
 
         return np.ravel(X) if self.r == 1 else X
 
     # Post-processing ---------------------------------------------------------
-    def regcond(self, λs):
+    def regcond(self, regularizers):
         """Compute the 2-norm condition number of each regularized data matrix.
 
         Parameters
         ----------
-        λs : sequence of r floats or (r,) ndarray
+        regularizers : sequence of r floats or (r,) ndarray
             Scalar regularization hyperparameters, one for each column of B.
 
         Returns
@@ -308,22 +310,23 @@ class SolverL2Decoupled(SolverL2):
             cond([A.T | (λ_i I).T].T), i = 1,...,r, computed from filtered
             singular values of the data matrix A.
         """
-        self._check_is_trained("_Σ")
-        self._check_λs(λs)
-        λ2s = np.array([self._process_regularizer(λ) for λ in λs])
-        Σ2 = self._Σ**2 + λ2s.reshape((-1,1))
-        return np.sqrt(Σ2.max(axis=1) / Σ2.min(axis=1))
+        self._check_is_trained("_svals")
+        self._check_regularizers(regularizers)
+        regularizer_2s = np.array([
+            self._process_regularizer(lm) for lm in regularizers])
+        svals2 = self._svals**2 + regularizer_2s.reshape((-1, 1))
+        return np.sqrt(svals2.max(axis=1) / svals2.min(axis=1))
 
-    def residual(self, X, λs):
+    def residual(self, X, regularizers):
         """Calculate the residual of the regularized problem for each column of
         B = [ b_1 | ... | b_r ], i.e., ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2.
 
         Parameters
         ----------
-        X : (d,r) ndarray
+        X : (d, r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-        λs : sequence of r floats or (r,) ndarray
+        regularizers : sequence of r floats or (r,) ndarray
             Scalar regularization hyperparameters, one for each column of B.
 
         Returns
@@ -332,9 +335,10 @@ class SolverL2Decoupled(SolverL2):
             Residuals ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2, i = 1,...,r.
         """
         self._check_is_trained()
-        self._check_λs(λs)
-        λ2s = np.array([self._process_regularizer(λ) for λ in λs])
-        return self.misfit(X) + λ2s*np.sum(X**2, axis=0)
+        self._check_regularizers(regularizers)
+        regularizer_2s = np.array([
+            self._process_regularizer(lm) for lm in regularizers])
+        return self.misfit(X) + regularizer_2s*np.sum(X**2, axis=0)
 
 
 class SolverTikhonov(_BaseTikhonovSolver):
@@ -362,7 +366,7 @@ class SolverTikhonov(_BaseTikhonovSolver):
 
         # Two-dimensional input (the regularization matrix).
         elif P.shape != (self.d,self.d):
-            raise ValueError("P.shape != (d,d) or (d,) where d = A.shape[1]")
+            raise ValueError("P.shape != (d, d) or (d,) where d = A.shape[1]")
 
         return P
 
@@ -380,9 +384,9 @@ class SolverTikhonov(_BaseTikhonovSolver):
 
         Parameters
         ----------
-        A : (k,d) ndarray
+        A : (k, d) ndarray
             The "left-hand side" matrix.
-        B : (k,r) ndarray
+        B : (k, r) ndarray
             The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
         """
         self._process_fit_arguments(A, B)
@@ -505,7 +509,7 @@ class SolverTikhonovDecoupled(SolverTikhonov):
         self._check_Ps(Ps)
 
         # Allocate space for the solution.
-        X = np.empty((self.d,self.r))
+        X = np.empty((self.d, self.r))
 
         # Solve each independent problem (iteratively for now).
         Bpad = None
@@ -515,12 +519,12 @@ class SolverTikhonovDecoupled(SolverTikhonov):
                 warnings.filterwarnings("error", category=la.LinAlgWarning)
                 try:
                     # Attempt to solve the problem via the normal equations.
-                    X[:,j] = la.solve(lhs, self._rhs[:,j], assume_a="pos")
+                    X[:, j] = la.solve(lhs, self._rhs[:, j], assume_a="pos")
                 except (la.LinAlgError, la.LinAlgWarning):
                     # For ill-conditioned normal equations, use la.lstsq().
                     if Bpad is None:
                         Bpad = np.vstack((self.B, np.zeros((self.d, self.r))))
-                    X[:,j] = la.lstsq(np.vstack((self.A, P)), Bpad[:,j])[0]
+                    X[:, j] = la.lstsq(np.vstack((self.A, P)), Bpad[:, j])[0]
 
         return X
 
@@ -565,7 +569,7 @@ class SolverTikhonovDecoupled(SolverTikhonov):
         self._check_is_trained()
         self._check_Ps(Ps)
         misfit = self.misfit(X)
-        Pxs = np.array([np.sum((P @ X[:,j])**2) for j,P in enumerate(Ps)])
+        Pxs = np.array([np.sum((P @ X[:,j])**2) for j, P in enumerate(Ps)])
         return misfit + Pxs
 
 

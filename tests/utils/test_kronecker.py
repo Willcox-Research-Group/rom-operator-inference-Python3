@@ -68,7 +68,7 @@ def _test_kron2c_single_vector(n):
 
 def _test_kron2c_single_matrix(n):
     """Do one matrix test of utils._kronecker.kron2c()."""
-    X = np.random.random((n,n))
+    X = np.random.random((n, n))
     X2 = opinf.utils.kron2c(X)
     assert X2.ndim == 2
     assert X2.shape[0] == n*(n+1)//2
@@ -104,7 +104,7 @@ def _test_kron3c_single_vector(n):
 
 def _test_kron3c_single_matrix(n):
     """Do one matrix test of utils._kronecker.kron3c()."""
-    X = np.random.random((n,n))
+    X = np.random.random((n, n))
     X3 = opinf.utils.kron3c(X)
     assert X3.ndim == 2
     assert X3.shape[0] == n*(n+1)*(n+2)//6
@@ -135,16 +135,16 @@ def _test_expand_quadratic_single(r):
 
     # Do a valid expand_quadratic() calculation and check dimensions.
     s = r*(r+1)//2
-    Hc = np.random.random((r,s))
+    Hc = np.random.random((r, s))
     H = opinf.utils.expand_quadratic(Hc)
-    assert H.shape == (r,r**2)
+    assert H.shape == (r, r**2)
 
     # Check that Hc(x^2) == H(x⊗x).
-    Hxx = H @ np.kron(x,x)
+    Hxx = H @ np.kron(x, x)
     assert np.allclose(Hc @ opinf.utils.kron2c(x), Hxx)
 
     # Check properties of the tensor for H.
-    Htensor = H.reshape((r,r,r))
+    Htensor = H.reshape((r, r,r))
     assert np.allclose(Htensor @ x @ x, Hxx)
     for subH in H:
         assert np.allclose(subH, subH.T)
@@ -159,7 +159,7 @@ def test_expand_quadratic(n_tests=100):
     with pytest.raises(ValueError) as exc:
         opinf.utils.expand_quadratic(Hc)
     assert exc.value.args[0] == \
-        f"invalid shape (r,s) = {(r,sbad)} with s != r(r+1)/2"
+        f"invalid shape (r, s) = {(r, sbad)} with s != r(r+1)/2"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 100, n_tests):
@@ -175,16 +175,16 @@ def _test_compress_quadratic_single(r):
     H = np.random.random((r,r**2))
     s = r*(r+1)//2
     Hc = opinf.utils.compress_quadratic(H)
-    assert Hc.shape == (r,s)
+    assert Hc.shape == (r, s)
 
     # Check that Hc(x^2) == H(x⊗x).
-    Hxx = H @ np.kron(x,x)
+    Hxx = H @ np.kron(x, x)
     assert np.allclose(Hxx, Hc @ opinf.utils.kron2c(x))
 
     # Check that expand_quadratic() and compress_quadratic()
     # are inverses up to symmetry.
     H2 = opinf.utils.expand_quadratic(Hc)
-    Ht = H.reshape((r,r,r))
+    Ht = H.reshape((r, r, r))
     Htnew = np.empty_like(Ht)
     for i in range(r):
         Htnew[i] = (Ht[i] + Ht[i].T) / 2
@@ -200,7 +200,7 @@ def test_compress_quadratic(n_tests=100):
     with pytest.raises(ValueError) as exc:
         opinf.utils.compress_quadratic(H)
     assert exc.value.args[0] == \
-        f"invalid shape (r,a) = {(r,r2bad)} with a != r**2"
+        f"invalid shape (r, a) = {(r, r2bad)} with a != r**2"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 100, n_tests):
@@ -214,16 +214,16 @@ def _test_expand_cubic_single(r):
 
     # Do a valid expand_cubic() calculation and check dimensions.
     s = r*(r+1)*(r+2)//6
-    Gc = np.random.random((r,s))
+    Gc = np.random.random((r, s))
     G = opinf.utils.expand_cubic(Gc)
-    assert G.shape == (r,r**3)
+    assert G.shape == (r, r**3)
 
     # Check that Gc(x^3) == G(x⊗x⊗x).
-    Gxxx = G @ np.kron(x,np.kron(x,x))
+    Gxxx = G @ np.kron(x, np.kron(x, x))
     assert np.allclose(Gc @ opinf.utils.kron3c(x), Gxxx)
 
     # Check properties of the tensor for G.
-    Gtensor = G.reshape((r,r,r,r))
+    Gtensor = G.reshape((r, r, r, r))
     assert np.allclose(Gtensor @ x @ x @ x, Gxxx)
     for subG in G:
         assert np.allclose(subG, subG.T)
@@ -238,7 +238,7 @@ def test_expand_cubic(n_tests=50):
     with pytest.raises(ValueError) as exc:
         opinf.utils.expand_cubic(Gc)
     assert exc.value.args[0] == \
-        f"invalid shape (r,s) = {(r,sbad)} with s != r(r+1)(r+2)/6"
+        f"invalid shape (r, s) = {(r, sbad)} with s != r(r+1)(r+2)/6"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 30, n_tests):
@@ -251,13 +251,13 @@ def _test_compress_cubic_single(r):
     x = np.random.random(r)
 
     # Do a valid compress_cubic() calculation and check dimensions.
-    G = np.random.random((r,r**3))
+    G = np.random.random((r, r**3))
     s = r*(r+1)*(r+2)//6
     Gc = opinf.utils.compress_cubic(G)
-    assert Gc.shape == (r,s)
+    assert Gc.shape == (r, s)
 
     # Check that Gc(x^3) == G(x⊗x⊗x).
-    Gxxx = G @ np.kron(x,np.kron(x,x))
+    Gxxx = G @ np.kron(x, np.kron(x, x))
     assert np.allclose(Gxxx, Gc @ opinf.utils.kron3c(x))
 
     # Check that expand_cubic() and compress_cubic() are "inverses."
@@ -274,7 +274,7 @@ def test_compress_cubic(n_tests=50):
     with pytest.raises(ValueError) as exc:
         opinf.utils.compress_cubic(G)
     assert exc.value.args[0] == \
-        f"invalid shape (r,a) = {(r,r3bad)} with a != r**3"
+        f"invalid shape (r, a) = {(r, r3bad)} with a != r**3"
 
     # Do 100 test cases of varying dimensions.
     for r in np.random.randint(2, 30, n_tests):

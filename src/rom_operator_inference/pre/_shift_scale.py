@@ -33,7 +33,7 @@ def shift(states, shift_by=None):
     shift_by : (n,) ndarray
         Shift factor, returned only if shift_by=None.
         Since this is a one-dimensional array, it must be reshaped to be
-        applied to a matrix (e.g., states_shifted + shift_by.reshape(-1,1)).
+        applied to a matrix (e.g., states_shifted + shift_by.reshape(-1, 1)).
 
     Examples
     --------
@@ -57,7 +57,7 @@ def shift(states, shift_by=None):
         raise ValueError("argument `shift_by` must be one-dimensional")
 
     # Shift the columns by the mean.
-    states_shifted = states - shift_by.reshape((-1,1))
+    states_shifted = states - shift_by.reshape((-1, 1))
 
     return (states_shifted, shift_by) if learning else states_shifted
 
@@ -91,12 +91,12 @@ def scale(states, scale_to, scale_from=None):
 
     Examples
     --------
-    # Scale Q to [-1,1] and then scale Y with the same transformation.
-    >>> Qscaled, scaled_to, scaled_from = pre.scale(Q, (-1,1))
+    # Scale Q to [-1, 1] and then scale Y with the same transformation.
+    >>> Qscaled, scaled_to, scaled_from = pre.scale(Q, (-1, 1))
     >>> Yscaled = pre.scale(Y, scaled_to, scaled_from)
 
-    # Scale Q to [0,1], then undo the transformation by an inverse scaling.
-    >>> Qscaled, scaled_to, scaled_from = pre.scale(Q, (0,1))
+    # Scale Q to [0, 1], then undo the transformation by an inverse scaling.
+    >>> Qscaled, scaled_to, scaled_from = pre.scale(Q, (0, 1))
     >>> Q_again = pre.scale(Qscaled, scaled_from, scaled_to)
     """
     # If no scale_from bounds are provided, learn them.
@@ -129,10 +129,10 @@ class SnapshotTransformer:
     scaling : str or None
         If given, scale (non-dimensionalize) the centered snapshot entries.
         * 'standard': standardize to zero mean and unit standard deviation.
-        * 'minmax': minmax scaling to [0,1].
-        * 'minmaxsym': minmax scaling to [-1,1].
-        * 'maxabs': maximum absolute scaling to [-1,1] (no shift).
-        * 'maxabssym': maximum absolute scaling to [-1,1] (mean shift).
+        * 'minmax': minmax scaling to [0, 1].
+        * 'minmaxsym': minmax scaling to [-1, 1].
+        * 'maxabs': maximum absolute scaling to [-1, 1] (no shift).
+        * 'maxabssym': maximum absolute scaling to [-1, 1] (mean shift).
     verbose : bool
         If True, print information upon learning a transformation.
 
@@ -210,10 +210,10 @@ class SnapshotTransformer:
         """Entrywise scaling (non-dimensionalization) directive.
         * None: no scaling.
         * 'standard': standardize to zero mean and unit standard deviation.
-        * 'minmax': minmax scaling to [0,1].
-        * 'minmaxsym': minmax scaling to [-1,1].
-        * 'maxabs': maximum absolute scaling to [-1,1] (no shift).
-        * 'maxabssym': maximum absolute scaling to [-1,1] (mean shift).
+        * 'minmax': minmax scaling to [0, 1].
+        * 'minmaxsym': minmax scaling to [-1, 1].
+        * 'maxabs': maximum absolute scaling to [-1, 1] (no shift).
+        * 'maxabssym': maximum absolute scaling to [-1, 1] (mean shift).
         """
         return self.__scaling
 
@@ -384,7 +384,7 @@ class SnapshotTransformer:
         # Center the snapshots by the mean training snapshot.
         if self.center:
             self.mean_ = np.mean(Y, axis=1)
-            Y -= self.mean_.reshape((-1,1))
+            Y -= self.mean_.reshape((-1, 1))
 
             if self.verbose:
                 report[0] = "Learned mean centering Q -> Q'"
@@ -392,12 +392,12 @@ class SnapshotTransformer:
 
         # Scale (non-dimensionalize) the centered snapshot entries.
         if self.scaling:
-            # Standard: Q' = (Q - µ)/σ
+            # Standard: Q' = (Q - mu)/sigma
             if self.scaling == "standard":
-                µ = np.mean(Y)
-                σ = np.std(Y)
-                self.scale_ = 1/σ
-                self.shift_ = -µ*self.scale_
+                mu = np.mean(Y)
+                sigma = np.std(Y)
+                self.scale_ = 1/sigma
+                self.shift_ = -mu*self.scale_
 
             # Min-max: Q' = (Q - min(Q))/(max(Q) - min(Q))
             elif self.scaling == "minmax":
@@ -420,11 +420,11 @@ class SnapshotTransformer:
 
             # maxabssym: Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)))
             elif self.scaling == "maxabssym":
-                µ = np.mean(Y)
-                Y -= µ
+                mu = np.mean(Y)
+                Y -= mu
                 self.scale_ = 1/np.max(np.abs(Y))
-                self.shift_ = -µ*self.scale_
-                Y += µ
+                self.shift_ = -mu*self.scale_
+                Y += mu
 
             else:                               # pragma nocover
                 raise RuntimeError(f"invalid scaling '{self.scaling}'")
@@ -468,7 +468,7 @@ class SnapshotTransformer:
 
         # Center the snapshots by the mean training snapshot.
         if self.center is True:
-            Y -= self.mean_.reshape((-1,1))
+            Y -= self.mean_.reshape((-1, 1))
 
         # Scale (non-dimensionalize) the centered snapshot entries.
         if self.scaling is not None:
@@ -506,7 +506,7 @@ class SnapshotTransformer:
 
         # Uncenter the unscaled snapshots.
         if self.center:
-            Y += self.mean_.reshape((-1,1))
+            Y += self.mean_.reshape((-1, 1))
 
         return Y
 
@@ -533,10 +533,10 @@ class SnapshotTransformerMulti:
         If given, scale (non-dimensionalize) the centered snapshot entries.
         If a list, scaling[i] is the scaling directive for the ith variable.
         * 'standard': standardize to zero mean and unit standard deviation.
-        * 'minmax': minmax scaling to [0,1].
-        * 'minmaxsym': minmax scaling to [-1,1].
-        * 'maxabs': maximum absolute scaling to [-1,1] (no shift).
-        * 'maxabssym': maximum absolute scaling to [-1,1] (mean shift).
+        * 'minmax': minmax scaling to [0, 1].
+        * 'minmaxsym': minmax scaling to [-1, 1].
+        * 'maxabs': maximum absolute scaling to [-1, 1] (no shift).
+        * 'maxabssym': maximum absolute scaling to [-1, 1] (mean shift).
     variable_names : list of num_variables strings
         Names for each of the `num_variables` variables.
         Defaults to 'x1', 'x2', ....
@@ -605,10 +605,10 @@ class SnapshotTransformerMulti:
         """Entrywise scaling (non-dimensionalization) directive.
         * None: no scaling.
         * 'standard': standardize to zero mean and unit standard deviation.
-        * 'minmax': minmax scaling to [0,1].
-        * 'minmaxsym': minmax scaling to [-1,1].
-        * 'maxabs': maximum absolute scaling to [-1,1] (no shift).
-        * 'maxabssym': maximum absolute scaling to [-1,1] (mean shift).
+        * 'minmax': minmax scaling to [0, 1].
+        * 'minmaxsym': minmax scaling to [-1, 1].
+        * 'maxabs': maximum absolute scaling to [-1, 1] (no shift).
+        * 'maxabssym': maximum absolute scaling to [-1, 1] (mean shift).
         """
         return tuple(st.scaling for st in self.transformers)
 

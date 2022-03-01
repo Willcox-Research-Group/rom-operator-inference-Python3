@@ -77,9 +77,9 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
         # Compute all but the last svd vectors / values (maximum allowed).
         V, svdvals, Wt = spla.svds(states, r, which="LM",
                                    return_singular_vectors=True, **options)
-        V = V[:,::-1]
+        V = V[:, ::-1]
         svdvals = svdvals[::-1]
-        W = Wt[::-1,:].T
+        W = Wt[::-1, :].T
 
         # Get the smallest vector / value separately.
         if get_smallest:
@@ -102,8 +102,8 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
         raise NotImplementedError(f"invalid mode '{mode}'")
 
     if return_W:
-        return V[:,:r], svdvals, W[:,:r]
-    return V[:,:r], svdvals
+        return V[:, :r], svdvals, W[:, :r]
+    return V[:, :r], svdvals
 
 
 # Reduced dimension selection =================================================
@@ -133,7 +133,7 @@ def svdval_decay(singular_values, tol, plot=False, ax=None):
     if one_tol:
         tol = [tol]
     singular_values = np.array(singular_values)
-    ranks = [np.count_nonzero(singular_values > ε) for ε in tol]
+    ranks = [np.count_nonzero(singular_values > epsilon) for epsilon in tol]
 
     if plot:
         # Visualize singular values and cutoff value(s).
@@ -141,10 +141,10 @@ def svdval_decay(singular_values, tol, plot=False, ax=None):
             ax = plt.figure().add_subplot(111)
         j = np.arange(1, singular_values.size + 1)
         ax.semilogy(j, singular_values, 'C0*', ms=10, mew=0, zorder=3)
-        ax.set_xlim((0,j.size))
+        ax.set_xlim((0, j.size))
         ylim = ax.get_ylim()
-        for ε,r in zip(tol, ranks):
-            ax.axhline(ε, color="black", linewidth=.5, alpha=.75)
+        for epsilon, r in zip(tol, ranks):
+            ax.axhline(epsilon, color="black", linewidth=.5, alpha=.75)
             ax.axvline(r, color="black", linewidth=.5, alpha=.75)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index $j$")
@@ -186,7 +186,7 @@ def cumulative_energy(singular_values, thresh=.9999, plot=False, ax=None):
     one_thresh = np.isscalar(thresh)
     if one_thresh:
         thresh = [thresh]
-    ranks = [int(np.searchsorted(cum_energy, ξ)) + 1 for ξ in thresh]
+    ranks = [int(np.searchsorted(cum_energy, xi)) + 1 for xi in thresh]
 
     if plot:
         # Visualize cumulative energy and threshold value(s).
@@ -195,8 +195,8 @@ def cumulative_energy(singular_values, thresh=.9999, plot=False, ax=None):
         j = np.arange(1, singular_values.size + 1)
         ax.plot(j, cum_energy, 'C2.-', ms=10, lw=1, zorder=3)
         ax.set_xlim(0, j.size)
-        for ξ,r in zip(thresh, ranks):
-            ax.axhline(ξ, color="black", linewidth=.5, alpha=.5)
+        for xi, r in zip(thresh, ranks):
+            ax.axhline(xi, color="black", linewidth=.5, alpha=.5)
             ax.axvline(r, color="black", linewidth=.5, alpha=.5)
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Cumulative energy")
@@ -238,7 +238,7 @@ def residual_energy(singular_values, tol=1e-6, plot=False, ax=None):
     one_tol = np.isscalar(tol)
     if one_tol:
         tol = [tol]
-    ranks = [np.count_nonzero(res_energy > ε) + 1 for ε in tol]
+    ranks = [np.count_nonzero(res_energy > epsilon) + 1 for epsilon in tol]
 
     if plot:
         # Visualize residual energy and tolerance value(s).
@@ -247,8 +247,8 @@ def residual_energy(singular_values, tol=1e-6, plot=False, ax=None):
         j = np.arange(1, singular_values.size + 1)
         ax.semilogy(j, res_energy, 'C1.-', ms=10, lw=1, zorder=3)
         ax.set_xlim(0, j.size)
-        for ε,r in zip(tol, ranks):
-            ax.axhline(ε, color="black", linewidth=.5, alpha=.5)
+        for epsilon, r in zip(tol, ranks):
+            ax.axhline(epsilon, color="black", linewidth=.5, alpha=.5)
             ax.axvline(r, color="black", linewidth=.5, alpha=.5)
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Residual energy")
@@ -268,10 +268,10 @@ def projection_error(states, basis):
 
     Parameters
     ----------
-    states : (n,k) or (k,) ndarray
+    states : (n, k) or (k,) ndarray
         Matrix of k snapshots where each column is a single snapshot, or a
         single 1D snapshot. If 2D, use the Frobenius norm; if 1D, the l2 norm.
-    Vr : (n,r) ndarray
+    Vr : (n, r) ndarray
         Low-dimensional basis of rank r. Each column is one basis vector.
 
     Returns
