@@ -36,10 +36,10 @@ class _InterpolatedOperator(_BaseParametricOperator):
 
     Attributes
     ----------
-    parameter_samples : list of `nterms` scalars or ndarrays
+    parameter_values : list of `nterms` scalars or ndarrays
         Parameter values at which the operators matrices are known.
     matrices : list of `nterms` ndarray, all of the same shape.
-        Component matrices corresponding to the `parameter_samples`.
+        Component matrices corresponding to the `parameter_values`.
     OperatorClass : class
         Class of operator to construct, a subclass of
         core.operators._BaseNonparametricOperator.
@@ -56,44 +56,44 @@ class _InterpolatedOperator(_BaseParametricOperator):
         """scipy.interpolate class for the elementwise interpolation."""
         return self._InterpolatorClass
 
-    def __init__(self, parameter_samples, matrices, **kwargs):
+    def __init__(self, parameter_values, matrices, **kwargs):
         """Construct the interpolator.
 
         Parameters
         ----------
-        parameter_samples : list of `nterms` scalars or ndarrays
+        parameter_values : list of `nterms` scalars or ndarrays
             Parameter values at which the operators matrices are known.
         matrices : list of `nterms` ndarray, all of the same shape.
-            Operator entries corresponding to the `parameter_samples`.
+            Operator entries corresponding to the `parameter_values`.
         kwargs
             Additional arguments for the interpolator.
         """
         _BaseParametricOperator.__init__(self)
 
         # Ensure there are the same number of parameter samples and matrices.
-        n_params, n_matrices = len(parameter_samples), len(matrices)
+        n_params, n_matrices = len(parameter_values), len(matrices)
         if n_params != n_matrices:
-            raise ValueError(f"{n_params} = len(parameter_samples) "
+            raise ValueError(f"{n_params} = len(parameter_values) "
                              f"!= len(matrices) = {n_matrices}")
 
         # Ensure parameter / matrix shapes are consistent.
-        self._check_shape_consistency(parameter_samples, "parameter sample")
+        self._check_shape_consistency(parameter_values, "parameter sample")
         self._check_shape_consistency(matrices, "operator matrix")
 
         # Construct the spline.
-        self.__parameter_samples = parameter_samples
+        self.__parameter_values = parameter_values
         self.__matrices = matrices
-        self.__interpolator = self.InterpolatorClass(parameter_samples,
+        self.__interpolator = self.InterpolatorClass(parameter_values,
                                                      matrices, **kwargs)
 
     @property
-    def parameter_samples(self):                            # pragma: no cover
+    def parameter_values(self):                            # pragma: no cover
         """Parameter values at which the operators matrices are known."""
-        return self.__parameter_samples
+        return self.__parameter_values
 
     @property
     def matrices(self):
-        """Operator matrices corresponding to the parameter_samples."""
+        """Operator matrices corresponding to the parameter_values."""
         return self.__matrices
 
     @property
@@ -124,9 +124,12 @@ class _InterpolatedOperator(_BaseParametricOperator):
             return False
         if self.shape != other.shape:
             return False
+        paramshape = np.shape(self.parameter_values[0])
+        if paramshape != np.shape(other.parameter_values[1]):
+            return False
         if any(not np.all(left == right)
-               for left, right in zip(self.parameter_samples,
-                                      other.parameter_samples)):
+               for left, right in zip(self.parameter_values,
+                                      other.parameter_values)):
             return False
         return all(np.all(left == right)
                    for left, right in zip(self.matrices, other.matrices))
@@ -143,10 +146,10 @@ class Spline1dConstantOperator(_InterpolatedOperator):
 
     Attributes
     ----------
-    parameter_samples : list of `nterms` scalars or ndarrays
+    parameter_values : list of `nterms` scalars or ndarrays
         Parameter values at which the operators vectors are known.
     matrices : list of `nterms` ndarray, all of the same shape.
-        Operator vectors corresponding to the `parameter_samples`.
+        Operator vectors corresponding to the `parameter_values`.
     """
     _OperatorClass = ConstantOperator
     _InterpolatorClass = scipy.interpolate.CubicSpline
@@ -162,10 +165,10 @@ class Spline1dLinearOperator(_InterpolatedOperator):
 
     Attributes
     ----------
-    parameter_samples : list of `nterms` scalars or ndarrays
+    parameter_values : list of `nterms` scalars or ndarrays
         Parameter values at which the operators matrices are known.
     matrices : list of `nterms` ndarray, all of the same shape.
-        Operator matrices corresponding to the `parameter_samples`.
+        Operator matrices corresponding to the `parameter_values`.
     """
     _OperatorClass = LinearOperator
     _InterpolatorClass = scipy.interpolate.CubicSpline
@@ -181,10 +184,10 @@ class Spline1dQuadraticOperator(_InterpolatedOperator):
 
     Attributes
     ----------
-    parameter_samples : list of `nterms` scalars or ndarrays
+    parameter_values : list of `nterms` scalars or ndarrays
         Parameter values at which the operators matrices are known.
     matrices : list of `nterms` ndarray, all of the same shape.
-        Operator matrices corresponding to the `parameter_samples`.
+        Operator matrices corresponding to the `parameter_values`.
     """
     _OperatorClass = QuadraticOperator
     _InterpolatorClass = scipy.interpolate.CubicSpline
@@ -200,10 +203,10 @@ class Spline1dCubicOperator(_InterpolatedOperator):
 
     Attributes
     ----------
-    parameter_samples : list of `nterms` scalars or ndarrays
+    parameter_values : list of `nterms` scalars or ndarrays
         Parameter values at which the operators matrices are known.
     matrices : list of `nterms` ndarray, all of the same shape.
-        Operator matrices corresponding to the `parameter_samples`.
+        Operator matrices corresponding to the `parameter_values`.
     """
     _OperatorClass = CubicOperator
     _InterpolatorClass = scipy.interpolate.CubicSpline

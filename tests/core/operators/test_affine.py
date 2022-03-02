@@ -28,7 +28,7 @@ class TestAffineOperator:
         _OperatorClass = _OperatorDummy
 
     @staticmethod
-    def _set_up_affine_attributes(n=5):
+    def _set_up_affine_expansion(n=5):
         """Set up a valid affine expansion."""
         coefficient_functions = [np.sin, np.cos, np.exp]
         matrices = list(np.random.random((len(coefficient_functions), n, n)))
@@ -36,7 +36,7 @@ class TestAffineOperator:
 
     def test_init(self):
         """Test core.operators._affine._AffineOperator.__init__()."""
-        funcs, matrices = self._set_up_affine_attributes()
+        funcs, matrices = self._set_up_affine_expansion()
 
         # Try with non-callables.
         with pytest.raises(TypeError) as ex:
@@ -61,7 +61,7 @@ class TestAffineOperator:
 
     def test_properties(self):
         """Test _AffineOperator.[coefficient_functions|matrices|shape]."""
-        funcs, matrices = self._set_up_affine_attributes()
+        funcs, matrices = self._set_up_affine_expansion()
         op = self.Dummy(funcs, matrices)
 
         # Check coefficient_functions / matrices attributes.
@@ -80,7 +80,7 @@ class TestAffineOperator:
 
     def test_validate_coefficient_functions(self):
         """Test _AffineOperator._validate_coefficient_functions()."""
-        funcs, matrices = self._set_up_affine_attributes()
+        funcs, matrices = self._set_up_affine_expansion()
 
         # Try with non-callables.
         with pytest.raises(TypeError) as ex:
@@ -102,7 +102,7 @@ class TestAffineOperator:
 
     def test_call(self):
         """Test _AffineOperator.__call__()."""
-        funcs, matrices = self._set_up_affine_attributes()
+        funcs, matrices = self._set_up_affine_expansion()
 
         op = self.Dummy(funcs, matrices)
         A = op(10)
@@ -114,7 +114,7 @@ class TestAffineOperator:
 
     def test_eq(self):
         """Test _AffineOperator.__eq__()."""
-        funcs, matrices = self._set_up_affine_attributes()
+        funcs, matrices = self._set_up_affine_expansion()
         op1 = self.Dummy(funcs, matrices)
         op2 = self.Dummy(funcs[:-1], matrices[:-1])
 
