@@ -1,5 +1,8 @@
 # _interpolate.py
-"""Classes for operao
+"""Classes for parametric operators where the parametric dependence is handled
+with element-wise interpolation, i.e.,
+
+    A(µ)[i,j] = Interpolator([µ1, µ2, ...], [A1[i,j], A2[i,j], ...])(µ).
 """
 
 __all__ = [
@@ -17,6 +20,7 @@ from ._nonparametric import (_BaseParametricOperator,
                              ConstantOperator,
                              LinearOperator,
                              QuadraticOperator,
+                             # CrossQuadraticOperator,
                              CubicOperator)
 
 
@@ -74,7 +78,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
 
         # Ensure parameter / matrix shapes are consistent.
         self._check_shape_consistency(parameter_samples, "parameter sample")
-        self._check_shape_consistency(matrices, "component matrix")
+        self._check_shape_consistency(matrices, "operator matrix")
 
         # Construct the spline.
         self.__parameter_samples = parameter_samples
@@ -93,6 +97,11 @@ class _InterpolatedOperator(_BaseParametricOperator):
         return self.__matrices
 
     @property
+    def shape(self):
+        """Shape: shape of the operator matrices to interpolate."""
+        return self.matrices[0].shape
+
+    @property
     def interpolator(self):
         """Interpolator object for evaluating the operator at a parameter."""
         return self.__interpolator
@@ -106,7 +115,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
         return len(self.matrices)
 
     def __eq__(self, other):
-        """Test whether the parameter samples and component matrices of two
+        """Test whether the parameter samples and operator matrices of two
         InterpolatedOperator objects are numerically equal.
         """
         if not isinstance(other, self.__class__):
