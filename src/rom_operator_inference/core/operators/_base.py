@@ -1,4 +1,11 @@
 # core/operators/_base.py
+"""Abstract base classes for operators.
+
+Classes
+-------
+* _BaseNonparametricOperator: base for operators without parameter dependence.
+* _BaseParametricOperator: base for operators with parameter dependence.
+"""
 
 __all__ = []
 
@@ -55,6 +62,8 @@ class _BaseNonparametricOperator(abc.ABC):
         """Return True if two Operator objects are numerically equal."""
         if not isinstance(other, self.__class__):
             return False
+        if self.shape != other.shape:
+            return False
         return np.all(self.entries == other.entries)
 
 
@@ -99,8 +108,8 @@ class _BaseParametricOperator(abc.ABC):
         raise NotImplementedError
 
     @staticmethod
-    def _check_shape_consistency(iterable, prefix="component matrix"):
+    def _check_shape_consistency(iterable, prefix="operator matrix"):
         """Ensure that each array in `iterable` has the same shape."""
         shape = np.shape(iterable[0])
         if any(np.shape(A) != shape for A in iterable):
-            raise ValueError(f"{prefix} shapes do not match")
+            raise ValueError(f"{prefix} shapes inconsistent")

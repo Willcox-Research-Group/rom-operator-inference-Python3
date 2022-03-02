@@ -14,8 +14,8 @@ __all__ = [
 
 import numpy as np
 
-from ._nonparametric import (_BaseParametricOperator,
-                             ConstantOperator,
+from ._base import _BaseParametricOperator
+from ._nonparametric import (ConstantOperator,
                              LinearOperator,
                              QuadraticOperator,
                              # CrossQuadraticOperator,
@@ -52,7 +52,8 @@ class _AffineOperator(_BaseParametricOperator):
 
         # Ensure that the coefficient functions are callable.
         if any(not callable(theta) for theta in coefficient_functions):
-            raise TypeError("coefficients of affine operator must be callable")
+            raise TypeError("coefficient functions of affine operator "
+                            "must be callable")
         self.__ceofficient_functions = coefficient_functions
 
         # Check that the right number of terms are included.
@@ -63,7 +64,7 @@ class _AffineOperator(_BaseParametricOperator):
                              f"!= len(matrices) = {n_matrices}")
 
         # Check that each matrix in the list has the same shape.
-        self._check_shape_consistency(matrices)
+        self._check_shape_consistency(matrices, "operator matrix")
         self.__matrices = matrices
 
     @property
@@ -119,9 +120,9 @@ class _AffineOperator(_BaseParametricOperator):
         """
         if not isinstance(other, self.__class__):
             return False
-        if self.OperatorClass is not other.OperatorClass:
-            return False
         if len(self) != len(other):
+            return False
+        if self.shape != other.shape:
             return False
         return all(np.all(left == right)
                    for left, right in zip(self.matrices, other.matrices))

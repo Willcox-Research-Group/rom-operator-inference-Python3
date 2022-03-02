@@ -16,8 +16,8 @@ __all__ = [
 import numpy as np
 import scipy.interpolate
 
-from ._nonparametric import (_BaseParametricOperator,
-                             ConstantOperator,
+from ._base import _BaseParametricOperator
+from ._nonparametric import (ConstantOperator,
                              LinearOperator,
                              QuadraticOperator,
                              # CrossQuadraticOperator,
@@ -120,11 +120,9 @@ class _InterpolatedOperator(_BaseParametricOperator):
         """
         if not isinstance(other, self.__class__):
             return False
-        if self.OperatorClass is not other.OperatorClass:
-            return False
-        if self.InterpolatorClass is not other.InterpolatorClass:
-            return False
         if len(self) != len(other):
+            return False
+        if self.shape != other.shape:
             return False
         if any(not np.all(left == right)
                for left, right in zip(self.parameter_samples,
