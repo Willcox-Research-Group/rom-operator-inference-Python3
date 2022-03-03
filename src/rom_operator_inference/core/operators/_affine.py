@@ -1,4 +1,8 @@
 # core/operators/_affine.py
+"""Classes for operators that depend affinely on external parameters, i.e.,
+
+    A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i}.
+"""
 
 __all__ = [
     "AffineConstantOperator",
@@ -8,242 +12,189 @@ __all__ = [
     "AffineCubicOperator",
 ]
 
-import abc
 import numpy as np
 
-from ._nonparametric import (_BaseNonparametricOperator,
-                             ConstantOperator, LinearOperator,
-                             QuadraticOperator, CubicOperator)
+from ._base import _BaseParametricOperator
+from ._nonparametric import (ConstantOperator,
+                             LinearOperator,
+                             QuadraticOperator,
+                             # CrossQuadraticOperator,
+                             CubicOperator)
 
 
-# TODO: symbol (for printing)
-class _BaseAffineOperator(abc.ABC):
-    """Base class for representing operators with affine structure, i.e.,
+class _AffineOperator(_BaseParametricOperator):
+    """Base class for parametric operators with affine structure, i.e.,
 
         A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i}.
 
-    The matrix A(µ) is constructed by calling the object once the coefficient
-    functions and component matrices are set.
+    The matrix A(µ) for a given µ is constructed by calling the object.
 
     Attributes
     ----------
     coefficient_functions : list of `nterms` callables
-        Coefficient scalar-valued functions in the affine expansion.
-        Each must take the same sized input and return a scalar.
+        Scalar-valued coefficient functions in each term of the affine
+        expansion (θ_{i}'s).
     matrices : list of `nterms` ndarrays, all of the same shape
-        Component matrices in each term of the affine expansion.
+        Operator matrices in each term of the affine expansion (A_{i}'s).
     """
-    @abc.abstractmethod
-    def __init__(self, OperatorClass, coeffs, matrices, **kwargs):
-        """Save the coefficient functions and component matrices.
+    def __init__(self, coefficient_functions, matrices):
+        """Save the coefficient functions and operator matrices.
 
         Parameters
         ----------
-        OperatorClass : class
-            Class of operator to construct, a subclass of
-            core.operators._BaseNonparametricOperator.
-        coeffs : list of `nterms` callables
-            Coefficient scalar-valued functions in the affine expansion.
-            Each must take the same sized input and return a scalar.
+        coefficient_functions : list of `nterms` callables
+            Scalar-valued coefficient functions in each term of the affine
+            expansion (θ_{i}'s).
         matrices : list of `nterms` ndarrays, all of the same shape
-            Component matrices in each term of the affine expansion.
+            Operator matrices in each term of the affine expansion (A_{i}'s).
         """
-        if not issubclass(OperatorClass, _BaseNonparametricOperator):
-            raise TypeError(f"invalid operatortype '{OperatorClass.__name__}'")
-        self.__opclass = OperatorClass
+        _BaseParametricOperator.__init__(self)
 
-        if any(not callable(theta) for theta in coeffs):
-            raise TypeError("coefficients of affine operator must be callable")
-        self.__thetas = coeffs
+        # Ensure that the coefficient functions are callable.
+        if any(not callable(theta) for theta in coefficient_functions):
+            raise TypeError("coefficient functions of affine operator "
+                            "must be callable")
+        self.__coefficient_functions = coefficient_functions
 
         # Check that the right number of terms are included.
         # if (n_coeffs := len(coeffs) != (n_matrices := len(matrices)):
-        n_coeffs, n_matrices = len(coeffs), len(matrices)
+        n_coeffs, n_matrices = len(coefficient_functions), len(matrices)
         if n_coeffs != n_matrices:
-            raise ValueError(f"{n_coeffs} = len(coeffs) "
+            raise ValueError(f"{n_coeffs} = len(coefficient_functions) "
                              f"!= len(matrices) = {n_matrices}")
 
         # Check that each matrix in the list has the same shape.
-        shape = matrices[0].shape
-        if any(A.shape != shape for A in matrices):
-            raise ValueError("affine component matrix shapes do not match")
-
+        self._check_shape_consistency(matrices, "operator matrix")
         self.__matrices = matrices
-        self.__kwargs = kwargs
 
     @property
     def coefficient_functions(self):
         """Coefficient scalar-valued functions in the affine expansion."""
-        return self.__thetas
+        return self.__coefficient_functions
 
     @property
     def matrices(self):
         """Component matrices in each term of the affine expansion."""
         return self.__matrices
 
-    # @property
-    # def shape(self):
-    #     """Shape: the shape of the component matrices."""
-    #     return self.matrices[0].shape
+    @property
+    def shape(self):
+        """Shape: the shape of the operator matrices."""
+        return self.matrices[0].shape
 
     @staticmethod
-    def validate_coeffs(thetas, mu):
+    def _validate_coefficient_functions(coefficient_functions, parameter):
         """Check that each coefficient function 1) is a callable function,
         2) takes in the right sized inputs, and 3) returns scalar values.
 
         Parameters
         ----------
-        mu : float or (p,) ndarray
-            A test input for the coefficient functions.
+        coefficient_functions : list of `nterms` callables
+            Scalar-valued coefficient functions in each term of the affine
+            expansion (θ_{i}'s).
+        parameter : (p,) ndarray or float (p = 1).
+            Parameter input to use as a test for the coefficient functions (µ).
         """
-        for theta in thetas:
+        for theta in coefficient_functions:
             if not callable(theta):
                 raise TypeError("coefficient functions of affine operator "
                                 "must be callable")
-            elif not np.isscalar(theta(mu)):
+            elif not np.isscalar(theta(parameter)):
                 raise ValueError("coefficient functions of affine operator "
                                  "must return a scalar")
 
-    def __call__(self, mu):
+    def __call__(self, parameter):
         """Evaluate the affine operator at the given parameter."""
-        entries = np.sum([thetai(mu)*Ai for thetai, Ai in zip(
+        entries = np.sum([thetai(parameter)*Ai for thetai, Ai in zip(
                           self.coefficient_functions, self.matrices)],
                          axis=0)
-        return self.__opclass(entries, **self.__kwargs)
+        return self.OperatorClass(entries)
 
     def __len__(self):
         """Length: number of terms in the affine expansion."""
-        return len(self.coefficient_functions)
+        return len(self.matrices)
 
     def __eq__(self, other):
-        """Test whether the component matrices of two AffineOperator objects
+        """Test whether the operator matrices of two AffineOperator objects
         are numerically equal. Coefficient functions are *NOT* compared.
         """
         if not isinstance(other, self.__class__):
             return False
-        if self.__opclass is not other.__opclass:
-            return False
         if len(self) != len(other):
+            return False
+        if self.shape != other.shape:
             return False
         return all(np.all(left == right)
                    for left, right in zip(self.matrices, other.matrices))
 
 
-class AffineConstantOperator(_BaseAffineOperator):
-    """Constant operator with affine structure, i.e.,
+class AffineConstantOperator(_AffineOperator):
+    """Constant operator with affine parametric structure, i.e.,
 
         c(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * c_{i}.
 
-    The vector c(µ) is constructed by calling the object once the coefficient
-    functions and component matrices are set.
+    The vector c(µ) for a given µ is constructed by calling the object.
 
     Attributes
     ----------
     coefficient_functions : list of `nterms` callables
-        Coefficient scalar-valued functions in the affine expansion.
-        Each must take the same sized input and return a scalar.
-    vectors : list of `nterms` one-dimensional ndarrays
-        Component vectors in each term of the affine expansion.
+        Scalar-valued coefficient functions in each term of the affine
+        expansion (θ_{i}'s).
+    matrices : list of `nterms` ndarrays, all of the same shape
+        Operator matrices in each term of the affine expansion (c_{i}'s).
     """
-    def __init__(self, coeffs, vectors):
-        """Save the coefficient functions and component vectors.
-
-        Parameters
-        ----------
-        coeffs : list of `nterms` callables
-            Coefficient scalar-valued functions in the affine expansion.
-            Each must take the same sized input and return a scalar.
-        vectors : list of `nterms` one-dimensional ndarrays
-            Component vectors in each term of the affine expansion.
-        """
-        _BaseAffineOperator.__init__(self, ConstantOperator, coeffs, vectors)
+    _OperatorClass = ConstantOperator
 
 
-class AffineLinearOperator(_BaseAffineOperator):
-    """Linear operator with affine structure, i.e.,
+class AffineLinearOperator(_AffineOperator):
+    """Linear operator with affine parametric structure, i.e.,
 
         A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i}.
 
-    The matrix A(µ) is constructed by calling the object once the coefficient
-    functions and component matrices are set.
+    The matrix A(µ) for a given µ is constructed by calling the object.
 
     Attributes
     ----------
     coefficient_functions : list of `nterms` callables
-        Coefficient scalar-valued functions in the affine expansion.
-        Each must take the same sized input and return a scalar.
+        Scalar-valued coefficient functions in each term of the affine
+        expansion (θ_{i}'s).
     matrices : list of `nterms` ndarrays, all of the same shape
-        Component matrices in each term of the affine expansion.
+        Operator matrices in each term of the affine expansion (A_{i}'s).
     """
-    def __init__(self, coeffs, matrices):
-        """Save the coefficient functions and component matrices.
-
-        Parameters
-        ----------
-        coeffs : list of `nterms` callables
-            Coefficient scalar-valued functions in the affine expansion.
-            Each must take the same sized input and return a scalar.
-        matrices : list of `nterms` ndarrays, all of the same shape
-            Component matrices in each term of the affine expansion.
-        """
-        _BaseAffineOperator.__init__(self, LinearOperator, coeffs, matrices)
+    _OperatorClass = LinearOperator
 
 
-class AffineQuadraticOperator(_BaseAffineOperator):
-    """Quadratic operator with affine structure, i.e.,
+class AffineQuadraticOperator(_AffineOperator):
+    """Quadratic operator with affine parametric structure, i.e.,
 
         H(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * H_{i}.
 
-    The matrix H(µ) is constructed by calling the object once the coefficient
-    functions and component matrices are set.
+    The matrix H(µ) for a given µ is constructed by calling the object.
 
     Attributes
     ----------
     coefficient_functions : list of `nterms` callables
-        Coefficient scalar-valued functions in the affine expansion.
-        Each must take the same sized input and return a scalar.
+        Scalar-valued coefficient functions in each term of the affine
+        expansion (θ_{i}'s).
     matrices : list of `nterms` ndarrays, all of the same shape
-        Component matrices in each term of the affine expansion.
+        Operator matrices in each term of the affine expansion (H_{i}'s).
     """
-    def __init__(self, coeffs, matrices):
-        """Save the coefficient functions and component matrices.
-
-        Parameters
-        ----------
-        coeffs : list of `nterms` callables
-            Coefficient scalar-valued functions in the affine expansion.
-            Each must take the same sized input and return a scalar.
-        matrices : list of `nterms` ndarrays, all of the same shape
-            Component matrices in each term of the affine expansion.
-        """
-        _BaseAffineOperator.__init__(self, QuadraticOperator, coeffs, matrices)
+    _OperatorClass = QuadraticOperator
 
 
-class AffineCubicOperator(_BaseAffineOperator):
-    """Cubic operator with affine structure, i.e.,
+class AffineCubicOperator(_AffineOperator):
+    """Cubic operator with affine parametric structure, i.e.,
 
         G(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * G_{i}.
 
-    The matrix G(µ) is constructed by calling the object once the coefficient
-    functions and component matrices are set.
+    The matrix G(µ) for a given µ is constructed by calling the object.
 
     Attributes
     ----------
     coefficient_functions : list of `nterms` callables
-        Coefficient scalar-valued functions in the affine expansion.
-        Each must take the same sized input and return a scalar.
+        Scalar-valued coefficient functions in each term of the affine
+        expansion (θ_{i}'s).
     matrices : list of `nterms` ndarrays, all of the same shape
-        Component matrices in each term of the affine expansion.
+        Operator matrices in each term of the affine expansion (G_{i}'s).
     """
-    def __init__(self, coeffs, matrices):
-        """Save the coefficient functions and component matrices.
-
-        Parameters
-        ----------
-        coeffs : list of `nterms` callables
-            Coefficient scalar-valued functions in the affine expansion.
-            Each must take the same sized input and return a scalar.
-        matrices : list of `nterms` ndarrays, all of the same shape
-            Component matrices in each term of the affine expansion.
-        """
-        _BaseAffineOperator.__init__(self, CubicOperator, coeffs, matrices)
+    _OperatorClass = CubicOperator

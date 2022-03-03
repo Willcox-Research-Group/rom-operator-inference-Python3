@@ -7,8 +7,7 @@ import abc
 import numpy as np
 
 # from ._exceptions import DimensionalityError
-from .operators import (ConstantOperator, LinearOperator,
-                        QuadraticOperator, CubicOperator)
+from . import operators
 
 
 # Base classes (private) ======================================================
@@ -154,8 +153,8 @@ class _BaseROM(abc.ABC):
     def c_(self, c_):
         self._check_operator_matches_modelform(c_, 'c')
         if c_ is not None:
-            if not isinstance(c_, ConstantOperator):
-                c_ = ConstantOperator(c_)
+            if not isinstance(c_, operators.ConstantOperator):
+                c_ = operators.ConstantOperator(c_)
             self._check_rom_operator_shape(c_, 'c')
         self.__c_ = c_
 
@@ -169,8 +168,8 @@ class _BaseROM(abc.ABC):
         # TODO: what happens if model.A_ = something but model.r is None?
         self._check_operator_matches_modelform(A_, 'A')
         if A_ is not None:
-            if not isinstance(A_, LinearOperator):
-                A_ = LinearOperator(A_)
+            if not isinstance(A_, operators.LinearOperator):
+                A_ = operators.LinearOperator(A_)
             self._check_rom_operator_shape(A_, 'A')
         self.__A_ = A_
 
@@ -183,8 +182,8 @@ class _BaseROM(abc.ABC):
     def H_(self, H_):
         self._check_operator_matches_modelform(H_, 'H')
         if H_ is not None:
-            if not isinstance(H_, QuadraticOperator):
-                H_ = QuadraticOperator(H_)
+            if not isinstance(H_, operators.QuadraticOperator):
+                H_ = operators.QuadraticOperator(H_)
             self._check_rom_operator_shape(H_, 'H')
         self.__H_ = H_
 
@@ -197,8 +196,8 @@ class _BaseROM(abc.ABC):
     def G_(self, G_):
         self._check_operator_matches_modelform(G_, 'G')
         if G_ is not None:
-            if not isinstance(G_, CubicOperator):
-                G_ = CubicOperator(G_)
+            if not isinstance(G_, operators.CubicOperator):
+                G_ = operators.CubicOperator(G_)
             self._check_rom_operator_shape(G_, 'G')
         self.__G_ = G_
 
@@ -211,8 +210,8 @@ class _BaseROM(abc.ABC):
     def B_(self, B_):
         self._check_operator_matches_modelform(B_, 'B')
         if B_ is not None:
-            if not isinstance(B_, LinearOperator):
-                B_ = LinearOperator(B_)
+            if not isinstance(B_, operators.LinearOperator):
+                B_ = operators.LinearOperator(B_)
             self._check_rom_operator_shape(B_, 'B')
         self.__B_ = B_
 
@@ -533,22 +532,31 @@ class _BaseROM(abc.ABC):
 
 class _BaseParametricROM(_BaseROM):
     """Base class for all parametric reduced-order model classes."""
-    def __init__(self, modelform, ModelClass):
-        """Set the modelform and the evaluation model class.
+    # Must be specified by child classes.
+    _ModelClass = NotImplemented
+
+    @property
+    def ModelClass(self):
+        """Class of nonparametric ROM to represent this parametric ROM
+        at a particular parameter, a subclass of core._base._BaseROM:
+        >>> type(MyParametricROM(init_args).fit(fit_args)(parameter_value)).
+        """
+        return self._ModelClass
+
+    def __init__(self, modelform,):
+        """Set the modelform.
 
         Parameters
         ----------
         modelform : str
             See _BaseROM.modelform.
-        ModelClass : type
-            Subclass of
         """
         _BaseROM.__init__(self, modelform)
 
-        # Valiate and store the ModelClass.
-        if not issubclass(ModelClass, _BaseROM):
-            raise RuntimeError(ModelClass)
-        self._ModelClass = ModelClass
+        # Valiate the ModelClass.
+        if not issubclass(self.ModelClass, _BaseROM):
+            raise RuntimeError("invalid ModelClass "
+                               f"'{self.ModelClass.__name__}'")
 
     def _clear(self):
         """Set private attributes as None, erasing any previously stored basis,
@@ -567,7 +575,7 @@ class _BaseParametricROM(_BaseROM):
     def p(self, p):
         """Set the parameter dimension (can only be done once)."""
         if self.__p is not None:
-            raise AttributeError("can't set attribute twice")
+            raise AttributeError("can't set attribute 'p' twice")
         self.__p = p
 
     # Parametric evaluation ---------------------------------------------------
@@ -580,16 +588,16 @@ class _BaseParametricROM(_BaseROM):
         B_ = self.B_(parameter) if callable(self.B_) else self.B_
 
         # Construct a nonparametric ROM with the evaluated operators.
-        romµ = self._ModelClass(self.modelform)
-        return romµ._set_operators(basis=self.Basis,
-                                   c_=c_, A_=A_, H_=H_, G_=G_, B_=B_)
+        rom = self.ModelClass(self.modelform)
+        return rom._set_operators(basis=self.Basis,
+                                  c_=c_, A_=A_, H_=H_, G_=G_, B_=B_)
 
-    def evaluate(self, parameter, *args, **kwargs):
-        """Evaluate the right-hand side of the model."""
+    def evaluate(self, parameter, *args, **kwargs):         # pragma: no cover
+        """Evaluate the right-hand side of the model at the given parameter."""
         return self(parameter).evaluate(*args, **kwargs)
 
     def predict(self, parameter, *args, **kwargs):          # pragma: no cover
-        """Solve the reduced-order model under specified conditions."""
+        """Solve the reduced-order model at the given parameter."""
         return self(parameter).predict(*args, **kwargs)
 
 

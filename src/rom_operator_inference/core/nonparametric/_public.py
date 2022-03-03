@@ -147,7 +147,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
 
     # TODO: convenience method for dealing with multiple trajectories (bursts).
     # @staticmethod
-    # def stack_training_states(statelist):
+    # def stack_training_bursts(statelist):
     #     """Translate a collection of state trajectories to
     #     (states, nextstates) arrays that are appropriate arguments for fit().
     #

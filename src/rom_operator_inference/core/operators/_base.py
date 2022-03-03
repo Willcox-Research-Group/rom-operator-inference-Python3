@@ -1,4 +1,11 @@
 # core/operators/_base.py
+"""Abstract base classes for operators.
+
+Classes
+-------
+* _BaseNonparametricOperator: base for operators without parameter dependence.
+* _BaseParametricOperator: base for operators with parameter dependence.
+"""
 
 __all__ = []
 
@@ -25,7 +32,12 @@ class _BaseNonparametricOperator(abc.ABC):
 
     @abc.abstractmethod
     def __call__(*args, **kwargs):                          # pragma: no cover
+        """Apply the operator mapping to the given states / inputs."""
         raise NotImplementedError
+
+    def evaluate(self, *args, **kwargs):
+        """Apply the operator mapping to the given states / inputs."""
+        return self(*args, **kwargs)
 
     @staticmethod
     def _validate_entries(entries):
@@ -55,6 +67,8 @@ class _BaseNonparametricOperator(abc.ABC):
         """Return True if two Operator objects are numerically equal."""
         if not isinstance(other, self.__class__):
             return False
+        if self.shape != other.shape:
+            return False
         return np.all(self.entries == other.entries)
 
 
@@ -64,16 +78,43 @@ class _BaseParametricOperator(abc.ABC):
     results in a non-parametric operator:
 
     >>> parametric_operator = MyParametricOperator(init_args)
-    >>> nonparametric_operator = parametric_operator(param)
+    >>> nonparametric_operator = parametric_operator(parameter_value)
     >>> isinstance(nonparametric_operator, _BaseNonparametricOperator)
     True
     """
+    # Must be specified by child classes.
+    _OperatorClass = NotImplemented
+
+    @property
+    def OperatorClass(self):
+        """Class of nonparametric operator to represent this parametric
+        operator at a particular parameter, a subclass of
+        core.operators._BaseNonparametricOperator:
+        >>> type(MyParametricOperator(init_args)(parameter_value)).
+        """
+        return self._OperatorClass
+
     @abc.abstractmethod
-    def __init__(self):                                     # pragma: no cover
-        """Set operator entries, affine functions, name, etc."""
-        raise NotImplementedError
+    def __init__(self):
+        """Validate the OperatorClass.
+        Child classes must implement this method, which should set and
+        validate attributes needed to construct the parametric operator.
+        """
+        # Validate the OperatorClass.
+        if not issubclass(self.OperatorClass, _BaseNonparametricOperator):
+            raise RuntimeError("invalid OperatorClass "
+                               f"'{self._OperatorClass.__name__}'")
 
     @abc.abstractmethod
     def __call__(self, parameter):                          # pragma: no cover
-        """Return the nonparametric operator corresponding to the parameter."""
+        """Return the nonparametric operator corresponding to the parameter,
+        of type self.OperatorClass.
+        """
         raise NotImplementedError
+
+    @staticmethod
+    def _check_shape_consistency(iterable, prefix="operator matrix"):
+        """Ensure that each array in `iterable` has the same shape."""
+        shape = np.shape(iterable[0])
+        if any(np.shape(A) != shape for A in iterable):
+            raise ValueError(f"{prefix} shapes inconsistent")
