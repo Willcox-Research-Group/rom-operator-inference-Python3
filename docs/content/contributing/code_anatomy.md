@@ -48,37 +48,112 @@ Read [ROM Classes](sec-romclasses) before starting work here.
 (subsec-contrib-opclass)=
 ### Operator Classes
 
-The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that the model consists of, the  $\widehat{\mathbf{A}}$ of $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ for example.
+The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that define the terms of the model, for example $\widehat{\mathbf{A}}$ and $\widehat{\mathbf{B}}$ of $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t) + \widehat{\mathbf{B}}\mathbf{u}(t)$.
 Operator classes are defined in `core/operators`.
 
-A _non-parametric operator_ has constant entries that do not depend on external parameters.
-These classes are defined in `core/operators/_nonparametric.py` and inherit from `core.operators._base._BaseNonparametricOperator`.
-They are initialized with a NumPy array (the entries of the operator), which can be accessed as the `entries` attribute.
-These classes also handle the mappings defined by the operator: for the linear term $\widehat{\mathbf{A}}$ this is simply matrix multiplication $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$; for the quadratic term $\widehat{\mathbf{H}}$ this is the mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, which is done efficiently by computing only the unique terms of the Kronecker product $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$.
+#### Non-parametric Operators
+
+A _non-parametric_ operator has constant entries that do not depend on external parameters.
+Classes for representing non-parametric operators are defined in `core/operators/_nonparametric.py`.
+These classes should
+
+- Inherit from `core.operators._base._BaseNonparametricOperator`.
+
+- Be initialized with a NumPy array (the entries of the operator).
+    Specifically, `__init__(self, entries)` should 1) call `self._validate_entries(entries)` to ensure `entries` is a valid NumPy array, 2) do any shape checking needed on `entries`, and 3) call `_BaseNonparametricOperator.__init__(self, entries)`.
+
+- Implement `__call__(self, state)` as the mapping defined by the operator.
+    For the linear term $\widehat{\mathbf{A}}$ this is simply matrix multiplication $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$;
+    for the quadratic term $\widehat{\mathbf{H}}$ this is the mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, which is done efficiently by computing only the unique terms of the Kronecker product $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$.
+
+- Implement `jacobian(self, state)` to evaluate of the Jacobian of the operator, i.e., $\frac{\partial}{\partial \widehat{\mathbf{q}}}$ of the mapping in `__call__()`.
+    For the linear mapping $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$, the Jacobian is $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}$;
+    for the quadratic mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, the Jacobian is $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[(\mathbf{I}\otimes\widehat{\mathbf{q}}) + (\widehat{\mathbf{q}}\otimes\mathbf{I})]$.
+
+The following diagram shows the class hierarchy for non-parametric operators.
 
 :::{image} ../../images/opclasses-nonparametric.png
 :align: center
 :width: 80 %
 :::
 
-The entries of a _parametric operator_ depend on external parameters.
-Parametric operator classes should inherit from `core.operators._base._BaseParametricOperator` and
-1. Be initialized with matrices
-2. Do shape checking on the matrices
-3. Provide public access to the matrices (`.entries`, `.matrices`, etc.)
-4. Implement `__call__(self, parameter)` so that it returns an non-parametric operator object:
-```python
->>> parametric_operator = MyNewParametricOperator(init_args)
->>> nonparametric_operator = parametric_operator(parameter)
->>> isinstance(nonparametric_operator, _BaseNonparametricOperator)
-True
-```
+#### Parametric Operators
 
-Here's an example of the inheritance hierarchy for affine-parametric operators.
+The entries of a _parametric_ operator depend on external parameters, e.g., $\widehat{\mathbf{A}} = \widehat{\mathbf{A}}(\mu)$.
+Classes for representing parametric operators are grouped by the parametrization strategy into single files in `core/operators/`, e.g., `core/operators/_affine.py`.
+These classes should
+
+- Inherit from `core.operators._base._BaseParametricOperator`.
+
+- Be initialized with whatever parameter data, matrices, and/or functions are needed to represent the parametric operator and validate these inputs (e.g., shape checking on any matrices).
+
+- Call `_BaseParametricROM.__init__(self)` at the beginning of `__init__()`.
+
+- Provide public access to the members that define the parametric structure (`parameter_values`, `coefficient_functions`, `matrices`, etc.).
+
+- Implement `__call__(self, parameter)` so that it returns an non-parametric operator object:
+
+    ```python
+        >>> parametric_operator = MyNewParametricOperator(init_args)
+        >>> nonparametric_operator = parametric_operator(parameter)
+        >>> isinstance(nonparametric_operator, _BaseNonparametricOperator)
+        True
+    ```
+
+- Define `_OperatorClass` as a class (static) attribute to be the type of non-parametric operator that the parametric operator evaluates to. This is done by setting the variable within the class but outside of any methods:
+
+        ```python
+        class MyNewLinearParametricROM(_BaseParametricROM):
+            """Don't forget to write descriptive docstrings!"""
+            _OperatorClass = LinearOperator     # Set the variable outside of any method.
+
+            def __init__(self, ...):
+                """Don't forget to write descriptive docstrings!"""
+                _BaseParametricROM.__init__(self)
+                # ...
+        ```
+
+    Use `self.OperatorClass` to access this within the class (this is a property inherited from `_BaseParametricOperator`).
+
+Here's an example of the inheritance hierarchy for affine-parametric operators, defined in `core/operators/_affine.py`.
 
 :::{image} ../../images/opclasses-affine.png
 :align: center
 :width: 80 %
+:::
+
+:::{tip}
+Usually a group of new parametric operator classes can be implemented by writing an intermediate class that does all of the work, then writing child classes for constant, linear, quadratic, and cubic terms which each set `_OperatorClass` appropriately.
+For example, here is a barebones version of `_AffineOperator`:
+```python
+class _AffineOperator(_BaseParametricOperator):
+    """Base class for parametric operators with affine structure."""
+
+    def __init__(self, coefficient_functions, matrices):
+        """Save the coefficient functions and operator matrices."""
+        self.ceofficient_functions = coefficient_functions
+        self.matrices = matrices
+
+    def __call__(self, parameter):
+        """Evaluate the affine operator at the given parameter."""
+        entries = sum([thetai(parameter) * Ai
+                       for thetai, Ai in zip(self.coefficient_functions,
+                                             self.matrices)])
+        return self.OperatorClass(entries)
+```
+Note that `__call__()` uses `self.OperatorClass` to wrap the entries of the evaluated operator.
+Now to define constant-affine and linear-affine classes, we simply inherit from `_AffineOperator` and set the `_OperatorClass` appropriately.
+```python
+class AffineConstantOperator(_AffineOperator):
+    """Constant operator with affine parametric structure."""
+    _OperatorClass = ConstantOperator
+
+
+class AffineLinearOperator(_AffineOperator):
+    """Linear operator with affine parametric structure."""
+    _OperatorClass = LinearOperator
+```
+This strategy reduces boilerplate and testing code by isolating the heavy lifting to the intermediate class (`_AffineOperator`).
 :::
 
 (subsec-contrib-romclass)=
@@ -86,10 +161,10 @@ Here's an example of the inheritance hierarchy for affine-parametric operators.
 
 The `_BaseROM` class of `core/_base.py` is the base class for all reduced-order models.
 It handles
-- Dimensions (`n`, `r`, and `m`),
-- The basis (`basis`),
-- Reduced-order operators (`c_`, `A_`, `H_`, `G_`, and `B_`),
-- Projection (`project()`) and reconstruction (`reconstruct()`)
+- Dimensions (`n`, `r`, and `m`).
+- The basis $\mathbf{V}_{r}$ (`basis`).
+- Reduced-order operators (`c_`, `A_`, `H_`, `G_`, and `B_`).
+- Projection $\mathbf{q}\mapsto\widehat{\mathbf{q}} := \mathbf{V}_{r}^{\top}\mathbf{q}$ (`project()`) and reconstruction $\widehat{\mathbf{q}} \mapsto \mathbf{V}_{r}\widehat{\mathbf{q}}$ (`reconstruct()`).
 - Evaluation of the right-hand side of the ROM (`evaluate()`) and its Jacobian (`jacobian()`).
 
 Classes that inherit from `_BaseROM` must (eventually) implement the following methods.
@@ -102,47 +177,62 @@ To write a new ROM class, start with an intermediate base class that inherits fr
 See `core.nonparametric._base._NonparametricOpInfROM`, for example.
 Then write classes that inherit from your intermediate base class for handling steady-state, discrete-time, and continuous-time problems by implementing `predict()`.
 
-The following is the inheritance hierarchy for the standard operator classes.
+#### Non-parametric ROMs
+
+A _non-parametric_ ROM has exclusively non-parametric operators, i.e., their entries do not depend on external parameters.
+Classes for representing non-parametric ROMs are defined in the `core/nonparametric/` folder, which has the following files:
+- `core/nonparametric/_base.py` defines a base class, `_NonparametricOpInfROM`, which implements Operator Inference in the non-parametric setting.
+- `core/nonparametric/_public.py` defines public-facing classes that inherit from `_NonparametricOpInfROM`, one for [the discrete setting](sec-discrete) and one for the [continuous setting](sec-continuous).
+- `core/nonparametric/_frozen.py` defines classes that inherit from the public-facing classes but which have their `fit()` method disabled. These classes provide a helpful protection for the parametric case, described later.
+
+The following diagram shows the inheritance hierarchy for the non-parametric ROM classes.
 
 :::{image} ../../images/romclasses-nonparametric.png
 :align: center
 :width: 80 %
 :::
 
-A _non-parametric ROM_ has exclusively non-parametric operators, i.e., their entries that do not depend on external parameters.
-A _parametric ROM_ has one or more parametric operator.
-Parametric ROM classes should inherit from `core._base._BaseParametricROM`, which adds an attribute `p` for the parameter space dimension and implements the following methods:
+#### Parametric ROMs
 
 :::{margin}
 ```{note}
-The `evaluate()` and `predict()` methods are already implemented in `_BaseParametricROM`, but it is recommended that you still implement them in your public-facing classes to tailor the arguments and provide accurate docstrings.
+For every parameterization strategy, there should be 1) a file in `core/operators/` implementing parametric operator classes, and 2) a folder in `core/` grouping the parametric ROM classes.
+For example, the ROM classes defined in `core/affine/` use the operator classes defined in `core/operators/_affine.py`.
 ```
 :::
 
-- `__call__(self, parameter)` results in a parametric ROM whose operators correspond to the given parameter.
-- `evaluate(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `evaluate()` mthod with the remaining arguments.
-- `predict(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `predict()` method with the remaining arguments.
+A _parametric ROM_ has one or more parametric operators.
+Classes for representing parametric ROMs should be grouped by parameterization strategy in a new folder within `core/` (e.g., `core/affine/`).
+These classes should
 
-```python
->>> parametric_rom = MyNewParametricROM(init_args).fit(fit_args)
->>> nonparametric_rom = parametric_rom(parameter)
->>> isinstance(nonparametric_rom, _NonparametricOpInfROM)
-True
-```
+- Inherit from `core._base._BaseParametricROM`, which adds an attribute `p` for the parameter space dimension and implements the following methods:
+    - `__call__(self, parameter)` results in a parametric ROM whose operators correspond to the given parameter.
+    - `evaluate(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `evaluate()` mthod with the remaining arguments.
+    - `predict(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `predict()` method with the remaining arguments.
 
-The type of the parametric ROM evaluation should be one of the following classes in `core/nonparametric/_frozen.py`:
-- `_FrozenSteadyROM` for steady-state problems
-- `_FrozenDiscreteROM` for discrete-time problems
-- `_FrozenContinuousROM` for continuous-time problems
+- Call `_BaseParametricROM.__init__(self)` in the constructor.
 
-These classes have their `fit()` method disabled.
-This prevents the user from calling `fit()` on the evaluated parametric ROM (`nonparametric_rom` in the code block above) when they meant to fit the parametric ROM (`parametric_rom`).
+- Define `_ModelClass` as a class (static) attribute to be the type of non-parametric ROM that the parametric ROM evaluates to.
 
-For example, here is the inheritance hierarchy for the affine-parametric ROM classes.
+        >>> parametric_rom = MyNewParametricROM(init_args).fit(fit_args)
+        >>> nonparametric_rom = parametric_rom(parameter)
+        >>> isinstance(nonparametric_rom, _NonparametricOpInfROM)
+        True
+
+    The `_ModelClass` should be one of the "frozen" non-parametric ROM classes in `core/nonparametric/_frozen.py`, which have their `fit()` method disabled.
+    This prevents the user from calling `fit()` on the evaluated parametric ROM (`nonparametric_rom` in the code block above) when they meant to fit the parametric ROM (`parametric_rom`).
+
+Here is the inheritance hierarchy for the affine-parametric ROM classes.
 
 :::{image} ../../images/romclasses-affine.png
 :align: center
 :width: 80 %
+:::
+
+:::{tip}
+Similar to parametric operators, a group of new parametric ROM classes can usually be implemented by writing an intermediate class that does most of the work, then writing child classes for the discrete and continuous settings which each set `_ModelClass` appropriately.
+For instance, the intermediate class can often implement `fit()`, `save()`, and `load()`, and `_BaseParametricROM` implements `evaluate()`, `predict()`, and `jacobian()` already.
+However, it is important to have tailored signatures and detailed docstrings for `fit()` and `predict()`, so these should be carefully defined for every public-facing class.
 :::
 
 

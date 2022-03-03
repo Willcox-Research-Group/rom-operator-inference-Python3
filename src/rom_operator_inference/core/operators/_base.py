@@ -32,7 +32,12 @@ class _BaseNonparametricOperator(abc.ABC):
 
     @abc.abstractmethod
     def __call__(*args, **kwargs):                          # pragma: no cover
+        """Apply the operator mapping to the given states / inputs."""
         raise NotImplementedError
+
+    def evaluate(self, *args, **kwargs):
+        """Apply the operator mapping to the given states / inputs."""
+        return self(*args, **kwargs)
 
     @staticmethod
     def _validate_entries(entries):

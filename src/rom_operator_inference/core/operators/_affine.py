@@ -38,7 +38,7 @@ class _AffineOperator(_BaseParametricOperator):
         Operator matrices in each term of the affine expansion (A_{i}'s).
     """
     def __init__(self, coefficient_functions, matrices):
-        """Save the coefficient functions and component matrices.
+        """Save the coefficient functions and operator matrices.
 
         Parameters
         ----------
@@ -54,7 +54,7 @@ class _AffineOperator(_BaseParametricOperator):
         if any(not callable(theta) for theta in coefficient_functions):
             raise TypeError("coefficient functions of affine operator "
                             "must be callable")
-        self.__ceofficient_functions = coefficient_functions
+        self.__coefficient_functions = coefficient_functions
 
         # Check that the right number of terms are included.
         # if (n_coeffs := len(coeffs) != (n_matrices := len(matrices)):
@@ -70,7 +70,7 @@ class _AffineOperator(_BaseParametricOperator):
     @property
     def coefficient_functions(self):
         """Coefficient scalar-valued functions in the affine expansion."""
-        return self.__ceofficient_functions
+        return self.__coefficient_functions
 
     @property
     def matrices(self):
@@ -79,7 +79,7 @@ class _AffineOperator(_BaseParametricOperator):
 
     @property
     def shape(self):
-        """Shape: the shape of the component matrices."""
+        """Shape: the shape of the operator matrices."""
         return self.matrices[0].shape
 
     @staticmethod
@@ -129,7 +129,7 @@ class _AffineOperator(_BaseParametricOperator):
 
 
 class AffineConstantOperator(_AffineOperator):
-    """Constant operator with affine structure, i.e.,
+    """Constant operator with affine parametric structure, i.e.,
 
         c(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * c_{i}.
 
@@ -147,7 +147,7 @@ class AffineConstantOperator(_AffineOperator):
 
 
 class AffineLinearOperator(_AffineOperator):
-    """Linear operator with affine structure, i.e.,
+    """Linear operator with affine parametric structure, i.e.,
 
         A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i}.
 
@@ -165,7 +165,7 @@ class AffineLinearOperator(_AffineOperator):
 
 
 class AffineQuadraticOperator(_AffineOperator):
-    """Quadratic operator with affine structure, i.e.,
+    """Quadratic operator with affine parametric structure, i.e.,
 
         H(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * H_{i}.
 
@@ -183,7 +183,7 @@ class AffineQuadraticOperator(_AffineOperator):
 
 
 class AffineCubicOperator(_AffineOperator):
-    """Cubic operator with affine structure, i.e.,
+    """Cubic operator with affine parametric structure, i.e.,
 
         G(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * G_{i}.
 

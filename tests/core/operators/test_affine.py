@@ -6,6 +6,8 @@ import numpy as np
 
 import rom_operator_inference as opinf
 
+from .. import _get_operators
+
 
 _module = opinf.core.operators._affine
 _base = opinf.core.operators._base
@@ -126,3 +128,46 @@ class TestAffineOperator:
 
         op2 = self.Dummy(funcs, matrices)
         assert op1 == op2
+
+
+def test_affineoperators(r=10, m=3, s=5):
+    """Test all affine operator classes by instantiating and calling."""
+    # Get nominal operators to play with.
+    c, A, H, G, B = _get_operators(r, m)
+
+    # Get interpolation data for each type of operator.
+    funcs = [np.sin, np.cos, np.exp]
+    cs = list(np.random.standard_normal((3,) + c.shape))
+    As = list(np.random.standard_normal((3,) + A.shape))
+    Hs = list(np.random.standard_normal((3,) + H.shape))
+    Gs = list(np.random.standard_normal((3,) + G.shape))
+    Bs = list(np.random.standard_normal((3,) + B.shape))
+
+    # Instantiate each affine operator.
+    caffineop = _module.AffineConstantOperator(funcs, cs)
+    Aaffineop = _module.AffineLinearOperator(funcs, As)
+    Haffineop = _module.AffineQuadraticOperator(funcs, Hs)
+    Gaffineop = _module.AffineCubicOperator(funcs, Gs)
+    Baffineop = _module.AffineLinearOperator(funcs, Bs)
+
+    # Call each affine operator on a new parameter.
+    p = .314159
+    c_new = caffineop(p)
+    assert isinstance(c_new, opinf.core.operators.ConstantOperator)
+    assert c_new.shape == c.shape
+
+    A_new = Aaffineop(p)
+    assert isinstance(A_new, opinf.core.operators.LinearOperator)
+    assert A_new.shape == A.shape
+
+    H_new = Haffineop(p)
+    assert isinstance(H_new, opinf.core.operators.QuadraticOperator)
+    assert H_new.shape == H.shape
+
+    G_new = Gaffineop(p)
+    assert isinstance(G_new, opinf.core.operators.CubicOperator)
+    assert G_new.shape == G.shape
+
+    B_new = Baffineop(p)
+    assert isinstance(B_new, opinf.core.operators.LinearOperator)
+    assert B_new.shape == B.shape
