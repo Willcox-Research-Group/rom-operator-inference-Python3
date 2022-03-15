@@ -1,0 +1,374 @@
+# core/interpolate/_base.py
+"""Base class for parametric reduced-order models where the parametric
+dependence of operators are handled with elementwise interpolation, i.e,
+    A(µ)[i,j] = Interpolator([µ1, µ2, ...], [A1[i,j], A2[i,j], ...])(µ).
+where µ1, µ2, ... are parameter values and A1, A2, ... are the corresponding
+operator matrices, e.g., A1 = A(µ1).
+
+Relevant operator classes are defined in core.operators._interpolate.
+"""
+
+__all__ = []
+
+import os
+import h5py
+import numpy as np
+import scipy.interpolate
+
+
+from .._base import _BaseROM, _BaseParametricROM
+from .. import operators
+
+
+class _InterpolatedOpInfROM(_BaseParametricROM):
+    """Base class for parametric reduced-order models where the parametric
+    dependence of operators are handled with elementwise interpolation, i.e,
+        A(µ)[i,j] = Interpolator([µ1, µ2, ...], [A1[i,j], A2[i,j], ...])(µ).
+    where µ1, µ2, ... are parameter values and A1, A2, ... are the
+    corresponding operator matrices, e.g., A1 = A(µ1). That is, individual
+    operators is learned for each training parameter, and those operators are
+    interpolated elementwise to construct operators for new parameter values.
+    """
+    # Must be specified by child classes.
+    _ModelFitClass = NotImplemented
+
+    def __init__(self, modelform, InterpolatorClass="auto"):
+        """Set the model form (ROM structure) and interpolator type.
+
+        Parameters
+        ----------
+        modelform : str containing 'c', 'A', 'H', and/or 'G'
+            Structure of the reduced-order model. Each character
+            indicates the presence of a different term in the model:
+            'A' : Linear state term Aq.
+            'H' : Quadratic state term H[q ⊗ q].
+            'G' : Cubic state term G[q ⊗ q ⊗ q].
+            For example, modelform=="AH" means f(q) = Aq + H[q ⊗ q].
+        InterpolatorClass : type or str
+            Class for elementwise operator interpolation. Must obey the syntax
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+            Convenience options:
+            * "cubicspline": scipy.interpolate.CubicSpline
+            * TODO
+            * "auto" (default): choose based on the parameter dimension.
+        """
+        _BaseParametricROM.__init__(self, modelform)
+
+        # Valiate the _ModelFitClass.
+        if not issubclass(self._ModelFitClass, _BaseROM):
+            raise RuntimeError("invalid _ModelFitClass "
+                               f"'{self._ModelFitClass.__name__}'")
+
+        # Save the interpolator class.
+        self.__autoIC = (InterpolatorClass == "auto")
+        if InterpolatorClass == "cubicspline":
+            self.InterpolatorClass = scipy.interpolate.CubicSpline
+        elif not isinstance(InterpolatorClass, str):
+            self.InterpolatorClass = InterpolatorClass
+        else:
+            raise ValueError("invalid InterpolatorClass "
+                             f"'{InterpolatorClass}'")
+
+    # Properties --------------------------------------------------------------
+    @property
+    def s(self):
+        """Number of training parameter samples, i.e., the number of data
+        points in the interpolation scheme.
+        """
+        return self.__s
+
+    def __len__(self):
+        """Length: number of training parameter samples, i.e., the number of
+        ROMs to interpolate between.
+        """
+        return self.s
+
+    # Fitting -----------------------------------------------------------------
+    def _check_parameters(self, parameters):
+        """Extract the parameter dimension and ensure it is consistent
+        across parameter samples.
+        """
+        shape = np.shape(parameters[0])
+        if any(np.shape(param) != shape for param in parameters):
+            raise ValueError("parameter dimension inconsistent across samples")
+        self.p = shape[0] if len(shape) else 1
+        self.__s = len(parameters)
+
+        # If required, select the interpolator based on parameter dimension.
+        if self.__autoIC:
+            if self.p == 1:
+                self.InterpolatorClass = scipy.interpolate.CubicSpline
+            else:                                   # pragma: no cover
+                raise NotImplementedError           # TODO
+
+    def _split_operator_list(self, known_operators):
+        """Unzip the known operators dictionary into separate dictionaries,
+        one for each parameter sample. For example:
+        {                                   [
+            "A" : [A1, A2, A3],                 {"A": A1, "H": H1},
+            "H" : [H1, None, H3],   -->         {"A": A2},
+        }                                       {"A": A3, "H": H3}
+                                            ]
+        Also check that the right number of operators is specified.
+
+        Parameters
+        ----------
+        known_operators : dict or None
+            Maps modelform keys to list of s operators.
+
+        Returns
+        -------
+        known_operators_list : list(dict) or None
+            List of s dictionarys mapping modelform keys to single operators.
+        """
+        if known_operators is None:
+            return None
+        if not isinstance(known_operators, dict):
+            raise TypeError("known_operators must be a dictionary")
+
+        # Check length of each list in the dictionary.
+        if not all(len(val) == self.s for val in known_operators.values()):
+            raise ValueError("known_operators dictionary must map modelform "
+                             f"keys to list of s = {self.s} ndarrays")
+
+        # "Unzip" the dictionary of lists to a list of dictionaries.
+        return [
+            {key: known_operators[key][i] for key in known_operators.keys()}
+            for i in range(self.s)
+        ]
+
+    def _check_number_of_training_datasets(self, datasets):
+        """Ensure that each data set has the same number of entries as
+        the number of parameter samples.
+
+        Parameters
+        ----------
+        datasets: list of (ndarray, str) tuples
+            Datasets paired with labels, e.g., [(Q, "states"), (dQ, "ddts")].
+        """
+        for data, label in datasets:
+            if len(data) != self.s:
+                raise ValueError(f"len({label}) = {len(data)} "
+                                 f"!= {self.s} = len(parameters)")
+
+    def _process_fit_arguments(self, basis, parameters, states, lhss, inputs,
+                               regularizers, known_operators):
+        """Do sanity checks, extract dimensions, and check data sizes."""
+        # Intialize reset.
+        self._clear()           # Clear all data (basis and operators).
+        self.basis = basis      # Store basis and (hence) reduced dimension.
+
+        # Validate parameters and set parameter dimension / num training sets.
+        self._check_parameters(parameters)
+
+        # Separate known operators into one dictionary per parameter sample.
+        knownops_list = self._split_operator_list(known_operators)
+        if knownops_list is not None and (not any((None in op)
+                                                  for op in knownops_list)):
+            # Fully intrusive case, nothing to learn with OpInf.
+            _null = [None] * self.s
+            return _null, _null, knownops_list
+
+        to_check = [
+            (states, "states"),
+            (lhss, self._LHS_ARGNAME),
+            (regularizers, "regularizers"),
+        ]
+
+        # Get state and input dimensions if needed.
+        if self.basis is None:
+            self.r = states[0].shape[0]
+        self._check_inputargs(inputs, "inputs")
+        if 'B' in self.modelform:
+            if self.m is None:
+                self.m = 1 if inputs[0].ndim == 1 else inputs[0].shape[0]
+            to_check.append((inputs, "inputs"))
+        else:
+            inputs = [None] * self.s
+
+        # Interpret regularizers argument.
+        _reg = regularizers
+        if _reg is None or np.isscalar(_reg) or len(_reg) != self.s:
+            regularizers = [regularizers] * self.s
+        else:
+            to_check.append((regularizers, "regularizers"))
+
+        # Check that the number of training sets is consistent.
+        self._check_number_of_training_datasets(to_check)
+
+        return inputs, regularizers, knownops_list
+
+    def _interpolate_roms(self, parameters, roms):
+        """Interpolate operators from a collection of non-parametric ROMs.
+
+        Parameters
+        ----------
+        parameters : (s, p) ndarray or (s,) ndarray
+            Parameter values corresponding to the training data, either
+            s p-dimensional vectors or s scalars (parameter dimension p = 1).
+        roms : list of s ROM objects (of a class derived from _BaseROM)
+            Trained non-parametric reduced-order models.
+        """
+        for key in self.modelform:
+            OperatorClass = operators.NonparametricOperators[key]
+            setattr(self, f"{key}_",
+                    OperatorClass(parameters, [
+                        getattr(rom, f"{key}_").entries for rom in roms
+                    ], self.InterpolatorClass))
+
+    def fit(self, basis, parameters, states, lhss, inputs=None,
+            regularizers=0, known_operators=None):
+        """Learn the reduced-order model operators from data.
+
+        Parameters
+        ----------
+        basis : (n, r) ndarray or None
+            Basis for the linear reduced space (e.g., POD basis matrix).
+            If None, statess and lhss are assumed to already be projected.
+        parameters : (s, p) ndarray or (s,) ndarray
+            Parameter values corresponding to the training data, either
+            s p-dimensional vectors or s scalars (parameter dimension p = 1).
+        states : list of s (n, k) or (r, k) ndarrays
+            State snapshots for each parameter value: `states[i]` corresponds
+            to `parameters[i]` and contains column-wise state data, i.e.,
+            `states[i][:,j]` is a single snapshot.
+            Data may be either full order (n rows) or reduced order (r rows).
+        lhss : list of s (n, k) or (r, k) ndarrays
+            Left-hand side data for ROM training corresponding to each
+            parameter value: `lhss[i]` corresponds to `parameters[i]` and
+            contains column-wise left-hand side data, i.e., `lhss[i][:,j]`
+            corresponds to the state snapshot `states[i][:,j]`.
+            Data may be either full order (n rows) or reduced order (r rows).
+            * Steady: forcing function.
+            * Discrete: column-wise next iteration
+            * Continuous: time derivative of the state
+        inputs : list of s (m, k) or (k,) ndarrays or None
+            Inputs for ROM training corresponding each parameter value:
+            `inputs[i]` corresponds to `parameters[i]` and contains
+            column-wise input data, i.e., `inputs[i][:,j]` corresponds to the
+            state snapshot `states[i][:,j]`.
+            If m = 1 (scalar input), then each `inputs[i]` may be a one-
+            dimensional array.
+            This argument is required if 'B' is in `modelform` but must be
+            None if 'B' is not in `modelform`.
+        regularizers : list of s (float >= 0, (d, d) ndarray, or r of these)
+            Tikhonov regularization factor(s) for each parameter value:
+            `regularizers[i]` is the regularization factor for the regression
+            using data corresponding to `parameters[i]`. See lstsq.solve().
+            Here, d is the number of unknowns in each decoupled least-squares
+            problem, e.g., d = r + m when `modelform`="AB".
+        known_operators : dict or None
+            Dictionary of known full-order operators at each parameter value.
+            Corresponding reduced-order operators are computed directly
+            through projection; remaining operators are inferred from data.
+            Keys must match the modelform; values a list of s ndarrays:
+            * 'c': (n,) constant term c.
+            * 'A': (n, n) linear state matrix A.
+            * 'H': (n, n**2) quadratic state matrix H.
+            * 'G': (n, n**3) cubic state matrix G.
+            * 'B': (n, m) input matrix B.
+            If operators are known for some parameter values but not others,
+            use None whenever the operator must be inferred, e.g., for
+            parameters = [µ1, µ2, µ3, µ4, µ5], if A1, A3, and A4 are known
+            linear state operators at µ1, µ2, and µ3, respectively, set
+            known_operators = {'A': [A1, None, A3, A4, None]}.
+
+        Returns
+        -------
+        self
+        """
+        args = [basis, parameters, states, lhss, inputs,
+                regularizers, known_operators]
+        inputs, regs_list, knownops_list = self._process_fit_arguments(*args)
+
+        # Distribute training data to individual OpInf problems.
+        nonparametric_roms = [
+            self._ModelFitClass(self.modelform).fit(
+                self.basis,
+                states[i], lhss[i], inputs[i],
+                regs_list[i], knownops_list[i]
+            ) for i in range(self.s)
+        ]
+        # TODO: separate with _[construct/evaluate]_solver() paradigm?
+
+        # Construct interpolated operators.
+        self._interpolate_roms(parameters, nonparametric_roms)
+
+        return self
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile, save_basis=True, overwrite=False):
+        """Serialize the ROM, saving it in HDF5 format.
+        The model can then be loaded with the load() class method.
+
+        Parameters
+        ----------
+        savefile : str
+            File to save to, with extension '.h5' (HDF5).
+        savebasis : bool
+            If True, save the basis as well as the reduced operators.
+            If False, only save reduced operators.
+        overwrite : bool
+            If True and the specified file already exists, overwrite the file.
+            If False and the specified file already exists, raise an error.
+        """
+        self._check_is_trained()
+
+        # Ensure the file is saved in HDF5 format.
+        if not savefile.endswith(".h5"):
+            savefile += ".h5"
+
+        # Prevent overwriting and existing file on accident.
+        if os.path.isfile(savefile) and not overwrite:
+            raise FileExistsError(f"{savefile} (use overwrite=True to ignore)")
+
+        with h5py.File(savefile, 'w') as hf:
+            # Store ROM modelform.
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["modelform"] = self.modelform
+
+            # Store basis (optionally) if it exists.
+            if (self.basis is not None) and save_basis:
+                hf.create_dataset("basis", data=self.basis)
+
+            # Store reduced operators.
+            for key, op in zip(self.modelform, self):
+                hf.create_dataset("parameters", data=op.parameters)
+                hf.create_dataset(f"operators/{key}_", data=op.matrices)
+
+    @classmethod
+    def load(cls, loadfile):
+        """Load a serialized ROM from an HDF5 file, created previously from
+        a ROM object's save() method.
+
+        Parameters
+        ----------
+        loadfile : str
+            File to load from, which should end in '.h5'.
+
+        Returns
+        -------
+        model : _NonparametricOpInfROM
+            Trained reduced-order model.
+        """
+        with h5py.File(loadfile, 'r') as data:
+            if "meta" not in data:
+                raise ValueError("invalid save format (meta/ not found)")
+            if "operators" not in data:
+                raise ValueError("invalid save format (operators/ not found)")
+
+            # Load metadata.
+            modelform = data["meta"].attrs["modelform"]
+
+            # Load basis if present.
+            basis = data["basis"][:] if ("basis" in data) else None
+
+            # Load operators.
+            operators = {}
+            for key in modelform:
+                OpClass = operators.NonparametricOperators[key]
+                operators[f"{key}_"] = OpClass(data[f"operators/{key}_"][:])
+
+        # Construct the model.
+        return cls(modelform)._set_operators(basis, **operators)
