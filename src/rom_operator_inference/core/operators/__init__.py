@@ -25,17 +25,11 @@ with elementwise interpolation between known operator matrices, i.e.,
     A(µ)[i,j] = Interpolator([µ1, µ2, ...], [A1[i,j], A2[i,j], ...])(µ),
 where µ1, µ2, ... are parameter values and A1, A2, ... are the corresponding
 operator matrices, e.g., A1 = A(µ1).
-There are different sets of classes for each kind of interpolation strategy.
-
-1D Cubic Spline Intepolation
-----------------------------
-These classes use scipy.interpolate.CubicSpline to do one-dimensional entrywise
-interpolation of the operator entries. The parameters µ must be scalars.
-* Spline1dConstantOperator: constant operators c(µ).
-* Spline1dLinearOperator: linear operators for state and input, A(µ) and B(µ).
-* Spline1dQuadraticOperator: quadratic operators H(µ).
-* Spline1dCubicOperator: quadratic operators G(µ).
-Used by Spline1d[Discrete|Continuous]OpInfROM.
+* InterpolatedConstantOperator: constant operators c(µ).
+* InterpolatedLinearOperator: linear operators for state and input, A(µ) and B(µ).
+* InterpolatedQuadraticOperator: quadratic operators H(µ).
+* InterpolatedCubicOperator: quadratic operators G(µ).
+Used by Interpolated[Discrete|Continuous]OpInfROM.
 
 Affine Operator Classes
 =======================

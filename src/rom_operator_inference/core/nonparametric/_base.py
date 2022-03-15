@@ -18,13 +18,13 @@ class _NonparametricOpInfROM(_BaseROM):
     # Properties --------------------------------------------------------------
     @property
     def operator_matrix_(self):
-        """r x d(r,m) Operator matrix O_ = [ c_ | A_ | H_ | G_ | B_ ]."""
+        """r x d(r, m) Operator matrix O_ = [ c_ | A_ | H_ | G_ | B_ ]."""
         self._check_is_trained()
         return np.column_stack([op.entries for op in self])
 
     @property
     def data_matrix_(self):
-        """k x d(r,m) Data matrix D = [ 1 | Q^T | (Q ⊗ Q)^T | ... ]."""
+        """k x d(r, m) Data matrix D = [ 1 | Q^T | (Q ⊗ Q)^T | ... ]."""
         if hasattr(self, "solver_"):
             return self.solver_.A if (self.solver_ is not None) else None
         raise AttributeError("data matrix not constructed (call fit())")
@@ -42,19 +42,19 @@ class _NonparametricOpInfROM(_BaseROM):
         data0, label0 = datasets[0]
         for data, label in datasets:
             if label == "inputs":
-                if self.m != 1:     # inputs.shape = (m,k)
+                if self.m != 1:     # inputs.shape = (m, k)
                     if data.ndim != 2:
                         raise ValueError("inputs must be two-dimensional "
                                          "(m > 1)")
                     if data.shape[0] != self.m:
                         raise ValueError(f"inputs.shape[0] = {data.shape[0]} "
                                          f"!= {self.m} = m")
-                else:               # inputs.shape = (1,k) or (k,)
-                    if data.ndim not in (1,2):
+                else:               # inputs.shape = (1, k) or (k,)
+                    if data.ndim not in (1, 2):
                         raise ValueError("inputs must be one- or "
                                          "two-dimensional (m = 1)")
                     if data.ndim == 2 and data.shape[0] != 1:
-                        raise ValueError("inputs.shape != (1,k) (m = 1)")
+                        raise ValueError("inputs.shape != (1, k) (m = 1)")
             else:
                 if data.ndim != 2:
                     raise ValueError(f"{label} must be two-dimensional")
@@ -73,28 +73,28 @@ class _NonparametricOpInfROM(_BaseROM):
 
         Parameters
         ----------
-        basis : (n,r) ndarray or None
+        basis : (n, r) ndarray or None
             Basis for the linear reduced space (e.g., POD basis matrix).
             If None, states and lhs are assumed to already be projected.
-        states : (n,k) or (r,k) ndarray
+        states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data. Each column is one snapshot,
             either full order (n rows) or projected to reduced order (r rows).
-        lhs : (n,k) or (r,k) ndarray
+        lhs : (n, k) or (r, k) ndarray
             Left-hand side data for ROM training. Each column corresponds to
             one snapshot, either full order (n rows) or reduced order (r rows).
             * Steady: forcing function.
             * Discrete: column-wise next iteration
             * Continuous: time derivative of the state
-        inputs : (m,k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
 
         Returns
         -------
-        states_ : (r,k) ndarray
+        states_ : (r, k) ndarray
             Projected state snapshots.
-        lhs_ : (r,k) ndarray
+        lhs_ : (r, k) ndarray
             Projected left-hand-side data.
         """
         # Clear all data (basis and operators).
@@ -146,15 +146,15 @@ class _NonparametricOpInfROM(_BaseROM):
 
         Parameters
         ----------
-        states_ : (r,k) ndarray
+        states_ : (r, k) ndarray
             Column-wise projected snapshot training data.
-        inputs : (m,k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input).
 
         Returns
         -------
-        D : (k,d(r,m)) ndarray
+        D : (k, d(r, m)) ndarray
             Operator Inference data matrix (no regularization).
         """
         to_infer = {key for key in self.modelform
@@ -183,7 +183,7 @@ class _NonparametricOpInfROM(_BaseROM):
 
         Parameters
         ----------
-        Ohat : (r,d(r,m)) ndarray
+        Ohat : (r, d(r, m)) ndarray
             Block matrix of ROM operator coefficients, the transpose of the
             solution to the Operator Inference linear least-squares problem.
         """
@@ -222,23 +222,23 @@ class _NonparametricOpInfROM(_BaseROM):
 
         Parameters
         ----------
-        basis : (n,r) ndarray or None
+        basis : (n, r) ndarray or None
             Basis for the linear reduced space (e.g., POD basis matrix).
             If None, states and lhs are assumed to already be projected.
-        states : (n,k) or (r,k) ndarray
+        states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data. Each column is one snapshot,
             either full order (n rows) or projected to reduced order (r rows).
-        lhs : (n,k) or (r,k) ndarray
+        lhs : (n, k) or (r, k) ndarray
             Left-hand side data for ROM training. Each column corresponds to
             one snapshot, either full order (n rows) or reduced order (r rows).
             * Steady: forcing function.
             * Discrete: column-wise next iteration
             * Continuous: time derivative of the state
-        inputs : (m,k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-        regularizer : float >= 0, (d,d) ndarray or list of r of these
+        regularizer : float >= 0, (d, d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB". This parameter is used here
@@ -249,10 +249,10 @@ class _NonparametricOpInfROM(_BaseROM):
             through projection; remaining operators are inferred.
             Keys must match the modelform, values are ndarrays:
             * 'c': (n,) constant term c.
-            * 'A': (n,n) linear state matrix A.
-            * 'H': (n,n**2) quadratic state matrix H.
-            * 'G': (n,n**3) cubic state matrix G.
-            * 'B': (n,m) input matrix B.
+            * 'A': (n, n) linear state matrix A.
+            * 'H': (n, n**2) quadratic state matrix H.
+            * 'G': (n, n**3) cubic state matrix G.
+            * 'B': (n, m) input matrix B.
         """
         states_, lhs_ = self._process_fit_arguments(basis, states, lhs, inputs,
                                                     known_operators)
@@ -269,7 +269,7 @@ class _NonparametricOpInfROM(_BaseROM):
 
         Parameters
         ----------
-        regularizer : float >= 0, (d,d) ndarray or list of r of these
+        regularizer : float >= 0, (d, d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
@@ -287,23 +287,23 @@ class _NonparametricOpInfROM(_BaseROM):
 
         Parameters
         ----------
-        basis : (n,r) ndarray or None
+        basis : (n, r) ndarray or None
             Basis for the linear reduced space (e.g., POD basis matrix).
             If None, states and lhs are assumed to already be projected.
-        states : (n,k) or (r,k) ndarray
+        states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data. Each column is one snapshot,
             either full order (n rows) or projected to reduced order (r rows).
-        lhs : (n,k) or (r,k) ndarray
+        lhs : (n, k) or (r, k) ndarray
             Left-hand side data for ROM training. Each column corresponds to
             one snapshot, either full order (n rows) or reduced order (r rows).
             * Steady: forcing function.
             * Discrete: column-wise next iteration
             * Continuous: time derivative of the state
-        inputs : (m,k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-        regularizer : float >= 0, (d,d) ndarray or list of r of these
+        regularizer : float >= 0, (d, d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
@@ -313,10 +313,10 @@ class _NonparametricOpInfROM(_BaseROM):
             through projection; remaining operators are inferred from data.
             Keys must match the modelform; values are ndarrays:
             * 'c': (n,) constant term c.
-            * 'A': (n,n) linear state matrix A.
-            * 'H': (n,n**2) quadratic state matrix H.
-            * 'G': (n,n**3) cubic state matrix G.
-            * 'B': (n,m) input matrix B.
+            * 'A': (n, n) linear state matrix A.
+            * 'H': (n, n**2) quadratic state matrix H.
+            * 'G': (n, n**3) cubic state matrix G.
+            * 'B': (n, m) input matrix B.
 
         Returns
         -------

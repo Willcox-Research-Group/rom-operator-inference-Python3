@@ -543,7 +543,7 @@ class _BaseParametricROM(_BaseROM):
         """
         return self._ModelClass
 
-    def __init__(self, modelform,):
+    def __init__(self, modelform):
         """Set the modelform.
 
         Parameters
