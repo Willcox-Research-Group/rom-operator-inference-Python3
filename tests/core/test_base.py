@@ -593,6 +593,7 @@ class TestBaseROM:
         assert np.allclose(rom.evaluate(q_, u), y_)
 
 
+# TODO
 # class TestBaseParametricROM:
 #     """Test core._base._BaseParametricROM."""
 #

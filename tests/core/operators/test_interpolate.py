@@ -3,6 +3,7 @@
 
 import pytest
 import numpy as np
+import scipy.interpolate as interp
 
 import rom_operator_inference as opinf
 
@@ -40,7 +41,6 @@ class TestIterpolatedOperator:
     class Dummy(_module._InterpolatedOperator):
         """Instantiable version of _InterpolatedOperator."""
         _OperatorClass = _OperatorDummy
-        _InterpolatorClass = _InterpolatorDummy
 
     @staticmethod
     def _set_up_interpolation_data(numpoints=4, shape=(10, 10)):
@@ -55,36 +55,38 @@ class TestIterpolatedOperator:
 
         # Try with different number of interpolation points and matrices.
         with pytest.raises(ValueError) as ex:
-            self.Dummy(params, matrices[:-1])
+            self.Dummy(params, matrices[:-1], _InterpolatorDummy)
         assert ex.value.args[0] == \
-            f"{len(params)} = len(parameter_values) " \
+            f"{len(params)} = len(parameters) " \
             f"!= len(matrices) = {len(matrices[:-1])}"
 
         # Try with parameters of different shapes.
         params_bad = list(np.random.random((len(matrices), 2)))
         params_bad[0] = np.random.random(3)
         with pytest.raises(ValueError) as ex:
-            self.Dummy(params_bad, matrices)
+            self.Dummy(params_bad, matrices, _InterpolatorDummy)
         assert ex.value.args[0] == "parameter sample shapes inconsistent"
 
         # Try with matrices of different shapes.
         with pytest.raises(ValueError) as ex:
-            self.Dummy(params, matrices[:-1] + [np.random.random((10,2))])
+            self.Dummy(params,
+                       matrices[:-1] + [np.random.random((10,2))],
+                       _InterpolatorDummy)
         assert ex.value.args[0] == "operator matrix shapes inconsistent"
 
         # Correct usage.
-        self.Dummy(params, matrices)
+        self.Dummy(params, matrices, _InterpolatorDummy)
 
     def test_properties(self):
         """Test _InterpolatedOperator properties,
-        parameter_values, matrices, shape, and interpolator.
+        parameters, matrices, shape, and interpolator.
         """
         params, matrices = self._set_up_interpolation_data()
-        op = self.Dummy(params, matrices)
+        op = self.Dummy(params, matrices, _InterpolatorDummy)
 
-        # Check parameter_values / matrices attributes.
-        assert op.parameter_values is params
-        assert op.matrices is matrices
+        # Check parameters / matrices attributes.
+        assert op.parameters is params
+        assert np.allclose(op.matrices, matrices)
         assert isinstance(op.interpolator, _InterpolatorDummy)
 
         # Check shape attribute.
@@ -92,7 +94,7 @@ class TestIterpolatedOperator:
             assert op.shape == A.shape
 
         # Ensure these attributes are all properties.
-        for attr in ["parameter_values", "matrices", "shape", "interpolator"]:
+        for attr in ["parameters", "matrices", "shape", "interpolator"]:
             with pytest.raises(AttributeError) as ex:
                 setattr(op, attr, 10)
             assert ex.value.args[0] == "can't set attribute"
@@ -101,7 +103,7 @@ class TestIterpolatedOperator:
         """Test _InterpolatedOperator.__call__()."""
         params, matrices = self._set_up_interpolation_data()
 
-        op = self.Dummy(params, matrices)
+        op = self.Dummy(params, matrices, _InterpolatorDummy)
         A = op(.314159)
         assert isinstance(A, _OperatorDummy)
         assert A.shape == op.shape
@@ -109,27 +111,29 @@ class TestIterpolatedOperator:
     def test_eq(self):
         """Test _InterpolatedOperator.__eq__()."""
         params, matrices = self._set_up_interpolation_data()
-        op1 = self.Dummy(params, matrices)
-        op2 = self.Dummy(params[:-1], matrices[:-1])
+        op1 = self.Dummy(params, matrices, _InterpolatorDummy)
+        op2 = self.Dummy(params[:-1], matrices[:-1], _InterpolatorDummy)
 
         assert op1 != 1
         assert op1 != op2
 
-        op2 = self.Dummy(params, [A[:,:-1] for A in matrices])
+        op2 = self.Dummy(params, [A[:,:-1] for A in matrices],
+                         _InterpolatorDummy)
         assert op1 != op2
 
-        op2 = self.Dummy(np.random.random((len(params), 11)), matrices)
+        op2 = self.Dummy(np.random.random((len(params), 11)), matrices,
+                         _InterpolatorDummy)
         assert op1 != op2
 
-        op2 = self.Dummy(params - 1, matrices)
+        op2 = self.Dummy(params - 1, matrices, _InterpolatorDummy)
         assert op1 != op2
 
-        op2 = self.Dummy(params, matrices)
+        op2 = self.Dummy(params, matrices, _InterpolatorDummy)
         assert op1 == op2
 
 
 def test_spline1Doperators(r=10, m=3, s=5):
-    """Test all Spline1d operator classes by instantiating and calling."""
+    """Test InterpolatedOperator classes with scipy.interpolate.CubicSpline."""
     # Get nominal operators to play with.
     c, A, H, G, B = _get_operators(r, m)
 
@@ -142,11 +146,16 @@ def test_spline1Doperators(r=10, m=3, s=5):
     Bs = [B + p**2 + np.random.standard_normal(B.shape)/20 for p in params]
 
     # Instantiate each Spline1d operator.
-    csplineop = _module.Spline1dConstantOperator(params, cs)
-    Asplineop = _module.Spline1dLinearOperator(params, As)
-    Hsplineop = _module.Spline1dQuadraticOperator(params, Hs)
-    Gsplineop = _module.Spline1dCubicOperator(params, Gs)
-    Bsplineop = _module.Spline1dLinearOperator(params, Bs)
+    csplineop = _module.InterpolatedConstantOperator(params, cs,
+                                                     interp.CubicSpline)
+    Asplineop = _module.InterpolatedLinearOperator(params, As,
+                                                   interp.CubicSpline)
+    Hsplineop = _module.InterpolatedQuadraticOperator(params, Hs,
+                                                      interp.CubicSpline)
+    Gsplineop = _module.InterpolatedCubicOperator(params, Gs,
+                                                  interp.CubicSpline)
+    Bsplineop = _module.InterpolatedLinearOperator(params, Bs,
+                                                   interp.CubicSpline)
 
     # Call each Spline1d operator on a new parameter.
     p = .314159

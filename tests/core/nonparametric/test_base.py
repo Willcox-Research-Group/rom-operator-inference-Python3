@@ -72,7 +72,7 @@ class TestNonparametricOpInfROM:
 
         rom.modelform = "c"
         rom._construct_solver(None, Q, Qdot, inputs=None)
-        assert np.all(rom.data_matrix_ == np.ones((k,1)))
+        assert np.all(rom.data_matrix_ == np.ones((k, 1)))
 
     # Fitting -----------------------------------------------------------------
     def test_check_training_data_shapes(self):
@@ -118,13 +118,13 @@ class TestNonparametricOpInfROM:
 
         # Try with bad dimension in inputs with m = 1.
         rom.m = 1
-        args = [(U.reshape(1,1,-1), "inputs")]
+        args = [(U.reshape(1, 1,-1), "inputs")]
         _test(args, "inputs must be one- or two-dimensional (m = 1)")
 
         # Try with bad two-dimensional inputs with m = 1.
         rom.m = 1
-        args = [(U.reshape(-1,1), "inputs")]
-        _test(args, "inputs.shape != (1,k) (m = 1)")
+        args = [(U.reshape(-1, 1), "inputs")]
+        _test(args, "inputs.shape != (1, k) (m = 1)")
 
         # Correct usage.
         args = [(Q, "states"), (dQ, "dQ")]
@@ -220,11 +220,11 @@ class TestNonparametricOpInfROM:
                 rom.m = m
             D = rom._assemble_data_matrix(Q_, U)
             d = opinf.lstsq.lstsq_size(form, r, m if 'B' in form else 0)
-            assert D.shape == (k,d)
+            assert D.shape == (k, d)
 
             # Spot check.
             if form == "c":
-                assert np.allclose(D, np.ones((k,1)))
+                assert np.allclose(D, np.ones((k, 1)))
             elif form == "H":
                 assert np.allclose(D, opinf.utils.kron2c(Q_).T)
             elif form == "G":
@@ -244,10 +244,10 @@ class TestNonparametricOpInfROM:
         """Test _NonparametricOpInfROM._extract_operators()."""
         shapes = {
                     "c_": (r,),
-                    "A_": (r,r),
-                    "H_": (r,r*(r+1)//2),
-                    "G_": (r,r*(r+1)*(r+2)//6),
-                    "B_": (r,m),
+                    "A_": (r, r),
+                    "H_": (r, r*(r+1)//2),
+                    "G_": (r, r*(r+1)*(r+2)//6),
+                    "B_": (r, m),
                  }
 
         rom = self.Dummy("")
@@ -258,7 +258,7 @@ class TestNonparametricOpInfROM:
             if 'B' in form:
                 rom.m = m
             d = opinf.lstsq.lstsq_size(form, r, rom.m)
-            Ohat = np.random.random((r,d))
+            Ohat = np.random.random((r, d))
             rom._extract_operators(Ohat)
             for prefix in MODELFORM_KEYS:
                 attr = prefix+'_'
@@ -313,7 +313,7 @@ class TestNonparametricOpInfROM:
             os.remove(target)
 
         # Get a test model.
-        Vr = np.random.random((n,r))
+        Vr = np.random.random((n, r))
         rom = _trainedmodel(self.Dummy, "cAHGB", Vr, m)
 
         def _checkfile(filename, rom, hasbasis):
@@ -409,7 +409,7 @@ class TestNonparametricOpInfROM:
     def test_load(self, n=20, m=2, r=5, target="_loadmodeltest.h5"):
         """Test core.nonparametric._base._NonparametricOpInfROM.load()."""
         # Get test operators.
-        Vr = np.random.random((n,r))
+        Vr = np.random.random((n, r))
         c_, A_, H_, G_, B_ = _get_operators(n=r, m=m)
 
         # Clean up after old tests if needed.

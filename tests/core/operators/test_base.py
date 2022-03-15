@@ -29,6 +29,8 @@ class TestBaseNonparametricOperator:
         A = np.random.random((10,11))
         op = self.Dummy(A)
         assert op.entries is A
+        op(10)
+        op.evaluate(20)
 
     def test_validate_entries(self):
         """Test _BaseNonparametricOperator._validate_entries()."""
