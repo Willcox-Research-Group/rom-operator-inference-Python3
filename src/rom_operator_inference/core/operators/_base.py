@@ -6,11 +6,23 @@ Classes
 * _BaseNonparametricOperator: base for operators without parameter dependence.
 * _BaseParametricOperator: base for operators with parameter dependence.
 """
+# TODO: model persistence: save() / load()? Allow argument to each to be
+# an open HDF5 node or a file name?
 
-__all__ = []
+__all__ = [
+    "is_operator",
+]
 
 import abc
 import numpy as np
+
+
+def is_operator(op):
+    """Return True if `op` is a valid Operator object."""
+    return isinstance(op, (
+        _BaseNonparametricOperator,
+        _BaseParametricOperator)
+    )
 
 
 class _BaseNonparametricOperator(abc.ABC):

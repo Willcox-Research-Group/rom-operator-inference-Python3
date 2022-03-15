@@ -49,8 +49,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
         Object that constructs the operator at new parameter values, i.e.,
         >>> new_operator_entries = interpolator(new_parameter)
     """
-    def __init__(self, parameters, matrices, InterpolatorClass,
-                 **kwargs):
+    def __init__(self, parameters, matrices, InterpolatorClass):
         """Construct the elementwise operator interpolator.
 
         Parameters
@@ -64,8 +63,6 @@ class _InterpolatedOperator(_BaseParametricOperator):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
             This is usually a class from scipy.interpolate.
-        kwargs
-            Additional arguments for the interpolator.
         """
         _BaseParametricOperator.__init__(self)
 
@@ -85,8 +82,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
         # Construct the spline.
         self.__parameters = parameters
         self.__matrices = matrices
-        self.__interpolator = InterpolatorClass(self.parameters,
-                                                self.matrices, **kwargs)
+        self.__interpolator = InterpolatorClass(self.parameters, self.matrices)
 
     @property
     def parameters(self):                            # pragma: no cover

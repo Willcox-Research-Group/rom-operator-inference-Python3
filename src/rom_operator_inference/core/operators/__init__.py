@@ -44,6 +44,7 @@ where θ_{i} are scalar-valued functions and A_{i} are matrices.
 Used by Affine[Discrete|Continuous]OpInfROM.
 """
 
+from ._base import *
 from ._nonparametric import *
 from ._affine import *
 from ._interpolate import *

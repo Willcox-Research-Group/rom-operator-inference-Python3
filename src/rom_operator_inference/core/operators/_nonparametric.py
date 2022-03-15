@@ -7,6 +7,7 @@ __all__ = [
             "QuadraticOperator",
             # CrossQuadraticOperator",
             "CubicOperator",
+            "NonparametricOperators",
           ]
 
 import numpy as np
@@ -139,3 +140,13 @@ class CubicOperator(_BaseNonparametricOperator):
 
     def __call__(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
+
+
+# Dictionary relating modelform keys to operator classes.
+NonparametricOperators = {
+    "c": ConstantOperator,
+    "A": LinearOperator,
+    "H": QuadraticOperator,
+    "G": CubicOperator,
+    "B": LinearOperator,
+}

@@ -27,7 +27,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
     Parameters
     ----------
     modelform : str containing 'c', 'A', 'H', and/or 'G'
-        The structure of the reduced-order model. Each character
+        Structure of the reduced-order model. Each character
         indicates the presence of a different term in the model:
         'A' : Linear state term Aq.
         'H' : Quadratic state term H[q ⊗ q].
@@ -74,7 +74,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         Parameters
         ----------
         basis : (n,r) ndarray or None
-            The basis for the linear reduced space (e.g., POD basis matrix).
+            Basis for the linear reduced space (e.g., POD basis matrix).
             If None, states is assumed to already be projected (r,k).
         states : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
@@ -195,7 +195,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         Parameters
         ----------
         basis : (n,r) ndarray or None
-            The basis for the linear reduced space (e.g., POD basis matrix).
+            Basis for the linear reduced space (e.g., POD basis matrix).
             If None, states is assumed to already be projected (r,k).
         states : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
@@ -300,10 +300,10 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
 class ContinuousOpInfROM(_NonparametricOpInfROM):
     """Base class for models that solve the continuous (ODE) ROM problem,
 
-        dx / dt = f(t, q(t), u(t)),         q(0) = q0.
+        dq / dt = f(t, q(t), u(t)),         q(0) = q0.
 
-    The problem may also be parametric, i.e., q and f may depend on an
-    independent parameter µ.
+    The structure of f() is user specified, and the corresponding reduced
+    operators are inferred through a least-squares regression.
     """
     _LHS_ARGNAME = "ddts"
     _LHS_LABEL = "dq / dt"
@@ -360,7 +360,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         Parameters
         ----------
         basis : (n,r) ndarray or None
-            The basis for the linear reduced space (e.g., POD basis matrix).
+            Basis for the linear reduced space (e.g., POD basis matrix).
             If None, states and ddts are assumed to already be projected (r,k).
         states : (n,k) or (r,k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
