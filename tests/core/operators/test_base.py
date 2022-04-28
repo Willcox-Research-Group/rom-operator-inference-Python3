@@ -117,7 +117,7 @@ class TestBaseParametricOperator:
         assert ex.value.args[0] == "invalid OperatorClass 'int'"
 
     def test_check_shape_consistency(self):
-        """Test _BaseNonparametricOperator._check_shape_consistency()."""
+        """Test _BaseParametricOperator._check_shape_consistency()."""
         X = np.arange(12).reshape((3, 4))
 
         matrices = [X, X, X.T, X]
@@ -127,3 +127,35 @@ class TestBaseParametricOperator:
 
         matrices = [X, X+1, X/2, X*0]
         self.Dummy._check_shape_consistency(matrices, "arguments")
+
+    def test_set_parameter_dimension(self):
+        """Test _BaseParametricOperator._set_parameter_dimension()."""
+        dummy = self.Dummy()
+
+        dummy._set_parameter_dimension(np.empty(6))
+        assert dummy.p == 1
+
+        dummy._set_parameter_dimension(np.empty((10, 4)))
+        assert dummy.p == 4
+
+        with pytest.raises(ValueError) as ex:
+            dummy._set_parameter_dimension(np.empty((7, 5, 3)))
+        assert ex.value.args[0] == \
+            "parameter values must be scalars or 1D arrays"
+
+    def test_check_parameter_dimension(self):
+        """Test _BaseParametricOperator._check_parameter_dimension()."""
+        dummy = self.Dummy()
+        dummy._set_parameter_dimension(np.empty((10, 4)))
+        assert dummy.p == 4
+
+        with pytest.raises(ValueError) as ex:
+            dummy._check_parameter_dimension([1, 1])
+        assert ex.value.args[0] == "expected parameter of shape (4,)"
+
+        with pytest.raises(ValueError) as ex:
+            dummy._check_parameter_dimension(2)
+        assert ex.value.args[0] == "expected parameter of shape (4,)"
+
+        dummy._check_parameter_dimension(np.arange(4))
+        dummy._check_parameter_dimension((9, 7, 5, 3))

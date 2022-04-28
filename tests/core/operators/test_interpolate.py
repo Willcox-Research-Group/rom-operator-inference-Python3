@@ -104,6 +104,7 @@ class TestIterpolatedOperator:
         params, matrices = self._set_up_interpolation_data()
 
         op = self.Dummy(params, matrices, _InterpolatorDummy)
+
         A = op(.314159)
         assert isinstance(A, _OperatorDummy)
         assert A.shape == op.shape
@@ -132,52 +133,61 @@ class TestIterpolatedOperator:
         assert op1 == op2
 
 
-def test_spline1Doperators(r=10, m=3, s=5):
-    """Test InterpolatedOperator classes with scipy.interpolate.CubicSpline."""
+def _test_1Doperators(InterpolatorClass, r=10, m=3, s=5):
+    """Test InterpolatedOperator classes with 1D parameter data."""
     # Get nominal operators to play with.
     c, A, H, G, B = _get_operators(r, m)
 
     # Get interpolation data for each type of operator.
-    params = np.linspace(0, 1, s)
+    params = np.sort(np.linspace(0, 1, s) + np.random.standard_normal(s)/40)
     cs = [c + p**2 + np.random.standard_normal(c.shape)/20 for p in params]
     As = [A + p**2 + np.random.standard_normal(A.shape)/20 for p in params]
     Hs = [H + p**2 + np.random.standard_normal(H.shape)/20 for p in params]
     Gs = [G + p**2 + np.random.standard_normal(G.shape)/20 for p in params]
     Bs = [B + p**2 + np.random.standard_normal(B.shape)/20 for p in params]
 
-    # Instantiate each Spline1d operator.
-    csplineop = _module.InterpolatedConstantOperator(params, cs,
-                                                     interp.CubicSpline)
-    Asplineop = _module.InterpolatedLinearOperator(params, As,
-                                                   interp.CubicSpline)
-    Hsplineop = _module.InterpolatedQuadraticOperator(params, Hs,
-                                                      interp.CubicSpline)
-    Gsplineop = _module.InterpolatedCubicOperator(params, Gs,
-                                                  interp.CubicSpline)
-    Bsplineop = _module.InterpolatedLinearOperator(params, Bs,
-                                                   interp.CubicSpline)
+    # Instantiate each 1d-parametric operator.
+    cinterp = _module.InterpolatedConstantOperator(params, cs,
+                                                   InterpolatorClass)
+    Ainterp = _module.InterpolatedLinearOperator(params, As, InterpolatorClass)
+    Hinterp = _module.InterpolatedQuadraticOperator(params, Hs,
+                                                    InterpolatorClass)
+    Ginterp = _module.InterpolatedCubicOperator(params, Gs, InterpolatorClass)
+    Binterp = _module.InterpolatedLinearOperator(params, Bs, InterpolatorClass)
 
     # Call each Spline1d operator on a new parameter.
-    p = .314159
-    c_new = csplineop(p)
+    parameter = .314159
+    c_new = cinterp(parameter)
     assert isinstance(c_new, opinf.core.operators.ConstantOperator)
     assert c_new.shape == c.shape
 
-    A_new = Asplineop(p)
+    A_new = Ainterp(parameter)
     assert isinstance(A_new, opinf.core.operators.LinearOperator)
     assert A_new.shape == A.shape
 
-    H_new = Hsplineop(p)
+    H_new = Hinterp(parameter)
     assert isinstance(H_new, opinf.core.operators.QuadraticOperator)
     assert H_new.shape == H.shape
 
-    G_new = Gsplineop(p)
+    G_new = Ginterp(parameter)
     assert isinstance(G_new, opinf.core.operators.CubicOperator)
     assert G_new.shape == G.shape
 
-    B_new = Bsplineop(p)
+    B_new = Binterp(parameter)
     assert isinstance(B_new, opinf.core.operators.LinearOperator)
     assert B_new.shape == B.shape
 
+    with pytest.raises(ValueError) as ex:
+        Ainterp([parameter, parameter, parameter])
+    assert ex.value.args[0] == "expected parameter of shape (1,)"
 
-# TODO: interpolation options other than 1D cubic splines.
+
+def test_1Doperators():
+    """Test InterpolatedOperator classes with using all 1D interpolators
+    from scipy.interpolate.
+    """
+    _test_1Doperators(interp.Akima1DInterpolator)
+    _test_1Doperators(interp.BarycentricInterpolator)
+    _test_1Doperators(interp.CubicSpline)
+    _test_1Doperators(interp.KroghInterpolator)
+    _test_1Doperators(interp.PchipInterpolator)

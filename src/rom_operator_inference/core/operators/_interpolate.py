@@ -88,7 +88,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
         self.__interpolator = InterpolatorClass(self.parameters, self.matrices)
 
     @property
-    def parameters(self):                            # pragma: no cover
+    def parameters(self):
         """Parameter values at which the operators matrices are known."""
         return self.__parameters
 
