@@ -35,11 +35,13 @@ class _InterpolatedOperator(_BaseParametricOperator):
 
     Attributes
     ----------
-    parameters : list of `nterms` scalars or ndarrays
+    parameters : list of `nterms` scalars or (p,) ndarrays
         Parameter values at which the operators matrices are known.
     matrices : list of `nterms` ndarray, all of the same shape.
         Operator matrices corresponding to the `parameters`, i.e.,
         `matrices[i]` are the operator entries at the value `parameters[i]`.
+    p : int
+        Dimension of the parameter space.
     shape : tuple
         Shape of the operator entries.
     OperatorClass : class
@@ -54,7 +56,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
 
         Parameters
         ----------
-        parameters : list of `nterms` scalars or ndarrays
+        parameters : list of `nterms` scalars or 1D ndarrays
             Parameter values at which the operators matrices are known.
         matrices : list of `nterms` ndarray, all of the same shape.
             Operator entries corresponding to the `parameters`.
@@ -78,6 +80,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
         # Ensure parameter / matrix shapes are consistent.
         self._check_shape_consistency(parameters, "parameter sample")
         self._check_shape_consistency(matrices, "operator matrix")
+        self._set_parameter_dimension(parameters)
 
         # Construct the spline.
         self.__parameters = parameters
@@ -106,6 +109,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
 
     def __call__(self, parameter):
         """Return the nonparametric operator corresponding to the parameter."""
+        self._check_parameter_dimension(parameter)
         return self.OperatorClass(self.interpolator(parameter))
 
     def __len__(self):
@@ -144,11 +148,13 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
 
     Attributes
     ----------
-    parameters : list of `nterms` scalars or ndarrays
+    parameters : list of `nterms` scalars or (p,) ndarrays
         Parameter values at which the operators matrices are known.
     matrices : list of `nterms` ndarray, all of the same shape.
         Operator matrices corresponding to the `parameters`, i.e.,
         `matrices[i]` are the operator entries at the value `parameters[i]`.
+    p : int
+        Dimension of the parameter space.
     shape : tuple
         Shape of the operator entries.
     OperatorClass : class
@@ -171,11 +177,13 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
 
     Attributes
     ----------
-    parameters : list of `nterms` scalars or ndarrays
+    parameters : list of `nterms` scalars or (p,) ndarrays
         Parameter values at which the operators matrices are known.
     matrices : list of `nterms` ndarray, all of the same shape.
         Operator matrices corresponding to the `parameters`, i.e.,
         `matrices[i]` are the operator entries at the value `parameters[i]`.
+    p : int
+        Dimension of the parameter space.
     shape : tuple
         Shape of the operator entries.
     OperatorClass : class
@@ -198,11 +206,13 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
 
     Attributes
     ----------
-    parameters : list of `nterms` scalars or ndarrays
+    parameters : list of `nterms` scalars or (p,) ndarrays
         Parameter values at which the operators matrices are known.
     matrices : list of `nterms` ndarray, all of the same shape.
         Operator matrices corresponding to the `parameters`, i.e.,
         `matrices[i]` are the operator entries at the value `parameters[i]`.
+    p : int
+        Dimension of the parameter space.
     shape : tuple
         Shape of the operator entries.
     OperatorClass : class
@@ -225,11 +235,13 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
 
     Attributes
     ----------
-    parameters : list of `nterms` scalars or ndarrays
+    parameters : list of `nterms` scalars or (p,) ndarrays
         Parameter values at which the operators matrices are known.
     matrices : list of `nterms` ndarray, all of the same shape.
         Operator matrices corresponding to the `parameters`, i.e.,
         `matrices[i]` are the operator entries at the value `parameters[i]`.
+    p : int
+        Dimension of the parameter space.
     shape : tuple
         Shape of the operator entries.
     OperatorClass : class

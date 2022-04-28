@@ -94,6 +94,7 @@ class _BaseParametricOperator(abc.ABC):
     >>> isinstance(nonparametric_operator, _BaseNonparametricOperator)
     True
     """
+    # Properties --------------------------------------------------------------
     # Must be specified by child classes.
     _OperatorClass = NotImplemented
 
@@ -106,12 +107,22 @@ class _BaseParametricOperator(abc.ABC):
         """
         return self._OperatorClass
 
+    @property
+    def p(self):
+        """Dimension of the parameter space, i.e., individual parameters are
+        ndarrays of shape (p,) (or scalars if p = 1)
+        """
+        return self.__p
+
+    # Abstract methods --------------------------------------------------------
     @abc.abstractmethod
     def __init__(self):
         """Validate the OperatorClass.
         Child classes must implement this method, which should set and
         validate attributes needed to construct the parametric operator.
         """
+        self.__p = None
+
         # Validate the OperatorClass.
         if not issubclass(self.OperatorClass, _BaseNonparametricOperator):
             raise RuntimeError("invalid OperatorClass "
@@ -124,9 +135,25 @@ class _BaseParametricOperator(abc.ABC):
         """
         raise NotImplementedError
 
+    # Input validation (shape checking) ---------------------------------------
     @staticmethod
     def _check_shape_consistency(iterable, prefix="operator matrix"):
         """Ensure that each array in `iterable` has the same shape."""
         shape = np.shape(iterable[0])
         if any(np.shape(A) != shape for A in iterable):
             raise ValueError(f"{prefix} shapes inconsistent")
+
+    def _set_parameter_dimension(self, parameters):
+        """Extract and save the dimension of the parameter space."""
+        shape = np.shape(parameters)
+        if len(shape) == 1:
+            self.__p = 1
+        elif len(shape) == 2:
+            self.__p = shape[1]
+        else:
+            raise ValueError("parameter values must be scalars or 1D arrays")
+
+    def _check_parameter_dimension(self, parameter):
+        """Ensure a new parameter has the expected shape."""
+        if np.atleast_1d(parameter).shape[0] != self.p:
+            raise ValueError(f"expected parameter of shape ({self.p:d},)")
