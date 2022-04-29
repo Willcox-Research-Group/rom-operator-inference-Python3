@@ -37,30 +37,7 @@ class _BaseNonparametricOperator(abc.ABC):
     shape : tuple
         Shape of the operator entries array.
     """
-    @abc.abstractmethod
-    def __init__(self, entries):
-        """Set operator entries and save operator name."""
-        self.__entries = entries
-
-    @abc.abstractmethod
-    def __call__(*args, **kwargs):                          # pragma: no cover
-        """Apply the operator mapping to the given states / inputs."""
-        raise NotImplementedError
-
-    def evaluate(self, *args, **kwargs):
-        """Apply the operator mapping to the given states / inputs."""
-        return self(*args, **kwargs)
-
-    @staticmethod
-    def _validate_entries(entries):
-        """Ensure argument is a NumPy array and screen for NaN, Inf entries."""
-        if not isinstance(entries, np.ndarray):
-            raise TypeError("operator entries must be NumPy array")
-        if np.any(np.isnan(entries)):
-            raise ValueError("operator entries must not be NaN")
-        elif np.any(np.isinf(entries)):
-            raise ValueError("operator entries must not be Inf")
-
+    # Properties --------------------------------------------------------------
     @property
     def entries(self):
         """Discrete representation of the operator."""
@@ -82,6 +59,32 @@ class _BaseNonparametricOperator(abc.ABC):
         if self.shape != other.shape:
             return False
         return np.all(self.entries == other.entries)
+
+    # Abstract methods --------------------------------------------------------
+    @abc.abstractmethod
+    def __init__(self, entries):
+        """Set operator entries and save operator name."""
+        self.__entries = entries
+
+    @abc.abstractmethod                                     # pragma: no cover
+    def evaluate(self, *args, **kwargs):
+        """Apply the operator mapping to the given states / inputs."""
+        raise NotImplementedError
+
+    def __call__(self, *args, **kwargs):
+        """Apply the operator mapping to the given states / inputs."""
+        return self.evaluate(*args, **kwargs)
+
+    # Validation --------------------------------------------------------------
+    @staticmethod
+    def _validate_entries(entries):
+        """Ensure argument is a NumPy array and screen for NaN, Inf entries."""
+        if not isinstance(entries, np.ndarray):
+            raise TypeError("operator entries must be NumPy array")
+        if np.any(np.isnan(entries)):
+            raise ValueError("operator entries must not be NaN")
+        elif np.any(np.isinf(entries)):
+            raise ValueError("operator entries must not be Inf")
 
 
 class _BaseParametricOperator(abc.ABC):

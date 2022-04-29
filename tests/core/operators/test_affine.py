@@ -18,7 +18,7 @@ class _OperatorDummy(_base._BaseNonparametricOperator):
     def __init__(self, entries):
         _base._BaseNonparametricOperator.__init__(self, entries)
 
-    def __call__(*args, **kwargs):
+    def evaluate(*args, **kwargs):
         return 0
 
 

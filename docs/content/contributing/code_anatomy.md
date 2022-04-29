@@ -55,20 +55,30 @@ Operator classes are defined in `core/operators`.
 
 A _non-parametric_ operator has constant entries that do not depend on external parameters.
 Classes for representing non-parametric operators are defined in `core/operators/_nonparametric.py`.
-These classes should
+These classes
 
 - Inherit from `core.operators._base._BaseNonparametricOperator`.
 
-- Be initialized with a NumPy array (the entries of the operator).
-    Specifically, `__init__(self, entries)` should 1) call `self._validate_entries(entries)` to ensure `entries` is a valid NumPy array, 2) do any shape checking needed on `entries`, and 3) call `_BaseNonparametricOperator.__init__(self, entries)`.
+- Are initialized with a NumPy array (the entries of the operator).
+    Specifically, `__init__(self, entries)`
+    1. calls `self._validate_entries(entries)` to ensure `entries` is a valid NumPy array,
+    2. does any shape checking needed on `entries`, and
+    3. calls `_BaseNonparametricOperator.__init__(self, entries)`.
 
-- Implement `__call__(self, state)` as the mapping defined by the operator.
+- Implements `evaluate(self, state)` as the mapping defined by the operator.
     For the linear term $\widehat{\mathbf{A}}$ this is simply matrix multiplication $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$;
     for the quadratic term $\widehat{\mathbf{H}}$ this is the mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, which is done efficiently by computing only the unique terms of the Kronecker product $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$.
 
-- Implement `jacobian(self, state)` to evaluate of the Jacobian of the operator, i.e., $\frac{\partial}{\partial \widehat{\mathbf{q}}}$ of the mapping in `__call__()`.
+- Implements `jacobian(self, state)` to evaluate of the Jacobian of the operator, i.e., $\frac{\partial}{\partial \widehat{\mathbf{q}}}$ of the mapping in `evaluate()`.
     For the linear mapping $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$, the Jacobian is $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}$;
     for the quadratic mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, the Jacobian is $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[(\mathbf{I}\otimes\widehat{\mathbf{q}}) + (\widehat{\mathbf{q}}\otimes\mathbf{I})]$.
+
+::::{margin}
+:::{note}
+For nonparametric operators, `__call__()` is essentially an alias for `evaluate()`, so the action of an operator `H` on a state `q` may be computed as `H.evaluate(q)` or `H(q)`.
+However, parametric operators _do not have_ an `evaluate()` method, and `__call__()` is implemented to construct a nonparametric operator corresponding to a given parameter value.
+:::
+::::
 
 The following diagram shows the class hierarchy for non-parametric operators.
 
@@ -194,12 +204,12 @@ The following diagram shows the inheritance hierarchy for the non-parametric ROM
 
 #### Parametric ROMs
 
-:::{margin}
-```{note}
+::::{margin}
+:::{note}
 For every parameterization strategy, there should be 1) a file in `core/operators/` implementing parametric operator classes, and 2) a folder in `core/` grouping the parametric ROM classes.
 For example, the ROM classes defined in `core/affine/` use the operator classes defined in `core/operators/_affine.py`.
-```
 :::
+::::
 
 A _parametric ROM_ has one or more parametric operators.
 Classes for representing parametric ROMs should be grouped by parameterization strategy in a new folder within `core/` (e.g., `core/affine/`).

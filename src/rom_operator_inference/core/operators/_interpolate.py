@@ -51,6 +51,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
         Object that constructs the operator at new parameter values, i.e.,
         >>> new_operator_entries = interpolator(new_parameter)
     """
+    # Abstract method implementation ------------------------------------------
     def __init__(self, parameters, matrices, InterpolatorClass):
         """Construct the elementwise operator interpolator.
 
@@ -87,6 +88,12 @@ class _InterpolatedOperator(_BaseParametricOperator):
         self.__matrices = matrices
         self.__interpolator = InterpolatorClass(self.parameters, self.matrices)
 
+    def __call__(self, parameter):
+        """Return the nonparametric operator corresponding to the parameter."""
+        self._check_parameter_dimension(parameter)
+        return self.OperatorClass(self.interpolator(parameter))
+
+    # Properties --------------------------------------------------------------
     @property
     def parameters(self):
         """Parameter values at which the operators matrices are known."""
@@ -106,11 +113,6 @@ class _InterpolatedOperator(_BaseParametricOperator):
     def interpolator(self):
         """Interpolator object for evaluating the operator at a parameter."""
         return self.__interpolator
-
-    def __call__(self, parameter):
-        """Return the nonparametric operator corresponding to the parameter."""
-        self._check_parameter_dimension(parameter)
-        return self.OperatorClass(self.interpolator(parameter))
 
     def __len__(self):
         """Length: number of data points for the interpolation."""

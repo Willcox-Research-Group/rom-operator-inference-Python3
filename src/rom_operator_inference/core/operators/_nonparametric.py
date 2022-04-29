@@ -31,7 +31,7 @@ class ConstantOperator(_BaseNonparametricOperator):
 
         _BaseNonparametricOperator.__init__(self, entries)
 
-    def __call__(self, *args):
+    def evaluate(self, *args):
         return self.entries
 
 
@@ -43,7 +43,7 @@ class LinearOperator(_BaseNonparametricOperator):
     >>> import numpy as np
     >>> A = opinf.core.operators.LinearOperator(np.random.random((10, 10)))
     >>> q = np.random.random(10)
-    >>> A(q)                        # Evaluate Aq.
+    >>> A.evaluate(q)               # Compute Aq.
     """
     def __init__(self, entries):
         """Check dimensions and set operator entries."""
@@ -56,7 +56,7 @@ class LinearOperator(_BaseNonparametricOperator):
 
         _BaseNonparametricOperator.__init__(self, entries)
 
-    def __call__(self, q):
+    def evaluate(self, q):
         return self.entries @ np.atleast_1d(q)
 
 
@@ -69,7 +69,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
     >>> import numpy as np
     >>> H = opinf.core.operators.QuadraticOperator(np.random.random((10, 100)))
     >>> q = np.random.random(10)
-    >>> H(q)                        # Evaluate H[q ⊗ q].
+    >>> H.evaluate(q)               # Compute H[q ⊗ q].
     """
     def __init__(self, entries):
         """Check dimensions and set operator entries."""
@@ -89,26 +89,23 @@ class QuadraticOperator(_BaseNonparametricOperator):
 
         _BaseNonparametricOperator.__init__(self, entries)
 
-    def __call__(self, q):
+    def evaluate(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
 
 
 # class CrossQuadraticOperator(QuadraticOperator):
-#     """Quadratic terms of different states / inputs (full Kronecker)."""
-#     def __init__(self, entries, symbol='N'):
+#     """Quadratic terms of states / inputs (full Kronecker)."""
+#     def __init__(self, entries):
 #         self._validate_entries(entries)
 #
 #         _BaseNonparametricOperator.__init__(self, entries, symbol)
 #
-#     def __call__(self, q1, q2):
+#     def evaluate(self, q1, q2):
 #         return self.entries @ np.kron(q1, q2)
 #         # TODO: what about two-dimensional inputs?
 #         # la.khatri_rao() will do this, but that *requires* that the
 #         # inputs q1 and q2 are both two-dimensional.
 #         # TODO: and what about scalar inputs? (special case of r=1 or m=1).
-#
-#     def _str(self, label1, label2):
-#         return f"{self.symbol}[{label1} ⊗ {label2}]"
 
 
 class CubicOperator(_BaseNonparametricOperator):
@@ -119,7 +116,7 @@ class CubicOperator(_BaseNonparametricOperator):
     >>> import numpy as np
     >>> G = opinf.core.operators.CubicOperator(np.random.random((10, 1000)))
     >>> q = np.random.random(10)
-    >>> G(q)                        # Evaluate G[q ⊗ q ⊗ q].
+    >>> G.evaluate(q)               # Compute G[q ⊗ q ⊗ q].
     """
     def __init__(self, entries):
         self._validate_entries(entries)
@@ -138,7 +135,7 @@ class CubicOperator(_BaseNonparametricOperator):
 
         _BaseNonparametricOperator.__init__(self, entries)
 
-    def __call__(self, q):
+    def evaluate(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
 
 

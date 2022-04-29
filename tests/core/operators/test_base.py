@@ -17,7 +17,7 @@ class TestBaseNonparametricOperator:
         def __init__(self, entries):
             super().__init__(entries)
 
-        def __call__(*args, **kwargs):
+        def evaluate(*args, **kwargs):
             pass
 
     class Dummy2(Dummy):
