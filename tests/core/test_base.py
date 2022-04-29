@@ -130,7 +130,7 @@ class TestBaseROM:
         assert rom.basis is None
 
         # Case 1: basis != None
-        basis = np.random.random((n,r))
+        basis = np.random.random((n, r))
         rom.basis = basis
         assert rom.n == n
         assert rom.m == 0
@@ -160,7 +160,7 @@ class TestBaseROM:
         assert rom.m is None
         rom.r = r
         rom.m = m
-        rom.B_ = np.random.random((r,m))
+        rom.B_ = np.random.random((r, m))
 
         # Try setting r with an operator already set.
         with pytest.raises(AttributeError) as ex:
@@ -192,8 +192,8 @@ class TestBaseROM:
             assert getattr(rom, name) is None
             setattr(rom, name, op)
             assert getattr(rom, name).entries is op
-        rom.H_ = np.random.random((r,r**2))
-        rom.G_ = np.random.random((r,r**3))
+        rom.H_ = np.random.random((r, r**2))
+        rom.G_ = np.random.random((r, r**3))
 
     def test_set_operators(self, n=60, m=10, r=12):
         """Test core._base._BaseROM._set_operators()."""
@@ -262,7 +262,7 @@ class TestBaseROM:
         assert romL == romR
 
         # Different bases.
-        Vr = np.random.random((n,r))
+        Vr = np.random.random((n, r))
         romL.basis = Vr
         assert romL != romR
         romL.basis = None
@@ -277,7 +277,7 @@ class TestBaseROM:
         assert romL == romR
 
         # Different operators.
-        A = np.random.random((r,r))
+        A = np.random.random((r, r))
         romL.A_ = A
         assert romL != romR
         romR.A_ = 2 * A
@@ -333,24 +333,24 @@ class TestBaseROM:
             f"c_.shape = {c[:-1].shape}, must be (r,) with r = {r}"
 
         with pytest.raises(ValueError) as ex:
-            rom._check_rom_operator_shape(A[:-1,1:], 'A')
+            rom._check_rom_operator_shape(A[:-1, 1:], 'A')
         assert ex.value.args[0] == \
-            f"A_.shape = {A[:-1,1:].shape}, must be (r,r) with r = {r}"
+            f"A_.shape = {A[:-1, 1:].shape}, must be (r, r) with r = {r}"
 
         with pytest.raises(ValueError) as ex:
-            rom._check_rom_operator_shape(H[:-1,:-1], 'H')
-        assert ex.value.args[0] == \
-            f"H_.shape = {H[:-1,:-1].shape}, must be (r,r(r+1)/2) with r = {r}"
+            rom._check_rom_operator_shape(H[:-1, :-1], 'H')
+        assert ex.value.args[0] == f"H_.shape = {H[:-1, :-1].shape}, " \
+            f"must be (r, r(r+1)/2) with r = {r}"
 
         with pytest.raises(ValueError) as ex:
             rom._check_rom_operator_shape(G[1:], 'G')
-        assert ex.value.args[0] == \
-            f"G_.shape = {G[1:].shape}, must be (r,r(r+1)(r+2)/6) with r = {r}"
+        assert ex.value.args[0] == f"G_.shape = {G[1:].shape}, " \
+            f"must be (r, r(r+1)(r+2)/6) with r = {r}"
 
         with pytest.raises(ValueError) as ex:
             rom._check_rom_operator_shape(B[1:-1], 'B')
-        assert ex.value.args[0] == \
-            f"B_.shape = {B[1:-1].shape}, must be (r,m) with r = {r}, m = {m}"
+        assert ex.value.args[0] == f"B_.shape = {B[1:-1].shape}, " \
+            f"must be (r, m) with r = {r}, m = {m}"
 
         # Correct usage.
         for key, op in zip("cAHGB", operators):
@@ -392,18 +392,18 @@ class TestBaseROM:
     def test_project_operators(self, n=7, m=5, r=3):
         """Test core._base._BaseROM._project_operators()."""
         # Get test data.
-        basis = np.random.random((n,r))
+        basis = np.random.random((n, r))
         shapes = {
                     "c": (n,),
-                    "A": (n,n),
-                    "H": (n,n**2),
-                    "G": (n,n**3),
-                    "B": (n,m),
+                    "A": (n, n),
+                    "H": (n, n**2),
+                    "G": (n, n**3),
+                    "B": (n, m),
                     "c_": (r,),
-                    "A_": (r,r),
-                    "H_": (r,r*(r+1)//2),
-                    "G_": (r,r*(r+1)*(r+2)//6),
-                    "B_": (r,m),
+                    "A_": (r, r),
+                    "H_": (r, r*(r+1)//2),
+                    "G_": (r, r*(r+1)*(r+2)//6),
+                    "B_": (r, m),
                  }
 
         # Initialize the ROM and test null input.
@@ -414,7 +414,7 @@ class TestBaseROM:
         # Get test operators.
         c, A, H, G, B = _get_operators(n, m, expanded=True)
         operators = {"c":c, "A":A, "H":H, "G":G, "B":B}
-        B1d = B[:,0]
+        B1d = B[:, 0]
 
         # Try to project without a basis.
         with pytest.raises(ValueError) as ex:
@@ -435,10 +435,10 @@ class TestBaseROM:
 
         # Try to fit the ROM with operators that are misaligned with the basis.
         cbad = c[::2]
-        Abad = A[:,:-2]
-        Hbad = H[:,1:]
-        Gbad = G[:,:-1]
-        Bbad = B[1:,:]
+        Abad = A[:, :-2]
+        Hbad = H[:, 1:]
+        Gbad = G[:, :-1]
+        Bbad = B[1:, :]
 
         rom = self.Dummy("cAHGB")
         rom.basis = basis
@@ -467,7 +467,7 @@ class TestBaseROM:
         for form in MODEL_FORMS:
             rom = self.Dummy(form)
             rom.basis = basis
-            ops = {key:val for key,val in operators.items() if key in form}
+            ops = {key:val for key, val in operators.items() if key in form}
             rom._project_operators(ops)
             for prefix in self.Dummy._MODELFORM_KEYS:
                 attr = prefix+'_'
@@ -488,7 +488,7 @@ class TestBaseROM:
         rom.basis = basis
         rom._project_operators({"c":c, "A":A, "H":H, "B":B1d})
         assert rom.m == 1
-        assert rom.B_.shape == (r,1)
+        assert rom.B_.shape == (r, 1)
 
         # Special case: c = scalar
         rom = self.Dummy("cAHB")
@@ -526,17 +526,17 @@ class TestBaseROM:
         # Try to project with basis set but with wrong shape.
         rom.basis = np.random.random((n, r))
         with pytest.raises(ValueError) as ex:
-            rom.project(Q[:-1,:], 'state')
+            rom.project(Q[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
 
         # Correct usage.
         for S, label in [(Q, 'state'), (Qdot, 'ddts')]:
             S_ = rom.project(S, label)
-            assert S_.shape == (r,k)
+            assert S_.shape == (r, k)
             assert np.allclose(S_, rom.basis.T @ S)
-            S_ = rom.project(S[:r,:], label)
-            assert S_.shape == (r,k)
-            assert np.all(S_ == S[:r,:])
+            S_ = rom.project(S[:r, :], label)
+            assert S_.shape == (r, k)
+            assert np.all(S_ == S[:r, :])
 
     def test_reconstruct(self, n=60, k=20, r=8):
         """Test core._base._BaseROM.reconstruct()."""
@@ -552,13 +552,13 @@ class TestBaseROM:
         # Try to project with basis set but with wrong shape.
         rom.basis = np.random.random((n, r))
         with pytest.raises(ValueError) as ex:
-            rom.reconstruct(Q_[:-1,:], 'state')
+            rom.reconstruct(Q_[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
 
         # Correct usage.
         for S_, label in [(Q_, 'state_'), (Qdot_, 'ddts_')]:
             S = rom.reconstruct(S_, label)
-            assert S.shape == (n,k)
+            assert S.shape == (n, k)
             assert np.allclose(S, rom.basis @ S_)
 
     # ROM evaluation ----------------------------------------------------------
@@ -585,7 +585,7 @@ class TestBaseROM:
 
         rom = self.Dummy("AB")
         rom.r, rom.m = r, 1
-        B1d_ = B_[:,0]
+        B1d_ = B_[:, 0]
         rom.A_, rom.B_ = A_, B1d_
         u = np.random.random()
         q_ = np.random.random(r)

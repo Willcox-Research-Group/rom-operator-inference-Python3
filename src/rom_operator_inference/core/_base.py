@@ -127,7 +127,7 @@ class _BaseROM(abc.ABC):
     # Properties: basis -------------------------------------------------------
     @property
     def basis(self):
-        """Basis for the linear reduced space (e.g., POD ), of shape (n,r)."""
+        """Basis for the linear reduced space (e.g., POD ), of shape (n, r)."""
         return self.__basis
 
     @basis.setter
@@ -160,7 +160,7 @@ class _BaseROM(abc.ABC):
 
     @property
     def A_(self):
-        """ROM linear state operator, of shape (r,r)."""
+        """ROM linear state operator, of shape (r, r)."""
         return self.__A_
 
     @A_.setter
@@ -175,7 +175,7 @@ class _BaseROM(abc.ABC):
 
     @property
     def H_(self):
-        """ROM quadratic state opeator, of shape (r,r(r+1)/2)."""
+        """ROM quadratic state opeator, of shape (r, r(r+1)/2)."""
         return self.__H_
 
     @H_.setter
@@ -189,7 +189,7 @@ class _BaseROM(abc.ABC):
 
     @property
     def G_(self):
-        """ROM cubic state operator, of shape (r,r(r+1)(r+2)/6)."""
+        """ROM cubic state operator, of shape (r, r(r+1)(r+2)/6)."""
         return self.__G_
 
     @G_.setter
@@ -203,7 +203,7 @@ class _BaseROM(abc.ABC):
 
     @property
     def B_(self):
-        """ROM input operator, of shape (r,m)."""
+        """ROM input operator, of shape (r, m)."""
         return self.__B_
 
     @B_.setter
@@ -221,18 +221,18 @@ class _BaseROM(abc.ABC):
 
         Parameters
         ----------
-        basis : (n,r) ndarray or None
+        basis : (n, r) ndarray or None
             Basis for the linear reduced space (e.g., POD basis matrix).
             If None, then r is inferred from one of the reduced operators.
         c_ : (r,) ndarray or None
             Reduced-order constant term.
-        A_ : (r,r) ndarray or None
+        A_ : (r, r) ndarray or None
             Reduced-order linear state matrix.
-        H_ : (r,r(r+1)/2) ndarray or None
+        H_ : (r, r(r+1)/2) ndarray or None
             Reduced-order (compact) quadratic state matrix.
-        G_ : (r,r(r+1)(r+2)/6) ndarray or None
+        G_ : (r, r(r+1)(r+2)/6) ndarray or None
             Reduced-order (compact) cubic state matrix.
-        B_ : (r,m) ndarray or None
+        B_ : (r, m) ndarray or None
             Reduced-order input matrix.
 
         Returns
@@ -320,18 +320,18 @@ class _BaseROM(abc.ABC):
         if key == "c" and operator.shape != (r,):
             raise ValueError(f"c_.shape = {operator.shape}, "
                              f"must be (r,) with r = {r}")
-        elif key == "A" and operator.shape != (r,r):
+        elif key == "A" and operator.shape != (r, r):
             raise ValueError(f"A_.shape = {operator.shape}, "
-                             f"must be (r,r) with r = {r}")
+                             f"must be (r, r) with r = {r}")
         elif key == "H" and operator.shape != (r, r*(r + 1)//2):
             raise ValueError(f"H_.shape = {operator.shape}, must be "
-                             f"(r,r(r+1)/2) with r = {r}")
+                             f"(r, r(r+1)/2) with r = {r}")
         elif key == "G" and operator.shape != (r, r*(r + 1)*(r + 2)//6):
             raise ValueError(f"G_.shape = {operator.shape}, must be "
-                             f"(r,r(r+1)(r+2)/6) with r = {r}")
-        elif key == "B" and operator.shape != (r,m):
+                             f"(r, r(r+1)(r+2)/6) with r = {r}")
+        elif key == "B" and operator.shape != (r, m):
             raise ValueError(f"B_.shape = {operator.shape}, must be "
-                             f"(r,m) with r = {r}, m = {m}")
+                             f"(r, m) with r = {r}, m = {m}")
 
     def _check_inputargs(self, u, argname):
         """Check that the modelform agrees with input arguments."""
@@ -365,10 +365,10 @@ class _BaseROM(abc.ABC):
             through projection; remaining operators are inferred.
             Keys must match the modelform, values are ndarrays:
             * 'c': (n,) constant term c.
-            * 'A': (n,n) linear state matrix A.
-            * 'H': (n,n**2) quadratic state matrix H.
-            * 'G': (n,n**3) cubic state matrix G.
-            * 'B': (n,m) input matrix B.
+            * 'A': (n, n) linear state matrix A.
+            * 'H': (n, n**2) quadratic state matrix H.
+            * 'G': (n, n**3) cubic state matrix G.
+            * 'B': (n, m) input matrix B.
         """
         # TODO: allow reduced-order operators as well in `operators`?
         # Do nothing if there are no operators to project.
@@ -419,7 +419,7 @@ class _BaseROM(abc.ABC):
         if 'B' in operators:            # Linear input matrix.
             B = operators['B']
             if B.ndim == 1:
-                B = B.reshape((-1,1))
+                B = B.reshape((-1, 1))
             self.m = B.shape[1]
             self.B_ = self.basis.T @ B
 
@@ -432,7 +432,7 @@ class _BaseROM(abc.ABC):
 
         Parameters
         ----------
-        state : (n,...) or (r,...) ndarray
+        state : (n, ...) or (r, ...) ndarray
             High- or low-dimensional state vector or a collection of these.
             If state.shape[0] == r (already low-dimensional), do nothing.
         label : str
@@ -440,7 +440,7 @@ class _BaseROM(abc.ABC):
 
         Returns
         -------
-        state_ : (r,...) ndarray
+        state_ : (r, ...) ndarray
             Low-dimensional projection of state.
         """
         if self.r is None:
@@ -457,14 +457,14 @@ class _BaseROM(abc.ABC):
 
         Parameters
         ----------
-        state_ : (r,...) ndarray
+        state_ : (r, ...) ndarray
             Low-dimensional state vector or a collection of these.
         label : str
             Name for state_ (used only in error reporting).
 
         Returns
         -------
-        state : (n,...) ndarray
+        state : (n, ...) ndarray
             High-dimensional reconstruction of state_.
         """
         if self.basis is None:
@@ -571,12 +571,15 @@ class _BaseParametricROM(_BaseROM):
         """Dimension of the parameter space."""
         return self.__p
 
-    @p.setter
-    def p(self, p):
-        """Set the parameter dimension (can only be done once)."""
-        if self.__p is not None:
-            raise AttributeError("can't set attribute 'p' twice")
-        self.__p = p
+    def _set_parameter_dimension(self, parameters):
+        """Extract and save the dimension of the parameter space."""
+        shape = np.shape(parameters)
+        if len(shape) == 1:
+            self.__p = 1
+        elif len(shape) == 2:
+            self.__p = shape[1]
+        else:
+            raise ValueError("parameter values must be scalars or 1D arrays")
 
     # Parametric evaluation ---------------------------------------------------
     def __call__(self, parameter):
@@ -599,10 +602,3 @@ class _BaseParametricROM(_BaseROM):
     def predict(self, parameter, *args, **kwargs):          # pragma: no cover
         """Solve the reduced-order model at the given parameter."""
         return self(parameter).predict(*args, **kwargs)
-
-
-# Future additions ------------------------------------------------------------
-# TODO: Account for state / input interactions (N?),
-# TODO: Account for quadratic input interactions? Is that redundant?
-# TODO: Jacobians for each model form in the continuous case.
-# TODO: self.p = parameter size for parametric classes (+ shape checking)
