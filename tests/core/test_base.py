@@ -22,7 +22,7 @@ class TestBaseROM:
             pass
 
         def predict(*args, **kwargs):
-            pass
+            return 100
 
         def save(*args, **kwargs):
             pass
@@ -593,33 +593,80 @@ class TestBaseROM:
         assert np.allclose(rom.evaluate(q_, u), y_)
 
 
-# TODO
-# class TestBaseParametricROM:
-#     """Test core._base._BaseParametricROM."""
-#
-#     class Dummy:
-#         """Instantiable version of _BaseROM."""
-#         def fit(*args, **kwargs):
-#             pass
-#
-#         def save(*args, **kwargs):
-#             pass
-#
-#         def load(*args, **kwargs):
-#             pass
-#
-#     class DummyOperator(opinf.core.operators._base._BaseParametricOperator):
-#         def __call__(self, parameter):
-#             pass
-#
-#     def test_p(self):
-#         raise NotImplementedError
-#
-#     def test_call(self):
-#         raise NotImplementedError
-#
-#     def test_predict(self):
-#         raise NotImplementedError
-#
-#     def test_evaluate(self):
-#         raise NotImplementedError
+class TestBaseParametricROM:
+    """Test core._base._BaseParametricROM."""
+
+    class Dummy(opinf.core._base._BaseParametricROM, TestBaseROM.Dummy):
+        """Instantiable version of _BaseParametricROM."""
+        _ModelClass = TestBaseROM.Dummy
+
+    class DummyOperator(opinf.core.operators._base._BaseParametricOperator):
+        """Instantiable version of _BaseParametricOperator."""
+        def __init__(self, shape):
+            self.entries = np.ones(shape)
+            self.shape = shape
+
+        def __call__(self, parameter):
+            return self.entries
+
+    def test_init(self):
+        """Test _BaseParametricROM.__init__()."""
+        self.Dummy._ModelClass = float
+        with pytest.raises(RuntimeError) as ex:
+            self.Dummy("AB")
+        assert ex.value.args[0] == "invalid ModelClass 'float'"
+
+        self.Dummy._ModelClass = TestBaseROM.Dummy
+        self.Dummy("AB")
+
+    def test_p(self):
+        """Test _BaseParametricROM.p and _[set|check]_parameter_dimension()."""
+        dummy = self.Dummy("AB")
+        assert hasattr(dummy, 'p')
+        assert dummy.p is None
+
+        dummy._set_parameter_dimension(np.empty(6))
+        assert dummy.p == 1
+
+        dummy._set_parameter_dimension(np.empty((10, 4)))
+        assert dummy.p == 4
+
+        with pytest.raises(ValueError) as ex:
+            dummy._set_parameter_dimension(np.empty((7, 5, 3)))
+        assert ex.value.args[0] == \
+            "parameter values must be scalars or 1D arrays"
+
+        dummy._clear()
+        assert dummy.p is None
+
+    def test_call(self, r=10, m=3):
+        """Test _BaseParametricROM.__call__()."""
+        dummy = self.Dummy("cAB")
+        dummy.r = r
+        dummy.m = m
+        dummy.c_ = self.DummyOperator((r,))
+        dummy.A_ = np.random.standard_normal((r, r))
+        dummy.B_ = self.DummyOperator((r, m))
+
+        dummy_evaluated = dummy(10)
+        assert isinstance(dummy_evaluated, self.Dummy._ModelClass)
+
+    def test_evaluate(self, r=10):
+        """Test _BaseParametricROM.evaluate()."""
+        dummy = self.Dummy("c")
+        dummy.r = r
+        dummy.c_ = self.DummyOperator((r,))
+
+        out = dummy.evaluate(10, 100)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,)
+        assert np.all(out == 1)             # From DummyOperator.__call__().
+
+    def test_predict(self, r=10):
+        """Test _BaseParametricROM.predict()."""
+        dummy = self.Dummy("AH")
+        dummy.r = r
+        dummy.A_ = self.DummyOperator((r, r))
+        dummy.H_ = self.DummyOperator((r, r*(r + 1)//2))
+
+        assert dummy.predict(10) == 100     # From TestBaseROM.Dummy.predict().

@@ -1,16 +1,16 @@
 # core/_base.py
-"""Base class for all reduced-order model classes."""
+"""Abstract base classes for reduced-order models."""
 
 __all__ = []
 
 import abc
 import numpy as np
 
-# from ._exceptions import DimensionalityError
 from . import operators
 
+_isparametricop = operators.is_parametric_operator
 
-# Base classes (private) ======================================================
+
 class _BaseROM(abc.ABC):
     """Base class for all rom_operator_inference reduced model classes."""
     _MODELFORM_KEYS = "cAHGB"   # Constant, Linear, Quadratic, Cubic, Input.
@@ -153,7 +153,7 @@ class _BaseROM(abc.ABC):
     def c_(self, c_):
         self._check_operator_matches_modelform(c_, 'c')
         if c_ is not None:
-            if not isinstance(c_, operators.ConstantOperator):
+            if not operators.is_operator(c_):
                 c_ = operators.ConstantOperator(c_)
             self._check_rom_operator_shape(c_, 'c')
         self.__c_ = c_
@@ -583,22 +583,23 @@ class _BaseParametricROM(_BaseROM):
 
     # Parametric evaluation ---------------------------------------------------
     def __call__(self, parameter):
+        """Construct a non-parametric ROM at the given parameter value."""
         # Evaluate the parametric operators at the parameter value.
-        c_ = self.c_(parameter) if callable(self.c_) else self.c_
-        A_ = self.A_(parameter) if callable(self.A_) else self.A_
-        H_ = self.H_(parameter) if callable(self.H_) else self.H_
-        G_ = self.G_(parameter) if callable(self.G_) else self.G_
-        B_ = self.B_(parameter) if callable(self.B_) else self.B_
+        c_ = self.c_(parameter) if _isparametricop(self.c_) else self.c_
+        A_ = self.A_(parameter) if _isparametricop(self.A_) else self.A_
+        H_ = self.H_(parameter) if _isparametricop(self.H_) else self.H_
+        G_ = self.G_(parameter) if _isparametricop(self.G_) else self.G_
+        B_ = self.B_(parameter) if _isparametricop(self.B_) else self.B_
 
         # Construct a nonparametric ROM with the evaluated operators.
         rom = self.ModelClass(self.modelform)
-        return rom._set_operators(basis=self.Basis,
+        return rom._set_operators(basis=self.basis,
                                   c_=c_, A_=A_, H_=H_, G_=G_, B_=B_)
 
-    def evaluate(self, parameter, *args, **kwargs):         # pragma: no cover
+    def evaluate(self, parameter, *args, **kwargs):
         """Evaluate the right-hand side of the model at the given parameter."""
         return self(parameter).evaluate(*args, **kwargs)
 
-    def predict(self, parameter, *args, **kwargs):          # pragma: no cover
+    def predict(self, parameter, *args, **kwargs):
         """Solve the reduced-order model at the given parameter."""
         return self(parameter).predict(*args, **kwargs)

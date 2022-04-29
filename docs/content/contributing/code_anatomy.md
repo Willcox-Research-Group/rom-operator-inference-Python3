@@ -99,6 +99,8 @@ These classes should
 
 - Call `_BaseParametricROM.__init__(self)` at the beginning of `__init__()`.
 
+- Set the parameter dimension by calling `self._set_parameter_dimension(parameter_values)` in `__init__()`.
+
 - Provide public access to the members that define the parametric structure (`parameter_values`, `coefficient_functions`, `matrices`, etc.).
 
 - Implement `__call__(self, parameter)` so that it returns an non-parametric operator object:
@@ -231,6 +233,8 @@ These classes should
 
     The `_ModelClass` should be one of the "frozen" non-parametric ROM classes in `core/nonparametric/_frozen.py`, which have their `fit()` method disabled.
     This prevents the user from calling `fit()` on the evaluated parametric ROM (`nonparametric_rom` in the code block above) when they meant to fit the parametric ROM (`parametric_rom`).
+
+<!-- TODO: set dimensions. -->
 
 Here is the inheritance hierarchy for the affine-parametric ROM classes.
 

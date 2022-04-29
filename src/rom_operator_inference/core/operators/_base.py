@@ -6,11 +6,10 @@ Classes
 * _BaseNonparametricOperator: base for operators without parameter dependence.
 * _BaseParametricOperator: base for operators with parameter dependence.
 """
-# TODO: model persistence: save() / load()? Allow argument to each to be
-# an open HDF5 node or a file name?
 
 __all__ = [
     "is_operator",
+    "is_parametric_operator",
 ]
 
 import abc
@@ -23,6 +22,11 @@ def is_operator(op):
         _BaseNonparametricOperator,
         _BaseParametricOperator)
     )
+
+
+def is_parametric_operator(op):
+    """Return True if `op` is a valid ParametricOperator object."""
+    return isinstance(op, _BaseParametricOperator)
 
 
 class _BaseNonparametricOperator(abc.ABC):
@@ -158,5 +162,7 @@ class _BaseParametricOperator(abc.ABC):
 
     def _check_parameter_dimension(self, parameter):
         """Ensure a new parameter has the expected shape."""
+        if self.p is None:
+            raise RuntimeError("parameter dimension p not set")
         if np.atleast_1d(parameter).shape[0] != self.p:
             raise ValueError(f"expected parameter of shape ({self.p:d},)")
