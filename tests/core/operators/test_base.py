@@ -26,7 +26,7 @@ class TestBaseNonparametricOperator:
 
     def test_init(self):
         """Test _BaseNonparametricOperator.__init__()."""
-        A = np.random.random((10,11))
+        A = np.random.random((10, 11))
         op = self.Dummy(A)
         assert op.entries is A
         op(10)
@@ -39,31 +39,31 @@ class TestBaseNonparametricOperator:
             func([1, 2, 3, 4])
         assert ex.value.args[0] == "operator entries must be NumPy array"
 
-        A = np.arange(12, dtype=float).reshape((4,3)).T
-        A[0,0] = np.nan
+        A = np.arange(12, dtype=float).reshape((4, 3)).T
+        A[0, 0] = np.nan
         with pytest.raises(ValueError) as ex:
             func(A)
         assert ex.value.args[0] == "operator entries must not be NaN"
 
-        A[0,0] = np.inf
+        A[0, 0] = np.inf
         with pytest.raises(ValueError) as ex:
             func(A)
         assert ex.value.args[0] == "operator entries must not be Inf"
 
         # Valid argument, no exceptions raised.
-        A[0,0] = 0
+        A[0, 0] = 0
         func(A)
 
     def test_getitem(self):
         """Test _BaseNonparametricOperator.__getitem__()."""
         A = np.random.random((8, 6))
         op = self.Dummy(A)
-        for s in [slice(2), (slice(1), slice(1,3)), slice(1, 4, 2)]:
+        for s in [slice(2), (slice(1), slice(1, 3)), slice(1, 4, 2)]:
             assert np.all(op[s] == A[s])
 
     def test_eq(self):
         """Test _BaseNonparametricOperator.__eq__()."""
-        A = np.arange(12).reshape((4,3))
+        A = np.arange(12).reshape((4, 3))
         opA = self.Dummy(A)
         opA2 = self.Dummy2(A)
         assert opA != opA2

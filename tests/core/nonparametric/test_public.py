@@ -37,7 +37,7 @@ class TestSteadyOpInfROM:
     def test_fit(self, n=50, k=400, r=10):
         """Test core.nonparametric._public.SteadyOpInfROM.fit()."""
         Q, F, _ = _get_data(n, k, 2)
-        Vr = la.svd(Q)[0][:,:r]
+        Vr = la.svd(Q)[0][:, :r]
         args_n = [Q, F]
         args_r = [Vr.T @ Q, Vr.T @ F]
 
@@ -92,7 +92,7 @@ class TestDiscreteOpInfROM:
 
         rom = self.ModelClass("AB")
         rom.r, rom.m = r, 1
-        B1d_ = B_[:,0]
+        B1d_ = B_[:, 0]
         rom.A_, rom.B_ = A_, B1d_
         u = np.random.random()
         q_ = np.random.random(r)
@@ -102,8 +102,8 @@ class TestDiscreteOpInfROM:
     def test_fit(self, n=20, k=500, r=5, m=3):
         """Test core.nonparametric._public.DiscreteOpInfROM.fit()."""
         Q, Qnext, U = _get_data(n, k, m)
-        U1d = U[0,:]
-        Vr = la.svd(Q)[0][:,:r]
+        U1d = U[0, :]
+        Vr = la.svd(Q)[0][:, :r]
         Q_ = Vr.T @ Q
 
         # Fit the rom with each modelform.
@@ -139,9 +139,9 @@ class TestDiscreteOpInfROM:
         """Test core.nonparametric._public.DiscreteOpInfROM.predict()."""
         # Get test data.
         Q = _get_data(n, k, m)[0]
-        Vr = la.svd(Q)[0][:,:r]
+        Vr = la.svd(Q)[0][:, :r]
         niters = 5
-        q0 = Q[:,0]
+        q0 = Q[:, 0]
         U = np.ones((m, niters-1))
 
         # Try to predict with invalid initial condition.
@@ -162,13 +162,13 @@ class TestDiscreteOpInfROM:
         with pytest.raises(ValueError) as ex:
             rom.predict(q0, niters, np.random.random((m-1, niters-1)))
         assert ex.value.args[0] == \
-            f"inputs.shape = ({(m-1,niters-1)} != {(m,niters-1)}"
+            f"inputs.shape = ({(m-1, niters-1)} != {(m, niters-1)}"
 
         rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m=1)
         with pytest.raises(ValueError) as ex:
             rom.predict(q0, niters, np.random.random((2, niters-1)))
         assert ex.value.args[0] == \
-            f"inputs.shape = ({(2,niters-1)} != {(1,niters-1)}"
+            f"inputs.shape = ({(2, niters-1)} != {(1, niters-1)}"
 
         # Try to predict with continuous inputs.
         rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
@@ -181,10 +181,10 @@ class TestDiscreteOpInfROM:
                 rom = _trainedmodel(self.ModelClass, form, Vr, None)
                 out = rom.predict(q0, niters, reconstruct=True)
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (n,niters)
+                assert out.shape == (n, niters)
                 out2 = rom.predict(q0, niters, reconstruct=False)
                 assert isinstance(out2, np.ndarray)
-                assert out2.shape == (r,niters)
+                assert out2.shape == (r, niters)
                 assert np.allclose(Vr @ out2, out)
 
             else:                           # Has Control inputs.
@@ -192,21 +192,21 @@ class TestDiscreteOpInfROM:
                 rom = _trainedmodel(self.ModelClass, form, Vr, m)
                 out = rom.predict(q0, niters, U, reconstruct=True)
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (n,niters)
+                assert out.shape == (n, niters)
 
                 # Predict with 1D inputs.
                 rom = _trainedmodel(self.ModelClass, form, Vr, 1)
                 out = rom.predict(q0, niters, np.ones(niters),
                                   reconstruct=False)
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (r,niters)
+                assert out.shape == (r, niters)
 
         # Predict with no basis gives result in low-dimensional space.
         rom = _trainedmodel(self.ModelClass, "cA", Vr, None)
         rom.basis = None
         out = rom.predict(Vr.T @ q0, niters, reconstruct=True)
         assert isinstance(out, np.ndarray)
-        assert out.shape == (r,niters)
+        assert out.shape == (r, niters)
 
 
 class TestContinuousOpInfROM:
@@ -243,7 +243,7 @@ class TestContinuousOpInfROM:
 
         rom = self.ModelClass("AB")
         rom.r, rom.m = r, 1
-        B1d_ = B_[:,0]
+        B1d_ = B_[:, 0]
         rom.A_, rom.B_ = A_, B1d_
         input_func = np.sin
         q_ = np.random.random(r)
@@ -257,8 +257,8 @@ class TestContinuousOpInfROM:
     def test_fit(self, n=200, k=500, m=3, r=4):
         """Test core.nonparametric._public.ContinuousOpInfROM.fit()."""
         Q, Qdot, U = _get_data(n, k, m)
-        U1d = U[0,:]
-        Vr = la.svd(Q)[0][:,:r]
+        U1d = U[0, :]
+        Vr = la.svd(Q)[0][:, :r]
         args_n = [Q, Qdot]
         args_r = [Vr.T @ Q, Vr.T @ Qdot]
 
@@ -292,9 +292,9 @@ class TestContinuousOpInfROM:
         """Test core.nonparametric._public.ContinuousOpInfROM.predict()."""
         # Get test data.
         Q = _get_data(n, k, m)[0]
-        Vr = la.svd(Q)[0][:,:r]
+        Vr = la.svd(Q)[0][:, :r]
         nt = 5
-        q0 = Q[:,0]
+        q0 = Q[:, 0]
         t = np.linspace(0, .01*nt, nt)
 
         def input_func(tt):
@@ -311,7 +311,7 @@ class TestContinuousOpInfROM:
 
         # Try to predict with bad time array.
         with pytest.raises(ValueError) as ex:
-            rom.predict(q0, np.vstack((t,t)), input_func)
+            rom.predict(q0, np.vstack((t, t)), input_func)
         assert ex.value.args[0] == "time 't' must be one-dimensional"
 
         # Predict without inputs.
@@ -320,30 +320,30 @@ class TestContinuousOpInfROM:
                 rom = _trainedmodel(self.ModelClass, form, Vr, None)
                 out = rom.predict(q0, t, reconstruct=True)
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (n,t.size)
+                assert out.shape == (n, t.size)
                 out = rom.predict(q0, t, reconstruct=False)
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (r,t.size)
+                assert out.shape == (r, t.size)
 
         # Predict with no basis gives result in low-dimensional space.
         rom = _trainedmodel(self.ModelClass, "cA", Vr, None)
         rom.basis = None
         out = rom.predict(Vr.T @ q0, t, reconstruct=True)
         assert isinstance(out, np.ndarray)
-        assert out.shape == (r,t.size)
+        assert out.shape == (r, t.size)
 
         # Try to predict with badly-shaped discrete inputs.
         rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
         with pytest.raises(ValueError) as ex:
             rom.predict(q0, t, np.random.random((m-1, nt)))
         assert ex.value.args[0] == \
-            f"input_func.shape = {(m-1,nt)} != {(m,nt)}"
+            f"input_func.shape = {(m-1, nt)} != {(m, nt)}"
 
         rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m=1)
         with pytest.raises(ValueError) as ex:
             rom.predict(q0, t, np.random.random((2, nt)))
         assert ex.value.args[0] == \
-            f"input_func.shape = {(2,nt)} != {(1,nt)}"
+            f"input_func.shape = {(2, nt)} != {(1, nt)}"
 
         # Try to predict with badly-shaped continuous inputs.
         rom = _trainedmodel(self.ModelClass, "cAHB", Vr, m)
@@ -376,24 +376,24 @@ class TestContinuousOpInfROM:
                 # continuous input.
                 out = rom.predict(q0, t, input_func, reconstruct=True)
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (n,nt)
+                assert out.shape == (n, nt)
                 # discrete input.
                 out = rom.predict(q0, t, Upred, reconstruct=False)
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (r,nt)
+                assert out.shape == (r, nt)
 
                 # Predict with 1D inputs.
                 rom = _trainedmodel(self.ModelClass, form, Vr, 1)
                 # continuous input.
                 out = rom.predict(q0, t, lambda t: 1, reconstruct=True)
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (n,nt)
+                assert out.shape == (n, nt)
                 out = rom.predict(q0, t, lambda t: np.array([1]),
                                   reconstruct=False)
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (r,nt)
+                assert out.shape == (r, nt)
                 # discrete input.
                 out = rom.predict(q0, t, np.ones_like(t))
                 assert isinstance(out, np.ndarray)
-                assert out.shape == (n,nt)
+                assert out.shape == (n, nt)
                 assert hasattr(rom, "predict_result_")

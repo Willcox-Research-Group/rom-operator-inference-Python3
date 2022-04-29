@@ -89,36 +89,36 @@ class TestNonparametricOpInfROM:
             assert ex.value.args[0] == message
 
         # Try to fit the rom with a single snapshot.
-        args = [(Q[:,0], "states"), (dQ, "dQ")]
+        args = [(Q[:, 0], "states"), (dQ, "dQ")]
         _test(args, "states must be two-dimensional")
 
         # Try to fit the rom with misaligned Q and dQ.
-        args = [(Q, "staaates"), (dQ[:,1:-1], "dQs")]
+        args = [(Q, "staaates"), (dQ[:, 1:-1], "dQs")]
         _test(args, f"dQs.shape[-1] = {k-2:d} != {k:d} = staaates.shape[-1]")
 
         # Try to fit the rom with misaligned Q and U.
         rom.modelform = "AB"
         rom.r, rom.m = r, m
-        args = [(Q, "states"), (dQ, "dQ"), (U[:,1:-1], "inputs")]
+        args = [(Q, "states"), (dQ, "dQ"), (U[:, 1:-1], "inputs")]
         _test(args, f"inputs.shape[-1] = {k-2:d} != {k} = states.shape[-1]")
 
         # Try with bad number of rows in states.
-        args = [(Q[:-1,:], "states"), (dQ, "dQ"), (U, "inputs")]
+        args = [(Q[:-1, :], "states"), (dQ, "dQ"), (U, "inputs")]
         _test(args, f"states.shape[0] != n or r (n=None, r={r})")
 
         # Try with one-dimensional inputs when not allowed.
         rom.m = 2
-        args = [(Q, "states"), (dQ, "dQ"), (U[:,0], "inputs")]
+        args = [(Q, "states"), (dQ, "dQ"), (U[:, 0], "inputs")]
         _test(args, "inputs must be two-dimensional (m > 1)")
 
         # Try with bad number of rows in inputs.
         rom.m = m
-        args = [(Q, "states"), (dQ, "dQ"), (U[:-1,:], "inputs")]
+        args = [(Q, "states"), (dQ, "dQ"), (U[:-1, :], "inputs")]
         _test(args, f"inputs.shape[0] = {m-1} != {m} = m")
 
         # Try with bad dimension in inputs with m = 1.
         rom.m = 1
-        args = [(U.reshape(1, 1,-1), "inputs")]
+        args = [(U.reshape(1, 1, -1), "inputs")]
         _test(args, "inputs must be one- or two-dimensional (m = 1)")
 
         # Try with bad two-dimensional inputs with m = 1.
@@ -134,7 +134,7 @@ class TestNonparametricOpInfROM:
         rom._check_training_data_shapes(args)
 
         # Special case: m = inputs.ndim = 1.
-        args[-1] = (U[0,:], "inputs")
+        args[-1] = (U[0, :], "inputs")
         rom.m = 1
         rom._check_training_data_shapes(args)
 
@@ -142,8 +142,8 @@ class TestNonparametricOpInfROM:
         """Test _NonparametricOpInfROM._process_fit_arguments()."""
         # Get test data.
         Q, lhs, U = _get_data(n, k, m)
-        U1d = U[0,:]
-        Vr = la.svd(Q)[0][:,:r]
+        U1d = U[0, :]
+        Vr = la.svd(Q)[0][:, :r]
         ones = np.ones(k)
 
         # With basis and input.
@@ -193,7 +193,7 @@ class TestNonparametricOpInfROM:
 
         # Special case: m = inputs.ndim = 1
         U1d = U[0]
-        B1d = B[:,0]
+        B1d = B[:, 0]
         Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, U1d, {"B": B1d})
         assert rom.m == 1
         assert rom._projected_operators_ == "B"
@@ -202,7 +202,7 @@ class TestNonparametricOpInfROM:
         # Fully intrusive.
         rom.modelform = "cA"
         Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, None,
-                                              {"c": c, "A":A})
+                                              {"c": c, "A": A})
         assert sorted(rom._projected_operators_) == sorted("cA")
         assert Q_ is None
         assert lhs_ is None
@@ -230,8 +230,8 @@ class TestNonparametricOpInfROM:
             elif form == "G":
                 assert np.allclose(D, opinf.utils.kron3c(Q_).T)
             elif form == "AB":
-                assert np.allclose(D[:,:r], Q_.T)
-                assert np.allclose(D[:,r:], U.T)
+                assert np.allclose(D[:, :r], Q_.T)
+                assert np.allclose(D[:, r:], U.T)
 
         # Try with one-dimensional inputs as a 1D array.
         rom.modelform = "cB"
@@ -274,8 +274,8 @@ class TestNonparametricOpInfROM:
         """Test core.nonparametric._base._NonparametricOpInfROM.fit()."""
         # Get test data.
         Q, F, U = _get_data(n, k, m)
-        U1d = U[0,:]
-        Vr = la.svd(Q)[0][:,:r]
+        U1d = U[0, :]
+        Vr = la.svd(Q)[0][:, :r]
         args_n = [Q, F]
         args_r = [Vr.T @ Q, Vr.T @ F]
 
@@ -397,7 +397,7 @@ class TestNonparametricOpInfROM:
         assert rom2 == rom
         for attr in ["m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)
-        for attr in ["A_", "B_",]:
+        for attr in ["A_", "B_"]:
             got = getattr(rom2, attr)
             assert _isoperator(got)
             assert np.all(getattr(rom, attr).entries == got.entries)

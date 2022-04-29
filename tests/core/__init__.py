@@ -17,9 +17,9 @@ MODEL_FORMS = [''.join(s) for k in range(1, len(MODELFORM_KEYS)+1)
 # Helper functions for testing ================================================
 def _get_data(n=60, k=25, m=20):
     """Get fake snapshot, time derivative, and input data."""
-    X = np.random.random((n,k))
-    Xdot = np.random.random((n,k))
-    U = np.ones((m,k))
+    X = np.random.random((n, k))
+    Xdot = np.random.random((n, k))
+    U = np.ones((m, k))
 
     return X, Xdot, U
 
@@ -28,15 +28,15 @@ def _get_operators(n=60, m=20, expanded=False):
     """Construct fake model operators."""
     c = np.random.random(n)
     A = np.eye(n)
-    H = np.zeros((n,n**2 if expanded else n*(n+1)//2))
-    G = np.zeros((n,n**3 if expanded else n*(n+1)*(n+2)//6))
-    B = np.random.random((n,m)) if m else None
+    H = np.zeros((n, n**2 if expanded else n*(n+1)//2))
+    G = np.zeros((n, n**3 if expanded else n*(n+1)*(n+2)//6))
+    B = np.random.random((n, m)) if m else None
     return c, A, H, G, B
 
 
 def _trainedmodel(ModelClass, modelform, basis, m=20):
     """Construct a base class with model operators already constructed."""
-    n,r = basis.shape
+    n, r = basis.shape
     c, A, H, G, B = _get_operators(r, m)
     operators = {}
     if "c" in modelform:

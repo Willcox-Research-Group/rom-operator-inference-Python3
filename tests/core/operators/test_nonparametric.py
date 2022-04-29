@@ -15,7 +15,7 @@ class TestConstantOperator:
     def test_init(self):
         """Test core.operators._nonparametric.ConstantOperator.__init__()"""
         # Too many dimensions.
-        cbad = np.arange(12).reshape((4,3))
+        cbad = np.arange(12).reshape((4, 3))
         with pytest.raises(ValueError) as ex:
             opinf.core.operators.ConstantOperator(cbad)
         assert ex.value.args[0] == "constant operator must be one-dimensional"
@@ -50,41 +50,41 @@ class TestLinearOperator:
         """Test core.operators._nonparametric.LinearOperator.__init__()"""
 
         # Too many dimensions.
-        Abad = np.arange(12).reshape((2,2,3))
+        Abad = np.arange(12).reshape((2, 2, 3))
         with pytest.raises(ValueError) as ex:
             opinf.core.operators.LinearOperator(Abad)
         assert ex.value.args[0] == "linear operator must be two-dimensional"
 
         # No violation, nonsquare.
-        A = Abad.reshape((4,3))
+        A = Abad.reshape((4, 3))
         op = opinf.core.operators.LinearOperator(A)
         assert op.entries is A
 
         # Correct square usage.
-        A = A[:3,:3]
+        A = A[:3, :3]
         op = opinf.core.operators.LinearOperator(A)
         assert op.entries is A
 
         # Special case: "one-dimensional" operator.
         B = np.arange(5)
         op = opinf.core.operators.LinearOperator(B)
-        assert op.shape == (5,1)
-        assert np.all(op.entries[:,0] == B)
+        assert op.shape == (5, 1)
+        assert np.all(op.entries[:, 0] == B)
 
         # Special case: "scalar" operator.
         A = np.array([10])
         op = opinf.core.operators.LinearOperator(A)
-        assert op.shape == (1,1)
-        assert op.entries[0,0] == A[0]
+        assert op.shape == (1, 1)
+        assert op.entries[0, 0] == A[0]
 
     def test_call(self):
         """Test core.operators._nonparametric.LinearOperator.__call__()"""
 
         # Special case: A is 1x1 (e.g., ROM state dimension = 1)
-        A = np.random.random((1,1))
+        A = np.random.random((1, 1))
         op = opinf.core.operators.LinearOperator(A)
         x = np.random.random()
-        assert np.allclose(op(x), A[0,0] * x)
+        assert np.allclose(op(x), A[0, 0] * x)
 
         # Scalar inputs (e.g., ROM state dimension > 1 but input dimension = 1)
         B = np.random.random(10)
@@ -98,9 +98,9 @@ class TestLinearOperator:
             op = opinf.core.operators.LinearOperator(A)
             assert np.allclose(op(x), A @ x)
 
-        _check1D(np.random.random((4,3)))
-        _check1D(np.random.random((4,4)))
-        _check1D(np.random.random((4,1)))
+        _check1D(np.random.random((4, 3)))
+        _check1D(np.random.random((4, 4)))
+        _check1D(np.random.random((4, 1)))
 
         # 2D inputs (for applying to data residual)
         def _check2D(A):
@@ -108,8 +108,8 @@ class TestLinearOperator:
             op = opinf.core.operators.LinearOperator(A)
             assert np.allclose(op(X), A @ X)
 
-        _check2D(np.random.random((10,3)))
-        _check2D(np.random.random((6,6)))
+        _check2D(np.random.random((10, 3)))
+        _check2D(np.random.random((6, 6)))
 
 
 class TestQuadraticOperator:
@@ -117,21 +117,21 @@ class TestQuadraticOperator:
     def test_init(self):
         """Test core.operators._nonparametric.QuadraticOperator.__init__()"""
         # Too many dimensions.
-        Hbad = np.arange(12).reshape((2,2,3))
+        Hbad = np.arange(12).reshape((2, 2, 3))
         with pytest.raises(ValueError) as ex:
             opinf.core.operators.QuadraticOperator(Hbad)
         assert ex.value.args[0] == "quadratic operator must be two-dimensional"
 
         # Two-dimensional but invalid shape.
-        Hbad = Hbad.reshape((4,3))
+        Hbad = Hbad.reshape((4, 3))
         with pytest.raises(ValueError) as ex:
             opinf.core.operators.QuadraticOperator(Hbad)
         assert ex.value.args[0] == "invalid dimensions for quadratic operator"
 
         # Special case: r = 1
-        H = np.random.random((1,1))
+        H = np.random.random((1, 1))
         op = opinf.core.operators.QuadraticOperator(H)
-        assert op.shape == (1,1)
+        assert op.shape == (1, 1)
         assert np.allclose(op.entries, H)
 
         # Full operator, compressed internally.
@@ -165,11 +165,11 @@ class TestQuadraticOperator:
             assert np.allclose(op(x), H @ opinf.utils.kron2c(x))
 
         # Special case: r = 1
-        H = np.random.random((1,1))
+        H = np.random.random((1, 1))
         op = opinf.core.operators.QuadraticOperator(H)
         for _ in range(ntrials):
             x = np.random.random()
-            assert np.allclose(op(x), H[0,0] * x**2)
+            assert np.allclose(op(x), H[0, 0] * x**2)
 
 
 # class TestCrossQuadraticOperator:
@@ -188,21 +188,21 @@ class TestCubicOperator:
     def test_init(self):
         """Test core.operators._nonparametric.CubicOperator.__init__()"""
         # Too many dimensions.
-        Gbad = np.arange(24).reshape((2,4,3))
+        Gbad = np.arange(24).reshape((2, 4, 3))
         with pytest.raises(ValueError) as ex:
             opinf.core.operators.CubicOperator(Gbad)
         assert ex.value.args[0] == "cubic operator must be two-dimensional"
 
         # Two-dimensional but invalid shape.
-        Gbad = Gbad.reshape((3,8))
+        Gbad = Gbad.reshape((3, 8))
         with pytest.raises(ValueError) as ex:
             opinf.core.operators.CubicOperator(Gbad)
         assert ex.value.args[0] == "invalid dimensions for cubic operator"
 
         # Special case: r = 1
-        G = np.random.random((1,1))
+        G = np.random.random((1, 1))
         op = opinf.core.operators.CubicOperator(G)
-        assert op.shape == (1,1)
+        assert op.shape == (1, 1)
         assert np.allclose(op.entries, G)
 
         # Full operator, compressed internally.
@@ -237,8 +237,8 @@ class TestCubicOperator:
             assert np.allclose(op(x), G @ opinf.utils.kron3c(x))
 
         # Special case: r = 1
-        G = np.random.random((1,1))
+        G = np.random.random((1, 1))
         op = opinf.core.operators.CubicOperator(G)
         for _ in range(ntrials):
             x = np.random.random()
-            assert np.allclose(op(x), G[0,0] * x**3)
+            assert np.allclose(op(x), G[0, 0] * x**3)

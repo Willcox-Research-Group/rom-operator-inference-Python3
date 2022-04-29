@@ -70,7 +70,7 @@ class TestIterpolatedOperator:
         # Try with matrices of different shapes.
         with pytest.raises(ValueError) as ex:
             self.Dummy(params,
-                       matrices[:-1] + [np.random.random((10,2))],
+                       matrices[:-1] + [np.random.random((10, 2))],
                        _InterpolatorDummy)
         assert ex.value.args[0] == "operator matrix shapes inconsistent"
 
@@ -118,7 +118,7 @@ class TestIterpolatedOperator:
         assert op1 != 1
         assert op1 != op2
 
-        op2 = self.Dummy(params, [A[:,:-1] for A in matrices],
+        op2 = self.Dummy(params, [A[:, :-1] for A in matrices],
                          _InterpolatorDummy)
         assert op1 != op2
 

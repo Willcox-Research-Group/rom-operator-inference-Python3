@@ -37,12 +37,12 @@ def frobenius_error(X, Y):
 
     Parameters
     ----------
-    X : (n,k)
-        "True" data. Each column is one snapshot, i.e., X[:,j] is the data
+    X : (n, k)
+        "True" data. Each column is one snapshot, i.e., X[:, j] is the data
         at some time t[j].
-    Y : (n,k)
-        An approximation to X, i.e., Y[:,j] approximates X[:,j] and corresponds
-        to some time t[j].
+    Y : (n, k)
+        An approximation to X, i.e., Y[:, j] approximates X[:, j] and
+        corresponds to some time t[j].
 
     Returns
     -------
@@ -70,13 +70,13 @@ def lp_error(X, Y, p=2, normalize=False):
 
     Parameters
     ----------
-    X : (n,k) or (n,) ndarray
-        "True" data. Each column is one snapshot, i.e., X[:,j] is the data
+    X : (n, k) or (n,) ndarray
+        "True" data. Each column is one snapshot, i.e., X[:, j] is the data
         at some time t[j]. If one-dimensional, all of X is a single snapshot.
-    Y : (n,k) or (n,) ndarray
-        An approximation to X, i.e., Y[:,j] approximates X[:,j] and corresponds
-        to some time t[j]. If one-dimensional, all of Y is a single snapshot
-        approximation.
+    Y : (n, k) or (n,) ndarray
+        An approximation to X, i.e., Y[:, j] approximates X[:, j] and
+        corresponds to some time t[j]. If one-dimensional, all of Y is a
+        single snapshot approximation.
     p : float
         Order of the lp norm (default p=2 is the Euclidean norm). Used as
         the `ord` argument for scipy.linalg.norm(); see options at
@@ -90,12 +90,12 @@ def lp_error(X, Y, p=2, normalize=False):
     Returns
     -------
     abs_err : (k,) ndarray or float
-        Absolute error of each pair of snapshots X[:,j] and Y[:,j]. If X
+        Absolute error of each pair of snapshots X[:, j] and Y[:, j]. If X
         and Y are one-dimensional, X and Y are treated as single snapshots, so
         the error is a float.
     rel_err : (k,) ndarray or float
-        Relative or normed absolute error of each pair of snapshots X[:,j]
-        and Y[:,j]. If X and Y are one-dimensional, X and Y are treated as
+        Relative or normed absolute error of each pair of snapshots X[:, j]
+        and Y[:, j]. If X and Y are one-dimensional, X and Y are treated as
         single snapshots, so the error is a float.
     """
     # Check p.
@@ -105,7 +105,7 @@ def lp_error(X, Y, p=2, normalize=False):
     # Check dimensions.
     if X.shape != Y.shape:
         raise ValueError("truth X and approximation Y not aligned")
-    if X.ndim not in (1,2):
+    if X.ndim not in (1, 2):
         raise ValueError("X and Y must be one- or two-dimensional")
 
     # Compute the error.
@@ -125,17 +125,18 @@ def Lp_error(X, Y, t=None, p=2):
 
     using the trapezoidal rule to approximate the integrals (for finite p).
     This error measure is only consistent for data sets where each snapshot
-    represents function values, i.e., X[:,j] = [u(t1), u(t2), ..., u(tk)]^T.
+    represents function values, i.e., X[:, j] = [u(t1), u(t2), ..., u(tk)]^T.
 
     Parameters
     ----------
-    X : (n,k) or (k,) ndarray
+    X : (n, k) or (k,) ndarray
         "True" data corresponding to time t. Each column is one snapshot,
-        i.e., X[:,j] is the data at time t[j]. If one-dimensional, each entry
+        i.e., X[:, j] is the data at time t[j]. If one-dimensional, each entry
         is one snapshot.
-    Y : (n,k) or (k,) ndarray
-        An approximation to X, i.e., Y[:,j] approximates X[:,j] and corresponds
-        to time t[j]. If one-dimensional, each entry is one snapshot.
+    Y : (n, k) or (k,) ndarray
+        An approximation to X, i.e., Y[:, j] approximates X[:, j] and
+        corresponds to time t[j]. If one-dimensional, each entry is one
+        snapshot.
     t : (k,) ndarray
         Time domain of the data X and the approximation Y.
         Required unless p == np.inf.

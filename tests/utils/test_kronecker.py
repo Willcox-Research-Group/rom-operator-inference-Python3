@@ -81,7 +81,7 @@ def test_kron2c(n_tests=100):
     """Test utils._kronecker.kron2c()."""
     # Try with bad input.
     with pytest.raises(ValueError) as exc:
-        opinf.utils.kron2c(np.random.random((3,3,3)), checkdim=True)
+        opinf.utils.kron2c(np.random.random((3, 3, 3)), checkdim=True)
     assert exc.value.args[0] == "x must be one- or two-dimensional"
 
     # Correct inputs.
@@ -118,7 +118,7 @@ def test_kron3c(n_tests=50):
     """Test utils._kronecker.kron3c()."""
     # Try with bad input.
     with pytest.raises(ValueError) as exc:
-        opinf.utils.kron3c(np.random.random((2,4,3)), checkdim=True)
+        opinf.utils.kron3c(np.random.random((2, 4, 3)), checkdim=True)
     assert exc.value.args[0] == "x must be one- or two-dimensional"
 
     # Correct inputs.
@@ -144,7 +144,7 @@ def _test_expand_quadratic_single(r):
     assert np.allclose(Hc @ opinf.utils.kron2c(x), Hxx)
 
     # Check properties of the tensor for H.
-    Htensor = H.reshape((r, r,r))
+    Htensor = H.reshape((r, r, r))
     assert np.allclose(Htensor @ x @ x, Hxx)
     for subH in H:
         assert np.allclose(subH, subH.T)
@@ -172,7 +172,7 @@ def _test_compress_quadratic_single(r):
     x = np.random.random(r)
 
     # Do a valid compress_quadratic() calculation and check dimensions.
-    H = np.random.random((r,r**2))
+    H = np.random.random((r, r**2))
     s = r*(r+1)//2
     Hc = opinf.utils.compress_quadratic(H)
     assert Hc.shape == (r, s)

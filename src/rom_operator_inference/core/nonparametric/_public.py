@@ -73,16 +73,16 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
 
         Parameters
         ----------
-        basis : (n,r) ndarray or None
+        basis : (n, r) ndarray or None
             Basis for the linear reduced space (e.g., POD basis matrix).
-            If None, states is assumed to already be projected (r,k).
-        states : (n,k) or (r,k) ndarray
+            If None, states is assumed to already be projected (r, k).
+        states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-        forcing : (n,k) or (r,k) ndarray or None
+        forcing : (n, k) or (r, k) ndarray or None
             Column-wise forcing data corresponding to the training snapshots,
             either full order (n rows) or projected to reduced order (r rows).
-        regularizer : float >= 0, (d,d) ndarray or list of r of these
+        regularizer : float >= 0, (d, d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + r(r+1)/2 when `modelform`="AH".
@@ -92,9 +92,9 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
             through projection; remaining operators are inferred from data.
             Keys must match the modelform; values are ndarrays:
             * 'c': (n,) constant term c.
-            * 'A': (n,n) linear state matrix A.
-            * 'H': (n,n**2) quadratic state matrix H.
-            * 'G': (n,n**3) cubic state matrix G.
+            * 'A': (n, n) linear state matrix A.
+            * 'H': (n, n**2) quadratic state matrix H.
+            * 'G': (n, n**3) cubic state matrix G.
 
         Returns
         -------
@@ -156,7 +156,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
     #     statelist : list of s (n, k_i) ndarrays
     #         Collection of state trajectories from various initial conditions.
     #         Q = statelist[i] is the snapshot matrix for Q.shape[1] iterations
-    #         starting at initial condition q0 = Q[i,0].
+    #         starting at initial condition q0 = Q[i, 0].
     #
     #     Returns
     #     -------
@@ -165,8 +165,8 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
     #     nextstates : (n, sum_i(k_i)-s) ndarray
     #         Nextstates
     #     """
-    #     states = np.hstack([Q[:,:-1] for Q in statelist])
-    #     nextstates = np.hstack([Q[:,1:] for Q in statelist])
+    #     states = np.hstack([Q[:, :-1] for Q in statelist])
+    #     nextstates = np.hstack([Q[:, 1:] for Q in statelist])
     #     return states, nextstates
 
     def evaluate(self, state_, input_=None):
@@ -194,23 +194,23 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
 
         Parameters
         ----------
-        basis : (n,r) ndarray or None
+        basis : (n, r) ndarray or None
             Basis for the linear reduced space (e.g., POD basis matrix).
-            If None, states is assumed to already be projected (r,k).
-        states : (n,k) or (r,k) ndarray
+            If None, states is assumed to already be projected (r, k).
+        states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-        nextstates : (n,k) or (r,k) ndarray or None
+        nextstates : (n, k) or (r, k) ndarray or None
             Column-wise snapshot training data corresponding to the next
             iteration of the state snapshots, i.e.,
-            F(states[:,j]) = nextstates[:,j] where F is the full-order model.
+            F(states[:, j]) = nextstates[:, j] where F is the full-order model.
             If None, assume state j+1 is the iteration after state j, i.e.,
-            F(states[:,j]) = states[:,j+1].
-        inputs : (m,k) or (k,) ndarray or None
+            F(states[:, j]) = states[:, j+1].
+        inputs : (m, k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be
             one-dimensional if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-        regularizer : float >= 0, (d,d) ndarray or list of r of these
+        regularizer : float >= 0, (d, d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + r(r+1)/2 when `modelform`="AH".
@@ -220,20 +220,20 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             through projection; remaining operators are inferred from data.
             Keys must match the modelform; values are ndarrays:
             * 'c': (n,) constant term c.
-            * 'A': (n,n) linear state matrix A.
-            * 'H': (n,n**2) quadratic state matrix H.
-            * 'G': (n,n**3) cubic state matrix G.
-            * 'B': (n,m) input matrix B.
+            * 'A': (n, n) linear state matrix A.
+            * 'H': (n, n**2) quadratic state matrix H.
+            * 'G': (n, n**3) cubic state matrix G.
+            * 'B': (n, m) input matrix B.
 
         Returns
         -------
         self
         """
         if nextstates is None and states is not None:
-            nextstates = states[:,1:]
-            states = states[:,:-1]
+            nextstates = states[:, 1:]
+            states = states[:, :-1]
         if inputs is not None:
-            inputs = inputs[...,:states.shape[1]]
+            inputs = inputs[..., :states.shape[1]]
         return _NonparametricOpInfROM.fit(self, basis,
                                           states, nextstates, inputs,
                                           regularizer, known_operators)
@@ -248,7 +248,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             reduced order (r-vector).
         niters : int
             Number of times to step the system forward.
-        inputs : (m,niters-1) ndarray
+        inputs : (m, niters-1) ndarray
             Inputs for the next niters-1 time steps.
         reconstruct : bool
             If True and the basis is not None, reconstruct the solutions
@@ -256,7 +256,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
 
         Returns
         -------
-        states : (n,niters) or (r,niters) ndarray
+        states : (n, niters) or (r, niters) ndarray
             Approximate solution to the system, including the given
             initial condition. If the basis exists and reconstruct=True,
             return solutions in the full n-dimensional state space (n rows);
@@ -273,8 +273,8 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             raise ValueError("argument 'niters' must be a positive integer")
 
         # Create the solution array and fill in the initial condition.
-        states_ = np.empty((self.r,niters))
-        states_[:,0] = state0_.copy()
+        states_ = np.empty((self.r, niters))
+        states_[:, 0] = state0_.copy()
 
         # Run the iteration.
         if 'B' in self.modelform:
@@ -284,12 +284,12 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             U = np.atleast_2d(inputs)
             if U.ndim != 2 or U.shape[0] != self.m or U.shape[1] < niters - 1:
                 raise ValueError("inputs.shape = "
-                                 f"({U.shape} != {(self.m,niters-1)}")
+                                 f"({U.shape} != {(self.m, niters-1)}")
             for j in range(niters - 1):
-                states_[:,j+1] = self.evaluate(states_[:,j], U[:,j])
+                states_[:, j+1] = self.evaluate(states_[:, j], U[:, j])
         else:
             for j in range(niters - 1):
-                states_[:,j+1] = self.evaluate(states_[:,j])
+                states_[:, j+1] = self.evaluate(states_[:, j])
 
         # Return state results.
         if reconstruct and (self.basis is not None):
@@ -359,21 +359,21 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
 
         Parameters
         ----------
-        basis : (n,r) ndarray or None
+        basis : (n, r) ndarray or None
             Basis for the linear reduced space (e.g., POD basis matrix).
-            If None, states and ddts are assumed to already be projected (r,k).
-        states : (n,k) or (r,k) ndarray
+            If None, states and ddts are assumed to already be projected.
+        states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
-        ddts : (n,k) or (r,k) ndarray
+        ddts : (n, k) or (r, k) ndarray
             Column-wise time derivative training data (each column is a
             snapshot), either full order (n rows) or projected to reduced
             order (r rows).
-        inputs : (m,k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be
             one-dimensional if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-        regularizer : float >= 0 or (d,d) ndarray or list of r of these
+        regularizer : float >= 0 or (d, d) ndarray or list of r of these
             Tikhonov regularization factor(s); see lstsq.solve(). Here, d
             is the number of unknowns in each decoupled least-squares problem,
             e.g., d = r + m when `modelform`="AB".
@@ -383,10 +383,10 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             through projection; remaining operators are inferred from data.
             Keys must match the modelform; values are ndarrays:
             * 'c': (n,) constant term c.
-            * 'A': (n,n) linear state matrix A.
-            * 'H': (n,n**2) quadratic state matrix H.
-            * 'G': (n,n**3) cubic state matrix G.
-            * 'B': (n,m) input matrix B.
+            * 'A': (n, n) linear state matrix A.
+            * 'H': (n, n**2) quadratic state matrix H.
+            * 'G': (n, n**3) cubic state matrix G.
+            * 'B': (n, m) input matrix B.
 
         Returns
         -------
@@ -406,7 +406,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             to reduced order (r-vector).
         t : (nt,) ndarray
             Time domain over which to integrate the reduced-order system.
-        input_func : callable or (m,nt) ndarray
+        input_func : callable or (m, nt) ndarray
             Input as a function of time (preferred) or the input at the
             times `t`. If given as an array, cubic spline interpolation
             on the known data points is used as needed.
@@ -432,7 +432,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
 
         Returns
         -------
-        states : (n,nt) or (r,nt) ndarray
+        states : (n, nt) or (r, nt) ndarray
             Approximate solution to the system over the time domain `t`.
             If the basis exists and reconstruct=True, return solutions in the
             original n-dimensional state space (n rows); otherwise, return
@@ -454,11 +454,11 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         # Interpret control input argument `input_func`.
         if 'B' in self.modelform:
             if not callable(input_func):
-                # input_func must be (m,nt) ndarray. Interploate -> callable.
+                # input_func must be (m, nt) ndarray. Interploate -> callable.
                 U = np.atleast_2d(input_func)
-                if U.shape != (self.m,nt):
+                if U.shape != (self.m, nt):
                     raise ValueError("input_func.shape = "
-                                     f"{U.shape} != {(self.m,nt)}")
+                                     f"{U.shape} != {(self.m, nt)}")
                 input_func = CubicSpline(t, U, axis=1)
 
             # Check dimension of input_func() outputs.

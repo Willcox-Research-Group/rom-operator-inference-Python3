@@ -413,7 +413,7 @@ class TestBaseROM:
 
         # Get test operators.
         c, A, H, G, B = _get_operators(n, m, expanded=True)
-        operators = {"c":c, "A":A, "H":H, "G":G, "B":B}
+        operators = {"c": c, "A": A, "H": H, "G": G, "B": B}
         B1d = B[:, 0]
 
         # Try to project without a basis.
@@ -444,30 +444,30 @@ class TestBaseROM:
         rom.basis = basis
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"c":cbad, "A":A, "H":H, "G":G, "B":B})
+            rom._project_operators({"c": cbad, "A": A, "H": H, "G": G, "B": B})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"c":c, "A":Abad})
+            rom._project_operators({"c": c, "A": Abad})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"H":Hbad, "G":G, "B":B})
+            rom._project_operators({"H": Hbad, "G": G, "B": B})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"c":c, "A":A, "H":H, "G":Gbad, "B":B})
+            rom._project_operators({"c": c, "A": A, "H": H, "G": Gbad, "B": B})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"B":Bbad})
+            rom._project_operators({"B": Bbad})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         # Test each modelform.
         for form in MODEL_FORMS:
             rom = self.Dummy(form)
             rom.basis = basis
-            ops = {key:val for key, val in operators.items() if key in form}
+            ops = {key: val for key, val in operators.items() if key in form}
             rom._project_operators(ops)
             for prefix in self.Dummy._MODELFORM_KEYS:
                 attr = prefix+'_'
@@ -486,7 +486,7 @@ class TestBaseROM:
         # Special case: project input operator with 1D inputs (m = 1).
         rom = self.Dummy("cAHB")
         rom.basis = basis
-        rom._project_operators({"c":c, "A":A, "H":H, "B":B1d})
+        rom._project_operators({"c": c, "A": A, "H": H, "B": B1d})
         assert rom.m == 1
         assert rom.B_.shape == (r, 1)
 

@@ -23,17 +23,17 @@ def kron2c(x, checkdim=False):
 
     Parameters
     ----------
-    x : (n,) or (n,k) ndarray
+    x : (n,) or (n, k) ndarray
         If two-dimensional, the product is computed column-wise (Khatri-Rao).
     checkdim : bool
         If true, check that the input `x` is one- or two-dimensional.
 
     Returns
     -------
-    x ⊗ x : (n(n+1)/2,) or (n(n+1)/2,k) ndarray
+    x ⊗ x : (n(n+1)/2,) or (n(n+1)/2, k) ndarray
         The "compact" Kronecker product of x with itself.
     """
-    if checkdim and x.ndim not in (1,2):
+    if checkdim and x.ndim not in (1, 2):
         raise ValueError("x must be one- or two-dimensional")
     return np.concatenate([x[i] * x[:i+1] for i in range(x.shape[0])], axis=0)
 
@@ -43,17 +43,17 @@ def kron3c(x, checkdim=False):
 
     Parameters
     ----------
-    x : (n,) or (n,k) ndarray
+    x : (n,) or (n, k) ndarray
         If two-dimensional, the product is computed column-wise (Khatri-Rao).
     checkdim : bool
         If true, check that the input `x` is one- or two-dimensional.
 
     Returns
     -------
-    x ⊗ x : (n(n+1)(n+2)/6,) or (n(n+1)(n+2)/6,k) ndarray
+    x ⊗ x : (n(n+1)(n+2)/6,) or (n(n+1)(n+2)/6, k) ndarray
         The "compact" Kronecker product of x with itself three times.
     """
-    if checkdim and x.ndim not in (1,2):
+    if checkdim and x.ndim not in (1, 2):
         raise ValueError("x must be one- or two-dimensional")
     x2 = kron2c(x, False)
     lens = special.binom(np.arange(2, len(x)+2), 2).astype(int)
@@ -68,7 +68,7 @@ def kron2c_indices(r):
     count = 0
     for i in range(r):
         for j in range(i+1):
-            mask[count,:] = (i,j)
+            mask[count, :] = (i, j)
             count += 1
     return mask
 
@@ -80,7 +80,7 @@ def kron3c_indices(r):
     for i in range(r):
         for j in range(i+1):
             for k in range(j+1):
-                mask[count,:] = (i,j,k)
+                mask[count, :] = (i, j, k)
                 count += 1
     return mask
 
@@ -92,15 +92,15 @@ def compress_quadratic(H):
 
     Parameters
     ----------
-    H : (r,r**2) ndarray
+    H : (r, r**2) ndarray
         The matricized quadratic tensor that operates on the full Kronecker
         product. This should be a symmetric operator in the sense that each
-        layer of H.reshape((r,r,r)) is a symmetric (r,r) matrix, but it is not
-        required.
+        layer of H.reshape((r, r, r)) is a symmetric (r, r) matrix, but it is
+        not required.
 
     Returns
     -------
-    Hc : (r,s) ndarray
+    Hc : (r, s) ndarray
         The matricized quadratic tensor that operates on the compact Kronecker
         product. Here s = r * (r+1) / 2.
     """
@@ -192,8 +192,8 @@ def compress_cubic(G):
         for j in range(i+1):
             for k in range(j+1):
                 idxs = set(itertools.permutations((i, j, k), 3))
-                Gc[:, fj] = np.sum([G[:, (a*r**2)+(b*r)+c] for a,b,c in idxs],
-                                   axis=0)
+                Gc[:, fj] = np.sum([G[:, (a*r**2)+(b*r)+c]
+                                    for a, b, c in idxs], axis=0)
                 fj += 1
 
     # assert fj == s
@@ -206,18 +206,18 @@ def expand_cubic(Gc):
 
     Parameters
     ----------
-    Gc : (r,s) ndarray
+    Gc : (r, s) ndarray
         The matricized quadratic tensor that operates on the compact cubic
         Kronecker product. Here s = r * (r+1) * (r+2) / 6.
 
     Returns
     -------
-    G : (r,r**3) ndarray
+    G : (r, r**3) ndarray
         The matricized quadratic tensor that operates on the full cubic
         Kronecker product. This is a symmetric operator in the sense that each
-        layer of G.reshape((r,r,r,r)) is a symmetric (r,r,r) matrix.
+        layer of G.reshape((r, r, r, r)) is a symmetric (r, r, r) matrix.
     """
-    r,s = Gc.shape
+    r, s = Gc.shape
     if s != r * (r+1) * (r+2) // 6:
         raise ValueError(f"invalid shape (r, s) = {(r, s)}"
                          " with s != r(r+1)(r+2)/6")

@@ -49,8 +49,8 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
             Convenience options:
-            * "cubicspline": scipy.interpolate.CubicSpline
-            * TODO
+            * "cubicspline": scipy.interpolate.CubicSpline (p = 1)
+            * "linear": scipy.interpolate.LinearNDInterpolator (p > 1)
             * "auto" (default): choose based on the parameter dimension.
         """
         _BaseParametricROM.__init__(self, modelform)
@@ -64,6 +64,8 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         self.__autoIC = (InterpolatorClass == "auto")
         if InterpolatorClass == "cubicspline":
             self.InterpolatorClass = scipy.interpolate.CubicSpline
+        elif InterpolatorClass == "linear":
+            self.InterpolatorClass = scipy.interpolate.LinearNDInterpolator
         elif not isinstance(InterpolatorClass, str):
             self.InterpolatorClass = InterpolatorClass
         else:

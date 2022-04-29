@@ -36,11 +36,11 @@ def test_frobenius_error(set_up_error_data):
 
     # Try with bad shapes.
     with pytest.raises(ValueError) as exc:
-        opinf.post.frobenius_error(X, Y[:,:-1])
+        opinf.post.frobenius_error(X, Y[:, :-1])
     assert exc.value.args[0] == "truth X and approximation Y not aligned"
 
     with pytest.raises(ValueError) as exc:
-        opinf.post.frobenius_error(np.dstack((X,X)), np.dstack((Y,Y)))
+        opinf.post.frobenius_error(np.dstack((X, X)), np.dstack((Y, Y)))
     assert exc.value.args[0] == "X and Y must be two-dimensional"
 
     # Test correct usage.
@@ -61,11 +61,11 @@ def test_lp_error(set_up_error_data):
 
     # Try with bad shapes.
     with pytest.raises(ValueError) as exc:
-        opinf.post.lp_error(X, Y[:,:-1])
+        opinf.post.lp_error(X, Y[:, :-1])
     assert exc.value.args[0] == "truth X and approximation Y not aligned"
 
     with pytest.raises(ValueError) as exc:
-        opinf.post.lp_error(np.dstack((X,X)), np.dstack((Y,Y)))
+        opinf.post.lp_error(np.dstack((X, X)), np.dstack((Y, Y)))
     assert exc.value.args[0] == "X and Y must be one- or two-dimensional"
 
     # Test correct usage.
@@ -77,7 +77,7 @@ def test_lp_error(set_up_error_data):
         assert abs_err.shape == rel_err2.shape == (X.shape[1],)
         assert np.all(rel_err1 >= rel_err2)
 
-        abs_err1D, rel_err1D = opinf.post.lp_error(X[:,0], Y[:,0], p=p)
+        abs_err1D, rel_err1D = opinf.post.lp_error(X[:, 0], Y[:, 0], p=p)
         assert isinstance(abs_err1D, float)
         assert isinstance(rel_err1D, float)
 
@@ -94,15 +94,15 @@ def test_Lp_error(set_up_error_data):
 
     # Try with bad shapes.
     with pytest.raises(ValueError) as exc:
-        opinf.post.Lp_error(X, Y[:,:-1], t)
+        opinf.post.Lp_error(X, Y[:, :-1], t)
     assert exc.value.args[0] == "truth X and approximation Y not aligned"
 
     with pytest.raises(ValueError) as exc:
-        opinf.post.Lp_error(np.dstack((X,X)), np.dstack((Y,Y)), t)
+        opinf.post.Lp_error(np.dstack((X, X)), np.dstack((Y, Y)), t)
     assert exc.value.args[0] == "X and Y must be one- or two-dimensional"
 
     with pytest.raises(ValueError) as exc:
-        opinf.post.Lp_error(X, Y, np.dstack((t,t)))
+        opinf.post.Lp_error(X, Y, np.dstack((t, t)))
     assert exc.value.args[0] == "time t must be one-dimensional"
 
     with pytest.raises(ValueError) as exc:

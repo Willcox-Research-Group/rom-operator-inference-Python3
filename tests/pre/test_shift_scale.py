@@ -17,7 +17,7 @@ def test_shift(set_up_basis_data):
 
     # Try with bad data shape.
     with pytest.raises(ValueError) as ex:
-        opinf.pre.shift(np.random.random((3,3,3)))
+        opinf.pre.shift(np.random.random((3, 3, 3)))
     assert ex.value.args[0] == "argument `states` must be two-dimensional"
 
     # Try with bad shift vector.
@@ -31,12 +31,12 @@ def test_shift(set_up_basis_data):
     assert Xshifted.shape == X.shape
     assert np.allclose(np.mean(Xshifted, axis=1), np.zeros(X.shape[0]))
     for j in range(X.shape[1]):
-        assert np.allclose(Xshifted[:,j], X[:,j] - xbar)
+        assert np.allclose(Xshifted[:, j], X[:, j] - xbar)
 
     Y = np.random.random(X.shape)
     Yshifted = opinf.pre.shift(Y, xbar)
     for j in range(Y.shape[1]):
-        assert np.allclose(Yshifted[:,j], Y[:,j] - xbar)
+        assert np.allclose(Yshifted[:, j], Y[:, j] - xbar)
 
     # Verify inverse shifting.
     assert np.allclose(X, opinf.pre.shift(Xshifted, -xbar))
@@ -48,23 +48,23 @@ def test_scale(set_up_basis_data):
 
     # Try with bad scales.
     with pytest.raises(ValueError) as ex:
-        opinf.pre.scale(X, (1,2,3), (4,5))
+        opinf.pre.scale(X, (1, 2, 3), (4, 5))
     assert ex.value.args[0] == "scale_to must have exactly 2 elements"
 
     with pytest.raises(ValueError) as ex:
-        opinf.pre.scale(X, (1,2), (3,4,5))
+        opinf.pre.scale(X, (1, 2), (3, 4, 5))
     assert ex.value.args[0] == "scale_from must have exactly 2 elements"
 
-    # Scale X to [-1,1] and then scale Y with the same transformation.
-    Xscaled, scaled_to, scaled_from = opinf.pre.scale(X, (-1,1))
+    # Scale X to [-1, 1] and then scale Y with the same transformation.
+    Xscaled, scaled_to, scaled_from = opinf.pre.scale(X, (-1, 1))
     assert Xscaled.shape == X.shape
-    assert scaled_to == (-1,1)
+    assert scaled_to == (-1, 1)
     assert isinstance(scaled_from, tuple)
     assert len(scaled_from) == 2
-    assert round(scaled_from[0],8) == round(X.min(),8)
-    assert round(scaled_from[1],8) == round(X.max(),8)
-    assert round(Xscaled.min(),8) == -1
-    assert round(Xscaled.max(),8) == 1
+    assert round(scaled_from[0], 8) == round(X.min(), 8)
+    assert round(scaled_from[1], 8) == round(X.max(), 8)
+    assert round(Xscaled.min(), 8) == -1
+    assert round(Xscaled.max(), 8) == 1
 
     # Verify inverse scaling.
     assert np.allclose(opinf.pre.scale(Xscaled, scaled_from, scaled_to), X)
@@ -217,7 +217,7 @@ class TestSnapshotTransformer:
         _checkfile(target, st)
 
         # Check non-null transformations.
-        X = np.random.randint(0, 100, (n,k)).astype(float)
+        X = np.random.randint(0, 100, (n, k)).astype(float)
         for scaling, center in itertools.product({None, *st._VALID_SCALINGS},
                                                  (True, False)):
             st.center = center
@@ -245,7 +245,7 @@ class TestSnapshotTransformer:
 
         # Check that save() -> load() gives the same transformer.
         st = opinf.pre.SnapshotTransformer()
-        X = np.random.randint(0, 100, (n,k)).astype(float)
+        X = np.random.randint(0, 100, (n, k)).astype(float)
         for scaling, center in itertools.product({None, *st._VALID_SCALINGS},
                                                  (True, False)):
             st.scaling = scaling
@@ -270,7 +270,7 @@ class TestSnapshotTransformer:
         # Centering.
         st.center = True
         assert st._is_trained() is False
-        st.mean_ = np.array([1,2,3])
+        st.mean_ = np.array([1, 2, 3])
         assert st._is_trained() is True
 
         # Scaling.
@@ -300,7 +300,7 @@ class TestSnapshotTransformer:
         # Test null transformation.
         st.center = False
         st.scaling = None
-        X = np.random.randint(0, 100, (n,k)).astype(float)
+        X = np.random.randint(0, 100, (n, k)).astype(float)
         Y = st.fit_transform(X, inplace=True)
         assert Y is X
         Y = fit_transform_copy(st, X)
@@ -353,13 +353,13 @@ class TestSnapshotTransformer:
 
     def test_transform(self, n=200, k=50):
         """Test pre.SnapshotTransformer.transform()."""
-        X = np.random.randint(0, 100, (n,k)).astype(float)
+        X = np.random.randint(0, 100, (n, k)).astype(float)
         st = opinf.pre.SnapshotTransformer(verbose=False)
 
         # Test null transformation.
-        X = np.random.randint(0, 100, (n,k)).astype(float)
+        X = np.random.randint(0, 100, (n, k)).astype(float)
         st.fit_transform(X)
-        Y = np.random.randint(0, 100, (n,k)).astype(float)
+        Y = np.random.randint(0, 100, (n, k)).astype(float)
         Z = st.transform(Y, inplace=True)
         assert Z is Y
         Z = st.transform(Y, inplace=False)
@@ -377,13 +377,13 @@ class TestSnapshotTransformer:
         st.fit_transform(X)
         µ = st.mean_
         Z = st.transform(Y, inplace=False)
-        assert np.allclose(Z, Y - µ.reshape(-1,1))
+        assert np.allclose(Z, Y - µ.reshape(-1, 1))
 
         # Test each scaling.
         st.center = False
         for scl in st._VALID_SCALINGS:
-            X = np.random.randint(0, 100, (n,k)).astype(float)
-            Y = np.random.randint(0, 100, (n,k)).astype(float)
+            X = np.random.randint(0, 100, (n, k)).astype(float)
+            Y = np.random.randint(0, 100, (n, k)).astype(float)
             st.scaling = scl
             st.fit_transform(X)
             a, b = st.scale_, st.shift_
@@ -392,7 +392,7 @@ class TestSnapshotTransformer:
 
     def test_inverse_transform(self, n=200, k=50):
         """Test pre.SnapshotTransformer.inverse_transform()."""
-        X = np.random.randint(0, 100, (n,k)).astype(float)
+        X = np.random.randint(0, 100, (n, k)).astype(float)
         st = opinf.pre.SnapshotTransformer(verbose=False)
 
         st.center = True
@@ -406,7 +406,7 @@ class TestSnapshotTransformer:
             st.scaling = scaling
             st.center = center
             st.fit_transform(X, inplace=False)
-            Y = np.random.randint(0, 100, (n,k)).astype(float)
+            Y = np.random.randint(0, 100, (n, k)).astype(float)
             Z = st.transform(Y, inplace=False)
             st.inverse_transform(Z, inplace=True)
             assert np.allclose(Z, Y)
@@ -503,7 +503,7 @@ class TestSnapshotTransformerMulti:
         # Set the centering vectors.
         stm.n_ = 7
         µs = [np.random.randint(0, 100, stm.n_) for _ in range(4)]
-        for i,µ in enumerate(µs):
+        for i, µ in enumerate(µs):
             if centers[i]:
                 stm.transformers[i].mean_ = µ
             if scalings[i]:
@@ -514,7 +514,7 @@ class TestSnapshotTransformerMulti:
         µµ = stm.mean_
         assert isinstance(µµ, np.ndarray)
         assert µµ.shape == (4*stm.n_,)
-        for i,µ in enumerate(µs):
+        for i, µ in enumerate(µs):
             s = slice(i*stm.n_, (i+1)*stm.n_)
             if centers[i]:
                 assert np.allclose(µµ[s], µ)
@@ -656,7 +656,7 @@ class TestSnapshotTransformerMulti:
             stm.transformers[i].center = center
             stm.transformers[i].scaling = scaling
             i += 1
-        X = np.random.randint(0, 100, (150,17)).astype(float)
+        X = np.random.randint(0, 100, (150, 17)).astype(float)
         stm.fit_transform(X)
         stm.save(target, overwrite=True)
         _checkfile(target, stm)
@@ -686,7 +686,7 @@ class TestSnapshotTransformerMulti:
             stm.transformers[i].center = center
             stm.transformers[i].scaling = scaling
             i += 1
-        X = np.random.randint(0, 100, (150,19)).astype(float)
+        X = np.random.randint(0, 100, (150, 19)).astype(float)
         stm.fit_transform(X)
         stm.save(target, overwrite=True)
         stm2 = opinf.pre.SnapshotTransformerMulti.load(target)
@@ -699,7 +699,7 @@ class TestSnapshotTransformerMulti:
         """Test pre.SnapshotTransformerMulti._check_shape()."""
         stm = opinf.pre.SnapshotTransformerMulti(12)
         stm.n_ = 10
-        X = np.random.randint(0, 100, (120,23)).astype(float)
+        X = np.random.randint(0, 100, (120, 23)).astype(float)
         stm._check_shape(X)
 
         with pytest.raises(ValueError) as ex:
@@ -729,14 +729,14 @@ class TestSnapshotTransformerMulti:
         stm = self.__testcase()
 
         # Inplace transformation.
-        X = np.random.randint(0, 100, (120,29)).astype(float)
+        X = np.random.randint(0, 100, (120, 29)).astype(float)
         Y = stm.fit_transform(X, inplace=True)
         assert stm.n_ == 10
         assert stm._is_trained()
         assert Y is X
 
         # Non-inplace transformation.
-        X = np.random.randint(0, 100, (120,29)).astype(float)
+        X = np.random.randint(0, 100, (120, 29)).astype(float)
         Y = stm.fit_transform(X, inplace=False)
         assert stm.n_ == 10
         assert stm._is_trained()
@@ -755,7 +755,7 @@ class TestSnapshotTransformerMulti:
         i += 1
         s = slice(i*stm.n_, (i+1)*stm.n_)
         µ = np.mean(X[s], axis=1)
-        assert np.allclose(Y[s], X[s] - µ.reshape(-1,1))
+        assert np.allclose(Y[s], X[s] - µ.reshape(-1, 1))
         assert hasattr(stm.transformers[i], "mean_")
         assert np.allclose(stm.transformers[i].mean_, µ)
         for attr in ("scale_", "shift_"):
@@ -769,27 +769,27 @@ class TestSnapshotTransformerMulti:
             assert np.isclose(np.mean(Y[s]), 0)
             assert np.isclose(np.std(Y[s]), 1)
 
-            # Minmax scaling (to [0,1]).
+            # Minmax scaling (to [0, 1]).
             i += 1
             s = slice(i*stm.n_, (i+1)*stm.n_)
             assert stm.transformers[i].scaling == "minmax"
             assert np.isclose(np.min(Y[s]), 0)
             assert np.isclose(np.max(Y[s]), 1)
 
-            # Symmetric Minmax scaling (to [-1,1]).
+            # Symmetric Minmax scaling (to [-1, 1]).
             i += 1
             s = slice(i*stm.n_, (i+1)*stm.n_)
             assert stm.transformers[i].scaling == "minmaxsym"
             assert np.isclose(np.min(Y[s]), -1)
             assert np.isclose(np.max(Y[s]), 1)
 
-            # Symmetric Minmax scaling (to [-1,1]).
+            # Symmetric Minmax scaling (to [-1, 1]).
             i += 1
             s = slice(i*stm.n_, (i+1)*stm.n_)
             assert stm.transformers[i].scaling == "maxabs"
             assert np.isclose(np.max(np.abs(Y[s])), 1)
 
-            # Symmetric Minmax scaling (to [-1,1]).
+            # Symmetric Minmax scaling (to [-1, 1]).
             i += 1
             s = slice(i*stm.n_, (i+1)*stm.n_)
             assert stm.transformers[i].scaling == "maxabssym"
@@ -800,7 +800,7 @@ class TestSnapshotTransformerMulti:
         """Test pre.SnapshotTransformerMulti.transform()."""
         stm = self.__testcase()
 
-        X = np.random.randint(0, 100, (120,29)).astype(float)
+        X = np.random.randint(0, 100, (120, 29)).astype(float)
         with pytest.raises(AttributeError) as ex:
             stm.transform(X, inplace=False)
         assert ex.value.args[0] == \
@@ -808,12 +808,12 @@ class TestSnapshotTransformerMulti:
 
         # Inplace transformation.
         stm.fit_transform(X)
-        Y = np.random.randint(0, 100, (120,33)).astype(float)
+        Y = np.random.randint(0, 100, (120, 33)).astype(float)
         Z = stm.transform(Y, inplace=True)
         assert Z is Y
 
         # Non-inplace transformation.
-        Y = np.random.randint(0, 100, (120,33)).astype(float)
+        Y = np.random.randint(0, 100, (120, 33)).astype(float)
         Z = stm.transform(Y, inplace=False)
         assert Z is not Y
         assert type(Z) is type(Y)
@@ -823,7 +823,7 @@ class TestSnapshotTransformerMulti:
         """Test pre.SnapshotTransformerMulti.transform()."""
         stm = self.__testcase()
 
-        X = np.random.randint(0, 100, (120,29)).astype(float)
+        X = np.random.randint(0, 100, (120, 29)).astype(float)
         with pytest.raises(AttributeError) as ex:
             stm.inverse_transform(X, inplace=False)
         assert ex.value.args[0] == \
@@ -831,7 +831,7 @@ class TestSnapshotTransformerMulti:
 
         # Inplace transformation.
         stm.fit_transform(X)
-        Y = np.random.randint(0, 100, (120,32)).astype(float)
+        Y = np.random.randint(0, 100, (120, 32)).astype(float)
         Z = stm.transform(Y, inplace=False)
         W = stm.inverse_transform(Z, inplace=True)
         assert W is Z

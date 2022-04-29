@@ -161,7 +161,7 @@ class _NonparametricOpInfROM(_BaseROM):
                     if key not in self._projected_operators_}
         D = []
         if 'c' in to_infer:             # Constant term.
-            D.append(np.ones((states_.shape[1],1)))
+            D.append(np.ones((states_.shape[1], 1)))
 
         if 'A' in to_infer:             # Linear state term.
             D.append(states_.T)
@@ -192,25 +192,25 @@ class _NonparametricOpInfROM(_BaseROM):
         i = 0
 
         if 'c' in to_infer:             # Constant term (one-dimensional).
-            self.c_ = Ohat[:,i:i+1][:,0]
+            self.c_ = Ohat[:, i:i+1][:, 0]
             i += 1
 
         if 'A' in to_infer:             # Linear state matrix.
-            self.A_ = Ohat[:,i:i+self.r]
+            self.A_ = Ohat[:, i:i+self.r]
             i += self.r
 
         if 'H' in to_infer:             # (compact) Qudadratic state matrix.
             _r2 = self._r2
-            self.H_ = Ohat[:,i:i+_r2]
+            self.H_ = Ohat[:, i:i+_r2]
             i += _r2
 
         if 'G' in to_infer:             # (compact) Cubic state matrix.
             _r3 = self._r3
-            self.G_ = Ohat[:,i:i+_r3]
+            self.G_ = Ohat[:, i:i+_r3]
             i += _r3
 
         if 'B' in to_infer:             # Linear input matrix.
-            self.B_ = Ohat[:,i:i+self.m]
+            self.B_ = Ohat[:, i:i+self.m]
             i += self.m
 
         return

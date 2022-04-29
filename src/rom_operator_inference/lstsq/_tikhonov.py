@@ -30,7 +30,7 @@ class _BaseTikhonovSolver(_BaseSolver):
     # Properties: matrices ----------------------------------------------------
     @property
     def A(self):
-        """(k,d) ndarray : "left-hand side" data matrix."""
+        """(k, d) ndarray: "left-hand side" data matrix."""
         return self.__A
 
     @A.setter
@@ -39,7 +39,7 @@ class _BaseTikhonovSolver(_BaseSolver):
 
     @property
     def B(self):
-        """(k,r) ndarray : "right-hand side" matrix B = [ b_1 | ... | b_r ]."""
+        """(k, r) ndarray: "right-hand side" matrix B = [ b_1 | ... | b_r ]."""
         return self.__B
 
     @B.setter
@@ -75,9 +75,9 @@ class _BaseTikhonovSolver(_BaseSolver):
 
         Parameters
         ----------
-        A : (k,d) ndarray
+        A : (k, d) ndarray
             The "left-hand side" matrix.
-        B : (k,r) ndarray
+        B : (k, r) ndarray
             The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
         """
         # Extract the dimensions of A (and ensure A is two-dimensional).
@@ -89,7 +89,7 @@ class _BaseTikhonovSolver(_BaseSolver):
 
         # Check dimensions of b.
         if B.ndim == 1:
-            B = B.reshape((-1,1))
+            B = B.reshape((-1, 1))
         if B.ndim != 2:
             raise ValueError("`B` must be one- or two-dimensional")
         if B.shape[0] != k:
@@ -116,21 +116,21 @@ class _BaseTikhonovSolver(_BaseSolver):
 
         Parameters
         ----------
-        X : (d,r) ndarray
+        X : (d, r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
 
         Returns
         -------
         resids : (r,) ndarray or float (r = 1)
-            Data misfits ||Ax_i - b_i||_2^2, i = 1,...,r.
+            Data misfits ||Ax_i - b_i||_2^2, i = 1, ..., r.
         """
         self._check_is_trained()
         if self.r == 1 and X.ndim == 1:
-            X = X.reshape((-1,1))
-        if X.shape != (self.d,self.r):
+            X = X.reshape((-1, 1))
+        if X.shape != (self.d, self.r):
             raise ValueError(f"X.shape = {X.shape} != "
-                             f"{(self.d,self.r)} = (d, r)")
+                             f"{(self.d, self.r)} = (d, r)")
         resids = np.sum((self.A @ X - self.B)**2, axis=0)
         return resids[0] if self.r == 1 else resids
 
@@ -170,9 +170,9 @@ class SolverL2(_BaseTikhonovSolver):
 
         Parameters
         ----------
-        A : (k,d) ndarray
+        A : (k, d) ndarray
             The "left-hand side" matrix.
-        B : (k,r) ndarray
+        B : (k, r) ndarray
             The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
         """
         self._process_fit_arguments(A, B)
@@ -196,7 +196,7 @@ class SolverL2(_BaseTikhonovSolver):
 
         Returns
         -------
-        X : (d,r) or (d,) ndarray
+        X : (d, r) or (d,) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
             The result is flattened to a one-dimensional array if r = 1.
@@ -237,7 +237,7 @@ class SolverL2(_BaseTikhonovSolver):
 
         Parameters
         ----------
-        X : (d,r) ndarray
+        X : (d, r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
         regularizer : float ≥ 0
@@ -246,7 +246,7 @@ class SolverL2(_BaseTikhonovSolver):
         Returns
         -------
         resids : (r,) ndarray or float (r = 1)
-            Residuals ||Ax_i - b_i||_2^2 + ||λx_i||_2^2, i = 1,...,r.
+            Residuals ||Ax_i - b_i||_2^2 + ||λx_i||_2^2, i = 1, ..., r.
         """
         self._check_is_trained()
         regularizer2 = self._process_regularizer(regularizer)
@@ -276,7 +276,7 @@ class SolverL2Decoupled(SolverL2):
 
         Returns
         -------
-        X : (d,r) or (d,) ndarray
+        X : (d, r) or (d,) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
             The result is flattened to a one-dimensional array if r = 1.
@@ -307,7 +307,7 @@ class SolverL2Decoupled(SolverL2):
         Returns
         -------
         rcs : (r,) ndarray
-            cond([A.T | (λ_i I).T].T), i = 1,...,r, computed from filtered
+            cond([A.T | (λ_i I).T].T), i = 1, ..., r, computed from filtered
             singular values of the data matrix A.
         """
         self._check_is_trained("_svals")
@@ -332,7 +332,7 @@ class SolverL2Decoupled(SolverL2):
         Returns
         -------
         resids : (r,) ndarray
-            Residuals ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2, i = 1,...,r.
+            Residuals ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2, i = 1, ..., r.
         """
         self._check_is_trained()
         self._check_regularizers(regularizers)
@@ -365,7 +365,7 @@ class SolverTikhonov(_BaseTikhonovSolver):
             return np.diag(P)
 
         # Two-dimensional input (the regularization matrix).
-        elif P.shape != (self.d,self.d):
+        elif P.shape != (self.d, self.d):
             raise ValueError("P.shape != (d, d) or (d,) where d = A.shape[1]")
 
         return P
@@ -402,7 +402,7 @@ class SolverTikhonov(_BaseTikhonovSolver):
 
         Parameters
         ----------
-        P : (d,d) or (d,) ndarray
+        P : (d, d) or (d,) ndarray
             Regularization matrix (or the diagonals of the regularization
             matrix if one-dimensional).
         trynormal : bool
@@ -412,7 +412,7 @@ class SolverTikhonov(_BaseTikhonovSolver):
 
         Returns
         -------
-        X : (d,r) or (d,) ndarray
+        X : (d, r) or (d,) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
             The result is flattened to a one-dimensional array if r = 1.
@@ -442,7 +442,7 @@ class SolverTikhonov(_BaseTikhonovSolver):
 
         Parameters
         ----------
-        P : (d,d) or (d,) ndarray
+        P : (d, d) or (d,) ndarray
             Regularization matrix (or the diagonals of the regularization
             matrix if one-dimensional).
 
@@ -460,17 +460,17 @@ class SolverTikhonov(_BaseTikhonovSolver):
 
         Parameters
         ----------
-        X : (d,r) ndarray
+        X : (d, r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-        P : (d,d) or (d,) ndarray
+        P : (d, d) or (d,) ndarray
             Regularization matrix (or the diagonals of the regularization
             matrix if one-dimensional).
 
         Returns
         -------
         resids : (r,) ndarray or float (r = 1)
-            Residuals ||Ax_i - b_i||_2^2 + ||Px_i||_2^2, i = 1,...,r.
+            Residuals ||Ax_i - b_i||_2^2 + ||Px_i||_2^2, i = 1, ..., r.
         """
         self._check_is_trained()
         P = self._process_regularizer(P)
@@ -495,13 +495,13 @@ class SolverTikhonovDecoupled(SolverTikhonov):
 
         Parameters
         ----------
-        Ps : sequence of r (d,d) or (d,) ndarrays
+        Ps : sequence of r (d, d) or (d,) ndarrays
             Regularization matrices (or the diagonals of the regularization
             matrices if one-dimensional), one for each column of B.
 
         Returns
         -------
-        X : (d,r) ndarray
+        X : (d, r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
         """
@@ -534,7 +534,7 @@ class SolverTikhonovDecoupled(SolverTikhonov):
 
         Parameters
         ----------
-        Ps : sequence of r (d,d) or (d,) ndarrays
+        Ps : sequence of r (d, d) or (d,) ndarrays
             Regularization matrices (or the diagonals of the regularization
             matrices if one-dimensional), one for each column of B.
 
@@ -554,22 +554,22 @@ class SolverTikhonovDecoupled(SolverTikhonov):
 
         Parameters
         ----------
-        X : (d,r) ndarray
+        X : (d, r) ndarray
             Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
             solution to the subproblem with the corresponding column of B.
-        Ps : sequence of r (d,d) or (d,) ndarrays
+        Ps : sequence of r (d, d) or (d,) ndarrays
             Regularization matrices (or the diagonals of the regularization
             matrices if one-dimensional), one for each column of B.
 
         Returns
         -------
         resids : (r,) ndarray
-            Residuals ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2, i = 1,...,r.
+            Residuals ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2, i = 1, ..., r.
         """
         self._check_is_trained()
         self._check_Ps(Ps)
         misfit = self.misfit(X)
-        Pxs = np.array([np.sum((P @ X[:,j])**2) for j, P in enumerate(Ps)])
+        Pxs = np.array([np.sum((P @ X[:, j])**2) for j, P in enumerate(Ps)])
         return misfit + Pxs
 
 
@@ -582,16 +582,16 @@ def solver(A, B, P):
 
     Parameters
     ----------
-    A : (k,d) ndarray
+    A : (k, d) ndarray
         The "left-hand side" matrix.
-    B : (k,r) ndarray
+    B : (k, r) ndarray
         The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
-    P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
+    P : float >= 0 or ndarray of shapes (r,), (d,), (d, d), (r, d), (r, d, d)
         Tikhonov regularization hyperparameter(s). The regularization matrix
         in the least-squares problem depends on the format of the argument:
         * float >= 0: `P`*I, a scaled identity matrix.
         * (d,) ndarray: diag(P), a diagonal matrix.
-        * (d,d) ndarray: the matrix `P`.
+        * (d, d) ndarray: the matrix `P`.
         * sequence of length r : the jth entry in the sequence is the
             regularization hyperparameter for the jth column of `b`. Only
             valid if `b` is two-dimensional and has exactly r columns.
@@ -604,7 +604,7 @@ def solver(A, B, P):
     """
     d = A.shape[1]
     if B.ndim == 1:
-        B = B.reshape((-1,1))
+        B = B.reshape((-1, 1))
 
     # P is a scalar: single L2-regularized problem.
     if np.isscalar(P):
@@ -616,11 +616,11 @@ def solver(A, B, P):
 
     # P is a dxd matrix (or a 1D array of length d for diagonal P):
     # single Tikhonov-regularized problem.
-    elif isinstance(P, np.ndarray) and (P.shape in [(d,), (d,d)]):
+    elif isinstance(P, np.ndarray) and (P.shape in [(d,), (d, d)]):
         solver = SolverTikhonov()
 
     # P is a sequence of r matrices: decoupled Tikhonov-regularized problems.
-    elif np.shape(P) in [(B.shape[1],d), (B.shape[1],d,d)]:
+    elif np.shape(P) in [(B.shape[1], d), (B.shape[1], d, d)]:
         solver = SolverTikhonovDecoupled()
 
     else:
@@ -636,23 +636,23 @@ def solve(A, B, P=0):
 
     Parameters
     ----------
-    A : (k,d) ndarray
+    A : (k, d) ndarray
         The "left-hand side" matrix.
-    B : (k,r) ndarray
+    B : (k, r) ndarray
         The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
-    P : float >= 0 or ndarray of shapes (r,), (d,), (d,d), (r,d), or (r,d,d)
+    P : float >= 0 or ndarray of shapes (r,), (d,), (d, d), (r, d), (r, d, d)
         Tikhonov regularization hyperparameter(s). The regularization matrix
         in the least-squares problem depends on the format of the argument:
         * float >= 0: `P`*I, a scaled identity matrix.
         * (d,) ndarray: diag(P), a diagonal matrix.
-        * (d,d) ndarray: the matrix `P`.
+        * (d, d) ndarray: the matrix `P`.
         * sequence of length r : the jth entry in the sequence is the
             regularization hyperparameter for the jth column of `b`. Only
             valid if `b` is two-dimensional and has exactly r columns.
 
     Returns
     -------
-    x : (d,) or (d,r) ndarray
+    x : (d,) or (d, r) ndarray
         Least-squares solution. If `b` is a two-dimensional array, then
         each column is a solution to the regularized least-squares problem
         with the corresponding column of b.
