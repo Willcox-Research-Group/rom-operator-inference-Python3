@@ -381,20 +381,20 @@ class _NonparametricOpInfROM(_BaseROM):
         model : _NonparametricOpInfROM
             Trained reduced-order model.
         """
-        with h5py.File(loadfile, 'r') as data:
-            if "meta" not in data:
+        with h5py.File(loadfile, 'r') as hf:
+            if "meta" not in hf:
                 raise ValueError("invalid save format (meta/ not found)")
-            if "operators" not in data:
+            if "operators" not in hf:
                 raise ValueError("invalid save format (operators/ not found)")
 
             # Load metadata.
-            modelform = data["meta"].attrs["modelform"]
+            modelform = hf["meta"].attrs["modelform"]
 
             # Load basis if present.
-            basis = data["basis"][:] if ("basis" in data) else None
+            basis = hf["basis"][:] if ("basis" in hf) else None
 
             # Load operators.
-            operators = {f"{key}_": data[f"operators/{key}_"][:]
+            operators = {f"{key}_": hf[f"operators/{key}_"][:]
                          for key in modelform}
 
         # Construct the model.

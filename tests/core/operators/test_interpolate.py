@@ -35,7 +35,7 @@ class _InterpolatorDummy:
         return self.__values
 
 
-class TestIterpolatedOperator:
+class TestInterpolatedOperator:
     """Test opinf.core.operators._interpolate._InterpolatedOperator."""
 
     class Dummy(_module._InterpolatedOperator):
@@ -133,8 +133,12 @@ class TestIterpolatedOperator:
         assert op1 == op2
 
 
-def _test_1Doperators(InterpolatorClass, r=10, m=3, s=5):
-    """Test InterpolatedOperator classes with 1D parameter data."""
+def test_1Doperators(r=10, m=3, s=5):
+    """Test InterpolatedOperator classes with using all 1D interpolators
+    from scipy.interpolate.
+    """
+    InterpolatorClass = interp.CubicSpline
+
     # Get nominal operators to play with.
     c, A, H, G, B = _get_operators(r, m)
 
@@ -155,39 +159,38 @@ def _test_1Doperators(InterpolatorClass, r=10, m=3, s=5):
     Ginterp = _module.InterpolatedCubicOperator(params, Gs, InterpolatorClass)
     Binterp = _module.InterpolatedLinearOperator(params, Bs, InterpolatorClass)
 
-    # Call each Spline1d operator on a new parameter.
+    # Call each parametric operator on a new parameter.
     parameter = .314159
-    c_new = cinterp(parameter)
-    assert isinstance(c_new, opinf.core.operators.ConstantOperator)
-    assert c_new.shape == c.shape
+    for IC in [
+        interp.Akima1DInterpolator,
+        interp.BarycentricInterpolator,
+        interp.CubicSpline,
+        interp.KroghInterpolator,
+        interp.PchipInterpolator,
+    ]:
+        for operator in [cinterp, Ainterp, Hinterp, Ginterp, Binterp]:
+            operator.set_interpolator(IC)
 
-    A_new = Ainterp(parameter)
-    assert isinstance(A_new, opinf.core.operators.LinearOperator)
-    assert A_new.shape == A.shape
+        c_new = cinterp(parameter)
+        assert isinstance(c_new, opinf.core.operators.ConstantOperator)
+        assert c_new.shape == c.shape
 
-    H_new = Hinterp(parameter)
-    assert isinstance(H_new, opinf.core.operators.QuadraticOperator)
-    assert H_new.shape == H.shape
+        A_new = Ainterp(parameter)
+        assert isinstance(A_new, opinf.core.operators.LinearOperator)
+        assert A_new.shape == A.shape
 
-    G_new = Ginterp(parameter)
-    assert isinstance(G_new, opinf.core.operators.CubicOperator)
-    assert G_new.shape == G.shape
+        H_new = Hinterp(parameter)
+        assert isinstance(H_new, opinf.core.operators.QuadraticOperator)
+        assert H_new.shape == H.shape
 
-    B_new = Binterp(parameter)
-    assert isinstance(B_new, opinf.core.operators.LinearOperator)
-    assert B_new.shape == B.shape
+        G_new = Ginterp(parameter)
+        assert isinstance(G_new, opinf.core.operators.CubicOperator)
+        assert G_new.shape == G.shape
 
-    with pytest.raises(ValueError) as ex:
-        Ainterp([parameter, parameter, parameter])
-    assert ex.value.args[0] == "expected parameter of shape (1,)"
+        B_new = Binterp(parameter)
+        assert isinstance(B_new, opinf.core.operators.LinearOperator)
+        assert B_new.shape == B.shape
 
-
-def test_1Doperators():
-    """Test InterpolatedOperator classes with using all 1D interpolators
-    from scipy.interpolate.
-    """
-    _test_1Doperators(interp.Akima1DInterpolator)
-    _test_1Doperators(interp.BarycentricInterpolator)
-    _test_1Doperators(interp.CubicSpline)
-    _test_1Doperators(interp.KroghInterpolator)
-    _test_1Doperators(interp.PchipInterpolator)
+        with pytest.raises(ValueError) as ex:
+            Ainterp([parameter, parameter, parameter])
+        assert ex.value.args[0] == "expected parameter of shape (1,)"

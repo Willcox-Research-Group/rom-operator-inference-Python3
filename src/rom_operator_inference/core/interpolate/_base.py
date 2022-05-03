@@ -1,6 +1,6 @@
 # core/interpolate/_base.py
 """Base class for parametric reduced-order models where the parametric
-dependence of operators are handled with elementwise interpolation, i.e,
+dependencies of operators are handled with elementwise interpolation, i.e,
     A(µ)[i,j] = Interpolator([µ1, µ2, ...], [A1[i,j], A2[i,j], ...])(µ).
 where µ1, µ2, ... are parameter values and A1, A2, ... are the corresponding
 operator matrices, e.g., A1 = A(µ1).
@@ -16,7 +16,8 @@ import numpy as np
 import scipy.interpolate
 
 
-from .._base import _BaseROM, _BaseParametricROM
+from .._base import _BaseParametricROM
+from .._nonparametric._base import _NonparametricOpInfROM
 from .. import operators
 
 
@@ -55,8 +56,8 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         """
         _BaseParametricROM.__init__(self, modelform)
 
-        # Valiate the _ModelFitClass.
-        if not issubclass(self._ModelFitClass, _BaseROM):
+        # Validate the _ModelFitClass.
+        if not issubclass(self._ModelFitClass, _NonparametricOpInfROM):
             raise RuntimeError("invalid _ModelFitClass "
                                f"'{self._ModelFitClass.__name__}'")
 
@@ -81,8 +82,8 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         return self.__s
 
     def __len__(self):
-        """Length: number of training parameter samples, i.e., the number of
-        ROMs to interpolate between.
+        """Number of training parameter samples, i.e., the number of ROMS to
+        interpolate between.
         """
         return self.s
 
@@ -94,24 +95,24 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         shape = np.shape(parameters[0])
         if any(np.shape(param) != shape for param in parameters):
             raise ValueError("parameter dimension inconsistent across samples")
-        self.p = shape[0] if len(shape) else 1
         self.__s = len(parameters)
+        self._set_parameter_dimension(parameters)
 
         # If required, select the interpolator based on parameter dimension.
         if self.__autoIC:
             if self.p == 1:
                 self.InterpolatorClass = scipy.interpolate.CubicSpline
-            else:                                   # pragma: no cover
-                raise NotImplementedError           # TODO
+            else:
+                self.InterpolatorClass = scipy.interpolate.LinearNDInterpolator
 
     def _split_operator_list(self, known_operators):
         """Unzip the known operators dictionary into separate dictionaries,
         one for each parameter sample. For example:
         {                                   [
-            "A" : [A1, A2, A3],                 {"A": A1, "H": H1},
-            "H" : [H1, None, H3],   -->         {"A": A2},
-        }                                       {"A": A3, "H": H3}
-                                            ]
+            "A": [A1, A2, A3],                  {"A": A1, "H": H1, "B": B},
+            "H": [H1, None, H3],    -->         {"A": A2, "B": B},
+            "B": B                              {"A": A3, "H": H3, "B": B}
+        }                                   ]
         Also check that the right number of operators is specified.
 
         Parameters
@@ -129,6 +130,16 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         if not isinstance(known_operators, dict):
             raise TypeError("known_operators must be a dictionary")
 
+        # Check that each dictionary value is a list.
+        for key in known_operators.keys():
+            val = known_operators[key]
+            if isinstance(val, np.ndarray):
+                # Special case: single operator matrix given, not a list.
+                known_operators[key] = [val] * self.s
+            if not isinstance(val, list):
+                raise TypeError("known_operators must be dictionary mapping "
+                                "a string to a list of ndarrays")
+
         # Check length of each list in the dictionary.
         if not all(len(val) == self.s for val in known_operators.values()):
             raise ValueError("known_operators dictionary must map modelform "
@@ -136,7 +147,9 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
 
         # "Unzip" the dictionary of lists to a list of dictionaries.
         return [
-            {key: known_operators[key][i] for key in known_operators.keys()}
+            {key: known_operators[key][i]
+             for key in known_operators.keys()
+             if known_operators[key][i] is not None}
             for i in range(self.s)
         ]
 
@@ -212,12 +225,26 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         roms : list of s ROM objects (of a class derived from _BaseROM)
             Trained non-parametric reduced-order models.
         """
+        # Ensure that all ROMs are trained.
+        for rom in roms:
+            if not isinstance(rom, self._ModelFitClass):
+                raise TypeError("expected roms of type "
+                                f"{self._ModelFitClass.__name__}")
+            rom._check_is_trained()
+
+        # Extract the operators from the individual ROMs.
         for key in self.modelform:
-            OperatorClass = operators.NonparametricOperators[key]
-            setattr(self, f"{key}_",
-                    OperatorClass(parameters, [
-                        getattr(rom, f"{key}_").entries for rom in roms
-                    ], self.InterpolatorClass))
+            attr = f"{key}_"
+            ops = [getattr(rom, attr).entries for rom in roms]
+            if all(np.all(ops[0] == op) for op in ops):
+                # This operator does not depend on the parameters.
+                OperatorClass = operators.nonparametric_operators[key]
+                setattr(self, attr, OperatorClass(ops[0]))
+            else:
+                # This operator varies with the parameters (so interpolate).
+                OperatorClass = operators.interpolated_operators[key]
+                setattr(self, attr, OperatorClass(parameters, ops,
+                                                  self.InterpolatorClass))
 
     def fit(self, basis, parameters, states, lhss, inputs=None,
             regularizers=0, known_operators=None):
@@ -264,7 +291,7 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
             Dictionary of known full-order operators at each parameter value.
             Corresponding reduced-order operators are computed directly
             through projection; remaining operators are inferred from data.
-            Keys must match the modelform; values a list of s ndarrays:
+            Keys must match the modelform; values are a list of s ndarrays:
             * 'c': (n,) constant term c.
             * 'A': (n, n) linear state matrix A.
             * 'H': (n, n**2) quadratic state matrix H.
@@ -273,8 +300,11 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
             If operators are known for some parameter values but not others,
             use None whenever the operator must be inferred, e.g., for
             parameters = [µ1, µ2, µ3, µ4, µ5], if A1, A3, and A4 are known
-            linear state operators at µ1, µ2, and µ3, respectively, set
+            linear state operators at µ1, µ3, and µ4, respectively, set
             known_operators = {'A': [A1, None, A3, A4, None]}.
+            For known operators (e.g., A) that do not depend on the parameters,
+            known_operators = {'A': [A, A, A, A, A]} and
+            known_operators = {'A': A} are equivalent.
 
         Returns
         -------
@@ -298,6 +328,23 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         self._interpolate_roms(parameters, nonparametric_roms)
 
         return self
+
+    def set_interpolator(self, InterpolatorClass):
+        """Construct the interpolators for the operator entries.
+        Use this method to change the interpolator after calling fit().
+
+        Parameters
+        ----------
+        InterpolatorClass : type
+            Class for the elementwise interpolation. Must obey the syntax
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+            This is usually a class from scipy.interpolate.
+        """
+        for key in self.modelform:
+            op = getattr(self, f"{key}_")
+            if operators.is_parametric_operator(op):
+                op.set_interpolator(InterpolatorClass)
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile, save_basis=True, overwrite=False):
@@ -336,11 +383,12 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
 
             # Store reduced operators.
             for key, op in zip(self.modelform, self):
-                hf.create_dataset("parameters", data=op.parameters)
+                if "parameters" not in hf:
+                    hf.create_dataset("parameters", data=op.parameters)
                 hf.create_dataset(f"operators/{key}_", data=op.matrices)
 
     @classmethod
-    def load(cls, loadfile):
+    def load(cls, loadfile, InterpolatorClass):
         """Load a serialized ROM from an HDF5 file, created previously from
         a ROM object's save() method.
 
@@ -348,29 +396,51 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         ----------
         loadfile : str
             File to load from, which should end in '.h5'.
+        InterpolatorClass : type or str
+            Class for elementwise operator interpolation. Must obey the syntax
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+            Convenience options:
+            * "cubicspline": scipy.interpolate.CubicSpline (p = 1)
+            * "linear": scipy.interpolate.LinearNDInterpolator (p > 1)
+            * "auto" (default): choose based on the parameter dimension.
 
         Returns
         -------
         model : _NonparametricOpInfROM
             Trained reduced-order model.
         """
-        with h5py.File(loadfile, 'r') as data:
-            if "meta" not in data:
+        with h5py.File(loadfile, 'r') as hf:
+            if "meta" not in hf:
                 raise ValueError("invalid save format (meta/ not found)")
-            if "operators" not in data:
+            if "operators" not in hf:
                 raise ValueError("invalid save format (operators/ not found)")
+            if "parameters" not in hf:
+                raise ValueError("invalid save format (parameters not found)")
 
             # Load metadata.
-            modelform = data["meta"].attrs["modelform"]
+            modelform = hf["meta"].attrs["modelform"]
 
             # Load basis if present.
-            basis = data["basis"][:] if ("basis" in data) else None
+            basis = hf["basis"][:] if ("basis" in hf) else None
 
             # Load operators.
-            operators = {}
+            parameters = hf["parameters"]
+            ops = {}
             for key in modelform:
-                OpClass = operators.NonparametricOperators[key]
-                operators[f"{key}_"] = OpClass(data[f"operators/{key}_"][:])
+                attr = f"{key}_"
+                op = hf[f"operators/{attr}"][:]
+                if op.ndim == 2:
+                    # This is a nonparametric operator.
+                    OpClass = operators.nonparametric_operators[key]
+                    ops[attr] = OpClass(op)
+                elif op.ndim == 3:
+                    # This is a parametric operator.
+                    OpClass = operators.interpolated_operators[key]
+                    ops[attr] = OpClass(parameters, op, InterpolatorClass)
+                else:
+                    raise ValueError(f"invalid save format (operators/{attr}"
+                                     " should have 2 or 3 dimensions)")
 
         # Construct the model.
-        return cls(modelform)._set_operators(basis, **operators)
+        return cls(modelform, InterpolatorClass)._set_operators(basis, **ops)

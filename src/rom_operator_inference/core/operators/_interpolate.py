@@ -11,6 +11,7 @@ __all__ = [
     "InterpolatedQuadraticOperator",
     # "InterpolatedCrossQuadraticOperator",
     "InterpolatedCubicOperator",
+    "interpolated_operators",
 ]
 
 import numpy as np
@@ -86,7 +87,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
         # Construct the spline.
         self.__parameters = parameters
         self.__matrices = matrices
-        self.__interpolator = InterpolatorClass(self.parameters, self.matrices)
+        self.set_interpolator(InterpolatorClass)
 
     def __call__(self, parameter):
         """Return the nonparametric operator corresponding to the parameter."""
@@ -108,6 +109,19 @@ class _InterpolatedOperator(_BaseParametricOperator):
     def shape(self):
         """Shape: shape of the operator matrices to interpolate."""
         return self.matrices[0].shape
+
+    def set_interpolator(self, InterpolatorClass):
+        """Construct the interpolator for the operator entries.
+
+        Parameters
+        ----------
+        InterpolatorClass : type
+            Class for the elementwise interpolation. Must obey the syntax
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+            This is usually a class from scipy.interpolate.
+        """
+        self.__interpolator = InterpolatorClass(self.parameters, self.matrices)
 
     @property
     def interpolator(self):
@@ -254,3 +268,13 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
         >>> new_operator_entries = interpolator(new_parameter)
     """
     _OperatorClass = CubicOperator
+
+
+# Dictionary relating modelform keys to operator classes.
+interpolated_operators = {
+    "c": InterpolatedConstantOperator,
+    "A": InterpolatedLinearOperator,
+    "H": InterpolatedQuadraticOperator,
+    "G": InterpolatedCubicOperator,
+    "B": InterpolatedLinearOperator,
+}
