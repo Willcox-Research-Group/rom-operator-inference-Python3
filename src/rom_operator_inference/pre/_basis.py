@@ -107,8 +107,10 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
 
 
 # Reduced dimension selection =================================================
-def svdval_decay(singular_values, tol, plot=False, ax=None):
-    """Count the number of singular values that are greater than tol.
+def svdval_decay(singular_values, tol=1e-8, normalize=True,
+                 plot=False, ax=None):
+    """Count the number of normalized singular values that are greater than
+    the specified tolerance.
 
     Parameters
     ----------
@@ -116,6 +118,8 @@ def svdval_decay(singular_values, tol, plot=False, ax=None):
         Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
     tol : float or list(float)
         Cutoff value(s) for the singular values.
+    normalize : bool
+        If True, normalize so that the maximum singular value is 1.
     plot : bool
         If True, plot the singular values and the cutoff value(s) against the
         singular value index.
@@ -132,7 +136,9 @@ def svdval_decay(singular_values, tol, plot=False, ax=None):
     one_tol = np.isscalar(tol)
     if one_tol:
         tol = [tol]
-    singular_values = np.array(singular_values)
+    singular_values = np.sort(singular_values)[::-1]
+    if normalize:
+        singular_values /= singular_values[0]
     ranks = [np.count_nonzero(singular_values > epsilon) for epsilon in tol]
 
     if plot:

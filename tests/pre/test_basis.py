@@ -96,9 +96,16 @@ def test_svdval_decay(set_up_basis_data):
 
     # Specific test.
     svdvals = [.9, .09, .009, .0009, .00009, .000009, .0000009]
-    rs = opinf.pre.svdval_decay(svdvals, [.8, .1, .0004], plot=False)
+    rs = opinf.pre.svdval_decay(svdvals, [.8, .1, .0004],
+                                normalize=False, plot=False)
     assert len(rs) == 3
     assert rs == [1, 1, 4]
+
+    svdvals = np.array([1e1, 1e2, 1e3, 1e0, 1e-2]) - 1e-3
+    rs = opinf.pre.svdval_decay(svdvals, [9e-1, 9e-2, 5e-4, 0],
+                                normalize=True, plot=False)
+    assert len(rs) == 4
+    assert rs == [1, 2, 4, 5]
 
 
 def test_cumulative_energy(set_up_basis_data):
