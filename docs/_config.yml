@@ -23,7 +23,7 @@ html:
 # Notebooks execution configuration for build.
 # See https://jupyterbook.org/content/execute.html
 execute:
-  execute_notebooks: cache # auto, force, cache, or 'off'.
+  execute_notebooks: cache  # auto, force, cache, or 'off'.
 
 # Latex output file for PDF builds.
 latex:

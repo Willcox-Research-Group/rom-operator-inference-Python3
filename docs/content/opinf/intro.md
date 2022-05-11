@@ -25,26 +25,32 @@ Consider a system of ODEs with state $\mathbf{q}(t)\in\mathbb{R}^{n}$ and inputs
 
 $$
     \frac{\text{d}}{\text{d}t}\mathbf{q}(t)
-    = \mathbf{f}(t, \mathbf{q}(t), \mathbf{u}(t)).
+    = \mathbf{F}(t, \mathbf{q}(t), \mathbf{u}(t)).
 $$ (eq:opinf-example-fom)
 
 We call {eq}`eq:opinf-example-fom` the _full-order model_, which often represents a PDE after spatial discretization.
-Given samples of the state $\mathbf{q}(t)$, Operator Inference learns a surrogate system for {eq}`eq:opinf-example-fom` with the much smaller state $\widehat{\mathbf{q}}(t) \in \mathbb{R}^{r}, r \ll n$ and the following polynomial structure:
+Given samples of the state $\mathbf{q}(t)$, Operator Inference learns a surrogate system for {eq}`eq:opinf-example-fom` with the much smaller state $\widehat{\mathbf{q}}(t) \in \mathbb{R}^{r}, r \ll n$ and a polynomial structure:
+
+:::{margin}
+```{note}
+The $\otimes$ operator is called the [Kronecker product](https://en.wikipedia.org/wiki/Kronecker_product).
+```
+:::
 
 $$
     \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
     = \widehat{\mathbf{c}}
     + \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
-    + \widehat{\mathbf{H}}(\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t))
-    + \widehat{\mathbf{B}}\widehat{\mathbf{u}}(t).
+    + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]
+    + \widehat{\mathbf{B}}\mathbf{u}(t).
 $$ (eq:opinf-example-rom)
 
-We call {eq}`eq:opinf-example-rom` the _reduced-order model_.
-Our goal is to infer the _reduced-order operators_ $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\widehat{\mathbf{H}}$, and $\widehat{\mathbf{B}}$ using data from {eq}`eq:opinf-example-fom`.
+We call {eq}`eq:opinf-example-rom` a _reduced-order model_ for {eq}`eq:opinf-example-fom`.
+Our goal is to infer the _reduced-order operators_ $\widehat{\mathbf{c}} \in \mathbb{R}^{r}$, $\widehat{\mathbf{A}}\in\mathbb{R}^{r\times r}$, $\widehat{\mathbf{H}}\in\mathbb{R}^{r\times r^{2}}$, and $\widehat{\mathbf{B}}\in\mathbb{R}^{r\times m}$ using data from {eq}`eq:opinf-example-fom`.
 
-:::{important}
+::::{important}
 The right-hand side of {eq}`eq:opinf-example-rom` has a polynomial structure with respect to the state:
-$\widehat{\mathbf{c}}$ are constant terms, $\widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ are the linear terms, $\widehat{\mathbf{H}}(\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t))$ are quadratic terms.
+$\widehat{\mathbf{c}}$ are the constant terms, $\widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ are the linear terms, $\widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]$ are the quadratic terms, with input terms $\widehat{\mathbf{B}}\mathbf{u}(t)$.
 The user must choose which terms to include in the reduced-order model, and this choice should be motivated by the structure of the full-order model {eq}`eq:opinf-example-fom`.
 For example, if the full-order model can be written as
 
@@ -58,11 +64,48 @@ then the reduced-order model should mirror this structure as
 $$
     \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
     = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
-    + \widehat{\mathbf{B}}\widehat{\mathbf{u}}(t).
+    + \widehat{\mathbf{B}}\mathbf{u}(t).
 $$
 
-See [Define Model Structure](subsec-romclass-constructor) for the kinds of terms can be included in the reduced-order model.
+:::{dropdown} Why should the structure be the same?
+**Projection preserves polynomial structure** {cite}`BGW2015pmorSurvey,PW2016OperatorInference`.
+The classical (Galerkin) projection-based reduced-order model for the system
+
+$$
+    \frac{\text{d}}{\text{d}t}\mathbf{q}(t)
+    = \mathbf{c}
+    + \mathbf{A}\mathbf{q}(t)
+    + \mathbf{H}[\mathbf{q}(t)\otimes\mathbf{q}(t)]
+    + \mathbf{B}\mathbf{u}(t)
+$$
+
+is obtained by substituting $\mathbf{q}(t)$ with $\mathbf{V}\widehat{\mathbf{q}}(t)$ for some orthonormal $\mathbf{V}\in\mathbb{R}^{n \times r}$ and $\widehat{\mathbf{q}}(t)\in \mathbb{R}^{r}$, then multiplying both sides by $\mathbf{V}^{\mathsf{T}}$:
+
+$$
+    \mathbf{V}^{\mathsf{T}}\frac{\text{d}}{\text{d}t}\left[\mathbf{V}\widehat{\mathbf{q}}(t)\right]
+    = \mathbf{V}^{\mathsf{T}}\left(\mathbf{c}
+    + \mathbf{A}\mathbf{V}\widehat{\mathbf{q}}(t)
+    + \mathbf{H}[(\mathbf{V}\widehat{\mathbf{q}}(t))\otimes(\mathbf{V}\widehat{\mathbf{q}}(t))]
+    + \mathbf{B}\mathbf{u}(t)\right).
+$$
+
+Since $\mathbf{V}^{\mathsf{T}}\mathbf{V}$ is the identity and $(\mathbf{X}\mathbf{Y})\otimes(\mathbf{Z}\mathbf{W}) = (\mathbf{X}\otimes \mathbf{Z})(\mathbf{Y}\otimes\mathbf{W})$, this simplifies to
+
+$$
+    \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
+    =
+    \widehat{\mathbf{c}}
+    + \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
+    + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]
+    + \widehat{\mathbf{B}}\mathbf{u}(t),
+$$
+
+where $\widehat{\mathbf{c}} = \mathbf{V}^{\mathsf{T}}\mathbf{c}$, $\widehat{\mathbf{A}} = \mathbf{V}^{\mathsf{T}}\mathbf{A}\mathbf{V}$, $\widehat{\mathbf{H}} = \mathbf{V}^{\mathsf{T}}\mathbf{H}\left(\mathbf{V}\otimes\mathbf{V}^{\mathsf{T}}\right)$, and $\widehat{\mathbf{B}} = \mathbf{V}^{\mathsf{T}}\mathbf{B}$.
+Operator inference learns $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\widehat{\mathbf{H}}$, and/or $\widehat{\mathbf{B}}$ _from data_ and is therefore useful for situations where $\mathbf{c}$, $\mathbf{A}$, $\mathbf{H}$, and/or $\mathbf{B}$ are not explicitly available.
 :::
+
+See [Define Model Structure](subsec-romclass-constructor) for the terms that can be included in the reduced-order model.
+::::
 
 ---
 
@@ -90,15 +133,15 @@ Start by gathering solution and input data and organizing them columnwise into t
     \in \mathbb{R}^{m \times k},
 \end{align*}
 
-where $n$ is the dimension of the state discretization, $m$ is the dimension of the input, $k$ is the number of available data points, and the columns of $\mathbf{Q}$ and $\mathbf{U}$ are the solution to the full-order model at some time $t_j$:
+where $n$ is the dimension of the (discretized) state, $m$ is the dimension of the input, $k$ is the number of available data points, and the columns of $\mathbf{Q}$ and $\mathbf{U}$ are the solution to the full-order model at some time $t_j$:
 
 $$
     \frac{\text{d}}{\text{d}t}\mathbf{q}\bigg|_{t = t_j}
-    = \mathbf{f}(t_{j}, \mathbf{q}_{j}, \mathbf{u}_{j}).
+    = \mathbf{F}(t_{j}, \mathbf{q}_{j}, \mathbf{u}_{j}).
 $$
 
 :::{note}
-Raw dynamical systems data often needs to be lightly preprocessed in order to promote stability in the inference problem for learning the reduced-order operators, and to improve the stability and accuracy of the resulting reduced-order model {eq}`eq:opinf-example-rom`.
+Raw dynamical systems data often needs to be lightly preprocessed in order to promote stability in the inference problem for learning the reduced-order operators and to improve the stability and accuracy of the resulting reduced-order model {eq}`eq:opinf-example-rom`.
 Common preprocessing steps include
 1. Variable transformations / lifting to induce a polynomial structure.
 2. Centering or shifting data to account for boundary conditions.
@@ -107,8 +150,7 @@ Common preprocessing steps include
 See [the preprocessing guide](sec-preprocessing) for details and examples.
 :::
 
-Operator Inference uses a regression problem to compute the reduced-order operators, which means we need data for both sides of {eq}`eq:opinf-example-rom`.
-The state and input matrices $\mathbf{Q}$ and $\mathbf{U}$ provide data for the right-hand side $\mathbf{f}(t,\mathbf{q}(t),\mathbf{u}(t))$, but we also need data for the time derivative $\frac{\text{d}}{\text{d}t}\mathbf{q}(t)$ corresponding to the state snapshot data:
+Operator Inference uses a regression problem to compute the reduced-order operators, which requires state data ($\mathbf{Q}$), input data ($\mathbf{U}$), _and_ data for the corresponding time derivatives:
 
 $$
     \dot{\mathbf{Q}}
@@ -125,13 +167,13 @@ $$
 $$
 
 :::{note}
-If these time derivatives cannot be computed directly by evaluating $\mathbf{f}(t_{j}, \mathbf{q}_{j}, \mathbf{u}_{j})$, they must be estimated from the state snapshots.
-The most common strategy is to use [finite differences](https://en.wikipedia.org/wiki/Numerical_differentiation) of the state snapshots, implemented in this package as `opinf.pre.ddt()`.
+If these time derivatives cannot be computed directly by evaluating $\mathbf{F}(t_{j}, \mathbf{q}_{j}, \mathbf{u}_{j})$, they must be inferred from the state snapshots.
+The simplest approach is to use [finite differences](https://en.wikipedia.org/wiki/Numerical_differentiation) of the state snapshots, implemented in this package as `opinf.pre.ddt()`.
 See [**the Tutorial**](sec-tutorial) for example usage.
 :::
 
 :::{warning}
-Take the time derivatives of _processed data_ if you do any preprocessing,
+If you do any preprocessing, be sure to take the time derivatives of the _processed data_, not of the original data.
 :::
 
 
@@ -179,7 +221,7 @@ $$
     \end{array}\right] \in \mathbb{R}^{r}.
 $$
 
-We call $\mathbf{V}_{r} \in \mathbb{R}^{n \times r}$ the _basis matrix_ and typically require that it has orthonormal columns.
+We call $\mathbf{V}_{r} \in \mathbb{R}^{n \times r}$ the _basis matrix_ and typically require that it have orthonormal columns.
 The basis matrix is the link between the high-dimensional state space of the full-order model {eq}`eq:opinf-example-fom` and the low-dimensional state space of the reduced-order model {eq}`eq:opinf-example-rom`.
 
 :::{image} ../../images/basis-projection.svg
@@ -187,7 +229,7 @@ The basis matrix is the link between the high-dimensional state space of the ful
 :width: 80 %
 :::
 
-See the [Basis Computation](sec-basis-computation) page for tools on computing the basis $\mathbf{V}_{r}\in\mathbb{R}^{n \times r}$ and selecting an appropriate dimension $r$.
+The [Basis Computation](sec-basis-computation) page details tools for computing the basis $\mathbf{V}_{r}\in\mathbb{R}^{n \times r}$ and selecting an appropriate dimension $r$.
 
 <!-- :::{tip}
 In the case of finite differences, the time derivative estimation can be done after the data is projected to the low-dimensional subspace defined by the basis (the column space of $\mathbf{V}_{r}$).
@@ -213,7 +255,7 @@ TODO
 
 ## Brief Example
 
-Suppose you have the state snapshot matrix $\mathbf{Q}\in\mathbb{R}^{n\times k}$ stored as the variable `Q` and the input matrix $\mathbf{U}\in\mathbb{R}^{n\times k}$ as the variable `U` and that the time domain corresponding to the data stored as the variable `t`.
+Let's say you have the state snapshot matrix $\mathbf{Q}\in\mathbb{R}^{n\times k}$ stored as the variable `Q` and the input matrix $\mathbf{U}\in\mathbb{R}^{n\times k}$ as the variable `U` and that the time domain corresponding to the data stored as the variable `t`.
 That is, `Q[:,j]` and `U[:,j]` are the state and input, respectively, corresponding to time `t[j]`.
 Then the following code learns a reduced-order model of the form
 
