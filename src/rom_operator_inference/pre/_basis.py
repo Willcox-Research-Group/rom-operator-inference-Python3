@@ -22,15 +22,15 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
 
     Parameters
     ----------
-    states : (n,k) ndarray
+    states : (n, k) ndarray
         Matrix of k snapshots. Each column is a single snapshot of dimension n.
     r : int or None
         Number of POD basis vectors and singular values to compute.
         If None (default), compute the full SVD.
     mode : str
-        Strategy to use for computing the truncated SVD of states. Options:
+        Strategy to use for computing the truncated SVD of the states. Options:
         * "dense" (default): Use scipy.linalg.svd() to compute the SVD.
-            May be inefficient or intractable for very large matrices.
+            May be inefficient for very large matrices.
         * "sparse": Use scipy.sparse.linalg.svds() to compute the SVD.
             This uses ARPACK for the eigensolver. Inefficient for non-sparse
             matrices; requires separate computations for full SVD.
@@ -47,13 +47,13 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
 
     Returns
     -------
-    basis : (n,r) ndarray
+    basis : (n, r) ndarray
         First r POD basis vectors (left singular vectors).
         Each column is a single basis vector of dimension n.
     svdvals : (n,), (k,), or (r,) ndarray
         Singular values in descending order. Always returns as many as are
-        calculated: r for mode="randomize" and mode="sparse", min(n,k) for.
-    W : (k,r) ndarray
+        calculated: r for mode="randomize" or "sparse", min(n, k) for "dense".
+    W : (k, r) ndarray
         First r **right** singular vectors, as columns.
         **Only returned if return_W=True.**
     """

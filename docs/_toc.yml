@@ -17,6 +17,10 @@ parts:
   - caption: Package Usage
     chapters:
     - file: content/usage/installation.md
+    - file: content/usage/preprocessing/index.md
+      sections:
+      - file: content/usage/preprocessing/transformation.md
+      - file: content/usage/preprocessing/basis.md
     - file: content/usage/romclasses/index.md
       sections:
       - file: content/usage/romclasses/continuous.md
@@ -29,10 +33,6 @@ parts:
       - file: content/usage/solvers/tikhonov.md
       # - file: content/usage/solvers/tsvd.md
       # - file: content/usage/solvers/qr.md
-    - file: content/usage/preprocessing/index.md
-      sections:
-      - file: content/usage/preprocessing/transformation.md
-      - file: content/usage/preprocessing/basis.md
     - file: content/usage/postprocessing/index.md
       sections:
       - file: content/usage/postprocessing/reconstruction.md
