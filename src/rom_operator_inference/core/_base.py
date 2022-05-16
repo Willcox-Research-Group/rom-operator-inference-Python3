@@ -24,20 +24,37 @@ class _BaseROM(abc.ABC):
         self.modelform = modelform
 
     def __str__(self):
-        """String representation: the structure of the model."""
+        """String representation: structure of the model, dimensions, etc."""
+        # Build model structure.
         lhs, q, u = self._LHS_LABEL, self._STATE_LABEL, self._INPUT_LABEL
-        out = []
+        out, terms = [], []
         if 'c' in self.modelform:
-            out.append("c")
+            terms.append("c")
         if 'A' in self.modelform:
-            out.append(f"A{q}")
+            terms.append(f"A{q}")
         if 'H' in self.modelform:
-            out.append(f"H[{q} ⊗ {q}]")
+            terms.append(f"H[{q} ⊗ {q}]")
         if 'G' in self.modelform:
-            out.append(f"G[{q} ⊗ {q} ⊗ {q}]")
+            terms.append(f"G[{q} ⊗ {q} ⊗ {q}]")
         if 'B' in self.modelform:
-            out.append(f"B{u}")
-        return f"Reduced-order model structure: {lhs} = " + " + ".join(out)
+            terms.append(f"B{u}")
+        structure = " + ".join(terms)
+        out.append(f"Reduced-order model structure: {lhs} = {structure}")
+
+        # Report dimensions.
+        if self.n:
+            out.append(f"Full-order dimension    n = {self.n:d}")
+        if self.m:
+            out.append(f"Input/control dimension m = {self.m:d}")
+        if self.r:
+            out.append(f"Reduced-order dimension r = {self.r:d}")
+            # TODO: out.append(f"Total degrees of freedom = {}")
+        return '\n'.join(out)
+
+    def __repr__(self):
+        """Unique ID + string representation."""
+        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
+        return f"{uniqueID}\n{str(self)}"
 
     def _clear(self):
         """Set private attributes as None, erasing any previously stored basis,

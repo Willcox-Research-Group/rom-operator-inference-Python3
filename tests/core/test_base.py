@@ -32,6 +32,7 @@ class TestBaseROM:
 
     def test_str(self):
         """Test core._base._BaseROM.__str__() (string representation)."""
+
         # Continuous ROMs
         rom = self.Dummy("A")
         assert str(rom) == \
@@ -67,6 +68,47 @@ class TestBaseROM:
         self.Dummy._LHS_LABEL = "g"
         self.Dummy._STATE_LABEL = "q"
         self.Dummy._INPUT_LABEL = "u"
+        rom = self.Dummy("A")
+        assert str(rom) == \
+            "Reduced-order model structure: g = Aq"
+        rom = self.Dummy("cA")
+        assert str(rom) == \
+            "Reduced-order model structure: g = c + Aq"
+        rom = self.Dummy("G")
+        assert str(rom) == \
+            "Reduced-order model structure: g = G[q ⊗ q ⊗ q]"
+        rom = self.Dummy("cH")
+        assert str(rom) == \
+            "Reduced-order model structure: g = c + H[q ⊗ q]"
+
+        # Dimension reporting.
+        rom = self.Dummy("A")
+        rom.basis = np.empty((100, 20))
+        romstr = str(rom).split('\n')
+        assert len(romstr) == 3
+        assert romstr[0] == \
+            "Reduced-order model structure: g = Aq"
+        assert romstr[1] == "Full-order dimension    n = 100"
+        assert romstr[2] == "Reduced-order dimension r = 20"
+
+        rom = self.Dummy("AB")
+        rom.basis = np.empty((100, 20))
+        rom.m = 3
+        romstr = str(rom).split('\n')
+        assert len(romstr) == 4
+        assert romstr[0] == \
+            "Reduced-order model structure: g = Aq + Bu"
+        assert romstr[1] == "Full-order dimension    n = 100"
+        assert romstr[2] == "Input/control dimension m = 3"
+        assert romstr[3] == "Reduced-order dimension r = 20"
+
+    def test_repr(self):
+        """Test core._base._BaseROM.__repr__() (string representation)."""
+
+        def firstline(obj):
+            return repr(obj).split('\n')[0]
+
+        assert firstline(self.Dummy("A")).startswith("<Dummy object at")
 
     def test_modelform_properties(self, n=10, r=3, m=5):
         """Test the properties related to core._base._BaseROM.modelform."""
