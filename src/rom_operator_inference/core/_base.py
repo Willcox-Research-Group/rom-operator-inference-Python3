@@ -371,13 +371,13 @@ class _BaseROM(abc.ABC):
             raise AttributeError("model not trained (call fit())") from e
 
     # Projection / reconstruction ---------------------------------------------
-    def _project_operators(self, operators):
-        """Project the full-order operators to the reduced-order space.
+    def _project_operators(self, known_operators):
+        """Project known full-order operators to the reduced-order space.
 
         Parameters
         ----------
-        operators : dict(str -> ndarray)
-            Dictionary of known full-order operators.
+        known_operators : dict(str -> ndarray)
+            Dictionary of known full-order or reduced-order operators.
             Corresponding reduced-order operators are computed directly
             through projection; remaining operators are inferred.
             Keys must match the modelform, values are ndarrays:
@@ -387,18 +387,24 @@ class _BaseROM(abc.ABC):
             * 'G': (n, n**3) cubic state matrix G.
             * 'B': (n, m) input matrix B.
         """
-        # TODO: allow reduced-order operators as well in `operators`?
         # Do nothing if there are no operators to project.
-        if operators is None or len(operators) == 0:
+        if known_operators is None or len(known_operators) == 0:
             return
 
-        # Ensure that there is a basis.
+        # If there is no basis, we must have only reduced-order operators..
         if self.basis is None:
-            raise ValueError("basis required to project full-order operators")
+            # Require r so we can tell between full and reduced order.
+            if self.r is None:
+                raise ValueError("dimension r required to use known operators")
+            elif not (all(op.shape[0] == self.r
+                      for op in known_operators.values())):
+                raise ValueError("basis required "
+                                 "to project full-order operators")
 
         # Validate the keys of the operator dictionary.
         surplus = [repr(key)
-                   for key in operators.keys() if key not in self.modelform]
+                   for key in known_operators.keys()
+                   if key not in self.modelform]
         if surplus:
             _noun = "key" + ('' if len(surplus) == 1 else 's')
             raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
@@ -407,41 +413,51 @@ class _BaseROM(abc.ABC):
         if ('H' in self.modelform) or ('G' in self.modelform):
             basis2 = np.kron(self.basis, self.basis)
 
-        if 'c' in operators:            # Constant term.
-            c = operators['c']              # c = multiple of vector of ones.
+        if 'c' in known_operators:          # Constant term.
+            c = known_operators['c']        # c = multiple of vector of ones.
             if np.isscalar(c):
-                c = np.full(self.n, c)
-            self.c_ = self.basis.T @ c
+                c = c * self.basis.sum(axis=0)
+            if c.shape[0] != self.r:
+                c = self.basis.T @ c
+            self.c_ = c
 
-        if 'A' in operators:            # Linear state matrix.
-            A = operators['A']
+        if 'A' in known_operators:          # Linear state matrix.
+            A = known_operators['A']
             if isinstance(A, str) and A.lower() in ("i", "id", "identity"):
                 A = 1
             if np.isscalar(A):              # A = multiple of identity.
-                A = A * np.eye(self.n)
-            self.A_ = self.basis.T @ A @ self.basis
+                A = A * np.eye(self.r)
+            if A.shape[0] != self.r:
+                A = self.basis.T @ A @ self.basis
+            self.A_ = A
 
-        if 'H' in operators:            # Quadratic state matrix.
-            H = operators['H']
+        if 'H' in known_operators:          # Quadratic state matrix.
+            H = known_operators['H']
             # TODO: fast projection.
             # TODO: special case for q^2.
-            self.H_ = self.basis.T @ H @ basis2
+            if H.shape[0] != self.r:
+                H = self.basis.T @ H @ basis2
+            self.H_ = H
 
-        if 'G' in operators:            # Cubic state matrix.
-            G = operators['G']
+        if 'G' in known_operators:          # Cubic state matrix.
+            G = known_operators['G']
             # TODO: fast projection?
             # TODO: special case for q^3.
-            self.G_ = self.basis.T @ G @ np.kron(self.basis, basis2)
+            if G.shape[0] != self.r:
+                G = self.basis.T @ G @ np.kron(self.basis, basis2)
+            self.G_ = G
 
-        if 'B' in operators:            # Linear input matrix.
-            B = operators['B']
+        if 'B' in known_operators:          # Linear input matrix.
+            B = known_operators['B']
             if B.ndim == 1:
                 B = B.reshape((-1, 1))
             self.m = B.shape[1]
-            self.B_ = self.basis.T @ B
+            if B.shape[0] != self.r:
+                B = self.basis.T @ B
+            self.B_ = B
 
-        # Save keys of projected operators.
-        self._projected_operators_ = ''.join(operators.keys())
+        # Save keys of known operators.
+        self._projected_operators_ = ''.join(known_operators.keys())
 
     def project(self, state, label="argument"):
         """Project a high-dimensional state to its low-dimensional
@@ -552,6 +568,23 @@ class _BaseParametricROM(_BaseROM):
     # Must be specified by child classes.
     _ModelClass = NotImplemented
 
+    # ModelClass properties ---------------------------------------------------
+    @property
+    def _LHS_ARGNAME(self):
+        return self._ModelClass._LHS_ARGNAME
+
+    @property
+    def _LHS_LABEL(self):
+        return self._ModelClass._LHS_LABEL
+
+    @property
+    def _STATE_LABEL(self):
+        return self._ModelClass._STATE_LABEL
+
+    @property
+    def _INPUT_LABEL(self):
+        return self._ModelClass._INPUT_LABEL
+
     @property
     def ModelClass(self):
         """Class of nonparametric ROM to represent this parametric ROM
@@ -560,6 +593,7 @@ class _BaseParametricROM(_BaseROM):
         """
         return self._ModelClass
 
+    # Constructor -------------------------------------------------------------
     def __init__(self, modelform):
         """Set the modelform.
 

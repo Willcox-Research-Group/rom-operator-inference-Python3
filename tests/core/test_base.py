@@ -431,7 +431,7 @@ class TestBaseROM:
         rom._check_is_trained()
 
     # Projection / reconstruction ---------------------------------------------
-    def test_project_operators(self, n=7, m=5, r=3):
+    def test_project_operators(self, n=15, m=5, r=4):
         """Test core._base._BaseROM._project_operators()."""
         # Get test data.
         basis = np.random.random((n, r))
@@ -455,12 +455,19 @@ class TestBaseROM:
 
         # Get test operators.
         c, A, H, G, B = _get_operators(n, m, expanded=True)
-        operators = {"c": c, "A": A, "H": H, "G": G, "B": B}
+        c_, A_, H_, G_, B_ = _get_operators(r, m, expanded=False)
         B1d = B[:, 0]
 
-        # Try to project without a basis.
+        # Try to project without dimension r.
         with pytest.raises(ValueError) as ex:
             rom._project_operators({"c": c, "A": A})
+        assert ex.value.args[0] == \
+            "dimension r required to use known operators"
+
+        # Try to project without a basis.
+        rom.r = r
+        with pytest.raises(ValueError) as ex:
+            rom._project_operators({"c": c, "A": A_, "B": B})
         assert ex.value.args[0] == \
             "basis required to project full-order operators"
 
@@ -506,29 +513,41 @@ class TestBaseROM:
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         # Test each modelform.
+        fom_operators = {"c": c, "A": A, "H": H, "G": G, "B": B}
+        rom_operators = {"c": c_, "A": A_, "H": H_, "G": G_, "B": B_}
         for form in MODEL_FORMS:
-            rom = self.Dummy(form)
-            rom.basis = basis
-            ops = {key: val for key, val in operators.items() if key in form}
-            rom._project_operators(ops)
-            for prefix in self.Dummy._MODELFORM_KEYS:
-                attr = prefix+'_'
-                assert hasattr(rom, attr)
-                rom_op = getattr(rom, attr)
-                if prefix in form:
-                    assert isinstance(rom_op.entries, np.ndarray)
-                    assert rom_op.shape == shapes[attr]
+            for opdict in [fom_operators, rom_operators]:
+                rom = self.Dummy(form)
+                rom.basis = basis
+                rom._project_operators({key: op
+                                        for key, op in opdict.items()
+                                        if key in form})
+                for prefix in self.Dummy._MODELFORM_KEYS:
+                    attr = prefix+'_'
+                    assert hasattr(rom, attr)
+                    rom_op = getattr(rom, attr)
+                    if prefix in form:
+                        assert isinstance(rom_op.entries, np.ndarray)
+                        assert rom_op.shape == shapes[attr]
+                    else:
+                        assert rom_op is None
+                if "B" in form:
+                    assert rom.m == m
                 else:
-                    assert rom_op is None
-            if "B" in form:
-                assert rom.m == m
-            else:
-                assert rom.m == 0
+                    assert rom.m == 0
+
+        # Test mix of full- and reduced-order operators.
+        rom = self.Dummy("cA")
+        rom.basis = basis
+        rom._project_operators({"c": c, "A": A_})
+        assert rom.c_.shape == (r,)
+        assert rom.A_.shape == (r, r)
+        assert np.all(rom.A_.entries == A_)
 
         # Special case: project input operator with 1D inputs (m = 1).
         rom = self.Dummy("cAHB")
         rom.basis = basis
-        rom._project_operators({"c": c, "A": A, "H": H, "B": B1d})
+        rom._project_operators({"c": c_, "A": A, "H": H_, "B": B1d})
         assert rom.m == 1
         assert rom.B_.shape == (r, 1)
 
@@ -539,7 +558,7 @@ class TestBaseROM:
         assert np.allclose(rom.c_.entries, 3*(basis.T @ np.ones(n)))
 
         # Special case: A = multiple of the identity
-        ident = basis.T @ basis
+        ident = np.eye(r)
         rom._project_operators({"A": "I"})
         assert np.allclose(rom.A_.entries, ident)
         rom._project_operators({"A": 4})
