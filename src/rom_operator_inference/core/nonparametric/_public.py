@@ -17,53 +17,55 @@ from ._base import _NonparametricOpInfROM
 
 
 class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
-    """Reduced-order model for the nonparametric steady state problem
+    """Reduced-order model for a nonparametric steady state problem:
 
-        g = f(q).
+        g = F(q).
 
-    The structure of f() is user specified, and the corresponding reduced
-    operators are inferred through a least-squares regression.
+    Here q is the state and g is a forcing term. The structure of F(q) is user
+    specified (modelform), and the corresponding low-dimensional operators are
+    inferred through a least-squares regression.
 
-    Parameters
+    Attributes
     ----------
-    modelform : str containing 'c', 'A', 'H', and/or 'G'
-        Structure of the reduced-order model. Each character
-        indicates the presence of a different term in the model:
+    modelform : str containing 'c', 'A', 'H', 'G', and/or 'B'
+        Structure of the reduced-order model. Each character indicates one term
+        in the low-dimensional function F(q, u):
+        'c' : Constant term c
         'A' : Linear state term Aq.
         'H' : Quadratic state term H[q ⊗ q].
         'G' : Cubic state term G[q ⊗ q ⊗ q].
-        For example, modelform=="AH" means f(q) = Aq + H[q ⊗ q].
+        For example, modelform="AH" means F(q) = Aq + H[q ⊗ q].
+    n : int
+        Dimension of the high-dimensional state.
+    m : int or None
+        Dimension of the input, or None if no inputs are present.
+    r : int
+        Dimension of the low-dimensional (reduced-order) state.
+    basis : (n, r) ndarray or None
+        Basis matrix defining the relationship between the high- and
+        low-dimensional state spaces. If None, arguments of fit() are assumed
+        to be in the reduced dimension.
+    c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+        Low-dimensional operators composing the reduced-order model.
     """
     _LHS_ARGNAME = "forcing"
     _LHS_LABEL = "g"
     _STATE_LABEL = "q"
     _INPUT_LABEL = None
-    modelform = property(_BaseROM.modelform.fget,
-                         _BaseROM.modelform.fset,
-                         _BaseROM.modelform.fdel,
-    """Structure of the reduced-order model. Each character
-    indicates the presence of a different term in the model:
-    'c' : Constant state term c.
-    'A' : Linear state term Aq.
-    'H' : Quadratic state term H[q ⊗ q].
-    'G' : Cubic state term G[q ⊗ q ⊗ q].
-    For example, modelform="AH" means f(q) = Aq + H[q ⊗ q].
-    """)
-
     # TODO: disallow input terms?
 
     def evaluate(self, state_):
-        """Evaluate the right-hand side of the model, i.e., f(q).
+        """Evaluate the right-hand side of the model, i.e., F(q).
 
         Parameters
         ----------
         state_ : (r,) ndarray
-            Low-dimensional state vector.
+            Low-dimensional state vector q.
 
         Returns
         -------
         g: (r,) ndarray
-            Evaluation of the right-hand side of the model.
+            Evaluation of the model.
         """
         return _BaseROM.evaluate(self, state_, None)
 
@@ -74,8 +76,8 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         Parameters
         ----------
         basis : (n, r) ndarray or None
-            Basis for the linear reduced space (e.g., POD basis matrix).
-            If None, states is assumed to already be projected (r, k).
+            Basis for the reduced state space (e.g., POD basis matrix).
+            If None, states and forcing are assumed to already be projected.
         states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
@@ -109,41 +111,42 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
 
 
 class DiscreteOpInfROM(_NonparametricOpInfROM):
-    r"""Reduced-order model for the nonparametric discrete dynamical system
+    r"""Reduced-order model for a nonparametric discrete dynamical system:
 
-        q_{j+1} = f(q_{j}, u_{j}),         q_{0} = q0.
+        q_{j+1} = F(q_{j}, u_{j}),         q_{0} = q0.
 
-    The structure of f() is user specified, and the corresponding reduced
+    Here q is the state and u is the (optional) input. The structure of F(q, u)
+    is user specified (modelform), and the corresponding low-dimensional
     operators are inferred through a least-squares regression.
 
-    Parameters
+    Attributes
     ----------
     modelform : str containing 'c', 'A', 'H', 'G', and/or 'B'
-        Structure of the reduced-order model. Each character
-        indicates the presence of a different term in the model:
+        Structure of the reduced-order model. Each character indicates one term
+        in the low-dimensional function F(q, u):
         'c' : Constant term c
-        'A' : Linear state term Aq_{j}.
-        'H' : Quadratic state term H[q_{j} ⊗ q_{j}].
-        'G' : Cubic state term G[q_{j} ⊗ q_{j} ⊗ q_{j}].
-        'B' : Input term Bu_{j}.
-        For example, modelform="AB" means f(q_{j}, u_{j}) = Aq_{j} + Bu_{j}.
+        'A' : Linear state term Aq.
+        'H' : Quadratic state term H[q ⊗ q].
+        'G' : Cubic state term G[q ⊗ q ⊗ q].
+        'B' : Input term Bu.
+        For example, modelform="AB" means F(q, u) = Aq + Bu.
+    n : int
+        Dimension of the high-dimensional state.
+    m : int or None
+        Dimension of the input, or None if no inputs are present.
+    r : int
+        Dimension of the low-dimensional (reduced-order) state.
+    basis : (n, r) ndarray or None
+        Basis matrix defining the relationship between the high- and
+        low-dimensional state spaces. If None, arguments of fit() are assumed
+        to be in the reduced dimension.
+    c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+        Low-dimensional operators composing the reduced-order model.
     """
     _LHS_ARGNAME = "nextstates"
     _LHS_LABEL = r"q_{j+1}"
     _STATE_LABEL = r"q_{j}"
     _INPUT_LABEL = r"u_{j}"
-    modelform = property(_BaseROM.modelform.fget,
-                         _BaseROM.modelform.fset,
-                         _BaseROM.modelform.fdel,
-    r"""Structure of the reduced-order model. Each character
-    indicates the presence of a different term in the model:
-    'c' : Constant term c
-    'A' : Linear state term Aq_{j}.
-    'H' : Quadratic state term H[q_{j} ⊗ q_{j}].
-    'G' : Cubic state term G[q_{j} ⊗ q_{j} ⊗ q_{j}].
-    'B' : Input term Bu_{j}.
-    For example, modelform="AB" means f(q, u) = Aq + Bu.
-    """)
 
     # TODO: convenience method for dealing with multiple trajectories (bursts).
     # @staticmethod
@@ -170,21 +173,21 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
     #     return states, nextstates
 
     def evaluate(self, state_, input_=None):
-        r"""Evaluate the right-hand side of the model, i.e., the f() of
+        r"""Evaluate the right-hand side of the model, i.e., the F(q, u) of
 
-            q_{j+1} = f(q_{j}, u_{j}).
+            q_{j+1} = F(q_{j}, u_{j}).
 
         Parameters
         ----------
         state_ : (r,) ndarray
-            Low-dimensional state vector.
+            Low-dimensional state vector q_{j}.
         input_ : (m,) ndarray or None
-            Input vector corresponding to the state.
+            Input vector u_{j} corresponding to the state.
 
         Returns
         -------
         nextstate_: (r,) ndarray
-            Evaluation of the right-hand side of the model.
+            Evaluation q_{j+1} of the model.
         """
         return _BaseROM.evaluate(self, state_, input_)
 
@@ -195,17 +198,18 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         Parameters
         ----------
         basis : (n, r) ndarray or None
-            Basis for the linear reduced space (e.g., POD basis matrix).
-            If None, states is assumed to already be projected (r, k).
+            Basis for the reduced state space (e.g., POD basis matrix).
+            If None, states and nextstates are assumed to already be projected.
         states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
         nextstates : (n, k) or (r, k) ndarray or None
             Column-wise snapshot training data corresponding to the next
             iteration of the state snapshots, i.e.,
-            F(states[:, j]) = nextstates[:, j] where F is the full-order model.
+            FOM(states[:, j], inputs[:, j]) = nextstates[:, j]
+            where FOM is the full-order model.
             If None, assume state j+1 is the iteration after state j, i.e.,
-            F(states[:, j]) = states[:, j+1].
+            FOM(states[:, j], inputs[:, j]) = states[:, j+1].
         inputs : (m, k) or (k,) ndarray or None
             Column-wise inputs corresponding to the snapshots. May be
             one-dimensional if m=1 (scalar input). Required if 'B' is
@@ -249,7 +253,11 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         niters : int
             Number of times to step the system forward.
         inputs : (m, niters-1) ndarray
-            Inputs for the next niters-1 time steps.
+            Inputs for the next niters-1 time steps, i.e.,
+            >>> states[:, 0] = states0
+            >>> states[:, 1] = F(state0, inputs[:, 0])
+            >>> states[:, 2] = F(states[:, 1], inputs[:, 1])
+            ...
         reconstruct : bool
             If True and the basis is not None, reconstruct the solutions
             in the original n-dimensional state space.
@@ -298,57 +306,62 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
 
 
 class ContinuousOpInfROM(_NonparametricOpInfROM):
-    """Base class for models that solve the continuous (ODE) ROM problem,
+    """Reduced-order model for a nonparametric system of ordinary differential
+    equations:
 
-        dq / dt = f(t, q(t), u(t)),         q(0) = q0.
+        dq / dt = F(t, q(t), u(t)),         q(0) = q0.
 
-    The structure of f() is user specified, and the corresponding reduced
-    operators are inferred through a least-squares regression.
+    Here q(t) is the state and u(t) is the (optional) input. The structure of
+    F(t, q(t), u(t)) is user specified (modelform), and the corresponding
+    low-dimensional operators are inferred through a least-squares regression.
+
+    Attributes
+    ----------
+    modelform : str
+        Structure of the reduced-order model. Each character indicates one
+        term in the low-dimensional model F(t, q(t), u(t)):
+        'c' : Constant term c.
+        'A' : Linear state term Aq(t).
+        'H' : Quadratic state term H[q(t) ⊗ q(t)].
+        'G' : Cubic state term G[q(t) ⊗ q(t) ⊗ q(t)].
+        'B' : Input term Bu(t).
+        For example, modelform="AB" means F(t, q(t), u(t)) = Aq(t) + Bu(t).
+    n : int
+        Dimension of the high-dimensional state.
+    m : int or None
+        Dimension of the input, or None if no inputs are present.
+    r : int
+        Dimension of the low-dimensional (reduced-order) state.
+    basis : (n, r) ndarray or None
+        Basis matrix defining the relationship between the high- and
+        low-dimensional state spaces. If None, arguments of fit() are assumed
+        to be in the reduced dimension.
+    c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+        Low-dimensional operators composing the reduced-order model.
     """
     _LHS_ARGNAME = "ddts"
     _LHS_LABEL = "dq / dt"
     _STATE_LABEL = "q(t)"
     _INPUT_LABEL = "u(t)"
-    modelform = property(_BaseROM.modelform.fget,
-                         _BaseROM.modelform.fset,
-                         _BaseROM.modelform.fdel,
-    """Structure of the reduced-order model. Each character
-    indicates the presence of a different term in the model:
-    'c' : Constant term c
-    'A' : Linear state term Aq(t).
-    'H' : Quadratic state term H[q(t) ⊗ q(t)].
-    'G' : Cubic state term G[q(t) ⊗ q(t) ⊗ q(t)].
-    'B' : Input term Bu(t).
-    For example, modelform="AB" means f(t, q(t), u(t)) = Aq(t) + Bu(t).
-    """)
 
     def evaluate(self, t, state_, input_func=None):
-        """Evaluate the right-hand side of the model, i.e., the f() of
+        """Evaluate the right-hand side of the model, i.e., the F(t, q, u) of
 
-            dq / dt = f(t, q(t), u(t)).
+            dq / dt = F(t, q(t), u(t)).
 
         Parameters
         ----------
         t : float
             Time, a scalar.
         state_ : (r,) ndarray
-            Reduced state vector corresponding to time `t`.
+            Reduced state vector q(t) corresponding to time `t`.
         input_func : callable(float) -> (m,)
             Input function that maps time `t` to an input vector of length m.
 
         Returns
         -------
         dqdt_: (r,) ndarray
-            Evaluation of the right-hand side of the model.
-
-        Parameters
-        ----------
-        t : float
-            Time, a scalar.
-        state_ : (r,) ndarray
-            Reduced state vector corresponding to time `t`.
-        input_func : callable(float) -> (m,)
-            Input function that maps time `t` to an input vector of length m.
+            Evaluation of the model.
         """
         input_ = None if 'B' not in self.modelform else input_func(t)
         return _BaseROM.evaluate(self, state_, input_)
@@ -360,7 +373,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         Parameters
         ----------
         basis : (n, r) ndarray or None
-            Basis for the linear reduced space (e.g., POD basis matrix).
+            Basis for the reduced state space (e.g., POD basis matrix).
             If None, states and ddts are assumed to already be projected.
         states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
@@ -405,7 +418,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             Initial state vector, either full order (n-vector) or projected
             to reduced order (r-vector).
         t : (nt,) ndarray
-            Time domain over which to integrate the reduced-order system.
+            Time domain over which to integrate the reduced-order model.
         input_func : callable or (m, nt) ndarray
             Input as a function of time (preferred) or the input at the
             times `t`. If given as an array, cubic spline interpolation
@@ -416,7 +429,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         options
             Arguments for scipy.integrate.solve_ivp(), such as the following:
             method : str
-                ODE solver for the reduced-order system.
+                ODE solver for the reduced-order model.
                 * 'RK45' (default): Explicit Runge-Kutta method of order 5(4).
                 * 'RK23': Explicit Runge-Kutta method of order 3(2).
                 * 'Radau': Implicit Runge-Kutta method of the Radau IIA family
