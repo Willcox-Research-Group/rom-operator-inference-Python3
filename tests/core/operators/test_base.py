@@ -146,6 +146,11 @@ class TestBaseParametricOperator:
     def test_check_parameter_dimension(self):
         """Test _BaseParametricOperator._check_parameter_dimension()."""
         dummy = self.Dummy()
+
+        with pytest.raises(RuntimeError) as ex:
+            dummy._check_parameter_dimension([1, 1])
+        assert ex.value.args[0] == "parameter dimension p not set"
+
         dummy._set_parameter_dimension(np.empty((10, 4)))
         assert dummy.p == 4
 

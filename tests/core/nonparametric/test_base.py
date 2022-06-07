@@ -327,30 +327,30 @@ class TestNonparametricOpInfROM:
                 # Check basis
                 if hasbasis:
                     assert "basis" in data
-                    assert np.allclose(data["basis"], Vr)
+                    assert np.all(data["basis"][:] == Vr)
                 else:
                     assert "basis" not in data
 
                 # Check operators
                 assert "operators" in data
                 if "c" in rom.modelform:
-                    assert np.allclose(data["operators/c_"], rom.c_.entries)
+                    assert np.all(data["operators/c_"][:] == rom.c_.entries)
                 else:
                     assert "c_" not in data["operators"]
                 if "A" in rom.modelform:
-                    assert np.allclose(data["operators/A_"], rom.A_.entries)
+                    assert np.all(data["operators/A_"][:] == rom.A_.entries)
                 else:
                     assert "A_" not in data["operators"]
                 if "H" in rom.modelform:
-                    assert np.allclose(data["operators/H_"], rom.H_.entries)
+                    assert np.all(data["operators/H_"][:] == rom.H_.entries)
                 else:
                     assert "H_" not in data["operators"]
                 if "G" in rom.modelform:
-                    assert np.allclose(data["operators/G_"], rom.G_.entries)
+                    assert np.all(data["operators/G_"][:] == rom.G_.entries)
                 else:
                     assert "G_" not in data["operators"]
                 if "B" in rom.modelform:
-                    assert np.allclose(data["operators/B_"], rom.B_.entries)
+                    assert np.all(data["operators/B_"][:] == rom.B_.entries)
                 else:
                     assert "B_" not in data["operators"]
 
