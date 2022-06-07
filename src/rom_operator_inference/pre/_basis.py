@@ -108,7 +108,7 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
 
 # Reduced dimension selection =================================================
 def svdval_decay(singular_values, tol=1e-8, normalize=True,
-                 plot=False, ax=None):
+                 plot=True, ax=None):
     """Count the number of normalized singular values that are greater than
     the specified tolerance.
 
@@ -159,7 +159,7 @@ def svdval_decay(singular_values, tol=1e-8, normalize=True,
     return ranks[0] if one_tol else ranks
 
 
-def cumulative_energy(singular_values, thresh=.9999, plot=False, ax=None):
+def cumulative_energy(singular_values, thresh=.9999, plot=True, ax=None):
     """Compute the number of singular values needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
@@ -210,7 +210,7 @@ def cumulative_energy(singular_values, thresh=.9999, plot=False, ax=None):
     return ranks[0] if one_thresh else ranks
 
 
-def residual_energy(singular_values, tol=1e-6, plot=False, ax=None):
+def residual_energy(singular_values, tol=1e-6, plot=True, ax=None):
     """Compute the number of singular values needed such that the residual
     energy drops beneath the given tolerance. The residual energy of j
     singular values is defined by
