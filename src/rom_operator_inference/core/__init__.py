@@ -12,8 +12,7 @@ Submodules
 
 from . import operators
 from .nonparametric import *
-# from . import affine
-# from . import interpolate
+from .interpolate import *
 
 
-__all__ = nonparametric.__all__
+__all__ = nonparametric.__all__ + interpolate.__all__

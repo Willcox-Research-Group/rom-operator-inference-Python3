@@ -15,34 +15,32 @@ __all__ = [
 ]
 
 from ._base import _InterpolatedOpInfROM
-from .._nonparametric import (
-        SteadyOpInfROM,
+from ..nonparametric import (
+        # SteadyOpInfROM,
         DiscreteOpInfROM,
         ContinuousOpInfROM,
 )
-from .._nonparametric._frozen import (
-    _FrozenSteadyROM,
+from ..nonparametric._frozen import (
+    # _FrozenSteadyROM,
     _FrozenDiscreteROM,
     _FrozenContinuousROM,
 )
 
 
-class InterpolatedSteadyOpInfROM(_InterpolatedOpInfROM):
-    """TODO"""
-    _ModelClass = _FrozenSteadyROM
-    _ModelFitClass = SteadyOpInfROM
-    pass
+# class InterpolatedSteadyOpInfROM(_InterpolatedOpInfROM):
+#     """TODO"""
+#     _ModelClass = _FrozenSteadyROM
+#     _ModelFitClass = SteadyOpInfROM
+#     pass
 
 
 class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
     """TODO"""
     _ModelClass = _FrozenDiscreteROM
     _ModelFitClass = DiscreteOpInfROM
-    pass
 
 
 class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
     """TODO"""
     _ModelClass = _FrozenContinuousROM
     _ModelFitClass = ContinuousOpInfROM
-    pass

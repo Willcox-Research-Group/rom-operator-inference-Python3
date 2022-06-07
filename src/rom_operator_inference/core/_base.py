@@ -570,19 +570,19 @@ class _BaseParametricROM(_BaseROM):
 
     # ModelClass properties ---------------------------------------------------
     @property
-    def _LHS_ARGNAME(self):
+    def _LHS_ARGNAME(self):                             # pragma: no cover
         return self._ModelClass._LHS_ARGNAME
 
     @property
-    def _LHS_LABEL(self):
+    def _LHS_LABEL(self):                               # pragma: no cover
         return self._ModelClass._LHS_LABEL
 
     @property
-    def _STATE_LABEL(self):
+    def _STATE_LABEL(self):                             # pragma: no cover
         return self._ModelClass._STATE_LABEL
 
     @property
-    def _INPUT_LABEL(self):
+    def _INPUT_LABEL(self):                             # pragma: no cover
         return self._ModelClass._INPUT_LABEL
 
     @property
