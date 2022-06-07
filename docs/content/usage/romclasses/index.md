@@ -1,8 +1,13 @@
 (sec-romclasses)=
 # ROM Classes
 
-The core of `rom_operator_inference` is highly object oriented and defines several `ROM` classes that serve as the workhorse of the package.
+The core of `rom_operator_inference` is highly object oriented and defines several classes that serve as the workhorse of the package.
+
+::::{margin}
+:::{tip}
 The API for these classes adopts some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects): there are `fit()` and `predict()` methods, hyperparameters are set in the constructor, estimated attributes end with underscore, and so on.
+:::
+::::
 
 Each class corresponds to a specific reduced-order model setting and ROM construction method.
 
@@ -24,7 +29,7 @@ Here $\widehat{\mathbf{q}} \in \mathbb{R}^{n}$ is the reduced-order state and $\
 (subsec-romclass-constructor)=
 ## Constructor: Define Model Structure
 
-All `ROM` classes are instantiated with a single argument, `modelform`, which is a string denoting the structure of the right-hand side of the reduced-order model, $\widehat{\mathbf{f}}$.
+All ROM classes are instantiated with a single argument, `modelform`, which is a string denoting the structure of the right-hand side of the reduced-order model, $\widehat{\mathbf{f}}$.
 Each character in the string corresponds to a single term of the operator, given in the following table.
 
 | Character | Name | Continuous Term | Discrete Term |
@@ -58,7 +63,7 @@ Examples:
 
 ## Attributes
 
-All `ROM` classes have the following attributes.
+All ROM classes have the following attributes.
 
 ### Dimensions
 
@@ -98,7 +103,7 @@ All operators are set to `None` initially and only changed by `fit()` if the ope
 
 ## Methods
 
-All `ROM` classes have the following methods.
+All ROM classes have the following methods.
 ### Training
 
 ### Prediction
