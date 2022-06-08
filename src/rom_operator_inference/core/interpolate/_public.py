@@ -287,8 +287,9 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
             nextstates = [Q[:, 1:] for Q in states]
             states = [Q[:, :-1] for Q in states]
         if inputs is not None:
-            inputs = inputs[..., :states.shape[1]]
-        return _InterpolatedOpInfROM.fit(self, basis,
+            inputs = [ip[..., :states[i].shape[1]]
+                      for i, ip in enumerate(inputs)]
+        return _InterpolatedOpInfROM.fit(self, basis, parameters,
                                          states, nextstates, inputs,
                                          regularizers, known_operators)
 
