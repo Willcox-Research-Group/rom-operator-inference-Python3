@@ -38,13 +38,8 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
 
         Parameters
         ----------
-        modelform : str containing 'c', 'A', 'H', and/or 'G'
-            Structure of the reduced-order model. Each character
-            indicates the presence of a different term in the model:
-            'A' : Linear state term Aq.
-            'H' : Quadratic state term H[q ⊗ q].
-            'G' : Cubic state term G[q ⊗ q ⊗ q].
-            For example, modelform=="AH" means f(q) = Aq + H[q ⊗ q].
+        modelform : str
+            Structure of the reduced-order model. See the class docstring.
         InterpolatorClass : type or str
             Class for elementwise operator interpolation. Must obey the syntax
             >>> interpolator = InterpolatorClass(data_points, data_values)
@@ -272,13 +267,13 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         states : list of s (n, k) or (r, k) ndarrays
             State snapshots for each parameter value: `states[i]` corresponds
             to `parameters[i]` and contains column-wise state data, i.e.,
-            `states[i][:,j]` is a single snapshot.
+            `states[i][:, j]` is a single snapshot.
             Data may be either full order (n rows) or reduced order (r rows).
         lhss : list of s (n, k) or (r, k) ndarrays
             Left-hand side data for ROM training corresponding to each
             parameter value: `lhss[i]` corresponds to `parameters[i]` and
-            contains column-wise left-hand side data, i.e., `lhss[i][:,j]`
-            corresponds to the state snapshot `states[i][:,j]`.
+            contains column-wise left-hand side data, i.e., `lhss[i][:, j]`
+            corresponds to the state snapshot `states[i][:, j]`.
             Data may be either full order (n rows) or reduced order (r rows).
             * Steady: forcing function.
             * Discrete: column-wise next iteration
@@ -286,8 +281,8 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         inputs : list of s (m, k) or (k,) ndarrays or None
             Inputs for ROM training corresponding each parameter value:
             `inputs[i]` corresponds to `parameters[i]` and contains
-            column-wise input data, i.e., `inputs[i][:,j]` corresponds to the
-            state snapshot `states[i][:,j]`.
+            column-wise input data, i.e., `inputs[i][:, j]` corresponds to the
+            state snapshot `states[i][:, j]`.
             If m = 1 (scalar input), then each `inputs[i]` may be a one-
             dimensional array.
             This argument is required if 'B' is in `modelform` but must be

@@ -64,7 +64,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
 
         Returns
         -------
-        g: (r,) ndarray
+        g_: (r,) ndarray
             Evaluation of the model.
         """
         return _BaseROM.evaluate(self, state_, None)
