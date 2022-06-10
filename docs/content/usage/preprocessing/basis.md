@@ -116,7 +116,7 @@ The function `opinf.pre.projection_error()` calculates the projection error.
 
 :::{tip}
 These criteria are based on all $\ell = \min\{n,k\}$ singular values of $\mathbf{Q}$.
-However, if $\sigma_{J} \lessim \epsilon_{\text{machine}}$, then the relative contribution of $\sigma_{j}$ to $\mathcal{E}_{r}(\mathbf{Q})$ is small for any $j \ge J$, i.e., $\sigma_{j}^{2} \approx 0$.
+However, if $\sigma_{J} \lesssim \epsilon_{\text{machine}}$, then the relative contribution of $\sigma_{j}$ to $\mathcal{E}_{r}(\mathbf{Q})$ is small for any $j \ge J$, i.e., $\sigma_{j}^{2} \approx 0$.
 In this case, the cumulative or residual energies can be estimated using only the first $J$ singular values, which is useful when the POD basis must be computed in randomized fashion.
 :::
 

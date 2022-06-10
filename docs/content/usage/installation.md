@@ -8,7 +8,6 @@ To check if the package is installed, run the following in the command line.
 
 ```shell
 $ python3 -m pip freeze | grep rom-operator-inference
-rom-operator-inference==1.2.1
 ```
 
 No output means the package was not found.
