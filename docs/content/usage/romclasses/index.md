@@ -1,7 +1,8 @@
 (sec-romclasses)=
 # ROM Classes
 
-The core of `rom_operator_inference` is highly object oriented and defines several classes that serve as the workhorse of the package.
+There are several reduced-order model (ROM) classes defined in the main namespace of `rom_operator_inference`.
+Each class corresponds to a specific problem setting.
 
 ::::{margin}
 :::{tip}
@@ -9,28 +10,27 @@ The API for these classes adopts some principles from the [scikit-learn](https:/
 :::
 ::::
 
-Each class corresponds to a specific reduced-order model setting and ROM construction method.
-
 | Class Name | Problem Statement |
 | :--------- | :---------------: |
-| `ContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{f}}(t, \widehat{\mathbf{q}}(t), \mathbf{u}(t))$ |
-| `DiscreteOpInfROM` | $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{f}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})$ |
+| `ContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t), \mathbf{u}(t))$ |
+| `DiscreteOpInfROM` | $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})$ |
+| `InterpolatedContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
+| `InterpolatedDiscreteOpInfROM` | $\widehat{\mathbf{q}}_{j+1}(\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}(\mu), \mathbf{u}_{j}; \mu)$ |
 
-<!-- | `SteadyOpInfROM` | $\widehat{\mathbf{g}} = \widehat{\mathbf{f}}(\widehat{\mathbf{q}})$ |
-| `AffineContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{f}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
-| `AffineDiscreteOpInfROM` | $\widehat{\mathbf{q}}_{j+1}(\mu) = \widehat{\mathbf{f}}(\widehat{\mathbf{q}}_{j}(\mu), \mathbf{u}_{j}; \mu)$ |
-| `InterpolatedContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{f}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
-| `InterpolatedDiscreteOpInfROM` | $\widehat{\mathbf{q}}_{j+1}(\mu) = \widehat{\mathbf{f}}(\widehat{\mathbf{q}}_{j}(\mu), \mathbf{u}_{j}; \mu)$ | -->
+<!-- | `SteadyOpInfROM` | $\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\widehat{\mathbf{q}})$ |
+| `AffineContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
+| `AffineDiscreteOpInfROM` | $\widehat{\mathbf{q}}_{j+1}(\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}(\mu), \mathbf{u}_{j}; \mu)$ | -->
 
-Here $\widehat{\mathbf{q}} \in \mathbb{R}^{n}$ is the reduced-order state and $\mathbf{u} \in \mathbb{R}^{m}$ is the (state-independent) input.
-<!-- , and $\mu\in\mathbb{R}^{d_\mu}$ represents external parameters. -->
+Here $\widehat{\mathbf{q}} \in \mathbb{R}^{n}$ is the reduced-order state, $\mathbf{u} \in \mathbb{R}^{m}$ is the input, and $\mu\in\mathbb{R}^{p}$ is an external parameter (e.g., PDE coefficients).
+Our goal is to learn an appropriate representation of $\widehat{\mathbf{F}}$ from data.
 
+In the following discussion we begin with the non-parametric ROM classes `ContinuousOpInfROM` and `DiscreteOpInfROM`; parametric classes are considered in [Parametric ROMs](subsec-parametric-roms).
 
 (subsec-romclass-constructor)=
-## Constructor: Define Model Structure
+## Defining Model Structure
 
-All ROM classes are instantiated with a single argument, `modelform`, which is a string denoting the structure of the right-hand side of the reduced-order model, $\widehat{\mathbf{f}}$.
-Each character in the string corresponds to a single term of the operator, given in the following table.
+All ROM classes are instantiated with a single argument, `modelform`, which is a string denoting the structure of the right-hand side function $\widehat{\mathbf{F}}$.
+Each character in the string corresponds to a single term in the model.
 
 | Character | Name | Continuous Term | Discrete Term |
 | :-------- | :--- | :-------------- | :------------ |
@@ -43,8 +43,7 @@ Each character in the string corresponds to a single term of the operator, given
 
 <!-- | `C` | Output | $\mathbf{y}(t)=\widehat{C}\widehat{\mathbf{q}}(t)$ | $\mathbf{y}_{k}=\hat{C}\widehat{\mathbf{q}}_{k}$ | -->
 
-These are all input as a single string.
-Examples:
+The full model form is specified as a single string.
 
 | `modelform` | Continuous ROM Structure | Discrete ROM Structure |
 | :---------- | :----------------------- | ---------------------- |
@@ -61,90 +60,259 @@ Examples:
 
 ---
 
-## Attributes
+## ROM Attributes
 
-All ROM classes have the following attributes.
+ROM classes have the following attributes.
 
 ### Dimensions
 
-These scalars are set in `fit()` and are inferred from the training inputs.
-They cannot be altered by hand post-training.
+These attributes are integers that are initially set to `None`, then inferred from the training inputs during `fit()`.
+They cannot be altered manually after calling `fit()`.
 
 | Attribute | Description |
 | :-------- | :---------- |
-| `n` | Dimension of the original, high-dimensional model. |
-| `r` | Dimension of the learned reduced-order model. |
-| `m` | Dimension of the input **u**, or `None` if `'B'` is not in `modelform`. |
+| `n` | Dimension of the high-dimensional training data $\mathbf{q}$. |
+| `r` | Dimension of the reduced-order model state $\widehat{\mathbf{q}}$. |
+| `m` | Dimension of the input $\mathbf{u}$. |
 
-### Basis Matrix
+If there is no input (meaning `modelform` does not contain `'B'`), then `m` is set to 0.
 
-The `basis` attribute is the $n \times r$ basis defining the mapping between the $n$-dimensional space of the full-order model and the reduced $r$-dimensional subspace of the reduced-order model (e.g., POD basis).
+### Basis
+
+The `basis` attribute is the mapping between the $n$-dimensional state space of the full-order data and the smaller $r$-dimensional state space of the reduced-order model (e.g., POD basis).
 This is the first input to the `fit()` method.
-
-:::{tip}
-To save memory, ROM classes allow entering `basis=None` in the `fit()` method, which then assumes that state arguments for training are already projected to the $r$-dimensional subspace (e.g., $\widehat{\mathbf{Q}} = \mathbf{V}_{r}^{\top}\mathbf{Q}$ instead of $\mathbf{Q}$).
-:::
+See [Basis Computation](sec-basis-computation) for details.
 
 ### Operators
 
-These are the operators corresponding to the learned parts of the reduced-order model.
+These attributes are the operators corresponding to the learned parts of the reduced-order model.
+The classes are defined in `opinf.core.operators`.
 
-| Modelform Character | Attribute Name |
-| :------------------ | :------------- |
-| `"c"` | `c_` |
-| `"A"` | `A_` |
-| `"H"` | `H_` |
-| `"G"` | `G_` |
-| `"B"` | `B_` |
+<!-- TODO: Operator Class with links to API docs -->
 
-All operators are set to `None` initially and only changed by `fit()` if the operator is included in the prescribed `modelform` (e.g., if `modelform="AHG"`, then `c_` and `B_` are always `None`)
+| Attribute | Evaluation mapping | Jacobian mapping |
+| :-------- | :----------------- | :--------------- |
+| `c_` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{c}}$ | $\widehat{\mathbf{q}} \mapsto \mathbf{0}$ |
+| `A_` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$ | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}$ |
+| `H_` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{H}}[(\mathbf{I}\otimes\widehat{\mathbf{q}}) + (\widehat{\mathbf{q}}\otimes\mathbf{I})]$ |
+| `G_` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{G}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{G}}[(\mathbf{I}\otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}) + \cdots + (\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}\otimes\mathbf{I})]$ |
+| `B_` | $\mathbf{u} \mapsto \widehat{\mathbf{B}}\mathbf{u}$ | $\mathbf{u} \mapsto \widehat{\mathbf{B}}$ |
+
+All operators are set to `None` initially and only changed by `fit()` if the operator is included in the prescribed `modelform` (e.g., if `modelform="AHG"`, then `c_` and `B_` are always `None`).
+<!-- Note that Jacobian mapping of the input operation _with respect to the state_ is zero. -->
+
+#### Operator Attributes
+
+The discrete representation of the operator is a NumPy array stored as the `entries` attribute.
+This array can also be accessed by slicing the operator object directly.
+
+```python
+>>> import numpy as np
+>>> import rom_operator_inference as opinf
+
+>>> arr = np.arange(16).reshape(4, 4)
+>>> operator = opinf.core.operators.LinearOperator(arr)
+
+>>> operator.entries
+array([[ 0,  1,  2,  3],
+       [ 4,  5,  6,  7],
+       [ 8,  9, 10, 11],
+       [12, 13, 14, 15]])
+
+>>> operator[:]
+array([[ 0,  1,  2,  3],
+       [ 4,  5,  6,  7],
+       [ 8,  9, 10, 11],
+       [12, 13, 14, 15]])
+
+>>> operator.shape
+(4, 4)
+```
+
+In practice, with a ROM object `rom`, the entries of (e.g.) the linear state matrix $\widehat{\mathbf{A}}$ are accessed with `rom.A_[:]` or `rom.A_.entries`.
+
+#### Operator Methods
+
+The `evaluate()` method computes the action of the operator on the (low-dimensional) state or input.
+
+```python
+>>> q_ = np.arange(4)
+>>> operator.evaluate(q_)
+array([14, 38, 62, 86])
+
+# Equivalent calculation with the raw NumPy array.
+>>> arr @ q_
+array([14, 38, 62, 86])
+```
+
+::::{note}
+Nothing special is happening under the hood for constant and linear operators, but the quadratic and cubic operators use a compressed representation to efficiently compute the operator action on the quadratic or cubic Kronecker products $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$ or $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$.
+
+```python
+>>> r = 5
+>>> arr2 = np.random.random((r, r**2))
+>>> quadratic_operator = opinf.core.operators.QuadraticOperator(arr2)
+>>> q_ = np.random.random(r)
+
+>>> np.allclose(quadratic_operator.evaluate(q_), arr2 @ (np.kron(q_, q_)))
+True
+
+>>> quadratic_operator.shape
+(5, 15)
+```
+
+The shape of the quadratic operator `entries` has been reduced from $r \times r^{2}$ to $r \times \frac{r(r + 1)}{2}$ to exploit the structure of the Kronecker products.
+
+:::{dropdown} Details
+Let $\widehat{\mathbf{q}} = [~\hat{q}_{1}~\cdots~\hat{q}_{r}~]^{\mathsf{T}}\in\mathbb{R}^{r}$ and consider the Kronecker product
+
+$$
+\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}
+= \left[\begin{array}{c}
+    \hat{q}_{1}\widehat{\mathbf{q}} \\
+    \hat{q}_{2}\widehat{\mathbf{q}} \\
+    \vdots \\
+    \hat{q}_{r}\widehat{\mathbf{q}} \\
+\end{array}\right]
+= \left[\begin{array}{c}
+    \hat{q}_{1}^{2} \\
+    \hat{q}_{1}\hat{q}_{2} \\
+    \vdots \\
+    \hat{q}_{1}\hat{q}_{r} \\
+    \hat{q}_{1}\hat{q}_{2} \\
+    \hat{q}_{2}^{2} \\
+    \vdots \\
+    \hat{q}_{2}\hat{q}_{r} \\
+    \vdots \\
+    \hat{q}_{r}^{2}
+\end{array}\right]
+\in \mathbb{R}^{r^{2}}.
+$$
+
+Note that $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$ has some redundant entries, for example $\hat{q}_{1}\hat{q}_{2}$ shows up twice. In fact, $\hat{q}_{i}\hat{q}_{j}$ occurs twice for every choice of $i \neq j$.
+Thus, $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$ can be represented with only $r (r + 1)/2$ degrees of freedom as, for instance,
+
+$$
+\left[\begin{array}{c}
+    \widehat{\mathbf{q}}^{(1)} \\
+    \widehat{\mathbf{q}}^{(2)} \\
+    \vdots \\
+    \widehat{\mathbf{q}}^{(r)}
+\end{array}\right]
+= \left[\begin{array}{c}
+    \hat{q}_{1}^{2} \\
+    \hat{q}_{1}\hat{q}_{2} \\
+    \hat{q}_{2}^{2} \\
+    \hat{q}_{1}\hat{q}_{3} \\
+    \hat{q}_{2}\hat{q}_{3} \\
+    \hat{q}_{3}^{2} \\
+    \vdots \\
+    \hat{q}_{r}^{2}
+\end{array}\right]
+\in \mathbb{R}^{r(r + 1)/2},
+\qquad
+\widehat{\mathbf{q}}^{(i)}
+= \hat{q}_{i}\left[\begin{array}{c}
+    \hat{q}_{1} \\ \vdots \\ \hat{q}_{i}
+\end{array}\right]\in\mathbb{R}^{i}.
+$$
+
+This is the same as filling a vector with the upper-triangular entries of the outer product $\widehat{\mathbf{q}}\widehat{\mathbf{q}}^{\mathsf{T}}$.
+The dimension $r (r + 1)/2$ arises because we choose 2 of r entries _without replacement_, i.e., this is a [multiset coefficient](https://en.wikipedia.org/wiki/Multiset#Counting_multisets):
+
+$$
+\left(\!\!{r\choose 2}\!\!\right)
+= \binom{r + 2 - 1}{2}
+= \binom{r+1}{2}
+= \frac{r(r+1)}{2}.
+$$
+
+:::
+::::
+
+<!-- TODO: Jacobians -->
+
+### Summary
+
+| Attribute | Description |
+| :-------- | :---------- |
+| `n` | Dimension of the high-dimensional training data $\mathbf{q}$. |
+| `r` | Dimension of the reduced-order model state $\widehat{\mathbf{q}}$. |
+| `m` | Dimension of the input $\mathbf{u}$. |
+| `basis` | Mapping between the $n$-dimensional state space of the full-order data and the $r$-dimensional state space of the ROM |
+| `c_` | Constant operator $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{c}}$ |
+| `A_` | Linear operator $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$ |
+| `H_` | Quadratic operator $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ |
+| `G_` | Cubic operator $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{G}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ |
+| `B_` | Input operator $\mathbf{u} \mapsto \widehat{\mathbf{B}}\mathbf{u}$ |
 
 ---
 
-## Methods
+## ROM Methods
 
 All ROM classes have the following methods.
+
+### Encoding and Decoding
+
+The `project()` method maps a state quantity from the high-dimensional space $\mathbb{R}^{n}$ to the low-dimensional space $\mathbb{R}^{r}$.
+Conversely, `reconstruct()` maps from $\mathbb{R}^{r}$ to $\mathbb{R}^{n}$.
+These methods are not quite inverses: the results of `reconstruct()` are restricted to the portion of $\mathbb{R}^{n}$ that can be represented through the underlying basis.
+
+For the linear basis representation $\mathbf{q} = \mathbf{V}_{r}\widehat{\mathbf{q}}$, we have the following.
+
+::::{grid}
+:gutter: 3
+
+:::{grid-item-card} `project(state)`
+$\mathbf{q} \to \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$
+:::
+
+:::{grid-item-card} `reconstruct(state_)`
+$\widehat{\mathbf{q}} \to \mathbf{V}_{r}\widehat{\mathbf{q}}$
+:::
+
+:::{grid-item-card} `reconstruct(project(state))`
+$\mathbf{q}\to\mathbf{V}_{r}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$.
+:::
+::::
+
 ### Training
+
+::::{margin}
+:::{tip}
+The `fit()` method accepts `basis=None`, in which case the state arguments for training are assumed to be already reduced to an $r$-dimensional state space (e.g., $\widehat{\mathbf{Q}} = \mathbf{V}_{r}^{\top}\mathbf{Q}$ instead of $\mathbf{Q}$).
+:::
+::::
+
+The `fit()` method sets up and solves a [least-squares regression](subsec-opinf-regression) to determine the entries of the operators $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\widehat{\mathbf{H}}$, $\widehat{\mathbf{G}}$, and/or $\widehat{\mathbf{B}}$.
+Common inputs are
+- the basis,
+- state snapshot data,
+- left-hand side data (time derivatives), and
+- regularization parameters.
 
 ### Prediction
 
-Reduced model function `evaluate()`, learned in `fit()`: the ROM function, defined by the reduced operators listed above.
-For continuous models, `evaluate` has the following signature:
-```python
-def evaluate(t, q_, input_func):
-    """ROM function for continuous models.
+The `evaluate()` method evaluates the right-hand side of the learned reduced-order model, i.e., it is the mapping
 
-    Parameters
-    ----------
-    t : float
-        Time, a scalar.
-    q_ : (r,) ndarray
-        Reduced state vector.
-    input_func : func(float) -> (m,)
-        Input function that maps time `t` to an input vector of length m.
-    """
-```
-For discrete models, the signature is the following.
-```python
-def evaluate(q_, u):
-    """ROM function for discrete models.
+<!-- :::{tip}
+The `evaluate()` and `jacobian()` methods are useful for constructing custom solvers for the reduced-order model.
+::: -->
 
-    Parameters
-    ----------
-    q_ : (r,) ndarray
-        Reduced state vector.
-    u : (m,) ndarray
-        Input vector of length m corresponding to the state.
-    """
-```
-The input argument `u` is only used if `B` is in `modelform`.
+$$
+(\widehat{\mathbf{q}},\mathbf{u}) \mapsto
+\widehat{\mathbf{c}}
++ \widehat{\mathbf{A}}\widehat{\mathbf{q}}
++ \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]
++ \widehat{\mathbf{B}}\mathbf{u}.
+$$
+
+The `predict()` method solves the reduced-order model for given initial conditions and inputs.
 
 ### Model Persistence
 
 Trained ROM objects can be saved in [HDF5 format](http://docs.h5py.org/en/stable/index.html) with the `save()` method, and recovered later with the `load()` class method.
-Such files store metadata for the model class and structure, the reduced-order model operators (`c_`, `A_`, etc.), other attributes learned in `fit()`, and (optionally) the basis `Vr`.
-
-TODO: docstring.
+Such files store metadata for the model class and structure, the reduced-order model operators, and (optionally) the basis.
 
 ```python
 >>> import rom_operator_inference as opinf
@@ -156,3 +324,95 @@ TODO: docstring.
 >>> rom == rom2
 True
 ```
+
+:::{tip}
+ROM objects can also be saved locally via the `pickle` or `joblib` libraries, which is [the approach taken by scikit-learn (`sklearn`)](https://scikit-learn.org/stable/model_persistence.html).
+However, HDF5 files are slightly more transparent and flexible than pickled binaries in the sense that individual parts of the file can be extracted manually without loading the entire file.
+Furthermore, ROM objects with attributes that cannot be pickled (which is the case for some parametric ROM classes) can benefit from the custom `save()`/`load()` implementation.
+:::
+
+### Summary
+
+| Method | Description |
+| :----- | :---------- |
+| `project()` | Map high-dimensional states to their low-dimensional coordinates |
+| `reconstruct()` | Use low-dimensional coordinates to construct a high-dimensional state |
+| `fit()` | Use training data to infer the operators defining the ROM |
+| `evaluate()` | Evaluate the reduced-order model for a given state / input |
+| `predict()` | Solve the reduced-order model |
+| `save()` | Save the ROM data to an HDF5 file |
+| `load()` | Load a ROM from an HDF5 file |
+
+(subsec-parametric-roms)=
+## Parametric ROMs
+
+The `ContinuousOpInfROM` and `DiscreteOpInfROM` classes detailed above are _non-parametric_ ROMs.
+A _parametric_ ROM is one that depends on one or more external parameters $\mu\in\mathbb{R}^{p}$, meaning the operators themselves may depend on the external parameters.
+This is different from the ROM depending on external inputs $\mathbf{u}$ that are provided at prediction time; by "parametric ROM" we mean the _operators_ of the ROM depend on $\mu$.
+For example, a linear time-continuous parametric ROM has the form
+
+$$
+\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu)
+= \widehat{\mathbf{A}}(\mu)\widehat{\mathbf{q}}(t;\mu).
+$$
+
+### Additional Attributes
+
+Parametric ROM classes have the following additional attributes.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| `p` | Dimension of the parameter $\mu$. |
+| `s` | Number of training parameter samples. |
+
+### Parametric Operators
+
+The operators of a parametric ROM are themselves parametric, meaning they depend on the parameter $\mu$.
+Therefore, the operator attributes `c_`, `A_`, `H_`, `G_`, and/or `B_` of a parametric ROM must first be evaluated at a parameter value before they can be applied to a reduced state or input.
+This is done by calling the object with the parameter value as input.
+
+:::{mermaid}
+%%{init: {'theme': 'forest'}}%%
+flowchart LR
+    A[Parametric operator] -->|call_object| B[Non-parametric operator]
+:::
+
+```python
+>>> import numpy as np
+>>> import scipy.interpolate
+>>> import rom_operator_inference as opinf
+
+>>> parameters = np.linspace(0, 1, 4)
+>>> entries = np.random.random((4, 3))
+
+# Construct a parametric constant operator c(µ).
+>>> c_ = opinf.core.operators.InterpolatedConstantOperator(
+...     parameters, entries, scipy.interpolate.CubicSpline
+... )
+>>> type(c_)
+
+# Evaluate the parametric constant operator at a given parameter.
+>>> c_static_ = c_(.5)
+>>> type(c_static_)
+rom_operator_inference.core.operators._nonparametric.ConstantOperator
+
+>>> c_static_.evaluate()
+array([0.89308692, 0.81232528, 0.52454941])
+```
+
+Parametric operator evaluation is taken care of under the hood during parametric ROM evaluation.
+
+### Parametric ROM Evaluation
+
+A parametric ROM object maps a parameter value to a non-parametric ROMs.
+Like parametric operators, this is does by calling the object.
+
+:::{mermaid}
+%%{init: {'theme': 'forest'}}%%
+flowchart LR
+    A[Parametric ROM] -->|call_object| B[Non-parametric ROM]
+:::
+
+The `evaluate()` and `predict()` methods of parametric ROMs are like their counterparts in the nonparametric ROM classes, but with an additional `parameter` argument that comes before other arguments.
+These are convenience methods that evaluate the ROM at the given parameter, then evaluate the resulting non-parametric ROM.
+For example, `parametric_rom.evaluate(parameter, state_)` and `parametric_rom(parameter).evaluate(state_)` are equivalent.
