@@ -46,7 +46,7 @@ parts:
   - caption: Tutorials
     chapters:
     - file: content/tutorials/basics.ipynb
-    - file: content/tutorials/heat_1D.ipynb
+    - file: content/tutorials/heat_equation.ipynb
     - file: content/tutorials/gallery.md
 
   # Non-narrative API documentation (TODO: automate generation).

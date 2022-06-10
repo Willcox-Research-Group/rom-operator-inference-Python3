@@ -82,10 +82,32 @@ However, parametric operators _do not have_ an `evaluate()` method, and `__call_
 
 The following diagram shows the class hierarchy for non-parametric operators.
 
-:::{image} ../../images/opclasses-nonparametric.png
-:align: center
-:width: 80 %
+:::{mermaid}
+%%{init: {'theme': 'neutral'}}%%
+classDiagram
+    class _BaseNonparametricOperator{
+        <<abstract>>
+        entries, shape
+        __getitem__(), __eq__()
+    }
+    class ConstantOperator{
+        __init__(), evaluate(), jacobian()
+    }
+    class LinearOperator{
+        __init__(), evaluate(), jacobian()
+    }
+    class QuadraticOperator{
+        __init__(), evaluate(), jacobian()
+    }
+    class CubicOperator{
+        __init__(), evaluate(), jacobian()
+    }
+    _BaseNonparametricOperator --> ConstantOperator
+    _BaseNonparametricOperator --> LinearOperator
+    _BaseNonparametricOperator --> QuadraticOperator
+    _BaseNonparametricOperator --> CubicOperator
 :::
+
 
 #### Parametric Operators
 
@@ -129,9 +151,42 @@ These classes should
 
 Here's an example of the inheritance hierarchy for affine-parametric operators, defined in `core/operators/_affine.py`.
 
-:::{image} ../../images/opclasses-affine.png
-:align: center
-:width: 80 %
+:::{mermaid}
+%%{init: {'theme': 'neutral'}}%%
+classDiagram
+    class _BaseParametricOperator{
+        <<abstract>>
+    }
+    class _BaseAffineOperator{
+        <<abstract>>
+        matrices, coefficients, shape
+        __getitem__(), __eq__()
+    }
+    class ConstantAffineOperator{
+        __init__(), __call__()
+    }
+    class LinearAffineOperator{
+        __init__(), __call__()
+    }
+    class QuadraticAffineOperator{
+        __init__(), __call__()
+    }
+    class CubicAffineOperator{
+        __init__(), __call__()
+    }
+    class ConstantOperator
+    class LinearOperator
+    class QuadraticOperator
+    class CubicOperator
+    _BaseParametricOperator --> _BaseAffineOperator
+    _BaseAffineOperator --> ConstantAffineOperator
+    _BaseAffineOperator --> LinearAffineOperator
+    _BaseAffineOperator --> QuadraticAffineOperator
+    _BaseAffineOperator --> CubicAffineOperator
+    ConstantAffineOperator ..|> ConstantOperator : operator(parameter)
+    LinearAffineOperator ..|> LinearOperator : operator(parameter)
+    QuadraticAffineOperator ..|> QuadraticOperator : operator(parameter)
+    CubicAffineOperator ..|> CubicOperator : operator(parameter)
 :::
 
 :::{tip}
@@ -199,9 +254,49 @@ Classes for representing non-parametric ROMs are defined in the `core/nonparamet
 
 The following diagram shows the inheritance hierarchy for the non-parametric ROM classes.
 
-:::{image} ../../images/romclasses-nonparametric.png
-:align: center
-:width: 80 %
+:::{mermaid}
+%%{init: {'theme': 'neutral'}}%%
+classDiagram
+    class _BaseROM{
+        <<abstract>>
+        modelform
+        n, m, r
+        basis
+        c_, A_, H_, G_, B_
+        project(), reconstruct()
+        evaluate(), jacobian()
+    }
+    class _NonparametricOpInfROM{
+        <<abstract>>
+        operator_matrix_
+        data_matrix_
+        fit(), save(), load()
+    }
+    class SteadyOpInfROM{
+        evaluate(), fit(), predict()
+    }
+    class DiscreteOpInfROM{
+        evaluate(), fit(), predict()
+    }
+    class ContinuousOpInfROM{
+        evaluate(), fit(), predict()
+    }
+    class _FrozenMixin{
+        fit()
+    }
+    class _FrozenSteadyROM
+    class _FrozenDiscreteROM
+    class _FrozenContinuousROM
+    _BaseROM --|> _NonparametricOpInfROM
+    _NonparametricOpInfROM --|> SteadyOpInfROM
+    _NonparametricOpInfROM --|> DiscreteOpInfROM
+    _NonparametricOpInfROM --|> ContinuousOpInfROM
+    _FrozenMixin --|> _FrozenSteadyROM
+    _FrozenMixin --|> _FrozenDiscreteROM
+    _FrozenMixin --|> _FrozenContinuousROM
+    SteadyOpInfROM --|> _FrozenSteadyROM
+    DiscreteOpInfROM --|> _FrozenDiscreteROM
+    ContinuousOpInfROM --|> _FrozenContinuousROM
 :::
 
 #### Parametric ROMs
@@ -238,9 +333,46 @@ These classes should
 
 Here is the inheritance hierarchy for the affine-parametric ROM classes.
 
-:::{image} ../../images/romclasses-affine.png
-:align: center
-:width: 80 %
+:::{mermaid}
+%%{init: {'theme': 'neutral'}}%%
+classDiagram
+    class _BaseROM{
+        <<abstract>>
+        modelform
+        n, m, r
+        basis
+        c_, A_, H_, G_, B_
+        project(), reconstruct()
+        evaluate(), jacobian()
+    }
+    class _BaseParametricROM{
+        p
+        predict(), evaluate(), __call__()
+    }
+    class _AffineOpInfROM{
+        <<abstract>>
+        fit(), save(), load()
+    }
+    class AffineSteadyOpInfROM{
+        fit(), predict(), evaluate()
+    }
+    class AffineDiscreteOpInfROM{
+        fit(), predict(), evaluate()
+    }
+    class AffineContinuousOpInfROM{
+        fit(), predict(), evaluate()
+    }
+    class _FrozenSteadyROM
+    class _FrozenDiscreteROM
+    class _FrozenContinuousROM
+    _BaseROM --|> _BaseParametricROM
+    _BaseParametricROM --|> _AffineOpInfROM
+    _AffineOpInfROM --|> AffineSteadyOpInfROM
+    _AffineOpInfROM --|> AffineDiscreteOpInfROM
+    _AffineOpInfROM --|> AffineContinuousOpInfROM
+    AffineSteadyOpInfROM ..|> _FrozenSteadyROM : rom(parameter)
+    AffineDiscreteOpInfROM ..|> _FrozenDiscreteROM : rom(parameter)
+    AffineContinuousOpInfROM ..|> _FrozenContinuousROM : rom(parameter)
 :::
 
 :::{tip}
