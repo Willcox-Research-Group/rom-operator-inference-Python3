@@ -27,7 +27,7 @@ parts:
       - file: content/usage/romclasses/discrete.md
       # - file: content/usage/romclasses/steady.md
       # - file: content/usage/romclasses/affine.md
-      # - file: content/usage/romclasses/interpolate.md
+      - file: content/usage/romclasses/interpolate.md
     - file: content/usage/solvers/index.md
       sections:
       - file: content/usage/solvers/tikhonov.md
@@ -37,10 +37,6 @@ parts:
       sections:
       - file: content/usage/postprocessing/reconstruction.md
       - file: content/usage/postprocessing/error.md
-    - file: content/usage/utilities/index.md
-      sections:
-      - file: content/usage/utilities/kronecker.md
-      # - file: content/usage/utilities/integrate.md
 
   # Complete numerical examples, written in a tutorial style.
   - caption: Tutorials
