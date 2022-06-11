@@ -1,30 +1,79 @@
 (sec-continuous)=
 # Continuous-time ROMs
 
-:::{warning}
-This page is under construction.
-:::
+A continuous-time ROM is a surrogate for a system of ordinary differential equations, written generally as
 
-## ContinuousOpInfROM
+$$
+\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu)
+= \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu).
+$$
 
-This class constructs a reduced-order model for continuous, nonparametric systems via Operator Inference.
-That is, given snapshot data, a basis, and a form for a reduced model, it computes the reduced model operators by solving an ordinary least-squares problem.
+The following ROM classes target the continuous-time setting.
+- `ContinuousOpInfROM` (nonparametric)
+- `InterpolatedContinuousOpInfROM` (parametric via interpolation)
 
-**`ContinuousOpInfROM.fit(Vr, Q, Qdot, U=None, P=0)`**: Compute the operators of the reduced-order model via Operator Inference.
-- **Parameters**
-    - `basis`: $n \times r$ basis for the linear reduced space on which the full-order model will be projected (for example, a POD basis matrix; see [`pre.pod_basis()`](#preprocessing-tools)). Each column is a basis vector. The column space of `Vr` should be a good approximation of the column space of the full-order snapshot matrix `Q`. If given as `None`, `Q` is assumed to be the projected snapshot matrix $\mathbf{V}_{r}^{\top}\mathbf{Q}$ and `Qdot` is assumed to be the projected time derivative matrix.
-    - `states`: An $n \times k$ snapshot matrix of solutions to the full-order model, or the $r \times k$ projected snapshot matrix $\mathbf{V}_{r}^{\top}\mathbf{Q}$. Each column is one snapshot.
-    - `ddts`: $n \times k$ snapshot time derivative matrix for the full-order model, or the $r \times k$ projected snapshot time derivative matrix. Each column is the time derivative d**x**/dt for the corresponding column of `Q`. See the [`pre`](#preprocessing-tools) submodule for some simple derivative approximation tools.
-    - `inputs`: $m \times k$ input matrix (or a _k_-vector if _m_ = 1). Each column is the input vector for the corresponding column of `Q`. Only required when `'B'` is in `modelform`.
-    - `regularizer`: Tikhonov regularization matrix for the least-squares problem; see [`lstsq`](#least-squares-solvers).
-- **Returns**
-    - Trained `ContinuousOpInfROM` object.
+## Time Derivative Data
 
-**`ContinuousOpInfROM.predict(x0, t, u=None, **options)`**: Simulate the learned reduced-order model with [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
-- **Parameters**
-    - `x0`: Initial state vector, either full order ($n$-vector) or projected to reduced order ($r$-vector). If `Vr=None` in `fit()`, this must be the projected initial state $\mathbf{V}_{r}^{\top}\mathbf{q}_{0}$.
-    - `t`: Time domain, an $n_{t}$-vector, over which to integrate the reduced-order model.
-    - `u`: Input as a function of time, that is, a function mapping a `float` to an $m$-vector (or to a scalar if $m = 1$). Alternatively, the $m \times n_t$ matrix (or $n_t$-vector if $m = 1$) where column $j$ is the input vector corresponding to time `t[j]`. In this case, $\mathbf{u}(t)$ is approximated by a cubic spline interpolating the given inputs. This argument is only required if `'B'` is in `modelform`.
-    - Other keyword arguments for [`scipy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html).
-- **Returns**
-    - `Q_ROM`: $n \times n_{t}$ matrix of approximate solution to the full-order system over `t`, or, if `Vr=None` in `fit()`, the $r \times n_{t}$ solution in the reduced-order space. Each column is one snapshot of the solution.
+The OpInf regression problem for the continuous-time setting is {eq}`eq:opinf-lstsq-residual`:
+
+$$
+\min_{\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}}\sum_{j=0}^{k-1}\left\|
+    \widehat{\mathbf{c}}
+    + \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}
+    + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]
+    + \widehat{\mathbf{B}}\mathbf{u}_{j}
+    - \dot{\widehat{\mathbf{q}}}_{j}
+\right\|_{2}^{2}
++ \mathcal{R}(\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}),
+$$
+
+where
+- $\widehat{\mathbf{q}}_{j} := \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j})$ is the projected state at time $t_{j}$,
+- $\dot{\widehat{\mathbf{q}}}_{j} := \frac{\textrm{d}}{\textrm{d}t}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}\big|_{t=t_{j}}$ is the projected time derivative of the state at time $t_{j}$,
+- $\mathbf{u}_{j} := \mathbf{u}(t_j)$ is the input at time $t_{j}$, and
+- $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
+
+The state time derivatives $\dot{\mathbf{q}}_{j}$ are required in the regression.
+These may be available from the full-order solver that generated the training data, but not all solvers provide such data.
+One option is to use the states $\mathbf{q}_{j}$ to estimate the time derivatives via finite difference or spectral differentiation.
+See `opinf.pre.ddt()` for details.
+
+## ROM Evaluation
+
+The `evaluate()` method of `ContinuousOpInfROM` is the mapping
+
+$$
+(\widehat{\mathbf{q}}(t), \mathbf{u}(\cdot))
+\mapsto \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
+$$
+
+as defined by the ROM.
+
+```python
+evaluate(self, t, state_, input_func=None)
+```
+
+| Argument | Type | Description |
+| :------- | :--- | :---------- |
+| `t` | `float` | Time corresponding to the state |
+| `state_` | `(r,) ndarray` | Reduced state vector $\widehat{\mathbf{q}}(t)$ |
+| `input_func` | `callable` | Mapping $t \mapsto \mathbf{u}(t)$ |
+
+
+## Time Integration
+
+The `predict()` method of `ContinuousOpInfROM` wraps [`scpiy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/integrate.html) to solve the reduced-order model over a given time domain.
+
+```python
+predict(self, state0, t, input_func=None, reconstruct=True, **options)
+```
+
+| Argument | Type | Description |
+| :------- | :--- | :---------- |
+| `state0` | `(n,) or (r,) ndarray` | Initial state vector $\mathbf{q}(0)\in\mathbb{R}^{n}$ or $\widehat{\mathbf{q}}(0)\in\mathbb{R}^{r}$ |
+| `t` | `(nt,) ndarray` | Time domain over which to integrate the ROM |
+| `input_func` | `callable` | Mapping $t \mapsto \mathbf{u}(t)$ |
+| `reconstruct` | `bool` | If True and the `basis` is not `None`, decode the results to the $n$-dimensional state space |
+| `**options` | | Additional arguments for `scipy.integrate.solve_ivp()` |
+
+<!-- TODO: implement common solvers and document here. -->
