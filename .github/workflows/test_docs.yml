@@ -31,4 +31,4 @@ jobs:
           python -m pip install --use-feature=in-tree-build .
       - name: Build Jupyter Book documentation
         run: |
-          jupyter-book build --warningiserror docs
+          jupyter-book build docs
