@@ -67,7 +67,7 @@ class _BaseNonparametricOperator(abc.ABC):
     # Abstract methods --------------------------------------------------------
     @abc.abstractmethod
     def __init__(self, entries):
-        """Set operator entries and save operator name."""
+        """Set operator entries."""
         self.__entries = entries
 
     @abc.abstractmethod                                     # pragma: no cover

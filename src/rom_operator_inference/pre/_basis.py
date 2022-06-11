@@ -10,7 +10,7 @@ __all__ = [
           ]
 
 import numpy as np
-import scipy. linalg as la
+import scipy.linalg as la
 import scipy.sparse.linalg as spla
 import sklearn.utils.extmath as sklmath
 import matplotlib.pyplot as plt
