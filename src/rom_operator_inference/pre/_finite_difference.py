@@ -17,7 +17,7 @@ def _fwd4(y, dt):
 
     Parameters
     ----------
-    y : (5,...) ndarray
+    y : (5, ...) ndarray
         Data to differentiate. The derivative is taken along the first axis.
     dt : float
         Time step (the uniform spacing).
@@ -36,7 +36,7 @@ def _fwd6(y, dt):
 
     Parameters
     ----------
-    y : (7,...) ndarray
+    y : (7, ...) ndarray
         Data to differentiate. The derivative is taken along the first axis.
     dt : float
         Time step (the uniform spacing).
@@ -57,9 +57,9 @@ def ddt_uniform(states, dt, order=2):
 
     Parameters
     ----------
-    states : (n,k) ndarray
+    states : (n, k) ndarray
         States to estimate the derivative of. The jth column is a snapshot
-        that corresponds to the jth time step, i.e., states[:,j] = x(t[j]).
+        that corresponds to the jth time step, i.e., states[:, j] = x(t[j]).
     dt : float
         The time step between the snapshots, i.e., t[j+1] - t[j] = dt.
     order : int {2, 4, 6}
@@ -68,9 +68,9 @@ def ddt_uniform(states, dt, order=2):
 
     Returns
     -------
-    ddts : (n,k) ndarray
+    ddts : (n, k) ndarray
         Approximate time derivative of the snapshot data. The jth column is
-        the derivative dx / dt corresponding to the jth snapshot, states[:,j].
+        the derivative dx / dt corresponding to the jth snapshot, states[:, j].
     """
     # Check dimensions and input types.
     if states.ndim != 2:
@@ -83,25 +83,28 @@ def ddt_uniform(states, dt, order=2):
 
     Q = states
     ddts = np.empty_like(states)
-    n,k = states.shape
+    n, k = states.shape
     if order == 4:
         # Central difference on interior.
-        ddts[:,2:-2] = (Q[:,:-4] - 8*Q[:,1:-3] + 8*Q[:,3:-1] - Q[:,4:])/(12*dt)
+        ddts[:, 2:-2] = (Q[:, :-4]
+                         - 8*Q[:, 1:-3] + 8*Q[:, 3:-1]
+                         - Q[:, 4:])/(12*dt)
 
         # Forward / backward differences on the front / end.
         for j in range(2):
-            ddts[:,j] = _fwd4(Q[:,j:j+5].T, dt)                 # Forward
-            ddts[:,-j-1] = -_fwd4(Q[:,-j-5:k-j].T[::-1], dt)    # Backward
+            ddts[:, j] = _fwd4(Q[:, j:j+5].T, dt)                 # Forward
+            ddts[:, -j-1] = -_fwd4(Q[:, -j-5:k-j].T[::-1], dt)    # Backward
 
     elif order == 6:
         # Central difference on interior.
-        ddts[:,3:-3] = (- Q[:,:-6] + 9*Q[:,1:-5] - 45*Q[:,2:-4]
-                        + 45*Q[:,4:-2] - 9*Q[:,5:-1] + Q[:,6:]) / (60*dt)
+        ddts[:, 3:-3] = (- Q[:, :-6] + 9*Q[:, 1:-5]
+                         - 45*Q[:, 2:-4] + 45*Q[:, 4:-2]
+                         - 9*Q[:, 5:-1] + Q[:, 6:]) / (60*dt)
 
         # Forward / backward differences on the front / end.
         for j in range(3):
-            ddts[:,j] = _fwd6(Q[:,j:j+7].T, dt)                 # Forward
-            ddts[:,-j-1] = -_fwd6(Q[:,-j-7:k-j].T[::-1], dt)    # Backward
+            ddts[:, j] = _fwd6(Q[:, j:j+7].T, dt)                 # Forward
+            ddts[:, -j-1] = -_fwd6(Q[:, -j-7:k-j].T[::-1], dt)    # Backward
 
     else:
         raise NotImplementedError(f"invalid order '{order}'; "
@@ -116,9 +119,9 @@ def ddt_nonuniform(states, t):
 
     Parameters
     ----------
-    states : (n,k) ndarray
+    states : (n, k) ndarray
         States to estimate the derivative of. The jth column is a snapshot
-        that corresponds to the jth time step, i.e., states[:,j] = x(t[j]).
+        that corresponds to the jth time step, i.e., states[:, j] = x(t[j]).
     t : (k,) ndarray
         The times corresponding to the snapshots. May not be uniformly spaced.
         See ddt_uniform() for higher-order computation in the case of
@@ -126,9 +129,9 @@ def ddt_nonuniform(states, t):
 
     Returns
     -------
-    ddts : (n,k) ndarray
+    ddts : (n, k) ndarray
         Approximate time derivative of the snapshot data. The jth column is
-        the derivative dx / dt corresponding to the jth snapshot, states[:,j].
+        the derivative dx / dt corresponding to the jth snapshot, states[:, j].
     """
     # Check dimensions.
     if states.ndim != 2:
@@ -149,9 +152,9 @@ def ddt(states, *args, **kwargs):
 
     Parameters
     ----------
-    states : (n,k) ndarray
+    states : (n, k) ndarray
         States to estimate the derivative of. The jth column is a snapshot
-        that corresponds to the jth time step, i.e., states[:,j] = x(t[j]).
+        that corresponds to the jth time step, i.e., states[:, j] = x(t[j]).
 
     Additional parameters
     ---------------------
@@ -169,9 +172,9 @@ def ddt(states, *args, **kwargs):
 
     Returns
     -------
-    ddts : (n,k) ndarray
+    ddts : (n, k) ndarray
         Approximate time derivative of the snapshot data. The jth column is
-        the derivative dx / dt corresponding to the jth snapshot, states[:,j].
+        the derivative dx / dt corresponding to the jth snapshot, states[:, j].
     """
     n_args = len(args)              # Number of other positional args.
     n_kwargs = len(kwargs)          # Number of keyword args.

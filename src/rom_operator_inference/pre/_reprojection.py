@@ -23,18 +23,18 @@ def reproject_discrete(f, basis, init, niters, inputs=None):
         Function defining the (full-order) discrete dynamical system. Accepts
         a full-order state vector and (optionally) an input vector and returns
         another full-order state vector.
-    basis : (n,r) ndarray
+    basis : (n, r) ndarray
         Basis for the low-dimensional linear subspace (e.g., POD basis).
     init : (n,) ndarray
         Initial condition for the iteration in the high-dimensional space.
     niters : int
         The number of iterations to do.
-    inputs : (m,niters-1) or (niters-1) ndarray
+    inputs : (m, niters-1) or (niters-1) ndarray
         Control inputs, one for each iteration beyond the initial condition.
 
     Returns
     -------
-    states_reprojected : (r,niters) ndarray
+    states_reprojected : (r, niters) ndarray
         Re-projected state trajectories in the projected low-dimensional space.
     """
     # Validate and extract dimensions.
@@ -43,8 +43,8 @@ def reproject_discrete(f, basis, init, niters, inputs=None):
         raise ValueError("basis and initial condition not aligned")
 
     # Create the solution array and fill in the initial condition.
-    states_ = np.empty((r,niters))
-    states_[:,0] = basis.T @ init
+    states_ = np.empty((r, niters))
+    states_[:, 0] = basis.T @ init
 
     # Run the re-projection iteration.
     if inputs is None:
@@ -71,18 +71,18 @@ def reproject_continuous(f, basis, states, inputs=None):
         Function defining the (full-order) differential equation. Accepts a
         full-order state vector and (optionally) an input vector and returns
         another full-order state vector.
-    basis : (n,r) ndarray
+    basis : (n, r) ndarray
         Basis for the low-dimensional linear subspace.
-    states : (n,k) ndarray
+    states : (n, k) ndarray
         State trajectories (training data).
-    inputs : (m,k) or (k,) ndarray
+    inputs : (m, k) or (k,) ndarray
         Control inputs corresponding to the state trajectories.
 
     Returns
     -------
-    states_reprojected : (r,k) ndarray
+    states_reprojected : (r, k) ndarray
         Re-projected state trajectories in the projected low-dimensional space.
-    ddts_reprojected : (r,k) ndarray
+    ddts_reprojected : (r, k) ndarray
         Re-projected velocities in the projected low-dimensional space.
     """
     # Validate and extract dimensions.

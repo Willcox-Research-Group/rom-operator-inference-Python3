@@ -19,17 +19,17 @@ def shift(states, shift_by=None):
 
     Parameters
     ----------
-    states : (n,k) ndarray
+    states : (n, k) ndarray
         Matrix of k snapshots. Each column is a single snapshot.
-    shift_by : (n,) or (n,1) ndarray
+    shift_by : (n,) or (n, 1) ndarray
         Vector that is the same size as a single snapshot. If None,
         set to the mean of the columns of `states`.
 
     Returns
     -------
-    states_shifted : (n,k) ndarray
+    states_shifted : (n, k) ndarray
         Shifted state matrix, i.e.,
-        states_shifted[:,j] = states[:,j] - shift_by for j = 0, ..., k-1.
+        states_shifted[:, j] = states[:, j] - shift_by for j = 0, ..., k-1.
     shift_by : (n,) ndarray
         Shift factor, returned only if shift_by=None.
         Since this is a one-dimensional array, it must be reshaped to be
@@ -69,7 +69,7 @@ def scale(states, scale_to, scale_from=None):
 
     Parameters
     ----------
-    states : (n,k) ndarray
+    states : (n, k) ndarray
         Matrix of k snapshots to be scaled. Each column is a single snapshot.
     scale_to : (2,) tuple
         Desired minimum and maximum of the scaled data.
@@ -79,7 +79,7 @@ def scale(states, scale_to, scale_from=None):
 
     Returns
     -------
-    states_scaled : (n,k) ndarray
+    states_scaled : (n, k) ndarray
         Scaled snapshot matrix.
     scaled_to : (2,) tuple
         Bounds that the snapshot matrix was scaled to, i.e.,
@@ -362,7 +362,7 @@ class SnapshotTransformer:
 
         Parameters
         ----------
-        states : (n,k) ndarray
+        states : (n, k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n.
         inplace : bool
             If True, overwrite the input data during transformation.
@@ -370,7 +370,7 @@ class SnapshotTransformer:
 
         Returns
         -------
-        states_transformed: (n,k) ndarray
+        states_transformed: (n, k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         """
         Y = states if inplace else states.copy()
@@ -449,7 +449,7 @@ class SnapshotTransformer:
 
         Parameters
         ----------
-        states : (n,k) ndarray
+        states : (n, k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n.
         inplace : bool
             If True, overwrite the input data during transformation.
@@ -457,7 +457,7 @@ class SnapshotTransformer:
 
         Returns
         -------
-        states_transformed: (n,k) ndarray
+        states_transformed: (n, k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         """
         if not self._is_trained():
@@ -482,7 +482,7 @@ class SnapshotTransformer:
 
         Parameters
         ----------
-        states_transformed : (n,k) ndarray
+        states_transformed : (n, k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         inplace : bool
             If True, overwrite the input data during inverse transformation.
@@ -490,7 +490,7 @@ class SnapshotTransformer:
 
         Returns
         -------
-        states: (n,k) ndarray
+        states: (n, k) ndarray
             Matrix of k untransformed n-dimensional snapshots.
         """
         if not self._is_trained():
@@ -666,8 +666,8 @@ class SnapshotTransformerMulti:
             return False
         if self.num_variables != other.num_variables:
             return False
-        return all(t1 == t2 for t1,t2 in zip(self.transformers,
-                                             other.transformers))
+        return all(t1 == t2 for t1, t2 in zip(self.transformers,
+                                              other.transformers))
 
     def __str__(self):
         """String representation: centering and scaling directives."""
@@ -794,7 +794,7 @@ class SnapshotTransformerMulti:
 
         Parameters
         ----------
-        states : (n,k) ndarray
+        states : (n, k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n;
             this dimension must be evenly divisible by `num_variables`.
         inplace : bool
@@ -803,7 +803,7 @@ class SnapshotTransformerMulti:
 
         Returns
         -------
-        states_transformed: (n,k) ndarray
+        states_transformed: (n, k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         """
         Y = self._apply(SnapshotTransformer.fit_transform, states, inplace)
@@ -815,7 +815,7 @@ class SnapshotTransformerMulti:
 
         Parameters
         ----------
-        states : (n,k) ndarray
+        states : (n, k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n;
             this dimension must be evenly divisible by `num_variables`.
         inplace : bool
@@ -824,7 +824,7 @@ class SnapshotTransformerMulti:
 
         Returns
         -------
-        states_transformed: (n,k) ndarray
+        states_transformed: (n, k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         """
         if not self._is_trained():
@@ -838,7 +838,7 @@ class SnapshotTransformerMulti:
 
         Parameters
         ----------
-        states_transformed : (n,k) ndarray
+        states_transformed : (n, k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         inplace : bool
             If True, overwrite the input data during inverse transformation.
@@ -846,7 +846,7 @@ class SnapshotTransformerMulti:
 
         Returns
         -------
-        states: (n,k) ndarray
+        states: (n, k) ndarray
             Matrix of k untransformed n-dimensional snapshots.
         """
         if not self._is_trained():

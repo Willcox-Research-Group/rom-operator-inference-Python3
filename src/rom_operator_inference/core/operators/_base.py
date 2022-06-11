@@ -7,10 +7,26 @@ Classes
 * _BaseParametricOperator: base for operators with parameter dependence.
 """
 
-__all__ = []
+__all__ = [
+    "is_operator",
+    "is_parametric_operator",
+]
 
 import abc
 import numpy as np
+
+
+def is_operator(op):
+    """Return True if `op` is a valid Operator object."""
+    return isinstance(op, (
+        _BaseNonparametricOperator,
+        _BaseParametricOperator)
+    )
+
+
+def is_parametric_operator(op):
+    """Return True if `op` is a valid ParametricOperator object."""
+    return isinstance(op, _BaseParametricOperator)
 
 
 class _BaseNonparametricOperator(abc.ABC):
@@ -25,30 +41,7 @@ class _BaseNonparametricOperator(abc.ABC):
     shape : tuple
         Shape of the operator entries array.
     """
-    @abc.abstractmethod
-    def __init__(self, entries):
-        """Set operator entries and save operator name."""
-        self.__entries = entries
-
-    @abc.abstractmethod
-    def __call__(*args, **kwargs):                          # pragma: no cover
-        """Apply the operator mapping to the given states / inputs."""
-        raise NotImplementedError
-
-    def evaluate(self, *args, **kwargs):
-        """Apply the operator mapping to the given states / inputs."""
-        return self(*args, **kwargs)
-
-    @staticmethod
-    def _validate_entries(entries):
-        """Ensure argument is a NumPy array and screen for NaN, Inf entries."""
-        if not isinstance(entries, np.ndarray):
-            raise TypeError("operator entries must be NumPy array")
-        if np.any(np.isnan(entries)):
-            raise ValueError("operator entries must not be NaN")
-        elif np.any(np.isinf(entries)):
-            raise ValueError("operator entries must not be Inf")
-
+    # Properties --------------------------------------------------------------
     @property
     def entries(self):
         """Discrete representation of the operator."""
@@ -71,6 +64,32 @@ class _BaseNonparametricOperator(abc.ABC):
             return False
         return np.all(self.entries == other.entries)
 
+    # Abstract methods --------------------------------------------------------
+    @abc.abstractmethod
+    def __init__(self, entries):
+        """Set operator entries."""
+        self.__entries = entries
+
+    @abc.abstractmethod                                     # pragma: no cover
+    def evaluate(self, *args, **kwargs):
+        """Apply the operator mapping to the given states / inputs."""
+        raise NotImplementedError
+
+    def __call__(self, *args, **kwargs):
+        """Apply the operator mapping to the given states / inputs."""
+        return self.evaluate(*args, **kwargs)
+
+    # Validation --------------------------------------------------------------
+    @staticmethod
+    def _validate_entries(entries):
+        """Ensure argument is a NumPy array and screen for NaN, Inf entries."""
+        if not isinstance(entries, np.ndarray):
+            raise TypeError("operator entries must be NumPy array")
+        if np.any(np.isnan(entries)):
+            raise ValueError("operator entries must not be NaN")
+        elif np.any(np.isinf(entries)):
+            raise ValueError("operator entries must not be Inf")
+
 
 class _BaseParametricOperator(abc.ABC):
     """Base class for reduced-order model operators that depend on external
@@ -82,6 +101,7 @@ class _BaseParametricOperator(abc.ABC):
     >>> isinstance(nonparametric_operator, _BaseNonparametricOperator)
     True
     """
+    # Properties --------------------------------------------------------------
     # Must be specified by child classes.
     _OperatorClass = NotImplemented
 
@@ -94,12 +114,22 @@ class _BaseParametricOperator(abc.ABC):
         """
         return self._OperatorClass
 
+    @property
+    def p(self):
+        """Dimension of the parameter space, i.e., individual parameters are
+        ndarrays of shape (p,) (or scalars if p = 1)
+        """
+        return self.__p
+
+    # Abstract methods --------------------------------------------------------
     @abc.abstractmethod
     def __init__(self):
         """Validate the OperatorClass.
         Child classes must implement this method, which should set and
         validate attributes needed to construct the parametric operator.
         """
+        self.__p = None
+
         # Validate the OperatorClass.
         if not issubclass(self.OperatorClass, _BaseNonparametricOperator):
             raise RuntimeError("invalid OperatorClass "
@@ -112,9 +142,27 @@ class _BaseParametricOperator(abc.ABC):
         """
         raise NotImplementedError
 
+    # Input validation (shape checking) ---------------------------------------
     @staticmethod
     def _check_shape_consistency(iterable, prefix="operator matrix"):
         """Ensure that each array in `iterable` has the same shape."""
         shape = np.shape(iterable[0])
         if any(np.shape(A) != shape for A in iterable):
             raise ValueError(f"{prefix} shapes inconsistent")
+
+    def _set_parameter_dimension(self, parameters):
+        """Extract and save the dimension of the parameter space."""
+        shape = np.shape(parameters)
+        if len(shape) == 1:
+            self.__p = 1
+        elif len(shape) == 2:
+            self.__p = shape[1]
+        else:
+            raise ValueError("parameter values must be scalars or 1D arrays")
+
+    def _check_parameter_dimension(self, parameter):
+        """Ensure a new parameter has the expected shape."""
+        if self.p is None:
+            raise RuntimeError("parameter dimension p not set")
+        if np.atleast_1d(parameter).shape[0] != self.p:
+            raise ValueError(f"expected parameter of shape ({self.p:d},)")

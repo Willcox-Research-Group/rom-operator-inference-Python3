@@ -4,7 +4,7 @@
 title: ""
 author: Willcox Research Group, Oden Institute for Computational Engineering and Sciences
 email: karen.willcox@oden.utexas.edu
-logo: images/opinf-logo.svg
+logo: images/logo.svg
 
 # Information about where the book exists on the web.
 repository:
@@ -19,11 +19,12 @@ html:
   use_edit_page_button: false
   use_issues_button: true
   use_repository_button: true
+  favicon: images/favicon.svg
 
 # Notebooks execution configuration for build.
 # See https://jupyterbook.org/content/execute.html
 execute:
-  execute_notebooks: cache # auto, force, cache, or 'off'.
+  execute_notebooks: cache  # auto, force, cache, or 'off'.
 
 # Latex output file for PDF builds.
 latex:
@@ -48,3 +49,6 @@ sphinx:
   config: # Use MathJax version 3, which is faster than the default.
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     # language: en
+  extra_extensions:
+    - sphinx_design
+    - sphinxcontrib.mermaid

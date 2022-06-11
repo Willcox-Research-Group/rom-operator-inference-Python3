@@ -17,7 +17,7 @@ class TestBaseNonparametricOperator:
         def __init__(self, entries):
             super().__init__(entries)
 
-        def __call__(*args, **kwargs):
+        def evaluate(*args, **kwargs):
             pass
 
     class Dummy2(Dummy):
@@ -26,9 +26,11 @@ class TestBaseNonparametricOperator:
 
     def test_init(self):
         """Test _BaseNonparametricOperator.__init__()."""
-        A = np.random.random((10,11))
+        A = np.random.random((10, 11))
         op = self.Dummy(A)
         assert op.entries is A
+        op(10)
+        op.evaluate(20)
 
     def test_validate_entries(self):
         """Test _BaseNonparametricOperator._validate_entries()."""
@@ -37,31 +39,31 @@ class TestBaseNonparametricOperator:
             func([1, 2, 3, 4])
         assert ex.value.args[0] == "operator entries must be NumPy array"
 
-        A = np.arange(12, dtype=float).reshape((4,3)).T
-        A[0,0] = np.nan
+        A = np.arange(12, dtype=float).reshape((4, 3)).T
+        A[0, 0] = np.nan
         with pytest.raises(ValueError) as ex:
             func(A)
         assert ex.value.args[0] == "operator entries must not be NaN"
 
-        A[0,0] = np.inf
+        A[0, 0] = np.inf
         with pytest.raises(ValueError) as ex:
             func(A)
         assert ex.value.args[0] == "operator entries must not be Inf"
 
         # Valid argument, no exceptions raised.
-        A[0,0] = 0
+        A[0, 0] = 0
         func(A)
 
     def test_getitem(self):
         """Test _BaseNonparametricOperator.__getitem__()."""
         A = np.random.random((8, 6))
         op = self.Dummy(A)
-        for s in [slice(2), (slice(1), slice(1,3)), slice(1, 4, 2)]:
+        for s in [slice(2), (slice(1), slice(1, 3)), slice(1, 4, 2)]:
             assert np.all(op[s] == A[s])
 
     def test_eq(self):
         """Test _BaseNonparametricOperator.__eq__()."""
-        A = np.arange(12).reshape((4,3))
+        A = np.arange(12).reshape((4, 3))
         opA = self.Dummy(A)
         opA2 = self.Dummy2(A)
         assert opA != opA2
@@ -115,7 +117,7 @@ class TestBaseParametricOperator:
         assert ex.value.args[0] == "invalid OperatorClass 'int'"
 
     def test_check_shape_consistency(self):
-        """Test _BaseNonparametricOperator._check_shape_consistency()."""
+        """Test _BaseParametricOperator._check_shape_consistency()."""
         X = np.arange(12).reshape((3, 4))
 
         matrices = [X, X, X.T, X]
@@ -125,3 +127,40 @@ class TestBaseParametricOperator:
 
         matrices = [X, X+1, X/2, X*0]
         self.Dummy._check_shape_consistency(matrices, "arguments")
+
+    def test_set_parameter_dimension(self):
+        """Test _BaseParametricOperator._set_parameter_dimension()."""
+        dummy = self.Dummy()
+
+        dummy._set_parameter_dimension(np.empty(6))
+        assert dummy.p == 1
+
+        dummy._set_parameter_dimension(np.empty((10, 4)))
+        assert dummy.p == 4
+
+        with pytest.raises(ValueError) as ex:
+            dummy._set_parameter_dimension(np.empty((7, 5, 3)))
+        assert ex.value.args[0] == \
+            "parameter values must be scalars or 1D arrays"
+
+    def test_check_parameter_dimension(self):
+        """Test _BaseParametricOperator._check_parameter_dimension()."""
+        dummy = self.Dummy()
+
+        with pytest.raises(RuntimeError) as ex:
+            dummy._check_parameter_dimension([1, 1])
+        assert ex.value.args[0] == "parameter dimension p not set"
+
+        dummy._set_parameter_dimension(np.empty((10, 4)))
+        assert dummy.p == 4
+
+        with pytest.raises(ValueError) as ex:
+            dummy._check_parameter_dimension([1, 1])
+        assert ex.value.args[0] == "expected parameter of shape (4,)"
+
+        with pytest.raises(ValueError) as ex:
+            dummy._check_parameter_dimension(2)
+        assert ex.value.args[0] == "expected parameter of shape (4,)"
+
+        dummy._check_parameter_dimension(np.arange(4))
+        dummy._check_parameter_dimension((9, 7, 5, 3))

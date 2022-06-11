@@ -1,8 +1,8 @@
 (sec-notation)=
 # Index of Notation
 
-We generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
-In the code, a low-dimensional quantity ends with an underscore, so that the model classes follow some principles from the [scikit-learn](https://scikit-learn.org/stable/index.html) [API](https://scikit-learn.org/stable/developers/contributing.html#apis-of-scikit-learn-objects).
+In the documentation, we generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
+In the code, low-dimensional quantities ends with an underscore (e.g., `state` is high-dimensional and `state_` is low-dimensional).
 
 ## Dimensions
 

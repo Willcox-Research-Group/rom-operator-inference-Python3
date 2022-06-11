@@ -34,5 +34,5 @@ def test_lstsq_size():
     assert opinf.lstsq.lstsq_size("GB", r, m) == r*(r+1)*(r+2)//6 + m
 
     # Test with affines.
-    assert opinf.lstsq.lstsq_size("c", r, affines={"c":[0,0]}) == 2
-    assert opinf.lstsq.lstsq_size("A", r, affines={"A":[0,0]}) == 2*r
+    assert opinf.lstsq.lstsq_size("c", r, affines={"c": [0, 0]}) == 2
+    assert opinf.lstsq.lstsq_size("A", r, affines={"A": [0, 0]}) == 2*r

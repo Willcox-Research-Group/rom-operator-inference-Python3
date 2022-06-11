@@ -72,7 +72,7 @@ class TestNonparametricOpInfROM:
 
         rom.modelform = "c"
         rom._construct_solver(None, Q, Qdot, inputs=None)
-        assert np.all(rom.data_matrix_ == np.ones((k,1)))
+        assert np.all(rom.data_matrix_ == np.ones((k, 1)))
 
     # Fitting -----------------------------------------------------------------
     def test_check_training_data_shapes(self):
@@ -89,42 +89,42 @@ class TestNonparametricOpInfROM:
             assert ex.value.args[0] == message
 
         # Try to fit the rom with a single snapshot.
-        args = [(Q[:,0], "states"), (dQ, "dQ")]
+        args = [(Q[:, 0], "states"), (dQ, "dQ")]
         _test(args, "states must be two-dimensional")
 
         # Try to fit the rom with misaligned Q and dQ.
-        args = [(Q, "staaates"), (dQ[:,1:-1], "dQs")]
+        args = [(Q, "staaates"), (dQ[:, 1:-1], "dQs")]
         _test(args, f"dQs.shape[-1] = {k-2:d} != {k:d} = staaates.shape[-1]")
 
         # Try to fit the rom with misaligned Q and U.
         rom.modelform = "AB"
         rom.r, rom.m = r, m
-        args = [(Q, "states"), (dQ, "dQ"), (U[:,1:-1], "inputs")]
+        args = [(Q, "states"), (dQ, "dQ"), (U[:, 1:-1], "inputs")]
         _test(args, f"inputs.shape[-1] = {k-2:d} != {k} = states.shape[-1]")
 
         # Try with bad number of rows in states.
-        args = [(Q[:-1,:], "states"), (dQ, "dQ"), (U, "inputs")]
+        args = [(Q[:-1, :], "states"), (dQ, "dQ"), (U, "inputs")]
         _test(args, f"states.shape[0] != n or r (n=None, r={r})")
 
         # Try with one-dimensional inputs when not allowed.
         rom.m = 2
-        args = [(Q, "states"), (dQ, "dQ"), (U[:,0], "inputs")]
+        args = [(Q, "states"), (dQ, "dQ"), (U[:, 0], "inputs")]
         _test(args, "inputs must be two-dimensional (m > 1)")
 
         # Try with bad number of rows in inputs.
         rom.m = m
-        args = [(Q, "states"), (dQ, "dQ"), (U[:-1,:], "inputs")]
+        args = [(Q, "states"), (dQ, "dQ"), (U[:-1, :], "inputs")]
         _test(args, f"inputs.shape[0] = {m-1} != {m} = m")
 
         # Try with bad dimension in inputs with m = 1.
         rom.m = 1
-        args = [(U.reshape(1,1,-1), "inputs")]
+        args = [(U.reshape(1, 1, -1), "inputs")]
         _test(args, "inputs must be one- or two-dimensional (m = 1)")
 
         # Try with bad two-dimensional inputs with m = 1.
         rom.m = 1
-        args = [(U.reshape(-1,1), "inputs")]
-        _test(args, "inputs.shape != (1,k) (m = 1)")
+        args = [(U.reshape(-1, 1), "inputs")]
+        _test(args, "inputs.shape != (1, k) (m = 1)")
 
         # Correct usage.
         args = [(Q, "states"), (dQ, "dQ")]
@@ -134,7 +134,7 @@ class TestNonparametricOpInfROM:
         rom._check_training_data_shapes(args)
 
         # Special case: m = inputs.ndim = 1.
-        args[-1] = (U[0,:], "inputs")
+        args[-1] = (U[0, :], "inputs")
         rom.m = 1
         rom._check_training_data_shapes(args)
 
@@ -142,8 +142,8 @@ class TestNonparametricOpInfROM:
         """Test _NonparametricOpInfROM._process_fit_arguments()."""
         # Get test data.
         Q, lhs, U = _get_data(n, k, m)
-        U1d = U[0,:]
-        Vr = la.svd(Q)[0][:,:r]
+        U1d = U[0, :]
+        Vr = la.svd(Q)[0][:, :r]
         ones = np.ones(k)
 
         # With basis and input.
@@ -193,7 +193,7 @@ class TestNonparametricOpInfROM:
 
         # Special case: m = inputs.ndim = 1
         U1d = U[0]
-        B1d = B[:,0]
+        B1d = B[:, 0]
         Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, U1d, {"B": B1d})
         assert rom.m == 1
         assert rom._projected_operators_ == "B"
@@ -202,7 +202,7 @@ class TestNonparametricOpInfROM:
         # Fully intrusive.
         rom.modelform = "cA"
         Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, None,
-                                              {"c": c, "A":A})
+                                              {"c": c, "A": A})
         assert sorted(rom._projected_operators_) == sorted("cA")
         assert Q_ is None
         assert lhs_ is None
@@ -220,18 +220,18 @@ class TestNonparametricOpInfROM:
                 rom.m = m
             D = rom._assemble_data_matrix(Q_, U)
             d = opinf.lstsq.lstsq_size(form, r, m if 'B' in form else 0)
-            assert D.shape == (k,d)
+            assert D.shape == (k, d)
 
             # Spot check.
             if form == "c":
-                assert np.allclose(D, np.ones((k,1)))
+                assert np.allclose(D, np.ones((k, 1)))
             elif form == "H":
                 assert np.allclose(D, opinf.utils.kron2c(Q_).T)
             elif form == "G":
                 assert np.allclose(D, opinf.utils.kron3c(Q_).T)
             elif form == "AB":
-                assert np.allclose(D[:,:r], Q_.T)
-                assert np.allclose(D[:,r:], U.T)
+                assert np.allclose(D[:, :r], Q_.T)
+                assert np.allclose(D[:, r:], U.T)
 
         # Try with one-dimensional inputs as a 1D array.
         rom.modelform = "cB"
@@ -244,10 +244,10 @@ class TestNonparametricOpInfROM:
         """Test _NonparametricOpInfROM._extract_operators()."""
         shapes = {
                     "c_": (r,),
-                    "A_": (r,r),
-                    "H_": (r,r*(r+1)//2),
-                    "G_": (r,r*(r+1)*(r+2)//6),
-                    "B_": (r,m),
+                    "A_": (r, r),
+                    "H_": (r, r*(r+1)//2),
+                    "G_": (r, r*(r+1)*(r+2)//6),
+                    "B_": (r, m),
                  }
 
         rom = self.Dummy("")
@@ -258,7 +258,7 @@ class TestNonparametricOpInfROM:
             if 'B' in form:
                 rom.m = m
             d = opinf.lstsq.lstsq_size(form, r, rom.m)
-            Ohat = np.random.random((r,d))
+            Ohat = np.random.random((r, d))
             rom._extract_operators(Ohat)
             for prefix in MODELFORM_KEYS:
                 attr = prefix+'_'
@@ -274,8 +274,8 @@ class TestNonparametricOpInfROM:
         """Test core.nonparametric._base._NonparametricOpInfROM.fit()."""
         # Get test data.
         Q, F, U = _get_data(n, k, m)
-        U1d = U[0,:]
-        Vr = la.svd(Q)[0][:,:r]
+        U1d = U[0, :]
+        Vr = la.svd(Q)[0][:, :r]
         args_n = [Q, F]
         args_r = [Vr.T @ Q, Vr.T @ F]
 
@@ -313,7 +313,7 @@ class TestNonparametricOpInfROM:
             os.remove(target)
 
         # Get a test model.
-        Vr = np.random.random((n,r))
+        Vr = np.random.random((n, r))
         rom = _trainedmodel(self.Dummy, "cAHGB", Vr, m)
 
         def _checkfile(filename, rom, hasbasis):
@@ -327,30 +327,30 @@ class TestNonparametricOpInfROM:
                 # Check basis
                 if hasbasis:
                     assert "basis" in data
-                    assert np.allclose(data["basis"], Vr)
+                    assert np.all(data["basis"][:] == Vr)
                 else:
                     assert "basis" not in data
 
                 # Check operators
                 assert "operators" in data
                 if "c" in rom.modelform:
-                    assert np.allclose(data["operators/c_"], rom.c_.entries)
+                    assert np.all(data["operators/c_"][:] == rom.c_.entries)
                 else:
                     assert "c_" not in data["operators"]
                 if "A" in rom.modelform:
-                    assert np.allclose(data["operators/A_"], rom.A_.entries)
+                    assert np.all(data["operators/A_"][:] == rom.A_.entries)
                 else:
                     assert "A_" not in data["operators"]
                 if "H" in rom.modelform:
-                    assert np.allclose(data["operators/H_"], rom.H_.entries)
+                    assert np.all(data["operators/H_"][:] == rom.H_.entries)
                 else:
                     assert "H_" not in data["operators"]
                 if "G" in rom.modelform:
-                    assert np.allclose(data["operators/G_"], rom.G_.entries)
+                    assert np.all(data["operators/G_"][:] == rom.G_.entries)
                 else:
                     assert "G_" not in data["operators"]
                 if "B" in rom.modelform:
-                    assert np.allclose(data["operators/B_"], rom.B_.entries)
+                    assert np.all(data["operators/B_"][:] == rom.B_.entries)
                 else:
                     assert "B_" not in data["operators"]
 
@@ -397,7 +397,7 @@ class TestNonparametricOpInfROM:
         assert rom2 == rom
         for attr in ["m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)
-        for attr in ["A_", "B_",]:
+        for attr in ["A_", "B_"]:
             got = getattr(rom2, attr)
             assert _isoperator(got)
             assert np.all(getattr(rom, attr).entries == got.entries)
@@ -409,7 +409,7 @@ class TestNonparametricOpInfROM:
     def test_load(self, n=20, m=2, r=5, target="_loadmodeltest.h5"):
         """Test core.nonparametric._base._NonparametricOpInfROM.load()."""
         # Get test operators.
-        Vr = np.random.random((n,r))
+        Vr = np.random.random((n, r))
         c_, A_, H_, G_, B_ = _get_operators(n=r, m=m)
 
         # Clean up after old tests if needed.

@@ -55,27 +55,59 @@ Operator classes are defined in `core/operators`.
 
 A _non-parametric_ operator has constant entries that do not depend on external parameters.
 Classes for representing non-parametric operators are defined in `core/operators/_nonparametric.py`.
-These classes should
+These classes
 
 - Inherit from `core.operators._base._BaseNonparametricOperator`.
 
-- Be initialized with a NumPy array (the entries of the operator).
-    Specifically, `__init__(self, entries)` should 1) call `self._validate_entries(entries)` to ensure `entries` is a valid NumPy array, 2) do any shape checking needed on `entries`, and 3) call `_BaseNonparametricOperator.__init__(self, entries)`.
+- Are initialized with a NumPy array (the entries of the operator).
+    Specifically, `__init__(self, entries)`
+    1. calls `self._validate_entries(entries)` to ensure `entries` is a valid NumPy array,
+    2. does any shape checking needed on `entries`, and
+    3. calls `_BaseNonparametricOperator.__init__(self, entries)`.
 
-- Implement `__call__(self, state)` as the mapping defined by the operator.
+- Implements `evaluate(self, state)` as the mapping defined by the operator.
     For the linear term $\widehat{\mathbf{A}}$ this is simply matrix multiplication $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$;
     for the quadratic term $\widehat{\mathbf{H}}$ this is the mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, which is done efficiently by computing only the unique terms of the Kronecker product $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$.
 
-- Implement `jacobian(self, state)` to evaluate of the Jacobian of the operator, i.e., $\frac{\partial}{\partial \widehat{\mathbf{q}}}$ of the mapping in `__call__()`.
+- Implements `jacobian(self, state)` to evaluate of the Jacobian of the operator, i.e., $\frac{\partial}{\partial \widehat{\mathbf{q}}}$ of the mapping in `evaluate()`.
     For the linear mapping $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$, the Jacobian is $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}$;
     for the quadratic mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, the Jacobian is $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[(\mathbf{I}\otimes\widehat{\mathbf{q}}) + (\widehat{\mathbf{q}}\otimes\mathbf{I})]$.
 
+::::{margin}
+:::{note}
+For nonparametric operators, `__call__()` is essentially an alias for `evaluate()`, so the action of an operator `H` on a state `q` may be computed as `H.evaluate(q)` or `H(q)`.
+However, parametric operators _do not have_ an `evaluate()` method, and `__call__()` is implemented to construct a nonparametric operator corresponding to a given parameter value.
+:::
+::::
+
 The following diagram shows the class hierarchy for non-parametric operators.
 
-:::{image} ../../images/opclasses-nonparametric.png
-:align: center
-:width: 80 %
+:::{mermaid}
+%%{init: {'theme': 'neutral'}}%%
+classDiagram
+    class _BaseNonparametricOperator{
+        <<abstract>>
+        entries, shape
+        __getitem__(), __eq__()
+    }
+    class ConstantOperator{
+        __init__(), evaluate(), jacobian()
+    }
+    class LinearOperator{
+        __init__(), evaluate(), jacobian()
+    }
+    class QuadraticOperator{
+        __init__(), evaluate(), jacobian()
+    }
+    class CubicOperator{
+        __init__(), evaluate(), jacobian()
+    }
+    _BaseNonparametricOperator --> ConstantOperator
+    _BaseNonparametricOperator --> LinearOperator
+    _BaseNonparametricOperator --> QuadraticOperator
+    _BaseNonparametricOperator --> CubicOperator
 :::
+
 
 #### Parametric Operators
 
@@ -88,6 +120,8 @@ These classes should
 - Be initialized with whatever parameter data, matrices, and/or functions are needed to represent the parametric operator and validate these inputs (e.g., shape checking on any matrices).
 
 - Call `_BaseParametricROM.__init__(self)` at the beginning of `__init__()`.
+
+- Set the parameter dimension by calling `self._set_parameter_dimension(parameter_values)` in `__init__()`.
 
 - Provide public access to the members that define the parametric structure (`parameter_values`, `coefficient_functions`, `matrices`, etc.).
 
@@ -117,9 +151,42 @@ These classes should
 
 Here's an example of the inheritance hierarchy for affine-parametric operators, defined in `core/operators/_affine.py`.
 
-:::{image} ../../images/opclasses-affine.png
-:align: center
-:width: 80 %
+:::{mermaid}
+%%{init: {'theme': 'neutral'}}%%
+classDiagram
+    class _BaseParametricOperator{
+        <<abstract>>
+    }
+    class _BaseAffineOperator{
+        <<abstract>>
+        matrices, coefficients, shape
+        __getitem__(), __eq__()
+    }
+    class ConstantAffineOperator{
+        __init__(), __call__()
+    }
+    class LinearAffineOperator{
+        __init__(), __call__()
+    }
+    class QuadraticAffineOperator{
+        __init__(), __call__()
+    }
+    class CubicAffineOperator{
+        __init__(), __call__()
+    }
+    class ConstantOperator
+    class LinearOperator
+    class QuadraticOperator
+    class CubicOperator
+    _BaseParametricOperator --> _BaseAffineOperator
+    _BaseAffineOperator --> ConstantAffineOperator
+    _BaseAffineOperator --> LinearAffineOperator
+    _BaseAffineOperator --> QuadraticAffineOperator
+    _BaseAffineOperator --> CubicAffineOperator
+    ConstantAffineOperator ..|> ConstantOperator : operator(parameter)
+    LinearAffineOperator ..|> LinearOperator : operator(parameter)
+    QuadraticAffineOperator ..|> QuadraticOperator : operator(parameter)
+    CubicAffineOperator ..|> CubicOperator : operator(parameter)
 :::
 
 :::{tip}
@@ -187,19 +254,59 @@ Classes for representing non-parametric ROMs are defined in the `core/nonparamet
 
 The following diagram shows the inheritance hierarchy for the non-parametric ROM classes.
 
-:::{image} ../../images/romclasses-nonparametric.png
-:align: center
-:width: 80 %
+:::{mermaid}
+%%{init: {'theme': 'neutral'}}%%
+classDiagram
+    class _BaseROM{
+        <<abstract>>
+        modelform
+        n, m, r
+        basis
+        c_, A_, H_, G_, B_
+        project(), reconstruct()
+        evaluate(), jacobian()
+    }
+    class _NonparametricOpInfROM{
+        <<abstract>>
+        operator_matrix_
+        data_matrix_
+        fit(), save(), load()
+    }
+    class SteadyOpInfROM{
+        evaluate(), fit(), predict()
+    }
+    class DiscreteOpInfROM{
+        evaluate(), fit(), predict()
+    }
+    class ContinuousOpInfROM{
+        evaluate(), fit(), predict()
+    }
+    class _FrozenMixin{
+        fit()
+    }
+    class _FrozenSteadyROM
+    class _FrozenDiscreteROM
+    class _FrozenContinuousROM
+    _BaseROM --|> _NonparametricOpInfROM
+    _NonparametricOpInfROM --|> SteadyOpInfROM
+    _NonparametricOpInfROM --|> DiscreteOpInfROM
+    _NonparametricOpInfROM --|> ContinuousOpInfROM
+    _FrozenMixin --|> _FrozenSteadyROM
+    _FrozenMixin --|> _FrozenDiscreteROM
+    _FrozenMixin --|> _FrozenContinuousROM
+    SteadyOpInfROM --|> _FrozenSteadyROM
+    DiscreteOpInfROM --|> _FrozenDiscreteROM
+    ContinuousOpInfROM --|> _FrozenContinuousROM
 :::
 
 #### Parametric ROMs
 
-:::{margin}
-```{note}
+::::{margin}
+:::{note}
 For every parameterization strategy, there should be 1) a file in `core/operators/` implementing parametric operator classes, and 2) a folder in `core/` grouping the parametric ROM classes.
 For example, the ROM classes defined in `core/affine/` use the operator classes defined in `core/operators/_affine.py`.
-```
 :::
+::::
 
 A _parametric ROM_ has one or more parametric operators.
 Classes for representing parametric ROMs should be grouped by parameterization strategy in a new folder within `core/` (e.g., `core/affine/`).
@@ -222,11 +329,50 @@ These classes should
     The `_ModelClass` should be one of the "frozen" non-parametric ROM classes in `core/nonparametric/_frozen.py`, which have their `fit()` method disabled.
     This prevents the user from calling `fit()` on the evaluated parametric ROM (`nonparametric_rom` in the code block above) when they meant to fit the parametric ROM (`parametric_rom`).
 
+<!-- TODO: set dimensions. -->
+
 Here is the inheritance hierarchy for the affine-parametric ROM classes.
 
-:::{image} ../../images/romclasses-affine.png
-:align: center
-:width: 80 %
+:::{mermaid}
+%%{init: {'theme': 'neutral'}}%%
+classDiagram
+    class _BaseROM{
+        <<abstract>>
+        modelform
+        n, m, r
+        basis
+        c_, A_, H_, G_, B_
+        project(), reconstruct()
+        evaluate(), jacobian()
+    }
+    class _BaseParametricROM{
+        p
+        predict(), evaluate(), __call__()
+    }
+    class _AffineOpInfROM{
+        <<abstract>>
+        fit(), save(), load()
+    }
+    class AffineSteadyOpInfROM{
+        fit(), predict(), evaluate()
+    }
+    class AffineDiscreteOpInfROM{
+        fit(), predict(), evaluate()
+    }
+    class AffineContinuousOpInfROM{
+        fit(), predict(), evaluate()
+    }
+    class _FrozenSteadyROM
+    class _FrozenDiscreteROM
+    class _FrozenContinuousROM
+    _BaseROM --|> _BaseParametricROM
+    _BaseParametricROM --|> _AffineOpInfROM
+    _AffineOpInfROM --|> AffineSteadyOpInfROM
+    _AffineOpInfROM --|> AffineDiscreteOpInfROM
+    _AffineOpInfROM --|> AffineContinuousOpInfROM
+    AffineSteadyOpInfROM ..|> _FrozenSteadyROM : rom(parameter)
+    AffineDiscreteOpInfROM ..|> _FrozenDiscreteROM : rom(parameter)
+    AffineContinuousOpInfROM ..|> _FrozenContinuousROM : rom(parameter)
 :::
 
 :::{tip}

@@ -18,7 +18,7 @@ class _OperatorDummy(_base._BaseNonparametricOperator):
     def __init__(self, entries):
         _base._BaseNonparametricOperator.__init__(self, entries)
 
-    def __call__(*args, **kwargs):
+    def evaluate(*args, **kwargs):
         return 0
 
 
@@ -55,7 +55,7 @@ class TestAffineOperator:
 
         # Try with matrices of different shapes.
         with pytest.raises(ValueError) as ex:
-            self.Dummy(funcs, matrices[:-1] + [np.random.random((10,2))])
+            self.Dummy(funcs, matrices[:-1] + [np.random.random((10, 2))])
         assert ex.value.args[0] == "operator matrix shapes inconsistent"
 
         # Correct usage.
@@ -123,7 +123,7 @@ class TestAffineOperator:
         assert op1 != 1
         assert op1 != op2
 
-        op2 = self.Dummy(funcs, [A[:,:-1] for A in matrices])
+        op2 = self.Dummy(funcs, [A[:, :-1] for A in matrices])
         assert op1 != op2
 
         op2 = self.Dummy(funcs, matrices)

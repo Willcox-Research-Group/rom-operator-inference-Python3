@@ -17,36 +17,32 @@ parts:
   - caption: Package Usage
     chapters:
     - file: content/usage/installation.md
+    - file: content/usage/preprocessing/index.md
+      sections:
+      - file: content/usage/preprocessing/transformation.md
+      - file: content/usage/preprocessing/basis.md
     - file: content/usage/romclasses/index.md
       sections:
       - file: content/usage/romclasses/continuous.md
       - file: content/usage/romclasses/discrete.md
       # - file: content/usage/romclasses/steady.md
       # - file: content/usage/romclasses/affine.md
-      # - file: content/usage/romclasses/interpolate.md
+      - file: content/usage/romclasses/interpolate.md
     - file: content/usage/solvers/index.md
       sections:
       - file: content/usage/solvers/tikhonov.md
       # - file: content/usage/solvers/tsvd.md
       # - file: content/usage/solvers/qr.md
-    - file: content/usage/preprocessing/index.md
-      sections:
-      - file: content/usage/preprocessing/transformation.md
-      - file: content/usage/preprocessing/basis.md
     - file: content/usage/postprocessing/index.md
       sections:
       - file: content/usage/postprocessing/reconstruction.md
       - file: content/usage/postprocessing/error.md
-    - file: content/usage/utilities/index.md
-      sections:
-      - file: content/usage/utilities/kronecker.md
-      # - file: content/usage/utilities/integrate.md
 
   # Complete numerical examples, written in a tutorial style.
   - caption: Tutorials
     chapters:
     - file: content/tutorials/basics.ipynb
-    - file: content/tutorials/heat_1D.ipynb
+    - file: content/tutorials/heat_equation.ipynb
     - file: content/tutorials/gallery.md
 
   # Non-narrative API documentation (TODO: automate generation).

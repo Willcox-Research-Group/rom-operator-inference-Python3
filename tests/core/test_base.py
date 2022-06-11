@@ -22,7 +22,7 @@ class TestBaseROM:
             pass
 
         def predict(*args, **kwargs):
-            pass
+            return 100
 
         def save(*args, **kwargs):
             pass
@@ -32,6 +32,7 @@ class TestBaseROM:
 
     def test_str(self):
         """Test core._base._BaseROM.__str__() (string representation)."""
+
         # Continuous ROMs
         rom = self.Dummy("A")
         assert str(rom) == \
@@ -67,6 +68,47 @@ class TestBaseROM:
         self.Dummy._LHS_LABEL = "g"
         self.Dummy._STATE_LABEL = "q"
         self.Dummy._INPUT_LABEL = "u"
+        rom = self.Dummy("A")
+        assert str(rom) == \
+            "Reduced-order model structure: g = Aq"
+        rom = self.Dummy("cA")
+        assert str(rom) == \
+            "Reduced-order model structure: g = c + Aq"
+        rom = self.Dummy("G")
+        assert str(rom) == \
+            "Reduced-order model structure: g = G[q ⊗ q ⊗ q]"
+        rom = self.Dummy("cH")
+        assert str(rom) == \
+            "Reduced-order model structure: g = c + H[q ⊗ q]"
+
+        # Dimension reporting.
+        rom = self.Dummy("A")
+        rom.basis = np.empty((100, 20))
+        romstr = str(rom).split('\n')
+        assert len(romstr) == 3
+        assert romstr[0] == \
+            "Reduced-order model structure: g = Aq"
+        assert romstr[1] == "Full-order dimension    n = 100"
+        assert romstr[2] == "Reduced-order dimension r = 20"
+
+        rom = self.Dummy("AB")
+        rom.basis = np.empty((100, 20))
+        rom.m = 3
+        romstr = str(rom).split('\n')
+        assert len(romstr) == 4
+        assert romstr[0] == \
+            "Reduced-order model structure: g = Aq + Bu"
+        assert romstr[1] == "Full-order dimension    n = 100"
+        assert romstr[2] == "Input/control dimension m = 3"
+        assert romstr[3] == "Reduced-order dimension r = 20"
+
+    def test_repr(self):
+        """Test core._base._BaseROM.__repr__() (string representation)."""
+
+        def firstline(obj):
+            return repr(obj).split('\n')[0]
+
+        assert firstline(self.Dummy("A")).startswith("<Dummy object at")
 
     def test_modelform_properties(self, n=10, r=3, m=5):
         """Test the properties related to core._base._BaseROM.modelform."""
@@ -130,7 +172,7 @@ class TestBaseROM:
         assert rom.basis is None
 
         # Case 1: basis != None
-        basis = np.random.random((n,r))
+        basis = np.random.random((n, r))
         rom.basis = basis
         assert rom.n == n
         assert rom.m == 0
@@ -160,7 +202,7 @@ class TestBaseROM:
         assert rom.m is None
         rom.r = r
         rom.m = m
-        rom.B_ = np.random.random((r,m))
+        rom.B_ = np.random.random((r, m))
 
         # Try setting r with an operator already set.
         with pytest.raises(AttributeError) as ex:
@@ -192,8 +234,8 @@ class TestBaseROM:
             assert getattr(rom, name) is None
             setattr(rom, name, op)
             assert getattr(rom, name).entries is op
-        rom.H_ = np.random.random((r,r**2))
-        rom.G_ = np.random.random((r,r**3))
+        rom.H_ = np.random.random((r, r**2))
+        rom.G_ = np.random.random((r, r**3))
 
     def test_set_operators(self, n=60, m=10, r=12):
         """Test core._base._BaseROM._set_operators()."""
@@ -262,7 +304,7 @@ class TestBaseROM:
         assert romL == romR
 
         # Different bases.
-        Vr = np.random.random((n,r))
+        Vr = np.random.random((n, r))
         romL.basis = Vr
         assert romL != romR
         romL.basis = None
@@ -277,7 +319,7 @@ class TestBaseROM:
         assert romL == romR
 
         # Different operators.
-        A = np.random.random((r,r))
+        A = np.random.random((r, r))
         romL.A_ = A
         assert romL != romR
         romR.A_ = 2 * A
@@ -333,24 +375,24 @@ class TestBaseROM:
             f"c_.shape = {c[:-1].shape}, must be (r,) with r = {r}"
 
         with pytest.raises(ValueError) as ex:
-            rom._check_rom_operator_shape(A[:-1,1:], 'A')
+            rom._check_rom_operator_shape(A[:-1, 1:], 'A')
         assert ex.value.args[0] == \
-            f"A_.shape = {A[:-1,1:].shape}, must be (r,r) with r = {r}"
+            f"A_.shape = {A[:-1, 1:].shape}, must be (r, r) with r = {r}"
 
         with pytest.raises(ValueError) as ex:
-            rom._check_rom_operator_shape(H[:-1,:-1], 'H')
-        assert ex.value.args[0] == \
-            f"H_.shape = {H[:-1,:-1].shape}, must be (r,r(r+1)/2) with r = {r}"
+            rom._check_rom_operator_shape(H[:-1, :-1], 'H')
+        assert ex.value.args[0] == f"H_.shape = {H[:-1, :-1].shape}, " \
+            f"must be (r, r(r+1)/2) with r = {r}"
 
         with pytest.raises(ValueError) as ex:
             rom._check_rom_operator_shape(G[1:], 'G')
-        assert ex.value.args[0] == \
-            f"G_.shape = {G[1:].shape}, must be (r,r(r+1)(r+2)/6) with r = {r}"
+        assert ex.value.args[0] == f"G_.shape = {G[1:].shape}, " \
+            f"must be (r, r(r+1)(r+2)/6) with r = {r}"
 
         with pytest.raises(ValueError) as ex:
             rom._check_rom_operator_shape(B[1:-1], 'B')
-        assert ex.value.args[0] == \
-            f"B_.shape = {B[1:-1].shape}, must be (r,m) with r = {r}, m = {m}"
+        assert ex.value.args[0] == f"B_.shape = {B[1:-1].shape}, " \
+            f"must be (r, m) with r = {r}, m = {m}"
 
         # Correct usage.
         for key, op in zip("cAHGB", operators):
@@ -389,21 +431,21 @@ class TestBaseROM:
         rom._check_is_trained()
 
     # Projection / reconstruction ---------------------------------------------
-    def test_project_operators(self, n=7, m=5, r=3):
+    def test_project_operators(self, n=15, m=5, r=4):
         """Test core._base._BaseROM._project_operators()."""
         # Get test data.
-        basis = np.random.random((n,r))
+        basis = np.random.random((n, r))
         shapes = {
                     "c": (n,),
-                    "A": (n,n),
-                    "H": (n,n**2),
-                    "G": (n,n**3),
-                    "B": (n,m),
+                    "A": (n, n),
+                    "H": (n, n**2),
+                    "G": (n, n**3),
+                    "B": (n, m),
                     "c_": (r,),
-                    "A_": (r,r),
-                    "H_": (r,r*(r+1)//2),
-                    "G_": (r,r*(r+1)*(r+2)//6),
-                    "B_": (r,m),
+                    "A_": (r, r),
+                    "H_": (r, r*(r+1)//2),
+                    "G_": (r, r*(r+1)*(r+2)//6),
+                    "B_": (r, m),
                  }
 
         # Initialize the ROM and test null input.
@@ -413,12 +455,19 @@ class TestBaseROM:
 
         # Get test operators.
         c, A, H, G, B = _get_operators(n, m, expanded=True)
-        operators = {"c":c, "A":A, "H":H, "G":G, "B":B}
-        B1d = B[:,0]
+        c_, A_, H_, G_, B_ = _get_operators(r, m, expanded=False)
+        B1d = B[:, 0]
 
-        # Try to project without a basis.
+        # Try to project without dimension r.
         with pytest.raises(ValueError) as ex:
             rom._project_operators({"c": c, "A": A})
+        assert ex.value.args[0] == \
+            "dimension r required to use known operators"
+
+        # Try to project without a basis.
+        rom.r = r
+        with pytest.raises(ValueError) as ex:
+            rom._project_operators({"c": c, "A": A_, "B": B})
         assert ex.value.args[0] == \
             "basis required to project full-order operators"
 
@@ -435,60 +484,72 @@ class TestBaseROM:
 
         # Try to fit the ROM with operators that are misaligned with the basis.
         cbad = c[::2]
-        Abad = A[:,:-2]
-        Hbad = H[:,1:]
-        Gbad = G[:,:-1]
-        Bbad = B[1:,:]
+        Abad = A[:, :-2]
+        Hbad = H[:, 1:]
+        Gbad = G[:, :-1]
+        Bbad = B[1:, :]
 
         rom = self.Dummy("cAHGB")
         rom.basis = basis
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"c":cbad, "A":A, "H":H, "G":G, "B":B})
+            rom._project_operators({"c": cbad, "A": A, "H": H, "G": G, "B": B})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"c":c, "A":Abad})
+            rom._project_operators({"c": c, "A": Abad})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"H":Hbad, "G":G, "B":B})
+            rom._project_operators({"H": Hbad, "G": G, "B": B})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"c":c, "A":A, "H":H, "G":Gbad, "B":B})
+            rom._project_operators({"c": c, "A": A, "H": H, "G": Gbad, "B": B})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         with pytest.raises(ValueError) as ex:
-            rom._project_operators({"B":Bbad})
+            rom._project_operators({"B": Bbad})
         assert "matmul: Input operand 1 has a mismatch" in ex.value.args[0]
 
         # Test each modelform.
+        fom_operators = {"c": c, "A": A, "H": H, "G": G, "B": B}
+        rom_operators = {"c": c_, "A": A_, "H": H_, "G": G_, "B": B_}
         for form in MODEL_FORMS:
-            rom = self.Dummy(form)
-            rom.basis = basis
-            ops = {key:val for key,val in operators.items() if key in form}
-            rom._project_operators(ops)
-            for prefix in self.Dummy._MODELFORM_KEYS:
-                attr = prefix+'_'
-                assert hasattr(rom, attr)
-                rom_op = getattr(rom, attr)
-                if prefix in form:
-                    assert isinstance(rom_op.entries, np.ndarray)
-                    assert rom_op.shape == shapes[attr]
+            for opdict in [fom_operators, rom_operators]:
+                rom = self.Dummy(form)
+                rom.basis = basis
+                rom._project_operators({key: op
+                                        for key, op in opdict.items()
+                                        if key in form})
+                for prefix in self.Dummy._MODELFORM_KEYS:
+                    attr = prefix+'_'
+                    assert hasattr(rom, attr)
+                    rom_op = getattr(rom, attr)
+                    if prefix in form:
+                        assert isinstance(rom_op.entries, np.ndarray)
+                        assert rom_op.shape == shapes[attr]
+                    else:
+                        assert rom_op is None
+                if "B" in form:
+                    assert rom.m == m
                 else:
-                    assert rom_op is None
-            if "B" in form:
-                assert rom.m == m
-            else:
-                assert rom.m == 0
+                    assert rom.m == 0
+
+        # Test mix of full- and reduced-order operators.
+        rom = self.Dummy("cA")
+        rom.basis = basis
+        rom._project_operators({"c": c, "A": A_})
+        assert rom.c_.shape == (r,)
+        assert rom.A_.shape == (r, r)
+        assert np.all(rom.A_.entries == A_)
 
         # Special case: project input operator with 1D inputs (m = 1).
         rom = self.Dummy("cAHB")
         rom.basis = basis
-        rom._project_operators({"c":c, "A":A, "H":H, "B":B1d})
+        rom._project_operators({"c": c_, "A": A, "H": H_, "B": B1d})
         assert rom.m == 1
-        assert rom.B_.shape == (r,1)
+        assert rom.B_.shape == (r, 1)
 
         # Special case: c = scalar
         rom = self.Dummy("cAHB")
@@ -497,7 +558,7 @@ class TestBaseROM:
         assert np.allclose(rom.c_.entries, 3*(basis.T @ np.ones(n)))
 
         # Special case: A = multiple of the identity
-        ident = basis.T @ basis
+        ident = np.eye(r)
         rom._project_operators({"A": "I"})
         assert np.allclose(rom.A_.entries, ident)
         rom._project_operators({"A": 4})
@@ -526,17 +587,17 @@ class TestBaseROM:
         # Try to project with basis set but with wrong shape.
         rom.basis = np.random.random((n, r))
         with pytest.raises(ValueError) as ex:
-            rom.project(Q[:-1,:], 'state')
+            rom.project(Q[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
 
         # Correct usage.
         for S, label in [(Q, 'state'), (Qdot, 'ddts')]:
             S_ = rom.project(S, label)
-            assert S_.shape == (r,k)
+            assert S_.shape == (r, k)
             assert np.allclose(S_, rom.basis.T @ S)
-            S_ = rom.project(S[:r,:], label)
-            assert S_.shape == (r,k)
-            assert np.all(S_ == S[:r,:])
+            S_ = rom.project(S[:r, :], label)
+            assert S_.shape == (r, k)
+            assert np.all(S_ == S[:r, :])
 
     def test_reconstruct(self, n=60, k=20, r=8):
         """Test core._base._BaseROM.reconstruct()."""
@@ -552,13 +613,13 @@ class TestBaseROM:
         # Try to project with basis set but with wrong shape.
         rom.basis = np.random.random((n, r))
         with pytest.raises(ValueError) as ex:
-            rom.reconstruct(Q_[:-1,:], 'state')
+            rom.reconstruct(Q_[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
 
         # Correct usage.
         for S_, label in [(Q_, 'state_'), (Qdot_, 'ddts_')]:
             S = rom.reconstruct(S_, label)
-            assert S.shape == (n,k)
+            assert S.shape == (n, k)
             assert np.allclose(S, rom.basis @ S_)
 
     # ROM evaluation ----------------------------------------------------------
@@ -585,7 +646,7 @@ class TestBaseROM:
 
         rom = self.Dummy("AB")
         rom.r, rom.m = r, 1
-        B1d_ = B_[:,0]
+        B1d_ = B_[:, 0]
         rom.A_, rom.B_ = A_, B1d_
         u = np.random.random()
         q_ = np.random.random(r)
@@ -593,32 +654,80 @@ class TestBaseROM:
         assert np.allclose(rom.evaluate(q_, u), y_)
 
 
-# class TestBaseParametricROM:
-#     """Test core._base._BaseParametricROM."""
-#
-#     class Dummy:
-#         """Instantiable version of _BaseROM."""
-#         def fit(*args, **kwargs):
-#             pass
-#
-#         def save(*args, **kwargs):
-#             pass
-#
-#         def load(*args, **kwargs):
-#             pass
-#
-#     class DummyOperator(opinf.core.operators._base._BaseParametricOperator):
-#         def __call__(self, parameter):
-#             pass
-#
-#     def test_p(self):
-#         raise NotImplementedError
-#
-#     def test_call(self):
-#         raise NotImplementedError
-#
-#     def test_predict(self):
-#         raise NotImplementedError
-#
-#     def test_evaluate(self):
-#         raise NotImplementedError
+class TestBaseParametricROM:
+    """Test core._base._BaseParametricROM."""
+
+    class Dummy(opinf.core._base._BaseParametricROM, TestBaseROM.Dummy):
+        """Instantiable version of _BaseParametricROM."""
+        _ModelClass = TestBaseROM.Dummy
+
+    class DummyOperator(opinf.core.operators._base._BaseParametricOperator):
+        """Instantiable version of _BaseParametricOperator."""
+        def __init__(self, shape):
+            self.entries = np.ones(shape)
+            self.shape = shape
+
+        def __call__(self, parameter):
+            return self.entries
+
+    def test_init(self):
+        """Test _BaseParametricROM.__init__()."""
+        self.Dummy._ModelClass = float
+        with pytest.raises(RuntimeError) as ex:
+            self.Dummy("AB")
+        assert ex.value.args[0] == "invalid ModelClass 'float'"
+
+        self.Dummy._ModelClass = TestBaseROM.Dummy
+        self.Dummy("AB")
+
+    def test_p(self):
+        """Test _BaseParametricROM.p and _[set|check]_parameter_dimension()."""
+        dummy = self.Dummy("AB")
+        assert hasattr(dummy, 'p')
+        assert dummy.p is None
+
+        dummy._set_parameter_dimension(np.empty(6))
+        assert dummy.p == 1
+
+        dummy._set_parameter_dimension(np.empty((10, 4)))
+        assert dummy.p == 4
+
+        with pytest.raises(ValueError) as ex:
+            dummy._set_parameter_dimension(np.empty((7, 5, 3)))
+        assert ex.value.args[0] == \
+            "parameter values must be scalars or 1D arrays"
+
+        dummy._clear()
+        assert dummy.p is None
+
+    def test_call(self, r=10, m=3):
+        """Test _BaseParametricROM.__call__()."""
+        dummy = self.Dummy("cAB")
+        dummy.r = r
+        dummy.m = m
+        dummy.c_ = self.DummyOperator((r,))
+        dummy.A_ = np.random.standard_normal((r, r))
+        dummy.B_ = self.DummyOperator((r, m))
+
+        dummy_evaluated = dummy(10)
+        assert isinstance(dummy_evaluated, self.Dummy._ModelClass)
+
+    def test_evaluate(self, r=10):
+        """Test _BaseParametricROM.evaluate()."""
+        dummy = self.Dummy("c")
+        dummy.r = r
+        dummy.c_ = self.DummyOperator((r,))
+
+        out = dummy.evaluate(10, 100)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,)
+        assert np.all(out == 1)             # From DummyOperator.__call__().
+
+    def test_predict(self, r=10):
+        """Test _BaseParametricROM.predict()."""
+        dummy = self.Dummy("AH")
+        dummy.r = r
+        dummy.A_ = self.DummyOperator((r, r))
+        dummy.H_ = self.DummyOperator((r, r*(r + 1)//2))
+
+        assert dummy.predict(10) == 100     # From TestBaseROM.Dummy.predict().

@@ -10,7 +10,7 @@ __all__ = [
           ]
 
 import numpy as np
-import scipy. linalg as la
+import scipy.linalg as la
 import scipy.sparse.linalg as spla
 import sklearn.utils.extmath as sklmath
 import matplotlib.pyplot as plt
@@ -22,15 +22,15 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
 
     Parameters
     ----------
-    states : (n,k) ndarray
+    states : (n, k) ndarray
         Matrix of k snapshots. Each column is a single snapshot of dimension n.
     r : int or None
         Number of POD basis vectors and singular values to compute.
         If None (default), compute the full SVD.
     mode : str
-        Strategy to use for computing the truncated SVD of states. Options:
+        Strategy to use for computing the truncated SVD of the states. Options:
         * "dense" (default): Use scipy.linalg.svd() to compute the SVD.
-            May be inefficient or intractable for very large matrices.
+            May be inefficient for very large matrices.
         * "sparse": Use scipy.sparse.linalg.svds() to compute the SVD.
             This uses ARPACK for the eigensolver. Inefficient for non-sparse
             matrices; requires separate computations for full SVD.
@@ -47,13 +47,13 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
 
     Returns
     -------
-    basis : (n,r) ndarray
+    basis : (n, r) ndarray
         First r POD basis vectors (left singular vectors).
         Each column is a single basis vector of dimension n.
     svdvals : (n,), (k,), or (r,) ndarray
         Singular values in descending order. Always returns as many as are
-        calculated: r for mode="randomize" and mode="sparse", min(n,k) for.
-    W : (k,r) ndarray
+        calculated: r for mode="randomize" or "sparse", min(n, k) for "dense".
+    W : (k, r) ndarray
         First r **right** singular vectors, as columns.
         **Only returned if return_W=True.**
     """
@@ -107,8 +107,10 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
 
 
 # Reduced dimension selection =================================================
-def svdval_decay(singular_values, tol, plot=False, ax=None):
-    """Count the number of singular values that are greater than tol.
+def svdval_decay(singular_values, tol=1e-8, normalize=True,
+                 plot=True, ax=None):
+    """Count the number of normalized singular values that are greater than
+    the specified tolerance.
 
     Parameters
     ----------
@@ -116,6 +118,8 @@ def svdval_decay(singular_values, tol, plot=False, ax=None):
         Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
     tol : float or list(float)
         Cutoff value(s) for the singular values.
+    normalize : bool
+        If True, normalize so that the maximum singular value is 1.
     plot : bool
         If True, plot the singular values and the cutoff value(s) against the
         singular value index.
@@ -132,7 +136,9 @@ def svdval_decay(singular_values, tol, plot=False, ax=None):
     one_tol = np.isscalar(tol)
     if one_tol:
         tol = [tol]
-    singular_values = np.array(singular_values)
+    singular_values = np.sort(singular_values)[::-1]
+    if normalize:
+        singular_values /= singular_values[0]
     ranks = [np.count_nonzero(singular_values > epsilon) for epsilon in tol]
 
     if plot:
@@ -153,7 +159,7 @@ def svdval_decay(singular_values, tol, plot=False, ax=None):
     return ranks[0] if one_tol else ranks
 
 
-def cumulative_energy(singular_values, thresh=.9999, plot=False, ax=None):
+def cumulative_energy(singular_values, thresh=.9999, plot=True, ax=None):
     """Compute the number of singular values needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
@@ -204,7 +210,7 @@ def cumulative_energy(singular_values, thresh=.9999, plot=False, ax=None):
     return ranks[0] if one_thresh else ranks
 
 
-def residual_energy(singular_values, tol=1e-6, plot=False, ax=None):
+def residual_energy(singular_values, tol=1e-6, plot=True, ax=None):
     """Compute the number of singular values needed such that the residual
     energy drops beneath the given tolerance. The residual energy of j
     singular values is defined by

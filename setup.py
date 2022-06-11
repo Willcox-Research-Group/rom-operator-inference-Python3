@@ -7,7 +7,7 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="rom_operator_inference",
-    version="1.3.0",
+    version="1.4.0",
 
     # Package description, license, and keywords.
     description="Operator inference for data-driven, "
