@@ -10,7 +10,7 @@ import os
 import h5py
 
 
-def _hdf5_filehandle(filename, mode, overwrite):
+class _hdf5_filehandle:
     """Get a handle to an open HDF5 file to read or write to.
 
     Parameters
@@ -27,26 +27,45 @@ def _hdf5_filehandle(filename, mode, overwrite):
         raise a FileExistsError if the file already exists.
         Only applies when mode = "save".
     """
-    if isinstance(filename, h5py.HLObject):
-        # `filename` is already an open HDF5 file.
-        return filename, False
-    elif mode == "save":
-        # `filename` is the name of a file to create for writing.
-        if not filename.endswith(".h5"):
-            filename += ".h5"
-        if os.path.isfile(filename) and not overwrite:
-            raise FileExistsError(f"{filename} (overwrite=True to ignore)")
-        return h5py.File(filename, 'w'), True
-    elif mode == "load":
-        # `filename` is the name of an existing file to read from.
-        if not os.path.isfile(filename):
-            raise FileNotFoundError(filename)
-        return h5py.File(filename, 'r'), True
-    else:
-        raise ValueError(f"invalid mode '{mode}'")
+    def __init__(self, filename, mode, overwrite=False):
+        """Open the file handle."""
+        if isinstance(filename, h5py.HLObject):
+            # `filename` is already an open HDF5 file.
+            self.file_handle = filename
+            self.close_when_done = False
+
+        elif mode == "save":
+            # `filename` is the name of a file to create for writing.
+            if not filename.endswith(".h5"):
+                filename += ".h5"
+            if os.path.isfile(filename) and not overwrite:
+                raise FileExistsError(f"{filename} (overwrite=True to ignore)")
+            self.file_handle = h5py.File(filename, 'w')
+            self.close_when_done = True
+
+        elif mode == "load":
+            # `filename` is the name of an existing file to read from.
+            if not os.path.isfile(filename):
+                raise FileNotFoundError(filename)
+            self.file_handle = h5py.File(filename, 'r')
+            self.close_when_done = True
+
+        else:
+            raise ValueError(f"invalid mode '{mode}'")
+
+    def __enter__(self):
+        """Return the handle to the open HDF5 file."""
+        return self.file_handle
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        """CLose the file if needed."""
+        if self.close_when_done:
+            self.file_handle.close()
+        if exc_type:
+            raise
 
 
-def hdf5_savehandle(savefile, overwrite):
+class hdf5_savehandle(_hdf5_filehandle):
     """Get a handle to an open HDF5 file to write to.
 
     Parameters
@@ -59,17 +78,14 @@ def hdf5_savehandle(savefile, overwrite):
         If True, overwrite the file if it already exists. If False,
         raise a FileExistsError if the file already exists.
 
-    Returns
-    -------
-    hf : h5py File/Group handle
-        File writing object.
-    close_when_done : bool
-        If True, the user should call hf.close() when done.
+    >>> with hdf5_savehandle("file_to_save_to.h5") as hf:
+    ...     hf.create_dataset(...)
     """
-    return _hdf5_filehandle(savefile, "save", overwrite)
+    def __init__(self, savefile, overwrite):
+        return _hdf5_filehandle.__init__(self, savefile, "save", overwrite)
 
 
-def hdf5_loadhandle(loadfile):
+class hdf5_loadhandle(_hdf5_filehandle):
     """Get a handle to an open HDF5 file to read from.
 
     Parameters
@@ -79,11 +95,8 @@ def hdf5_loadhandle(loadfile):
         * h5py File/Group handle : handle to part of an already open HDF5 file
         to read data from.
 
-    Returns
-    -------
-    hf : h5py File/Group handle
-        File writing object.
-    close_when_done : bool
-        If True, the user should call hf.close() when done.
+    >>> with hdf5_loadhandle("file_to_read_from.h5") as hf:
+    ...    data = hf[...]
     """
-    return _hdf5_filehandle(loadfile, "load", False)
+    def __init__(self, loadfile):
+        return _hdf5_filehandle.__init__(self, loadfile, "load")
