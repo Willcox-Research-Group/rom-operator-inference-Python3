@@ -211,7 +211,7 @@ class TestSnapshotTransformer:
 
         with pytest.raises(FileExistsError) as ex:
             st.save(target, overwrite=False)
-        ex.value.args[0] == f"{target} (use overwrite=True to ignore)"
+        ex.value.args[0] == f"{target} (overwrite=True to ignore)"
 
         st.save(target, overwrite=True)
         _checkfile(target, st)
@@ -239,7 +239,7 @@ class TestSnapshotTransformer:
         with h5py.File(target, 'w'):
             pass
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             opinf.pre.SnapshotTransformer.load(target)
         assert ex.value.args[0] == "invalid save format (meta/ not found)"
 
@@ -644,7 +644,7 @@ class TestSnapshotTransformerMulti:
 
         with pytest.raises(FileExistsError) as ex:
             stm.save(target, overwrite=False)
-        assert ex.value.args[0] == f"{target} (use overwrite=True to ignore)"
+        assert ex.value.args[0] == f"{target} (overwrite=True to ignore)"
 
         stm.save(target, overwrite=True)
         _checkfile(target, stm)
@@ -674,7 +674,7 @@ class TestSnapshotTransformerMulti:
         with h5py.File(target, 'w'):
             pass
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             opinf.pre.SnapshotTransformerMulti.load(target)
         assert ex.value.args[0] == "invalid save format (meta/ not found)"
 

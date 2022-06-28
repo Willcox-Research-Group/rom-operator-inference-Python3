@@ -1,4 +1,4 @@
-# pre/_shift_scale.py
+# pre/transform/_public.py
 """Tools for preprocessing state snapshot data."""
 
 __all__ = [
@@ -8,12 +8,14 @@ __all__ = [
             "SnapshotTransformerMulti",
           ]
 
-import os
-import h5py
 import numpy as np
 
+from ...errors import LoadfileFormatError
+from ...utils import hdf5_savehandle, hdf5_loadhandle
+from ._base import _BaseTransformer
 
-# Shifting and MinMax scaling =================================================
+
+# Functional paradigm =========================================================
 def shift(states, shift_by=None):
     """Shift the columns of `states` by a vector.
 
@@ -119,7 +121,8 @@ def scale(states, scale_to, scale_from=None):
     return (states_scaled, scale_to, scale_from) if learning else states_scaled
 
 
-class SnapshotTransformer:
+# Object-oriented paradigm ====================================================
+class SnapshotTransformer(_BaseTransformer):
     """Process snapshots by centering and/or scaling (in that order).
 
     Parameters
@@ -176,8 +179,8 @@ class SnapshotTransformer:
         "maxabssym",
     }
 
-    _table_header = "    |     min    |    mean    |     max    |    std\n"
-    _table_header += "----|------------|------------|------------|------------"
+    _table_header = "    |     min    |    mean    |     max    |    std\n" \
+                    "----|------------|------------|------------|------------"
 
     def __init__(self, center=False, scaling=None, verbose=False):
         """Set transformation hyperparameters."""
@@ -263,6 +266,12 @@ class SnapshotTransformer:
         return True
 
     # Printing ----------------------------------------------------------------
+    @staticmethod
+    def _statistics_report(Q):
+        """Return a string of basis statistics about a data set."""
+        return " | ".join([f"{f(Q):>10.3e}"
+                           for f in (np.min, np.mean, np.max, np.std)])
+
     def __str__(self):
         """String representation: scaling type + centering bool."""
         out = ["Snapshot transformer"]
@@ -275,77 +284,6 @@ class SnapshotTransformer:
         if not self._is_trained():
             out.append("(call fit_transform() to train)")
         return ' '.join(out)
-
-    @staticmethod
-    def _statistics_report(Q):
-        """Return a string of basis statistics about a data set."""
-        return " | ".join([f"{f(Q):>10.3e}"
-                           for f in (np.min, np.mean, np.max, np.std)])
-
-    # Persistence -------------------------------------------------------------
-    def save(self, savefile, overwrite=False):
-        """Save the current transformer to an HDF5 file.
-
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the transformer in.
-        overwrite : bool
-            If True, overwrite the file if it already exists. If False
-            (default), raise a FileExistsError if the file already exists.
-        """
-        # Ensure the file is saved in HDF5 format.
-        if not savefile.endswith(".h5"):
-            savefile += ".h5"
-
-        # Prevent overwriting and existing file on accident.
-        if os.path.isfile(savefile) and not overwrite:
-            raise FileExistsError(f"{savefile} (use overwrite=True to ignore)")
-
-        with h5py.File(savefile, 'w') as hf:
-            # Store transformation hyperparameter metadata.
-            meta = hf.create_dataset("meta", shape=(0,))
-            meta.attrs["center"] = self.center
-            meta.attrs["scaling"] = self.scaling if self.scaling else False
-            meta.attrs["verbose"] = self.verbose
-
-            # Store learned transformation parameters.
-            if self.center and hasattr(self, "mean_"):
-                hf.create_dataset("transformation/mean_", data=self.mean_)
-            if self.scaling and hasattr(self, "scale_"):
-                hf.create_dataset("transformation/scale_", data=[self.scale_])
-                hf.create_dataset("transformation/shift_", data=[self.shift_])
-
-    @classmethod
-    def load(cls, loadfile):
-        """Load a SnapshotTransformer from an HDF5 file.
-
-        Parameters
-        ----------
-        loadfile : str
-            Path to the file where the transformer was stored (via save()).
-
-        Returns
-        -------
-        SnapshotTransformer
-        """
-        with h5py.File(loadfile, 'r') as hf:
-            # Load transformation hyperparameters.
-            if "meta" not in hf:
-                raise ValueError("invalid save format (meta/ not found)")
-            scl = hf["meta"].attrs["scaling"]
-            transformer = cls(center=hf["meta"].attrs["center"],
-                              scaling=scl if scl else None,
-                              verbose=hf["meta"].attrs["verbose"])
-
-            # Load learned transformation parameters.
-            if transformer.center and "transformation/mean_" in hf:
-                transformer.mean_ = hf["transformation/mean_"][:]
-            if transformer.scaling and "transformation/scale_" in hf:
-                transformer.scale_ = hf["transformation/scale_"][0]
-                transformer.shift_ = hf["transformation/shift_"][0]
-
-            return transformer
 
     # Main routines -----------------------------------------------------------
     def _is_trained(self):
@@ -371,7 +309,7 @@ class SnapshotTransformer:
         Returns
         -------
         states_transformed: (n, k) ndarray
-            Matrix of k transformed n-dimensional snapshots.
+            Matrix of k transformed snapshots of dimension n.
         """
         Y = states if inplace else states.copy()
 
@@ -458,7 +396,7 @@ class SnapshotTransformer:
         Returns
         -------
         states_transformed: (n, k) ndarray
-            Matrix of k transformed n-dimensional snapshots.
+            Matrix of k transformed snapshots of dimension n.
         """
         if not self._is_trained():
             raise AttributeError("transformer not trained "
@@ -483,7 +421,7 @@ class SnapshotTransformer:
         Parameters
         ----------
         states_transformed : (n, k) ndarray
-            Matrix of k transformed n-dimensional snapshots.
+            Matrix of k transformed snapshots of dimension n.
         inplace : bool
             If True, overwrite the input data during inverse transformation.
             If False, create a copy of the data to untransform.
@@ -491,7 +429,7 @@ class SnapshotTransformer:
         Returns
         -------
         states: (n, k) ndarray
-            Matrix of k untransformed n-dimensional snapshots.
+            Matrix of k untransformed snapshots of dimension n.
         """
         if not self._is_trained():
             raise AttributeError("transformer not trained "
@@ -510,8 +448,68 @@ class SnapshotTransformer:
 
         return Y
 
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        """Save the current transformer to an HDF5 file.
 
-class SnapshotTransformerMulti:
+        Parameters
+        ----------
+        savefile : str
+            Path of the file to save the transformer in.
+        overwrite : bool
+            If True, overwrite the file if it already exists. If False
+            (default), raise a FileExistsError if the file already exists.
+        """
+        with hdf5_savehandle(savefile, overwrite) as hf:
+
+            # Store transformation hyperparameter metadata.
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["center"] = self.center
+            meta.attrs["scaling"] = self.scaling if self.scaling else False
+            meta.attrs["verbose"] = self.verbose
+
+            # Store learned transformation parameters.
+            if self.center and hasattr(self, "mean_"):
+                hf.create_dataset("transformation/mean_", data=self.mean_)
+            if self.scaling and hasattr(self, "scale_"):
+                hf.create_dataset("transformation/scale_", data=[self.scale_])
+                hf.create_dataset("transformation/shift_", data=[self.shift_])
+
+    @classmethod
+    def load(cls, loadfile):
+        """Load a SnapshotTransformer from an HDF5 file.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the transformer was stored (via save()).
+
+        Returns
+        -------
+        SnapshotTransformer
+        """
+        with hdf5_loadhandle(loadfile) as hf:
+
+            # Load transformation hyperparameters.
+            if "meta" not in hf:
+                raise LoadfileFormatError("invalid save format "
+                                          "(meta/ not found)")
+            scl = hf["meta"].attrs["scaling"]
+            transformer = cls(center=hf["meta"].attrs["center"],
+                              scaling=scl if scl else None,
+                              verbose=hf["meta"].attrs["verbose"])
+
+            # Load learned transformation parameters.
+            if transformer.center and "transformation/mean_" in hf:
+                transformer.mean_ = hf["transformation/mean_"][:]
+            if transformer.scaling and "transformation/scale_" in hf:
+                transformer.scale_ = hf["transformation/scale_"][0]
+                transformer.shift_ = hf["transformation/shift_"][0]
+
+            return transformer
+
+
+class SnapshotTransformerMulti(_BaseTransformer):
     """Transformer for multi-variate snapshots.
 
     Groups multiple SnapshotTransformers for the centering and/or scaling
@@ -545,7 +543,7 @@ class SnapshotTransformerMulti:
 
     Attributes
     ----------
-    transfomers : list of num_variables SnapshotTransformers
+    transformers : list of num_variables SnapshotTransformers
         Transformers for each snapshot variable.
     n_ : int
         Dimension of individual variables.
@@ -570,7 +568,8 @@ class SnapshotTransformerMulti:
     """
     def __init__(self, num_variables, center=False, scaling=None,
                  variable_names=None, verbose=False):
-        """Interpret hyperparameters and initialize transformers."""
+        """Interpret hyperparameters and initialize transformers.
+        """
         def _process_arg(attr, name, dtype):
             """Validation for centering and scaling directives."""
             if isinstance(attr, dtype):
@@ -677,93 +676,6 @@ class SnapshotTransformerMulti:
             out.append(f"* {{:>{namelength}}} | {st}".format(name))
         return '\n'.join(out)
 
-    # Persistence -------------------------------------------------------------
-    def save(self, savefile, overwrite=False):
-        """Save the current transformers to an HDF5 file.
-
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the transformer in.
-        overwrite : bool
-            If True, overwrite the file if it already exists. If False
-            (default), raise a FileExistsError if the file already exists.
-        """
-        # Ensure the file is saved in HDF5 format.
-        if not savefile.endswith(".h5"):
-            savefile += ".h5"
-
-        # Prevent overwriting and existing file on accident.
-        if os.path.isfile(savefile) and not overwrite:
-            raise FileExistsError(f"{savefile} (use overwrite=True to ignore)")
-
-        with h5py.File(savefile, 'w') as hf:
-            # Metadata
-            meta = hf.create_dataset("meta", shape=(0,))
-            meta.attrs["num_variables"] = self.num_variables
-            meta.attrs["verbose"] = self.verbose
-
-            for i in range(self.num_variables):
-                group = hf.create_group(f"variable{i+1}")
-
-                # Store transformation hyperparameter metadata.
-                meta = group.create_dataset("meta", shape=(0,))
-                st = self.transformers[i]
-                ctr, scl = st.center, st.scaling
-                if scl is None:
-                    scl = False
-                meta.attrs["center"] = ctr
-                meta.attrs["scaling"] = scl
-
-                # Store learned transformation parameters.
-                if ctr and hasattr(st, "mean_"):
-                    group.create_dataset("transformation/mean_", data=st.mean_)
-                if scl and hasattr(st, "scale_"):
-                    group.create_dataset("transformation/scale_",
-                                         data=[st.scale_])
-                    group.create_dataset("transformation/shift_",
-                                         data=[st.shift_])
-
-    @classmethod
-    def load(cls, loadfile):
-        """Load a SnapshotTransformer from an HDF5 file.
-
-        Parameters
-        ----------
-        loadfile : str
-            Path to the file where the transformer was stored (via save()).
-
-        Returns
-        -------
-        SnapshotTransformerMulti
-        """
-        with h5py.File(loadfile, 'r') as hf:
-            # Load transformation hyperparameters.
-            if "meta" not in hf:
-                raise ValueError("invalid save format (meta/ not found)")
-            num_variables = hf["meta"].attrs["num_variables"]
-            verbose = hf["meta"].attrs["verbose"]
-            stm = cls(num_variables, verbose=verbose)
-
-            # Modify each component transformer.
-            for i in range(num_variables):
-                group = hf[f"variable{i+1}"]
-                ctr = group["meta"].attrs["center"]
-                scl = group["meta"].attrs["scaling"]
-                if not scl:
-                    scl = None
-                stm[i].center = ctr
-                stm[i].scaling = scl
-
-                # Load learned transformation parameters.
-                if ctr and "transformation/mean_" in group:
-                    stm[i].mean_ = group["transformation/mean_"][:]
-                if scl and "transformation/scale_" in group:
-                    stm[i].scale_ = group["transformation/scale_"][0]
-                    stm[i].shift_ = group["transformation/shift_"][0]
-
-            return stm
-
     # Main routines -----------------------------------------------------------
     def _check_shape(self, Q):
         """Verify the shape of the snapshot set Q."""
@@ -855,3 +767,58 @@ class SnapshotTransformerMulti:
         self._check_shape(states_transformed)
         return self._apply(SnapshotTransformer.inverse_transform,
                            states_transformed, inplace)
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        """Save the current transformers to an HDF5 file.
+
+        Parameters
+        ----------
+        savefile : str
+            Path of the file to save the transformer in.
+        overwrite : bool
+            If True, overwrite the file if it already exists. If False
+            (default), raise a FileExistsError if the file already exists.
+        """
+        with hdf5_savehandle(savefile, overwrite) as hf:
+
+            # Metadata
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["num_variables"] = self.num_variables
+            meta.attrs["verbose"] = self.verbose
+
+            for i in range(self.num_variables):
+                self.transformers[i].save(hf.create_group(f"variable{i+1}"))
+
+    @classmethod
+    def load(cls, loadfile):
+        """Load a SnapshotTransformerMulti object from an HDF5 file.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the transformer was stored (via save()).
+
+        Returns
+        -------
+        SnapshotTransformerMulti
+        """
+        with hdf5_loadhandle(loadfile) as hf:
+
+            # Load transformation hyperparameters.
+            if "meta" not in hf:
+                raise LoadfileFormatError("invalid save format "
+                                          "(meta/ not found)")
+            num_variables = hf["meta"].attrs["num_variables"]
+            verbose = hf["meta"].attrs["verbose"]
+            stm = cls(num_variables, verbose=verbose)
+
+            # Initialize individual transformers.
+            for i in range(num_variables):
+                group = f"variable{i+1}"
+                if group not in hf:
+                    raise LoadfileFormatError("invalid save format "
+                                              f"({group}/ not found)")
+                stm[i] = SnapshotTransformer.load(hf[f"variable{i+1}"])
+
+            return stm

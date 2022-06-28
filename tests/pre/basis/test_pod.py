@@ -1,5 +1,5 @@
-# pre/test_basis.py
-"""Tests for rom_operator_inference.pre._basis.py"""
+# pre/basis/test_pod.py
+"""Tests for rom_operator_inference.pre.basis._pod."""
 
 import pytest
 import numpy as np
@@ -9,9 +9,113 @@ from matplotlib import pyplot as plt
 import rom_operator_inference as opinf
 
 
+class TestPODBasis:
+    """Test pre.basis._pod.PODBasis."""
+    PODBasis = opinf.pre.PODBasis
+
+    # TODO: class DummyTransformer: ...
+
+    def test_init(self):
+        """Test PODBasis.init()."""
+        basis = self.PODBasis()
+        assert basis.transformer is None
+        assert basis.r is None
+        assert basis.n is None
+        assert basis.shape is None
+        assert basis.entries is None
+        assert basis.svdvals is None
+        assert basis.dual is None
+        assert not basis.economize
+
+    def test_set_dimension(self, n=20, r=5):
+        """Test PODBasis.set_dimension()."""
+        basis = self.PODBasis(economize=False)
+
+        # Try setting the basis dimension before setting the entries.
+        with pytest.raises(AttributeError) as ex:
+            basis.r = 10
+        assert ex.value.args[0] == "empty basis (call fit() first)"
+
+        with pytest.raises(AttributeError) as ex:
+            basis.set_dimension(10)
+        assert ex.value.args[0] == "empty basis (call fit() first)"
+
+        # Try setting dimension without singular values.
+        with pytest.raises(AttributeError) as ex:
+            basis.set_dimension(r=None, cumulative_energy=.9985)
+        assert ex.value.args[0] == "no singular value data (call fit() first)"
+
+        # Test _store_svd() real quick.
+        V, s, Wt = la.svd(np.random.standard_normal((n, n)))
+        Vr, sr, Wtr = V[:, :r], s[:r], Wt[:r]
+        basis._store_svd(Vr, sr, Wtr)
+        assert np.all(basis.entries == Vr)
+        assert np.allclose(basis.dual, Wtr.T)
+        assert np.all(basis.svdvals == sr)
+
+        # Try setting the dimension too high.
+        with pytest.raises(ValueError) as ex:
+            basis.set_dimension(r + 2)
+        assert ex.value.args[0] == f"only {r} basis vectors stored"
+
+        # Shrink dimension and blow it back up (economize=False).
+        basis.set_dimension(r - 1)
+        assert basis.shape == (n, r - 1)
+        assert np.all(basis.entries == Vr[:, :-1])
+        assert np.all(basis.dual == Wtr[:-1].T)
+        assert basis.svdvals.shape == sr.shape
+        assert np.all(basis.svdvals == sr)
+
+        basis.set_dimension(r)
+        assert basis.shape == (n, r)
+        assert np.all(basis.entries == Vr)
+        assert np.all(basis.dual == Wtr.T)
+        assert basis.svdvals.shape == sr.shape
+        assert np.all(basis.svdvals == sr)
+
+        # Shrink the dimension (economize=True).
+        basis.economize = True
+        basis.set_dimension(r - 1)
+        assert basis.shape == (n, r - 1)
+        assert np.all(basis.entries == Vr[:, :-1])
+        assert np.all(basis.dual == Wtr[:-1].T)
+        assert basis.svdvals.shape == sr.shape
+        assert np.all(basis.svdvals == sr)
+
+        # Try to recover forgotten columns.
+        with pytest.raises(ValueError) as ex:
+            basis.set_dimension(r)
+        assert ex.value.args[0] == f"only {r-1} basis vectors stored"
+
+        # Choose dimension based on an energy criteria.
+        basis.economize = False
+        svdvals = np.sqrt([.9, .09, .009, .0009, .00009, .000009, .0000009])
+        basis._store_svd(Vr, svdvals, Wtr)
+        basis.set_dimension(cumulative_energy=.9999)
+        assert basis.r == 4
+        basis.set_dimension(residual_energy=.01)
+        assert basis.r == 2
+
+    def test_fit(self):
+        """Test PODBasis.fit()."""
+        pass
+
+    def test_fit_randomized(self):
+        """Test PODBasis.fit_randomized()."""
+        pass
+
+    def test_save(self):
+        """Test PODBasis.save()."""
+        pass
+
+    def test_load(self):
+        """Test PODBasis.load()."""
+        pass
+
+
 # Basis computation ===========================================================
 def test_pod_basis(set_up_basis_data):
-    """Test pre._basis.pod_basis()."""
+    """Test pre.basis._pod.pod_basis()."""
     Q = set_up_basis_data
     n, k = Q.shape
 
@@ -69,7 +173,7 @@ def test_pod_basis(set_up_basis_data):
 
 # Reduced dimension selection =================================================
 def test_svdval_decay(set_up_basis_data):
-    """Test pre._basis.svdval_decay()."""
+    """Test pre.basis._pod.svdval_decay()."""
     Q = set_up_basis_data
     svdvals = la.svdvals(Q)
 
@@ -109,7 +213,7 @@ def test_svdval_decay(set_up_basis_data):
 
 
 def test_cumulative_energy(set_up_basis_data):
-    """Test pre._basis.cumulative_energy()."""
+    """Test pre.basis._pod.cumulative_energy()."""
     Q = set_up_basis_data
     svdvals = la.svdvals(Q)
     energy = np.cumsum(svdvals**2)/np.sum(svdvals**2)
@@ -151,7 +255,7 @@ def test_cumulative_energy(set_up_basis_data):
 
 
 def test_residual_energy(set_up_basis_data):
-    """Test pre._basis.residual_energy()."""
+    """Test pre.basis._pod.residual_energy()."""
     Q = set_up_basis_data
     svdvals = la.svdvals(Q)
     resid = 1 - np.cumsum(svdvals**2)/np.sum(svdvals**2)
@@ -187,7 +291,7 @@ def test_residual_energy(set_up_basis_data):
 
 
 def test_projection_error(set_up_basis_data):
-    """Test pre._basis.projection_error()."""
+    """Test pre.basis._pod.projection_error()."""
     Q = set_up_basis_data
     Vr = la.svd(Q, full_matrices=False)[0][:, :Q.shape[1]//3]
 
