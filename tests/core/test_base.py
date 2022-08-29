@@ -24,12 +24,6 @@ class TestBaseROM:
         def predict(*args, **kwargs):
             return 100
 
-        def save(*args, **kwargs):
-            pass
-
-        def load(*args, **kwargs):
-            pass
-
     def test_str(self):
         """Test core._base._BaseROM.__str__() (string representation)."""
 
@@ -652,6 +646,19 @@ class TestBaseROM:
         q_ = np.random.random(r)
         y_ = A_ @ q_ + (B1d_ * u)
         assert np.allclose(rom.evaluate(q_, u), y_)
+
+    def test_save(self):
+        """Test core._base._BaseROM.save()."""
+        rom = self.Dummy("cA")
+        with pytest.raises(NotImplementedError) as ex:
+            rom.save("nothing")
+        assert ex.value.args[0] == "use pickle/joblib"
+
+    def test_load(self):
+        """Test core._base._BaseROM.load()."""
+        with pytest.raises(NotImplementedError) as ex:
+            self.load("nothing")
+        assert ex.value.args[0] == "use pickle/joblib"
 
 
 class TestBaseParametricROM:

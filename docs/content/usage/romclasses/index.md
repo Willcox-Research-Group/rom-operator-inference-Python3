@@ -258,7 +258,7 @@ The `project()` method maps a state quantity from the high-dimensional space $\m
 Conversely, `reconstruct()` maps from $\mathbb{R}^{r}$ to $\mathbb{R}^{n}$.
 These methods are not quite inverses: the results of `reconstruct()` are restricted to the portion of $\mathbb{R}^{n}$ that can be represented through the underlying basis.
 
-For the linear basis representation $\mathbf{q} = \mathbf{V}_{r}\widehat{\mathbf{q}}$, we have the following.
+For the linear representation $\mathbf{q} \approx \mathbf{V}_{r}\widehat{\mathbf{q}}$, we have the following.
 
 ::::{grid}
 :gutter: 3
@@ -286,10 +286,11 @@ The `fit()` method accepts `basis=None`, in which case the state arguments for t
 
 The `fit()` method sets up and solves a [least-squares regression](subsec-opinf-regression) to determine the entries of the operators $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\widehat{\mathbf{H}}$, $\widehat{\mathbf{G}}$, and/or $\widehat{\mathbf{B}}$.
 Common inputs are
-- the basis,
-- state snapshot data,
-- left-hand side data (time derivatives), and
-- regularization parameters.
+- the basis
+- state snapshot data
+- left-hand side data (time derivatives)
+- regularization parameters
+<!-- TODO: least squares solver! -->
 
 ### Prediction
 
@@ -311,7 +312,7 @@ The `predict()` method solves the reduced-order model for given initial conditio
 
 ### Model Persistence
 
-Trained ROM objects can be saved in [HDF5 format](http://docs.h5py.org/en/stable/index.html) with the `save()` method, and recovered later with the `load()` class method.
+Some ROM objects can be saved in [HDF5 format](http://docs.h5py.org/en/stable/index.html) with the `save()` method, then recovered later with the `load()` class method.
 Such files store metadata for the model class and structure, the reduced-order model operators, and (optionally) the basis.
 
 ```python
@@ -325,10 +326,11 @@ Such files store metadata for the model class and structure, the reduced-order m
 True
 ```
 
+For ROM classes without a `save()`/`load()` implementation, ROM objects can usually be saved locally via the `pickle` or `joblib` libraries, which is [the approach taken by scikit-learn (`sklearn`)](https://scikit-learn.org/stable/model_persistence.html).
+
 :::{tip}
-ROM objects can also be saved locally via the `pickle` or `joblib` libraries, which is [the approach taken by scikit-learn (`sklearn`)](https://scikit-learn.org/stable/model_persistence.html).
-However, HDF5 files are slightly more transparent and flexible than pickled binaries in the sense that individual parts of the file can be extracted manually without loading the entire file.
-Furthermore, ROM objects with attributes that cannot be pickled (which is the case for some parametric ROM classes) can benefit from the custom `save()`/`load()` implementation.
+Files in HDF5 format are slightly more transparent than pickled binaries in the sense that individual parts of the file can be extracted manually without loading the entire file.
+Several programming languages support HDF5 format (MATLAB, C, C++, etc.), making HDF5 a good candidate for sharing ROM data with other programs.
 :::
 
 ### Summary

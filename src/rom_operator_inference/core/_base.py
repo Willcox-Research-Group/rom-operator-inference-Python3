@@ -552,15 +552,14 @@ class _BaseROM(abc.ABC):
         """Solve the reduced-order model under specified conditions."""
         raise NotImplementedError                       # pragma: no cover
 
-    @abc.abstractmethod
+    # Model persistence (not required but suggested) --------------------------
     def save(*args, **kwargs):
         """Save the reduced-order structure / operators in HDF5 format."""
-        raise NotImplementedError                       # pragma: no cover
+        raise NotImplementedError("use pickle/joblib")
 
-    @abc.abstractmethod
     def load(*args, **kwargs):
         """Load a previously saved reduced-order model from an HDF5 file."""
-        raise NotImplementedError                       # pragma: no cover
+        raise NotImplementedError("use pickle/joblib")
 
 
 class _BaseParametricROM(_BaseROM):

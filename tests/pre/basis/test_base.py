@@ -20,12 +20,6 @@ class TestBaseBasis:
         def decode(self, state_):
             return state_ - 1
 
-        def save(self, *args, **kwargs):
-            pass
-
-        def load(self, *args, **kwargs):
-            pass
-
     class DummyTransformer:
         """Dummy object with all required transformer methods."""
         def fit_transform(self, states):

@@ -37,7 +37,7 @@ class LinearBasis(_BaseBasis):
 
     @property
     def shape(self):
-        """Dimensions of the basis."""
+        """Dimensions of the basis (full_dimension, reduced_dimension)."""
         return None if self.entries is None else self.entries.shape
 
     @property

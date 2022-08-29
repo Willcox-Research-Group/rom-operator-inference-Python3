@@ -119,34 +119,10 @@ class _BaseBasis(abc.ABC):
         return diff
 
     # Persistence -------------------------------------------------------------
-    @abc.abstractmethod
-    def save(self, savefile, save_transformer=True, overwrite=False):
-        """Save the basis to an HDF5 file.
+    def save(self, *args, **kwargs):
+        """Save the basis to an HDF5 file."""
+        raise NotImplementedError("use pickle/joblib")
 
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the basis in.
-        save_transformer : bool
-            If True, save the transformer as well as the basis entries.
-            If False, only save the basis entries.
-        overwrite : bool
-            If True, overwrite the file if it already exists. If False
-            (default), raise a FileExistsError if the file already exists.
-        """
-        raise NotImplementedError                           # pragma: no cover
-
-    @abc.abstractmethod
-    def load(self, loadfile):                               # pragma: no cover
-        """Load a basis from an HDF5 file.
-
-        Parameters
-        ----------
-        loadfile : str
-            Path to the file where the basis was stored (via save()).
-
-        Returns
-        -------
-        _BaseBasis
-        """
-        raise NotImplementedError
+    def load(self, *args, **kwargs):
+        """Load a basis from an HDF5 file."""
+        raise NotImplementedError("use pickle/joblib")

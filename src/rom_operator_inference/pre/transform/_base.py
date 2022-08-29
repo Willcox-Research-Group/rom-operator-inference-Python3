@@ -81,34 +81,13 @@ class _BaseTransformer(abc.ABC):
         raise NotImplementedError
 
     # Model persistence -------------------------------------------------------
-    @abc.abstractmethod
-    def save(self, savefile, overwrite=False):               # pragma: no cover
-        """Save the transformer to an HDF5 file.
+    def save(self, *args, **kwargs):
+        """Save the transformer to an HDF5 file."""
+        raise NotImplementedError("use pickle/joblib")
 
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the transformer in.
-        overwrite : bool
-            If True, overwrite the file if it already exists. If False
-            (default), raise a FileExistsError if the file already exists.
-        """
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def load(self, loadfile):                               # pragma: no cover
-        """Load a transformer from an HDF5 file.
-
-        Parameters
-        ----------
-        loadfile : str
-            Path to the file where the transformer was stored (via save()).
-
-        Returns
-        -------
-        _BaseTransformer
-        """
-        raise NotImplementedError
+    def load(self, *args, **kwargs):
+        """Load a transformer from an HDF5 file."""
+        raise NotImplementedError("use pickle/joblib")
 
 
 def _check_is_transformer(obj):
