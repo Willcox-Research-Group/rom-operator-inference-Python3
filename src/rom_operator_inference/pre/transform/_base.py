@@ -30,39 +30,45 @@ class _BaseTransformer(abc.ABC):
         return self
 
     @abc.abstractmethod
-    def transform(self, states):                        # pragma: no cover
+    def transform(self, states, inplace=False):
         """Apply the learned transformation.
 
         Parameters
         ----------
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n.
+        inplace : bool
+            If True, overwrite the input data during the transformation.
+            If False, create a copy of the data to transform.
 
         Returns
         -------
         states_transformed: (n, k) ndarray
             Matrix of k transformed snapshots of dimension n.
         """
-        raise NotImplementedError
+        raise NotImplementedError                           # pragma: no cover
 
     @abc.abstractmethod
-    def fit_transform(self, states):                    # pragma: no cover
+    def fit_transform(self, states, inplace=False):
         """Learn and apply the transformation.
 
         Parameters
         ----------
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a snapshot of dimension n.
+        inplace : bool
+            If True, overwrite the input data during the transformation.
+            If False, create a copy of the data to transform.
 
         Returns
         -------
         states_transformed: (n, k) ndarray
             Matrix of k transformed snapshots of dimension n.
         """
-        return NotImplementedError
+        raise NotImplementedError                           # pragma: no cover
 
     @abc.abstractmethod
-    def inverse_transform(self, states_transformed):    # pragma: no cover
+    def inverse_transform(self, states_transformed, inplace=False):
         """Apply the inverse of the learned transformation.
 
         Parameters
@@ -78,7 +84,7 @@ class _BaseTransformer(abc.ABC):
         states: (n, k) ndarray
             Matrix of k untransformed snapshots of dimension n.
         """
-        raise NotImplementedError
+        raise NotImplementedError                           # pragma: no cover
 
     # Model persistence -------------------------------------------------------
     def save(self, *args, **kwargs):

@@ -311,6 +311,9 @@ class SnapshotTransformer(_BaseTransformer):
         states_transformed: (n, k) ndarray
             Matrix of k transformed snapshots of dimension n.
         """
+        if states.ndim != 2:
+            raise ValueError("2D array required to fit transform")
+
         Y = states if inplace else states.copy()
 
         # Record statistics of the training data.
@@ -406,7 +409,7 @@ class SnapshotTransformer(_BaseTransformer):
 
         # Center the snapshots by the mean training snapshot.
         if self.center is True:
-            Y -= self.mean_.reshape((-1, 1))
+            Y -= (self.mean_.reshape((-1, 1)) if Y.ndim > 1 else self.mean_)
 
         # Scale (non-dimensionalize) the centered snapshot entries.
         if self.scaling is not None:
@@ -444,7 +447,7 @@ class SnapshotTransformer(_BaseTransformer):
 
         # Uncenter the unscaled snapshots.
         if self.center:
-            Y += self.mean_.reshape((-1, 1))
+            Y += (self.mean_.reshape((-1, 1)) if Y.ndim > 1 else self.mean_)
 
         return Y
 
@@ -699,7 +702,7 @@ class SnapshotTransformerMulti(_BaseTransformer):
             if method is SnapshotTransformer.fit_transform and self.verbose:
                 print(f"{name}:")
             Ys.append(method(st, var, inplace=inplace))
-        return Q if inplace else np.row_stack(Ys)
+        return Q if inplace else np.concatenate(Ys, axis=0)
 
     def fit_transform(self, states, inplace=False):
         """Learn and apply the transformation.

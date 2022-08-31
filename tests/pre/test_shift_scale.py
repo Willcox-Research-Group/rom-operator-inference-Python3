@@ -385,9 +385,15 @@ class TestSnapshotTransformer:
             X = np.random.randint(0, 100, (n, k)).astype(float)
             Y = np.random.randint(0, 100, (n, k)).astype(float)
             st.scaling = scl
-            st.fit_transform(X)
+            st.fit(X)
             a, b = st.scale_, st.shift_
-            Z = st.transform(Y)
+            Z = st.transform(Y, inplace=False)
+            assert np.allclose(Z, a*Y + b)
+
+            # Test transforming a one-dimensional array.
+            Y = np.random.randint(0, 100, n).astype(float)
+            Z = st.transform(Y, inplace=False)
+            assert Z.shape == Y.shape
             assert np.allclose(Z, a*Y + b)
 
     def test_inverse_transform(self, n=200, k=50):
@@ -408,7 +414,16 @@ class TestSnapshotTransformer:
             st.fit_transform(X, inplace=False)
             Y = np.random.randint(0, 100, (n, k)).astype(float)
             Z = st.transform(Y, inplace=False)
+            assert Z.shape == Y.shape
             st.inverse_transform(Z, inplace=True)
+            assert Z.shape == Y.shape
+            assert np.allclose(Z, Y)
+
+            Y = np.random.randint(0, 100, n).astype(float)
+            Z = st.transform(Y, inplace=False)
+            assert Z.shape == Y.shape
+            st.inverse_transform(Z, inplace=True)
+            assert Z.shape == Y.shape
             assert np.allclose(Z, Y)
 
 
@@ -813,7 +828,19 @@ class TestSnapshotTransformerMulti:
         assert Z is Y
 
         # Non-inplace transformation.
-        Y = np.random.randint(0, 100, (120, 33)).astype(float)
+        Y = np.random.randint(0, 100, (120, 31)).astype(float)
+        Z = stm.transform(Y, inplace=False)
+        assert Z is not Y
+        assert type(Z) is type(Y)
+        assert Z.shape == Y.shape
+
+        # Transform one-dimensional array inplace.
+        Y = np.random.randint(0, 100, 120).astype(float)
+        Z = stm.transform(Y, inplace=True)
+        assert Z is Y
+
+        # Transform one-dimensional array not inplace.
+        Y = np.random.randint(0, 100, 120).astype(float)
         Z = stm.transform(Y, inplace=False)
         assert Z is not Y
         assert type(Z) is type(Y)
