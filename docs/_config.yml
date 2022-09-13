@@ -46,9 +46,11 @@ parse:
     - tasklist
 
 sphinx:
-  config: # Use MathJax version 3, which is faster than the default.
+  config:
+    # MathJax 3 (faster than the default).
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     # language: en
+    numfig_secnum_depth: 2  # Eq (1.1.1) instead of (1)
   extra_extensions:
     - sphinx_design
     - sphinxcontrib.mermaid

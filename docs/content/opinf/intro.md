@@ -1,8 +1,12 @@
 (sec-opinf-overview)=
 # What is Operator Inference?
 
-Operator Inference is a projection-based model reduction technique that learns reduced-order models from data.
-The goal is to construct a low-dimensional, computationally inexpensive system whose solutions are close to those of some high-dimensional system for which we have 1) training data and 2) some knowledge about the system structure.
+:::{image} ../../images/summary.svg
+:align: center
+:width: 80 %
+:::
+
+The goal of Operator Inference is to construct a low-dimensional, computationally inexpensive system whose solutions are close to those of some high-dimensional system for which we have 1) training data and 2) some knowledge about the system structure.
 The main steps are the following.
 
 1. [**Get Training Data**](subsec-training-data). Gather and [preprocess](sec-preprocessing) high-dimensional data to learn a low-dimensional model from. This package has a few common preprocessing tools, but the user must bring the data to the table.
@@ -11,11 +15,6 @@ The main steps are the following.
 4. [**Evaluate the Reduced-order Model**](subsec-rom-evaluation). Use the learned model to make computationally efficient predictions.
 
 This page gives an overview of Operator Inference by walking through each of these steps.
-
-:::{image} ../../images/summary.svg
-:align: center
-:width: 80 %
-:::
 
 ---
 
@@ -35,7 +34,7 @@ $$
 $$ (eq:opinf-example-fom)
 
 We call {eq}`eq:opinf-example-fom` the _full-order model_.
-Given samples of the state $\mathbf{q}(t)$, Operator Inference (OpInf) learns a surrogate system for {eq}`eq:opinf-example-fom` with the much smaller state $\widehat{\mathbf{q}}(t) \in \mathbb{R}^{r}, r \ll n$ and a polynomial structure:
+Given samples of the state $\mathbf{q}(t)$, Operator Inference learns a surrogate system for {eq}`eq:opinf-example-fom` with the much smaller state $\widehat{\mathbf{q}}(t) \in \mathbb{R}^{r}, r \ll n,$ and a polynomial structure, for example:
 
 ::::{margin}
 :::{note}
@@ -56,7 +55,7 @@ Our goal is to infer the _reduced-order operators_ $\widehat{\mathbf{c}} \in \ma
 The user specifies [which terms to include in the model](subsec-romclass-constructor).
 
 ::::{important}
-The right-hand side of {eq}`eq:opinf-example-rom` has a polynomial structure with respect to the state:
+The right-hand side of {eq}`eq:opinf-example-rom` is a polynomial with respect to the state $\widehat{\mathbf{q}}(t)$:
 $\widehat{\mathbf{c}}$ are the constant terms, $\widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ are the linear terms, $\widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]$ are the quadratic terms, with input terms $\widehat{\mathbf{B}}\mathbf{u}(t)$.
 The user must choose which terms to include in the reduced-order model, and this choice should be motivated by the structure of the full-order model {eq}`eq:opinf-example-fom`.
 For example, if the full-order model can be written as
@@ -108,7 +107,7 @@ $$
 $$
 
 where $\widehat{\mathbf{c}} = \mathbf{V}^{\mathsf{T}}\mathbf{c}$, $\widehat{\mathbf{A}} = \mathbf{V}^{\mathsf{T}}\mathbf{A}\mathbf{V}$, $\widehat{\mathbf{H}} = \mathbf{V}^{\mathsf{T}}\mathbf{H}\left(\mathbf{V}\otimes\mathbf{V}^{\mathsf{T}}\right)$, and $\widehat{\mathbf{B}} = \mathbf{V}^{\mathsf{T}}\mathbf{B}$.
-Operator Inference learns $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\widehat{\mathbf{H}}$, and/or $\widehat{\mathbf{B}}$ _from data_ and is therefore useful for situations where $\mathbf{c}$, $\mathbf{A}$, $\mathbf{H}$, and/or $\mathbf{B}$ are not explicitly available.
+Operator Inference learns $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\widehat{\mathbf{H}}$, and/or $\widehat{\mathbf{B}}$ _from data_ and is therefore useful for situations where $\mathbf{c}$, $\mathbf{A}$, $\mathbf{H}$, and/or $\mathbf{B}$ are not explicitly available for matrix computations.
 :::
 ::::
 
@@ -146,7 +145,7 @@ $$
 $$
 
 :::{important}
-Raw dynamical systems data often needs to be lightly preprocessed in order to promote stability in the inference problem for learning the reduced-order operators and to improve the stability and accuracy of the resulting reduced-order model {eq}`eq:opinf-example-rom`.
+Raw dynamical systems data often needs to be lightly preprocessed in order to promote stability in the inference of the reduced-order operators and to improve the stability and accuracy of the resulting reduced-order model {eq}`eq:opinf-example-rom`.
 Common preprocessing steps include
 1. Variable transformations / lifting to induce a polynomial structure.
 2. Centering or shifting data to account for boundary conditions.
@@ -200,7 +199,7 @@ In this case, the left-hand side data is a simply subset of the state snapshot m
 ## Compute a Low-dimensional Representation
 
 The purpose of learning a reduced-order model is to achieve a computational speedup.
-This is accomplished by introducing a representation of the $n$-dimensional state using only $r \ll n$ degrees of freedom.
+This is accomplished by introducing an approximate representation of the $n$-dimensional state using only $r \ll n$ degrees of freedom.
 The most common approach is to represent the state as a linear combination of $r$ vectors:
 
 $$
@@ -237,7 +236,7 @@ See [Basis Computation](sec-basis-computation) for tools to compute the basis $\
 
 <!-- :::{tip}
 In the case of finite differences, the time derivative estimation can be done after the data is projected to the low-dimensional subspace defined by the basis (the column space of $\mathbf{V}_{r}$).
-Instead of feeding the data matrix $\mathbf{Q}$ to `opinf.pre.ddt()`, consider computing $\widehat{\mathbf{Q}} := \mathbf{V}_{r}^{\mathsf{T}}\mathbf{Q}$ first and using that as the input to `opinf.pre.ddt()`.
+Instead of feeding the data matrix $\mathbf{Q}$ to `opinf.pre.ddt()`, consider computing $\widehat{\mathbf{Q}} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{Q}$ first and using that as the input to `opinf.pre.ddt()`.
 You can also use $\widehat{\mathbf{Q}}$ as the input when you fit the reduced-order model object.
 ::: -->
 
@@ -260,13 +259,13 @@ $$
 $$ (eq:opinf-lstsq-residual)
 
 where
-- $\widehat{\mathbf{q}}_{j} := \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j})$ is the projected state at time $t_{j}$,
-- $\dot{\widehat{\mathbf{q}}}_{j} := \frac{\textrm{d}}{\textrm{d}t}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}\big|_{t=t_{j}}$ is the projected time derivative of the state at time $t_{j}$,
-- $\mathbf{u}_{j} := \mathbf{u}(t_j)$ is the input at time $t_{j}$, and
+- $\widehat{\mathbf{q}}_{j} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j})$ is the projected state at time $t_{j}$,
+- $\dot{\widehat{\mathbf{q}}}_{j} = \frac{\textrm{d}}{\textrm{d}t}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}\big|_{t=t_{j}}$ is the projected time derivative of the state at time $t_{j}$,
+- $\mathbf{u}_{j} = \mathbf{u}(t_j)$ is the input at time $t_{j}$, and
 - $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
 
 
-The least-squares problem {eq}`eq:opinf-lstsq-residual` can be written in the more standard form
+The least-squares minimization {eq}`eq:opinf-lstsq-residual` can be written in the more standard form
 
 $$
 \min_{\widehat{\mathbf{O}}}\left\|
@@ -412,9 +411,9 @@ which is the standard form given above.
 
 :::{important}
 Writing the problem in standard form reveals an important fact:
-for the most common choices of $\mathcal{R}$, the OpInf learning problem {eq}`eq:opinf-lstsq-residual` has a unique solution if and only if $\mathbf{D}$ has full column rank.
+for the most common choices of $\mathcal{R}$, the Operator Inference learning problem {eq}`eq:opinf-lstsq-residual` has a unique solution if and only if $\mathbf{D}$ has full column rank.
 A necessary condition for this to happen is $k \ge d(r,m)$, that is, the number of training snapshots $k$ should exceed the number of reduced-order operator entries to be learned for each system mode.
-If you are experiencing poor performance with OpInf reduced models, try decreasing $r$, increasing $k$, or adding a regularization term to improve the conditioning of the learning problem.
+If you are experiencing poor performance with Operator Inference reduced models, try decreasing $r$, increasing $k$, or adding a regularization term to improve the conditioning of the learning problem.
 :::
 
 :::{note}
@@ -426,7 +425,7 @@ $$
 = \sum_{i=1}^{r}\mathcal{R}_{i}(\widehat{\mathbf{o}}_{i}),
 $$
 
-then the OpInf regression decouples along the rows of $\widehat{\mathbf{O}}$ into $r$ independent least-squares problems:
+then the Operator Inference regression decouples along the rows of $\widehat{\mathbf{O}}$ into $r$ independent least-squares problems:
 
 $$
 \min_{\widehat{\mathbf{O}}}\left\{\left\|
@@ -463,7 +462,7 @@ The [**Getting Started**](sec-tutorial) tutorial demonstrates this concept in th
 
 ---
 
-## Brief Code Example
+## Brief Example
 
 Suppose we have the following variables.
 

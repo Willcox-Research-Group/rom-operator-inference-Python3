@@ -6,17 +6,16 @@ root: content/index.md
 parts:
   # Introduction / summary, mathematical statement, literature.
   - caption: Operator Inference
+    numbered: 1
     chapters:
     - file: content/opinf/intro.md
-    # - file: content/opinf/mathematics.md
-    - file: content/opinf/notation.md
     # - file: content/opinf/literature.md
-    - file: content/opinf/bibliography.md
+    - file: content/opinf/installation.md
 
   # How to use the package.
   - caption: Package Usage
+    numbered: 2
     chapters:
-    - file: content/usage/installation.md
     - file: content/usage/preprocessing/index.md
       sections:
       - file: content/usage/preprocessing/transformation.md
@@ -40,6 +39,7 @@ parts:
 
   # Complete numerical examples, written in a tutorial style.
   - caption: Tutorials
+    numbered: 1
     chapters:
     - file: content/tutorials/basics.ipynb
     - file: content/tutorials/heat_equation.ipynb
@@ -49,6 +49,11 @@ parts:
   # - caption: API Documentation
   #   chapters:
   #   - file: content/api/...
+
+  - caption: Appendix
+    chapters:
+    - file: content/appendix/notation.md
+    - file: content/appendix/bibliography.md
 
   # Instructions for developers.
   - caption: Developer Guide
