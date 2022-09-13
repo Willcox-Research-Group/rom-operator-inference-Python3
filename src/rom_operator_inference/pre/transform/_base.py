@@ -4,13 +4,6 @@
 import abc
 
 
-__transformer_required_methods = (
-    "fit_transform",
-    "transform",
-    "inverse_transform",
-)
-
-
 class _BaseTransformer(abc.ABC):
     """Abstract base class for all transformer classes."""
     # Main routines -----------------------------------------------------------
@@ -91,15 +84,14 @@ class _BaseTransformer(abc.ABC):
         """Save the transformer to an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")
 
-    def load(self, *args, **kwargs):
+    @classmethod
+    def load(cls, *args, **kwargs):
         """Load a transformer from an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")
 
 
 def _check_is_transformer(obj):
-    """Raise a RuntimeError of `obj` cannot be used as a transformer."""
-    if isinstance(obj, _BaseTransformer):
-        return
-    for mtd in __transformer_required_methods:
+    """Raise a RuntimeError if `obj` cannot be used as a transformer."""
+    for mtd in _BaseTransformer.__abstractmethods__:
         if not hasattr(obj, mtd):
-            raise TypeError(f"invalid transformer, missing method {mtd}()")
+            raise TypeError(f"transformer missing required method {mtd}()")

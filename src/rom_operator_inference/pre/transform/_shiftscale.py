@@ -135,20 +135,27 @@ class SnapshotTransformer(_BaseTransformer):
         * 'minmax': minmax scaling to [0, 1].
         * 'minmaxsym': minmax scaling to [-1, 1].
         * 'maxabs': maximum absolute scaling to [-1, 1] (no shift).
-        * 'maxabssym': maximum absolute scaling to [-1, 1] (mean shift).
+        * 'maxabssym': maximum absolute scaling to [-1, 1] (with mean shift).
+    byrow : bool
+        If True, scale each row of the snapshot matrix separately when a
+        scaling is specified. Otherwise, scale the entire matrix at once.
     verbose : bool
         If True, print information upon learning a transformation.
 
     Attributes
     ----------
+    n : int
+        Dimension of the snapshots.
     mean_ : (n,) ndarray
         Mean training snapshot. Only recorded if center = True.
-    scale_ : float
+    scale_ : float or (n,) ndarray
         Multiplicative factor of scaling (the a of q -> aq + b).
         Only recorded if scaling != None.
-    shift_ : float
+        If byrow = True, a different factor is applied to each row.
+    shift_ : float or (n,) ndarray
         Additive factor of scaling (the b of q -> aq + b).
         Only recorded if scaling != None.
+        If byrow = True, a different factor is applied to each row.
 
     Notes
     -----
@@ -182,10 +189,18 @@ class SnapshotTransformer(_BaseTransformer):
     _table_header = "    |     min    |    mean    |     max    |    std\n" \
                     "----|------------|------------|------------|------------"
 
-    def __init__(self, center=False, scaling=None, verbose=False):
+    def __init__(self, center=False, scaling=None, byrow=False, verbose=False):
         """Set transformation hyperparameters."""
+        # Initialize properties to default values.
+        self.__center = False
+        self.__scaling = None
+        self.__byrow = False
+        self.__verbose = False
+
+        # Set properties to specified values.
         self.center = center
         self.scaling = scaling
+        self.byrow = byrow
         self.verbose = verbose
 
     def _clear(self):
@@ -205,8 +220,9 @@ class SnapshotTransformer(_BaseTransformer):
         """Set the centering directive, resetting the transformation."""
         if ctr not in (True, False):
             raise TypeError("'center' must be True or False")
-        self._clear()
-        self.__center = ctr
+        if ctr != self.__center:
+            self._clear()
+            self.__center = ctr
 
     @property
     def scaling(self):
@@ -233,12 +249,25 @@ class SnapshotTransformer(_BaseTransformer):
             opts = ", ".join([f"'{v}'" for v in self._VALID_SCALINGS])
             raise ValueError(f"invalid scaling '{scl}'; "
                              f"valid options are {opts}")
-        self._clear()
-        self.__scaling = scl
+        if scl != self.__scaling:
+            self._clear()
+            self.__scaling = scl
+
+    @property
+    def byrow(self):
+        """If True, scale snapshots by row, not as a whole unit."""
+        return self.__byrow
+
+    @byrow.setter
+    def byrow(self, by):
+        """Set the row-wise scaling directive, resetting the transformation."""
+        if by is not self.byrow:
+            self._clear()
+            self.__byrow = bool(by)
 
     @property
     def verbose(self):
-        """If True, print information about upon learning a transformation."""
+        """If True, print information upon learning a transformation."""
         return self.__verbose
 
     @verbose.setter
@@ -249,9 +278,11 @@ class SnapshotTransformer(_BaseTransformer):
         """Test two SnapshotTransformers for equality."""
         if not isinstance(other, self.__class__):
             return False
-        for attr in ("center", "scaling"):
+        for attr in ("center", "scaling", "byrow"):
             if getattr(self, attr) != getattr(other, attr):
                 return False
+        if hasattr(self, "n") and hasattr(other, "n") and self.n != other.n:
+            return False
         if self.center and hasattr(self, "mean_"):
             if not hasattr(other, "mean_"):
                 return False
@@ -261,7 +292,7 @@ class SnapshotTransformer(_BaseTransformer):
             for attr in ("scale_", "shift_"):
                 if not hasattr(other, attr):
                     return False
-                if getattr(self, attr) != getattr(other, attr):
+                if not np.all(getattr(self, attr) == getattr(other, attr)):
                     return False
         return True
 
@@ -275,19 +306,30 @@ class SnapshotTransformer(_BaseTransformer):
     def __str__(self):
         """String representation: scaling type + centering bool."""
         out = ["Snapshot transformer"]
+        trained = self._is_trained()
+        if trained:
+            out.append(f"(n = {self.n:d})")
         if self.center:
             out.append("with mean-snapshot centering")
             if self.scaling:
                 out.append(f"and '{self.scaling}' scaling")
         elif self.scaling:
             out.append(f"with '{self.scaling}' scaling")
-        if not self._is_trained():
+        if not trained:
             out.append("(call fit_transform() to train)")
         return ' '.join(out)
 
     # Main routines -----------------------------------------------------------
+    def _check_shape(self, Q):
+        """Verify the shape of the snapshot set Q."""
+        if Q.shape[0] != self.n:
+            raise ValueError(f"states.shape[0] = {Q.shape[0]:d} "
+                             f"!= {self.n} = n")
+
     def _is_trained(self):
         """Return True if transform() and inverse_transform() are ready."""
+        if not hasattr(self, "n"):
+            return False
         if self.center and not hasattr(self, "mean_"):
             return False
         if self.scaling and any(not hasattr(self, attr)
@@ -312,9 +354,11 @@ class SnapshotTransformer(_BaseTransformer):
             Matrix of k transformed snapshots of dimension n.
         """
         if states.ndim != 2:
-            raise ValueError("2D array required to fit transform")
+            raise ValueError("2D array required to fit transformer")
+        self.n = states.shape[0]
 
         Y = states if inplace else states.copy()
+        axis = (1 if self.byrow else None)
 
         # Record statistics of the training data.
         if self.verbose:
@@ -335,43 +379,44 @@ class SnapshotTransformer(_BaseTransformer):
         if self.scaling:
             # Standard: Q' = (Q - mu)/sigma
             if self.scaling == "standard":
-                mu = np.mean(Y)
-                sigma = np.std(Y)
+                mu = np.mean(Y, axis=axis)
+                sigma = np.std(Y, axis=axis)
                 self.scale_ = 1/sigma
                 self.shift_ = -mu*self.scale_
 
             # Min-max: Q' = (Q - min(Q))/(max(Q) - min(Q))
             elif self.scaling == "minmax":
-                Ymin = np.min(Y)
-                Ymax = np.max(Y)
+                Ymin = np.min(Y, axis=axis)
+                Ymax = np.max(Y, axis=axis)
                 self.scale_ = 1/(Ymax - Ymin)
                 self.shift_ = -Ymin*self.scale_
 
             # Symmetric min-max: Q' = (Q - min(Q))*2/(max(Q) - min(Q)) - 1
             elif self.scaling == "minmaxsym":
-                Ymin = np.min(Y)
-                Ymax = np.max(Y)
+                Ymin = np.min(Y, axis=axis)
+                Ymax = np.max(Y, axis=axis)
                 self.scale_ = 2/(Ymax - Ymin)
                 self.shift_ = -Ymin*self.scale_ - 1
 
             # MaxAbs: Q' = Q / max(abs(Q))
             elif self.scaling == "maxabs":
-                self.scale_ = 1/np.max(np.abs(Y))
-                self.shift_ = 0
+                self.scale_ = 1/np.max(np.abs(Y), axis=axis)
+                self.shift_ = 0 if axis is None else np.zeros(self.n)
 
             # maxabssym: Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)))
             elif self.scaling == "maxabssym":
-                mu = np.mean(Y)
-                Y -= mu
-                self.scale_ = 1/np.max(np.abs(Y))
+                mu = np.mean(Y, axis=axis)
+                Y -= (mu if axis is None else mu.reshape((-1, 1)))
+                self.scale_ = 1/np.max(np.abs(Y), axis=axis)
                 self.shift_ = -mu*self.scale_
-                Y += mu
+                Y += (mu if axis is None else mu.reshape((-1, 1)))
 
             else:                               # pragma nocover
                 raise RuntimeError(f"invalid scaling '{self.scaling}'")
 
-            Y *= self.scale_
-            Y += self.shift_
+            # Apply the scaling.
+            Y *= (self.scale_ if axis is None else self.scale_.reshape(-1, 1))
+            Y += (self.shift_ if axis is None else self.shift_.reshape(-1, 1))
 
             if self.verbose:
                 if self.center:
@@ -390,8 +435,9 @@ class SnapshotTransformer(_BaseTransformer):
 
         Parameters
         ----------
-        states : (n, k) ndarray
-            Matrix of k snapshots. Each column is a snapshot of dimension n.
+        states : (n, k) or (n,) ndarray
+            Matrix of k snapshots where each column is a snapshot of dimension
+            n, or a single snapshot of dimension n.
         inplace : bool
             If True, overwrite the input data during transformation.
             If False, create a copy of the data to transform.
@@ -404,6 +450,7 @@ class SnapshotTransformer(_BaseTransformer):
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
+        self._check_shape(states)
 
         Y = states if inplace else states.copy()
 
@@ -413,8 +460,9 @@ class SnapshotTransformer(_BaseTransformer):
 
         # Scale (non-dimensionalize) the centered snapshot entries.
         if self.scaling is not None:
-            Y *= self.scale_
-            Y += self.shift_
+            _flip = self.byrow and Y.ndim > 1
+            Y *= (self.scale_.reshape((-1, 1)) if _flip else self.scale_)
+            Y += (self.shift_.reshape((-1, 1)) if _flip else self.shift_)
 
         return Y
 
@@ -437,6 +485,7 @@ class SnapshotTransformer(_BaseTransformer):
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
+        self._check_shape(states_transformed)
 
         Y = states_transformed if inplace else states_transformed.copy()
 
@@ -469,14 +518,19 @@ class SnapshotTransformer(_BaseTransformer):
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["center"] = self.center
             meta.attrs["scaling"] = self.scaling if self.scaling else False
+            meta.attrs["byrow"] = self.byrow
             meta.attrs["verbose"] = self.verbose
 
             # Store learned transformation parameters.
+            if hasattr(self, "n"):
+                hf.create_dataset("dimension/n", data=[self.n])
             if self.center and hasattr(self, "mean_"):
                 hf.create_dataset("transformation/mean_", data=self.mean_)
             if self.scaling and hasattr(self, "scale_"):
-                hf.create_dataset("transformation/scale_", data=[self.scale_])
-                hf.create_dataset("transformation/shift_", data=[self.shift_])
+                scale = self.scale_ if self.byrow else [self.scale_]
+                shift = self.shift_ if self.byrow else [self.shift_]
+                hf.create_dataset("transformation/scale_", data=scale)
+                hf.create_dataset("transformation/shift_", data=shift)
 
     @classmethod
     def load(cls, loadfile):
@@ -500,14 +554,18 @@ class SnapshotTransformer(_BaseTransformer):
             scl = hf["meta"].attrs["scaling"]
             transformer = cls(center=hf["meta"].attrs["center"],
                               scaling=scl if scl else None,
+                              byrow=hf["meta"].attrs["byrow"],
                               verbose=hf["meta"].attrs["verbose"])
 
             # Load learned transformation parameters.
+            if "dimension" in hf:
+                transformer.n = hf["dimension/n"][0]
             if transformer.center and "transformation/mean_" in hf:
                 transformer.mean_ = hf["transformation/mean_"][:]
             if transformer.scaling and "transformation/scale_" in hf:
-                transformer.scale_ = hf["transformation/scale_"][0]
-                transformer.shift_ = hf["transformation/shift_"][0]
+                ind = slice(None) if transformer.byrow else 0
+                transformer.scale_ = hf["transformation/scale_"][ind]
+                transformer.shift_ = hf["transformation/shift_"][ind]
 
             return transformer
 
@@ -548,8 +606,10 @@ class SnapshotTransformerMulti(_BaseTransformer):
     ----------
     transformers : list of num_variables SnapshotTransformers
         Transformers for each snapshot variable.
-    n_ : int
-        Dimension of individual variables.
+    n : int
+        Total dimension of the snapshots (all variables).
+    ni : int
+        Dimension of individual variables, i.e., ni = n / num_variables.
 
     Notes
     -----
@@ -586,7 +646,8 @@ class SnapshotTransformerMulti(_BaseTransformer):
         scalings = _process_arg(scaling, "scaling", (type(None), str))
 
         # Initialize transformers.
-        self.transformers = [SnapshotTransformer(center=ctr, scaling=scl)
+        self.transformers = [SnapshotTransformer(center=ctr, scaling=scl,
+                                                 byrow=False, verbose=False)
                              for ctr, scl in zip(centers, scalings)]
         self.variable_names = variable_names
         self.verbose = verbose
@@ -645,7 +706,7 @@ class SnapshotTransformerMulti(_BaseTransformer):
         """Mean training snapshot across all transforms ((n,) ndarray)."""
         if not self._is_trained():
             return None
-        return np.concatenate([(st.mean_ if st.center else np.zeros(self.n_))
+        return np.concatenate([(st.mean_ if st.center else np.zeros(self.ni))
                                for st in self.transformers])
 
     def __len__(self):
@@ -679,14 +740,49 @@ class SnapshotTransformerMulti(_BaseTransformer):
             out.append(f"* {{:>{namelength}}} | {st}".format(name))
         return '\n'.join(out)
 
+    # Convenience methods -----------------------------------------------------
+    def get_varslice(self, var):
+        """Get the indices (as a slice) where the specified variable resides.
+
+        Parameters
+        ----------
+        var : int or str
+            Index or name of the variable to extract.
+
+        Returns
+        -------
+        s : slice
+            Slice object for accessing the specified variable, i.e.,
+            variable = state[s] for a single snapshot or
+            variable = states[:, s] for a collection of snapshots.
+        """
+        if var in self.variable_names:
+            var = self.variable_names.index(var)
+        return slice(var*self.ni, (var + 1)*self.ni)
+
+    def get_var(self, var, states):
+        """Extract the ith variable from the states.
+
+        Parameters
+        ----------
+        var : int or str
+            Index or name of the variable to extract.
+        states : (n, ...) ndarray
+
+        Returns
+        -------
+        states_var : ndarray, shape (n, num_states)
+        """
+        self._check_shape(states)
+        return states[..., self.get_varslice(var)]
+
     # Main routines -----------------------------------------------------------
     def _check_shape(self, Q):
         """Verify the shape of the snapshot set Q."""
-        if Q.shape[0] != self.num_variables * self.n_:
-            raise ValueError("snapshot set must have num_variables * n "
-                             f"= {self.num_variables} * {self.n_} "
-                             f"= {self.num_variables * self.n_} rows "
-                             f"(got {Q.shape[0]})")
+        if Q.shape[0] != self.n:
+            raise ValueError(f"states.shape[0] = {Q.shape[0]:d} "
+                             f"!= {self.num_variables} * {self.ni} "
+                             "= num_variables * n_i")
 
     def _is_trained(self):
         """Return True if transform() and inverse_transform() are ready."""
@@ -721,8 +817,11 @@ class SnapshotTransformerMulti(_BaseTransformer):
         states_transformed: (n, k) ndarray
             Matrix of k transformed n-dimensional snapshots.
         """
+        if states.ndim != 2:
+            raise ValueError("2D array required to fit transformer")
         Y = self._apply(SnapshotTransformer.fit_transform, states, inplace)
-        self.n_ = states.shape[0] // self.num_variables
+        self.n = states.shape[0]
+        self.ni = self.n // self.num_variables
         return Y
 
     def transform(self, states, inplace=False):
@@ -789,6 +888,7 @@ class SnapshotTransformerMulti(_BaseTransformer):
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_variables"] = self.num_variables
             meta.attrs["verbose"] = self.verbose
+            meta.attrs["variable_names"] = self.variable_names
 
             for i in range(self.num_variables):
                 self.transformers[i].save(hf.create_group(f"variable{i+1}"))
@@ -814,7 +914,8 @@ class SnapshotTransformerMulti(_BaseTransformer):
                                           "(meta/ not found)")
             num_variables = hf["meta"].attrs["num_variables"]
             verbose = hf["meta"].attrs["verbose"]
-            stm = cls(num_variables, verbose=verbose)
+            names = hf["meta"].attrs["variable_names"].tolist()
+            stm = cls(num_variables, variable_names=names, verbose=verbose)
 
             # Initialize individual transformers.
             for i in range(num_variables):
