@@ -1,14 +1,15 @@
-# pre/_basis.py
+# pre/basis/_pod.py
 """Tools for basis computation and reduced-dimension selection."""
 
 __all__ = [
-            "PODBasis",
-            "pod_basis",
-            "svdval_decay",
-            "cumulative_energy",
-            "residual_energy",
-            "projection_error",
-          ]
+    "PODBasis",
+    # "PODBasisMulti",
+    "pod_basis",
+    "svdval_decay",
+    "cumulative_energy",
+    "residual_energy",
+    "projection_error",
+]
 
 import numpy as np
 import scipy.linalg as la
@@ -18,6 +19,7 @@ import matplotlib.pyplot as plt
 
 from ...errors import LoadfileFormatError
 from ...utils import hdf5_savehandle, hdf5_loadhandle
+from .._multivar import _MultivarMixin
 from .. import transform
 from ._linear import LinearBasis
 
@@ -35,8 +37,12 @@ class PODBasis(LinearBasis):
 
     Attributes
     ----------
+    n : int
+        Dimension of the state space (size of each basis vector).
     r : int
         Dimension of the basis (number of basis vectors in the representation).
+    shape : tulpe
+        Dimensions (n, r).
     entries : (n, r) ndarray
         Entries of the basis matrix Vr.
     svdvals : (k,) or (r,) ndarray
@@ -57,8 +63,14 @@ class PODBasis(LinearBasis):
         self.__dual = None
         self.economize = bool(economize)
         LinearBasis.__init__(self, transformer)
+        # TODO: inner product weight matrix.
 
     # Dimension selection -----------------------------------------------------
+    def __shrink_stored_entries_to(self, r):
+        if self.entries is not None and r is not None:
+            self.__entries = self.__entries[:, :r].copy()
+            self.__dual = self.__dual[:, :r].copy()
+
     @property
     def r(self):
         """Dimension of the basis, i.e., the number of basis vectors."""
@@ -76,8 +88,18 @@ class PODBasis(LinearBasis):
 
         # Forget higher-order basis vectors.
         if self.economize:
-            self.__entries = self.__entries[:, :r].copy()
-            self.__dual = self.__dual[:, :r].copy()
+            self.__shrink_stored_entries_to(r)
+
+    @property
+    def economize(self):
+        return self.__economize
+
+    @economize.setter
+    def economize(self, econ):
+        """Set the economize flag."""
+        self.__economize = bool(econ)
+        if self.__economize:
+            self.__shrink_stored_entries_to(self.r)
 
     def set_dimension(self, r=None,
                       cumulative_energy=None, residual_energy=None):
@@ -112,16 +134,18 @@ class PODBasis(LinearBasis):
                 r = np.count_nonzero(1 - cum_energy > residual_energy) + 1
         self.r = r
 
+    @property
+    def rmax(self):
+        """Total number of stored basis vectors, i.e., the maximum value of r.
+        Always the same as the dimension r if economize=True.
+        """
+        return self.__entries.shape[1]
+
     # Properties --------------------------------------------------------------
     @property
     def entries(self):
         """Entries of the basis."""
         return None if self.__entries is None else self.__entries[:, :self.r]
-
-    @property
-    def n(self):
-        """Dimension of the state, i.e., the size of each basis vector."""
-        return None if self.entries is None else self.entries.shape[0]
 
     @property
     def shape(self):
@@ -161,9 +185,11 @@ class PODBasis(LinearBasis):
         ----------
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a single snapshot of
-            dimension n.
+            dimension n. If the basis has a transformer, the states are
+            transformed (and the transformer is updated) before computing
+            the basis entries.
         r : int or None
-            Number of basis vectors to include in the basis.
+            Number of vectors to include in the basis.
             If None, use the largest possible basis (r = min{n, k}).
         cumulative_energy : float or None
             Cumulative energy threshold. If provided and r=None, choose the
@@ -183,6 +209,8 @@ class PODBasis(LinearBasis):
         The method fit_randomized() uses a randomized SVD.
         """
         self._validate_rank(states, r)
+        if self.transformer is not None:
+            states = self.transformer.fit_transform(states)
         V, svdvals, Wt = la.svd(states, full_matrices=False, **options)
         self._store_svd(V, svdvals, Wt)
         self.set_dimension(r, cumulative_energy, residual_energy)
@@ -198,22 +226,28 @@ class PODBasis(LinearBasis):
         ----------
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a single snapshot of
-            dimension n.
+            dimension n. If the basis has a transformer, the states are
+            transformed (and the transformer is updated) before computing
+            the basis entries.
         r : int or None
-            Number of basis vectors to include in the basis.
+            Number of vectors to include in the basis.
             If None, compute the largest possible basis (r = min{n, k}).
         options
             Additional parameters for sklearn.utils.extmath.randomized_svd().
 
         Notes
         -----
-        The full singular value decomposition of `states` is computed.
-        For an iterative approach,
+        This method uses an iterative method to approximate a partial singular
+        value decomposition, which can be useful for very large n.
+        The method fit() computes the full singular value decomposition.
         """
         self._validate_rank(states, r)
         if r is None:
             r = min(states.shape)
-
+        if self.transformer is not None:
+            states = self.transformer.fit_transform(states)
+        if "random_state" not in options:
+            options["random_state"] = None
         V, svdvals, Wt = sklmath.randomized_svd(states, r, **options)
         self._store_svd(V, svdvals, Wt)
         self.set_dimension(r)
@@ -225,15 +259,6 @@ class PODBasis(LinearBasis):
         """Raise an AttributeError if there are no singular values stored."""
         if self.svdvals is None:
             raise AttributeError("no singular value data (call fit() first)")
-
-    def plot_energy(self):
-        """Plot the normalized singular value and residual energy decay."""
-        self._check_svdvals_exist()
-
-        fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-        self.plot_svdval_decay(ax=axes[0])
-        self.plot_residual_energy(ax=axes[1])
-        return fig, axes
 
     def plot_svdval_decay(self, threshold=None, normalize=True, ax=None):
         """Plot the normalized singular value decay.
@@ -269,8 +294,8 @@ class PODBasis(LinearBasis):
             ax.axvline(rank, color="gray", linewidth=.5)
             # TODO: label lines with text.
 
-        ax.set_xlabel(r"Singular value index $j$")
-        ax.set_ylabel(r"Singular value $\sigma_j$")
+        ax.set_xlabel("Singular value index")
+        ax.set_ylabel(("Normalized s" if normalize else '') + "ingular values")
 
         return ax
 
@@ -288,18 +313,17 @@ class PODBasis(LinearBasis):
 
         Returns
         -------
-        rank : int or None
-            Number of singular values required in order for the residual
-            energy to drop beneath `threshold` (if given).
+        ax : plt.Axes
+            Matplotlib Axes for the plot.
         """
         self._check_svdvals_exist()
         if ax is None:
             ax = plt.figure().add_subplot(111)
 
-        svdvals2 = self.singular_values**2
+        svdvals2 = self.svdvals**2
         res_energy = 1 - (np.cumsum(svdvals2) / np.sum(svdvals2))
         j = np.arange(1, svdvals2.size + 1)
-        ax.semilogy(j, res_energy, "C1.-", ms=10, lw=1, zorder=3)
+        ax.semilogy(j, res_energy, "C0.-", ms=10, lw=1, zorder=3)
         ax.set_xlim(0, j.size)
 
         if threshold is not None:
@@ -308,8 +332,8 @@ class PODBasis(LinearBasis):
             ax.axvline(rank, color="gray", linewidth=.5)
             # TODO: label lines with text.
 
-        ax.set_xlabel(r"Singular value index")
-        ax.set_ylabel(r"Residual energy")
+        ax.set_xlabel("Singular value index")
+        ax.set_ylabel("Residual energy")
 
         return ax
 
@@ -327,18 +351,17 @@ class PODBasis(LinearBasis):
 
         Returns
         -------
-        rank : int or None
-            Number of singular values required in order for the cumulative
-            energy to exceed `threshold` (if given).
+        ax : plt.Axes
+            Matplotlib Axes for the plot.
         """
         self._check_svdvals_exist()
         if ax is None:
             ax = plt.figure().add_subplot(111)
 
-        svdvals2 = self.singular_values**2
+        svdvals2 = self.svdvals**2
         cum_energy = np.cumsum(svdvals2) / np.sum(svdvals2)
         j = np.arange(1, svdvals2.size + 1)
-        ax.plot(j, cum_energy, "C1.-", ms=10, lw=1, zorder=3)
+        ax.plot(j, cum_energy, "C0.-", ms=10, lw=1, zorder=3)
         ax.set_xlim(0, j.size)
 
         if threshold is not None:
@@ -352,17 +375,25 @@ class PODBasis(LinearBasis):
 
         return ax
 
+    def plot_energy(self):
+        """Plot the normalized singular value and residual energy decay."""
+        self._check_svdvals_exist()
+
+        fig, axes = plt.subplots(1, 2, figsize=(8, 3))
+        self.plot_svdval_decay(ax=axes[0])
+        self.plot_residual_energy(ax=axes[1])
+        fig.tight_layout()
+
+        return fig, axes
+
     # Persistence -------------------------------------------------------------
-    def save(self, savefile, save_transformer=True, overwrite=False):
+    def save(self, savefile, overwrite=False):
         """Save the basis to an HDF5 file.
 
         Parameters
         ----------
         savefile : str
             Path of the file to save the basis in.
-        save_transformer : bool
-            If True, save the transformer as well as the basis entries.
-            If False, only save the basis entries.
         overwrite : bool
             If True, overwrite the file if it already exists. If False
             (default), raise a FileExistsError if the file already exists.
@@ -374,15 +405,15 @@ class PODBasis(LinearBasis):
             if self.r is not None:
                 meta.attrs["r"] = self.r
 
-            if save_transformer and self.transformer is not None:
+            if self.transformer is not None:
                 TransformerClass = self.transformer.__class__.__name__
                 meta.attrs["TransformerClass"] = TransformerClass
                 self.transformer.save(hf.create_group("transformer"))
 
             if self.entries is not None:
-                hf.create_dataset("entries", data=self.entries)
-                hf.create_dataset("svdvals", data=self.svdvals)
-                hf.create_dataset("dual", data=self.dual)
+                hf.create_dataset("entries", data=self.__entries)
+                hf.create_dataset("svdvals", data=self.__svdvals)
+                hf.create_dataset("dual", data=self.__dual)
 
     @classmethod
     def load(cls, loadfile):
@@ -418,9 +449,112 @@ class PODBasis(LinearBasis):
                 dual = hf["dual"][:]
 
         out = cls(transformer=transformer, economize=economize)
-        out._store_svd(entries, svdvals, dual)
+        out._store_svd(entries, svdvals, dual.T)
         out.r = r
         return out
+
+
+class PODBasisMulti(LinearBasis, _MultivarMixin):
+    r"""Block-diagonal proper othogonal decomposition basis, derived from the
+    principal left singular vectors of a collection of states grouped into
+    blocks:
+
+             [ Q1 ]                         [ Vr1         ]
+        Q1 = [ Q2 ]     -->     POD basis = [     Vr2     ],    where
+             [ |  ]                         [          \  ]
+
+        svd(Qi) = Vi Si Wi^T  -->  Vri = Vi[:, :ri].
+
+    The low-dimensional approximation is linear (see PODBasis).
+
+
+    Parameters
+    ----------
+    num_variables : int
+        Number of variables represented in a single snapshot (number of
+        individual bases to learn). The dimension `n` of the snapshots
+        must be evenly divisible by num_variables; for example,
+        num_variables=3 means the first n entries of a snapshot correspond to
+        the first variable, and the next n entries correspond to the second
+        variable, and the last n entries correspond to the third variable.
+    variable_names : list of num_variables strings, optional
+        Names for each of the `num_variables` variables.
+        Defaults to "variable 1", "variable 2", ....
+
+    Attributes
+    ----------
+    n : int
+        Total dimension of the state space.
+    ni : int
+        Dimension of individual variables, i.e., ni = n / num_variables.
+    r : int
+        Total dimension of the basis (number of basis vectors).
+    rs : list(int)
+        Dimensions for each diagonal basis block, i.e., `r[i]` is the number
+        of basis vectors in the representation for state variable `i`.
+    entries : (n, r) ndarray or scipy.sparse.csc_matrix.
+        Entries of the basis matrix.
+    svdvals : (k,) or (r,) ndarray
+        Singular values of the training data.
+    dual : (n, r) ndarray
+        Right singular vectors of the data.
+    transformer : Transformer or None
+        Transformer for pre-processing states before dimensionality reduction.
+        See SnapshotTransformerMulti for a transformer that scales state
+        variables individually.
+    """
+    def __init__(self, num_variables,
+                 transformer=None, economize=False, variable_names=None):
+        """TODO"""
+        # Store dimensions and transformer.
+        _MultivarMixin.__init__(self, num_variables, variable_names)
+        LinearBasis.__init__(self, transformer)
+
+        self.__r = None
+        self.__rs = None
+        self.economize = bool(economize)
+
+        # Do NOT allow a list of transformers, user should use
+        # SnapshotTransformerMulti instead.
+
+        self.bases = [PODBasis(transformer=None, economize=economize)
+                      for _ in range(self.num_variables)]
+
+    # Properties -------------------------------------------------------------
+    @property
+    def r(self):
+        """Total dimension of the basis (number of basis vectors)."""
+        return self.__r
+
+    @property
+    def rs(self):
+        """Dimensions for each diagonal basis block, i.e., `r[i]` is the number
+        of basis vectors in the representation for state variable `i`.
+        """
+        return self.__rs
+
+    @rs.setter
+    def rs(self, rs):
+        # TODO: check length and positive-integerness of rs, etc.
+        self.__rs = rs
+        self.__r = sum(rs)
+
+    # Main routines -----------------------------------------------------------
+    def fit(self, rs, X, y=None):
+        """Fit the basis to the data.
+
+        Parameters
+        ----------
+        rs : list(int) or None
+            Number of basis vectors for each state variable.
+        """
+        return self
+        # self.rs = rs
+
+        # # Fit each basis.
+        # for i, basis in enumerate(self.bases):
+        #     basis.fit(rs[i], X[i::self.num_variables])
+        # # TODO: store the entries as a scipy.sparse.csc_array thing.
 
 
 # Basis computation ===========================================================

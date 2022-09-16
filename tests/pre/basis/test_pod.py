@@ -1,6 +1,8 @@
 # pre/basis/test_pod.py
 """Tests for rom_operator_inference.pre.basis._pod."""
 
+import os
+import h5py
 import pytest
 import numpy as np
 from scipy import linalg as la
@@ -13,7 +15,19 @@ class TestPODBasis:
     """Test pre.basis._pod.PODBasis."""
     PODBasis = opinf.pre.PODBasis
 
-    # TODO: class DummyTransformer: ...
+    class DummyTransformer(opinf.pre.transform._base._BaseTransformer):
+        """Instantiable version of _BaseTransformer."""
+        def fit_transform(self, states):
+            return states + 1
+
+        def transform(self, states):
+            return self.fit_transform(states)
+
+        def inverse_transform(self, states):
+            return states - 1
+
+        def save(self, hf):
+            pass
 
     def test_init(self):
         """Test PODBasis.init()."""
@@ -27,23 +41,14 @@ class TestPODBasis:
         assert basis.dual is None
         assert not basis.economize
 
-    def test_set_dimension(self, n=20, r=5):
-        """Test PODBasis.set_dimension()."""
+    def test_dimensions(self, n=20, r=5):
+        """Test PODBasis.r, economize, and _shrink_stored_entries_to()."""
         basis = self.PODBasis(economize=False)
 
         # Try setting the basis dimension before setting the entries.
         with pytest.raises(AttributeError) as ex:
             basis.r = 10
         assert ex.value.args[0] == "empty basis (call fit() first)"
-
-        with pytest.raises(AttributeError) as ex:
-            basis.set_dimension(10)
-        assert ex.value.args[0] == "empty basis (call fit() first)"
-
-        # Try setting dimension without singular values.
-        with pytest.raises(AttributeError) as ex:
-            basis.set_dimension(r=None, cumulative_energy=.9985)
-        assert ex.value.args[0] == "no singular value data (call fit() first)"
 
         # Test _store_svd() real quick.
         V, s, Wt = la.svd(np.random.standard_normal((n, n)))
@@ -52,65 +57,252 @@ class TestPODBasis:
         assert np.all(basis.entries == Vr)
         assert np.allclose(basis.dual, Wtr.T)
         assert np.all(basis.svdvals == sr)
+        assert basis.rmax == r
 
         # Try setting the dimension too high.
         with pytest.raises(ValueError) as ex:
-            basis.set_dimension(r + 2)
+            basis.r = r + 2
         assert ex.value.args[0] == f"only {r} basis vectors stored"
 
         # Shrink dimension and blow it back up (economize=False).
-        basis.set_dimension(r - 1)
+        basis.r = r - 1
         assert basis.shape == (n, r - 1)
         assert np.all(basis.entries == Vr[:, :-1])
         assert np.all(basis.dual == Wtr[:-1].T)
         assert basis.svdvals.shape == sr.shape
         assert np.all(basis.svdvals == sr)
+        assert basis.rmax == r
 
-        basis.set_dimension(r)
+        basis.r = r
         assert basis.shape == (n, r)
         assert np.all(basis.entries == Vr)
         assert np.all(basis.dual == Wtr.T)
         assert basis.svdvals.shape == sr.shape
         assert np.all(basis.svdvals == sr)
+        assert basis.rmax == r
 
         # Shrink the dimension (economize=True).
         basis.economize = True
-        basis.set_dimension(r - 1)
+        basis.r = r - 1
         assert basis.shape == (n, r - 1)
         assert np.all(basis.entries == Vr[:, :-1])
         assert np.all(basis.dual == Wtr[:-1].T)
         assert basis.svdvals.shape == sr.shape
         assert np.all(basis.svdvals == sr)
+        assert basis.rmax == r - 1
 
         # Try to recover forgotten columns.
         with pytest.raises(ValueError) as ex:
-            basis.set_dimension(r)
+            basis.r = r
         assert ex.value.args[0] == f"only {r-1} basis vectors stored"
 
-        # Choose dimension based on an energy criteria.
+        # Ensure setting economize = True shrinks the dimension.
         basis.economize = False
+        basis._store_svd(Vr, sr, Wtr)
+        basis.r = r
+        assert basis.rmax == r
+        basis.r = r - 1
+        assert basis.r == r - 1
+        assert basis.rmax == r
+        basis.economize = True
+        assert basis.r == r - 1
+        assert basis.rmax == r - 1
+        with pytest.raises(ValueError) as ex:
+            basis.r = r
+        assert ex.value.args[0] == f"only {r-1} basis vectors stored"
+
+    def test_set_dimension(self, n=20, r=5):
+        """Test PODBasis.set_dimension()."""
+        basis = self.PODBasis(economize=False)
+
+        # Try setting dimension without singular values.
+        with pytest.raises(AttributeError) as ex:
+            basis.set_dimension(r=None, cumulative_energy=.9985)
+        assert ex.value.args[0] == "no singular value data (call fit() first)"
+
+        V, _, Wt = la.svd(np.random.standard_normal((n, n)))
         svdvals = np.sqrt([.9, .09, .009, .0009, .00009, .000009, .0000009])
+        Vr, Wtr = V[:, :r], Wt[:r]
+        basis._store_svd(Vr, svdvals, Wtr)
+
+        # Choose dimension based on an energy criteria.
         basis._store_svd(Vr, svdvals, Wtr)
         basis.set_dimension(cumulative_energy=.9999)
         assert basis.r == 4
         basis.set_dimension(residual_energy=.01)
         assert basis.r == 2
 
-    def test_fit(self):
+    def test_fit(self, n=20, k=15, r=5):
         """Test PODBasis.fit()."""
-        pass
+        # First test PODBasis.validate_rank().
+        states = np.empty((n, n))
+        with pytest.raises(ValueError) as ex:
+            self.PODBasis._validate_rank(states, n + 1)
+        assert ex.value.args[0] == f"invalid POD rank r = {n + 1} " \
+                                   f"(need 1 ≤ r ≤ {n})"
 
-    def test_fit_randomized(self):
+        self.PODBasis._validate_rank(states, n // 2)
+
+        # Now test PODBasis.fit().
+        states = np.random.standard_normal((n, k))
+        U, vals, Wt = la.svd(states, full_matrices=False)
+        basis = self.PODBasis().fit(states, r)
+        assert basis.entries.shape == (n, r)
+        assert basis.svdvals.shape == (min(n, k),)
+        assert basis.dual.shape == (k, r)
+        VrTVr = basis.entries.T @ basis.entries
+        Ir = np.eye(r)
+        assert np.allclose(VrTVr, Ir)
+        WrTWr = basis.dual.T @ basis.dual
+        assert np.allclose(WrTWr, Ir)
+        assert basis.r == r
+        assert np.allclose(basis.entries, U[:, :r])
+        assert np.allclose(basis.svdvals, vals)
+        assert np.allclose(basis.dual, Wt[:r, :].T)
+
+        # Test with a transformer.
+        basis = self.PODBasis(transformer=self.DummyTransformer())
+        basis.fit(states, r)
+        U, vals, Wt = la.svd(states + 1, full_matrices=False)
+        assert np.allclose(basis.entries, U[:, :r])
+        assert np.allclose(basis.svdvals, vals)
+        assert np.allclose(basis.dual, Wt[:r, :].T)
+
+        # TODO: weighted inner product matrix.
+
+    def test_fit_randomized(self, n=20, k=14, r=5, tol=1e-6):
         """Test PODBasis.fit_randomized()."""
-        pass
+        states = np.random.standard_normal((n, k))
+        U, vals, Wt = la.svd(states, full_matrices=False)
+        basis = self.PODBasis().fit_randomized(states, r)
+        assert basis.entries.shape == (n, r)
+        assert basis.svdvals.shape == (r,)
+        assert basis.dual.shape == (k, r)
+        VrTVr = basis.entries.T @ basis.entries
+        Ir = np.eye(r)
+        assert np.allclose(VrTVr, Ir)
+        WrTWr = basis.dual.T @ basis.dual
+        assert np.allclose(WrTWr, Ir)
+        assert basis.r == r
+        # Flip the signs in U and W if needed so things will match.
+        for i in range(r):
+            if np.sign(U[0, i]) != np.sign(basis[0, i]):
+                U[:, i] *= -1
+            if np.sign(Wt[i, 0]) != np.sign(basis.dual[0, i]):
+                Wt[i, :] *= -1
+        assert la.norm(basis.entries - U[:, :r], ord=2) < tol
+        assert la.norm(basis.svdvals - vals[:r]) / la.norm(basis.svdvals) < tol
+        assert la.norm(basis.dual - Wt[:r, :].T, ord=2) < tol
 
-    def test_save(self):
-        """Test PODBasis.save()."""
-        pass
+        # Test with a transformer.
+        states = np.random.standard_normal((n, n))
+        basis = self.PODBasis(transformer=self.DummyTransformer())
+        basis.fit_randomized(states, None)
+        U, vals, Wt = la.svd(states + 1, full_matrices=False)
+        # Flip the signs in U and W if needed so things will match.
+        for i in range(n):
+            if np.sign(U[0, i]) != np.sign(basis[0, i]):
+                U[:, i] *= -1
+            if np.sign(Wt[i, 0]) != np.sign(basis.dual[0, i]):
+                Wt[i, :] *= -1
+        assert la.norm(basis.entries - U, ord=2) < tol
+        assert la.norm(basis.svdvals - vals) / la.norm(basis.svdvals) < tol
+        assert la.norm(basis.dual - Wt.T, ord=2) < tol
 
-    def test_load(self):
+    # Visualization -----------------------------------------------------------
+    def test_plots(self, n=40, k=25, r=4):
+        """Lightly test PODBasis.plot_*()."""
+        basis = self.PODBasis().fit(np.random.standard_normal((n, k)))
+
+        # Turn interactive mode on.
+        _pltio = plt.isinteractive()
+        plt.ion()
+
+        # Call each plotting routine.
+        ax = basis.plot_svdval_decay(threshold=1e-3, normalize=True)
+        assert isinstance(ax, plt.Axes)
+        plt.close(ax.figure)
+
+        ax = basis.plot_residual_energy(threshold=1e-3)
+        assert isinstance(ax, plt.Axes)
+        plt.close(ax.figure)
+
+        ax = basis.plot_cumulative_energy(threshold=.999)
+        assert isinstance(ax, plt.Axes)
+        plt.close(ax.figure)
+
+        fig, axes = basis.plot_energy()
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(axes, np.ndarray)
+        for ax in axes.flat:
+            assert isinstance(ax, plt.Axes)
+        plt.close(fig)
+
+        # Restore interactive mode setting.
+        plt.interactive(_pltio)
+
+    # Persistence -------------------------------------------------------------
+    def test_save(self, n=20, k=14, r=6):
+        """Lightly test PODBasis.save()."""
+        # Clean up after old tests.
+        target = "_podbasissavetest.h5"
+        if os.path.isfile(target):              # pragma: no cover
+            os.remove(target)
+
+        # Just save a basis to a temporary file, don't interrogate the file.
+        basis = self.PODBasis().fit(np.random.random((n, k)), r)
+        basis.save(target)
+        assert os.path.isfile(target)
+
+        # Repeat with a transformer.
+        basis = self.PODBasis(transformer=self.DummyTransformer())
+        basis.fit(np.random.random((n, k)), r)
+        basis.save(target, overwrite=True)
+        assert os.path.isfile(target)
+        os.remove(target)
+
+    def test_load(self, n=20, k=14, r=6):
         """Test PODBasis.load()."""
-        pass
+        # Clean up after old tests.
+        target = "_podbasisloadtest.h5"
+        if os.path.isfile(target):              # pragma: no cover
+            os.remove(target)
+
+        # Try to load a bad file.
+        with h5py.File(target, "w"):
+            pass
+
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+            self.PODBasis.load(target)
+        assert ex.value.args[0] == "invalid save format (meta/ not found)"
+
+        # Just save a basis to a temporary file, don't interrogate the file.
+        basis1 = self.PODBasis().fit(np.random.random((n, k)), r)
+        basis1.save(target, overwrite=True)
+
+        # Test that save() and load() are inverses.
+        basis2 = self.PODBasis.load(target)
+        assert basis1.r == basis2.r
+        assert basis1.entries.shape == basis2.entries.shape
+        assert np.allclose(basis1.entries, basis2.entries)
+        assert basis1.svdvals.shape == basis2.svdvals.shape
+        assert np.allclose(basis1.svdvals, basis2.svdvals)
+        assert basis1.dual.shape == basis2.dual.shape
+        assert np.allclose(basis1.dual, basis2.dual)
+        assert basis1 == basis2
+
+        # Repeat with a transformer.
+        st = opinf.pre.transform.SnapshotTransformer()
+        basis1 = self.PODBasis(transformer=st).fit(np.random.random((n, k)), r)
+        basis1.save(target, overwrite=True)
+        basis2 = self.PODBasis.load(target)
+        assert basis1 == basis2
+
+
+class PODBasisMulti:
+    """Test opinf.pre.basis._pod.PODBasisMulti."""
+    # PODBasis = opinf.pre.PODBasisMulti
+    pass
 
 
 # Basis computation ===========================================================

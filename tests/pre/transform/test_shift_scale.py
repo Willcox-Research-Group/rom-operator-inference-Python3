@@ -593,8 +593,7 @@ class TestSnapshotTransformerMulti:
         assert stm.mean_ is None
 
         # Set the centering vectors.
-        stm.ni = varsize
-        stm.n = stm.num_variables * stm.ni
+        stm.n = stm.num_variables * varsize
         µs = [np.random.randint(0, 100, stm.ni)
               for _ in range(stm.num_variables)]
         for i, µ in enumerate(µs):
@@ -800,57 +799,7 @@ class TestSnapshotTransformerMulti:
 
         os.remove(target)
 
-    # Convenience methods -----------------------------------------------------
-    def test_get_varslice(self):
-        """Test pre.SnapshotTransformerMulti.get_varslice()."""
-        stm = opinf.pre.SnapshotTransformerMulti(4,
-                                                 variable_names=list("abcd"))
-        stm.n = 12
-        stm.ni = 3
-        s0 = stm.get_varslice(0)
-        assert isinstance(s0, slice)
-        assert s0.start == 0
-        assert s0.stop == stm.ni
-        s1 = stm.get_varslice(1)
-        assert isinstance(s1, slice)
-        assert s1.start == stm.ni
-        assert s1.stop == 2*stm.ni
-        s2 = stm.get_varslice("c")
-        assert isinstance(s2, slice)
-        assert s2.start == 2*stm.ni
-        assert s2.stop == 3*stm.ni
-
-    def test_get_var(self):
-        """Test pre.SnapshotTransformerMulti.get_var()."""
-        stm = opinf.pre.SnapshotTransformerMulti(4,
-                                                 variable_names=list("abcd"))
-        stm.n = 12
-        stm.ni = 3
-        q = np.random.random(stm.n)
-        q0 = stm.get_var(0, q)
-        assert q0.shape == (stm.ni,)
-        assert np.all(q0 == q[:stm.ni])
-        q1 = stm.get_var(1, q)
-        assert q1.shape == (stm.ni,)
-        assert np.all(q1 == q[stm.ni:2*stm.ni])
-        q2 = stm.get_var("c", q)
-        assert q2.shape == (stm.ni,)
-        assert np.all(q2 == q[2*stm.ni:3*stm.ni])
-
     # Main routines -----------------------------------------------------------
-    def test_check_shape(self):
-        """Test pre.SnapshotTransformerMulti._check_shape()."""
-        stm = opinf.pre.SnapshotTransformerMulti(12)
-        stm.n = 120
-        stm.ni = 10
-        X = np.random.randint(0, 100, (120, 23)).astype(float)
-        stm._check_shape(X)
-
-        with pytest.raises(ValueError) as ex:
-            stm._check_shape(X[:-1])
-        assert ex.value.args[0] == \
-            "states.shape[0] = 119 != 12 * 10 = num_variables * n_i"
-
     def __testcase(self):
         centers = [
             False, True,
@@ -949,7 +898,7 @@ class TestSnapshotTransformerMulti:
     def test_transform(self):
         """Test pre.SnapshotTransformerMulti.transform()."""
         stm = self.__testcase()
-        stm.ni = 10
+        stm.n = 120
 
         X = np.random.randint(0, 100, (120, 29)).astype(float)
         with pytest.raises(AttributeError) as ex:

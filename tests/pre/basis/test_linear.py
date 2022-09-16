@@ -87,6 +87,25 @@ class TestLinearBasis:
         assert np.allclose(basis.decode(q_), q)
 
     # Persistence -------------------------------------------------------------
+    def test_eq(self):
+        """Test LinearBasis.__eq__()."""
+        basis1 = self.LinearBasis()
+        assert basis1 != 10
+
+        basis2 = self.LinearBasis()
+        basis1.fit(np.random.random((10, 4)))
+        basis2.fit(np.random.random((10, 3)))
+        assert basis1 != basis2
+
+        basis1 = self.LinearBasis(transformer=self.DummyTransformer())
+        basis1.fit(basis2.entries)
+        assert basis1 != basis2
+
+        basis1.transformer = None
+        assert basis1 == basis2
+        basis1.fit(basis2.entries + 1)
+        assert basis1 != basis2
+
     def test_save(self, n=11, r=2):
         """Test LinearBasis.save()."""
         # Clean up after old tests.
@@ -143,6 +162,7 @@ class TestLinearBasis:
                     meta = gp.create_dataset("meta", shape=(0,))
                     meta.attrs["center"] = False
                     meta.attrs["scaling"] = False
+                    meta.attrs["byrow"] = False
                     meta.attrs["verbose"] = True
                     if dometa:
                         meta = hf.create_dataset("meta", shape=(0,))

@@ -121,8 +121,8 @@ class _BaseBasis(abc.ABC):
     # Persistence -------------------------------------------------------------
     def save(self, *args, **kwargs):
         """Save the basis to an HDF5 file."""
-        raise NotImplementedError("use pickle/joblib")
+        raise NotImplementedError("use pickle/joblib")      # pragma: no cover
 
     def load(self, *args, **kwargs):
         """Load a basis from an HDF5 file."""
-        raise NotImplementedError("use pickle/joblib")
+        raise NotImplementedError("use pickle/joblib")      # pragma: no cover

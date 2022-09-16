@@ -2,8 +2,10 @@
 """Linear basis class."""
 
 __all__ = [
-            "LinearBasis",
-          ]
+    "LinearBasis",
+]
+
+import numpy as np
 
 from ...errors import LoadfileFormatError
 from ...utils import hdf5_savehandle, hdf5_loadhandle
@@ -19,6 +21,12 @@ class LinearBasis(_BaseBasis):
 
     Attributes
     ----------
+    n : int
+        Dimension of the state space (size of each basis vector).
+    r : int
+        Dimension of the basis (number of basis vectors in the representation).
+    shape : tulpe
+        Dimensions (n, r).
     entries : (n, r) ndarray
         Entries of the basis matrix Vr.
     transformer : Transformer or None
@@ -36,14 +44,19 @@ class LinearBasis(_BaseBasis):
         return self.__entries
 
     @property
-    def shape(self):
-        """Dimensions of the basis (full_dimension, reduced_dimension)."""
-        return None if self.entries is None else self.entries.shape
+    def n(self):
+        """Dimension of the state, i.e., the size of each basis vector."""
+        return None if self.entries is None else self.entries.shape[0]
 
     @property
     def r(self):
         """Dimension of the basis, i.e., the number of basis vectors."""
         return None if self.entries is None else self.entries.shape[1]
+
+    @property
+    def shape(self):
+        """Dimensions of the basis (state_dimension, reduced_dimension)."""
+        return None if self.entries is None else self.entries.shape
 
     def __getitem__(self, key):
         """self[:] --> self.entries."""
@@ -107,6 +120,18 @@ class LinearBasis(_BaseBasis):
         return state
 
     # Persistence -------------------------------------------------------------
+    def __eq__(self, other):
+        """Two LinearBasis objects are equal if their type, dimensions, and
+        basis entries are the same.
+        """
+        if not isinstance(other, self.__class__):
+            return False
+        if self.shape != other.shape:
+            return False
+        if self.transformer != other.transformer:
+            return False
+        return np.all(self.entries == other.entries)
+
     def save(self, savefile, save_transformer=True, overwrite=False):
         """Save the basis to an HDF5 file.
 

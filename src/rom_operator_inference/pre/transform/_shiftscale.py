@@ -12,6 +12,7 @@ import numpy as np
 
 from ...errors import LoadfileFormatError
 from ...utils import hdf5_savehandle, hdf5_loadhandle
+from .._multivar import _MultivarMixin
 from ._base import _BaseTransformer
 
 
@@ -570,8 +571,8 @@ class SnapshotTransformer(_BaseTransformer):
             return transformer
 
 
-class SnapshotTransformerMulti(_BaseTransformer):
-    """Transformer for multi-variate snapshots.
+class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
+    """Transformer for multivariate snapshots.
 
     Groups multiple SnapshotTransformers for the centering and/or scaling
     (in that order) of individual variables.
@@ -631,17 +632,19 @@ class SnapshotTransformerMulti(_BaseTransformer):
     """
     def __init__(self, num_variables, center=False, scaling=None,
                  variable_names=None, verbose=False):
-        """Interpret hyperparameters and initialize transformers.
-        """
+        """Interpret hyperparameters and initialize transformers."""
+        _MultivarMixin.__init__(self, num_variables, variable_names)
+
         def _process_arg(attr, name, dtype):
             """Validation for centering and scaling directives."""
             if isinstance(attr, dtype):
-                attr = (attr,)*num_variables
+                attr = (attr,) * num_variables
             if len(attr) != num_variables:
                 raise ValueError(f"len({name}) = {len(attr)} "
                                  f"!= {num_variables} = num_variables")
             return attr
 
+        # Process and store transformation directives.
         centers = _process_arg(center, "center", bool)
         scalings = _process_arg(scaling, "scaling", (type(None), str))
 
@@ -649,15 +652,9 @@ class SnapshotTransformerMulti(_BaseTransformer):
         self.transformers = [SnapshotTransformer(center=ctr, scaling=scl,
                                                  byrow=False, verbose=False)
                              for ctr, scl in zip(centers, scalings)]
-        self.variable_names = variable_names
         self.verbose = verbose
 
     # Properties --------------------------------------------------------------
-    @property
-    def num_variables(self):
-        """Number of variables represented in a single snapshot."""
-        return len(self.transformers)
-
     @property
     def center(self):
         """Snapshot mean-centering directive."""
@@ -709,10 +706,6 @@ class SnapshotTransformerMulti(_BaseTransformer):
         return np.concatenate([(st.mean_ if st.center else np.zeros(self.ni))
                                for st in self.transformers])
 
-    def __len__(self):
-        """Length: number of SnapshotTransformers (number of variables)."""
-        return self.num_variables
-
     def __getitem__(self, key):
         """Get the transformer for variable i."""
         return self.transformers[key]
@@ -722,6 +715,10 @@ class SnapshotTransformerMulti(_BaseTransformer):
         if not isinstance(obj, SnapshotTransformer):
             raise TypeError("assignment object must be SnapshotTransformer")
         self.transformers[key] = obj
+
+    def __len__(self):
+        """Length = number of variables."""
+        return len(self.transformers)
 
     def __eq__(self, other):
         """Test two SnapshotTransformerMulti objects for equality."""
@@ -740,50 +737,7 @@ class SnapshotTransformerMulti(_BaseTransformer):
             out.append(f"* {{:>{namelength}}} | {st}".format(name))
         return '\n'.join(out)
 
-    # Convenience methods -----------------------------------------------------
-    def get_varslice(self, var):
-        """Get the indices (as a slice) where the specified variable resides.
-
-        Parameters
-        ----------
-        var : int or str
-            Index or name of the variable to extract.
-
-        Returns
-        -------
-        s : slice
-            Slice object for accessing the specified variable, i.e.,
-            variable = state[s] for a single snapshot or
-            variable = states[:, s] for a collection of snapshots.
-        """
-        if var in self.variable_names:
-            var = self.variable_names.index(var)
-        return slice(var*self.ni, (var + 1)*self.ni)
-
-    def get_var(self, var, states):
-        """Extract the ith variable from the states.
-
-        Parameters
-        ----------
-        var : int or str
-            Index or name of the variable to extract.
-        states : (n, ...) ndarray
-
-        Returns
-        -------
-        states_var : ndarray, shape (n, num_states)
-        """
-        self._check_shape(states)
-        return states[..., self.get_varslice(var)]
-
     # Main routines -----------------------------------------------------------
-    def _check_shape(self, Q):
-        """Verify the shape of the snapshot set Q."""
-        if Q.shape[0] != self.n:
-            raise ValueError(f"states.shape[0] = {Q.shape[0]:d} "
-                             f"!= {self.num_variables} * {self.ni} "
-                             "= num_variables * n_i")
-
     def _is_trained(self):
         """Return True if transform() and inverse_transform() are ready."""
         return all(st._is_trained() for st in self.transformers)
@@ -819,9 +773,8 @@ class SnapshotTransformerMulti(_BaseTransformer):
         """
         if states.ndim != 2:
             raise ValueError("2D array required to fit transformer")
-        Y = self._apply(SnapshotTransformer.fit_transform, states, inplace)
         self.n = states.shape[0]
-        self.ni = self.n // self.num_variables
+        Y = self._apply(SnapshotTransformer.fit_transform, states, inplace)
         return Y
 
     def transform(self, states, inplace=False):

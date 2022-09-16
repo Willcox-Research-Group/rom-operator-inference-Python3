@@ -6,8 +6,9 @@ the pre namespace - use that instead whenever possible.
 
 Public Classes
 --------------
-* LinearBasis: q = Vr qhat
-* PODBasis: q = Vr qhat
+* LinearBasis: q = Vr qhat (Vr provided by user)
+* PODBasis: q = Vr qhat (Vr chosen via SVD)
+* PODBasisMulti : q1 = Vr1 qhat1, q2 = Vr2 qhat2, ... (Vr chosen via SVD)
 
 Private Classes
 ---------------

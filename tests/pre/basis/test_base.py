@@ -37,7 +37,7 @@ class TestBaseBasis:
 
         with pytest.raises(TypeError) as ex:
             self.Dummy(10)
-        assert ex.value.args[0].startswith("invalid transformer")
+        assert ex.value.args[0].startswith("transformer missing required meth")
 
         transformer = self.DummyTransformer()
         basis = self.Dummy(transformer)
