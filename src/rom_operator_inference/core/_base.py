@@ -6,6 +6,7 @@ __all__ = []
 import abc
 import numpy as np
 
+from .. import pre
 from . import operators
 
 _isparametricop = operators.is_parametric_operator
@@ -78,7 +79,7 @@ class _BaseROM(abc.ABC):
 
     @modelform.setter
     def modelform(self, form):
-        """Set the modelform, which – if successful – resets the entire ROM."""
+        """Set the modelform, which - if successful - resets the entire ROM."""
         form = ''.join(sorted(form,
                               key=lambda k: self._MODELFORM_KEYS.find(k)))
         for key in form:
@@ -150,11 +151,13 @@ class _BaseROM(abc.ABC):
     @basis.setter
     def basis(self, basis):
         """Set the basis, thereby fixing the dimensions n and r."""
-        self.__basis = basis
         if basis is not None:
+            if not isinstance(basis, pre.basis._base._BaseBasis):
+                basis = pre.LinearBasis().fit(basis)
             if basis.shape[0] < basis.shape[1]:
                 raise ValueError("basis must be n x r with n > r")
             self.__r = basis.shape[1]
+        self.__basis = basis
 
     @basis.deleter
     def basis(self):
@@ -300,7 +303,7 @@ class _BaseROM(abc.ABC):
         else:
             if other.basis is None:
                 return False
-            if not np.allclose(self.basis, other.basis):
+            if self.basis != other.basis:
                 return False
         for opL, opR in zip(self, other):
             if not (opL is opR is None) and opL != opR:
@@ -391,7 +394,7 @@ class _BaseROM(abc.ABC):
         if known_operators is None or len(known_operators) == 0:
             return
 
-        # If there is no basis, we must have only reduced-order operators..
+        # If there is no basis, we must have only reduced-order operators.
         if self.basis is None:
             # Require r so we can tell between full and reduced order.
             if self.r is None:
@@ -410,15 +413,16 @@ class _BaseROM(abc.ABC):
             raise KeyError(f"invalid operator {_noun} {', '.join(surplus)}")
 
         # Project full-order operators.
+        Vr = self.basis.entries
         if ('H' in self.modelform) or ('G' in self.modelform):
-            basis2 = np.kron(self.basis, self.basis)
+            Vr2 = np.kron(Vr, Vr)
 
         if 'c' in known_operators:          # Constant term.
             c = known_operators['c']        # c = multiple of vector of ones.
             if np.isscalar(c):
-                c = c * self.basis.sum(axis=0)
+                c = c * Vr.sum(axis=0)
             if c.shape[0] != self.r:
-                c = self.basis.T @ c
+                c = Vr.T @ c
             self.c_ = c
 
         if 'A' in known_operators:          # Linear state matrix.
@@ -428,7 +432,7 @@ class _BaseROM(abc.ABC):
             if np.isscalar(A):              # A = multiple of identity.
                 A = A * np.eye(self.r)
             if A.shape[0] != self.r:
-                A = self.basis.T @ A @ self.basis
+                A = Vr.T @ A @ Vr
             self.A_ = A
 
         if 'H' in known_operators:          # Quadratic state matrix.
@@ -436,7 +440,7 @@ class _BaseROM(abc.ABC):
             # TODO: fast projection.
             # TODO: special case for q^2.
             if H.shape[0] != self.r:
-                H = self.basis.T @ H @ basis2
+                H = Vr.T @ H @ Vr2
             self.H_ = H
 
         if 'G' in known_operators:          # Cubic state matrix.
@@ -444,7 +448,7 @@ class _BaseROM(abc.ABC):
             # TODO: fast projection?
             # TODO: special case for q^3.
             if G.shape[0] != self.r:
-                G = self.basis.T @ G @ np.kron(self.basis, basis2)
+                G = Vr.T @ G @ np.kron(Vr, Vr2)
             self.G_ = G
 
         if 'B' in known_operators:          # Linear input matrix.
@@ -453,7 +457,7 @@ class _BaseROM(abc.ABC):
                 B = B.reshape((-1, 1))
             self.m = B.shape[1]
             if B.shape[0] != self.r:
-                B = self.basis.T @ B
+                B = Vr.T @ B
             self.B_ = B
 
         # Save keys of known operators.
@@ -482,7 +486,7 @@ class _BaseROM(abc.ABC):
             if self.basis is None:
                 raise AttributeError("basis not set")
             raise ValueError(f"{label} not aligned with basis")
-        return (self.basis.T @ state) if state.shape[0] == self.n else state
+        return self.basis.encode(state) if state.shape[0] == self.n else state
 
     def reconstruct(self, state_, label="argument"):
         """Reconstruct a high-dimensional state from its low-dimensional
@@ -504,7 +508,7 @@ class _BaseROM(abc.ABC):
             raise AttributeError("basis not set")
         if state_.shape[0] != self.r:
             raise ValueError(f"{label} not aligned with basis")
-        return self.basis @ state_
+        return self.basis.decode(state_)
 
     # ROM evaluation ----------------------------------------------------------
     def evaluate(self, state_, input_=None):

@@ -171,7 +171,7 @@ class TestBaseROM:
         assert rom.n == n
         assert rom.m == 0
         assert rom.r == r
-        assert rom.basis is basis
+        assert isinstance(rom.basis, opinf.pre.LinearBasis)
 
         # Try setting n with basis already set.
         with pytest.raises(AttributeError) as ex:
@@ -243,7 +243,7 @@ class TestBaseROM:
         assert rom.n == n
         assert rom.r == r
         assert rom.m == 0
-        assert rom.basis is basis
+        assert isinstance(rom.basis, opinf.pre.LinearBasis)
         assert rom.c_.entries is c
         assert rom.A_.entries is A
         assert rom.H_.entries is H
@@ -579,7 +579,8 @@ class TestBaseROM:
         assert ex.value.args[0] == "basis not set"
 
         # Try to project with basis set but with wrong shape.
-        rom.basis = np.random.random((n, r))
+        Vr = np.random.random((n, r))
+        rom.basis = Vr
         with pytest.raises(ValueError) as ex:
             rom.project(Q[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
@@ -588,7 +589,7 @@ class TestBaseROM:
         for S, label in [(Q, 'state'), (Qdot, 'ddts')]:
             S_ = rom.project(S, label)
             assert S_.shape == (r, k)
-            assert np.allclose(S_, rom.basis.T @ S)
+            assert np.allclose(S_, Vr.T @ S)
             S_ = rom.project(S[:r, :], label)
             assert S_.shape == (r, k)
             assert np.all(S_ == S[:r, :])
@@ -605,7 +606,8 @@ class TestBaseROM:
         assert ex.value.args[0] == "basis not set"
 
         # Try to project with basis set but with wrong shape.
-        rom.basis = np.random.random((n, r))
+        Vr = np.random.random((n, r))
+        rom.basis = Vr
         with pytest.raises(ValueError) as ex:
             rom.reconstruct(Q_[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
@@ -614,7 +616,7 @@ class TestBaseROM:
         for S_, label in [(Q_, 'state_'), (Qdot_, 'ddts_')]:
             S = rom.reconstruct(S_, label)
             assert S.shape == (n, k)
-            assert np.allclose(S, rom.basis @ S_)
+            assert np.allclose(S, Vr @ S_)
 
     # ROM evaluation ----------------------------------------------------------
     def test_evaluate(self, r=5, m=2):

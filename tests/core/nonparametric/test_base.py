@@ -151,7 +151,8 @@ class TestNonparametricOpInfROM:
         Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, U, None)
         assert rom.n == n
         assert rom.r == r
-        assert rom.basis is Vr
+        assert isinstance(rom.basis, opinf.pre.LinearBasis)
+        assert np.all(rom.basis.entries == Vr)
         assert rom.m == m
         assert np.allclose(Q_, Vr.T @ Q)
         assert np.allclose(lhs_, Vr.T @ lhs)
@@ -172,13 +173,14 @@ class TestNonparametricOpInfROM:
         assert rom._projected_operators_ == ""
         assert rom.n == n
         assert rom.r == r
-        assert rom.basis is Vr
+        assert isinstance(rom.basis, opinf.pre.LinearBasis)
+        assert np.all(rom.basis.entries == Vr)
         assert rom.m == 0
         assert np.allclose(Q_, Vr.T @ Q)
         assert np.allclose(lhs_, Vr.T @ lhs)
 
         # With known operators for A.
-        c, A, H, G, B = _get_operators(n, m, expanded=True)
+        c, A, _, _, B = _get_operators(n, m, expanded=True)
         rom.modelform = "AHB"
         Q_, lhs_ = rom._process_fit_arguments(Vr, Q, lhs, U, {"A": A})
         assert rom._projected_operators_ == "A"
@@ -327,7 +329,7 @@ class TestNonparametricOpInfROM:
                 # Check basis
                 if hasbasis:
                     assert "basis" in data
-                    assert np.all(data["basis"][:] == Vr)
+                    assert np.all(data["basis/entries"][:] == Vr)
                 else:
                     assert "basis" not in data
 
@@ -359,7 +361,7 @@ class TestNonparametricOpInfROM:
 
         with pytest.raises(FileExistsError) as ex:
             rom.save(target, overwrite=False)
-        assert ex.value.args[0] == f"{target} (use overwrite=True to ignore)"
+        assert ex.value.args[0] == f"{target} (overwrite=True to ignore)"
 
         rom.save(target, save_basis=True, overwrite=True)
         _checkfile(target, rom, True)
@@ -378,8 +380,8 @@ class TestNonparametricOpInfROM:
         rom.save(target, save_basis=True, overwrite=True)
         rom2 = rom.load(target)
         assert rom2 is not rom
+        assert rom2.basis == rom.basis
         assert rom2 == rom
-        assert np.all(rom2.basis == rom.basis)
         for attr in ["n", "m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_"]:
@@ -464,11 +466,14 @@ class TestNonparametricOpInfROM:
         assert rom.n is None
 
         # Add the basis and then load the file correctly.
+        basis = opinf.pre.LinearBasis().fit(Vr)
         with h5py.File(target, 'a') as hf:
-            hf.create_dataset("basis", data=Vr)
+            hf["meta"].attrs["BasisClass"] = "LinearBasis"
+            basis.save(hf.create_group("basis"))
         rom = self.Dummy.load(target)
         _check_model(rom)
-        assert np.all(rom.basis == Vr)
+        assert isinstance(rom.basis, type(basis))
+        assert np.all(rom.basis.entries == Vr)
         assert rom.n == n
 
         # One additional test to cover other cases.
@@ -493,7 +498,8 @@ class TestNonparametricOpInfROM:
         assert np.all(rom.H_.entries == H_)
         assert np.all(rom.G_.entries == G_)
         assert rom.B_ is None
-        assert np.all(rom.basis == Vr)
+        assert isinstance(rom.basis, type(basis))
+        assert np.all(rom.basis.entries == Vr)
         assert rom.n == n
 
         # Clean up.

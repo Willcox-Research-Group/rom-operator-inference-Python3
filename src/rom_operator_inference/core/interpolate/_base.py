@@ -10,12 +10,11 @@ Relevant operator classes are defined in core.operators._interpolate.
 
 __all__ = []
 
-import os
-import h5py
 import numpy as np
 import scipy.interpolate
 
-
+from ... import pre
+from ...utils import hdf5_savehandle, hdf5_loadhandle
 from .._base import _BaseParametricROM
 from ..nonparametric._base import _NonparametricOpInfROM
 from .. import operators
@@ -372,22 +371,15 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         """
         self._check_is_trained()
 
-        # Ensure the file is saved in HDF5 format.
-        if not savefile.endswith(".h5"):
-            savefile += ".h5"
-
-        # Prevent overwriting and existing file on accident.
-        if os.path.isfile(savefile) and not overwrite:
-            raise FileExistsError(f"{savefile} (use overwrite=True to ignore)")
-
-        with h5py.File(savefile, 'w') as hf:
+        with hdf5_savehandle(savefile, overwrite=overwrite) as hf:
             # Store ROM modelform.
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["modelform"] = self.modelform
 
             # Store basis (optionally) if it exists.
             if (self.basis is not None) and save_basis:
-                hf.create_dataset("basis", data=self.basis)
+                meta.attrs["BasisClass"] = self.basis.__class__.__name__
+                self.basis.save(hf.create_group("basis"))
 
             # Store reduced operators.
             for key, op in zip(self.modelform, self):
@@ -418,7 +410,7 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         model : _NonparametricOpInfROM
             Trained reduced-order model.
         """
-        with h5py.File(loadfile, 'r') as hf:
+        with hdf5_loadhandle(loadfile) as hf:
             if "meta" not in hf:
                 raise ValueError("invalid save format (meta/ not found)")
             if "operators" not in hf:
@@ -428,9 +420,12 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
 
             # Load metadata.
             modelform = hf["meta"].attrs["modelform"]
+            basis = None
 
             # Load basis if present.
-            basis = hf["basis"][:] if ("basis" in hf) else None
+            if "basis" in hf:
+                BasisClassName = hf["meta"].attrs["BasisClass"]
+                basis = getattr(pre, BasisClassName).load(hf["basis"])
 
             # Load operators.
             parameters = hf["parameters"][:]
