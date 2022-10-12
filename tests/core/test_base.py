@@ -657,7 +657,7 @@ class TestBaseROM:
     def test_load(self):
         """Test core._base._BaseROM.load()."""
         with pytest.raises(NotImplementedError) as ex:
-            self.load("nothing")
+            self.Dummy.load("nothing")
         assert ex.value.args[0] == "use pickle/joblib"
 
 

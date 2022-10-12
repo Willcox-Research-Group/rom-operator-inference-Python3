@@ -183,6 +183,8 @@ class TestSnapshotTransformer:
         st.n = 100
         assert str(st) == "Snapshot transformer (n = 100)"
 
+        assert str(hex(id(st))) in repr(st)
+
     def test_statistics_report(self):
         """Test pre.SnapshotTransformer._statistics_report()."""
         X = np.arange(10) - 4
@@ -680,12 +682,14 @@ class TestSnapshotTransformerMulti:
         stm.transformers[2].scaling = "standard"
 
         assert str(stm) == \
-            "Multi-variate snapshot transformer\n" \
+            "3-variable snapshot transformer\n" \
             "* var1 | Snapshot transformer with mean-snapshot centering " \
             "(call fit_transform() to train)\n" \
             "* var2 | Snapshot transformer (n = 10)\n" \
             "* var3 | Snapshot transformer with 'standard' scaling " \
             "(call fit_transform() to train)"
+
+        assert str(hex(id(stm))) in repr(stm)
 
     # Persistence -------------------------------------------------------------
     def test_save(self):

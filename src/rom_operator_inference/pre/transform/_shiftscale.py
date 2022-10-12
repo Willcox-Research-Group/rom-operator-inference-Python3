@@ -320,6 +320,11 @@ class SnapshotTransformer(_BaseTransformer):
             out.append("(call fit_transform() to train)")
         return ' '.join(out)
 
+    def __repr__(self):
+        """Unique ID + string representation."""
+        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
+        return f"{uniqueID}\n{str(self)}"
+
     # Main routines -----------------------------------------------------------
     def _check_shape(self, Q):
         """Verify the shape of the snapshot set Q."""
@@ -703,7 +708,8 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         """Mean training snapshot across all transforms ((n,) ndarray)."""
         if not self._is_trained():
             return None
-        return np.concatenate([(st.mean_ if st.center else np.zeros(self.ni))
+        zeros = np.zeros(self.ni)
+        return np.concatenate([(st.mean_ if st.center else zeros)
                                for st in self.transformers])
 
     def __getitem__(self, key):
@@ -729,13 +735,19 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         return all(t1 == t2 for t1, t2 in zip(self.transformers,
                                               other.transformers))
 
+    # Printing ----------------------------------------------------------------
     def __str__(self):
         """String representation: centering and scaling directives."""
-        out = ["Multi-variate snapshot transformer"]
+        out = [f"{self.num_variables}-variable snapshot transformer"]
         namelength = max(len(name) for name in self.variable_names)
         for name, st in zip(self.variable_names, self.transformers):
             out.append(f"* {{:>{namelength}}} | {st}".format(name))
         return '\n'.join(out)
+
+    def __repr__(self):
+        """Unique ID + string representation."""
+        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
+        return f"{uniqueID}\n{str(self)}"
 
     # Main routines -----------------------------------------------------------
     def _is_trained(self):
@@ -876,6 +888,6 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
                 if group not in hf:
                     raise LoadfileFormatError("invalid save format "
                                               f"({group}/ not found)")
-                stm[i] = SnapshotTransformer.load(hf[f"variable{i+1}"])
+                stm[i] = SnapshotTransformer.load(hf[group])
 
             return stm

@@ -38,7 +38,6 @@ class _MultivarMixin:
         self.__num_variables = num_variables
         self.variable_names = variable_names
         self.__n = None
-        self.__ni = None
 
     # Properties --------------------------------------------------------------
     @property
@@ -68,16 +67,14 @@ class _MultivarMixin:
     @n.setter
     def n(self, nn):
         """Set the total and individual variable dimensions."""
-        ni, remainder = divmod(nn, self.num_variables)
-        if remainder != 0:
+        if nn % self.num_variables != 0:
             raise ValueError("n must be evenly divisible by num_variables")
         self.__n = nn
-        self.__ni = ni
 
     @property
     def ni(self):
         """Dimension of individual variables, i.e., ni = n / num_variables."""
-        return self.__ni
+        return None if self.n is None else self.n // self.num_variables
 
     # Convenience methods -----------------------------------------------------
     def get_varslice(self, var):
