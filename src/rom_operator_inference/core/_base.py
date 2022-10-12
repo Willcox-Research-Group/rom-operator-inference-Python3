@@ -373,7 +373,7 @@ class _BaseROM(abc.ABC):
         except Exception as e:
             raise AttributeError("model not trained (call fit())") from e
 
-    # Projection / reconstruction ---------------------------------------------
+    # Dimensionality reduction ------------------------------------------------
     def _project_operators(self, known_operators):
         """Project known full-order operators to the reduced-order space.
 
@@ -463,9 +463,8 @@ class _BaseROM(abc.ABC):
         # Save keys of known operators.
         self._projected_operators_ = ''.join(known_operators.keys())
 
-    def project(self, state, label="argument"):
-        """Project a high-dimensional state to its low-dimensional
-        representation.
+    def encode(self, state, label="argument"):
+        """Map high-dimensional states to low-dimensional latent coordinates.
 
         Parameters
         ----------
@@ -478,7 +477,7 @@ class _BaseROM(abc.ABC):
         Returns
         -------
         state_ : (r, ...) ndarray
-            Low-dimensional projection of state.
+            Low-dimensional encoding of `state`.
         """
         if self.r is None:
             raise AttributeError("reduced dimension not set")
@@ -488,27 +487,46 @@ class _BaseROM(abc.ABC):
             raise ValueError(f"{label} not aligned with basis")
         return self.basis.encode(state) if state.shape[0] == self.n else state
 
-    def reconstruct(self, state_, label="argument"):
-        """Reconstruct a high-dimensional state from its low-dimensional
-        representation.
+    def decode(self, state_, label="argument"):
+        """Map low-dimensional latent coordinates to high-dimensional states.
 
         Parameters
         ----------
         state_ : (r, ...) ndarray
-            Low-dimensional state vector or a collection of these.
+            Low-dimensional latent coordinate vector or a collection of these.
         label : str
             Name for state_ (used only in error reporting).
 
         Returns
         -------
         state : (n, ...) ndarray
-            High-dimensional reconstruction of state_.
+            High-dimensional decoding of `state_`.
         """
         if self.basis is None:
             raise AttributeError("basis not set")
         if state_.shape[0] != self.r:
             raise ValueError(f"{label} not aligned with basis")
         return self.basis.decode(state_)
+
+    # def project(self, state):
+    #     """Project high-dimensional states to the subspace that can be
+    #     represented by the basis by encoding the state in low-dimensional
+    #     latent coordinates, then decoding those coordinates:
+    #     project(Q) = decode(encode(Q)).
+    #
+    #     Parameters
+    #     ----------
+    #     state : (n, ...) ndarray
+    #         High-dimensional state vector or a collection of these.
+    #
+    #     Returns
+    #     -------
+    #     state_projected : (n, ...) ndarray
+    #         High-dimensional state vector, or a collection of k such vectors
+    #         organized as the columns of a matrix, projected to the range of
+    #         the basis.
+    #     """
+    #     return self.decode(self.encode(state))
 
     # ROM evaluation ----------------------------------------------------------
     def evaluate(self, state_, input_=None):

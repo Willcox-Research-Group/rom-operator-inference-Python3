@@ -74,7 +74,7 @@ class _BaseBasis(abc.ABC):
         """Project a high-dimensional state vector to the subset of the high-
         dimensional space that can be represented by the basis by encoding the
         state in low-dimensional latent coordinates, then decoding those
-        coordinates.
+        coordinates: project(Q) = decode(encode(Q)).
 
         Parameters
         ----------

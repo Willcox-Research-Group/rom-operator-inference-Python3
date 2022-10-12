@@ -25,7 +25,7 @@ class TestBaseROM:
             return 100
 
     def test_str(self):
-        """Test core._base._BaseROM.__str__() (string representation)."""
+        """Test _BaseROM.__str__() (string representation)."""
 
         # Continuous ROMs
         rom = self.Dummy("A")
@@ -97,7 +97,7 @@ class TestBaseROM:
         assert romstr[3] == "Reduced-order dimension r = 20"
 
     def test_repr(self):
-        """Test core._base._BaseROM.__repr__() (string representation)."""
+        """Test _BaseROM.__repr__() (string representation)."""
 
         def firstline(obj):
             return repr(obj).split('\n')[0]
@@ -232,7 +232,7 @@ class TestBaseROM:
         rom.G_ = np.random.random((r, r**3))
 
     def test_set_operators(self, n=60, m=10, r=12):
-        """Test core._base._BaseROM._set_operators()."""
+        """Test _BaseROM._set_operators()."""
         basis = np.random.random((n, r))
         c, A, H, G, B = _get_operators(r, m)
 
@@ -264,7 +264,7 @@ class TestBaseROM:
         assert rom.B_.entries is B
 
     def test_iter(self, m=2, r=6):
-        """Test core._base._BaseROM.__iter__()."""
+        """Test _BaseROM.__iter__()."""
         rom = self.Dummy("cAH")
         oplist = list(rom)
         assert len(oplist) == 3
@@ -277,7 +277,7 @@ class TestBaseROM:
             assert romop.entries is trueop
 
     def test_eq(self, n=10, r=3):
-        """Test core._base._BaseROM.__eq__()."""
+        """Test _BaseROM.__eq__()."""
 
         class Dummy2(self.Dummy):
             """Distinct copy of Dummy"""
@@ -325,7 +325,7 @@ class TestBaseROM:
 
     # Validation methods ------------------------------------------------------
     def test_check_operator_matches_modelform(self):
-        """Test core._base._BaseROM._check_operator_matches_modelform()."""
+        """Test _BaseROM._check_operator_matches_modelform()."""
         # Try key in modelform but operator None.
         rom = self.Dummy(self.Dummy._MODELFORM_KEYS)
         for key in rom._MODELFORM_KEYS:
@@ -343,7 +343,7 @@ class TestBaseROM:
                 f"'{key}' not in modelform requires {key}_ = None"
 
     def test_check_rom_operator_shape(self, m=4, r=7):
-        """Test core._base._BaseROM._check_rom_operator_shape()."""
+        """Test _BaseROM._check_rom_operator_shape()."""
         c, A, H, G, B = operators = _get_operators(r, m)
 
         # Try correct match but dimension 'r' is missing.
@@ -410,7 +410,7 @@ class TestBaseROM:
             "argument 'u' invalid since 'B' in modelform"
 
     def test_is_trained(self, m=4, r=7):
-        """Test core._base._BaseROM._check_is_trained()."""
+        """Test _BaseROM._check_is_trained()."""
         operators = _get_operators(r, m)
         rom = self.Dummy(self.Dummy._MODELFORM_KEYS)
 
@@ -424,9 +424,9 @@ class TestBaseROM:
         rom.c_, rom.A_, rom.H_, rom.G_, rom.B_ = operators
         rom._check_is_trained()
 
-    # Projection / reconstruction ---------------------------------------------
+    # Dimensionality reduction ------------------------------------------------
     def test_project_operators(self, n=15, m=5, r=4):
-        """Test core._base._BaseROM._project_operators()."""
+        """Test _BaseROM._project_operators()."""
         # Get test data.
         basis = np.random.random((n, r))
         shapes = {
@@ -562,65 +562,76 @@ class TestBaseROM:
 
         # TODO: Special case: G(q) = q^3
 
-    def test_project(self, n=60, k=50, r=10):
-        """Test core._base._BaseROM.project()."""
+    def test_encode(self, n=60, k=50, r=10):
+        """Test _BaseROM.encode()."""
         Q, Qdot, _ = _get_data(n, k, 2)
         rom = self.Dummy("c")
 
-        # Try to project without reduced dimension r set.
+        # Try to encode without reduced dimension r set.
         with pytest.raises(AttributeError) as ex:
-            rom.project(Q, 'things')
+            rom.encode(Q, 'things')
         assert ex.value.args[0] == "reduced dimension not set"
 
-        # Try to project with r set but with wrong shape.
+        # Try to encode with r set but with wrong shape.
         rom.r = r
         with pytest.raises(AttributeError) as ex:
-            rom.project(Q, 'arg')
+            rom.encode(Q, 'arg')
         assert ex.value.args[0] == "basis not set"
 
-        # Try to project with basis set but with wrong shape.
+        # Try to encode with basis set but with wrong shape.
         Vr = np.random.random((n, r))
         rom.basis = Vr
         with pytest.raises(ValueError) as ex:
-            rom.project(Q[:-1, :], 'state')
+            rom.encode(Q[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
 
         # Correct usage.
         for S, label in [(Q, 'state'), (Qdot, 'ddts')]:
-            S_ = rom.project(S, label)
+            S_ = rom.encode(S, label)
             assert S_.shape == (r, k)
             assert np.allclose(S_, Vr.T @ S)
-            S_ = rom.project(S[:r, :], label)
+            assert np.allclose(S_, rom.basis.encode(S))
+            S_ = rom.encode(S[:r, :], label)
             assert S_.shape == (r, k)
             assert np.all(S_ == S[:r, :])
 
-    def test_reconstruct(self, n=60, k=20, r=8):
-        """Test core._base._BaseROM.reconstruct()."""
+    def test_decode(self, n=60, k=20, r=8):
+        """Test _BaseROM.decode()."""
         Q_, Qdot_, _ = _get_data(r, k, 2)
         rom = self.Dummy("c")
 
-        # Try to reconstruct without basis.
+        # Try to decode without basis.
         rom.r = r
         with pytest.raises(AttributeError) as ex:
-            rom.reconstruct(Q_, 'arg')
+            rom.decode(Q_, 'arg')
         assert ex.value.args[0] == "basis not set"
 
-        # Try to project with basis set but with wrong shape.
+        # Try to encode with basis set but with wrong shape.
         Vr = np.random.random((n, r))
         rom.basis = Vr
         with pytest.raises(ValueError) as ex:
-            rom.reconstruct(Q_[:-1, :], 'state')
+            rom.decode(Q_[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
 
         # Correct usage.
         for S_, label in [(Q_, 'state_'), (Qdot_, 'ddts_')]:
-            S = rom.reconstruct(S_, label)
+            S = rom.decode(S_, label)
             assert S.shape == (n, k)
             assert np.allclose(S, Vr @ S_)
+            assert np.allclose(S, rom.basis.decode(S_))
+
+    # def test_project(self, n=63, k=19, r=7):
+    #     """Lightly test _BaseROM.project()."""
+    #     Q = np.random.standard_normal((n, k))
+    #     rom = self.Dummy("c")
+    #     Vr = np.random.random((n, r))
+    #     rom.basis = Vr
+    #     Q_proj = rom.project(Q)
+    #     assert np.allclose(Q_proj, Vr @ (Vr.T @ Q))
 
     # ROM evaluation ----------------------------------------------------------
     def test_evaluate(self, r=5, m=2):
-        """Test core._base._BaseROM.evaluate()."""
+        """Test _BaseROM.evaluate()."""
         c_, A_, H_, G_, B_ = _get_operators(r, m)
 
         rom = self.Dummy("cA")
@@ -650,14 +661,14 @@ class TestBaseROM:
         assert np.allclose(rom.evaluate(q_, u), y_)
 
     def test_save(self):
-        """Test core._base._BaseROM.save()."""
+        """Test _BaseROM.save()."""
         rom = self.Dummy("cA")
         with pytest.raises(NotImplementedError) as ex:
             rom.save("nothing")
         assert ex.value.args[0] == "use pickle/joblib"
 
     def test_load(self):
-        """Test core._base._BaseROM.load()."""
+        """Test _BaseROM.load()."""
         with pytest.raises(NotImplementedError) as ex:
             self.Dummy.load("nothing")
         assert ex.value.args[0] == "use pickle/joblib"

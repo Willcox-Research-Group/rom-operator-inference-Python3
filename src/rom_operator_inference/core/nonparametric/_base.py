@@ -120,9 +120,9 @@ class _NonparametricOpInfROM(_BaseROM):
         # Ensure training datasets have consistent sizes.
         self._check_training_data_shapes(to_check)
 
-        # Project states and lhs to the reduced subspace (if needed).
-        states_ = self.project(states, "states")
-        lhs_ = self.project(lhs, self._LHS_ARGNAME)
+        # Encode states and lhs in the reduced subspace (if needed).
+        states_ = self.encode(states, "states")
+        lhs_ = self.encode(lhs, self._LHS_ARGNAME)
 
         # Subtract known data from the lhs data.
         for key in self._projected_operators_:
