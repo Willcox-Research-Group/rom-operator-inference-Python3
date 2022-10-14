@@ -333,7 +333,7 @@ class TestInterpolatedOpInfROM:
                 # Check basis.
                 if hasbasis:
                     assert "basis" in data
-                    assert np.all(data["basis"][:] == Vr)
+                    assert np.all(data["basis/entries"][:] == Vr)
                 else:
                     assert "basis" not in data
 
@@ -370,7 +370,7 @@ class TestInterpolatedOpInfROM:
 
         with pytest.raises(FileExistsError) as ex:
             rom.save(target, overwrite=False)
-        assert ex.value.args[0] == f"{target} (use overwrite=True to ignore)"
+        assert ex.value.args[0] == f"{target} (overwrite=True to ignore)"
 
         rom.save(target, save_basis=True, overwrite=True)
         _checkfile(target, rom, True)
@@ -391,7 +391,7 @@ class TestInterpolatedOpInfROM:
         rom2 = rom.load(target, rom.InterpolatorClass)
         assert rom2 is not rom
         assert rom2 == rom
-        assert np.all(rom2.basis == rom.basis)
+        assert rom2.basis == rom.basis
         for attr in ["n", "m", "r", "modelform", "__class__"]:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_"]:
@@ -494,11 +494,14 @@ class TestInterpolatedOpInfROM:
         assert rom.basis is None
 
         # Add the basis and then load the file correctly.
+        basis = opinf.pre.LinearBasis().fit(Vr)
         with h5py.File(target, 'a') as hf:
-            hf.create_dataset("basis", data=Vr)
+            hf["meta"].attrs["BasisClass"] = "LinearBasis"
+            basis.save(hf.create_group("basis"))
         rom = self.Dummy.load(target, InterpolatorClass)
         _check_model(rom)
-        assert np.all(rom.basis == Vr)
+        assert isinstance(rom.basis, type(basis))
+        assert np.all(rom.basis.entries == Vr)
 
         # One additional test to cover other cases.
         with h5py.File(target, 'a') as f:
@@ -522,7 +525,8 @@ class TestInterpolatedOpInfROM:
         assert np.allclose(rom.H_.matrices, ops["H"])
         assert np.allclose(rom.G_.matrices, ops["G"])
         assert rom.B_ is None
-        assert np.all(rom.basis == Vr)
+        assert isinstance(rom.basis, type(basis))
+        assert np.all(rom.basis.entries == Vr)
         assert rom.n == n
 
         # Clean up.

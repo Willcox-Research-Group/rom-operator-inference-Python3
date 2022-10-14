@@ -1,4 +1,4 @@
-# pre/test_shift_scale.py
+# pre/transform/test_shift_scale.py
 """Tests for rom_operator_inference.pre._shift_scale.py."""
 
 import os
@@ -104,6 +104,9 @@ class TestSnapshotTransformer:
             st.scaling = s
         st.scaling = None
 
+        st.byrow = 1
+        assert st.byrow is True
+
     def test_eq(self, n=200):
         """Test pre.SnapshotTransformer.__eq__()."""
         µ = np.random.randint(0, 100, (n,))
@@ -120,10 +123,17 @@ class TestSnapshotTransformer:
         st2.center = False
         assert not (st1 == st2)
         assert st1 != st2
+        st2.center = True
+
+        # Mismatched dimensions.
+        st1.n = n
+        st2.n = st1.n + 2
+        assert not (st1 == st2)
+        assert st1 != st2
+        st2.n = n
 
         # Centering attributes.
         st1.mean_ = µ
-        st2.center = True
         assert st1 != st2
         st2.mean_ = µ
         assert st1 == st2
@@ -152,7 +162,8 @@ class TestSnapshotTransformer:
 
         st.center = False
         st.scaling = None
-        assert str(st) == "Snapshot transformer"
+        assert str(st) == \
+            "Snapshot transformer (call fit_transform() to train)"
 
         st.center = True
         trn = "(call fit_transform() to train)"
@@ -166,6 +177,13 @@ class TestSnapshotTransformer:
         for s in st._VALID_SCALINGS:
             st.scaling = s
             assert str(st) == f"Snapshot transformer with '{s}' scaling {trn}"
+
+        st.center = False
+        st.scaling = None
+        st.n = 100
+        assert str(st) == "Snapshot transformer (n = 100)"
+
+        assert str(hex(id(st))) in repr(st)
 
     def test_statistics_report(self):
         """Test pre.SnapshotTransformer._statistics_report()."""
@@ -187,7 +205,7 @@ class TestSnapshotTransformer:
                 # Check transformation metadata.
                 assert "meta" in hf
                 assert len(hf["meta"]) == 0
-                for attr in ("center", "scaling", "verbose"):
+                for attr in ("center", "scaling", "byrow", "verbose"):
                     assert attr in hf["meta"].attrs
                     if attr == "scaling" and st.scaling is None:
                         assert not hf["meta"].attrs[attr]
@@ -195,14 +213,14 @@ class TestSnapshotTransformer:
                         assert hf["meta"].attrs[attr] == getattr(st, attr)
 
                 # Check transformation parameters.
-                if st.center:
+                if st.center and hasattr(st, "mean_"):
                     assert "transformation/mean_" in hf
                     assert np.all(hf["transformation/mean_"][:] == st.mean_)
-                if st.scaling:
+                if st.scaling and hasattr(st, "scale_"):
                     assert "transformation/scale_" in hf
-                    assert hf["transformation/scale_"][0] == st.scale_
+                    assert np.all(hf["transformation/scale_"][:] == st.scale_)
                     assert "transformation/shift_" in hf
-                    assert hf["transformation/shift_"][0] == st.shift_
+                    assert np.all(hf["transformation/shift_"][:] == st.shift_)
 
         # Check file creation and overwrite protocol on null transformation.
         st = opinf.pre.SnapshotTransformer()
@@ -211,17 +229,19 @@ class TestSnapshotTransformer:
 
         with pytest.raises(FileExistsError) as ex:
             st.save(target, overwrite=False)
-        ex.value.args[0] == f"{target} (use overwrite=True to ignore)"
+        ex.value.args[0] == f"{target} (overwrite=True to ignore)"
 
         st.save(target, overwrite=True)
         _checkfile(target, st)
 
         # Check non-null transformations.
         X = np.random.randint(0, 100, (n, k)).astype(float)
-        for scaling, center in itertools.product({None, *st._VALID_SCALINGS},
-                                                 (True, False)):
+        for scaling, center, byrow in itertools.product(*[
+            {None, *st._VALID_SCALINGS}, (True, False), (True, False)
+        ]):
             st.center = center
             st.scaling = scaling
+            st.byrow = byrow
             st.fit_transform(X)
             st.save(target, overwrite=True)
             _checkfile(target, st)
@@ -239,17 +259,19 @@ class TestSnapshotTransformer:
         with h5py.File(target, 'w'):
             pass
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             opinf.pre.SnapshotTransformer.load(target)
         assert ex.value.args[0] == "invalid save format (meta/ not found)"
 
         # Check that save() -> load() gives the same transformer.
         st = opinf.pre.SnapshotTransformer()
         X = np.random.randint(0, 100, (n, k)).astype(float)
-        for scaling, center in itertools.product({None, *st._VALID_SCALINGS},
-                                                 (True, False)):
-            st.scaling = scaling
+        for scaling, center, byrow in itertools.product(*[
+            {None, *st._VALID_SCALINGS}, (True, False), (True, False)
+        ]):
             st.center = center
+            st.scaling = scaling
+            st.byrow = byrow
             st.fit_transform(X, inplace=False)
             st.save(target, overwrite=True)
             st2 = opinf.pre.SnapshotTransformer.load(target)
@@ -258,13 +280,27 @@ class TestSnapshotTransformer:
         os.remove(target)
 
     # Main routines -----------------------------------------------------------
+    def test_check_shape(self):
+        """Test pre.SnapshotTransformerMulti._check_shape()."""
+        stm = opinf.pre.SnapshotTransformer()
+        stm.n = 12
+        X = np.random.randint(0, 100, (12, 23)).astype(float)
+        stm._check_shape(X)
+
+        with pytest.raises(ValueError) as ex:
+            stm._check_shape(X[:-1])
+        assert ex.value.args[0] == \
+            "states.shape[0] = 11 != 12 = n"
+
     def test_is_trained(self):
         """Test pre.SnapshotTransformer._is_trained()."""
         st = opinf.pre.SnapshotTransformer()
 
-        # Null transformer is always trained.
+        # Null transformer is always trained once n is set.
         st.center = False
         st.scaling = None
+        assert st._is_trained() is False
+        st.n = 100
         assert st._is_trained() is True
 
         # Centering.
@@ -295,7 +331,12 @@ class TestSnapshotTransformer:
             assert B.shape == A.shape
             return B
 
-        st = opinf.pre.SnapshotTransformer(verbose=True)
+        st = opinf.pre.SnapshotTransformer(byrow=False, verbose=True)
+
+        # Test dimension check.
+        with pytest.raises(ValueError) as ex:
+            st.fit_transform(np.zeros(10))
+        assert ex.value.args[0] == "2D array required to fit transformer"
 
         # Test null transformation.
         st.center = False
@@ -351,6 +392,43 @@ class TestSnapshotTransformer:
             assert np.isclose(np.mean(Y), 0)
             assert np.isclose(np.max(np.abs(Y)), 1)
 
+        # Test scaling by row (without and with centering).
+        st.byrow = True
+        for centering in (False, True):
+            st.center = centering
+
+            # Test standard scaling.
+            st.scaling = "standard"
+            Y = fit_transform_copy(st, X)
+            for attr in "scale_", "shift_":
+                assert hasattr(st, attr)
+                assert isinstance(getattr(st, attr), np.ndarray)
+            assert np.allclose(np.mean(Y, axis=1), 0)
+            assert np.allclose(np.std(Y, axis=1), 1)
+
+            # Test min-max scaling.
+            st.scaling = "minmax"
+            Y = fit_transform_copy(st, X)
+            assert np.allclose(np.min(Y, axis=1), 0)
+            assert np.allclose(np.max(Y, axis=1), 1)
+
+            # Test symmetric min-max scaling.
+            st.scaling = "minmaxsym"
+            Y = fit_transform_copy(st, X)
+            assert np.allclose(np.min(Y, axis=1), -1)
+            assert np.allclose(np.max(Y, axis=1), 1)
+
+            # Test maximum absolute scaling.
+            st.scaling = "maxabs"
+            Y = fit_transform_copy(st, X)
+            assert np.allclose(np.max(np.abs(Y), axis=1), 1)
+
+            # Test minimum-maximum absolute scaling.
+            st.scaling = "maxabssym"
+            Y = fit_transform_copy(st, X)
+            assert np.allclose(np.mean(Y, axis=1), 0)
+            assert np.allclose(np.max(np.abs(Y), axis=1), 1)
+
     def test_transform(self, n=200, k=50):
         """Test pre.SnapshotTransformer.transform()."""
         X = np.random.randint(0, 100, (n, k)).astype(float)
@@ -385,9 +463,15 @@ class TestSnapshotTransformer:
             X = np.random.randint(0, 100, (n, k)).astype(float)
             Y = np.random.randint(0, 100, (n, k)).astype(float)
             st.scaling = scl
-            st.fit_transform(X)
+            st.fit(X)
             a, b = st.scale_, st.shift_
-            Z = st.transform(Y)
+            Z = st.transform(Y, inplace=False)
+            assert np.allclose(Z, a*Y + b)
+
+            # Test transforming a one-dimensional array.
+            Y = np.random.randint(0, 100, n).astype(float)
+            Z = st.transform(Y, inplace=False)
+            assert Z.shape == Y.shape
             assert np.allclose(Z, a*Y + b)
 
     def test_inverse_transform(self, n=200, k=50):
@@ -408,7 +492,16 @@ class TestSnapshotTransformer:
             st.fit_transform(X, inplace=False)
             Y = np.random.randint(0, 100, (n, k)).astype(float)
             Z = st.transform(Y, inplace=False)
+            assert Z.shape == Y.shape
             st.inverse_transform(Z, inplace=True)
+            assert Z.shape == Y.shape
+            assert np.allclose(Z, Y)
+
+            Y = np.random.randint(0, 100, n).astype(float)
+            Z = st.transform(Y, inplace=False)
+            assert Z.shape == Y.shape
+            st.inverse_transform(Z, inplace=True)
+            assert Z.shape == Y.shape
             assert np.allclose(Z, Y)
 
 
@@ -493,29 +586,32 @@ class TestSnapshotTransformerMulti:
         stm.verbose = True
         assert stm.verbose is True
 
-    def test_mean(self):
+    def test_mean(self, num_variables=4, varsize=7):
         """Test pre.SnapshotTransformerMulti.mean_."""
         centers = [False, True, False, True]
         scalings = [None, None, "standard", "minmax"]
-        stm = opinf.pre.SnapshotTransformerMulti(4, centers, scalings)
+        stm = opinf.pre.SnapshotTransformerMulti(num_variables,
+                                                 centers, scalings)
         assert stm.mean_ is None
 
         # Set the centering vectors.
-        stm.n_ = 7
-        µs = [np.random.randint(0, 100, stm.n_) for _ in range(4)]
+        stm.n = stm.num_variables * varsize
+        µs = [np.random.randint(0, 100, stm.ni)
+              for _ in range(stm.num_variables)]
         for i, µ in enumerate(µs):
             if centers[i]:
                 stm.transformers[i].mean_ = µ
             if scalings[i]:
                 stm.transformers[i].scale_ = 0
                 stm.transformers[i].shift_ = 0
+            stm.transformers[i].n = stm.ni
 
         # Validate concatenated mean_.
         µµ = stm.mean_
         assert isinstance(µµ, np.ndarray)
-        assert µµ.shape == (4*stm.n_,)
+        assert µµ.shape == (stm.n,)
         for i, µ in enumerate(µs):
-            s = slice(i*stm.n_, (i+1)*stm.n_)
+            s = slice(i*stm.ni, (i+1)*stm.ni)
             if centers[i]:
                 assert np.allclose(µµ[s], µ)
             else:
@@ -582,15 +678,18 @@ class TestSnapshotTransformerMulti:
                                                  scaling=None,
                                                  variable_names=names)
         stm.transformers[0].center = True
-        stm.transformers[-1].scaling = "standard"
+        stm.transformers[1].n = 10
+        stm.transformers[2].scaling = "standard"
 
         assert str(stm) == \
-            "Multi-variate snapshot transformer\n" \
+            "3-variable snapshot transformer\n" \
             "* var1 | Snapshot transformer with mean-snapshot centering " \
             "(call fit_transform() to train)\n" \
-            "* var2 | Snapshot transformer\n" \
+            "* var2 | Snapshot transformer (n = 10)\n" \
             "* var3 | Snapshot transformer with 'standard' scaling " \
             "(call fit_transform() to train)"
+
+        assert str(hex(id(stm))) in repr(stm)
 
     # Persistence -------------------------------------------------------------
     def test_save(self):
@@ -644,7 +743,7 @@ class TestSnapshotTransformerMulti:
 
         with pytest.raises(FileExistsError) as ex:
             stm.save(target, overwrite=False)
-        assert ex.value.args[0] == f"{target} (use overwrite=True to ignore)"
+        assert ex.value.args[0] == f"{target} (overwrite=True to ignore)"
 
         stm.save(target, overwrite=True)
         _checkfile(target, stm)
@@ -674,9 +773,19 @@ class TestSnapshotTransformerMulti:
         with h5py.File(target, 'w'):
             pass
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             opinf.pre.SnapshotTransformerMulti.load(target)
         assert ex.value.args[0] == "invalid save format (meta/ not found)"
+
+        with h5py.File(target, 'w') as hf:
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["num_variables"] = 3
+            meta.attrs["verbose"] = True
+            meta.attrs["variable_names"] = list("abc")
+
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+            opinf.pre.SnapshotTransformerMulti.load(target)
+        assert ex.value.args[0] == "invalid save format (variable1/ not found)"
 
         # Check that save() -> load() gives the same transformer.
         stm = opinf.pre.SnapshotTransformerMulti(15)
@@ -695,19 +804,6 @@ class TestSnapshotTransformerMulti:
         os.remove(target)
 
     # Main routines -----------------------------------------------------------
-    def test_check_shape(self):
-        """Test pre.SnapshotTransformerMulti._check_shape()."""
-        stm = opinf.pre.SnapshotTransformerMulti(12)
-        stm.n_ = 10
-        X = np.random.randint(0, 100, (120, 23)).astype(float)
-        stm._check_shape(X)
-
-        with pytest.raises(ValueError) as ex:
-            stm._check_shape(X[:-1])
-        assert ex.value.args[0] == \
-            "snapshot set must have num_variables * n = 12 * 10 = 120 rows " \
-            "(got 119)"
-
     def __testcase(self):
         centers = [
             False, True,
@@ -728,17 +824,24 @@ class TestSnapshotTransformerMulti:
         """Test pre.SnapshotTransformerMulti.fit_transform()."""
         stm = self.__testcase()
 
+        # Test dimension check.
+        with pytest.raises(ValueError) as ex:
+            stm.fit_transform(np.zeros(10))
+        assert ex.value.args[0] == "2D array required to fit transformer"
+
         # Inplace transformation.
         X = np.random.randint(0, 100, (120, 29)).astype(float)
         Y = stm.fit_transform(X, inplace=True)
-        assert stm.n_ == 10
+        assert stm.n == 120
+        assert stm.ni == 10
         assert stm._is_trained()
         assert Y is X
 
         # Non-inplace transformation.
         X = np.random.randint(0, 100, (120, 29)).astype(float)
         Y = stm.fit_transform(X, inplace=False)
-        assert stm.n_ == 10
+        assert stm.n == 120
+        assert stm.ni == 10
         assert stm._is_trained()
         assert Y is not X
         assert type(Y) is type(X)
@@ -746,14 +849,14 @@ class TestSnapshotTransformerMulti:
 
         # Null transformation.
         i = 0
-        s = slice(i*stm.n_, (i+1)*stm.n_)
+        s = slice(i*stm.ni, (i+1)*stm.ni)
         assert np.allclose(Y[s], X[s])
         for attr in ("mean_", "scale_", "shift_"):
             assert not hasattr(stm.transformers[i], attr)
 
         # Centering only.
         i += 1
-        s = slice(i*stm.n_, (i+1)*stm.n_)
+        s = slice(i*stm.ni, (i+1)*stm.ni)
         µ = np.mean(X[s], axis=1)
         assert np.allclose(Y[s], X[s] - µ.reshape(-1, 1))
         assert hasattr(stm.transformers[i], "mean_")
@@ -764,34 +867,34 @@ class TestSnapshotTransformerMulti:
         for ctr in [False, True]:
             # Standard scaling.
             i += 1
-            s = slice(i*stm.n_, (i+1)*stm.n_)
+            s = slice(i*stm.ni, (i+1)*stm.ni)
             assert stm.transformers[i].scaling == "standard"
             assert np.isclose(np.mean(Y[s]), 0)
             assert np.isclose(np.std(Y[s]), 1)
 
             # Minmax scaling (to [0, 1]).
             i += 1
-            s = slice(i*stm.n_, (i+1)*stm.n_)
+            s = slice(i*stm.ni, (i+1)*stm.ni)
             assert stm.transformers[i].scaling == "minmax"
             assert np.isclose(np.min(Y[s]), 0)
             assert np.isclose(np.max(Y[s]), 1)
 
             # Symmetric Minmax scaling (to [-1, 1]).
             i += 1
-            s = slice(i*stm.n_, (i+1)*stm.n_)
+            s = slice(i*stm.ni, (i+1)*stm.ni)
             assert stm.transformers[i].scaling == "minmaxsym"
             assert np.isclose(np.min(Y[s]), -1)
             assert np.isclose(np.max(Y[s]), 1)
 
             # Symmetric Minmax scaling (to [-1, 1]).
             i += 1
-            s = slice(i*stm.n_, (i+1)*stm.n_)
+            s = slice(i*stm.ni, (i+1)*stm.ni)
             assert stm.transformers[i].scaling == "maxabs"
             assert np.isclose(np.max(np.abs(Y[s])), 1)
 
             # Symmetric Minmax scaling (to [-1, 1]).
             i += 1
-            s = slice(i*stm.n_, (i+1)*stm.n_)
+            s = slice(i*stm.ni, (i+1)*stm.ni)
             assert stm.transformers[i].scaling == "maxabssym"
             assert np.isclose(np.mean(Y[s]), 0)
             assert np.isclose(np.max(np.abs(Y[s])), 1)
@@ -799,6 +902,7 @@ class TestSnapshotTransformerMulti:
     def test_transform(self):
         """Test pre.SnapshotTransformerMulti.transform()."""
         stm = self.__testcase()
+        stm.n = 120
 
         X = np.random.randint(0, 100, (120, 29)).astype(float)
         with pytest.raises(AttributeError) as ex:
@@ -813,7 +917,19 @@ class TestSnapshotTransformerMulti:
         assert Z is Y
 
         # Non-inplace transformation.
-        Y = np.random.randint(0, 100, (120, 33)).astype(float)
+        Y = np.random.randint(0, 100, (120, 31)).astype(float)
+        Z = stm.transform(Y, inplace=False)
+        assert Z is not Y
+        assert type(Z) is type(Y)
+        assert Z.shape == Y.shape
+
+        # Transform one-dimensional array inplace.
+        Y = np.random.randint(0, 100, 120).astype(float)
+        Z = stm.transform(Y, inplace=True)
+        assert Z is Y
+
+        # Transform one-dimensional array not inplace.
+        Y = np.random.randint(0, 100, 120).astype(float)
         Z = stm.transform(Y, inplace=False)
         assert Z is not Y
         assert type(Z) is type(Y)

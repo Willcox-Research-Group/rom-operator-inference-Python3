@@ -8,8 +8,8 @@
 <!-- [![Documentation](https://img.shields.io/badge/Documentation-JupyterBook-important)](sec-api) -->
 
 :::{attention}
-This documentation is for `rom_operator_inference` version `2.0.0`, which has not yet been released.
-See the current documentation for version `1.2.1` [here](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki/API-Reference).
+This documentation is for `rom_operator_inference` version `1.4.0`.
+See the documentation for version `1.2.1` [here](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki/API-Reference).
 :::
 
 This package is a Python implementation of operator inference (OpInf), a projection-based model reduction technique for learning polynomial reduced-order models of dynamical systems.

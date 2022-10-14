@@ -179,10 +179,10 @@ class TestDiscreteOpInfROM:
         for form in MODEL_FORMS:
             if "B" not in form:             # No control inputs.
                 rom = _trainedmodel(self.ModelClass, form, Vr, None)
-                out = rom.predict(q0, niters, reconstruct=True)
+                out = rom.predict(q0, niters, decode=True)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n, niters)
-                out2 = rom.predict(q0, niters, reconstruct=False)
+                out2 = rom.predict(q0, niters, decode=False)
                 assert isinstance(out2, np.ndarray)
                 assert out2.shape == (r, niters)
                 assert np.allclose(Vr @ out2, out)
@@ -190,21 +190,21 @@ class TestDiscreteOpInfROM:
             else:                           # Has Control inputs.
                 # Predict with 2D inputs.
                 rom = _trainedmodel(self.ModelClass, form, Vr, m)
-                out = rom.predict(q0, niters, U, reconstruct=True)
+                out = rom.predict(q0, niters, U, decode=True)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n, niters)
 
                 # Predict with 1D inputs.
                 rom = _trainedmodel(self.ModelClass, form, Vr, 1)
                 out = rom.predict(q0, niters, np.ones(niters),
-                                  reconstruct=False)
+                                  decode=False)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (r, niters)
 
         # Predict with no basis gives result in low-dimensional space.
         rom = _trainedmodel(self.ModelClass, "cA", Vr, None)
         rom.basis = None
-        out = rom.predict(Vr.T @ q0, niters, reconstruct=True)
+        out = rom.predict(Vr.T @ q0, niters, decode=True)
         assert isinstance(out, np.ndarray)
         assert out.shape == (r, niters)
 
@@ -318,17 +318,17 @@ class TestContinuousOpInfROM:
         for form in MODEL_FORMS:
             if "B" not in form:
                 rom = _trainedmodel(self.ModelClass, form, Vr, None)
-                out = rom.predict(q0, t, reconstruct=True)
+                out = rom.predict(q0, t, decode=True)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n, t.size)
-                out = rom.predict(q0, t, reconstruct=False)
+                out = rom.predict(q0, t, decode=False)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (r, t.size)
 
         # Predict with no basis gives result in low-dimensional space.
         rom = _trainedmodel(self.ModelClass, "cA", Vr, None)
         rom.basis = None
-        out = rom.predict(Vr.T @ q0, t, reconstruct=True)
+        out = rom.predict(Vr.T @ q0, t, decode=True)
         assert isinstance(out, np.ndarray)
         assert out.shape == (r, t.size)
 
@@ -374,22 +374,22 @@ class TestContinuousOpInfROM:
                 # Predict with 2D inputs.
                 rom = _trainedmodel(self.ModelClass, form, Vr, m)
                 # continuous input.
-                out = rom.predict(q0, t, input_func, reconstruct=True)
+                out = rom.predict(q0, t, input_func, decode=True)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n, nt)
                 # discrete input.
-                out = rom.predict(q0, t, Upred, reconstruct=False)
+                out = rom.predict(q0, t, Upred, decode=False)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (r, nt)
 
                 # Predict with 1D inputs.
                 rom = _trainedmodel(self.ModelClass, form, Vr, 1)
                 # continuous input.
-                out = rom.predict(q0, t, lambda t: 1, reconstruct=True)
+                out = rom.predict(q0, t, lambda t: 1, decode=True)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (n, nt)
                 out = rom.predict(q0, t, lambda t: np.array([1]),
-                                  reconstruct=False)
+                                  decode=False)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (r, nt)
                 # discrete input.

@@ -4,28 +4,34 @@
 format: jb-book
 root: content/index.md
 parts:
-  # Introduction / summary, mathematical statement, literature.
+  # Introduction / summary, literature, package installation.
   - caption: Operator Inference
+    # numbered: 1
     chapters:
     - file: content/opinf/intro.md
-    # - file: content/opinf/mathematics.md
-    - file: content/opinf/notation.md
     # - file: content/opinf/literature.md
-    - file: content/opinf/bibliography.md
+    - file: content/opinf/installation.md
 
   # How to use the package.
   - caption: Package Usage
+    # numbered: 1
     chapters:
-    - file: content/usage/installation.md
     - file: content/usage/preprocessing/index.md
       sections:
-      - file: content/usage/preprocessing/transformation.md
-      - file: content/usage/preprocessing/basis.md
+      - file: content/usage/preprocessing/lifting.md
+      - file: content/usage/preprocessing/transformers.md
+      - file: content/usage/preprocessing/basis.ipynb
+      # - file: content/usage/preprocessing/pod.md
+      # - file: content/usage/preprocessing/quadratic.md
     - file: content/usage/romclasses/index.md
       sections:
+      - file: content/usage/romclasses/structure.md
+      - file: content/usage/romclasses/attributes.md
+      - file: content/usage/romclasses/methods.md
       - file: content/usage/romclasses/continuous.md
       - file: content/usage/romclasses/discrete.md
       # - file: content/usage/romclasses/steady.md
+      - file: content/usage/romclasses/parametric.md
       # - file: content/usage/romclasses/affine.md
       - file: content/usage/romclasses/interpolate.md
     - file: content/usage/solvers/index.md
@@ -40,15 +46,21 @@ parts:
 
   # Complete numerical examples, written in a tutorial style.
   - caption: Tutorials
+    # numbered: 1
     chapters:
     - file: content/tutorials/basics.ipynb
     - file: content/tutorials/heat_equation.ipynb
-    - file: content/tutorials/gallery.md
+    # - file: content/tutorials/gallery.md
 
   # Non-narrative API documentation (TODO: automate generation).
   # - caption: API Documentation
   #   chapters:
   #   - file: content/api/...
+
+  - caption: Appendix
+    chapters:
+    - file: content/appendix/notation.md
+    - file: content/appendix/bibliography.md
 
   # Instructions for developers.
   - caption: Developer Guide

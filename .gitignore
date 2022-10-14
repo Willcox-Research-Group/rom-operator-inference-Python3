@@ -14,6 +14,8 @@ build/
 dist/
 *.eggs/
 *.egg-info/
+.vscode/
+.pypirc
 
 # Extra Matlab files
 *.mat
