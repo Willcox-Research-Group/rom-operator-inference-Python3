@@ -220,6 +220,9 @@ class TestLinearBasis:
         basis = self.LinearBasis.load(target)
         assert basis == basis1
 
+        # Clean up.
+        os.remove(target)
+
 
 class TestLinearBasisMulti:
     """Test pre.basis._linear._LinearBasis."""

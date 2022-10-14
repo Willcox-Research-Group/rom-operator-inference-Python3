@@ -339,6 +339,9 @@ class TestPODBasis:
         basis2 = self.PODBasis.load(target)
         assert basis1 == basis2
 
+        # Clean up.
+        os.remove(target)
+
 
 class TestPODBasisMulti:
     """Test opinf.pre.basis._pod.PODBasisMulti."""
