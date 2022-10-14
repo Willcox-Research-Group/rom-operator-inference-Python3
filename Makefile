@@ -33,7 +33,7 @@ test: lint install
 
 
 docs:
-	jupyter-book build docs
+	jupyter-book build docs -n -W --keep-going
 
 
 deploy: test docs

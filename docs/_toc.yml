@@ -9,8 +9,8 @@ parts:
     # numbered: 1
     chapters:
     - file: content/opinf/intro.md
-    # - file: content/opinf/literature.md
     - file: content/opinf/installation.md
+    # - file: content/opinf/literature.md
 
   # How to use the package.
   - caption: Package Usage

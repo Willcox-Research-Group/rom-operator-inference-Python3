@@ -1,5 +1,5 @@
-(sec-normalization)=
-# Data Normalization
+(sec-pre-scaling)=
+# Data Scaling
 
 :::{attention}
 This page is under construction.

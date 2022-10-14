@@ -50,7 +50,9 @@ sphinx:
     # MathJax 3 (faster than the default).
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     # language: en
-    numfig_secnum_depth: 2  # Eq (1.1.1) instead of (1)
+    numfig_secnum_depth: 1            # Eq (1.1) instead of (1)
+    bibtex_reference_style: label
+    # bibtex_default_style: plain     # Citations as numbers
   extra_extensions:
     - sphinx_design
     - sphinxcontrib.mermaid

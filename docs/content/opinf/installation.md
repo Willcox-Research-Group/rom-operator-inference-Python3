@@ -1,5 +1,5 @@
 (sec-installation)=
-# Installation
+# Package Installation
 
 This page describes how to install `rom_operator_inference` locally.
 

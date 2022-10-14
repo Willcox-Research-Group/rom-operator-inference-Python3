@@ -48,7 +48,7 @@ The `pre` module contains all transformer and basis class definitions.
 Transformers and bases can be _monolithic_ (treating the state as one variable) or _multivariable_ (treating different chunks of the state as separate variables).
 Multivariable transformers and bases inherit from `pre._multivar._MultivarMixin` and should have, as attributes, a list of monolithic counterparts.
 
-Read [Data Normalization](sec-normalization) and [Basis Computation](sec-basis-computation) before starting work here.
+Read [Data Scaling](sec-pre-scaling) and [Basis Computation](sec-basis-computation) before starting work here.
 
 (subsec-contrib-transformerclass)=
 ### Transformer Classes

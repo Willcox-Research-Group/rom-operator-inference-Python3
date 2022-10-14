@@ -24,7 +24,7 @@ Operator Inference learns a reduced-order model that determines the evolution of
 This chapter discusses modeling choices for $\boldsymbol{\Gamma}$, the mapping that bridges the latent coordinates and the original state space.
 We approach this in two stages.
 
-**Data normalization.**
+**Data scaling.**
 Raw dynamical systems data often need to be lightly preprocessed before use in Operator Inference.
 Common preprocessing steps include
 1. Variable transformations / lifting to induce a polynomial structure.

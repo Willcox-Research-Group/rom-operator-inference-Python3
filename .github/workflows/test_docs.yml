@@ -1,5 +1,5 @@
 # test_docs.yml
-# Build the documentation, the same as would be done locally with `make test`.
+# Build the documentation, the same as would be done locally with `make docs`.
 name: CI-docs
 
 on:
