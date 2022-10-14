@@ -55,6 +55,7 @@ Our goal is to infer the _reduced-order operators_ $\widehat{\mathbf{c}} \in \ma
 The user specifies [which terms to include in the model](subsec-romclass-constructor).
 
 ::::{important}
+:name: projection-preserves-structure
 The right-hand side of {eq}`eq:opinf-example-rom` is a polynomial with respect to the state $\widehat{\mathbf{q}}(t)$:
 $\widehat{\mathbf{c}}$ are the constant terms, $\widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ are the linear terms, $\widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]$ are the quadratic terms, with input terms $\widehat{\mathbf{B}}\mathbf{u}(t)$.
 The user must choose which terms to include in the reduced-order model, and this choice should be motivated by the structure of the full-order model {eq}`eq:opinf-example-fom`.
@@ -74,7 +75,7 @@ $$
 $$
 
 :::{dropdown} Motivation
-**Projection preserves polynomial structure** {cite}`BGW2015pmorSurvey,PW2016OperatorInference`.
+**Projection preserves polynomial structure** {cite}`benner2015pmorsurvey,peherstorfer2016opinf`.
 The classical (Galerkin) projection-based reduced-order model for the system
 
 $$
@@ -145,13 +146,14 @@ $$
 $$
 
 :::{important}
-Raw dynamical systems data often needs to be lightly preprocessed in order to promote stability in the inference of the reduced-order operators and to improve the stability and accuracy of the resulting reduced-order model {eq}`eq:opinf-example-rom`.
+Raw dynamical systems data often needs to be lightly preprocessed before it can be used in Operator Inference.
+Preprocessing can promote stability in the inference of the reduced-order operators and improve the stability and accuracy of the resulting reduced-order model {eq}`eq:opinf-example-rom`.
 Common preprocessing steps include
 1. Variable transformations / lifting to induce a polynomial structure.
 2. Centering or shifting data to account for boundary conditions.
 3. Scaling / nondimensionalizing the variables represented in the state.
 
-See [the preprocessing guide](sec-preprocessing) for details and examples.
+See [Data Normalization](sec-normalization) for details and examples.
 :::
 
 Operator Inference uses a regression problem to compute the reduced-order operators, which requires state data ($\mathbf{Q}$), input data ($\mathbf{U}$), _and_ data for the corresponding time derivatives:
@@ -259,8 +261,8 @@ $$
 $$ (eq:opinf-lstsq-residual)
 
 where
-- $\widehat{\mathbf{q}}_{j} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j})$ is the projected state at time $t_{j}$,
-- $\dot{\widehat{\mathbf{q}}}_{j} = \frac{\textrm{d}}{\textrm{d}t}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}\big|_{t=t_{j}}$ is the projected time derivative of the state at time $t_{j}$,
+- $\widehat{\mathbf{q}}_{j} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j})$ is the state at time $t_{j}$, represented in the coordinates of the basis,
+- $\dot{\widehat{\mathbf{q}}}_{j} = \frac{\textrm{d}}{\textrm{d}t}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}\big|_{t=t_{j}}$ is the time derivative of the state at time $t_{j}$ in the coordinates of the basis,
 - $\mathbf{u}_{j} = \mathbf{u}(t_j)$ is the input at time $t_{j}$, and
 - $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
 
@@ -392,17 +394,17 @@ Using these two properties, we can rewrite the least-squares residual as follows
     &= \left\|
         \left[\begin{array}{cccc}
             \mathbf{1}
-            & \mathbf{Q}^{\mathsf{T}}
-            & [\mathbf{Q} \odot \mathbf{Q}]^{\mathsf{T}}
+            & \widehat{\mathbf{Q}}^{\mathsf{T}}
+            & [\widehat{\mathbf{Q}} \odot \widehat{\mathbf{Q}}]^{\mathsf{T}}
             & \mathbf{U}^{\mathsf{T}}
         \end{array}\right]
         \left[\begin{array}{c}
-            \mathbf{c}^{\mathsf{T}}
-            \\ \mathbf{A}^{\mathsf{T}}
-            \\ \mathbf{H}^{\mathsf{T}}
-            \\ \mathbf{B}^{\mathsf{T}}
+            \widehat{\mathbf{c}}^{\mathsf{T}}
+            \\ \widehat{\mathbf{A}}^{\mathsf{T}}
+            \\ \widehat{\mathbf{H}}^{\mathsf{T}}
+            \\ \widehat{\mathbf{B}}^{\mathsf{T}}
         \end{array}\right]
-        - \dot{\mathbf{Q}}^{\mathsf{T}}
+        - \dot{\widehat{\mathbf{Q}}}^{\mathsf{T}}
     \right\|_{F}^{2},
 \end{align*}
 
@@ -488,7 +490,7 @@ from the training data, uses the reduced-order model to reconstruct the training
 import rom_operator_inference as opinf
 
 # Compute a rank-10 basis (POD) from the state data.
->>> Vr, svdavls = opinf.pre.pod_basis(Q, 10)
+>>> basis = opinf.pre.PODBasis(Q, 10)
 
 # Estimate time derivatives of the state with finite differences.
 >>> Qdot = opinf.pre.ddt(Q, t)
@@ -497,7 +499,7 @@ import rom_operator_inference as opinf
 >>> rom = opinf.ContinuousOpInfROM(modelform="AHB")
 
 # Fit the model (projection and regression).
->>> rom.fit(basis=Vr, states=Q, ddts=Qdot, inputs=U, regularizer=1e-6)
+>>> rom.fit(basis=basis, states=Q, ddts=Qdot, inputs=U, regularizer=1e-6)
 
 # Simulate the learned model over the time domain.
 >>> Q_ROM = rom.predict(Q[:,0], t)
@@ -506,4 +508,4 @@ import rom_operator_inference as opinf
 >>> absolute_error, relative_error = opinf.post.Lp_error(Q, Q_rom)
 ```
 
-See [**Getting Started**](sec-tutorial) for a complete tutorial.
+See [**Getting Started**](sec-tutorial) for a tutorial.

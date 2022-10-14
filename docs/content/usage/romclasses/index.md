@@ -254,27 +254,10 @@ All ROM classes have the following methods.
 
 ### Encoding and Decoding
 
-The `project()` method maps a state quantity from the high-dimensional space $\mathbb{R}^{n}$ to the low-dimensional space $\mathbb{R}^{r}$.
-Conversely, `reconstruct()` maps from $\mathbb{R}^{r}$ to $\mathbb{R}^{n}$.
-These methods are not quite inverses: the results of `reconstruct()` are restricted to the portion of $\mathbb{R}^{n}$ that can be represented through the underlying basis.
-
-For the linear representation $\mathbf{q} \approx \mathbf{V}_{r}\widehat{\mathbf{q}}$, we have the following.
-
-::::{grid}
-:gutter: 3
-
-:::{grid-item-card} `project(state)`
-$\mathbf{q} \to \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$
-:::
-
-:::{grid-item-card} `reconstruct(state_)`
-$\widehat{\mathbf{q}} \to \mathbf{V}_{r}\widehat{\mathbf{q}}$
-:::
-
-:::{grid-item-card} `reconstruct(project(state))`
-$\mathbf{q}\to\mathbf{V}_{r}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$.
-:::
-::::
+The `encode()` method maps a state quantity from the high-dimensional space $\mathbb{R}^{n}$ to the low-dimensional space $\mathbb{R}^{r}$.
+Conversely, `decode()` maps from $\mathbb{R}^{r}$ to $\mathbb{R}^{n}$.
+<!-- These methods are not quite inverses: the results of `decode()` are restricted to the portion of $\mathbb{R}^{n}$ that can be represented through the underlying basis. -->
+These methods wrap the `encode()` and `decode()` methods of the `basis` attribute; see [Preprocessing](sec-preprocessing) and [Basis Computation](sec-basis-computation) for more details.
 
 ### Training
 

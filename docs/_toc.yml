@@ -6,7 +6,7 @@ root: content/index.md
 parts:
   # Introduction / summary, mathematical statement, literature.
   - caption: Operator Inference
-    numbered: 1
+    # numbered: 1
     chapters:
     - file: content/opinf/intro.md
     # - file: content/opinf/literature.md
@@ -14,12 +14,15 @@ parts:
 
   # How to use the package.
   - caption: Package Usage
-    numbered: 2
+    # numbered: 2
     chapters:
     - file: content/usage/preprocessing/index.md
       sections:
-      - file: content/usage/preprocessing/transformation.md
-      - file: content/usage/preprocessing/basis.md
+      - file: content/usage/preprocessing/lifting.md
+      - file: content/usage/preprocessing/transformers.md
+      - file: content/usage/preprocessing/basis.ipynb
+      # - file: content/usage/preprocessing/pod.md
+      # - file: content/usage/preprocessing/quadratic.md
     - file: content/usage/romclasses/index.md
       sections:
       - file: content/usage/romclasses/continuous.md
@@ -39,7 +42,7 @@ parts:
 
   # Complete numerical examples, written in a tutorial style.
   - caption: Tutorials
-    numbered: 1
+    # numbered: 1
     chapters:
     - file: content/tutorials/basics.ipynb
     - file: content/tutorials/heat_equation.ipynb

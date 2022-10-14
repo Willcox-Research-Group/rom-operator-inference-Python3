@@ -1,57 +1,81 @@
 # references.bib
 
-@article{HMT2011randomizedNLA,
-    author = {Halko, N. and Martinsson, P. G. and Tropp, J. A.},
-    title = {Finding Structure with Randomness: Probabilistic Algorithms for Constructing Approximate Matrix Decompositions},
-    journal = {SIAM Review},
-    volume = {53},
-    number = {2},
-    pages = {217-288},
-    year = {2011},
-}
-% doi = {10.1137/090771806},
-
-@article{BGW2015pmorSurvey,
+@article{benner2015pmorsurvey,
     title = {A survey of projection-based model reduction methods for parametric dynamical systems},
-    author = {Benner, Peter and Gugercin, Serkan and Willcox, Karen},
+    author = {Benner, Peter and G{\"u}{\u{g}}ercin, Serkan and Willcox, Karen},
     journal = {SIAM Review},
     volume = {57},
     number = {4},
     pages = {483--531},
     year = {2015},
-    publisher = {SIAM}
+    publisher = {SIAM},
+    doi = {10.1137/130932715},
 }
 
-@article{PW2016OperatorInference,
+@article{benner2020opinfdeim,
+    title = {Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms},
+    author = {Benner, Peter and Goyal, Pawan and Kramer, Boris and Peherstorfer, Benjamin and Willcox, Karen},
+    journal = {Computer Methods in Applied Mechanics and Engineering},
+    volume = {372},
+    pages = {113433},
+    year = {2020},
+    doi = {10.1016/j.cma.2020.113433},
+}
+
+@article{halko2011rnla,
+    title = {Finding structure with randomness: {P}robabilistic algorithms for constructing approximate matrix decompositions},
+    author = {Halko, Nathan and Martinsson, Per-Gunnar and Tropp, Joel A},
+    journal = {SIAM Review},
+    volume = {53},
+    number = {2},
+    pages = {217--288},
+    year = {2011},
+    publisher = {SIAM},
+    doi = {10.1137/090771806},
+}
+
+@inproceedings{jain2021performance,
+    title = {Performance comparison of data-driven reduced models for a single-injector combustion process},
+    author = {Jain, Parikshit and McQuarrie, Shane A. and Kramer, Boris},
+    booktitle = {AIAA Propulsion and Energy 2021 Forum},
+    year = {2021},
+    address = {Virtual event},
+    note = {AIAA Paper 2021-3633},
+    doi = {10.2514/6.2021-3633},
+}
+
+@article{khodabakhshi2022diffalg,
+    title = {Non-intrusive data-driven model reduction for differential algebraic equations derived from lifting transformations},
+    author = {Parisa Khodabakhshi and Karen E. Willcox},
+    journal = {Computer Methods in Applied Mechanics and Engineering},
+    volume = {389},
+    pages = {114296},
+    year = {2022},
+    issn = {0045-7825},
+    doi = {doi.org/10.1016/j.cma.2021.114296},
+}
+
+@article{mcquarrie2021combustion,
+    author = {Shane A. McQuarrie and Cheng Huang and Karen E. Willcox},
+    title = {Data-driven reduced-order models via regularised Operator Inference for a single-injector combustion process},
+    journal = {Journal of the Royal Society of New Zealand},
+    volume = {51},
+    number = {2},
+    pages = {194--211},
+    year = {2021},
+    publisher = {Taylor & Francis},
+    doi = {10.1080/03036758.2020.1863237},
+}
+
+@article{peherstorfer2016opinf,
     title = {Data-driven operator inference for nonintrusive projection-based model reduction},
     author = {Peherstorfer, B. and Willcox, K.},
     journal = {Computer Methods in Applied Mechanics and Engineering},
     volume = {306},
     pages = {196--215},
     year = {2016},
-    publisher = {Elsevier}
-}
-
-@inbook{QKMW2019TransformAndLearn,
-    title = {Transform \& Learn: A data-driven approach to nonlinear model reduction},
-    author = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
-    booktitle = {AIAA Aviation 2019 Forum},
-    year = {2018},
-    address = {Dallas, TX},
-    note = {Paper AIAA-2019-3707},
-    doi = {10.2514/6.2019-3707},
-    URL = {https://arc.aiaa.org/doi/abs/10.2514/6.2019-3707},
-    eprint = {https://arc.aiaa.org/doi/pdf/10.2514/6.2019-3707}
-}
-
-@article{SMPW2019PhysicsbasedML,
-    title = {Projection-based model reduction: Formulations for physics-based machine learning},
-    author = {Swischuk, R. and Mainini, L. and Peherstorfer, B. and Willcox, K.},
-    journal = {Computers \\& Fluids},
-    volume = {179},
-    pages = {704--717},
-    year = {2019},
-    publisher = {Elsevier}
+    publisher = {Elsevier},
+    doi = {10.1016/j.cma.2016.03.025},
 }
 
 @article{peherstorfer2020sampling,
@@ -65,48 +89,45 @@
     publisher = {SIAM}
 }
 
-@article{SKHW2020ROMCombustion,
+@inproceedings{qian2019transform,
+    author = {Qian, E. and Kramer, B. and Marques, A. N. and Willcox, K. E.},
+    title = {Transform \& {L}earn: {A} data-driven approach to nonlinear model reduction},
+    booktitle = {AIAA Aviation 2019 Forum},
+    pages = {2019--3707},
+    year = {2019},
+    doi = {10.2514/6.2019-3707},
+}
+
+@article{qian2020liftandlearn,
+    title = {Lift \& {L}earn: {P}hysics-informed machine learning for large-scale nonlinear dynamical systems},
+    author = {Qian, Elizabeth and Kramer, Boris and Peherstorfer, Benjamin and Willcox, Karen},
+    journal = {Physica D: Nonlinear Phenomena},
+    volume = {406},
+    pages = {132401},
+    year = {2020},
+    publisher = {Elsevier},
+    doi = {10.1016/j.physd.2020.132401},
+}
+
+@article{swischuk2019physicsml,
+    title = {Projection-based model reduction: {F}ormulations for physics-based machine learning},
+    author = {Swischuk, Renee and Mainini, Laura and Peherstorfer, Benjamin and Willcox, Karen},
+    journal = {Computers \& Fluids},
+    volume = {179},
+    pages = {704--717},
+    year = {2019},
+    publisher = {Elsevier},
+    doi = {10.1016/j.compfluid.2018.07.021},
+}
+
+@article{swischuk2020combustion,
     title = {Learning physics-based reduced-order models for a single-injector combustion process},
-    author = {Swischuk, R. and Kramer, B. and Huang, C. and Willcox, K.},
+    author = {Swischuk, Renee and Kramer, Boris and Huang, Cheng and Willcox, Karen},
     journal = {AIAA Journal},
     volume = {58},
     number = {6},
     pages = {2658--2672},
     year = {2020},
-    publisher = {American Institute of Aeronautics and Astronautics}
-}
-
-@article{QKPW2020LiftAndLearn,
-    title = {Lift \& Learn: Physics-informed machine learning for large-scale nonlinear dynamical systems.},
-    author = {Qian, E. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
-    journal = {Physica {D}: {N}onlinear {P}henomena},
-    volume = {406},
-    pages = {132401},
-    year = {2020}
-}
-% url = {https://doi.org/10.1016/j.physd.2020.132401},
-
-@article{BGKPW2020OpInfNonPoly,
-    title = {Operator inference for non-intrusive model reduction of systems with non-polynomial nonlinear terms},
-    author = {Benner, P. and Goyal, P. and Kramer, B. and Peherstorfer, B. and Willcox, K.},
-    journal = {arXiv preprint arXiv:2002.09726},
-    year = {2020}
-}
-
-@article{SGBK2020OpInfAffine,
-    title = {Data-Driven Learning of Reduced-order Dynamics for a Parametrized Shallow Water Equation},
-    author = {Y{\i}ld{\i}z, S. and Goyal, P. and Benner, P. and Karas{\\"o}zen, B.},
-    journal = {arXiv preprint arXiv:2007.14079},
-    year = {2020}
-}
-
-@article{MHW2021regOpInfCombustion,
-    author = {Shane A. McQuarrie and Cheng Huang and Karen E. Willcox},
-    title = {Data-driven reduced-order models via regularised Operator Inference for a single-injector combustion process},
-    journal = {Journal of the Royal Society of New Zealand},
-    volume = {51},
-    number = {2},
-    pages = {194--211},
-    year = {2021},
-    publisher = {Taylor & Francis},
+    publisher = {American Institute of Aeronautics and Astronautics},
+    doi = {10.2514/1.J058943},
 }

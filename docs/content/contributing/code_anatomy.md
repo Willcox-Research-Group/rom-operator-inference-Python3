@@ -19,13 +19,15 @@ See the [Index of Notation](sec-notation) for specific naming conventions for bo
 
 Python is a highly [object-oriented language](https://docs.python.org/3/tutorial/classes.html), which is advantageous for building mathematical software with abstract objects.
 One-off routines (such as computing a POD basis) should be implemented as standalone functions, but a class structure is preferable when possible.
-The package has three main class hierarchies:
+The package has the following main class hierarchies:
 
+- [_Transformer classes_](subsec-contrib-transformerclass) are used for normalizing snapshot data.
+- [_Basis classes_](subsec-contrib-basisclass) represent the mapping between the full-order state space in $\mathbb{R}^{n}$ and the reduced-order state space in $\mathbb{R}^{r}$. A basis object may have a transformer as an attribute to link the two conveniently.
 - [_ROM classes_](subsec-contrib-romclass) encapsulate an entire reduced-order model, such as $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t) + \widehat{\mathbf{B}}\mathbf{u}(t)$ or $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]$. These are the major objects that the user interacts with.
 - [_Operator classes_](subsec-contrib-opclass) represent a single operator that forms part of a reduced-order model, e.g., $\widehat{\mathbf{A}}$ or $\widehat{\mathbf{H}}$. Every ROM object has, as attributes, several operator classes.
 - [_Solver classes_](subsec-contrib-lstsqsolvers) handle the regression problem at the heart of Operator Inference.
 
-As you design new classes, take advantage of intermediate classes and inheritance to avoid duplicating code.
+As you design new classes, take advantage of intermediate classes and inheritance to avoid duplicating code when appropriate.
 
 ### Scikit-Learn Style
 
@@ -39,6 +41,54 @@ In addition, we follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) and ot
 See [Linting](sec-contrib-linting) for more.
 
 ---
+
+## Pre Module
+
+The `pre` module contains all transformer and basis class definitions.
+Transformers and bases can be _monolithic_ (treating the state as one variable) or _multivariable_ (treating different chunks of the state as separate variables).
+Multivariable transformers and bases inherit from `pre._multivar._MultivarMixin` and should have, as attributes, a list of monolithic counterparts.
+
+Read [Data Normalization](sec-normalization) and [Basis Computation](sec-basis-computation) before starting work here.
+
+(subsec-contrib-transformerclass)=
+### Transformer Classes
+
+All transformer classes must
+- Inherit from `pre.transform._base._BaseTransformer`.
+- Accept and store any hyperparameters (transformation settings) in the constructor.
+- Implement `transform()`, `fit_transform()`, and `inverse_transform()`. Note that `fit()` is alredy implemented in `_BaseTransformer`.
+
+There are two main transformers, `SnapshotTransformer` (monolithic) and `SnapshotTransformerMulti` (multivariable).
+These classes handle standard shifting / scaling transformations.
+Lifting transformations should not be added to this package disguised as snapshot transformers (too problem dependent).
+
+(subsec-contrib-basisclass)=
+### Basis Classes
+
+All basis classes must
+- Inherit from `pre.basis._base._BaseBasis`.
+- Accept `transformer` as an argument and call `_BaseBasis.__init__(self, transformer)` in the constructor.
+- Implement `fit()`, `encode()`, and `decode()`.
+
+Note that `project()` is **not** the same as `encode()`: `project(q) = decode(encode(q))`. This is a change from previous versions.
+
+This is not required by `_BaseBasis`, but all public basis classes have a `transformer` attribute that is set in the constructor.
+If present, the transformer should be trained at the beginning of the basis' `fit()` method and the data should be transformed before doing the basis computation. For example,
+
+```python
+class MyBasis:
+    def fit(self, states, r=None):
+        # First fit the transformer and transform the data.
+        if self.transformer is not None:
+            states = self.transformer.fit_transform(state)
+
+        # Then compute the basis entries.
+        self.entries = pod_basis(states, r)
+```
+
+If a basis has a `transformer`, `encode()` should `transform()` any input data before performing dimension reduction; similarly, `decode()` should `inverse_transform()` after undoing the dimension reduction.
+
+Before implementing a new basis class, take a close look at `LinearBasis` and then `PODBasis`.
 
 ## Core Module
 
