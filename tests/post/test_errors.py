@@ -1,11 +1,11 @@
 # post/test_errors.py
-"""Tests for rom_operator_inference.post._errors.py."""
+"""Tests for post._errors.py."""
 
 import pytest
 import numpy as np
 import scipy.linalg as la
 
-import rom_operator_inference as opinf
+import opinf
 
 
 def test_absolute_and_relative_error(set_up_error_data):

@@ -1,5 +1,5 @@
 # pre/basis/test_pod.py
-"""Tests for rom_operator_inference.pre.basis._pod."""
+"""Tests for pre.basis._pod."""
 
 import os
 import h5py
@@ -9,7 +9,7 @@ import scipy.sparse as sparse
 from scipy import linalg as la
 from matplotlib import pyplot as plt
 
-import rom_operator_inference as opinf
+import opinf
 
 
 class DummyTransformer(opinf.pre.transform._base._BaseTransformer):

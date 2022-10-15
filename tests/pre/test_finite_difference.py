@@ -1,10 +1,10 @@
 # pre/test_finite_difference.py
-"""Tests for rom_operator_inference.pre._finite_difference.py"""
+"""Tests for pre._finite_difference.py"""
 
 import pytest
 import numpy as np
 
-import rom_operator_inference as opinf
+import opinf
 
 
 # Derivative approximation ====================================================

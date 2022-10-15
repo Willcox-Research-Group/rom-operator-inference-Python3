@@ -13,7 +13,7 @@ def up_one(f):
 
 # Global variables ============================================================
 SETUP = "setup.py"
-INIT = os.path.join("src", "rom_operator_inference", "__init__.py")
+INIT = os.path.join("src", "opinf", "__init__.py")
 
 # Locate files if tests are being run directly from the tests/ directory.
 if not os.path.isfile(SETUP) and os.path.basename(os.getcwd()) == "tests":

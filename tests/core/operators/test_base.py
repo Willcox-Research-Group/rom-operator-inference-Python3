@@ -1,10 +1,10 @@
 # core/operators/test_base.py
-"""Tests for rom_operator_inference.core.operators._base."""
+"""Tests for core.operators._base."""
 
 import pytest
 import numpy as np
 
-import rom_operator_inference as opinf
+import opinf
 
 
 _module = opinf.core.operators._base

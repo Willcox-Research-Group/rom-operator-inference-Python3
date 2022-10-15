@@ -1,10 +1,10 @@
 # pre/transform/test_base.py
-"""Tests for rom_operator_inference.pre._base.py."""
+"""Tests for pre._base.py."""
 
 import pytest
 import numpy as np
 
-import rom_operator_inference as opinf
+import opinf
 
 
 class TestBaseTransformer:

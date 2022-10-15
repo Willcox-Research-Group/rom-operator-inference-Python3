@@ -1,9 +1,9 @@
 # lstsq/__init__.py
-"""Tests for rom_operator_inference.lstsq.__init__.py."""
+"""Tests for lstsq.__init__.py."""
 
 import pytest
 
-import rom_operator_inference as opinf
+import opinf
 
 
 def test_lstsq_size():

@@ -13,7 +13,7 @@ _isparametricop = operators.is_parametric_operator
 
 
 class _BaseROM(abc.ABC):
-    """Base class for all rom_operator_inference reduced model classes."""
+    """Base class for all opinf reduced model classes."""
     _MODELFORM_KEYS = "cAHGB"   # Constant, Linear, Quadratic, Cubic, Input.
     _LHS_ARGNAME = "lhs"
     _LHS_LABEL = None

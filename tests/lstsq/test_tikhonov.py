@@ -1,11 +1,11 @@
 # lstsq/test_tikhonov.py
-"""Tests for rom_operator_inference.lstsq._tikhonov.py."""
+"""Tests for lstsq._tikhonov.py."""
 
 import pytest
 import numpy as np
 from scipy import linalg as la
 
-import rom_operator_inference as opinf
+import opinf
 
 
 class TestBaseTikhonovSolver:

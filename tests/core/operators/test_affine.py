@@ -1,10 +1,10 @@
 # core/operators/test_affine.py
-"""Tests for rom_operator_inference.core.operators._affine."""
+"""Tests for core.operators._affine."""
 
 import pytest
 import numpy as np
 
-import rom_operator_inference as opinf
+import opinf
 
 from .. import _get_operators
 

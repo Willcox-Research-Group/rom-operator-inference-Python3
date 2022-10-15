@@ -6,7 +6,7 @@ with open("README.md", "r") as infile:
 
 setuptools.setup(
     # Package name and version.
-    name="rom_operator_inference",
+    name="opinf",
     version="1.4.0",
 
     # Package description, license, and keywords.

@@ -1,11 +1,11 @@
 # pre/test_reprojection.py
-"""Tests for rom_operator_inference.pre._reprojection."""
+"""Tests for pre._reprojection."""
 
 import pytest
 import numpy as np
 from scipy import linalg as la
 
-import rom_operator_inference as opinf
+import opinf
 
 
 # Reprojection schemes ========================================================
