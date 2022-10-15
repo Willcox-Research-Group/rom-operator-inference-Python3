@@ -1,9 +1,9 @@
 # pre/basis/test_base.py
-"""Tests for rom_operator_inference.pre.basis._base."""
+"""Tests for pre.basis._base."""
 
 import pytest
 
-import rom_operator_inference as opinf
+import opinf
 
 
 class TestBaseBasis:

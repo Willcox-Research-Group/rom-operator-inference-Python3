@@ -1,10 +1,10 @@
 # pre/test_multivar.py
-"""Tests for rom_operator_inference.pre._multivar.py."""
+"""Tests for pre._multivar.py."""
 
 import pytest
 import numpy as np
 
-import rom_operator_inference as opinf
+import opinf
 
 
 class TestMultivarMixin:

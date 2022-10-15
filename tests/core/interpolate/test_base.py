@@ -1,5 +1,5 @@
 # core/interpolate/test_base.py
-"""Tests for rom_operator_inference.core.interpolate._base."""
+"""Tests for core.interpolate._base."""
 
 import os
 import h5py
@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 import scipy.interpolate
 
-import rom_operator_inference as opinf
+import opinf
 
 
 class BaseDummy(opinf.core.nonparametric._base._NonparametricOpInfROM):

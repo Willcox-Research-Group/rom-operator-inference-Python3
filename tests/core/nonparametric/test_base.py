@@ -1,5 +1,5 @@
 # core/nonparametric/test_base.py
-"""Tests for rom_operator_inference.core.nonparametric._base."""
+"""Tests for core.nonparametric._base."""
 
 import os
 import h5py
@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 from scipy import linalg as la
 
-import rom_operator_inference as opinf
+import opinf
 
 from .. import (MODELFORM_KEYS, MODEL_FORMS,
                 _get_data, _get_operators, _trainedmodel, _isoperator)

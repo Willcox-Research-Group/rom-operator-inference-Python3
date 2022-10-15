@@ -1,5 +1,5 @@
 # pre/transform/test_shift_scale.py
-"""Tests for rom_operator_inference.pre._shift_scale.py."""
+"""Tests for pre._shift_scale.py."""
 
 import os
 import h5py
@@ -7,7 +7,7 @@ import pytest
 import itertools
 import numpy as np
 
-import rom_operator_inference as opinf
+import opinf
 
 
 # Data preprocessing: shifting and MinMax scaling / unscaling =================

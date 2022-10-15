@@ -1,10 +1,10 @@
 # utils/test_kronecker.py
-"""Tests for rom_operator_inference.utils._kronecker."""
+"""Tests for utils._kronecker."""
 
 import pytest
 import numpy as np
 
-import rom_operator_inference as opinf
+import opinf
 
 
 # Index generation for fast self-product kronecker evaluation =================

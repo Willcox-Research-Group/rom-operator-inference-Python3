@@ -1,5 +1,5 @@
 # pre/basis/test_linear.py
-"""Tests for rom_operator_inference.pre.basis._linear."""
+"""Tests for pre.basis._linear."""
 
 import os
 import h5py
@@ -8,7 +8,7 @@ import numpy as np
 import scipy.linalg as la
 import scipy.sparse as sparse
 
-import rom_operator_inference as opinf
+import opinf
 
 
 class DummyTransformer:

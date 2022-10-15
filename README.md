@@ -20,7 +20,7 @@ See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inf
 
 Install the package from the command line with the following single command (requires [`pip`](https://pypi.org/project/pip/)).
 ```bash
-$ python3 -m pip install --user rom-operator-inference
+$ python3 -m pip install --user opinf
 ```
 [**See the wiki**](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki) for other installation options.
 
@@ -30,7 +30,7 @@ Given a basis matrix `Vr`, snapshot data `Q`, and snapshot time derivatives `Qdo
 
 ```python
 import numpy as np
-import rom_operator_inference as opinf
+import opinf
 
 # Define a reduced-order model of the form  dq / dt = c + Aq(t).
 >>> rom = opinf.InferredContinuousROM(modelform="cA")

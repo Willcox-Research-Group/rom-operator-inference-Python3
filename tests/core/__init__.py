@@ -4,7 +4,7 @@
 import itertools
 import numpy as np
 
-import rom_operator_inference as opinf
+import opinf
 
 
 # Global variables for testsing ===============================================

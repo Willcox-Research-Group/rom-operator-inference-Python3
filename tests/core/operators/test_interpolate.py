@@ -1,11 +1,11 @@
 # core/operators/test_interpolate.py
-"""Tests for rom_operator_inference.core.operators._interpolate."""
+"""Tests for core.operators._interpolate."""
 
 import pytest
 import numpy as np
 import scipy.interpolate as interp
 
-import rom_operator_inference as opinf
+import opinf
 
 from .. import _get_operators
 

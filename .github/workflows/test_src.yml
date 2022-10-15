@@ -35,4 +35,4 @@ jobs:
           python -m flake8 tests
       - name: Run tests
         run: |
-          python -m pytest --cov rom_operator_inference tests
+          python -m pytest --cov opinf tests

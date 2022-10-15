@@ -1,10 +1,10 @@
 # core/operators/test_nonparametric.py
-"""Tests for rom_operator_inference.core.operators._nonparametric."""
+"""Tests for core.operators._nonparametric."""
 
 import pytest
 import numpy as np
 
-import rom_operator_inference as opinf
+import opinf
 
 
 _module = opinf.core.operators._nonparametric

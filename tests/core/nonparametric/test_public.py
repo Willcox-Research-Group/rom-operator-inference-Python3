@@ -1,11 +1,11 @@
 # core/nonparametric/test_public.py
-"""Tests for rom_operator_inference.core.nonparametric._public."""
+"""Tests for core.nonparametric._public."""
 
 import pytest
 import numpy as np
 import scipy.linalg as la
 
-import rom_operator_inference as opinf
+import opinf
 
 from .. import (MODEL_FORMS,
                 _get_data, _get_operators, _trainedmodel, _isoperator)

@@ -1,9 +1,9 @@
 # core/nonparametric/test_frozen.py
-"""Tests for rom_operator_inference.core.nonparametric._frozen."""
+"""Tests for core.nonparametric._frozen."""
 
 import pytest
 
-import rom_operator_inference as opinf
+import opinf
 
 
 class TestFrozenMixin:

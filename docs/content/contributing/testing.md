@@ -27,7 +27,7 @@ If your code fails, you will get specific feedback about what is wrong and where
 For example:
 ```bash
 python3 -m flake8 src
-src/rom_operator_inference/core/_base.py:29:5: E303 too many blank lines (3)
+src/opinf/core/_base.py:29:5: E303 too many blank lines (3)
 1     E303 too many blank lines (3)
 make: *** [lint] Error 1
 ```
@@ -41,10 +41,10 @@ Linting does not replace unit tests for gauging code correctness and functionali
 
 We use the [Pytest](https://docs.pytest.org/en/7.0.x/) framework for unit testing.
 - All tests are stored in the `tests/` folder.
-- The file structure of `tests/` should mirror the file structure of `src/rom_operator_inference/`, but test files must start with `test_`. For example, tests for the source file `src/rom_operator_inference/pre/_basis.py` are grouped in `tests/pre/test_basis.py`. Within that file, the function `test_pod_basis()` runs tests for `pre.pod_basis()`.
-- Tests for classes are grouped as classes. For example, the methods of the `TestBaseROM` class in `tests/core/test_base.py` are unit tests for the methods of the `_BaseROM` class in `src/rom_operator_inference/core/_base.py`.
+- The file structure of `tests/` should mirror the file structure of `src/opinf/`, but test files must start with `test_`. For example, tests for the source file `src/opinf/pre/_basis.py` are grouped in `tests/pre/test_basis.py`. Within that file, the function `test_pod_basis()` runs tests for `pre.pod_basis()`.
+- Tests for classes are grouped as classes. For example, the methods of the `TestBaseROM` class in `tests/core/test_base.py` are unit tests for the methods of the `_BaseROM` class in `src/opinf/core/_base.py`.
 
-After making changes to the source code in `src/rom_operator_inference` and writing corresponding tests in `tests/`, execute `make test` in the command line from the root folder of the repository.
+After making changes to the source code in `src/opinf` and writing corresponding tests in `tests/`, execute `make test` in the command line from the root folder of the repository.
 
 :::{margin}
 ```{note}

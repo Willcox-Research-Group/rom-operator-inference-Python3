@@ -1,7 +1,7 @@
 (sec-contrib-start)=
 # How to Contribute
 
-Thank you for your interest in contributing to `rom_operator_inference`!
+Thank you for your interest in contributing to `opinf`!
 Before you begin, please review our [Code of Conduct](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/blob/main/CODE_OF_CONDUCT.md).
 
 :::{admonition} Summary
@@ -32,8 +32,8 @@ $ git remote add upstream https://<username>@github.com/Willcox-Research-Group/r
 ## Branches and Workflow
 
 The source repository has two special branches:
-- `main` is reserved for [public PyPi releases](https://pypi.org/project/rom-operator-inference/).
-- `gh-pages` is the same as `main` except that it also contains the current build files for this documentation. _This branch is updated by maintainers only._
+- `main` is the most up-to-date version of the code. Tags on the `main` branch correspond to [public PyPi releases](https://pypi.org/project/opinf/).
+- `gh-pages` contains only the current build files for this documentation. _This branch is updated by maintainers only._
 
 To contribute, get synced with the `main` branch, then start a new branch for making active changes.
 
@@ -57,14 +57,14 @@ They should be written as Jupyter notebooks and placed in `docs/content/tutorial
 ```
 :::
 
-- [`src/rom_operator_inference/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/src/rom_operator_inference) contains the actual package code, see the [Source Code Guide](sec-contrib-anatomy). The code is divided into submodules:
+- [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) contains the actual package code, see the [Source Code Guide](sec-contrib-anatomy). The code is divided into submodules:
     - `core`: operator and reduced-order model classes.
     - `lstsq`: solvers for the linear regression problem at the heart of Operator Inference.
     - `pre`: pre-processing tools (basis computation, state transformations, etc.).
     - `post`: post-processing tools (mostly error evaluation).
     - `utils`: other routines that are not important to casual users, but which advanced users may want access to.
-- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/rom_operator_inference/`. See [Testing](sec-contrib-testing).
-- [`docs/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/docs) contains documentation (including this page!). See [Documentation](sec-contrib-docs).
+- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/opinf/`. See [Testing](sec-contrib-testing).
+- [`docs/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/docs) contains documentation (including this page!). See [Documentation](sec-contrib-docs).
 
 ## Acceptance Standards
 

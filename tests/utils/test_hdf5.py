@@ -1,11 +1,11 @@
 # utils/test_hdf5.py
-"""Tests for rom_operator_inference.utils._hdf5."""
+"""Tests for utils._hdf5."""
 
 import os
 import h5py
 import pytest
 
-import rom_operator_inference as opinf
+import opinf
 
 
 def test_hdf5_filehandle():

@@ -35,7 +35,7 @@ flowchart LR
 ```python
 >>> import numpy as np
 >>> import scipy.interpolate
->>> import rom_operator_inference as opinf
+>>> import opinf
 
 >>> parameters = np.linspace(0, 1, 4)
 >>> entries = np.random.random((4, 3))
@@ -49,7 +49,7 @@ flowchart LR
 # Evaluate the parametric constant operator at a given parameter.
 >>> c_static_ = c_(.5)
 >>> type(c_static_)
-rom_operator_inference.core.operators._nonparametric.ConstantOperator
+opinf.core.operators._nonparametric.ConstantOperator
 
 >>> c_static_.evaluate()
 array([0.89308692, 0.81232528, 0.52454941])

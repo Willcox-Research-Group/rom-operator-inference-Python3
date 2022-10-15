@@ -49,7 +49,7 @@ Some ROM objects can be saved in [HDF5 format](http://docs.h5py.org/en/stable/in
 Such files store metadata for the model class and structure, the reduced-order model operators, and (optionally) the basis.
 
 ```python
->>> import rom_operator_inference as opinf
+>>> import opinf
 
 # Assume we have a ROM as an opinf.ContinuousOpInfROM object, called `rom`.
 
