@@ -1,9 +1,18 @@
-.PHONY: clean lint install test docs deploy
+.PHONY: clean lint install test docs docs_all deploy
 
 
 REMOVE = rm -rfv
 PYTHON = python3
 PYTEST = pytest --cov rom_operator_inference tests --cov-report html
+
+
+help:
+	@echo "usage:"
+	@echo "  make clean: remove all build, test, coverage and Python artifacts"
+	@echo "  make lint: check style with flake8"
+	@echo "  make install: install the package locally from source"
+	@echo "  make test: run unit tests via pytest"
+	@echo "  make docs: build jupyter-book documentation"
 
 
 clean:
@@ -36,7 +45,13 @@ docs:
 	jupyter-book build docs -n -W --keep-going
 
 
-deploy: test docs
+docs_all:
+	jupyter-book build --all docs
+
+
+deploy: test docs_all
 	git checkout main
-	$(PYTHON) setup.py sdist bdist_wheel
+	$(PYTHON) -m pip install build
+	$(PYTHON) -m build --sdist --wheel
+	$(PYTHON) -m twine check dist/*
 	$(PYTHON) -m twine upload dist/*
