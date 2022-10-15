@@ -3,7 +3,7 @@
 
 REMOVE = rm -rfv
 PYTHON = python3
-PYTEST = pytest --cov rom_operator_inference tests --cov-report html
+PYTEST = pytest --cov opinf tests --cov-report html
 
 
 help:

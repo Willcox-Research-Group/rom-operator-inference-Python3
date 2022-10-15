@@ -7,7 +7,7 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="opinf",
-    version="1.4.0",
+    version="0.4.0",
 
     # Package description, license, and keywords.
     description="Operator inference for data-driven, "
@@ -28,7 +28,8 @@ setuptools.setup(
     ],
 
     # Humans to contact about this code.
-    author="Renee C. Swischuk et al.",
+    author="Willcox Research Group",
+    author_email="kwillcox@oden.utexas.edu",
     maintainer="Shane A. McQuarrie",
     maintainer_email="shanemcq@utexas.edu",
 
