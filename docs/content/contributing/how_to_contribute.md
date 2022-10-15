@@ -32,7 +32,7 @@ $ git remote add upstream https://<username>@github.com/Willcox-Research-Group/r
 ## Branches and Workflow
 
 The source repository has two special branches:
-- `main` is the most up-to-date version of the code. Tags on the `main` branch correspond to [public PyPi releases](https://pypi.org/project/rom-operator-inference/).
+- `main` is the most up-to-date version of the code. Tags on the `main` branch correspond to [public PyPi releases](https://pypi.org/project/opinf/).
 - `gh-pages` contains only the current build files for this documentation. _This branch is updated by maintainers only._
 
 To contribute, get synced with the `main` branch, then start a new branch for making active changes.

@@ -9,15 +9,13 @@
 
 :::{attention}
 This documentation is for `opinf` version `1.4.0`.
-See the documentation for version `1.2.1` [here](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki/API-Reference).
+See the documentation for old versions [here](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki/API-Reference).
 :::
 
 This package is a Python implementation of operator inference (OpInf), a projection-based model reduction technique for learning polynomial reduced-order models of dynamical systems.
 The procedure is data-driven and non-intrusive, making it a viable candidate for model reduction of "glass-box" systems where the structure of the governing equations is known but intrusive code queries are unavailable.
 
 Get started with [**What is Operator Inference?**](sec-opinf-overview) or head straight to [**Installation**](sec-installation) and the first tutorial, [**Getting Started**](sec-tutorial).
-
-<!-- See our [**Literature**](sec-literature) page for a list of technical publications on Operator Inference and the [**Gallery**](sec-gallery) for a list of projects that use this package. -->
 
 :::{image} ../images/summary.svg
 :align: center

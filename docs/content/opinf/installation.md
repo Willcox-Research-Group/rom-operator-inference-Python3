@@ -7,7 +7,7 @@ This page describes how to install `opinf` locally.
 To check if the package is installed, run the following in the command line.
 
 ```shell
-$ python3 -m pip freeze | grep rom-operator-inference
+$ python3 -m pip freeze | grep opinf
 ```
 
 No output means the package was not found.
@@ -19,7 +19,7 @@ We recommend installing the package from [the Python Package Index](https://pypi
 This installs the [latest official release](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/releases).
 
 ```shell
-$ python3 -m pip install --user rom-operator-inference
+$ python3 -m pip install --user opinf
 ```
 
 :::{note}
@@ -29,7 +29,7 @@ To avoid conflicts with other installed packages, you may want to install [withi
 
 ## Latest Commit to Main Branch
 
-The following command installs the latest version from the master branch, which may or may not be associated with [an official release](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/releases).
+The following command installs the latest version from the `main` branch, which may or may not be associated with [an official release](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/releases).
 This requires [`git`](https://git-scm.com/).
 
 ```shell

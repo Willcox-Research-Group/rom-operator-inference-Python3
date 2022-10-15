@@ -20,7 +20,7 @@ See [this repository](https://github.com/Willcox-Research-Group/rom-operator-inf
 
 Install the package from the command line with the following single command (requires [`pip`](https://pypi.org/project/pip/)).
 ```bash
-$ python3 -m pip install --user rom-operator-inference
+$ python3 -m pip install --user opinf
 ```
 [**See the wiki**](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki) for other installation options.
 
