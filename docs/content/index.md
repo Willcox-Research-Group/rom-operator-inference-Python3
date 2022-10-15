@@ -8,7 +8,7 @@
 <!-- [![Documentation](https://img.shields.io/badge/Documentation-JupyterBook-important)](sec-api) -->
 
 :::{attention}
-This documentation is for `rom_operator_inference` version `1.4.0`.
+This documentation is for `opinf` version `1.4.0`.
 See the documentation for version `1.2.1` [here](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki/API-Reference).
 :::
 

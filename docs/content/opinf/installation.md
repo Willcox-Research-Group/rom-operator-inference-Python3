@@ -1,7 +1,7 @@
 (sec-installation)=
 # Package Installation
 
-This page describes how to install `rom_operator_inference` locally.
+This page describes how to install `opinf` locally.
 
 :::{tip}
 To check if the package is installed, run the following in the command line.
@@ -23,7 +23,7 @@ $ python3 -m pip install --user rom-operator-inference
 ```
 
 :::{note}
-Like most Python packages, `rom_operator_inference` has a few [software dependencies](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/network/dependencies).
+Like most Python packages, `opinf` has a few [software dependencies](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/network/dependencies).
 To avoid conflicts with other installed packages, you may want to install [within a virtual environment](https://docs.python.org/3/tutorial/venv.html).
 :::
 

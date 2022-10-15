@@ -1,7 +1,7 @@
 (sec-romclasses)=
 # ROM Classes
 
-There are several reduced-order model (ROM) classes defined in the main namespace of `rom_operator_inference`.
+There are several reduced-order model (ROM) classes defined in the main namespace of `opinf`.
 Each class corresponds to a specific problem setting.
 
 ::::{margin}

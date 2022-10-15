@@ -487,7 +487,7 @@ $$
 from the training data, uses the reduced-order model to reconstruct the training data, and computes the error of the reconstruction.
 
 ```python
-import rom_operator_inference as opinf
+import opinf
 
 # Compute a rank-10 basis (POD) from the state data.
 >>> basis = opinf.pre.PODBasis(Q, 10)

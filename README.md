@@ -30,7 +30,7 @@ Given a basis matrix `Vr`, snapshot data `Q`, and snapshot time derivatives `Qdo
 
 ```python
 import numpy as np
-import rom_operator_inference as opinf
+import opinf
 
 # Define a reduced-order model of the form  dq / dt = c + Aq(t).
 >>> rom = opinf.InferredContinuousROM(modelform="cA")

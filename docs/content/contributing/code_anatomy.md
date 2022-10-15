@@ -2,7 +2,7 @@
 # Source Code Guide
 
 This page briefly reviews the package anatomy and gives instructions for new additions.
-The source code is stored in [`src/rom_operator_inference/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/src/rom_operator_inference) and is divided into the following submodules:
+The source code is stored in [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/develop/src/opinf) and is divided into the following submodules:
 - `core`: operator and reduced-order model classes.
 - `lstsq`: solvers for the regression problem at the heart of Operator Inference.
 - `pre`: pre-processing tools (basis computation, state transformations, etc.).
