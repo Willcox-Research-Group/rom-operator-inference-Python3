@@ -4,7 +4,6 @@
 REMOVE = rm -rfv
 PYTHON = python3
 PYTEST = pytest --cov opinf tests --cov-report html
-REMOTE = origin
 
 
 # About -----------------------------------------------------------------------
@@ -66,4 +65,4 @@ deploy_package: test docs_all
 deploy_docs: docs_all
 	$(PYTHON) -m pip install --upgrade ghp-import
 	git checkout main
-	ghp-import --remote origin --no-jekyll --push --force --no-history docs/_build/html
+	ghp-import --remote upstream --no-jekyll --push --force --no-history docs/_build/html
