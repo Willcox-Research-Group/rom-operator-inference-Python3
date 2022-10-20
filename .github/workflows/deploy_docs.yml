@@ -1,9 +1,9 @@
 name: deploy-docs
 
-# Only run this when the main branch has a release.
+# Only run this when triggered manually.
 on:
-  release:
-    types: [published]
+  # release:
+  #   types: [published]
   workflow_dispatch:
 
 # Installs dependencies, builds the documentation, and push it to `gh-pages`

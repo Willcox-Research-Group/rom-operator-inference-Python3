@@ -1,14 +1,14 @@
 # Operator Inference in Python
 
-[![License](https://img.shields.io/github/license/Willcox-Research-Group/rom-operator-inference-python3)](https://github.com/Willcox-Research-Group/rom-operator-inference-python3/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/Willcox-Research-Group/rom-operator-inference-python3)](./LICENSE)
 [![Top language](https://img.shields.io/github/languages/top/Willcox-Research-Group/rom-operator-inference-python3)](https://www.python.org)
 ![Code size](https://img.shields.io/github/languages/code-size/Willcox-Research-Group/rom-operator-inference-python3)
 [![Issues](https://img.shields.io/github/issues/Willcox-Research-Group/rom-operator-inference-python3)](https://github.com/Willcox-Research-Group/rom-operator-inference-python3/issues)
 [![Latest commit](https://img.shields.io/github/last-commit/Willcox-Research-Group/rom-operator-inference-python3)](https://github.com/Willcox-Research-Group/rom-operator-inference-python3/commits/main)
-<!-- [![Documentation](https://img.shields.io/badge/Documentation-JupyterBook-important)](sec-api) -->
+[![PyPI](https://img.shields.io/pypi/wheel/opinf)](https://pypi.org/project/opinf/)
 
 :::{attention}
-This documentation is for `opinf` version `1.4.0`.
+This documentation is for `opinf` version `0.4.1`.
 See the documentation for old versions [here](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki/API-Reference).
 :::
 

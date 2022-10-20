@@ -22,7 +22,7 @@ This page gives an overview of Operator Inference by walking through each of the
 
 ::::{margin}
 :::{note}
-We are most often interested full-order models that are spatial discretizations of partial differential equations (PDEs), but {eq}`eq:opinf-example-fom` does not necessarily have to be related to a PDE.
+We are most often interested in full-order models that are spatial discretizations of partial differential equations (PDEs), but {eq}`eq:opinf-example-fom` does not necessarily have to be related to a PDE.
 :::
 ::::
 
@@ -261,7 +261,7 @@ $$
 $$ (eq:opinf-lstsq-residual)
 
 where
-- $\widehat{\mathbf{q}}_{j} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j})$ is the state at time $t_{j}$, represented in the coordinates of the basis,
+- $\widehat{\mathbf{q}}_{j} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j})$ is the state at time $t_{j}$ represented in the coordinates of the basis,
 - $\dot{\widehat{\mathbf{q}}}_{j} = \frac{\textrm{d}}{\textrm{d}t}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}\big|_{t=t_{j}}$ is the time derivative of the state at time $t_{j}$ in the coordinates of the basis,
 - $\mathbf{u}_{j} = \mathbf{u}(t_j)$ is the input at time $t_{j}$, and
 - $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
