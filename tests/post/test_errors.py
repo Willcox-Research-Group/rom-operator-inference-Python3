@@ -37,11 +37,11 @@ def test_frobenius_error(set_up_error_data):
     # Try with bad shapes.
     with pytest.raises(ValueError) as exc:
         opinf.post.frobenius_error(X, Y[:, :-1])
-    assert exc.value.args[0] == "truth X and approximation Y not aligned"
+    assert exc.value.args[0] == "Qtrue and Qapprox not aligned"
 
     with pytest.raises(ValueError) as exc:
         opinf.post.frobenius_error(np.dstack((X, X)), np.dstack((Y, Y)))
-    assert exc.value.args[0] == "X and Y must be two-dimensional"
+    assert exc.value.args[0] == "Qtrue and Qapprox must be two-dimensional"
 
     # Test correct usage.
     abs_err, rel_err = opinf.post.frobenius_error(X, Y)
@@ -62,11 +62,12 @@ def test_lp_error(set_up_error_data):
     # Try with bad shapes.
     with pytest.raises(ValueError) as exc:
         opinf.post.lp_error(X, Y[:, :-1])
-    assert exc.value.args[0] == "truth X and approximation Y not aligned"
+    assert exc.value.args[0] == "Qtrue and Qapprox not aligned"
 
     with pytest.raises(ValueError) as exc:
         opinf.post.lp_error(np.dstack((X, X)), np.dstack((Y, Y)))
-    assert exc.value.args[0] == "X and Y must be one- or two-dimensional"
+    assert exc.value.args[0] == \
+        "Qtrue and Qapprox must be one- or two-dimensional"
 
     # Test correct usage.
     for p in [1, 2, 5.7, np.inf]:
@@ -95,11 +96,12 @@ def test_Lp_error(set_up_error_data):
     # Try with bad shapes.
     with pytest.raises(ValueError) as exc:
         opinf.post.Lp_error(X, Y[:, :-1], t)
-    assert exc.value.args[0] == "truth X and approximation Y not aligned"
+    assert exc.value.args[0] == "Qtrue and Qapprox not aligned"
 
     with pytest.raises(ValueError) as exc:
         opinf.post.Lp_error(np.dstack((X, X)), np.dstack((Y, Y)), t)
-    assert exc.value.args[0] == "X and Y must be one- or two-dimensional"
+    assert exc.value.args[0] == \
+        "Qtrue and Qapprox must be one- or two-dimensional"
 
     with pytest.raises(ValueError) as exc:
         opinf.post.Lp_error(X, Y, np.dstack((t, t)))
@@ -107,7 +109,7 @@ def test_Lp_error(set_up_error_data):
 
     with pytest.raises(ValueError) as exc:
         opinf.post.Lp_error(X, Y, t[:-1])
-    assert exc.value.args[0] == "truth X not aligned with time t"
+    assert exc.value.args[0] == "Qtrue not aligned with time t"
 
     # Try bad combination of t and p.
     with pytest.raises(ValueError) as exc:

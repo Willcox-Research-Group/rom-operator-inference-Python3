@@ -19,7 +19,7 @@ parts:
     - file: content/usage/preprocessing/index.md
       sections:
       - file: content/usage/preprocessing/lifting.md
-      - file: content/usage/preprocessing/transformers.md
+      - file: content/usage/preprocessing/scaling.ipynb
       - file: content/usage/preprocessing/basis.ipynb
       # - file: content/usage/preprocessing/pod.md
       # - file: content/usage/preprocessing/quadratic.md
@@ -35,14 +35,11 @@ parts:
       # - file: content/usage/romclasses/affine.md
       - file: content/usage/romclasses/interpolate.md
     - file: content/usage/solvers/index.md
-      sections:
-      - file: content/usage/solvers/tikhonov.md
+      # sections:
+      # - file: content/usage/solvers/tikhonov.md
       # - file: content/usage/solvers/tsvd.md
       # - file: content/usage/solvers/qr.md
     - file: content/usage/postprocessing/index.md
-      sections:
-      - file: content/usage/postprocessing/reconstruction.md
-      - file: content/usage/postprocessing/error.md
 
   # Complete numerical examples, written in a tutorial style.
   - caption: Tutorials

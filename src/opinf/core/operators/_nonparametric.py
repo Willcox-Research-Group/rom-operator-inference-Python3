@@ -1,6 +1,8 @@
 # core/operators/_nonparametric.py
 """Classes for polynomial operators with no external parameter dependencies."""
 
+# TODO: Jacobian operations for each operator.
+
 __all__ = [
             "ConstantOperator",
             "LinearOperator",
@@ -34,6 +36,10 @@ class ConstantOperator(_BaseNonparametricOperator):
     def evaluate(self, *args):
         return self.entries
 
+    def jacobian(self, *args):
+        r = self.entries.size
+        return np.zeros((r, r))
+
 
 class LinearOperator(_BaseNonparametricOperator):
     """Linear state or input operator.
@@ -58,6 +64,9 @@ class LinearOperator(_BaseNonparametricOperator):
 
     def evaluate(self, q):
         return self.entries @ np.atleast_1d(q)
+
+    def jacobian(self, *args):
+        return self.entries
 
 
 class QuadraticOperator(_BaseNonparametricOperator):
@@ -91,6 +100,10 @@ class QuadraticOperator(_BaseNonparametricOperator):
 
     def evaluate(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
+
+    # def jacobian(self, q):
+    #     """Compute the Jacobian H[(q ⊗ I) + (I ⊗ q)]."""
+    #     return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
 
 
 # class CrossQuadraticOperator(QuadraticOperator):

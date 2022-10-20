@@ -75,6 +75,11 @@ class _BaseNonparametricOperator(abc.ABC):
         """Apply the operator mapping to the given states / inputs."""
         raise NotImplementedError
 
+    # @abc.abstractmethod                                   # pragma: no cover
+    # def jacobian(self, *args, **kwargs):
+    #     """Construct the Jacobian of the operator at the given state."""
+    #     raise NotImplementedError
+
     def __call__(self, *args, **kwargs):
         """Apply the operator mapping to the given states / inputs."""
         return self.evaluate(*args, **kwargs)

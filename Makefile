@@ -1,4 +1,4 @@
-.PHONY: clean lint install test docs docs_all deploy
+.PHONY: help clean install lint test docs docs_all deploy_package deploy_docs
 
 
 REMOVE = rm -rfv
@@ -6,15 +6,17 @@ PYTHON = python3
 PYTEST = pytest --cov opinf tests --cov-report html
 
 
+# About -----------------------------------------------------------------------
 help:
 	@echo "usage:"
 	@echo "  make clean: remove all build, test, coverage and Python artifacts"
-	@echo "  make lint: check style with flake8"
 	@echo "  make install: install the package locally from source"
+	@echo "  make lint: check style with flake8"
 	@echo "  make test: run unit tests via pytest"
 	@echo "  make docs: build jupyter-book documentation"
 
 
+# Installation ----------------------------------------------------------------
 clean:
 	find . -type d -name "build" | xargs $(REMOVE)
 	find . -type d -name "dist" | xargs $(REMOVE)
@@ -27,13 +29,14 @@ clean:
 	find docs -type d -name "_build" | xargs $(REMOVE)
 
 
+install: clean
+	$(PYTHON) -m pip install --use-feature=in-tree-build .
+
+
+# Testing ---------------------------------------------------------------------
 lint:
 	$(PYTHON) -m flake8 src
 	$(PYTHON) -m flake8 tests
-
-
-install: clean
-	$(PYTHON) -m pip install --use-feature=in-tree-build .
 
 
 test: lint install
@@ -41,17 +44,25 @@ test: lint install
 	# open htmlcov/index.html
 
 
+# Documentation ---------------------------------------------------------------
 docs:
-	jupyter-book build docs -n -W --keep-going
+	jupyter-book build --nitpick docs
 
 
 docs_all:
-	jupyter-book build --all docs
+	jupyter-book build --nitpick --warningiserror --all docs
 
 
-deploy: test docs_all
+# Deployment (ADMINISTRATORS ONLY) --------------------------------------------
+deploy_package: test docs_all
 	git checkout main
 	$(PYTHON) -m pip install build
 	$(PYTHON) -m build --sdist --wheel
 	$(PYTHON) -m twine check dist/*
 	$(PYTHON) -m twine upload dist/*
+
+
+deploy_docs: docs_all
+	$(PYTHON) -m pip install --upgrade ghp-import
+	git checkout main
+	ghp-import --remote upstream --no-jekyll --push --force --no-history docs/_build/html
