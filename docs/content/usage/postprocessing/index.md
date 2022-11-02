@@ -1,7 +1,7 @@
 # Postprocessing
 
 :::{admonition} Coming Soon!
-:class: important
+:class: attention
 This page is under construction.
 :::
 
