@@ -660,6 +660,36 @@ class TestBaseROM:
         y_ = A_ @ q_ + (B1d_ * u)
         assert np.allclose(rom.evaluate(q_, u), y_)
 
+    def test_jacobian(self, r=5, m=2, ntrials=10):
+        """Test _BaseROM.jacobian()."""
+        c_, A_, H_, G_, B_ = _get_operators(r, m, expanded=True)
+
+        rom = self.Dummy("cA")
+        rom.r = r
+        rom.c_, rom.A_ = c_, A_
+        q_ = np.random.random(r)
+        assert np.allclose(rom.jacobian(q_), A_)
+        assert np.allclose(rom.jacobian(q_, -1), A_)
+
+        rom = self.Dummy("HGB")
+        rom.r, rom.m = r, m
+        rom.H_, rom.G_, rom.B_ = H_, G_, B_
+        Id = np.eye(r)
+        for _ in range(ntrials):
+            u = np.random.random(m)
+            q_ = np.random.random(r)
+            Idq = np.kron(Id, q_)
+            qId = np.kron(q_, Id)
+            Idqq = np.kron(Idq, q_)
+            qIdq = np.kron(q_, Idq)
+            qqId = np.kron(q_, qId)
+
+            JH = H_ @ (Idq + qId).T
+            JG = G_ @ (Idqq + qIdq + qqId).T
+            Jac_true = JH + JG
+            Jac = rom.jacobian(q_, u)
+            assert np.allclose(Jac, Jac_true)
+
     def test_save(self):
         """Test _BaseROM.save()."""
         rom = self.Dummy("cA")

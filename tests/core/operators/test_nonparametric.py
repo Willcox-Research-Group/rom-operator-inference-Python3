@@ -13,7 +13,7 @@ _module = opinf.core.operators._nonparametric
 class TestConstantOperator:
     """Test core.operators._nonparametric.ConstantOperator."""
     def test_init(self):
-        """Test core.operators._nonparametric.ConstantOperator.__init__()"""
+        """Test ConstantOperator.__init__()"""
         # Too many dimensions.
         cbad = np.arange(12).reshape((4, 3))
         with pytest.raises(ValueError) as ex:
@@ -34,20 +34,29 @@ class TestConstantOperator:
         assert op.shape == (12,)
         assert np.all(op.entries == c)
 
-    def test_evaluate(self):
-        """Test core.operators._nonparametric.ConstantOperator.evaluate()"""
-        c = np.random.random(10)
+    def test_evaluate(self, n=10):
+        """Test ConstantOperator.evaluate()"""
+        c = np.random.random(n)
         op = opinf.core.operators.ConstantOperator(c)
         assert op.evaluate() is c
         assert op.evaluate(1) is c
         assert op.evaluate([1, 2]) is c
         assert op.evaluate([1], 2) is c
 
+    def test_jacobian(self, n=10):
+        """Test ConstantOperator.jacobian()."""
+        op = opinf.core.operators.ConstantOperator(np.random.random(n))
+        Z = np.zeros((n, n))
+        assert np.all(op.jacobian() == Z)
+        assert np.all(op.jacobian(1) == Z)
+        assert np.all(op.jacobian([1, 2]) == Z)
+        assert np.all(op.jacobian([1], 2) == Z)
+
 
 class TestLinearOperator:
     """Test core.operators._nonparametric.LinearOperator."""
     def test_init(self):
-        """Test core.operators._nonparametric.LinearOperator.__init__()"""
+        """Test LinearOperator.__init__()"""
 
         # Too many dimensions.
         Abad = np.arange(12).reshape((2, 2, 3))
@@ -78,25 +87,25 @@ class TestLinearOperator:
         assert op.entries[0, 0] == A[0]
 
     def test_evaluate(self):
-        """Test core.operators._nonparametric.LinearOperator.evaluate()"""
+        """Test LinearOperator.evaluate()"""
 
         # Special case: A is 1x1 (e.g., ROM state dimension = 1)
         A = np.random.random((1, 1))
         op = opinf.core.operators.LinearOperator(A)
-        x = np.random.random()
-        assert np.allclose(op.evaluate(x), A[0, 0] * x)
+        q = np.random.random()
+        assert np.allclose(op.evaluate(q), A[0, 0] * q)
 
         # Scalar inputs (e.g., ROM state dimension > 1 but input dimension = 1)
         B = np.random.random(10)
         op = opinf.core.operators.LinearOperator(B)
-        x = np.random.random()
-        assert np.allclose(op.evaluate(x), B * x)
+        q = np.random.random()
+        assert np.allclose(op.evaluate(q), B * q)
 
         # 1D inputs (usual case)
         def _check1D(A):
-            x = np.random.random(A.shape[-1])
+            q = np.random.random(A.shape[-1])
             op = opinf.core.operators.LinearOperator(A)
-            assert np.allclose(op.evaluate(x), A @ x)
+            assert np.allclose(op.evaluate(q), A @ q)
 
         _check1D(np.random.random((4, 3)))
         _check1D(np.random.random((4, 4)))
@@ -111,11 +120,19 @@ class TestLinearOperator:
         _check2D(np.random.random((10, 3)))
         _check2D(np.random.random((6, 6)))
 
+    def test_jacobian(self, n=9):
+        """Test LinearOperator.jacobian()."""
+        A = np.random.random((n, n))
+        op = opinf.core.operators.LinearOperator(A)
+        jac = op.jacobian(np.random.random(n))
+        assert jac.shape == A.shape
+        assert np.all(jac == A)
+
 
 class TestQuadraticOperator:
     """Test core.operators._nonparametric.QuadraticOperator."""
     def test_init(self):
-        """Test core.operators._nonparametric.QuadraticOperator.__init__()"""
+        """Test QuadraticOperator.__init__()"""
         # Too many dimensions.
         Hbad = np.arange(12).reshape((2, 2, 3))
         with pytest.raises(ValueError) as ex:
@@ -147,29 +164,54 @@ class TestQuadraticOperator:
         op = opinf.core.operators.QuadraticOperator(H)
         assert op.entries is H
 
-    def test_evaluate(self, ntrials=10):
-        """Test core.operators._nonparametric.QuadraticOperator.evaluate()"""
+    def test_evaluate(self, r=4, ntrials=10):
+        """Test QuadraticOperator.evaluate()"""
         # Full operator, compressed internally.
-        r = 4
         H = np.random.random((r, r**2))
         op = opinf.core.operators.QuadraticOperator(H)
         for _ in range(ntrials):
-            x = np.random.random(r)
-            assert np.allclose(op.evaluate(x), H @ np.kron(x, x))
+            q = np.random.random(r)
+            evaltrue = H @ np.kron(q, q)
+            assert np.allclose(op.evaluate(q), evaltrue)
 
         # Compressed operator.
         H = np.random.random((r, r*(r + 1)//2))
         op = opinf.core.operators.QuadraticOperator(H)
         for _ in range(ntrials):
-            x = np.random.random(r)
-            assert np.allclose(op.evaluate(x), H @ opinf.utils.kron2c(x))
+            q = np.random.random(r)
+            evaltrue = H @ opinf.utils.kron2c(q)
+            assert np.allclose(op.evaluate(q), evaltrue)
 
         # Special case: r = 1
         H = np.random.random((1, 1))
         op = opinf.core.operators.QuadraticOperator(H)
         for _ in range(ntrials):
-            x = np.random.random()
-            assert np.allclose(op.evaluate(x), H[0, 0] * x**2)
+            q = np.random.random()
+            evaltrue = H[0, 0] * q**2
+            assert np.allclose(op.evaluate(q), evaltrue)
+
+    def test_jacobian(self, r=5, ntrials=10):
+        """Test QuadraticOperator.jacobian()."""
+        H = np.random.random((r, r**2))
+        op = opinf.core.operators.QuadraticOperator(H)
+
+        Id = np.eye(r)
+        for _ in range(ntrials):
+            q = np.random.random(r)
+            jac_true = H @ (np.kron(q, Id) + np.kron(Id, q)).T
+            jac = op.jacobian(q)
+            assert jac.shape == (r, r)
+            assert np.allclose(jac, jac_true)
+
+        # Special case: r = 1
+        H = np.random.random((1, 1))
+        op = opinf.core.operators.QuadraticOperator(H)
+        for _ in range(ntrials):
+            q = np.random.random()
+            jac_true = 2 * H * q
+            jac = op.jacobian(q)
+            assert jac.shape == (1, 1)
+            assert np.allclose(jac, jac_true)
 
 
 # class TestCrossQuadraticOperator:
@@ -186,7 +228,7 @@ class TestQuadraticOperator:
 class TestCubicOperator:
     """Test core.operators._nonparametric.CubicOperator."""
     def test_init(self):
-        """Test core.operators._nonparametric.CubicOperator.__init__()"""
+        """Test CubicOperator.__init__()"""
         # Too many dimensions.
         Gbad = np.arange(24).reshape((2, 4, 3))
         with pytest.raises(ValueError) as ex:
@@ -218,27 +260,60 @@ class TestCubicOperator:
         op = opinf.core.operators.CubicOperator(G)
         assert op.entries is G
 
-    def test_evaluate(self, ntrials=10):
-        """Test core.operators._nonparametric.CubicOperator.evaluate()"""
+    def test_evaluate(self, r=4, ntrials=10):
+        """Test CubicOperator.evaluate()"""
         # Full operator, compressed internally.
-        r = 4
         G = np.random.random((r, r**3))
         op = opinf.core.operators.CubicOperator(G)
         for _ in range(ntrials):
-            x = np.random.random(r)
-            assert np.allclose(op.evaluate(x), G @ np.kron(np.kron(x, x), x))
+            q = np.random.random(r)
+            evaltrue = G @ np.kron(np.kron(q, q), q)
+            Gq = op.evaluate(q)
+            assert np.allclose(Gq, evaltrue)
 
         # Compressed operator.
-        r = 5
+        r += 1
         G = np.random.random((r, r*(r + 1)*(r + 2)//6))
         op = opinf.core.operators.CubicOperator(G)
         for _ in range(ntrials):
-            x = np.random.random(r)
-            assert np.allclose(op.evaluate(x), G @ opinf.utils.kron3c(x))
+            q = np.random.random(r)
+            evaltrue = G @ opinf.utils.kron3c(q)
+            Gq = op.evaluate(q)
+            assert np.allclose(Gq, evaltrue)
 
         # Special case: r = 1
         G = np.random.random((1, 1))
         op = opinf.core.operators.CubicOperator(G)
         for _ in range(ntrials):
-            x = np.random.random()
-            assert np.allclose(op.evaluate(x), G[0, 0] * x**3)
+            q = np.random.random()
+            evaltrue = G[0, 0] * q**3
+            Gq = op.evaluate(q)
+            assert np.allclose(Gq, evaltrue)
+
+    def test_jacobian(self, r=5, ntrials=10):
+        """Test CubicOperator.jacobian()."""
+        G = np.random.random((r, r**3))
+        op = opinf.core.operators.CubicOperator(G)
+
+        Id = np.eye(r)
+        for _ in range(ntrials):
+            q = np.random.random(r)
+            qId = np.kron(q, Id)
+            Idq = np.kron(Id, q)
+            qqId = np.kron(q, qId)
+            qIdq = np.kron(qId, q)
+            Idqq = np.kron(Idq, q)
+            jac_true = G @ (Idqq + qIdq + qqId).T
+            jac = op.jacobian(q)
+            assert jac.shape == (r, r)
+            assert np.allclose(jac, jac_true)
+
+        # Special case: r = 1
+        G = np.random.random((1, 1))
+        op = opinf.core.operators.CubicOperator(G)
+        for _ in range(ntrials):
+            q = np.random.random()
+            jac_true = 3 * G * q**2
+            jac = op.jacobian(q)
+            assert jac.shape == (1, 1)
+            assert np.allclose(jac, jac_true)
