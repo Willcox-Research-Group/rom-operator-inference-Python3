@@ -16,7 +16,7 @@ class TestSteadyOpInfROM:
     ModelClass = opinf.core.nonparametric._public.SteadyOpInfROM
 
     def test_evaluate(self, r=10):
-        """Test core.nonparametric._public.SteadyOpInfROM.evaluate()."""
+        """Test SteadyOpInfROM.evaluate()."""
         c_, A_, H_, G_, _ = _get_operators(r, 2)
 
         rom = self.ModelClass("cA")
@@ -35,7 +35,7 @@ class TestSteadyOpInfROM:
         assert np.allclose(rom.evaluate(q_), y_)
 
     def test_fit(self, n=50, k=400, r=10):
-        """Test core.nonparametric._public.SteadyOpInfROM.fit()."""
+        """Test SteadyOpInfROM.fit()."""
         Q, F, _ = _get_data(n, k, 2)
         Vr = la.svd(Q)[0][:, :r]
         args_n = [Q, F]
@@ -61,7 +61,7 @@ class TestSteadyOpInfROM:
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
 
     # def test_predict(self):
-    #     """Test core.nonparametric._public.SteadyOpInfROM.predict()."""
+    #     """Test SteadyOpInfROM.predict()."""
     #     raise NotImplementedError
 
 
@@ -70,7 +70,7 @@ class TestDiscreteOpInfROM:
     ModelClass = opinf.core.nonparametric._public.DiscreteOpInfROM
 
     def test_evaluate(self, r=6, m=3):
-        """Test core.nonparametric._public.DiscreteOpInfROM.evaluate()."""
+        """Test DiscreteOpInfROM.evaluate()."""
         c_, A_, H_, G_, B_ = _get_operators(r, m)
 
         rom = self.ModelClass("cA")
@@ -100,7 +100,7 @@ class TestDiscreteOpInfROM:
         assert np.allclose(rom.evaluate(q_, u), y_)
 
     def test_fit(self, n=20, k=500, r=5, m=3):
-        """Test core.nonparametric._public.DiscreteOpInfROM.fit()."""
+        """Test DiscreteOpInfROM.fit()."""
         Q, Qnext, U = _get_data(n, k, m)
         U1d = U[0, :]
         Vr = la.svd(Q)[0][:, :r]
@@ -136,7 +136,7 @@ class TestDiscreteOpInfROM:
         assert np.allclose(rom.B_.entries, Vr.T @ B)
 
     def test_predict(self, n=60, k=40, m=6, r=4):
-        """Test core.nonparametric._public.DiscreteOpInfROM.predict()."""
+        """Test DiscreteOpInfROM.predict()."""
         # Get test data.
         Q = _get_data(n, k, m)[0]
         Vr = la.svd(Q)[0][:, :r]
@@ -214,7 +214,7 @@ class TestContinuousOpInfROM:
     ModelClass = opinf.core.nonparametric._public.ContinuousOpInfROM
 
     def test_evaluate(self, r=5, m=2):
-        """Test core.nonparametric._public.ContinuousOpInfROM.evaluate()."""
+        """Test ContinuousOpInfROM.evaluate()."""
         c_, A_, H_, G_, B_ = _get_operators(r, m)
 
         rom = self.ModelClass("cA")
@@ -254,8 +254,43 @@ class TestContinuousOpInfROM:
             rom.evaluate(5, q_, 10)
         assert "object is not callable" in ex.value.args[0]
 
+    def test_jacobian(self, r=6, m=3, ntrials=10):
+        """Test ContinuousOpInfROM.jacobian()."""
+        c_, A_, H_, G_, B_ = _get_operators(r, m, expanded=True)
+
+        rom = self.ModelClass("cA")
+        rom.r = r
+        rom.c_, rom.A_ = c_, A_
+        q_ = np.random.random(r)
+        assert np.allclose(rom.jacobian(0, q_), A_)
+        assert np.allclose(rom.jacobian(1, q_), A_)
+
+        def input_func(t):
+            return uu + t
+
+        rom = self.ModelClass("HGB")
+        rom.r, rom.m = r, m
+        rom.H_, rom.G_, rom.B_ = H_, G_, B_
+        Id = np.eye(r)
+        for _ in range(ntrials):
+            uu = np.random.random(m)
+            q_ = np.random.random(r)
+            Idq = np.kron(Id, q_)
+            qId = np.kron(q_, Id)
+            Idqq = np.kron(Idq, q_)
+            qIdq = np.kron(q_, Idq)
+            qqId = np.kron(q_, qId)
+
+            JH = H_ @ (Idq + qId).T
+            JG = G_ @ (Idqq + qIdq + qqId).T
+            Jac_true = JH + JG
+            Jac = rom.jacobian(1, q_, input_func)
+            assert np.allclose(Jac, Jac_true)
+            Jac = rom.jacobian(1e10, q_, input_func)
+            assert np.allclose(Jac, Jac_true)
+
     def test_fit(self, n=200, k=500, m=3, r=4):
-        """Test core.nonparametric._public.ContinuousOpInfROM.fit()."""
+        """Test ContinuousOpInfROM.fit()."""
         Q, Qdot, U = _get_data(n, k, m)
         U1d = U[0, :]
         Vr = la.svd(Q)[0][:, :r]
@@ -289,7 +324,7 @@ class TestContinuousOpInfROM:
         assert np.allclose(rom.B_.entries, Vr.T @ B)
 
     def test_predict(self, n=60, k=50, m=10, r=6):
-        """Test core.nonparametric._public.ContinuousOpInfROM.predict()."""
+        """Test ContinuousOpInfROM.predict()."""
         # Get test data.
         Q = _get_data(n, k, m)[0]
         Vr = la.svd(Q)[0][:, :r]
@@ -374,9 +409,11 @@ class TestContinuousOpInfROM:
                 # Predict with 2D inputs.
                 rom = _trainedmodel(self.ModelClass, form, Vr, m)
                 # continuous input.
-                out = rom.predict(q0, t, input_func, decode=True)
-                assert isinstance(out, np.ndarray)
-                assert out.shape == (n, nt)
+                for method in ["RK45", "BDF"]:
+                    out = rom.predict(q0, t, input_func,
+                                      decode=True, method=method)
+                    assert isinstance(out, np.ndarray)
+                    assert out.shape == (n, nt)
                 # discrete input.
                 out = rom.predict(q0, t, Upred, decode=False)
                 assert isinstance(out, np.ndarray)

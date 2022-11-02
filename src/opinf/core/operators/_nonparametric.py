@@ -14,8 +14,7 @@ __all__ = [
 
 import numpy as np
 
-from ...utils import (kron2c_indices, kron3c_indices,
-                      compress_quadratic, compress_cubic)
+from ... import utils
 from ._base import _BaseNonparametricOperator
 
 
@@ -91,19 +90,21 @@ class QuadraticOperator(_BaseNonparametricOperator):
         # TODO: relax this requirement?
         # If so, need to try to compress if r2 is not a perfect square.
         if r2 == r1**2:
-            entries = compress_quadratic(entries)
+            entries = utils.compress_quadratic(entries)
         elif r2 != r1 * (r1 + 1) // 2:
             raise ValueError("invalid dimensions for quadratic operator")
-        self._mask = kron2c_indices(r1)
+        self._mask = utils.kron2c_indices(r1)
+        Ht = utils.expand_quadratic(entries).reshape([r1]*3)
+        self._jac = Ht + Ht.transpose(0, 2, 1)
 
         _BaseNonparametricOperator.__init__(self, entries)
 
     def evaluate(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
 
-    # def jacobian(self, q):
-    #     """Compute the Jacobian H[(q ⊗ I) + (I ⊗ q)]."""
-    #     return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
+    def jacobian(self, q):
+        """Compute the Jacobian H[(q ⊗ I) + (I ⊗ q)]."""
+        return self._jac @ np.atleast_1d(q)
 
 
 # class CrossQuadraticOperator(QuadraticOperator):
@@ -141,15 +142,22 @@ class CubicOperator(_BaseNonparametricOperator):
         # TODO: relax this requirement?
         # If so, need to try to compress if r2 is not a perfect square.
         if r2 == r1**3:
-            entries = compress_cubic(entries)
+            entries = utils.compress_cubic(entries)
         elif r2 != r1 * (r1 + 1) * (r1 + 2) // 6:
             raise ValueError("invalid dimensions for cubic operator")
-        self._mask = kron3c_indices(r1)
+        self._mask = utils.kron3c_indices(r1)
+        Gt = utils.expand_cubic(entries).reshape([r1]*4)
+        self._jac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
 
         _BaseNonparametricOperator.__init__(self, entries)
 
     def evaluate(self, q):
         return self.entries @ np.prod(np.atleast_1d(q)[self._mask], axis=1)
+
+    def jacobian(self, q):
+        """Compute the Jacobian G[(I ⊗ q ⊗ q) + (q ⊗ I ⊗ q) + (q ⊗ q ⊗ I)]."""
+        q_ = np.atleast_1d(q)
+        return (self._jac @ q_) @ q_
 
 
 # Dictionary relating modelform keys to operator classes.

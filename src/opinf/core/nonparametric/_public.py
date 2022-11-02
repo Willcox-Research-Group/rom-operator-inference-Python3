@@ -366,6 +366,28 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         input_ = None if 'B' not in self.modelform else input_func(t)
         return _BaseROM.evaluate(self, state_, input_)
 
+    def jacobian(self, t, state_, input_func=None):
+        """Construct the Jacobian of the model, i.e., the matrix dF/dq, where
+
+            dq / dt = F(t, q(t), u(t)).
+
+        Parameters
+        ----------
+        t : float
+            Time, a scalar.
+        state_ : (r,) ndarray
+            Reduced state vector q(t) corresponding to time `t`.
+        input_func : callable(float) -> (m,)
+            Input function that maps time `t` to an input vector of length m.
+
+        Returns
+        -------
+        dFdq_: (r, r) ndarray
+            Jacobian of the model.
+        """
+        input_ = None if 'B' not in self.modelform else input_func(t)
+        return _BaseROM.jacobian(self, state_, input_)
+
     def fit(self, basis, states, ddts, inputs=None,
             regularizer=0, known_operators=None):
         """Learn the reduced-order model operators from data.
@@ -451,7 +473,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             original n-dimensional state space (n rows); otherwise, return
             reduced-order state solutions (r rows).
             A more detailed report on the integration results is stored as
-            the attribute `predict_result_`.
+            the `predict_result_` attribute.
         """
         self._check_is_trained()
 
@@ -485,17 +507,22 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
                 raise ValueError("input_func() must return ndarray"
                                  f" of shape (m,) = {(self.m,)}")
 
+        if "method" in options and options["method"] in (
+            # These methods require the Jacobian.
+            "BDF", "Radau", "LSODA"
+        ):
+            options["jac"] = self.jacobian
+
         # Integrate the reduced-order model.
         out = solve_ivp(self.evaluate,          # Integrate this function
                         [t[0], t[-1]],          # over this time interval
-                        state0_,                # with this initial condition
-                        t_eval=t,               # evaluated at these points
-                        # jac=self.jacobian,          # with this Jacobian
+                        state0_,                # from this initial condition
                         args=(input_func,),     # with this input function
-                        **options)              # and these solver options.
+                        t_eval=t,               # evaluated at these points
+                        **options)              # using these solver options.
 
         # Warn if the integration failed.
-        if not out.success:                           # pragma: no cover
+        if not out.success:                     # pragma: no cover
             warnings.warn(out.message, IntegrationWarning)
 
         # Return state results.

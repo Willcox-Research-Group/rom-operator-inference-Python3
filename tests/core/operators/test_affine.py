@@ -21,6 +21,9 @@ class _OperatorDummy(_base._BaseNonparametricOperator):
     def evaluate(*args, **kwargs):
         return 0
 
+    def jacobian(*args, **kwargs):
+        return 0
+
 
 class TestAffineOperator:
     """Test opinf.core.operators._affine._AffineOperator."""

@@ -18,7 +18,10 @@ class TestBaseNonparametricOperator:
             super().__init__(entries)
 
         def evaluate(*args, **kwargs):
-            pass
+            return 0
+
+        def jacobian(*args, **kwargs):
+            return 0
 
     class Dummy2(Dummy):
         """A distinct instantiable version of _BaseNonparametricOperator."""
