@@ -550,29 +550,56 @@ class _BaseROM(abc.ABC):
         """
         out = np.zeros(self.r, dtype=float)
         if 'c' in self.modelform:
-            out += self.c_()
+            out += self.c_.evaluate()
         if 'A' in self.modelform:
-            out += self.A_(state_)
+            out += self.A_.evaluate(state_)
         if 'H' in self.modelform:
-            out += self.H_(state_)
+            out += self.H_.evaluate(state_)
         if 'G' in self.modelform:
-            out += self.G_(state_)
+            out += self.G_.evaluate(state_)
         if 'B' in self.modelform:
-            out += self.B_(input_)
+            out += self.B_.evaluate(input_)
         return out
 
-    # TODO: jacobian(self, state_)
+    def jacobian(self, state_, input_=None):
+        """Construct the Jacobian of the right-hand side of the model, i.e.,
+        the matirx df/dq with entries [df/dq]ij  = d[fi]/dqj, where
+
+        * g = f(q, u)                   (steady state)
+        * q_{j+1} = f(q_{j}, u_{j})     (discrete time)
+        * dq / dt = f(q(t), u(t))       (continuous time)
+
+        Parameters
+        ----------
+        state_ : (r,) ndarray
+            Low-dimensional state vector.
+        input_ : (m,) ndarray or None
+            Input vector corresponding to the state.
+
+        Returns
+        -------
+        df(state_, input_): (r, r) ndarray
+            Jacobian of the right-hand side of the model.
+        """
+        out = np.zeros((self.r, self.r), dtype=float)
+        if 'A' in self.modelform:
+            out += self.A_.jacobian(state_)
+        if 'H' in self.modelform:
+            out += self.H_.jacobian(state_)
+        if 'G' in self.modelform:
+            out += self.G_.jacobian(state_)
+        return out
 
     # Abstract public methods (must be implemented by child classes) ----------
     @abc.abstractmethod
     def fit(*args, **kwargs):
         """Train the reduced-order model with the specified data."""
-        raise NotImplementedError                       # pragma: no cover
+        raise NotImplementedError                           # pragma: no cover
 
     @abc.abstractmethod
     def predict(*args, **kwargs):
         """Solve the reduced-order model under specified conditions."""
-        raise NotImplementedError                       # pragma: no cover
+        raise NotImplementedError                           # pragma: no cover
 
     # Model persistence (not required but suggested) --------------------------
     def save(*args, **kwargs):
@@ -591,19 +618,19 @@ class _BaseParametricROM(_BaseROM):
 
     # ModelClass properties ---------------------------------------------------
     @property
-    def _LHS_ARGNAME(self):                             # pragma: no cover
+    def _LHS_ARGNAME(self):                                 # pragma: no cover
         return self._ModelClass._LHS_ARGNAME
 
     @property
-    def _LHS_LABEL(self):                               # pragma: no cover
+    def _LHS_LABEL(self):                                   # pragma: no cover
         return self._ModelClass._LHS_LABEL
 
     @property
-    def _STATE_LABEL(self):                             # pragma: no cover
+    def _STATE_LABEL(self):                                 # pragma: no cover
         return self._ModelClass._STATE_LABEL
 
     @property
-    def _INPUT_LABEL(self):                             # pragma: no cover
+    def _INPUT_LABEL(self):                                 # pragma: no cover
         return self._ModelClass._INPUT_LABEL
 
     @property
@@ -670,7 +697,11 @@ class _BaseParametricROM(_BaseROM):
 
     def evaluate(self, parameter, *args, **kwargs):
         """Evaluate the right-hand side of the model at the given parameter."""
-        return self(parameter).evaluate(*args, **kwargs)
+        return self(parameter).evaluate(*args, **kwargs)    # pragma: no cover
+
+    def jacobian(self, parameter, *args, **kwargs):
+        """Evaluate the Jacobian of the model at the given parameter."""
+        return self(parameter).jacobian(*args, **kwargs)    # pragma: no cover
 
     def predict(self, parameter, *args, **kwargs):
         """Solve the reduced-order model at the given parameter."""
