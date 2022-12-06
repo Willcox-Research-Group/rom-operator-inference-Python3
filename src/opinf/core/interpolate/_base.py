@@ -10,8 +10,10 @@ Relevant operator classes are defined in core.operators._interpolate.
 
 __all__ = []
 
+import copy
 import numpy as np
 import scipy.interpolate
+from collections.abc import Iterable
 
 from ... import pre
 from ...utils import hdf5_savehandle, hdf5_loadhandle
@@ -163,7 +165,7 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
                                  f"!= {self.s} = len(parameters)")
 
     def _process_fit_arguments(self, basis, parameters, states, lhss, inputs,
-                               regularizers, known_operators):
+                               *, known_operators=None, solvers=None):
         """Do sanity checks, extract dimensions, and check data sizes."""
         # Intialize reset.
         self._clear()           # Clear all data (basis and operators).
@@ -180,16 +182,15 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
         if inputs is None:
             inputs = [None] * self.s
 
-        # Interpret regularizers argument.
-        _reg = regularizers
-        if _reg is None or np.isscalar(_reg) or len(_reg) != self.s:
-            regularizers = [regularizers] * self.s
-
         # Separate known operators into one dictionary per parameter sample.
         if isinstance(known_operators, list):
             knownops_list = known_operators
         else:
             knownops_list = self._split_operator_dict(known_operators)
+
+        # Interpret solvers argument.
+        if not isinstance(solvers, Iterable):
+            solvers = [copy.deepcopy(solvers) for _ in range(self.s)]
 
         # Check that the number of training sets is consistent.
         self._check_number_of_training_datasets([
@@ -197,11 +198,11 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
             (states, "states"),
             (lhss, self._LHS_ARGNAME),
             (inputs, "inputs"),
-            (regularizers, "regularizers"),
             (knownops_list, "known_operators"),
+            (solvers, "solvers"),
         ])
 
-        return states, lhss, inputs, regularizers, knownops_list
+        return states, lhss, inputs, knownops_list, solvers
 
     def _interpolate_roms(self, parameters, roms):
         """Interpolate operators from a collection of non-parametric ROMs.
@@ -252,7 +253,7 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
                                                   self.InterpolatorClass))
 
     def fit(self, basis, parameters, states, lhss, inputs=None,
-            regularizers=0, known_operators=None):
+            *, known_operators=None, solvers=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -286,12 +287,6 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
             dimensional array.
             This argument is required if 'B' is in `modelform` but must be
             None if 'B' is not in `modelform`.
-        regularizers : list of s (float >= 0, (d, d) ndarray, or r of these)
-            Tikhonov regularization factor(s) for each parameter value:
-            `regularizers[i]` is the regularization factor for the regression
-            using data corresponding to `parameters[i]`. See lstsq.solve().
-            Here, d is the number of unknowns in each decoupled least-squares
-            problem, e.g., d = r + m when `modelform`="AB".
         known_operators : dict or None
             Dictionary of known full-order operators at each parameter value.
             Corresponding reduced-order operators are computed directly
@@ -304,28 +299,27 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
             * 'B': (n, m) input matrix B.
             If operators are known for some parameter values but not others,
             use None whenever the operator must be inferred, e.g., for
-            parameters = [µ1, µ2, µ3, µ4, µ5], if A1, A3, and A4 are known
-            linear state operators at µ1, µ3, and µ4, respectively, set
+            parameter values = [µ1, µ2, µ3, µ4, µ5], if A1, A3, and A4 are
+            known linear state operators at µ1, µ3, and µ4, respectively, set
             known_operators = {'A': [A1, None, A3, A4, None]}.
             For known operators (e.g., A) that do not depend on the parameters,
             known_operators = {'A': [A, A, A, A, A]} and
-            known_operators = {'A': A} are equivalent.
+            known_operators = {'A': A} are both acceptable.
 
         Returns
         -------
         self
         """
-        args = self._process_fit_arguments(basis, parameters,
-                                           states, lhss, inputs,
-                                           regularizers, known_operators)
-        states, lhss, inputs, regularizers, knownops_list = args
+        args = self._process_fit_arguments(
+            basis, parameters, states, lhss, inputs,
+            known_operators=known_operators, solvers=solvers)
+        states, lhss, inputs, knownops_list, solvers = args
 
         # Distribute training data to individual OpInf problems.
         nonparametric_roms = [
             self._ModelFitClass(self.modelform).fit(
-                self.basis,
-                states[i], lhss[i], inputs[i],
-                regularizers[i], knownops_list[i]
+                self.basis, states[i], lhss[i], inputs[i],
+                known_operators=knownops_list[i], solver=solvers[i],
             ) for i in range(self.s)
         ]
         # TODO: split into _[construct/evaluate]_solver() paradigm?

@@ -12,6 +12,10 @@ class _FrozenMixin:
     def data_matrix_(self):
         return None
 
+    @property
+    def d(self):
+        return None
+
     def fit(*args, **kwargs):
         raise NotImplementedError("fit() is disabled for this class, "
                                   "call fit() on the parametric ROM object")
