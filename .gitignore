@@ -31,6 +31,9 @@ html/
 *.fls
 *.fdb_latexmk
 
+# Extra Mac files
+*.DS_Store
+
 # Archives and figures
 *.zip
 *.png
@@ -39,5 +42,6 @@ html/
 *.gif
 *.pptx
 
-# Extra Mac files
-*.DS_Store
+# Data files
+*.h5
+*.np[yz]
