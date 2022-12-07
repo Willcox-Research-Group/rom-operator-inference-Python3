@@ -2,11 +2,11 @@
 """Operator Inference least-squares solvers with Tikhonov regularization."""
 
 __all__ = [
-            "L2Solver",
-            "L2SolverDecoupled",
-            "TikhonovSolver",
-            "TikhonovSolverDecoupled",
-          ]
+    "L2Solver",
+    "L2SolverDecoupled",
+    "TikhonovSolver",
+    "TikhonovSolverDecoupled",
+]
 
 import abc
 import warnings
@@ -23,10 +23,6 @@ class _BaseTikhonovSolver(_BaseSolver):
 
         sum_{i} min_{x_i} ||Ax_i - b_i||^2 + ||P_i x_i||^2.
     """
-    def __init__(self):
-        """Initialize attributes."""
-        self.__A, self.__B = None, None
-
     # Properties: regularization ----------------------------------------------
     @abc.abstractmethod
     def regularizer(self):
@@ -97,7 +93,7 @@ class L2Solver(_BaseTikhonovSolver):
         _BaseTikhonovSolver.__init__(self)
         self.regularizer = regularizer
 
-    # Validation --------------------------------------------------------------
+    # Properties --------------------------------------------------------------
     @property
     def regularizer(self):
         return self.__reg
@@ -224,7 +220,7 @@ class L2SolverDecoupled(L2Solver):
         if self.r is not None:
             self._check_regularizer_shape()
 
-    # Validation --------------------------------------------------------------
+    # Main methods ------------------------------------------------------------
     def fit(self, A, B):
         """Take the SVD of A and store B.
 
@@ -268,8 +264,7 @@ class L2SolverDecoupled(L2Solver):
         resids : (r,) ndarray
             Residuals ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2, i = 1, ..., r.
         """
-        self._check_is_trained()
-        return self.misfit(X) + (self.regularizer**2 * np.sum(X**2, axis=0))
+        return L2Solver.residual(self, X)
 
 
 class TikhonovSolver(_BaseTikhonovSolver):
@@ -292,7 +287,7 @@ class TikhonovSolver(_BaseTikhonovSolver):
 
         (A.T A + P.T P) X = A.T B.
     """
-    def __init__(self, regularizer, method):
+    def __init__(self, regularizer, method="svd"):
         """Store the regularizer and initialize attributes.
 
         Parameters
@@ -305,7 +300,7 @@ class TikhonovSolver(_BaseTikhonovSolver):
             * "svd": take the SVD of the stacked data matrix [A.T | P.T].T.
             * "normal": solve the normal equations (A.T A + P.T P) X = A.T B.
         """
-        _BaseTikhonovSolver.__init__(self, regularizer)
+        _BaseTikhonovSolver.__init__(self)
         self.regularizer = regularizer
         self.method = method
 
@@ -367,6 +362,8 @@ class TikhonovSolver(_BaseTikhonovSolver):
         self._AtA = self.A.T @ self.A
         self._rhs = self.A.T @ self.B
 
+        return self
+
     def predict(self):
         """Solve the least-squares problem.
 
@@ -425,7 +422,7 @@ class TikhonovSolverDecoupled(TikhonovSolver):
         min_{x_i} ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2.
     """
 
-    def __init__(self, regularizer, method):
+    def __init__(self, regularizer, method="svd"):
         """Store the regularizer and initialize attributes.
 
         Parameters
@@ -447,7 +444,7 @@ class TikhonovSolverDecoupled(TikhonovSolver):
             raise ValueError("len(regularizer) != r")
         for i, P in enumerate(self.regularizer):
             if P.shape != (self.d, self.d):
-                raise ValueError("regularizer[i].shape != (d, d)")
+                raise ValueError(f"regularizer[{i}].shape != (d, d)")
 
     @property
     def regularizer(self):
@@ -461,13 +458,15 @@ class TikhonovSolverDecoupled(TikhonovSolver):
         """Set the regularization matrices."""
         regs = []
         for P in Ps:
-            if not isinstance(P, np.ndarray) and not sparse.issparse(P):
+            if sparse.issparse(P):
+                P = P.toarray()
+            elif not isinstance(P, np.ndarray):
                 P = np.array(P)
             if P.ndim == 1:
                 if np.any(P < 0):
                     raise ValueError("diagonal regularizer must be "
                                      "positive semi-definite")
-                P = sparse.diags([P], offsets=[0])
+                P = np.diag(P)
             regs.append(P)
 
         self._TikhonovSolver__reg = regs

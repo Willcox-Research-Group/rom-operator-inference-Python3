@@ -79,6 +79,10 @@ class _BaseSolver(abc.ABC):
         Return the solution of the least-squares problem min_{X}||AX - B||
         (plus regularization if present).
     """
+    def __init__(self):
+        self.__A = None
+        self.__B = None
+
     # Properties: matrices ----------------------------------------------------
     @property
     def A(self):
