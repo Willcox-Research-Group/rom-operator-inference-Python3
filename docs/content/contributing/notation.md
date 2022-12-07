@@ -48,7 +48,7 @@ In the code, low-dimensional quantities ends with an underscore (e.g., `state` i
 
 | Symbol | Code | Shape | Description |
 | :----: | :--- | :---: | :---------- |
-| $\mathbf{V}_{r}$ | `Vr` | $n \times r$ | low-rank basis of rank _r_ (usually the POD basis) |
+| $\mathbf{V}_{r}$ | `basis` | $n \times r$ | low-rank basis of rank _r_ (usually the POD basis) |
 | $\mathbf{Q}$ | `states` | $n \times k$ | Snapshot matrix |
 | $\dot{\mathbf{Q}}$ | `ddts` | $n \times k$ | Snapshot time derivative matrix |
 | $\mathbf{U}$ | `inputs` | $m \times k$ | Input matrix (inputs corresonding to the snapshots) |

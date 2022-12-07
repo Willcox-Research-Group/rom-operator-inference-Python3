@@ -40,8 +40,17 @@ $$
 \right\|_{F}^{2} + \mathcal{R}(\widehat{\mathbf{O}}),
 $$
 
-Regularization is can be specified by using the `regularizer` argument of `fit()`.
+The form of the regularization $\mathcal{R}$ and the numerical method for solving the corresponding least-squares regression are specified by _solver_ objects in `opinf.lstsq`.
+For example, `opinf.lstsq.L2Solver` implements the $L_{2}$ scalar regularizer
 
+$$
+\mathcal{R}(\widehat{\mathbf{O}})
+= \lambda \|\widehat{\mathbf{O}}^{\mathsf{T}}\|_{F}^{2},
+\qquad \lambda > 0.
+$$
+
+Least-squares solver objects are passed to `fit()` using the `solver` keyword argument.
+If `fit()` does not receive a `solver` object, no regularization is added ($\mathcal{R}(\widehat{\mathbf{O}}) = \mathbf{0}$) and the regression is solved using [`scipy.linalg.lstsq()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html).
 
 ## Tikhonov Regularization
 
@@ -54,8 +63,6 @@ $$
 \widehat{\mathbf{O}}^{\mathsf{T}}
 = (\mathbf{D}^{\mathsf{T}}\mathbf{D})^{-1}\mathbf{D}^{\mathsf{T}}\mathbf{R}^{\mathsf{T}}.
 $$
-
-This is the default option in `fit()`.
 :::
 
 :::{dropdown} $\mathcal{R}(\widehat{\mathbf{O}}) = ||\lambda\widehat{\mathbf{O}}||_{F}^{2}$
