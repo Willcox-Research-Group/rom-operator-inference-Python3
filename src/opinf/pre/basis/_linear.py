@@ -8,6 +8,7 @@ __all__ = [
 
 import numpy as np
 import scipy.sparse as sparse
+import matplotlib.pyplot as plt
 
 from ...errors import LoadfileFormatError
 from ...utils import hdf5_savehandle, hdf5_loadhandle
@@ -143,6 +144,42 @@ class LinearBasis(_BaseBasis):
         if self.transformer is not None:
             state = self.transformer.inverse_transform(state)
         return state
+
+    # Visualizations ----------------------------------------------------------
+    def plot1D(self, x, rmax=None, ax=None, **kwargs):
+        """Plot the basis vectors over a one-dimensional domain.
+
+        Parameters
+        ----------
+        x : (n,) ndarray
+            One-dimensional spatial domain over which to plot the vectors.
+        rmax : int or None
+            Number of basis vectors to plot. If None, plot all basis vectors.
+        ax : plt.Axes or None
+            Matplotlib Axes to plot on. If None, a new figure is created.
+        kwargs : dict
+            Other keyword arguments to pass to plt.plot().
+
+        Returns
+        -------
+        ax : plt.Axes
+            Matplotlib Axes for the plot.
+        """
+        if self.entries is None:
+            print("no basis entries to plot")
+            return
+        if rmax is None:
+            rmax = self.r
+        if ax is None:
+            ax = plt.figure().add_subplot(111)
+
+        for j in range(rmax):
+            ax.plot(x, self.entries[:, j], **kwargs)
+        ax.set_xlim(x[0], x[-1])
+        ax.set_xlabel("Spatial domain x")
+        ax.set_ylabel("Basis vectors v(x)")
+
+        return ax
 
     # Persistence -------------------------------------------------------------
     def __eq__(self, other):

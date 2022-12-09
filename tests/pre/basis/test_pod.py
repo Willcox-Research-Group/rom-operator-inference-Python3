@@ -32,7 +32,7 @@ class TestPODBasis:
     PODBasis = opinf.pre.PODBasis
 
     def test_init(self):
-        """Test PODBasis.init()."""
+        """Test __init__()."""
         basis = self.PODBasis()
         assert basis.transformer is None
         assert basis.r is None
@@ -45,7 +45,7 @@ class TestPODBasis:
         assert basis.rmax is None
 
     def test_dimensions(self, n=20, r=5):
-        """Test PODBasis.r, economize, and _shrink_stored_entries_to()."""
+        """Test r, economize, and _shrink_stored_entries_to()."""
         basis = self.PODBasis(economize=False)
 
         # Try setting the basis dimension before setting the entries.
@@ -125,7 +125,7 @@ class TestPODBasis:
         assert basis.encode(np.random.random((n, n))).shape == (1, n)
 
     def test_set_dimension(self, n=20):
-        """Test PODBasis.set_dimension()."""
+        """Test set_dimension()."""
         basis = self.PODBasis(economize=False)
 
         # Try setting dimension without singular values.
@@ -154,14 +154,14 @@ class TestPODBasis:
         assert basis.r == 2
 
     def test_str(self):
-        """Lightly test PODBasis.__str__() and LinearBasis.__repr__()."""
+        """Lightly test __str__() and LinearBasis.__repr__()."""
         basis = self.PODBasis()
         assert str(basis) == "Empty PODBasis"
         assert repr(basis).startswith("<PODBasis object at ")
 
     def test_fit(self, n=20, k=15, r=5):
-        """Test PODBasis.fit()."""
-        # First test PODBasis.validate_rank().
+        """Test fit()."""
+        # First test validate_rank().
         states = np.empty((n, n))
         with pytest.raises(ValueError) as ex:
             self.PODBasis._validate_rank(states, n + 1)
@@ -170,7 +170,7 @@ class TestPODBasis:
 
         self.PODBasis._validate_rank(states, n // 2)
 
-        # Now test PODBasis.fit().
+        # Now test fit().
         states = np.random.standard_normal((n, k))
         U, vals, Wt = la.svd(states, full_matrices=False)
         basis = self.PODBasis().fit(states, r)
@@ -197,8 +197,14 @@ class TestPODBasis:
 
         # TODO: weighted inner product matrix.
 
+        # Repeat with list of state trajectories.
+        states = [np.random.standard_normal((n, n)) for _ in range(4)]
+        basis = self.PODBasis()
+        basis.fit(states)
+        assert basis.n == n
+
     def test_fit_randomized(self, n=20, k=14, r=5, tol=1e-6):
-        """Test PODBasis.fit_randomized()."""
+        """Test fit_randomized()."""
         options = dict(n_oversamples=30, n_iter=10, random_state=42)
         states = np.random.standard_normal((n, k))
         U, vals, Wt = la.svd(states, full_matrices=False)
@@ -237,9 +243,15 @@ class TestPODBasis:
         assert la.norm(basis.svdvals - vals[:r]) / la.norm(basis.svdvals) < tol
         assert la.norm(basis.dual - Wt[:r, :].T, ord=2) < tol
 
+        # Repeat with list of state trajectories.
+        states = [np.random.standard_normal((n, n)) for _ in range(4)]
+        basis = self.PODBasis()
+        basis.fit_randomized(states, r, **options)
+        assert basis.n == n
+
     # Visualization -----------------------------------------------------------
     def test_plots(self, n=40, k=25, r=4):
-        """Lightly test PODBasis.plot_*()."""
+        """Lightly test plot_*()."""
         basis = self.PODBasis().fit(np.random.standard_normal((n, k)))
 
         # Turn interactive mode on.
@@ -271,7 +283,7 @@ class TestPODBasis:
 
     # Persistence -------------------------------------------------------------
     def test_save(self, n=20, k=14, r=6):
-        """Lightly test PODBasis.save()."""
+        """Lightly test save()."""
         # Clean up after old tests.
         target = "_podbasissavetest.h5"
         if os.path.isfile(target):              # pragma: no cover
@@ -290,7 +302,7 @@ class TestPODBasis:
         os.remove(target)
 
     def test_load(self, n=20, k=14, r=6):
-        """Test PODBasis.load()."""
+        """Test load()."""
         # Clean up after old tests.
         target = "_podbasisloadtest.h5"
         if os.path.isfile(target):              # pragma: no cover

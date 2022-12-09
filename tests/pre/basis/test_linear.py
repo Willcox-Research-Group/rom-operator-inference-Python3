@@ -7,6 +7,7 @@ import pytest
 import numpy as np
 import scipy.linalg as la
 import scipy.sparse as sparse
+import matplotlib.pyplot as plt
 
 import opinf
 
@@ -30,11 +31,11 @@ class DummyTransformer:
 
 
 class TestLinearBasis:
-    """Test pre.basis._linear._LinearBasis."""
+    """Test pre.basis._linear.LinearBasis."""
     LinearBasis = opinf.pre.basis.LinearBasis
 
     def test_init(self):
-        """Test LinearBasis.__init__() and entries/transformer properties."""
+        """Test __init__() and entries/transformer properties."""
         basis = self.LinearBasis()
         assert basis.entries is None
         assert basis.shape is None
@@ -60,7 +61,7 @@ class TestLinearBasis:
         assert basis.transformer is transformer
 
     def test_str(self):
-        """Test LinearBasis.__str__() and LinearBasis.__repr__()."""
+        """Test __str__() and __repr__()."""
         basis = self.LinearBasis()
         assert str(basis) == "Empty LinearBasis"
         assert repr(basis).startswith("<LinearBasis object at ")
@@ -80,7 +81,7 @@ class TestLinearBasis:
 
     # Encoder / decoder -------------------------------------------------------
     def test_encode(self, n=9, r=4):
-        """Test LinearBasis.encode()."""
+        """Test encode()."""
         Vr = np.random.random((n, r))
         basis = self.LinearBasis().fit(Vr)
         q = np.random.random(n)
@@ -96,7 +97,7 @@ class TestLinearBasis:
         assert np.allclose(basis.encode(q), q_)
 
     def test_decode(self, n=9, r=4):
-        """Test LinearBasis.encode()."""
+        """Test encode()."""
         Vr = np.random.random((n, r))
         basis = self.LinearBasis().fit(Vr)
         q_ = np.random.random(r)
@@ -111,9 +112,29 @@ class TestLinearBasis:
         q = (Vr @ q_) - 1
         assert np.allclose(basis.decode(q_), q)
 
+    # Visualization -----------------------------------------------------------
+    def test_plot1D(self, n=20, r=4):
+        """Lightly test plot1D()."""
+        basis = self.LinearBasis()
+        assert basis.plot1D(None) is None
+        basis.fit(np.random.standard_normal((n, r)))
+
+        # Turn interactive mode on.
+        _pltio = plt.isinteractive()
+        plt.ion()
+
+        # Call the plotting routine.
+        x = np.linspace(0, 1, n)
+        ax = basis.plot1D(x)
+        assert isinstance(ax, plt.Axes)
+        plt.close(ax.figure)
+
+        # Restore interactive mode setting.
+        plt.interactive(_pltio)
+
     # Persistence -------------------------------------------------------------
     def test_eq(self):
-        """Test LinearBasis.__eq__()."""
+        """Test __eq__()."""
         basis1 = self.LinearBasis()
         assert basis1 != 10
 
@@ -132,7 +153,7 @@ class TestLinearBasis:
         assert basis1 != basis2
 
     def test_save(self, n=11, r=2):
-        """Test LinearBasis.save()."""
+        """Test save()."""
         # Clean up after old tests.
         target = "_linearbasissavetest.h5"
         if os.path.isfile(target):              # pragma: no cover
@@ -170,7 +191,7 @@ class TestLinearBasis:
         os.remove(target)
 
     def test_load(self, n=10, r=5):
-        """Test LinearBasis.load()."""
+        """Test load()."""
         # Clean up after old tests.
         target = "_linearbasisloadtest.h5"
         if os.path.isfile(target):              # pragma: no cover

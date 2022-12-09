@@ -218,6 +218,9 @@ class PODBasis(LinearBasis):
         This method computes the full singular value decomposition of `states`.
         The method fit_randomized() uses a randomized SVD.
         """
+        if np.ndim(states) == 3:
+            # Concatenate list of states.
+            states = np.hstack(states)
         self._validate_rank(states, r)
 
         # Transform states.
@@ -254,6 +257,8 @@ class PODBasis(LinearBasis):
         value decomposition, which can be useful for very large n.
         The method fit() computes the full singular value decomposition.
         """
+        if np.ndim(states) == 3:
+            states = np.hstack(states)
         self._validate_rank(states, r)
 
         # Transform the states.
