@@ -149,8 +149,23 @@ class TestNonparametricOpInfROM:
         Vr = la.svd(Q)[0][:, :r]
         ones = np.ones(k)
 
-        # With basis and input.
+        # Try with bad solver option.
         rom = self.Dummy("AB")
+
+        with pytest.raises(TypeError) as ex:
+            rom._process_fit_arguments(None, None, None, None,
+                                       solver=opinf.lstsq.PlainSolver)
+        assert ex.value.args[0] == "solver must be an instance, not a class"
+
+        class _DummySolver:
+            pass
+
+        with pytest.raises(TypeError) as ex:
+            rom._process_fit_arguments(None, None, None, None,
+                                       solver=_DummySolver())
+        assert ex.value.args[0] == "solver must have a 'fit()' method"
+
+        # With basis and input.
         Q_, lhs_, solver = rom._process_fit_arguments(Vr, Q, lhs, U)
         assert rom.n == n
         assert rom.r == r

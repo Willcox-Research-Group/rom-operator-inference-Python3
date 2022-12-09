@@ -63,6 +63,10 @@ class TestBaseSolver:
             solver.A = 1
         assert ex.value.args[0] == "can't set attribute (call fit())"
 
+        with pytest.raises(AttributeError) as ex:
+            solver.B = 2
+        assert ex.value.args[0] == "can't set attribute (call fit())"
+
     def test_fit(self, k=30, d=20, r=5):
         """Test fit()."""
         solver = self.Dummy()

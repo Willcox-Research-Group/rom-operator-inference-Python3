@@ -25,6 +25,7 @@ class TestFrozenMixin:
         assert rom.data_matrix_ is None
         rom.solver_ = "A"
         assert rom.data_matrix_ is None
+        assert rom.d is None
 
         # Test disabled fit().
         with pytest.raises(NotImplementedError) as ex:
@@ -32,6 +33,3 @@ class TestFrozenMixin:
         assert ex.value.args[0] == \
             ("fit() is disabled for this class, call fit() "
              "on the parametric ROM object")
-
-
-# TODO: test each child of _FrozenMixin.

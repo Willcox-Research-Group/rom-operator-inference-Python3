@@ -25,7 +25,7 @@ class _BaseTikhonovSolver(_BaseSolver):
     """
     # Properties: regularization ----------------------------------------------
     @abc.abstractmethod
-    def regularizer(self):
+    def regularizer(self):                                  # pragma: no cover
         """Regularization scalar, matrix, or list of these."""
         raise NotImplementedError
 

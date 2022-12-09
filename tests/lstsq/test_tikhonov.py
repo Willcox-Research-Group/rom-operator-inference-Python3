@@ -573,6 +573,8 @@ class TestTikhonovSolverDecoupled:
         assert ex.value.args[0] == \
             "diagonal regularizer must be positive semi-definite"
 
+        Zs[-1] = sparse.diags(np.ones(d))
+        solver.regularizer = Zs
         solver.regularizer = [[i] * d for i in range(1, r+1)]
         assert np.all(solver.regularizer[0] == np.eye(d))
 
@@ -618,15 +620,17 @@ class TestTikhonovSolverDecoupled:
         assert np.allclose(X1, X2)
 
         # Some regularization.
-        solver.regularizer = Ps[:2]
-        Apad1 = np.vstack((A, Ps[0]))
-        Apad2 = np.vstack((A, np.diag(Ps[1])))
-        Bpad = np.vstack((B, np.zeros((d, 2))))
-        xx1 = la.lstsq(Apad1, Bpad[:, 0])[0]
-        xx2 = la.lstsq(Apad2, Bpad[:, 1])[0]
-        X1 = np.column_stack([xx1, xx2])
-        X2 = solver.predict()
-        assert np.allclose(X1, X2)
+        for method in "svd", "normal":
+            solver.method = method
+            solver.regularizer = Ps[:2]
+            Apad1 = np.vstack((A, Ps[0]))
+            Apad2 = np.vstack((A, np.diag(Ps[1])))
+            Bpad = np.vstack((B, np.zeros((d, 2))))
+            xx1 = la.lstsq(Apad1, Bpad[:, 0])[0]
+            xx2 = la.lstsq(Apad2, Bpad[:, 1])[0]
+            X1 = np.column_stack([xx1, xx2])
+            X2 = solver.predict()
+            assert np.allclose(X1, X2)
 
     # Post-processing ---------------------------------------------------------
     def test_regcond(self, k=20, d=11, r=3):
