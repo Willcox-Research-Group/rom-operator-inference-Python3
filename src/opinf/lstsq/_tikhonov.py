@@ -82,6 +82,8 @@ class L2Solver(_BaseTikhonovSolver):
     regularizer : float ≥ 0
         Scalar regularization hyperparameter.
     """
+    _LSTSQ_LABEL = r"min_{X} ||AX - B||_F^2 + ||λX||_F^2"
+
     def __init__(self, regularizer=0):
         """Store the regularizer and initialize attributes.
 
@@ -189,13 +191,15 @@ class L2Solver(_BaseTikhonovSolver):
 
 class L2SolverDecoupled(L2Solver):
     """Solve r independent l2-norm ordinary least-squares problems, each with
-    the same data matrix A but different L2 regularizations for the columns of
-    X and B:
+    the same data matrix A but different L2 regularizations λ_i > 0 for the
+    columns of X and B:
 
-        min_{x_i} ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2,    λ_i > 0.
+        min_{x_i} ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2,    i = 1, ..., r.
 
     The solution is calculated using the singular value decomposition of A.
     """
+    _LSTSQ_LABEL = r"min_{x_i} ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2"
+
     def __init__(self, regularizer):
         """Store the regularizer and initialize attributes.
 
@@ -287,6 +291,8 @@ class TikhonovSolver(_BaseTikhonovSolver):
 
         (A.T A + P.T P) X = A.T B.
     """
+    _LSTSQ_LABEL = r"min_{X} ||AX - B||_F^2 + ||PX||_F^2"
+
     def __init__(self, regularizer, method="svd"):
         """Store the regularizer and initialize attributes.
 
@@ -419,8 +425,9 @@ class TikhonovSolverDecoupled(TikhonovSolver):
     """Solve r independent l2-norm ordinary least-squares problems, each with
     the same data matrix but a different Tikhonov regularizer,
 
-        min_{x_i} ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2.
+        min_{x_i} ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2,     i = 1, ..., r.
     """
+    _LSTSQ_LABEL = r"sum_{i} min_{x_i} ||Ax_i - b_i||^2 + ||P_i x_i||^2"
 
     def __init__(self, regularizer, method="svd"):
         """Store the regularizer and initialize attributes.

@@ -79,6 +79,8 @@ class _BaseSolver(abc.ABC):
         Return the solution of the least-squares problem min_{X}||AX - B||
         (plus regularization if present).
     """
+    _LSTSQ_LABEL = ""
+
     def __init__(self):
         self.__A = None
         self.__B = None
@@ -131,6 +133,21 @@ class _BaseSolver(abc.ABC):
             trained *= hasattr(self, attr)
         if not trained:
             raise AttributeError("lstsq solver not trained (call fit())")
+
+    # String representation ---------------------------------------------------
+    def __str__(self):
+        """String representation: class name + dimensions."""
+        out = [f"Least-squares solver for {self._LSTSQ_LABEL}"]
+        if (self.A is not None) and (self.B is not None):
+            out.append(f"A: {self.A.shape}")
+            out.append(f"X: {self.d, self.r}")
+            out.append(f"B: {self.B.shape}")
+        return '\n'.join(out)
+
+    def __repr__(self):
+        """Unique ID + string representation."""
+        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
+        return f"{uniqueID}\n{str(self)}"
 
     # Main methods -----------------------------------------------------------
     def fit(self, A, B):
@@ -202,6 +219,8 @@ class PlainSolver(_BaseSolver):
 
     The solution is calculated using scipy.linalg.lstsq().
     """
+    _LSTSQ_LABEL = "||AX - B||"
+
     def __init__(self, options=None):
         """Store keyword arguments for scipy.linalg.lstsq().
 

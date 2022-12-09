@@ -45,6 +45,8 @@ class TestBaseSolver:
 
     class Dummy(opinf.lstsq._base._BaseSolver):
         """Instantiable version of _BaseSolver."""
+        _LSTSQ_LABEL = "some OpInf problem"
+
         def predict(*args, **kwargs):
             pass
 
@@ -125,6 +127,31 @@ class TestBaseSolver:
 
         # Correct usage.
         solver._check_is_trained()
+
+    # String representations --------------------------------------------------
+    def test_str(self, k=20, d=6, r=3):
+        """Test __str__() and __repr__()."""
+        # Before fitting.
+        solver = self.Dummy()
+        assert str(solver) == "Least-squares solver for some OpInf problem"
+
+        rep = repr(solver)
+        assert rep.startswith("<Dummy object at ")
+        assert len(rep.split('\n')) == 2
+
+        A = np.empty((k, d))
+        B = np.empty((k, r))
+        solver.fit(A, B)
+        strlines = str(solver).split('\n')
+        assert len(strlines) == 4
+        assert strlines[0] == "Least-squares solver for some OpInf problem"
+        assert strlines[1] == f"A: ({k:d}, {d:d})"
+        assert strlines[2] == f"X: ({d:d}, {r:d})"
+        assert strlines[3] == f"B: ({k:d}, {r:d})"
+
+        replines = repr(solver).split('\n')
+        assert len(replines) == 5
+        assert replines[1:] == strlines
 
     # Post-processing ---------------------------------------------------------
     def test_cond(self, k=20, d=11, r=3):
