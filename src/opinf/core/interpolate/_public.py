@@ -87,8 +87,8 @@ from ..nonparametric._frozen import (
 #         """
 #         return _InterpolatedOpInfROM.evaluate(self, parameter, state_)
 #
-#     def fit(self, basis, parameters, states, forcings, inputs=None,
-#             regularizers=0, known_operators=None):
+#     def fit(self, basis, parameters, states, forcings, inputs=None, *,
+#             known_operators=None, solvers=None, regularizers=None):
 #         """Learn the reduced-order model operators from data.
 #
 #         Parameters
@@ -149,6 +149,8 @@ from ..nonparametric._frozen import (
 #         -------
 #         self
 #         """
+#         if solvers is None and regularizers is not None:
+#             solvers = regularizers                      # pragma: no cover
 #         return _InterpolatedOpInfROM.fit(self, basis, parameters,
 #                                          states, forcings, inputs,
 #                                          regularizers, known_operators)
@@ -220,8 +222,8 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
         """
         return _InterpolatedOpInfROM.evaluate(self, parameter, state_, input_)
 
-    def fit(self, basis, parameters, states, nextstates=None, inputs=None,
-            known_operators=None, solvers=None):
+    def fit(self, basis, parameters, states, nextstates=None, inputs=None, *,
+            known_operators=None, solvers=None, regularizers=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -288,6 +290,8 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
         if inputs is not None:
             inputs = [ip[..., :states[i].shape[1]]
                       for i, ip in enumerate(inputs)]
+        if solvers is None and regularizers is not None:
+            solvers = regularizers                      # pragma: no cover
         return _InterpolatedOpInfROM.fit(self, basis, parameters,
                                          states, nextstates, inputs,
                                          known_operators=known_operators,
@@ -395,8 +399,8 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
         return _InterpolatedOpInfROM.evaluate(self, parameter,
                                               t, state_, input_func)
 
-    def fit(self, basis, parameters, states, ddts, inputs=None,
-            *, known_operators=None, solvers=None):
+    def fit(self, basis, parameters, states, ddts, inputs=None, *,
+            known_operators=None, solvers=None, regularizers=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -455,6 +459,8 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
         -------
         self
         """
+        if solvers is None and regularizers is not None:
+            solvers = regularizers                      # pragma: no cover
         return _InterpolatedOpInfROM.fit(
             self, basis, parameters, states, ddts, inputs,
             known_operators=known_operators, solvers=solvers)

@@ -70,7 +70,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         return _BaseROM.evaluate(self, state_, None)
 
     def fit(self, basis, states, forcing=None, *,
-            known_operators=None, solver=None):
+            known_operators=None, solver=None, regularizer=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -103,6 +103,8 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         -------
         self
         """
+        if solver is None and regularizer is not None:
+            solver = regularizer                        # pragma: no cover
         return _NonparametricOpInfROM.fit(
             self, basis, states, forcing, inputs=None,
             known_operators=known_operators, solver=solver)
@@ -192,8 +194,8 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         """
         return _BaseROM.evaluate(self, state_, input_)
 
-    def fit(self, basis, states, nextstates=None, inputs=None,
-            known_operators=None, solver=None):
+    def fit(self, basis, states, nextstates=None, inputs=None, *,
+            known_operators=None, solver=None, regularizer=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -240,6 +242,8 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             states = states[:, :-1]
         if inputs is not None:
             inputs = inputs[..., :states.shape[1]]
+        if solver is None and regularizer is not None:
+            solver = regularizer                        # pragma: no cover
         return _NonparametricOpInfROM.fit(
             self, basis, states, nextstates, inputs=inputs,
             known_operators=known_operators, solver=solver)
@@ -390,8 +394,8 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         input_ = None if 'B' not in self.modelform else input_func(t)
         return _BaseROM.jacobian(self, state_, input_)
 
-    def fit(self, basis, states, ddts, inputs=None,
-            known_operators=None, solver=None):
+    def fit(self, basis, states, ddts, inputs=None, *,
+            known_operators=None, solver=None, regularizer=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -430,6 +434,8 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         -------
         self
         """
+        if solver is None and regularizer is not None:
+            solver = regularizer                        # pragma: no cover
         return _NonparametricOpInfROM.fit(
             self, basis, states, ddts, inputs=inputs,
             known_operators=known_operators, solver=solver)
