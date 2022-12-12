@@ -87,8 +87,8 @@ from ..nonparametric._frozen import (
 #         """
 #         return _InterpolatedOpInfROM.evaluate(self, parameter, state_)
 #
-#     def fit(self, basis, parameters, states, forcings, inputs=None,
-#             regularizers=0, known_operators=None):
+#     def fit(self, basis, parameters, states, forcings, inputs=None, *,
+#             known_operators=None, solvers=None, regularizers=None):
 #         """Learn the reduced-order model operators from data.
 #
 #         Parameters
@@ -119,12 +119,6 @@ from ..nonparametric._frozen import (
 #             dimensional array.
 #             This argument is required if 'B' is in `modelform` but must be
 #             None if 'B' is not in `modelform`.
-#         regularizers : list of s (float >= 0, (d, d) ndarray, or r of these)
-#             Tikhonov regularization factor(s) for each parameter value:
-#             `regularizers[i]` is the regularization factor for the regression
-#             using data corresponding to `parameters[i]`. See lstsq.solve().
-#             Here, d is the number of unknowns in each decoupled least-squares
-#             problem, e.g., d = r + m when `modelform`="AB".
 #         known_operators : dict or None
 #             Dictionary of known full-order operators at each parameter value.
 #             Corresponding reduced-order operators are computed directly
@@ -144,11 +138,19 @@ from ..nonparametric._frozen import (
 #             parameters,
 #             known_operators = {'A': [A, A, A, A, A]} and
 #             known_operators = {'A': A} are equivalent.
+#         solvers : list of s (lstsq Solver object, float >= 0, or None)
+#             Solvers for each least-squares regression. Defaults:
+#             * None: lstsq.PlainSolver(), SVD-based solve without
+#                 regularization
+#             * float > 0: lstsq.L2Solver(), SVD-based solve with scalar
+#                 Tikhonov regularization
 #
 #         Returns
 #         -------
 #         self
 #         """
+#         if solvers is None and regularizers is not None:
+#             solvers = regularizers                      # pragma: no cover
 #         return _InterpolatedOpInfROM.fit(self, basis, parameters,
 #                                          states, forcings, inputs,
 #                                          regularizers, known_operators)
@@ -220,8 +222,8 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
         """
         return _InterpolatedOpInfROM.evaluate(self, parameter, state_, input_)
 
-    def fit(self, basis, parameters, states, nextstates=None, inputs=None,
-            regularizers=0, known_operators=None):
+    def fit(self, basis, parameters, states, nextstates=None, inputs=None, *,
+            known_operators=None, solvers=None, regularizers=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -254,12 +256,6 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
             dimensional array.
             This argument is required if 'B' is in `modelform` but must be
             None if 'B' is not in `modelform`.
-        regularizers : list of s (float >= 0, (d, d) ndarray, or r of these)
-            Tikhonov regularization factor(s) for each parameter value:
-            `regularizers[i]` is the regularization factor for the regression
-            using data corresponding to `parameters[i]`. See lstsq.solve().
-            Here, d is the number of unknowns in each decoupled least-squares
-            problem, e.g., d = r + m when `modelform`="AB".
         known_operators : dict or None
             Dictionary of known full-order operators at each parameter value.
             Corresponding reduced-order operators are computed directly
@@ -278,6 +274,11 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
             For known operators (e.g., A) that do not depend on the parameters,
             known_operators = {'A': [A, A, A, A, A]} and
             known_operators = {'A': A} are equivalent.
+        solvers : list of s (lstsq Solver object, float >= 0, or None)
+            Solvers for each least-squares regression. Defaults:
+            * None: lstsq.PlainSolver(), SVD-based solve without regularization
+            * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
+                regularization
 
         Returns
         -------
@@ -289,12 +290,15 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
         if inputs is not None:
             inputs = [ip[..., :states[i].shape[1]]
                       for i, ip in enumerate(inputs)]
+        if solvers is None and regularizers is not None:
+            solvers = regularizers                      # pragma: no cover
         return _InterpolatedOpInfROM.fit(self, basis, parameters,
                                          states, nextstates, inputs,
-                                         regularizers, known_operators)
+                                         known_operators=known_operators,
+                                         solvers=solvers)
 
     def predict(self, parameter, state0, niters, inputs=None,
-                reconstruct=True):
+                decode=True):
         """Step forward the ROM `niters` steps at the given parameter value.
 
         Parameters
@@ -312,7 +316,7 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
             >>> states[:, 1] = F(state0, inputs[:, 0])
             >>> states[:, 2] = F(states[:, 1], inputs[:, 1])
             ...
-        reconstruct : bool
+        decode : bool
             If True and the basis is not None, reconstruct the solutions
             in the original n-dimensional state space.
 
@@ -320,13 +324,13 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
         -------
         states : (n, niters) or (r, niters) ndarray
             Approximate solution to the system, including the given
-            initial condition. If the basis exists and reconstruct=True,
+            initial condition. If the basis exists and decode=True,
             return solutions in the full n-dimensional state space (n rows);
             otherwise, return reduced-order state solution (r rows).
         """
         return _InterpolatedOpInfROM.predict(self, parameter,
                                              state0, niters, inputs,
-                                             reconstruct)
+                                             decode)
 
 
 class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
@@ -395,8 +399,8 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
         return _InterpolatedOpInfROM.evaluate(self, parameter,
                                               t, state_, input_func)
 
-    def fit(self, basis, parameters, states, ddts, inputs=None,
-            regularizers=0, known_operators=None):
+    def fit(self, basis, parameters, states, ddts, inputs=None, *,
+            known_operators=None, solvers=None, regularizers=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -427,12 +431,6 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
             dimensional array.
             This argument is required if 'B' is in `modelform` but must be
             None if 'B' is not in `modelform`.
-        regularizers : list of s (float >= 0, (d, d) ndarray, or r of these)
-            Tikhonov regularization factor(s) for each parameter value:
-            `regularizers[i]` is the regularization factor for the regression
-            using data corresponding to `parameters[i]`. See lstsq.solve().
-            Here, d is the number of unknowns in each decoupled least-squares
-            problem, e.g., d = r + m when `modelform`="AB".
         known_operators : dict or None
             Dictionary of known full-order operators at each parameter value.
             Corresponding reduced-order operators are computed directly
@@ -451,17 +449,24 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
             For known operators (e.g., A) that do not depend on the parameters,
             known_operators = {'A': [A, A, A, A, A]} and
             known_operators = {'A': A} are equivalent.
+        solvers : list of s (lstsq Solver object, float >= 0, or None)
+            Solvers for each least-squares regression. Defaults:
+            * None: lstsq.PlainSolver(), SVD-based solve without regularization
+            * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
+                regularization
 
         Returns
         -------
         self
         """
-        return _InterpolatedOpInfROM.fit(self, basis,
-                                         parameters, states, ddts, inputs,
-                                         regularizers, known_operators)
+        if solvers is None and regularizers is not None:
+            solvers = regularizers                      # pragma: no cover
+        return _InterpolatedOpInfROM.fit(
+            self, basis, parameters, states, ddts, inputs,
+            known_operators=known_operators, solvers=solvers)
 
     def predict(self, parameter, state0, t, input_func=None,
-                reconstruct=True, **options):
+                decode=True, **options):
         """Simulate the learned ROM at the given parameter value with
         scipy.integrate.solve_ivp().
 
@@ -478,7 +483,7 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
             Input as a function of time (preferred) or the input at the
             times `t`. If given as an array, cubic spline interpolation
             on the known data points is used as needed.
-        reconstruct : bool
+        decode : bool
             If True and the basis is not None, reconstruct the solutions
             in the original n-dimensional state space.
         options
@@ -502,7 +507,7 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
         -------
         states : (n, nt) or (r, nt) ndarray
             Approximate solution to the system over the time domain `t`.
-            If the basis exists and reconstruct=True, return solutions in the
+            If the basis exists and decode=True, return solutions in the
             original n-dimensional state space (n rows); otherwise, return
             reduced-order state solutions (r rows).
             A more detailed report on the integration results is stored as
@@ -510,4 +515,4 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
         """
         return _InterpolatedOpInfROM.predict(self, parameter,
                                              state0, t, input_func,
-                                             reconstruct, **options)
+                                             decode, **options)

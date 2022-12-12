@@ -69,8 +69,8 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         """
         return _BaseROM.evaluate(self, state_, None)
 
-    def fit(self, basis, states, forcing=None,
-            regularizer=0, known_operators=None):
+    def fit(self, basis, states, forcing=None, *,
+            known_operators=None, solver=None, regularizer=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -84,10 +84,6 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         forcing : (n, k) or (r, k) ndarray or None
             Column-wise forcing data corresponding to the training snapshots,
             either full order (n rows) or projected to reduced order (r rows).
-        regularizer : float >= 0, (d, d) ndarray or list of r of these
-            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
-            is the number of unknowns in each decoupled least-squares problem,
-            e.g., d = r + r(r+1)/2 when `modelform`="AH".
         known_operators : dict or None
             Dictionary of known full-order operators.
             Corresponding reduced-order operators are computed directly
@@ -97,14 +93,21 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
             * 'A': (n, n) linear state matrix A.
             * 'H': (n, n**2) quadratic state matrix H.
             * 'G': (n, n**3) cubic state matrix G.
+        solver : lstsq Solver object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+            * None: lstsq.PlainSolver(), SVD-based solve without regularization
+            * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
+                regularization
 
         Returns
         -------
         self
         """
-        return _NonparametricOpInfROM.fit(self, basis,
-                                          states, forcing, None,
-                                          regularizer, known_operators)
+        if solver is None and regularizer is not None:
+            solver = regularizer                        # pragma: no cover
+        return _NonparametricOpInfROM.fit(
+            self, basis, states, forcing, inputs=None,
+            known_operators=known_operators, solver=solver)
 
     def predict(self, forcing, guess=None):
         raise NotImplementedError("TODO")
@@ -191,8 +194,8 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         """
         return _BaseROM.evaluate(self, state_, input_)
 
-    def fit(self, basis, states, nextstates=None, inputs=None,
-            regularizer=0, known_operators=None):
+    def fit(self, basis, states, nextstates=None, inputs=None, *,
+            known_operators=None, solver=None, regularizer=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -214,10 +217,6 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             Column-wise inputs corresponding to the snapshots. May be
             one-dimensional if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-        regularizer : float >= 0, (d, d) ndarray or list of r of these
-            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
-            is the number of unknowns in each decoupled least-squares problem,
-            e.g., d = r + r(r+1)/2 when `modelform`="AH".
         known_operators : dict or None
             Dictionary of known full-order operators.
             Corresponding reduced-order operators are computed directly
@@ -228,6 +227,11 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             * 'H': (n, n**2) quadratic state matrix H.
             * 'G': (n, n**3) cubic state matrix G.
             * 'B': (n, m) input matrix B.
+        solver : lstsq Solver object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+            * None: lstsq.PlainSolver(), SVD-based solve without regularization
+            * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
+                regularization
 
         Returns
         -------
@@ -238,9 +242,11 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             states = states[:, :-1]
         if inputs is not None:
             inputs = inputs[..., :states.shape[1]]
-        return _NonparametricOpInfROM.fit(self, basis,
-                                          states, nextstates, inputs,
-                                          regularizer, known_operators)
+        if solver is None and regularizer is not None:
+            solver = regularizer                        # pragma: no cover
+        return _NonparametricOpInfROM.fit(
+            self, basis, states, nextstates, inputs=inputs,
+            known_operators=known_operators, solver=solver)
 
     def predict(self, state0, niters, inputs=None, decode=True):
         """Step forward the learned ROM `niters` steps.
@@ -388,8 +394,8 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         input_ = None if 'B' not in self.modelform else input_func(t)
         return _BaseROM.jacobian(self, state_, input_)
 
-    def fit(self, basis, states, ddts, inputs=None,
-            regularizer=0, known_operators=None):
+    def fit(self, basis, states, ddts, inputs=None, *,
+            known_operators=None, solver=None, regularizer=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -408,10 +414,6 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             Column-wise inputs corresponding to the snapshots. May be
             one-dimensional if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-        regularizer : float >= 0 or (d, d) ndarray or list of r of these
-            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
-            is the number of unknowns in each decoupled least-squares problem,
-            e.g., d = r + m when `modelform`="AB".
         known_operators : dict or None
             Dictionary of known full-order operators.
             Corresponding reduced-order operators are computed directly
@@ -422,14 +424,21 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             * 'H': (n, n**2) quadratic state matrix H.
             * 'G': (n, n**3) cubic state matrix G.
             * 'B': (n, m) input matrix B.
+        solver : lstsq Solver object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+            * None: lstsq.PlainSolver(), SVD-based solve without regularization
+            * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
+                regularization
 
         Returns
         -------
         self
         """
-        return _NonparametricOpInfROM.fit(self, basis,
-                                          states, ddts, inputs,
-                                          regularizer, known_operators)
+        if solver is None and regularizer is not None:
+            solver = regularizer                        # pragma: no cover
+        return _NonparametricOpInfROM.fit(
+            self, basis, states, ddts, inputs=inputs,
+            known_operators=known_operators, solver=solver)
 
     def predict(self, state0, t, input_func=None, decode=True, **options):
         """Simulate the learned ROM with scipy.integrate.solve_ivp().

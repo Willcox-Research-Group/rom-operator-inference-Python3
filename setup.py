@@ -7,7 +7,7 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="opinf",
-    version="0.4.1",
+    version="0.4.2",
 
     # Package description, license, and keywords.
     description="Operator inference for data-driven, "
@@ -36,7 +36,7 @@ setuptools.setup(
     # Technical details: source code, dependencies, test suite.
     packages=setuptools.find_packages(where="src"),
     package_dir={"": "src"},
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     install_requires=[
         "h5py>=2.9.0",
         "numpy>=1.16",

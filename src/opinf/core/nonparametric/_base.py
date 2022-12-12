@@ -27,6 +27,13 @@ class _NonparametricOpInfROM(_BaseROM):
             return self.solver_.A if (self.solver_ is not None) else None
         raise AttributeError("data matrix not constructed (call fit())")
 
+    @property
+    def d(self):
+        """Number of columns of the data matrix (unknowns per basis vector)."""
+        if not hasattr(self, "solver_"):
+            return None
+        return self.data_matrix_.shape[1]
+
     # Fitting -----------------------------------------------------------------
     def _check_training_data_shapes(self, datasets):
         """Ensure that each data set has the same number of columns and a
@@ -63,8 +70,8 @@ class _NonparametricOpInfROM(_BaseROM):
                 raise ValueError(f"{label}.shape[-1] = {data.shape[-1]} "
                                  f"!= {data0.shape[-1]} = {label0}.shape[-1]")
 
-    def _process_fit_arguments(self, basis, states, lhs, inputs,
-                               known_operators):
+    def _process_fit_arguments(self, basis, states, lhs, inputs, *,
+                               known_operators=None, solver=None):
         """Prepare training data for Operator Inference by clearing old data,
         storing the basis, extracting dimensions, projecting known operators,
         validating data sizes, and projecting training data.
@@ -87,6 +94,11 @@ class _NonparametricOpInfROM(_BaseROM):
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
+        solver : lstsq Solver object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+            * None: lstsq.PlainSolver(), SVD-based solve without regularization
+            * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
+                regularization
 
         Returns
         -------
@@ -94,6 +106,8 @@ class _NonparametricOpInfROM(_BaseROM):
             Projected state snapshots.
         lhs_ : (r, k) ndarray
             Projected left-hand-side data.
+        solver : lstsq Solver object
+            Solver for the least-squares regression.
         """
         # Clear all data (basis and operators).
         self._clear()
@@ -101,11 +115,24 @@ class _NonparametricOpInfROM(_BaseROM):
         # Store basis and (hence) reduced dimension.
         self.basis = basis
 
+        # Default solver: no regularization.
+        if solver is None:
+            solver = lstsq.PlainSolver()
+        elif np.isscalar(solver) and solver > 0:
+            solver = lstsq.L2Solver(solver)
+
+        # Lightly validate the solver: must be instance w/ fit(), predict().
+        if isinstance(solver, type):
+            raise TypeError("solver must be an instance, not a class")
+        for mtd in "fit", "predict":
+            if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
+                raise TypeError(f"solver must have a '{mtd}()' method")
+
         # Validate / project any known operators.
         self._project_operators(known_operators)
         if len(self._projected_operators_) == len(self.modelform):
             # Fully intrusive case, nothing to learn with OpInf.
-            return None, None
+            return None, None, None
 
         # Get state and input dimensions if needed.
         if self.basis is None:
@@ -133,7 +160,7 @@ class _NonparametricOpInfROM(_BaseROM):
             else:                       # Known linear/quadratic/cubic term.
                 lhs_ = lhs_ - getattr(self, f"{key}_")(states_)
 
-        return states_, lhs_
+        return states_, lhs_, solver
 
     def _assemble_data_matrix(self, states_, inputs):
         """Construct the Operator Inference data matrix D from projected data.
@@ -213,8 +240,8 @@ class _NonparametricOpInfROM(_BaseROM):
 
         return
 
-    def _construct_solver(self, basis, states, lhs,
-                          inputs=None, regularizer=0, known_operators=None):
+    def _fit_solver(self, basis, states, lhs, inputs=None,
+                    *, known_operators=None, solver=None):
         """Construct a solver object mapping the regularizer to solutions
         of the Operator Inference least-squares problem.
 
@@ -236,11 +263,6 @@ class _NonparametricOpInfROM(_BaseROM):
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-        regularizer : float >= 0, (d, d) ndarray or list of r of these
-            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
-            is the number of unknowns in each decoupled least-squares problem,
-            e.g., d = r + m when `modelform`="AB". This parameter is used here
-            only to determine the correct type of solver.
         known_operators : dict
             Dictionary of known full-order or reduced-order operators.
             Corresponding reduced-order operators are computed directly
@@ -251,18 +273,25 @@ class _NonparametricOpInfROM(_BaseROM):
             * 'H': (n, n**2) quadratic state matrix H.
             * 'G': (n, n**3) cubic state matrix G.
             * 'B': (n, m) input matrix B.
+        solver : lstsq Solver object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+            * None: lstsq.PlainSolver(), SVD-based solve without regularization
+            * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
+                regularization
         """
-        states_, lhs_ = self._process_fit_arguments(basis, states, lhs, inputs,
-                                                    known_operators)
+        states_, lhs_, solver = self._process_fit_arguments(
+            basis, states, lhs, inputs,
+            known_operators=known_operators, solver=solver
+        )
         # Fully intrusive case (nothing to learn).
         if states_ is lhs_ is None:
             self.solver_ = None
             return
 
         D = self._assemble_data_matrix(states_, inputs)
-        self.solver_ = lstsq.solver(D, lhs_.T, regularizer)
+        self.solver_ = solver.fit(D, lhs_.T)
 
-    def _evaluate_solver(self, regularizer):
+    def _evaluate_solver(self):
         """Evaluate the least-squares solver with the given regularizer.
 
         Parameters
@@ -276,11 +305,11 @@ class _NonparametricOpInfROM(_BaseROM):
         if self.solver_ is None:
             return
 
-        OhatT = self.solver_.predict(regularizer)
+        OhatT = self.solver_.predict()
         self._extract_operators(np.atleast_2d(OhatT.T))
 
-    def fit(self, basis, states, lhs, inputs=None,
-            regularizer=0, known_operators=None):
+    def fit(self, basis, states, lhs, inputs=None, *,
+            known_operators=None, solver=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -301,10 +330,6 @@ class _NonparametricOpInfROM(_BaseROM):
             Column-wise inputs corresponding to the snapshots. May be a
             one-dimensional array if m=1 (scalar input). Required if 'B' is
             in `modelform`; must be None if 'B' is not in `modelform`.
-        regularizer : float >= 0, (d, d) ndarray or list of r of these
-            Tikhonov regularization factor(s); see lstsq.solve(). Here, d
-            is the number of unknowns in each decoupled least-squares problem,
-            e.g., d = r + m when `modelform`="AB".
         known_operators : dict or None
             Dictionary of known full-order operators.
             Corresponding reduced-order operators are computed directly
@@ -315,14 +340,21 @@ class _NonparametricOpInfROM(_BaseROM):
             * 'H': (n, n**2) quadratic state matrix H.
             * 'G': (n, n**3) cubic state matrix G.
             * 'B': (n, m) input matrix B.
+        solver : lstsq Solver object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+            * None: lstsq.PlainSolver(), SVD-based solve without regularization
+            * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
+                regularization
 
         Returns
         -------
         self
         """
-        self._construct_solver(basis, states, lhs, inputs, regularizer,
-                               known_operators)
-        self._evaluate_solver(regularizer)
+        self._fit_solver(
+            basis, states, lhs, inputs,
+            known_operators=known_operators, solver=solver,
+        )
+        self._evaluate_solver()
         return self
 
     # Model persistence -------------------------------------------------------

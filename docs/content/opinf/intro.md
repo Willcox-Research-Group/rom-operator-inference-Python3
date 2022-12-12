@@ -457,7 +457,7 @@ For example, we may use the reduced-order model to obtain approximate solutions 
 - different system parameters (see [Parametric ROMs](subsec-parametric-roms)).
 
 :::{important}
-Physics-based reduced-order models tend to be much more predictive than black-box machine learning models. However, the accuracy of any data-driven model depends on how well the training data represents the full-order system.
+The accuracy of any data-driven model depends on how well the training data represents the full-order system.
 We should not expect a reduced-order model to perform well under conditions that are wildly different than the training data.
 The [**Getting Started**](sec-tutorial) tutorial demonstrates this concept in the case of prediction for new initial conditions.
 :::
@@ -490,7 +490,7 @@ from the training data, uses the reduced-order model to reconstruct the training
 import opinf
 
 # Compute a rank-10 basis (POD) from the state data.
->>> basis = opinf.pre.PODBasis(Q, 10)
+>>> basis = opinf.pre.PODBasis(Q, r=10)
 
 # Estimate time derivatives of the state with finite differences.
 >>> Qdot = opinf.pre.ddt(Q, t)
@@ -498,11 +498,14 @@ import opinf
 # Define a reduced-order model with the structure indicated above.
 >>> rom = opinf.ContinuousOpInfROM(modelform="AHB")
 
-# Fit the model (projection and regression).
->>> rom.fit(basis=basis, states=Q, ddts=Qdot, inputs=U, regularizer=1e-6)
+# Select a least-squares solver with a small amount of regularization.
+>>> solver = opinf.lstsq.L2Solver(regularizer=1e-6)
+
+# Fit the model, i.e., construct and solve a linear regression.
+>>> rom.fit(basis=basis, states=Q, ddts=Qdot, inputs=U, solver=solver)
 
 # Simulate the learned model over the time domain.
->>> Q_ROM = rom.predict(Q[:,0], t)
+>>> Q_ROM = rom.predict(Q[:, 0], t)
 
 # Compute the error of the ROM prediction.
 >>> absolute_error, relative_error = opinf.post.Lp_error(Q, Q_rom)

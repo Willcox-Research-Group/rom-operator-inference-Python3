@@ -56,7 +56,6 @@ parts:
 
   - caption: Appendix
     chapters:
-    - file: content/appendix/notation.md
     - file: content/appendix/bibliography.md
 
   # Instructions for developers.
@@ -66,3 +65,5 @@ parts:
     - file: content/contributing/code_anatomy.md
     - file: content/contributing/testing.md
     - file: content/contributing/documentation.md
+    - file: content/contributing/changelog.md
+    - file: content/contributing/notation.md

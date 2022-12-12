@@ -112,7 +112,7 @@ class TestBaseParametricOperator:
         # Try changing the OperatorClass.
         with pytest.raises(AttributeError) as ex:
             dummy.OperatorClass = int
-        assert ex.value.args[0] == "can't set attribute"
+        assert ex.value.args[0].startswith("can't set attribute")
 
         # Try instantiating a class with an invalid OperatorClass.
         with pytest.raises(RuntimeError) as ex:

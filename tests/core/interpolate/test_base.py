@@ -30,7 +30,7 @@ class TestInterpolatedOpInfROM:
             pass
 
     def test_init(self):
-        """Test _InterpolatedOpInfROM.__init__()."""
+        """Test __init__()."""
 
         self.Dummy._ModelFitClass = float
         with pytest.raises(RuntimeError) as ex:
@@ -51,7 +51,7 @@ class TestInterpolatedOpInfROM:
 
     # Fitting -----------------------------------------------------------------
     def test_check_parameters(self):
-        """Test _InterpolatedOpInfROM._check_parameters()."""
+        """Test _check_parameters()."""
         rom = self.Dummy("A")
 
         badparams = [[1, 2, 3], [4, 5]]
@@ -71,7 +71,7 @@ class TestInterpolatedOpInfROM:
         assert rom.InterpolatorClass is scipy.interpolate.LinearNDInterpolator
 
     def test_split_operator_dict(self, s=10):
-        """Test _InterpolatedOpInfROM._split_operator_dict()."""
+        """Test _split_operator_dict()."""
         rom = self.Dummy("AB")
         rom._check_parameters(list(range(s)))
 
@@ -115,7 +115,7 @@ class TestInterpolatedOpInfROM:
             assert opdict["B"] is B
 
     def test_check_number_of_training_datasets(self, s=3):
-        """Test _InterpolatedOpInfROM._check_number_of_training_datasets()."""
+        """Test _check_number_of_training_datasets()."""
         rom = self.Dummy("AB")
         rom._check_parameters(list(range(s)))
 
@@ -128,12 +128,11 @@ class TestInterpolatedOpInfROM:
         rom._check_number_of_training_datasets([(list(range(s)), "dummy2")])
 
     def test_process_fit_arguments(self, s=5):
-        """Test _InterpolatedOpInfROM._process_fit_arguments()."""
+        """Test _process_fit_arguments()."""
         rom = self.Dummy("AB")
         params = list(range(s))
 
-        outs = rom._process_fit_arguments(None, params,
-                                          None, None, None, None, None)
+        outs = rom._process_fit_arguments(None, params, None, None, None)
         for out in outs:
             assert isinstance(out, list)
             assert len(out) == s
@@ -141,16 +140,16 @@ class TestInterpolatedOpInfROM:
 
         Vr = np.empty((10, 4))
         oplist = [{"A": 1, "B": 2}] * s
-        outs = rom._process_fit_arguments(Vr, params,
-                                          None, None, None, 1, oplist)
-        regs = outs[-2]
+        outs = rom._process_fit_arguments(Vr, params, None, None, None,
+                                          known_operators=oplist, solvers=1)
+        assert outs[-2] is oplist
+        regs = outs[-1]
         assert isinstance(regs, list)
         assert len(regs) == s
         assert all(reg == 1 for reg in regs)
-        assert outs[-1] is oplist
 
     def test_interpolate_roms(self, m=3, s=4, r=6):
-        """Test _InterpolatedOpInfROM._interpolate_roms()."""
+        """Test _interpolate_roms()."""
         params = list(range(s))
 
         # Wrong type.
@@ -222,7 +221,7 @@ class TestInterpolatedOpInfROM:
         assert np.all(rom.B_.entries == B)
 
     def test_fit(self, n=50, m=3, s=4, r=10, k=40):
-        """Test _InterpolatedOpInfROM.fit()."""
+        """Test fit()."""
         params = list(range(s))
         Vr = np.linalg.qr(np.random.standard_normal((n, k)))[0][:, :r]
         Qs = np.random.standard_normal((s, r, k))
@@ -234,15 +233,16 @@ class TestInterpolatedOpInfROM:
 
         # Get non-parametric OpInf ROMs for each parameter sample.
         nproms = [
-            opinf.ContinuousOpInfROM("cAB").fit(Vr,
-                                                Qs[i], Qdots[i], Us[i],
-                                                reg, known)
+            opinf.ContinuousOpInfROM("cAB").fit(Vr, Qs[i], Qdots[i], Us[i],
+                                                known_operators=known,
+                                                solver=reg)
             for i in range(s)
         ]
 
         # Do the parametric OpInf ROM fit with all parameters.
         rom = self.Dummy("cAB")
-        rom.fit(Vr, params, Qs, Qdots, Us, reg, known)
+        rom.fit(Vr, params, Qs, Qdots, Us,
+                known_operators=known, solvers=reg)
 
         # Check consistency with the non-parametric ROMs at training points.
         for i in range(s):
@@ -255,10 +255,8 @@ class TestInterpolatedOpInfROM:
                               opinf.core.operators.InterpolatedLinearOperator)
             assert np.all(rom.B_.matrices[i] == nproms[i].B_.entries)
 
-        pass  # raise NotImplementedError
-
     def test_set_interpolator(self, m=2, s=5, r=8):
-        """Test _InterpolatedOpInfROM.set_interpolator()."""
+        """Test set_interpolator()."""
         params = list(range(s))
         rom = self.Dummy("AB")
 
@@ -300,7 +298,7 @@ class TestInterpolatedOpInfROM:
     # Model persistence -------------------------------------------------------
     def test_save(self, s=5, n=15, m=2, r=3,
                   target="_interpsavemodeltest.h5"):
-        """Test _InterpolatedOpInfROM.save()."""
+        """Test save()."""
         # Clean up after old tests.
         if os.path.isfile(target):              # pragma: no cover
             os.remove(target)
@@ -421,7 +419,7 @@ class TestInterpolatedOpInfROM:
 
     def test_load(self, s=6, n=14, m=3, r=2,
                   target="_interploadmodeltest.h5"):
-        """Test _InterpolatedOpInfROM.load()."""
+        """Test load()."""
         # Clean up after old tests if needed.
         if os.path.isfile(target):                  # pragma: no cover
             os.remove(target)
