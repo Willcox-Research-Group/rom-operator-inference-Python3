@@ -30,7 +30,7 @@ clean:
 
 
 install: clean
-	$(PYTHON) -m pip install --use-feature=in-tree-build .
+	$(PYTHON) -m pip install .
 
 
 # Testing ---------------------------------------------------------------------

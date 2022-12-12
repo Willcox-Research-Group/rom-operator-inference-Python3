@@ -41,7 +41,7 @@ jobs:
           python -m pip install --upgrade sphinxcontrib-mermaid
       - name: Install package
         run: |
-          python -m pip install --use-feature=in-tree-build .
+          python -m pip install .
       - name: Build Jupyter Book documentation
         run: |
           jupyter-book build docs
