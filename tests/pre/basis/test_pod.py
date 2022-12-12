@@ -688,7 +688,7 @@ def test_pod_basis(set_up_basis_data):
         Wr = Wt[:r, :].T
         Id = np.eye(r)
 
-        for mode in ("dense", "sparse", "randomized"):
+        for mode in ("dense", "randomized"):
 
             print(r, mode)
             basis, svdvals = opinf.pre.pod_basis(Q, r, mode=mode)
@@ -700,7 +700,7 @@ def test_pod_basis(set_up_basis_data):
 
             if mode == "dense":
                 assert svdvals.shape == (rmax,)
-            if mode in ("sparse", "randomized"):
+            elif mode == "randomized":
                 assert svdvals.shape == (r,)
                 # Make sure the basis vectors have the same sign.
                 for j in range(r):

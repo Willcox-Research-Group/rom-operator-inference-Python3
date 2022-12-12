@@ -14,7 +14,6 @@ __all__ = [
 import h5py
 import numpy as np
 import scipy.linalg as la
-import scipy.sparse.linalg as spla
 import sklearn.utils.extmath as sklmath
 import matplotlib.pyplot as plt
 
@@ -704,9 +703,6 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
         Strategy to use for computing the truncated SVD of the states. Options:
         * "dense" (default): Use scipy.linalg.svd() to compute the SVD.
             May be inefficient for very large matrices.
-        * "sparse": Use scipy.sparse.linalg.svds() to compute the SVD.
-            This uses ARPACK for the eigensolver. Inefficient for non-sparse
-            matrices; requires separate computations for full SVD.
         * "randomized": Compute an approximate SVD with a randomized approach
             using sklearn.utils.extmath.randomized_svd(). This gives faster
             results at the cost of some accuracy.
@@ -715,7 +711,6 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
     options
         Additional parameters for the SVD solver, which depends on `mode`:
         * "dense": scipy.linalg.svd()
-        * "sparse": scipy.sparse.linalg.svds()
         * "randomized": sklearn.utils.extmath.randomized_svd()
 
     Returns
@@ -725,7 +720,7 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
         Each column is a single basis vector of dimension n.
     svdvals : (n,), (k,), or (r,) ndarray
         Singular values in descending order. Always returns as many as are
-        calculated: r for mode="randomize" or "sparse", min(n, k) for "dense".
+        calculated: r for mode="randomize", min(n, k) for "dense".
     W : (k, r) ndarray
         First r **right** singular vectors, as columns.
         **Only returned if return_W=True.**
@@ -740,30 +735,6 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
     if mode == "dense" or mode == "simple":
         V, svdvals, Wt = la.svd(states, full_matrices=False, **options)
         W = Wt.T
-
-    elif mode == "sparse" or mode == "arpack":
-        get_smallest = False
-        if r == rmax:
-            r -= 1
-            get_smallest = True
-
-        # Compute all but the last svd vectors / values (maximum allowed).
-        V, svdvals, Wt = spla.svds(states, r, which="LM",
-                                   return_singular_vectors=True, **options)
-        V = V[:, ::-1]
-        svdvals = svdvals[::-1]
-        W = Wt[::-1, :].T
-
-        # Get the smallest vector / value separately.
-        if get_smallest:
-            V1, smallest, W1 = spla.svds(states, 1, which="SM",
-                                         return_singular_vectors='u',
-                                         **options)
-            print(f"W1.shape: {W1.shape}")
-            V = np.concatenate((V, V1), axis=1)
-            svdvals = np.concatenate((svdvals, smallest))
-            W = np.concatenate((W, W1.T), axis=1)
-            r += 1
 
     elif mode == "randomized":
         if "random_state" not in options:
