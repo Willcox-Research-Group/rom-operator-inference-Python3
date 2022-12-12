@@ -389,7 +389,7 @@ class TestPODBasisMulti:
 
         with pytest.raises(AttributeError) as ex:
             basis.r = 3
-        assert ex.value.args[0] == "can't set attribute"
+        assert ex.value.args[0].startswith("can't set attribute")
 
         with pytest.raises(AttributeError) as ex:
             basis.rs = [3] * basis.num_variables

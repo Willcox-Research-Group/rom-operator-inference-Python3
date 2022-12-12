@@ -279,7 +279,7 @@ class TestLinearBasisMulti:
 
         with pytest.raises(AttributeError) as ex:
             basis.r = 3
-        assert ex.value.args[0] == "can't set attribute"
+        assert ex.value.args[0].startswith("can't set attribute")
 
         # To test r, rs, and entries, we need to set the basis entries.
         rs = [i + 2 for i in range(nvars)]
