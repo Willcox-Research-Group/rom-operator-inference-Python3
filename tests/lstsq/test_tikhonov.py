@@ -373,7 +373,7 @@ class TestTikhonovSolver:
         solver.fit(A, B)
 
         # Try with bad regularizer shapes.
-        P = np.empty(d - 1)
+        P = np.empty((d - 1, d - 1))
         with pytest.raises(ValueError) as ex:
             solver.regularizer = P
         assert ex.value.args[0] == \
