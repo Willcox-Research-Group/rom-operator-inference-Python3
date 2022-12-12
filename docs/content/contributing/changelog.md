@@ -1,3 +1,4 @@
+(sec-whatsnew)=
 # What's New
 
 This page lists major changes made between package versions.
@@ -29,4 +30,5 @@ After:
 ## Versions 0.4.0 and 0.4.1
 
 This version is a migration of the old `rom_operator_inference` package, version 1.4.1.
+See [this page](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki/API-Reference) for the documentation.
 

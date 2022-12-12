@@ -8,8 +8,8 @@
 [![PyPI](https://img.shields.io/pypi/wheel/opinf)](https://pypi.org/project/opinf/)
 
 :::{attention}
-This documentation is for `opinf` version `0.4.1`.
-See the documentation for old versions [here](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/wiki/API-Reference).
+This documentation is for `opinf` version `0.4.2`.
+See updates and notes for old versions [here](sec-whatsnew).
 :::
 
 This package is a Python implementation of Operator Inference (OpInf), a projection-based model reduction technique for learning polynomial reduced-order models of dynamical systems.
