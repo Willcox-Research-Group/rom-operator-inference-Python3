@@ -1,9 +1,7 @@
 (sec-preprocessing)=
-# Preprocessing
+# Preprocessing (`opinf.pre`)
 
-:::{important}
-The tools discussed in this chapter are bundled in the `pre` submodule.
-:::
+## Introduction
 
 Our goal is to learn an efficient computational surrogate for a dynamical system
 
@@ -80,6 +78,42 @@ $\mathbf{q}\mapsto \boldsymbol{\Gamma}(\boldsymbol{\Gamma}^{*}(\mathbf{q}))$
 :::
 ::::
 :::::
+
+:::{eval-rst}
+.. currentmodule:: opinf.pre
+
+Classes
+=======
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    LinearBasis
+    LinearBasisMulti
+    PODBasis
+    PODBasisMulti
+    SnapshotTransformer
+    SnapshotTransformerMulti
+
+Functions
+=========
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    cumulative_energy
+    ddt
+    ddt_nonuniform
+    ddt_uniform
+    pod_basis
+    projection_error
+    reproject_continuous
+    reproject_discrete
+    residual_energy
+    scale
+    shift
+    svdval_decay
+:::
 
 ```{tableofcontents}
 ```

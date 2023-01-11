@@ -39,7 +39,7 @@ $$
 We call $\mathbf{V}_{r} \in \mathbb{R}^{n \times r}$ the _basis matrix_ and typically require that it has orthonormal columns, i.e., $\mathbf{V}^{\mathsf{T}}\mathbf{V} = \mathbf{I} \in \mathbb{R}^{r \times r}$, the identity matrix.
 Through {eq}`eq-basis-basis-def`, the basis matrix is the link between the high-dimensional state space of the full-order model and the low-dimensional state space of the reduced-order model.
 
-:::{image} ../../../images/basis-projection.svg
+:::{image} ../../images/basis-projection.svg
 :align: center
 :width: 80 %
 :::

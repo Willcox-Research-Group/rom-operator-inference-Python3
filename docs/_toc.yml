@@ -2,68 +2,54 @@
 # Learn more at https://jupyterbook.org/customize/toc.html
 
 format: jb-book
-root: content/index.md
+root: source/index.md
 parts:
-  # Introduction / summary, literature, package installation.
+  # Introduction / summary, installation, change log, literature, etc.
   - caption: Operator Inference
     # numbered: 1
     chapters:
-    - file: content/opinf/intro.md
-    - file: content/opinf/installation.md
-    # - file: content/opinf/literature.md
-
-  # How to use the package.
-  - caption: Package Usage
-    # numbered: 1
-    chapters:
-    - file: content/usage/preprocessing/index.md
-      sections:
-      - file: content/usage/preprocessing/lifting.md
-      - file: content/usage/preprocessing/scaling.ipynb
-      - file: content/usage/preprocessing/basis.ipynb
-      # - file: content/usage/preprocessing/pod.md
-      # - file: content/usage/preprocessing/quadratic.md
-    - file: content/usage/romclasses/index.md
-      sections:
-      - file: content/usage/romclasses/structure.md
-      - file: content/usage/romclasses/attributes.md
-      - file: content/usage/romclasses/methods.md
-      - file: content/usage/romclasses/continuous.md
-      - file: content/usage/romclasses/discrete.md
-      # - file: content/usage/romclasses/steady.md
-      - file: content/usage/romclasses/parametric.md
-      # - file: content/usage/romclasses/affine.md
-      - file: content/usage/romclasses/interpolate.md
-    - file: content/usage/solvers/index.md
-      # sections:
-      # - file: content/usage/solvers/tikhonov.md
-      # - file: content/usage/solvers/tsvd.md
-      # - file: content/usage/solvers/qr.md
-    - file: content/usage/postprocessing/index.md
+    - file: source/opinf/intro.md
+    - file: source/opinf/installation.md
+    - file: source/opinf/changelog.md
+    # - file: source/opinf/literature.md
+    - file: source/opinf/bibliography.md
 
   # Complete numerical examples, written in a tutorial style.
   - caption: Tutorials
     # numbered: 1
     chapters:
-    - file: content/tutorials/basics.ipynb
-    - file: content/tutorials/heat_equation.ipynb
-    # - file: content/tutorials/gallery.md
+    # TODO: preprocessing tutorial?
+    - file: source/tutorials/basics.ipynb
+    - file: source/tutorials/heat_equation.ipynb
+    # - file: source/tutorials/gallery.md
 
-  # Non-narrative API documentation (TODO: automate generation).
-  # - caption: API Documentation
-  #   chapters:
-  #   - file: content/api/...
-
-  - caption: Appendix
+  # API reference via sphinx-autodoc + some handwritten guides.
+  - caption: API Reference
+    # numbered: 1
     chapters:
-    - file: content/appendix/bibliography.md
+    - file: source/api/pre.md
+    - file: source/api/lifting.md         # TODO: move to pre.md
+    - file: source/api/scaling.ipynb      # TODO: move to pre.md
+    - file: source/api/basis.ipynb        # TODO: move to pre.md
+    - file: source/api/romclasses.md
+    # - file: source/api/romstructure.md    # TODO: move to romclasses.md
+    # - file: source/api/romattributes.md   # TODO: move to romclasses.md
+    # - file: source/api/rommethods.md      # TODO: move to romclasses.md
+    # - file: source/api/romcontinuous.md   # TODO: move to romclasses.md
+    # - file: source/api/romdiscrete.md     # TODO: move to romclasses.md
+    # - file: source/api/romsteady.md     # TODO: move to romclasses.md
+    # - file: source/api/romparametric.md   # TODO: move to romclasses.md
+    # - file: source/api/romaffine.md     # TODO: move to romclasses.md
+    # - file: source/api/rominterpolate.md  # TODO: move to romclasses.md
+    - file: source/api/lstsq.md
+    - file: source/api/post.md
+    - file: source/api/utils.md
 
   # Instructions for developers.
   - caption: Developer Guide
     chapters:
-    - file: content/contributing/how_to_contribute.md
-    - file: content/contributing/code_anatomy.md
-    - file: content/contributing/testing.md
-    - file: content/contributing/documentation.md
-    - file: content/contributing/changelog.md
-    - file: content/contributing/notation.md
+    - file: source/contributing/how_to_contribute.md
+    - file: source/contributing/code_anatomy.md
+    - file: source/contributing/testing.md
+    - file: source/contributing/documentation.md
+    - file: source/contributing/notation.md
