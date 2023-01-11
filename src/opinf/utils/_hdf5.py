@@ -78,6 +78,8 @@ class hdf5_savehandle(_hdf5_filehandle):
         If True, overwrite the file if it already exists. If False,
         raise a FileExistsError if the file already exists.
 
+    Example
+    -------
     >>> with hdf5_savehandle("file_to_save_to.h5") as hf:
     ...     hf.create_dataset(...)
     """
@@ -95,6 +97,8 @@ class hdf5_loadhandle(_hdf5_filehandle):
         * h5py File/Group handle : handle to part of an already open HDF5 file
         to read data from.
 
+    Example
+    -------
     >>> with hdf5_loadhandle("file_to_read_from.h5") as hf:
     ...    data = hf[...]
     """

@@ -27,6 +27,7 @@ clean:
 	find . -type d -name ".ipynb_checkpoints" | xargs $(REMOVE)
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
 	find docs -type d -name "_build" | xargs $(REMOVE)
+	find docs -type d -name "_autosummaries" | xargs $(REMOVE)
 
 
 install: clean
