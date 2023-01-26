@@ -26,12 +26,6 @@ html:
 execute:
   execute_notebooks: cache  # auto, force, cache, or 'off'.
 
-# Latex output file for PDF builds.
-latex:
-  # latex_engine: pdflatex
-  latex_documents:
-    targetname: documentation.tex
-
 # Bibtex file for citations.
 bibtex_bibfiles:
   - references.bib
@@ -48,11 +42,11 @@ parse:
 sphinx:
   config:
     add_function_parentheses: true
-    add_module_names: true            # If false, shorten function names.
+    add_module_names: false           # If false, shorten function names.
     autosummary_filename_map: {       # Resolve lower/upper case ambiguities.
       "opinf.post.Lp_error": "bigLp-error",
     }
-    autosummary_generate: true        # Needed for classes to link to methods??
+    autosummary_generate: true        # Turn on sphinx.ext.autosummary.
     bibtex_reference_style: label
     # bibtex_default_style: plain     # Citations as numbers.
     # intersphinx_mapping: {

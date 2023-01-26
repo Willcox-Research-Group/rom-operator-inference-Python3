@@ -3,6 +3,7 @@
 
 # Built documentation
 docs/_build/
+_autosummaries/
 
 # Extra Python files
 *.py[cod]

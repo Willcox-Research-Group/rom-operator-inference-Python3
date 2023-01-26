@@ -1,36 +1,36 @@
-{{ fullname }}
-{{ underline }}
+{{ fullname | escape | underline}}
 
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
-  :no-members:
-  :no-inherited-members:
-  :no-special-members:
+   :no-members:
+   :no-inherited-members:
+   :no-special-members:
 
-  {% block methods %}
-  {% if methods %}
-    .. HACK -- the point here is that we don't want this to appear in the output, but the autosummary should still generate the pages.
-    .. autosummary::
-      :toctree: .
+   .. automethod:: __init__
+
+   {% block attributes %}
+   {% if attributes %}
+   .. rubric:: {{ _('Attributes') }}
+
+   .. autosummary::
+   {% for item in attributes %}
+      ~{{ name }}.{{ item }}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
+
+   {% block methods %}
+   {% if methods %}
+   .. rubric:: {{ 'Methods' }}
+
+   .. autosummary::
+      :toctree:
       :nosignatures:
-    {% for item in all_methods %}
-      {%- if not item.startswith('_') or item in ['__call__'] %}
-        {{ name }}.{{ item }}
+   {% for item in methods %}
+      {%- if not item.startswith('__init__') %}
+      ~{{ name }}.{{ item }}
       {%- endif -%}
-    {%- endfor %}
-  {% endif %}
-  {% endblock %}
-
-  {% block attributes %}
-  {% if attributes %}
-    .. HACK -- the point here is that we don't want this to appear in the output, but the autosummary should still generate the pages.
-    .. autosummary::
-      :toctree: .
-    {% for item in all_attributes %}
-      {%- if not item.startswith('_') %}
-        {{ name }}.{{ item }}
-      {%- endif -%}
-    {%- endfor %}
-  {% endif %}
-  {% endblock %}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
