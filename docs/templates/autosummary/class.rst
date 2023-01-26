@@ -14,8 +14,10 @@
    .. rubric:: {{ _('Attributes') }}
 
    .. autosummary::
-   {% for item in attributes %}
+   {% for item in all_attributes %}
+      {%- if not item.startswith('_') %}
       ~{{ name }}.{{ item }}
+      {%- endif -%}
    {%- endfor %}
    {% endif %}
    {% endblock %}
@@ -27,8 +29,8 @@
    .. autosummary::
       :toctree:
       :nosignatures:
-   {% for item in methods %}
-      {%- if not item.startswith('__init__') %}
+   {% for item in all_methods %}
+      {%- if not item.startswith('_') %}
       ~{{ name }}.{{ item }}
       {%- endif -%}
    {%- endfor %}
