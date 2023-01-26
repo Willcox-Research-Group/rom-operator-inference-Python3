@@ -56,8 +56,12 @@ sphinx:
     # }
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     numfig_secnum_depth: 1            # Eq (1.1) instead of (1).
+    numpydoc_show_class_members: false
+    numpydoc_show_inherited_class_members: false
+    numpydoc_class_members_toctree: false
     templates_path: templates         # Location of autosummary templates.
   extra_extensions:
+    - numpydoc
     - sphinx_design
     - sphinx.ext.autodoc
     - sphinx.ext.autosummary
