@@ -115,11 +115,17 @@ class _NonparametricOpInfROM(_BaseROM):
         # Store basis and (hence) reduced dimension.
         self.basis = basis
 
-        # Default solver: no regularization.
+        # Process solver defaults and shortcuts.
         if solver is None:
+            # No regularization.
             solver = lstsq.PlainSolver()
-        elif np.isscalar(solver) and solver > 0:
-            solver = lstsq.L2Solver(solver)
+        elif np.isscalar(solver):
+            if solver == 0:
+                # Also no regularization.
+                solver = lstsq.PlainSolver()
+            elif solver > 0:
+                # Scalar Tikhonov (L2) regularization.
+                solver = lstsq.L2Solver(solver)
 
         # Lightly validate the solver: must be instance w/ fit(), predict().
         if isinstance(solver, type):
@@ -224,7 +230,7 @@ class _NonparametricOpInfROM(_BaseROM):
             self.A_ = Ohat[:, i:i+self.r]
             i += self.r
 
-        if 'H' in to_infer:             # (compact) Qudadratic state matrix.
+        if 'H' in to_infer:             # (compact) Quadratic state matrix.
             _r2 = self._r2
             self.H_ = Ohat[:, i:i+_r2]
             i += _r2
