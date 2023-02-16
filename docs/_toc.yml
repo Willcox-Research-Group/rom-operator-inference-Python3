@@ -11,39 +11,33 @@ parts:
     - file: source/opinf/intro.md
     - file: source/opinf/installation.md
     - file: source/opinf/changelog.md
+    # - file: source/tutorials/gallery.md
     # - file: source/opinf/literature.md
     - file: source/opinf/bibliography.md
 
   # Complete numerical examples, written in a tutorial style.
-  - caption: Tutorials
+  - caption: Guides and Tutorials
     # numbered: 1
     chapters:
-    # TODO: preprocessing tutorial?
     - file: source/tutorials/basics.ipynb
+    - file: source/guides/preprocessing.md
+      sections:
+      - file: source/guides/lifting.md
+      - file: source/guides/scaling.md
+      - file: source/guides/basis.ipynb
+    - file: source/guides/romclasses.md
     - file: source/tutorials/heat_equation.ipynb
-    # - file: source/tutorials/gallery.md
 
   # API reference via sphinx-autodoc + some handwritten guides.
   - caption: API Reference
     # numbered: 1
     chapters:
+    - file: source/api/main.md
     - file: source/api/pre.md
-    - file: source/api/lifting.md         # TODO: move to pre.md
-    - file: source/api/scaling.ipynb      # TODO: move to pre.md
-    - file: source/api/basis.ipynb        # TODO: move to pre.md
-    - file: source/api/romclasses.md
-    # - file: source/api/romstructure.md    # TODO: move to romclasses.md
-    # - file: source/api/romattributes.md   # TODO: move to romclasses.md
-    # - file: source/api/rommethods.md      # TODO: move to romclasses.md
-    # - file: source/api/romcontinuous.md   # TODO: move to romclasses.md
-    # - file: source/api/romdiscrete.md     # TODO: move to romclasses.md
-    # - file: source/api/romsteady.md     # TODO: move to romclasses.md
-    # - file: source/api/romparametric.md   # TODO: move to romclasses.md
-    # - file: source/api/romaffine.md     # TODO: move to romclasses.md
-    # - file: source/api/rominterpolate.md  # TODO: move to romclasses.md
     - file: source/api/lstsq.md
     - file: source/api/post.md
     - file: source/api/utils.md
+    # - file: source/api/core.md
 
   # Instructions for developers.
   - caption: Developer Guide

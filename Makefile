@@ -46,11 +46,15 @@ test: lint install
 
 
 # Documentation ---------------------------------------------------------------
-docs:
+docs: install
 	jupyter-book build --nitpick docs
 
 
-docs_all:
+docs_light:
+	jupyter-book build --nitpick docs
+
+
+docs_all: install
 	jupyter-book build --nitpick --warningiserror --all docs
 
 

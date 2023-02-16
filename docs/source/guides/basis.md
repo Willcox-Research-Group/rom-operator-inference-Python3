@@ -215,7 +215,7 @@ The following functions help measure these criteria.
 
 | Function | Description |
 | :------- | :---------- |
-| `pre.svdval_decay()` | Plot the singular value decay and counts the number of singular values that are larger than a given $\varepsilon$. |
+| `opinf.pre.svdval_decay()` | Plot the singular value decay and counts the number of singular values that are larger than a given $\varepsilon$. |
 | `pre.cumulative_energy()` | Plot the cumulative energy as a function of $r$. |
 | `pre.residual_energy()` | Plot the residual energy as a function of $r$. |
 | `pre.projection_error()` | Calculate projection error. |
@@ -326,7 +326,7 @@ $$
 :::
 ::::
 
-## Basis Classes
+<!-- ## Basis Classes
 
 The `pre` module implements convenience classes for representing low-dimensional approximations.
 
@@ -377,4 +377,4 @@ The class `pre.PODBasis` inherits from `pre.LinearBasis` and calculates the basi
 | `save()` | Save the basis to an HDF5 file. |
 | `load()` | Load a basis previously saved to an HDF5 file. |
 
-Alternatively, the function `opinf.pre.pod_basis()` computes the basis matrix $\mathbf{V}_{r}$ and the associated singular values, i.e., the diagonal entries of $\boldsymbol{\Sigma}$.
+Alternatively, the function `opinf.pre.pod_basis()` computes the basis matrix $\mathbf{V}_{r}$ and the associated singular values, i.e., the diagonal entries of $\boldsymbol{\Sigma}$. -->

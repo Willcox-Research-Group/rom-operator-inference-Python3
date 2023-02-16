@@ -1,12 +1,12 @@
 (sec-lstsq)=
-# Least-Squares Solvers (`opinf.lstsq`)
+# Least-squares (`opinf.lstsq`)
 
-:::{admonition} Coming Soon!
-:class: attention
-This page is under construction.
+:::{eval-rst}
+.. automodule:: opinf.lstsq
 :::
 
-The following [least-squares regression problem](subsec-opinf-regression) is at the heart of Operator Inference:
+
+<!-- The following [least-squares regression problem](subsec-opinf-regression) is at the heart of Operator Inference:
 
 $$
 \min_{\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}}\sum_{j=0}^{k-1}\left\|
@@ -101,3 +101,4 @@ Pass a positive scalar ($\lambda$) as the `regularizer` argument in `fit()` to u
     TikhonovSolver
     TikhonovSolverDecoupled
 :::
+-->
