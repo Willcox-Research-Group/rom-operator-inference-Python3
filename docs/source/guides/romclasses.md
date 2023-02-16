@@ -2,7 +2,7 @@
 # ROM Classes
 
 There are several reduced-order model (ROM) classes defined in the main namespace of `opinf`.
-Each class corresponds to a specific problem setting.
+Each class corresponds to a specific problem setting: _continuous_ models are ordinary differential equations while _discrete_ models are discrete dynamical systems; in _parametric_ models, the equations may depend on an external parameter.
 
 ::::{margin}
 :::{tip}
@@ -10,12 +10,12 @@ The API for these classes adopts some principles from the [scikit-learn](https:/
 :::
 ::::
 
-| Class Name | Problem Statement |
-| :--------- | :---------------: |
-| :class:`ContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t), \mathbf{u}(t))$ |
-| `DiscreteOpInfROM` | $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})$ |
-| `InterpolatedContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
-| `InterpolatedDiscreteOpInfROM` | $\widehat{\mathbf{q}}_{j+1}(\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}(\mu), \mathbf{u}_{j}; \mu)$ |
+| Class Name | Reduced-order Model |
+| :--------- | :-----------------: |
+| [**ContinuousOpInfROM**](opinf.ContinuousOpInfROM) | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t), \mathbf{u}(t))$ |
+| [**DiscreteOpInfROM**](opinf.DiscreteOpInfROM) | $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})$ |
+| [**InterpolatedContinuousOpInfROM**](opinf.InterpolatedContinuousOpInfROM) | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
+| [**InterpolatedDiscreteOpInfROM**](opinf.InterpolatedDiscreteOpInfROM) | $\widehat{\mathbf{q}}_{j+1}(\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}(\mu), \mathbf{u}_{j}; \mu)$ |
 
 <!-- | `SteadyOpInfROM` | $\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\widehat{\mathbf{q}})$ |
 | `AffineContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
@@ -24,13 +24,13 @@ The API for these classes adopts some principles from the [scikit-learn](https:/
 Here $\widehat{\mathbf{q}} \in \mathbb{R}^{n}$ is the reduced-order state, $\mathbf{u} \in \mathbb{R}^{m}$ is the input, and $\mu\in\mathbb{R}^{p}$ is an external parameter (e.g., PDE coefficients).
 Our goal is to learn an appropriate representation of $\widehat{\mathbf{F}}$ from data.
 
-In the following discussion we begin with the non-parametric ROM classes `ContinuousOpInfROM` and `DiscreteOpInfROM`; parametric classes are considered in [Parametric ROMs](subsec-parametric-roms).
+In the following discussion we begin with the non-parametric ROM classes; parametric classes are considered in [Parametric ROMs](subsec-parametric-roms).
 
 
 (subsec-romclass-constructor)=
 ## Defining Model Structure
 
-All ROM classes are instantiated with a single argument, `modelform`, which is a string denoting the structure of the right-hand side function $\widehat{\mathbf{F}}$.
+ROM classes are instantiated with a single argument, `modelform`, which is a string denoting the structure of the right-hand side function $\widehat{\mathbf{F}}$.
 Each character in the string corresponds to a single term in the model.
 
 | Character | Name | Continuous Term | Discrete Term |
@@ -339,8 +339,8 @@ $$
 $$
 
 The following ROM classes target the continuous-time setting.
-- `ContinuousOpInfROM` (nonparametric)
-- `InterpolatedContinuousOpInfROM` (parametric via interpolation)
+- [**ContinuousOpInfROM**](opinf.ContinuousOpInfROM) (nonparametric)
+- [**InterpolatedContinuousOpInfROM**](opinf.InterpolatedContinuousOpInfROM) (parametric via interpolation)
 
 ### Time Derivative Data
 
@@ -421,8 +421,8 @@ $$
 $$
 
 The following ROM classes target the discrete setting.
-- `DiscreteOpInfROM` (nonparametric)
-- `InterpolatedDiscreteOpInfROM` (parametric via interpolation)
+- [**DiscreteOpInfROM**](opinf.DiscreteOpInfROM) (nonparametric)
+- [**InterpolatedDiscreteOpInfROM**](opinf.InterpolatedDiscreteOpInfROM) (parametric via interpolation)
 
 ### Iterated Training Data
 

@@ -27,6 +27,7 @@ These classes are also defined in `opinf.core`.
 .. currentmodule:: opinf
 
 .. autosummary::
+
     opinf.pre
     opinf.lstsq
     opinf.post

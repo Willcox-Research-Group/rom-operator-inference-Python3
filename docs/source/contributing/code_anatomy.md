@@ -4,10 +4,10 @@
 This page briefly reviews the package anatomy and gives instructions for new additions.
 The source code is stored in [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) and is divided into the following submodules:
 - `core`: operator and reduced-order model classes.
-- `lstsq`: solvers for the least-squares regression problem at the heart of Operator Inference.
-- `pre`: pre-processing tools (basis computation, state transformations, etc.).
-- `post`: post-processing tools (mostly error evaluation).
-- `utils`: other routines that don't obviously fit into another submodule. These functions are usually not important for casual users, but advanced users and developers may need access to them.
+- [**pre**](opinf.pre): pre-processing tools (basis computation, state transformations, etc.).
+- [**lstsq**](opinf.lstsq): solvers for the least-squares regression problem at the heart of Operator Inference.
+- [**post**](opinf.post): post-processing tools (mostly error evaluation).
+- [**utils**](opinf.utils): other routines that don't obviously fit into another submodule. These functions are usually not important for casual users, but advanced users and developers may need access to them.
 
 ---
 
@@ -44,7 +44,7 @@ See [Linting](sec-contrib-linting) for more.
 
 ## Pre Module
 
-The `pre` module contains all transformer and basis class definitions.
+The [**pre**](opinf.pre) submodule contains all transformer and basis class definitions.
 Transformers and bases can be _monolithic_ (treating the state as one variable) or _multivariable_ (treating different chunks of the state as separate variables).
 Multivariable transformers and bases inherit from `pre._multivar._MultivarMixin` and should have, as attributes, a list of monolithic counterparts.
 
@@ -241,14 +241,14 @@ classDiagram
 
 :::{tip}
 Usually a group of new parametric operator classes can be implemented by writing an intermediate class that does all of the work, then writing child classes for constant, linear, quadratic, and cubic terms which each set `_OperatorClass` appropriately.
-For example, here is a barebones version of `_AffineOperator`:
+For example, here is a simplified version of `_AffineOperator`:
 ```python
 class _AffineOperator(_BaseParametricOperator):
     """Base class for parametric operators with affine structure."""
 
     def __init__(self, coefficient_functions, matrices):
         """Save the coefficient functions and operator matrices."""
-        self.ceofficient_functions = coefficient_functions
+        self.coefficient_functions = coefficient_functions
         self.matrices = matrices
 
     def __call__(self, parameter):
@@ -364,7 +364,7 @@ These classes should
 
 - Inherit from `core._base._BaseParametricROM`, which adds an attribute `p` for the parameter space dimension and implements the following methods:
     - `__call__(self, parameter)` results in a parametric ROM whose operators correspond to the given parameter.
-    - `evaluate(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `evaluate()` mthod with the remaining arguments.
+    - `evaluate(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `evaluate()` method with the remaining arguments.
     - `predict(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `predict()` method with the remaining arguments.
 
 - Call `_BaseParametricROM.__init__(self)` in the constructor.
@@ -437,10 +437,10 @@ However, it is important to have tailored signatures and detailed docstrings for
 (subsec-contrib-lstsqsolvers)=
 ## Least-squares Module
 
-The `lstsq` module houses classes and tools for solving the least-squares problems that arise in operator inference, namely $\min_{\mathbf{X}}\|\mathbf{A}\mathbf{X} - \mathbf{B}\|$ plus regularization and/or constraints.
+The [**lstsq**](opinf.lstsq) module houses classes and tools for solving the least-squares problems that arise in operator inference, namely $\min_{\mathbf{X}}\|\mathbf{A}\mathbf{X} - \mathbf{B}\|$ plus regularization and/or constraints.
 Each solver class defines 1) how the problem is posed (e.g., is there regularization and how is it structured, are there constraints and if so what are they, etc.) and 2) how the problem is to be solved (e.g., use the SVD, use the QR decomposition, solve the normal equations, etc.).
 
-The `fit()` method of each ROM class has a `solver` keyword arugment which accepts a `lstsq` solver object to apply to the associated operator inference least-squares problem.
+The `fit()` method of each ROM class has a `solver` keyword argument which accepts a `lstsq` solver object to apply to the associated operator inference least-squares problem.
 
 ### Solver Classes
 
