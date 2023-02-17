@@ -344,6 +344,17 @@ class TestPODBasis:
         assert np.allclose(basis1.dual, basis2.dual)
         assert basis1 == basis2
 
+        # Test rmax gives a smaller basis.
+        rnew = basis1.r - 2
+        basis2 = self.PODBasis.load(target, rmax=rnew)
+        assert basis2.r == basis1.r - 2
+        assert basis2.entries.shape == (basis1.entries.shape[0], rnew)
+        assert basis2.svdvals.shape == (rnew,)
+        assert basis2.dual.shape == (basis1.dual.shape[0], rnew)
+        assert np.allclose(basis2.entries, basis1.entries[:, :rnew])
+        assert np.allclose(basis2.svdvals, basis1.svdvals[:rnew])
+        assert np.allclose(basis2.dual, basis1.dual[:, :rnew])
+
         # Repeat with a transformer.
         st = opinf.pre.transform.SnapshotTransformer()
         basis1 = self.PODBasis(transformer=st).fit(np.random.random((n, k)), r)
@@ -360,7 +371,7 @@ class TestPODBasisMulti:
     PODBasisMulti = opinf.pre.PODBasisMulti
 
     def test_init(self):
-        """Test PODBasisMulti.__init__()."""
+        """Test __init__()."""
         basis = self.PODBasisMulti(4, None, True, list("abcd"))
         for attr in ["num_variables", "variable_names", "transformer",
                      "r", "rs", "entries", "economize", "bases"]:
@@ -384,7 +395,7 @@ class TestPODBasisMulti:
             assert subbasis.transformer is None
 
     def test_properties(self, nvars=4, ni=10, k=27):
-        """Test PODBasisMulti properties r, rs, economize, and entries."""
+        """Test properties r, rs, economize, and entries."""
         basis = self.PODBasisMulti(nvars, None, False)
 
         with pytest.raises(AttributeError) as ex:
@@ -440,7 +451,7 @@ class TestPODBasisMulti:
         assert ex.value.args[0] == f"rs must have length {nvars}"
 
     def test_fit(self, nvars=4, ni=12, k=15):
-        """Test PODBasisMulti.fit()."""
+        """Test fit()."""
         n = nvars * ni
         states = np.random.standard_normal((n, k))
         Us = [la.svd(s, full_matrices=False)[0]
@@ -520,7 +531,7 @@ class TestPODBasisMulti:
         assert np.allclose(basis_prod.toarray(), Id)
 
     def test_fit_randomized(self, nvars=3, ni=13, k=11, tol=1e-6):
-        """Test PODBasisMulti.fit_randomized()."""
+        """Test fit_randomized()."""
         options = dict(n_oversamples=30, n_iter=10, random_state=42)
         n = nvars * ni
         states = np.random.standard_normal((n, k))
@@ -608,7 +619,7 @@ class TestPODBasisMulti:
         os.remove(target)
 
     def test_load(self, nvars=4, ni=12, k=15):
-        """Test PODBasisMulti.load()."""
+        """Test load()."""
         # Clean up after old tests.
         target = "_podbasismultiloadtest.h5"
         if os.path.isfile(target):              # pragma: no cover

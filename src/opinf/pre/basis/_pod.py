@@ -467,9 +467,9 @@ class PODBasis(LinearBasis):
                 transformer = TransformerClass.load(hf["transformer"])
 
             if "entries" in hf:
-                entries = hf["entries"][:, :r]
-                svdvals = hf["svdvals"][:r]
-                dualT = hf["dual"][:, :r].T
+                entries = hf["entries"][:, :rmax]
+                svdvals = hf["svdvals"][:rmax]
+                dualT = hf["dual"][:, :rmax].T
 
         out = cls(transformer=transformer, economize=economize)
         out._store_svd(entries, svdvals, dualT)

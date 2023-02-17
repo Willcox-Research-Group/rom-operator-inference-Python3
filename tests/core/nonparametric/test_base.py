@@ -178,7 +178,8 @@ class TestNonparametricOpInfROM:
 
         # Without basis and with a one-dimensional input.
         rom.modelform = "cHB"
-        Q_, lhs_, solver = rom._process_fit_arguments(None, Q, lhs, U1d)
+        Q_, lhs_, solver = rom._process_fit_arguments(None,
+                                                      Q, lhs, U1d, solver=0)
         assert rom.n is None
         assert rom.r == n
         assert rom.basis is None
