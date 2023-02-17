@@ -4,7 +4,8 @@
 
    {% block attributes %}
    {% if attributes %}
-   .. rubric:: {{ _('Module Attributes') }}
+
+   **Module Attributes**
 
    .. autosummary::
       :toctree:
@@ -16,7 +17,8 @@
 
    {% block classes %}
    {% if classes %}
-   .. rubric:: {{ _('Classes') }}
+
+   **Classes**
 
    .. autosummary::
       :toctree:
@@ -29,7 +31,8 @@
 
    {% block functions %}
    {% if functions %}
-   .. rubric:: {{ _('Functions') }}
+
+   **Functions**
 
    .. autosummary::
       :toctree:
@@ -41,7 +44,8 @@
 
    {% block exceptions %}
    {% if exceptions %}
-   .. rubric:: {{ _('Exceptions') }}
+
+   **Exceptions**
 
    .. autosummary::
       :toctree:

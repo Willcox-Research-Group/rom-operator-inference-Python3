@@ -11,7 +11,8 @@
 
    {% block attributes %}
    {% if attributes %}
-   .. rubric:: {{ _('Attributes') }}
+
+   **Attributes**
 
    .. autosummary::
    {% for item in all_attributes %}
@@ -24,7 +25,8 @@
 
    {% block methods %}
    {% if methods %}
-   .. rubric:: {{ 'Methods' }}
+
+   **Methods**
 
    .. autosummary::
       :toctree:
