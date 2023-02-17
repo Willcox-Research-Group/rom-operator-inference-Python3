@@ -224,7 +224,7 @@ class TestSnapshotTransformer:
 
         # Check file creation and overwrite protocol on null transformation.
         st = opinf.pre.SnapshotTransformer()
-        st.save(target[:-3])
+        st.save(target)
         _checkfile(target, st)
 
         with pytest.raises(FileExistsError) as ex:
@@ -738,7 +738,7 @@ class TestSnapshotTransformerMulti:
 
         # Check file creation and overwrite protocol on null transformation.
         stm = opinf.pre.SnapshotTransformerMulti(15)
-        stm.save(target[:-3])
+        stm.save(target)
         _checkfile(target, stm)
 
         with pytest.raises(FileExistsError) as ex:

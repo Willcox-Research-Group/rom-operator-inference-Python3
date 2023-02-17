@@ -27,8 +27,16 @@ def test_hdf5_filehandle():
     hf.close()
     os.remove(target)
 
-    # Save mode without .h5 extension (should append automatically).
-    with subject(target[:-3], "save", True) as hf:
+    # Save mode without .h5 extension.
+    with pytest.warns(UserWarning) as wn:
+        with subject(target[:-3], "save", True):
+            pass
+    assert len(wn) == 1
+    assert wn[0].message.args[0] == "expected file with extension '.h5'"
+    os.remove(target[:-3])
+
+    # Save mode with .h5 extension.
+    with subject(target, "save", True) as hf:
         assert isinstance(hf, h5py.File)
         assert bool(hf)
         assert hf.mode == "r+"
@@ -98,8 +106,16 @@ def test_hdf5_savehandle():
     hf.close()
     os.remove(target)
 
-    # Save mode with no .h5 extension
-    with subject(target[:-3], True) as hf:
+    # Save mode without .h5 extension.
+    with pytest.warns(UserWarning) as wn:
+        with subject(target[:-3], True):
+            pass
+    assert len(wn) == 1
+    assert wn[0].message.args[0] == "expected file with extension '.h5'"
+    os.remove(target[:-3])
+
+    # Save mode with .h5 extension.
+    with subject(target, True) as hf:
         assert isinstance(hf, h5py.File)
         assert bool(hf)
         assert hf.mode == "r+"
