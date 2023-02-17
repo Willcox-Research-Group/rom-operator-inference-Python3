@@ -116,7 +116,8 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
 class DiscreteOpInfROM(_NonparametricOpInfROM):
     r"""Reduced-order model for a nonparametric discrete dynamical system:
 
-        q_{j+1} = F(q_{j}, u_{j}),         q_{0} = q0.
+    .. math::
+        \mathbf{q}_{j+1} = \mathbf{F}(\mathbf{q}_{j}, \mathbf{u}_{j}).
 
     Here q is the state and u is the (optional) input. The structure of F(q, u)
     is user specified (modelform), and the corresponding low-dimensional
@@ -312,39 +313,44 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
 
 
 class ContinuousOpInfROM(_NonparametricOpInfROM):
-    """Reduced-order model for a nonparametric system of ordinary differential
+    r"""Reduced-order model for a nonparametric system of ordinary differential
     equations:
 
-        dq / dt = F(t, q(t), u(t)),         q(0) = q0.
+    .. math::
+        \frac{\textup{d}}{\textup{d}t} \mathbf{q}(t)
+        = \mathbf{F}(t, \mathbf{q}(t), \mathbf{u}(t)),
+        \qquad
+        \mathbf{q}(0)
+        = \mathbf{q}_{0}.
 
-    Here q(t) is the state and u(t) is the (optional) input. The structure of
-    F(t, q(t), u(t)) is user specified (modelform), and the corresponding
-    low-dimensional operators are inferred through a least-squares regression.
-
-    Attributes
-    ----------
-    modelform : str
-        Structure of the reduced-order model. Each character indicates one
-        term in the low-dimensional model F(t, q(t), u(t)):
-        'c' : Constant term c.
-        'A' : Linear state term Aq(t).
-        'H' : Quadratic state term H[q(t) ⊗ q(t)].
-        'G' : Cubic state term G[q(t) ⊗ q(t) ⊗ q(t)].
-        'B' : Input term Bu(t).
-        For example, modelform="AB" means F(t, q(t), u(t)) = Aq(t) + Bu(t).
-    n : int
-        Dimension of the high-dimensional state.
-    m : int or None
-        Dimension of the input, or None if no inputs are present.
-    r : int
-        Dimension of the low-dimensional (reduced-order) state.
-    basis : (n, r) ndarray or None
-        Basis matrix defining the relationship between the high- and
-        low-dimensional state spaces. If None, arguments of fit() are assumed
-        to be in the reduced dimension.
-    c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
-        Low-dimensional operators composing the reduced-order model.
+    Here :math:`\mathbf{q}(t)\in\mathbb{R}^{n}` is the state and
+    :math:`\mathbf{u}(t)\in\mathbb{R}^{m}` is the (optional) input.
+    The structure of :math:`\mathbf{F}` is specified via ``modelform``.
     """
+    # Attributes
+    # ----------
+    # modelform : str
+    #     Structure of the reduced-order model. Each character indicates one
+    #     term in the low-dimensional model F(t, q(t), u(t)):
+    #     'c' : Constant term c.
+    #     'A' : Linear state term Aq(t).
+    #     'H' : Quadratic state term H[q(t) ⊗ q(t)].
+    #     'G' : Cubic state term G[q(t) ⊗ q(t) ⊗ q(t)].
+    #     'B' : Input term Bu(t).
+    #     For example, ``modelform="AB"`` means
+    #       F(t, q(t), u(t)) = Aq(t) + Bu(t).
+    # n : int
+    #     Dimension of the high-dimensional state.
+    # m : int or None
+    #     Dimension of the input, or None if no inputs are present.
+    # r : int
+    #     Dimension of the low-dimensional (reduced-order) state.
+    # basis : (n, r) ndarray or None
+    #     Basis matrix defining the relationship between the high- and
+    #     low-dimensional state spaces. If None, arguments of fit() are assumed
+    #     to be in the reduced dimension.
+    # c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+    #     Low-dimensional operators composing the reduced-order model.
     _LHS_ARGNAME = "ddts"
     _LHS_LABEL = "dq / dt"
     _STATE_LABEL = "q(t)"

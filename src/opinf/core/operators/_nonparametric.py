@@ -19,7 +19,17 @@ from ._base import _BaseNonparametricOperator
 
 
 class ConstantOperator(_BaseNonparametricOperator):
-    """Constant terms."""
+    r"""Constant operator.
+
+    .. math::
+        \widehat{\mathbf{c}} \in \mathbb{R}^{r}
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> c = opinf.core.operators.ConstantOperator(np.random.random(10))
+    >>> c.evaluate()                # Extract c.
+    """
     def __init__(self, entries):
         self._validate_entries(entries)
 
@@ -41,10 +51,15 @@ class ConstantOperator(_BaseNonparametricOperator):
 
 
 class LinearOperator(_BaseNonparametricOperator):
-    """Linear state or input operator.
+    r"""Linear state or input operator.
 
-    Example
-    -------
+    .. math::
+        \widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}
+
+        \widehat{\mathbf{u}} \mapsto \widehat{\mathbf{B}}\widehat{\mathbf{u}}
+
+    Examples
+    --------
     >>> import numpy as np
     >>> A = opinf.core.operators.LinearOperator(np.random.random((10, 10)))
     >>> q = np.random.random(10)
@@ -69,11 +84,15 @@ class LinearOperator(_BaseNonparametricOperator):
 
 
 class QuadraticOperator(_BaseNonparametricOperator):
-    """Operator for quadratic interactions of a state/input with itself
-    (compact Kronecker).
+    r"""Operator for quadratic interactions of a state/input with itself.
 
-    Example
-    -------
+    .. math::
+        \widehat{\mathbf{q}} \mapsto
+        \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]
+
+
+    Examples
+    --------
     >>> import numpy as np
     >>> H = opinf.core.operators.QuadraticOperator(np.random.random((10, 100)))
     >>> q = np.random.random(10)
@@ -123,10 +142,15 @@ class QuadraticOperator(_BaseNonparametricOperator):
 
 
 class CubicOperator(_BaseNonparametricOperator):
-    """Cubic terms of a state/input with itself (compact Kronecker).
+    r"""Operator for cubic interactions of a state/input with itself.
 
-    Example
-    -------
+    .. math::
+        \widehat{\mathbf{q}} \mapsto
+        \widehat{\mathbf{H}}[\widehat{\mathbf{q}}
+        \otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]
+
+    Examples
+    --------
     >>> import numpy as np
     >>> G = opinf.core.operators.CubicOperator(np.random.random((10, 1000)))
     >>> q = np.random.random(10)

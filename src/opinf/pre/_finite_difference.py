@@ -155,17 +155,11 @@ def ddt(states, *args, **kwargs):
     states : (n, k) ndarray
         States to estimate the derivative of. The jth column is a snapshot
         that corresponds to the jth time step, i.e., states[:, j] = x(t[j]).
-
-    Additional parameters
-    ---------------------
     dt : float
         The time step between the snapshots, i.e., t[j+1] - t[j] = dt.
     order : int {2, 4, 6} (optional)
         The order of the derivative approximation.
         See https://en.wikipedia.org/wiki/Finite_difference_coefficient.
-
-    OR
-
     t : (k,) ndarray
         The times corresponding to the snapshots. May or may not be uniformly
         spaced.

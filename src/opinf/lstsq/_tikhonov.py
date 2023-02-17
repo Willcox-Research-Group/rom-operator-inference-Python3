@@ -72,15 +72,6 @@ class L2Solver(_BaseTikhonovSolver):
     The solution is calculated using the singular value decomposition of A:
     If A = U Σ V^T, then X = V Σinv(λ) U^T B, where
     Σinv(λ)[i, i] = Σ[i, i] / (Σ[i, i]^2 + λ^2).
-
-    Attributes
-    ----------
-    A : (k, d) ndarray
-        Left data matrix (snapshots).
-    B : (k, r)
-        Right data matrix B = [ b_1 | ... | b_r ].
-    regularizer : float ≥ 0
-        Scalar regularization hyperparameter.
     """
     _LSTSQ_LABEL = r"min_{X} ||AX - B||_F^2 + ||λX||_F^2"
 
