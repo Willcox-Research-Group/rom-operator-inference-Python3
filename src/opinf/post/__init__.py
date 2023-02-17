@@ -30,8 +30,9 @@ Projection Error
 ================
 
 The projection error is defined by the low-dimensional representation of the
-state, not the solution of a reduced-order model *per se*.
-For a true state :math:`\mathbf{q} \in \mathbb{R}^{n}`, consider the low-dimensional (linear) approximation
+state, not the solution of a reduced-order model *per se*. For a true state
+:math:`\mathbf{q} \in \mathbb{R}^{n}`, consider the  low-dimensional (linear)
+approximation
 
 .. math::
     \breve{\mathbf{q}} = \mathbf{V}_{r}\widehat{\mathbf{q}},
@@ -43,7 +44,8 @@ associated with this approximation is
     \|\mathbf{q} - \breve{\mathbf{q}}\|
     = \|\mathbf{q} - \mathbf{V}_{r}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}\|.
 
-The following function computes this projection error, given a basis matrix :math:`\mathbf{V}_{r}`.
+The following function computes this projection error, given a basis matrix
+:math:`\mathbf{V}_{r}`.
 
 .. autosummary::
     :toctree: _autosummaries

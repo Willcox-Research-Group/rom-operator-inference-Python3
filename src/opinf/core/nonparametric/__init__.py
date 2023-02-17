@@ -18,11 +18,13 @@
 
 **Private Classes**
 
-* ``_NonparametricOpInfROM``: Base class for nonparametric Operator Inference ROMs.
+* ``_NonparametricOpInfROM``: Base class for nonparametric Operator Inference
+  ROMs.
 * ``_FrozenMixin``: Mixin for evaluations of parametric ROMs
   (disables ``fit()``).
 * ``_FrozenDiscreteOpInfROM``: Evaluations of discrete-time parametric ROMs.
-* ``_FrozenContinuousOpInfROM``: Evaluations of continuous-time parametric ROMs.
+* ``_FrozenContinuousOpInfROM``: Evaluations of continuous-time parametric
+  ROMs.
 """
 
 from . import _base, _frozen

@@ -10,10 +10,16 @@ The following :ref:`least-squares regression problem <subsec-opinf-regression>`
 is at the heart of Operator Inference:
 
 .. math::
-    \min_{\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}}\sum_{j=0}^{k-1}\left\|
+    \min_{
+        \widehat{\mathbf{c}},
+        \widehat{\mathbf{A}},
+        \widehat{\mathbf{H}},
+        \widehat{\mathbf{B}}}
+    \sum_{j=0}^{k-1}\left\|
         \widehat{\mathbf{c}}
         + \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}
-        + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]
+        + \widehat{\mathbf{H}}[
+            \widehat{\mathbf{q}}_{j}\otimes\widehat{\mathbf{q}}_{j}]
         + \widehat{\mathbf{B}}\mathbf{u}_{j}
         - \dot{\widehat{\mathbf{q}}}_{j}
     \right\|_{2}^{2}
@@ -28,8 +34,10 @@ where
   state at time :math:`t_{j}`,
 * :math:`\dot{\widehat{\mathbf{q}}}_{j}` is the time derivative of the
   low-dimensional state at time :math:`t_{j}`,
-* :math:`\mathbf{u}_{j} = \mathbf{u}(t_{j})` is the input at time :math:`t_{j}`,
-* :math:`\mathbf{D}` is the *data matrix* containing low-dimensional state data,
+* :math:`\mathbf{u}_{j} = \mathbf{u}(t_{j})` is the input at time
+  :math:`t_{j}`,
+* :math:`\mathbf{D}` is the *data matrix* containing low-dimensional state
+  data,
 * :math:`\widehat{\mathbf{O}}` is the *operator matrix* of unknown operators to
   be inferred, and
 * :math:`\mathbf{Y}` is the matrix of low-dimensional time derivative data.

@@ -3,17 +3,19 @@ r"""Utility functions for Operator Inference.
 
 .. currentmodule:: opinf.utils
 
-This module contains miscellaneous support functions for the rest of the package.
+This module contains miscellaneous support functions for the rest of the
+package.
 
 
 Kronecker Products
 ==================
 
 The quadratic term
-:math:`\widehat{\mathbf{H}}[\widehat{\mathbf{q}} \otimes \widehat{\mathbf{q}}]`,
+:math:`\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]`,
 where :math:`\widehat{\mathbf{H}}\in\mathbb{R}^{r\times r^{2}}`, can be
 represented more compactly as
-:math:`\check{\mathbf{H}}[\widehat{\mathbf{q}}\ \widehat{\otimes}\ \widehat{\mathbf{q}}]`
+:math:`\check{\mathbf{H}}[\widehat{\mathbf{q}}
+\ \widehat{\otimes}\ \widehat{\mathbf{q}}]`
 where $\check{\mathbf{H}}\in\mathbb{R}^{r\times r(r+1)/2}$ and
 :math:`\widehat{\otimes}` is a compressed version of the Kronecker product.
 The following functions facilitate this compressed evaluation.
