@@ -1,9 +1,3 @@
-[aliases]
-test = pytest
-
-[test]
-testpaths = tests
-
 [flake8]
 ignore =
     # continuation line over indented
