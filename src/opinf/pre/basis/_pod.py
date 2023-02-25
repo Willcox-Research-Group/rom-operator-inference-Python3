@@ -435,19 +435,21 @@ class PODBasis(LinearBasis):
                 hf.create_dataset("dual", data=self.__dual)
 
     @classmethod
-    def load(cls, loadfile):
+    def load(cls, loadfile, rmax=None):
         """Load a basis from an HDF5 file.
 
         Parameters
         ----------
         loadfile : str
             Path to the file where the basis was stored (via save()).
+        rmax : int or None
+            Maximum number of POD modes to load. If None (default), load all.
 
         Returns
         -------
         PODBasis object
         """
-        entries, svdvals, dualT, transformer, r = None, None, None, None, None
+        entries, svdvals, dualT, transformer, r = None, None, None, None, rmax
         with hdf5_loadhandle(loadfile) as hf:
 
             if "meta" not in hf:
@@ -456,6 +458,8 @@ class PODBasis(LinearBasis):
             economize = bool(hf["meta"].attrs["economize"])
             if "r" in hf["meta"].attrs:
                 r = int(hf["meta"].attrs["r"])
+                if rmax is not None:
+                    r = min(r, rmax)
 
             if "transformer" in hf:
                 TransformerClassName = hf["meta"].attrs["TransformerClass"]
@@ -463,9 +467,9 @@ class PODBasis(LinearBasis):
                 transformer = TransformerClass.load(hf["transformer"])
 
             if "entries" in hf:
-                entries = hf["entries"][:]
-                svdvals = hf["svdvals"][:]
-                dualT = hf["dual"][:].T
+                entries = hf["entries"][:, :rmax]
+                svdvals = hf["svdvals"][:rmax]
+                dualT = hf["dual"][:, :rmax].T
 
         out = cls(transformer=transformer, economize=economize)
         out._store_svd(entries, svdvals, dualT)

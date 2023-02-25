@@ -23,15 +23,15 @@ def kron2c(x, checkdim=False):
 
     Parameters
     ----------
-    x : (n,) or (n, k) ndarray
+    x : (n,) or (n, k) numpy.ndarray
         If two-dimensional, the product is computed column-wise (Khatri-Rao).
     checkdim : bool
-        If true, check that the input `x` is one- or two-dimensional.
+        If true, check that the input ``x`` is one- or two-dimensional.
 
     Returns
     -------
-    x ⊗ x : (n(n+1)/2,) or (n(n+1)/2, k) ndarray
-        The "compact" Kronecker product of x with itself.
+    x ⊗ x : (n(n+1)/2,) or (n(n+1)/2, k) numpy.ndarray
+        The "compact" Kronecker product of ``x`` with itself.
     """
     if checkdim and x.ndim not in (1, 2):
         raise ValueError("x must be one- or two-dimensional")

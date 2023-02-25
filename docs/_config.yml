@@ -1,5 +1,5 @@
-# Book settings.
-# Learn more at https://jupyterbook.org/customize/config.html
+# _config.yml
+# See https://jupyterbook.org/customize/config.html.
 
 title: ""
 author: Willcox Research Group, Oden Institute for Computational Engineering and Sciences
@@ -10,10 +10,9 @@ logo: images/logo.svg
 repository:
   url: https://github.com/Willcox-Research-Group/rom-operator-inference-Python3
   path_to_book: docs
-  branch: main  # Which branch of the repository should be used when creating links (optional)
+  branch: main                          # Branch to use when creating links.
 
 # GitHub buttons and other web options.
-# See https://jupyterbook.org/customize/config.html#add-a-link-to-your-repository
 html:
   home_page_in_navbar: false
   use_edit_page_button: false
@@ -24,13 +23,7 @@ html:
 # Notebooks execution configuration for build.
 # See https://jupyterbook.org/content/execute.html
 execute:
-  execute_notebooks: cache  # auto, force, cache, or 'off'.
-
-# Latex output file for PDF builds.
-latex:
-  # latex_engine: pdflatex
-  latex_documents:
-    targetname: documentation.tex
+  execute_notebooks: cache              # auto, force, cache, or 'off'.
 
 # Bibtex file for citations.
 bibtex_bibfiles:
@@ -47,12 +40,32 @@ parse:
 
 sphinx:
   config:
-    # MathJax 3 (faster than the default).
-    mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
-    # language: en
-    numfig_secnum_depth: 1            # Eq (1.1) instead of (1)
+    add_function_parentheses: true
+    add_module_names: false             # If false, shorten function names.
+    autosummary_filename_map: {         # Resolve lower/upper case ambiguities.
+      "opinf.post.Lp_error": "bigLp-error",
+    }
+    autosummary_generate: true          # Turn on sphinx.ext.autosummary.
     bibtex_reference_style: label
-    # bibtex_default_style: plain     # Citations as numbers
+    # bibtex_default_style: plain       # Citations as numbers.
+    # intersphinx_mapping: {
+    #   "python": ("https://docs.python.org/3", None),
+    #   "numpy": ("https://numpy.org/devdocs", None),
+    #   "matplotlib": ("https://matplotlib.org/stable", None),
+    # }
+    mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+    numfig_secnum_depth: 1              # Eq (1.1) instead of (1).
+    numpydoc_class_members_toctree: false
+    numpydoc_show_class_members: false
+    numpydoc_show_inherited_class_members: false
+    suppress_warnings: ["etoc.toctree"]
+    templates_path: templates           # Location of autosummary templates.
+    # toc_object_entries_show_parents: hide   # Requires sphinx>=5.2.0.
   extra_extensions:
+    - numpydoc
     - sphinx_design
+    - sphinx.ext.autodoc
+    - sphinx.ext.autosummary
+    - sphinx.ext.napoleon
+    - sphinx.ext.viewcode
     - sphinxcontrib.mermaid

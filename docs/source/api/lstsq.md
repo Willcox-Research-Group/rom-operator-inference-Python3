@@ -1,12 +1,12 @@
 (sec-lstsq)=
-# Least-Squares Solvers
+# Least-squares (`opinf.lstsq`)
 
-:::{admonition} Coming Soon!
-:class: attention
-This page is under construction.
+:::{eval-rst}
+.. automodule:: opinf.lstsq
 :::
 
-The following [least-squares regression problem](subsec-opinf-regression) is at the heart of Operator Inference:
+
+<!-- The following [least-squares regression problem](subsec-opinf-regression) is at the heart of Operator Inference:
 
 $$
 \min_{\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}}\sum_{j=0}^{k-1}\left\|
@@ -52,6 +52,17 @@ $$
 Least-squares solver objects are passed to `fit()` using the `solver` keyword argument.
 If `fit()` does not receive a `solver` object, no regularization is added ($\mathcal{R}(\widehat{\mathbf{O}}) = \mathbf{0}$) and the regression is solved using [`scipy.linalg.lstsq()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html).
 
+:::{eval-rst}
+.. currentmodule:: opinf.lstsq
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    lstsq_size
+    PlainSolver
+:::
+
 ## Tikhonov Regularization
 
 For $\mathcal{R}\equiv 0$ and a few other common choices of $\mathcal{R}$, the OpInf learning problem is _linear_ and can be solved explicitly.
@@ -76,3 +87,18 @@ $$
 
 Pass a positive scalar ($\lambda$) as the `regularizer` argument in `fit()` to use this regularization.
 :::
+
+
+:::{eval-rst}
+.. currentmodule:: opinf.lstsq
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    L2Solver
+    L2SolverDecoupled
+    TikhonovSolver
+    TikhonovSolverDecoupled
+:::
+-->

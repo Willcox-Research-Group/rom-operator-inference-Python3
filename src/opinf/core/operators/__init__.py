@@ -1,47 +1,101 @@
 # core/operators/__init__.py
-"""Operator classes for the individual components of polynomial models.
+r"""Operator classes for the individual components of polynomial models.
 
-That is, for models with the form
-    dq / dt = c + Aq(t) + H[q(t) ⊗ q(t)] + G[q(t) ⊗ q(t) ⊗ q(t)] + Bu(t),
-these classes represent the operators c (constant), A (linear), H (quadratic),
-G (cubic), and B (input).
+.. currentmodule:: opinf.core.operators
+
+For instance, for models with the form
+
+.. math::
+    \frac{\textup{d}}{\textup{d}t}\mathbf{q}(t)
+    = \mathbf{c}
+    + \mathbf{Aq}(t)
+    + \mathbf{H}[\mathbf{q}(t) \otimes \mathbf{q}(t)]
+    + \mathbf{G}[\mathbf{q}(t) \otimes \mathbf{q}(t) \otimes \mathbf{q}(t)]
+    + \mathbf{Bu}(t),
+
+these classes represent the operators :math:`\mathbf{c}` (constant),
+:math:`\mathbf{A}` (linear), :math:`\mathbf{H}` (quadratic),
+:math:`\mathbf{G}` (cubic), and :math:`\mathbf{B}` (input).
+
 
 Nonparametric Operator Classes
 ==============================
+
 These classes represent operators that do not depend on external parameters.
-* ConstantOperator: constant operators, c.
-* LinearOperator: linear operators for state / input, A & B.
-* QuadraticOperator: quadratic operators, H.
-* CubicOperator: quadratic operators, G.
-Used by [Discrete|Continuous]OpInfROM.
+They are used by :class:`ContinuousOpInfROM <opinf.ContinuousOpInfROM>` and
+:class:`DiscreteOpInf <opinf.DiscreteOpInfROM>`
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    ConstantOperator
+    LinearOperator
+    QuadraticOperator
+    CubicOperator
+
+
+Parametric Operator Classes
+===========================
 
 The remaining classes are for operators that depend on a external parameters,
-i.e., A = A(µ). There are several parameterization strategies.
+for example, :math:`\mathbf{A} = \mathbf{A}(\mu)` where
+:math:`\mu \in \mathbb{R}^{p}` is free parameter vector (or scalar if
+:math:`p = 1`). There are several parameterization strategies.
+
 
 Interpolated Operator Classes
-=============================
-These classes handle the parametric dependence of an operator A = A(µ)
-with elementwise interpolation between known operator matrices, i.e.,
-    A(µ)[i,j] = Interpolator([µ1, µ2, ...], [A1[i,j], A2[i,j], ...])(µ),
-where µ1, µ2, ... are parameter values and A1, A2, ... are the corresponding
-operator matrices, e.g., A1 = A(µ1).
-* InterpolatedConstantOperator: constant operators, c(µ).
-* InterpolatedLinearOperator: linear operators for state / input, A(µ) & B(µ).
-* InterpolatedQuadraticOperator: quadratic operators, H(µ).
-* InterpolatedCubicOperator: cubic operators, G(µ).
-Used by Interpolated[Discrete|Continuous]OpInfROM.
+-----------------------------
+
+These classes handle the parametric dependence of an operator
+:math:`\mathbf{A} = \mathbf{A}(\mu)`
+with element-wise interpolation between known operator matrices, i.e.,
+
+.. math::
+    \mathbf{A}(\mu)_{ij}
+    = \operatorname{Interpolator}(
+        [\mu_{1}, \mu_{2}, \ldots],
+        [\mathbf{A}^{(1)}_{i,j}, \mathbf{A}^{(2)}_{i,j}, \ldots])(\mu),
+
+where :math:`\mu_{1}, \mu_{2}, \ldots` are parameter values and
+:math:`\mathbf{A}^{(1)}, \mathbf{A}^{(2)}, ...` are the corresponding operator
+matrices, i.e., :math:`\mathbf{A}^{(1)} = \mathbf{A}(\mu_{i})`.
+These operator classes are used by :class:`InterpolatedDiscreteOpInfROM` and
+:class:`InterpolatedContinuousOpInfROM`.
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    InterpolatedConstantOperator
+    InterpolatedLinearOperator
+    InterpolatedQuadraticOperator
+    InterpolatedCubicOperator
+
 
 Affine Operator Classes
-=======================
+-----------------------
+
 These operators assume the parametric dependence of an operator A = A(µ) has a
 known "affine" structure,
-    A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i},
-where θ_{i} are scalar-valued functions and A_{i} are matrices.
-* AffineConstantOperator: constant operators, c(µ).
-* AffineLinearOperator: linear operators for state / input, A(µ) & B(µ).
-* AffineQuadraticOperator: quadratic operators, H(µ).
-* AffineCubicOperator: cubic operators, G(µ).
-Used by Affine[Discrete|Continuous]OpInfROM.
+
+.. math::
+    \mathbf{A}(\mu)
+    = \sum_{i=1} \theta_{i}(\mu)\mathbf{A}^{(i)},
+
+where :math:`\theta_{i}` are scalar-valued functions and
+:math:`\mathbf{A}^{(i)}` are matrices.
+These operator classes are used by :class:`AffineDiscreteOpInfROM` and
+:class:`AffineContinuousOpInfROM`.
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    AffineConstantOperator
+    AffineLinearOperator
+    AffineQuadraticOperator
+    AffineCubicOperator
 """
 
 from ._base import *

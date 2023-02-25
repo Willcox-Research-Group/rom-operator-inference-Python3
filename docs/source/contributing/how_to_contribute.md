@@ -59,10 +59,10 @@ They should be written as Jupyter notebooks and placed in `docs/content/tutorial
 
 - [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) contains the actual package code, see the [Source Code Guide](sec-contrib-anatomy). The code is divided into submodules:
     - `core`: operator and reduced-order model classes.
-    - `lstsq`: solvers for the linear regression problem at the heart of Operator Inference.
-    - `pre`: pre-processing tools (basis computation, state transformations, etc.).
-    - `post`: post-processing tools (mostly error evaluation).
-    - `utils`: other routines that are not important to casual users, but which advanced users may want access to.
+    - [**pre**](opinf.pre): pre-processing tools (basis computation, state transformations, etc.).
+    - [**lstsq**](opinf.lstsq): solvers for the linear regression problem at the heart of Operator Inference.
+    - [**post**](opinf.post): post-processing tools (mostly error evaluation).
+    - [**utils**](opinf.utils): other routines that are not important to casual users, but which advanced users may want access to.
 - [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/opinf/`. See [Testing](sec-contrib-testing).
 - [`docs/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/docs) contains documentation (including this page!). See [Documentation](sec-contrib-docs).
 
@@ -76,6 +76,6 @@ The aptly named [makefiletutorial.com](https://makefiletutorial.com/) has a pret
 :::
 
 For any changes to be accepted, they need to address three things.
-1. [**Source Code.**](sec-contrib-anatomy) Write readable code that conforms to our style guide. In particular, `make lint` must succeed.
-2. [**Unit tests.**](sec-contrib-testing) Write or update tests to validate your additions or changes. In particular, `make test` must succeed with full line coverage.
-3. [**Documentation.**](sec-contrib-docs) Write or update documentation based on your changes. In particular, `make docs` must succeed.
+1. [**Source Code.**](sec-contrib-anatomy) Write readable code that conforms to our style guide: `make lint` must succeed.
+2. [**Unit tests.**](sec-contrib-testing) Write or update tests to validate your additions or changes: `make test` must succeed with full line coverage.
+3. [**Documentation.**](sec-contrib-docs) Write or update documentation based on your changes: `make docs` must succeed.

@@ -72,8 +72,8 @@ class LinearBasis(_BaseBasis):
     def fit(self, basis):
         """Store the basis entries (without any filtering by the transformer).
 
-        Paramters
-        ---------
+        Parameters
+        ----------
         basis : (n, r) ndarray
             Basis entries. These entries are NOT filtered by the transformer.
 
@@ -359,8 +359,8 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
     def fit(self, bases):
         """Store the basis entries (without any filtering by the transformer).
 
-        Paramters
-        ---------
+        Parameters
+        ----------
         bases : list of num_entries (n, ri) ndarrays
             Basis entries. These entries are NOT filtered by the transformer.
 

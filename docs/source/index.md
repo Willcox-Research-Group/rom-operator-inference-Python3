@@ -8,7 +8,7 @@
 [![PyPI](https://img.shields.io/pypi/wheel/opinf)](https://pypi.org/project/opinf/)
 
 :::{attention}
-This documentation is for `opinf` version `0.4.2`.
+This documentation is for `opinf` version `0.4.3`.
 See updates and notes for old versions [here](sec-whatsnew).
 :::
 

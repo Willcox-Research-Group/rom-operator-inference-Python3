@@ -8,6 +8,7 @@ __all__ = [
 
 import os
 import h5py
+import warnings
 
 
 class _hdf5_filehandle:
@@ -25,7 +26,7 @@ class _hdf5_filehandle:
     overwrite : bool
         If True, overwrite the file if it already exists. If False,
         raise a FileExistsError if the file already exists.
-        Only applies when mode = "save".
+        Only applies when ``mode = "save"``.
     """
     def __init__(self, filename, mode, overwrite=False):
         """Open the file handle."""
@@ -37,7 +38,7 @@ class _hdf5_filehandle:
         elif mode == "save":
             # `filename` is the name of a file to create for writing.
             if not filename.endswith(".h5"):
-                filename += ".h5"
+                warnings.warn("expected file with extension '.h5'")
             if os.path.isfile(filename) and not overwrite:
                 raise FileExistsError(f"{filename} (overwrite=True to ignore)")
             self.file_handle = h5py.File(filename, 'w')
@@ -71,13 +72,15 @@ class hdf5_savehandle(_hdf5_filehandle):
     Parameters
     ----------
     savefile : str of h5py File/Group handle
-        * str : Name of the file to save to. Extension ".h5" is appended.
+        * str : Name of the file to save to.
         * h5py File/Group handle : handle to part of an already open HDF5 file
-        to save data to.
+          to save data to.
     overwrite : bool
-        If True, overwrite the file if it already exists. If False,
-        raise a FileExistsError if the file already exists.
+        If ``True``, overwrite the file if it already exists. If ``False``,
+        raise a ``FileExistsError`` if the file already exists.
 
+    Examples
+    --------
     >>> with hdf5_savehandle("file_to_save_to.h5") as hf:
     ...     hf.create_dataset(...)
     """
@@ -91,10 +94,12 @@ class hdf5_loadhandle(_hdf5_filehandle):
     Parameters
     ----------
     loadfile : str of h5py File/Group handle
-        * str : Name of the file to read from. Extension ".h5" is appended.
+        * str : Name of the file to read from.
         * h5py File/Group handle : handle to part of an already open HDF5 file
-        to read data from.
+          to read data from.
 
+    Examples
+    --------
     >>> with hdf5_loadhandle("file_to_read_from.h5") as hf:
     ...    data = hf[...]
     """

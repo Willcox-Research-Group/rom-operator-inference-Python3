@@ -17,7 +17,7 @@ def lstsq_size(modelform, r, m=0, affines=None):
     data matrix D.
 
     Parameters
-    ---------
+    ----------
     modelform : str containing 'c', 'A', 'H', 'G', and/or 'B'
         The structure of the desired reduced-order model. Each character
         indicates the presence of a different term in the model:
@@ -67,17 +67,6 @@ class _BaseSolver(abc.ABC):
     """Base class for solvers for the Operator Inference regression problem.
     Child classes should receive and store hyperparameters in the constructor
     (regularization scalars, truncation size, etc.).
-
-    Methods
-    -------
-    fit(A, B):
-        Prepare to solve the least-squares problem min_{X}||AX - B||
-        (factor matrices, etc.). This method should **NOT** depend on the
-        hyperparameters so that changing the hyperparameters does not require
-        calling fit() again.
-    predict():
-        Return the solution of the least-squares problem min_{X}||AX - B||
-        (plus regularization if present).
     """
     _LSTSQ_LABEL = ""
 

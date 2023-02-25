@@ -1,9 +1,7 @@
-(sec-preprocessing)=
-# Preprocessing
+(sec-preprocessing-guide)=
+# Preprocessing Guide
 
-:::{important}
-The tools discussed in this chapter are bundled in the `pre` submodule.
-:::
+## Introduction
 
 Our goal is to learn an efficient computational surrogate for a dynamical system
 
@@ -36,7 +34,7 @@ Once the data is properly normalized, a dimensionality reduction technique encod
 
 Proper preprocessing can improve the dimensionality reduction, promote stability in the inference of the reduced-order operators, and increase the stability and accuracy of the resulting reduced-order model.
 
-:::::{admonition} Imporant Terminology
+:::::{admonition} Terminology
 :class: important
 The mapping $\boldsymbol{\Gamma} : \mathbb{R}^{r} \to \mathbb{R}^{n}$ is called the _decoder_.
 The corresponding _encoder_ $\boldsymbol{\Gamma}^{*} : \mathbb{R}^{n} \to \mathbb{R}^{r}$ is defined by the minimization

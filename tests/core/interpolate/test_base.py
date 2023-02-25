@@ -363,7 +363,7 @@ class TestInterpolatedOpInfROM:
                     assert "B_" not in data["operators"]
 
         rom = _trainedinterpmodel("cAB")
-        rom.save(target[:-3], save_basis=False)
+        rom.save(target, save_basis=False)
         _checkfile(target, rom, False)
 
         with pytest.raises(FileExistsError) as ex:

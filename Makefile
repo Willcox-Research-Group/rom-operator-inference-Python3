@@ -27,6 +27,7 @@ clean:
 	find . -type d -name ".ipynb_checkpoints" | xargs $(REMOVE)
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
 	find docs -type d -name "_build" | xargs $(REMOVE)
+	find docs -type d -name "_autosummaries" | xargs $(REMOVE)
 
 
 install: clean
@@ -45,11 +46,15 @@ test: lint install
 
 
 # Documentation ---------------------------------------------------------------
-docs:
+docs: install
 	jupyter-book build --nitpick docs
 
 
-docs_all:
+docs_light:
+	jupyter-book build --nitpick docs
+
+
+docs_all: install
 	jupyter-book build --nitpick --warningiserror --all docs
 
 

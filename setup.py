@@ -7,7 +7,7 @@ with open("README.md", "r") as infile:
 setuptools.setup(
     # Package name and version.
     name="opinf",
-    version="0.4.2",
+    version="0.4.3",
 
     # Package description, license, and keywords.
     description="Operator inference for data-driven, "

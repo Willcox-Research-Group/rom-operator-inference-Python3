@@ -1,13 +1,20 @@
 # _core/__init__.py
 """Classes for reduced-order models (ROMs) and the operators they consist of.
 
-Please note that this module is private.  All public objects are available in
-the main namespace - use that instead whenever possible.
+.. currentmodule:: opinf.core
 
-Submodules
-----------
-* operators: classes for each type of term in polynomial reduced models.
-* nonparametric: classes for ROMs without external parameter dependencies.
+.. tip::
+    This module is private.  All public objects are available in the
+    :ref:`main namespace <sec-main>` -- use that instead whenever possible.
+
+**Submodules**
+
+.. autosummary::
+    :toctree: _autosummaries
+
+    operators
+    nonparametric
+    interpolate
 """
 
 from . import operators
