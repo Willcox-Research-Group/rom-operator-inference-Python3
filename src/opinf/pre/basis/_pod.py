@@ -63,9 +63,9 @@ class PODBasis(LinearBasis):
         self.__entries = None
         self.__svdvals = None
         self.__dual = None
+        self.__spatialweights = None
         self.economize = bool(economize)
         LinearBasis.__init__(self, transformer)
-        # TODO: inner product weight matrix.
 
     # Dimension selection -----------------------------------------------------
     def __shrink_stored_entries_to(self, r):
@@ -171,6 +171,52 @@ class PODBasis(LinearBasis):
         """Leading *right* singular vectors."""
         return None if self.__dual is None else self.__dual[:, :self.r]
 
+    @property
+    def spatialweights(self):
+        """Symmetric positive definite weighting matrix for the inner product.
+        """
+        return self.__spatialweights
+
+    @spatialweights.setter
+    def spatialweights(self, weights):
+        """Set the spatial weights, checking dimension."""
+        if weights is not None and self.n is not None:
+            if weights.shape[0] != self.n:
+                raise ValueError(f"{weights.shape} spatialweights "
+                                 f"not aligned with dimension n = {self.n}")
+        self.__spatialweights = weights
+
+    def _spatial_weighting(self, state, weights):
+        """Weight a state or a collection of states (spatially)."""
+        if weights is not None:
+            if weights.ndim == 1:
+                if state.ndim == 2:
+                    weights = weights.reshape(-1, 1)
+                return weights * state
+            return weights @ state
+        return state
+
+    # Encoding ----------------------------------------------------------------
+    def encode(self, state):
+        """Map high-dimensional states to low-dimensional latent coordinates.
+
+        Parameters
+        ----------
+        state : (n,) or (n, k) ndarray
+            High-dimensional state vector, or a collection of k such vectors
+            organized as the columns of a matrix.
+
+        Returns
+        -------
+        state_ : (r,) or (r, k) ndarray
+            Low-dimensional latent coordinate vector, or a collection of k
+            such vectors organized as the columns of a matrix.
+        """
+        if self.transformer is not None:
+            state = self.transformer.transform(state)
+        state = self._spatial_weighting(state, self.spatialweights)
+        return self.entries.T @ state
+
     # Fitting -----------------------------------------------------------------
     @staticmethod
     def _validate_rank(states, r):
@@ -185,13 +231,15 @@ class PODBasis(LinearBasis):
         self.__svdvals = np.sort(svals)[::-1] if svals is not None else None
         self.__dual = Wt.T if Wt is not None else None
 
-    def fit(self, states,
-            r=None, cumulative_energy=None, residual_energy=None, **options):
-        """Compute the POD basis of rank r corresponding to the states
-        via the compact/thin singular value decomposition (scipy.linalg.svd()).
+    def _fit(self, driver, states, r, cumulative_energy, residual_energy,
+             spatialweights, temporalweights, **options):
+        """Compute the POD basis of rank r corresponding to the states using
+        `driver()` to compute the SVD.
 
         Parameters
         ----------
+        driver : callable
+            Function that computes the SVD of the given states.
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a single snapshot of
             dimension n. If the basis has a transformer, the states are
@@ -226,14 +274,76 @@ class PODBasis(LinearBasis):
         if self.transformer is not None:
             states = self.transformer.fit_transform(states)
 
-        # Compute the complete compact SVD and store the results.
-        V, svdvals, Wt = la.svd(states, full_matrices=False, **options)
+        # Weight the states.
+        if spatialweights is not None:
+            if spatialweights.ndim == 1:
+                root_weights = np.sqrt(spatialweights)
+                inv_root_weights = 1 / root_weights
+            elif spatialweights.ndim == 2:
+                root_weights = la.sqrtm(spatialweights)
+                inv_root_weights = la.inv(root_weights)
+            else:
+                raise ValueError("1D spatial weights only")
+            states = self._spatial_weighting(states, root_weights)
+
+        # Compute the SVD.
+        V, svdvals, Wt = driver(states, **options)
+
+        # Unweight the basis vectors.
+        if spatialweights is not None:
+            if spatialweights.ndim == 1:
+                V *= np.reshape(1 / root_weights, (-1, 1))
+            elif spatialweights.ndim == 2:
+                V = inv_root_weights @ V
+
+        # Store the results.
         self._store_svd(V, svdvals, Wt)
         self.set_dimension(r, cumulative_energy, residual_energy)
+        self.spatialweights = spatialweights
 
         return self
 
-    def fit_randomized(self, states, r, **options):
+    def fit(self, states,
+            r=None, cumulative_energy=None, residual_energy=None,
+            spatialweights=None, temporalweights=None, **options):
+        """Compute the POD basis of rank r corresponding to the states
+        via the compact/thin singular value decomposition (scipy.linalg.svd()).
+
+        Parameters
+        ----------
+        states : (n, k) ndarray
+            Matrix of k snapshots. Each column is a single snapshot of
+            dimension n. If the basis has a transformer, the states are
+            transformed (and the transformer is updated) before computing
+            the basis entries.
+        r : int or None
+            Number of vectors to include in the basis.
+            If None, use the largest possible basis (r = min{n, k}).
+        cumulative_energy : float or None
+            Cumulative energy threshold. If provided and r=None, choose the
+            smallest number of basis vectors so that the cumulative singular
+            value energy exceeds the given threshold.
+        residual_energy : float or None
+            Residual energy threshold. If provided, r=None, and
+            cumulative_energy=None, choose the smallest number of basis vectors
+            so that the residual singular value energy is less than the given
+            threshold.
+        options
+            Additional parameters for scipy.linalg.svd().
+
+        Notes
+        -----
+        This method computes the full singular value decomposition of `states`.
+        The method fit_randomized() uses a randomized SVD.
+        """
+        options["full_matrices"] = False
+
+        return self._fit(la.svd,
+                         states, r, cumulative_energy, residual_energy,
+                         spatialweights, temporalweights, **options)
+
+    def fit_randomized(self, states, r,
+                       spatialweights=None, temporalweights=None, **options):
         """Compute the POD basis of rank r corresponding to the states
         via the randomized singular value decomposition
         (sklearn.utils.extmath.randomized_svd()).
@@ -256,22 +366,13 @@ class PODBasis(LinearBasis):
         value decomposition, which can be useful for very large n.
         The method fit() computes the full singular value decomposition.
         """
-        if np.ndim(states) == 3:
-            states = np.hstack(states)
-        self._validate_rank(states, r)
-
-        # Transform the states.
-        if self.transformer is not None:
-            states = self.transformer.fit_transform(states)
-
-        # Compute the randomized SVD and store the results.
         if "random_state" not in options:
             options["random_state"] = None
-        V, svdvals, Wt = sklmath.randomized_svd(states, r, **options)
-        self._store_svd(V, svdvals, Wt)
-        self.set_dimension(r)
+        options["n_components"] = r
 
-        return self
+        return self._fit(sklmath.randomized_svd,
+                         states, r, None, None,
+                         spatialweights, temporalweights, **options)
 
     # Visualization -----------------------------------------------------------
     def _check_svdvals_exist(self):
