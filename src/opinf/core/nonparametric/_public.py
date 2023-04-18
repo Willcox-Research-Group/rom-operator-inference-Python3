@@ -97,7 +97,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
             Solver for the least-squares regression. Defaults:
             * None: lstsq.PlainSolver(), SVD-based solve without regularization
             * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
-                regularization
+              regularization.
 
         Returns
         -------
@@ -232,7 +232,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             Solver for the least-squares regression. Defaults:
             * None: lstsq.PlainSolver(), SVD-based solve without regularization
             * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
-                regularization
+              regularization.
 
         Returns
         -------
@@ -261,6 +261,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             Number of times to step the system forward.
         inputs : (m, niters-1) ndarray
             Inputs for the next niters-1 time steps, i.e.,
+
             >>> states[:, 0] = states0
             >>> states[:, 1] = F(state0, inputs[:, 0])
             >>> states[:, 2] = F(states[:, 1], inputs[:, 1])
@@ -434,7 +435,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             Solver for the least-squares regression. Defaults:
             * None: lstsq.PlainSolver(), SVD-based solve without regularization
             * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
-                regularization
+              regularization.
 
         Returns
         -------

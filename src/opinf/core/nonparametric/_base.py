@@ -98,7 +98,7 @@ class _NonparametricOpInfROM(_BaseROM):
             Solver for the least-squares regression. Defaults:
             * None: lstsq.PlainSolver(), SVD-based solve without regularization
             * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
-                regularization
+              regularization.
 
         Returns
         -------
@@ -283,7 +283,7 @@ class _NonparametricOpInfROM(_BaseROM):
             Solver for the least-squares regression. Defaults:
             * None: lstsq.PlainSolver(), SVD-based solve without regularization
             * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
-                regularization
+              regularization.
         """
         states_, lhs_, solver = self._process_fit_arguments(
             basis, states, lhs, inputs,
@@ -350,7 +350,7 @@ class _NonparametricOpInfROM(_BaseROM):
             Solver for the least-squares regression. Defaults:
             * None: lstsq.PlainSolver(), SVD-based solve without regularization
             * float > 0: lstsq.L2Solver(), SVD-based solve with scalar Tikhonov
-                regularization
+              regularization.
 
         Returns
         -------
