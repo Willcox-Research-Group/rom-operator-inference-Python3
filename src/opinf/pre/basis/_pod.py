@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 
 from ...errors import LoadfileFormatError
 from ...utils import hdf5_savehandle, hdf5_loadhandle
-from .. import transform
 from ._linear import LinearBasis, LinearBasisMulti
 
 
@@ -36,8 +35,6 @@ class PODBasis(LinearBasis):
 
     Parameters
     ----------
-    transformer : Transformer or None
-        Transformer for pre-processing states before dimensionality reduction.
     economize : bool
         If True, throw away basis vectors beyond the first `r` whenever
         the `r` attribute is changed.
@@ -57,15 +54,15 @@ class PODBasis(LinearBasis):
     dual : (n, r) ndarray
         Right singular vectors of the data.
     """
-    def __init__(self, transformer=None, economize=False):
-        """Initialize an empty basis and set the transformer."""
+    def __init__(self, economize=False):
+        """Initialize an empty basis."""
         self.__r = None
         self.__entries = None
         self.__svdvals = None
         self.__dual = None
         self.__spatialweights = None
         self.economize = bool(economize)
-        LinearBasis.__init__(self, transformer)
+        LinearBasis.__init__(self)
 
     # Dimension selection -----------------------------------------------------
     def __shrink_stored_entries_to(self, r):
@@ -212,10 +209,12 @@ class PODBasis(LinearBasis):
             Low-dimensional latent coordinate vector, or a collection of k
             such vectors organized as the columns of a matrix.
         """
-        if self.transformer is not None:
-            state = self.transformer.transform(state)
-        state = self._spatial_weighting(state, self.spatialweights)
-        return self.entries.T @ state
+        # if self.spatialweights.ndim == 1 and
+        # # state.ndim == 2 and state.shape[1] < self.r:
+        #     return self._spatial_weighting(self.entries,
+        #                                 self.spatialweights).T @ state
+        return self.entries.T @ self._spatial_weighting(state,
+                                                        self.spatialweights)
 
     # Fitting -----------------------------------------------------------------
     @staticmethod
@@ -242,9 +241,7 @@ class PODBasis(LinearBasis):
             Function that computes the SVD of the given states.
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a single snapshot of
-            dimension n. If the basis has a transformer, the states are
-            transformed (and the transformer is updated) before computing
-            the basis entries.
+            dimension n.
         r : int or None
             Number of vectors to include in the basis.
             If None, use the largest possible basis (r = min{n, k}).
@@ -269,10 +266,6 @@ class PODBasis(LinearBasis):
             # Concatenate list of states.
             states = np.hstack(states)
         self._validate_rank(states, r)
-
-        # Transform states.
-        if self.transformer is not None:
-            states = self.transformer.fit_transform(states)
 
         # Weight the states.
         if spatialweights is not None:
@@ -313,9 +306,7 @@ class PODBasis(LinearBasis):
         ----------
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a single snapshot of
-            dimension n. If the basis has a transformer, the states are
-            transformed (and the transformer is updated) before computing
-            the basis entries.
+            dimension n.
         r : int or None
             Number of vectors to include in the basis.
             If None, use the largest possible basis (r = min{n, k}).
@@ -352,9 +343,7 @@ class PODBasis(LinearBasis):
         ----------
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a single snapshot of
-            dimension n. If the basis has a transformer, the states are
-            transformed (and the transformer is updated) before computing
-            the basis entries.
+            dimension n.
         r : int
             Number of vectors to include in the basis.
         options
@@ -525,11 +514,6 @@ class PODBasis(LinearBasis):
             if self.r is not None:
                 meta.attrs["r"] = self.r
 
-            if self.transformer is not None:
-                TransformerClass = self.transformer.__class__.__name__
-                meta.attrs["TransformerClass"] = TransformerClass
-                self.transformer.save(hf.create_group("transformer"))
-
             if self.entries is not None:
                 hf.create_dataset("entries", data=self.__entries)
                 hf.create_dataset("svdvals", data=self.__svdvals)
@@ -550,7 +534,7 @@ class PODBasis(LinearBasis):
         -------
         PODBasis object
         """
-        entries, svdvals, dualT, transformer, r = None, None, None, None, rmax
+        entries, svdvals, dualT, r = None, None, None, rmax
         with hdf5_loadhandle(loadfile) as hf:
 
             if "meta" not in hf:
@@ -562,17 +546,12 @@ class PODBasis(LinearBasis):
                 if rmax is not None:
                     r = min(r, rmax)
 
-            if "transformer" in hf:
-                TransformerClassName = hf["meta"].attrs["TransformerClass"]
-                TransformerClass = getattr(transform, TransformerClassName)
-                transformer = TransformerClass.load(hf["transformer"])
-
             if "entries" in hf:
                 entries = hf["entries"][:, :rmax]
                 svdvals = hf["svdvals"][:rmax]
                 dualT = hf["dual"][:, :rmax].T
 
-        out = cls(transformer=transformer, economize=economize)
+        out = cls(economize=economize)
         out._store_svd(entries, svdvals, dualT)
         out.r = r
         return out
@@ -600,10 +579,6 @@ class PODBasisMulti(LinearBasisMulti):
         num_variables=3 means the first n entries of a snapshot correspond to
         the first variable, and the next n entries correspond to the second
         variable, and the last n entries correspond to the third variable.
-    transformer : Transformer or None
-        Transformer for pre-processing states before dimensionality reduction.
-        See SnapshotTransformerMulti for a transformer that scales state
-        variables individually.
     economize : bool
         If True, throw away basis vectors beyond the first `r` whenever
         the `r` attribute is changed.
@@ -631,12 +606,10 @@ class PODBasisMulti(LinearBasisMulti):
     """
     _BasisClass = PODBasis
 
-    def __init__(self, num_variables,
-                 transformer=None, economize=False, variable_names=None):
-        """Initialize an empty basis and set the transformer."""
-        # Store dimensions and transformer.
+    def __init__(self, num_variables, economize=False, variable_names=None):
+        """Initialize an empty basis."""
+        # Store dimensions.
         LinearBasisMulti.__init__(self, num_variables,
-                                  transformer=transformer,
                                   variable_names=variable_names)
         self.economize = bool(economize)
 
@@ -685,9 +658,7 @@ class PODBasisMulti(LinearBasisMulti):
         ----------
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a single snapshot of
-            dimension n. If the basis has a transformer, the states are
-            transformed (and the transformer is updated) before computing
-            the basis entries.
+            dimension n.
         rs : list(int) or None
             Number of basis vectors for each state variable.
             If None, use the largest possible bases (ri = min{ni, k}).
@@ -703,10 +674,6 @@ class PODBasisMulti(LinearBasisMulti):
         options
             Additional parameters for scipy.linalg.svd().
         """
-        # Transform the states.
-        if self.transformer is not None:
-            states = self.transformer.fit_transform(states)
-
         # Split the state and compute the basis for each variable.
         if rs is None:
             rs = [None] * self.num_variables
@@ -726,9 +693,7 @@ class PODBasisMulti(LinearBasisMulti):
         ----------
         states : (n, k) ndarray
             Matrix of k snapshots. Each column is a single snapshot of
-            dimension n. If the basis has a transformer, the states are
-            transformed (and the transformer is updated) before computing
-            the basis entries.
+            dimension n.
         rs : list(int) or None
             Number of basis vectors for each state variable.
         options
@@ -740,10 +705,6 @@ class PODBasisMulti(LinearBasisMulti):
         value decomposition, which can be useful for very large n.
         The method fit() computes the full singular value decomposition.
         """
-        # Transform the states.
-        if self.transformer is not None:
-            states = self.transformer.fit_transform(states)
-
         # Fit the individual bases.
         if not isinstance(rs, list) or len(rs) != self.num_variables:
             raise TypeError(f"rs must be list of length {self.num_variables}")
@@ -755,21 +716,18 @@ class PODBasisMulti(LinearBasisMulti):
         return self
 
     # Persistence -------------------------------------------------------------
-    def save(self, savefile, save_transformer=True, overwrite=False):
+    def save(self, savefile, overwrite=False):
         """Save the basis to an HDF5 file.
 
         Parameters
         ----------
         savefile : str
             Path of the file to save the basis in.
-        save_transformer : bool
-            If True, save the transformer as well as the basis entries.
-            If False, only save the basis entries.
         overwrite : bool
             If True, overwrite the file if it already exists. If False
             (default), raise a FileExistsError if the file already exists.
         """
-        LinearBasisMulti.save(self, savefile, save_transformer, overwrite)
+        LinearBasisMulti.save(self, savefile, overwrite)
         with h5py.File(savefile, 'a') as hf:
             hf["meta"].attrs["economize"] = self.economize
 

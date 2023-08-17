@@ -1,8 +1,6 @@
 # pre/basis/test_base.py
 """Tests for pre.basis._base."""
 
-import pytest
-
 import opinf
 
 
@@ -19,29 +17,6 @@ class TestBaseBasis:
 
         def decode(self, state_):
             return state_ - 1
-
-    class DummyTransformer:
-        """Dummy object with all required transformer methods."""
-        def fit_transform(self, states):
-            return states
-
-        def transform(self, states):
-            return states
-
-        def inverse_transform(self, states):
-            return states
-
-    def test_init(self):
-        """Test _BaseBasis.__init__() and transformer properties."""
-        self.Dummy()
-
-        with pytest.raises(TypeError) as ex:
-            self.Dummy(10)
-        assert ex.value.args[0].startswith("transformer missing required meth")
-
-        transformer = self.DummyTransformer()
-        basis = self.Dummy(transformer)
-        assert basis.transformer is transformer
 
     def test_project(self):
         """Test _BaseBasis.project() and _BaseBasis.projection_error()."""

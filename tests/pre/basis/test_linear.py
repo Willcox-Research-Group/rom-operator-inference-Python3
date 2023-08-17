@@ -12,30 +12,12 @@ import matplotlib.pyplot as plt
 import opinf
 
 
-class DummyTransformer:
-    """Dummy object with all required transformer methods."""
-    def transform(self, states):
-        return states + 1
-
-    def fit_transform(self, states):
-        return self.transform(states)
-
-    def inverse_transform(self, states):
-        return states - 1
-
-    def save(self, hf):
-        hf.create_dataset("dummy", data=(1, 1, 1))
-
-    def __str__(self):
-        return "DummyTransformer"
-
-
 class TestLinearBasis:
     """Test pre.basis._linear.LinearBasis."""
     LinearBasis = opinf.pre.basis.LinearBasis
 
     def test_init(self):
-        """Test __init__() and entries/transformer properties."""
+        """Test __init__() and entries properties."""
         basis = self.LinearBasis()
         assert basis.entries is None
         assert basis.shape is None
@@ -56,10 +38,6 @@ class TestLinearBasis:
         assert out is basis
         assert np.allclose(basis[:] - 1, Vr)
 
-        transformer = DummyTransformer()
-        basis = self.LinearBasis(transformer)
-        assert basis.transformer is transformer
-
     def test_str(self):
         """Test __str__() and __repr__()."""
         basis = self.LinearBasis()
@@ -71,11 +49,8 @@ class TestLinearBasis:
             "\nFull-order dimension    n = 10" \
             "\nReduced-order dimension r = 4"
 
-        basis = self.LinearBasis(transformer=DummyTransformer())
-        assert str(basis) == "Empty LinearBasis with DummyTransformer"
-
         basis.fit(np.empty((9, 5)))
-        assert str(basis) == "LinearBasis with DummyTransformer" \
+        assert str(basis) == "LinearBasis" \
             "\nFull-order dimension    n = 9" \
             "\nReduced-order dimension r = 5"
 
@@ -85,15 +60,7 @@ class TestLinearBasis:
         Vr = np.random.random((n, r))
         basis = self.LinearBasis().fit(Vr)
         q = np.random.random(n)
-
-        # Encode without a transformer.
         q_ = Vr.T @ q
-        assert np.allclose(basis.encode(q), q_)
-
-        # Encode with a transformer.
-        transformer = DummyTransformer()
-        basis.transformer = transformer
-        q_ = Vr.T @ (q + 1)
         assert np.allclose(basis.encode(q), q_)
 
     def test_decode(self, n=9, r=4):
@@ -101,15 +68,7 @@ class TestLinearBasis:
         Vr = np.random.random((n, r))
         basis = self.LinearBasis().fit(Vr)
         q_ = np.random.random(r)
-
-        # Decode without a transformer.
         q = Vr @ q_
-        assert np.allclose(basis.decode(q_), q)
-
-        # Decode with a transformer.
-        transformer = DummyTransformer()
-        basis.transformer = transformer
-        q = (Vr @ q_) - 1
         assert np.allclose(basis.decode(q_), q)
 
     # Visualization -----------------------------------------------------------
@@ -143,11 +102,8 @@ class TestLinearBasis:
         basis2.fit(np.random.random((10, 3)))
         assert basis1 != basis2
 
-        basis1 = self.LinearBasis(transformer=DummyTransformer())
+        basis1 = self.LinearBasis()
         basis1.fit(basis2.entries)
-        assert basis1 != basis2
-
-        basis1.transformer = None
         assert basis1 == basis2
         basis1.fit(basis2.entries + 1)
         assert basis1 != basis2
@@ -161,33 +117,17 @@ class TestLinearBasis:
 
         Vr = np.random.random((n, r))
 
-        def _check_savefile(filename, hastransformer=False):
+        def _check_savefile(filename):
             with h5py.File(filename, 'r') as hf:
                 assert "entries" in hf
                 assert np.all(hf["entries"][:] == Vr)
 
-                if hastransformer:
-                    assert "meta" in hf
-                    assert "TransformerClass" in hf["meta"].attrs
-                    TClass = hf["meta"].attrs["TransformerClass"]
-                    assert TClass == "DummyTransformer"
-                    assert "transformer" in hf
-                    assert "dummy" in hf["transformer"]
-                    assert np.all(hf["transformer/dummy"][:] == (1, 1, 1))
-
-        # Test 1: no transformer.
         basis = self.LinearBasis().fit(Vr)
-        basis.save(target, save_transformer=False)
-        _check_savefile(target, hastransformer=False)
+        basis.save(target)
+        _check_savefile(target)
         os.remove(target)
-        basis.save(target, save_transformer=True)
-        _check_savefile(target, hastransformer=False)
-        os.remove(target)
-
-        # Test 2: has a transformer.
-        basis.transformer = DummyTransformer()
-        basis.save(target, save_transformer=True)
-        _check_savefile(target, hastransformer=True)
+        basis.save(target)
+        _check_savefile(target)
         os.remove(target)
 
     def test_load(self, n=10, r=5):
@@ -199,41 +139,15 @@ class TestLinearBasis:
 
         Vr = np.random.random((n, r))
 
-        def _make_loadfile(loadfile, maketransformer=False, dometa=True):
+        def _make_loadfile(loadfile):
             with h5py.File(loadfile, 'w') as hf:
                 hf.create_dataset("entries", data=Vr)
 
-                if maketransformer:
-                    gp = hf.create_group("transformer")
-                    meta = gp.create_dataset("meta", shape=(0,))
-                    meta.attrs["center"] = False
-                    meta.attrs["scaling"] = False
-                    meta.attrs["byrow"] = False
-                    meta.attrs["verbose"] = True
-                    if dometa:
-                        meta = hf.create_dataset("meta", shape=(0,))
-                        meta.attrs["TransformerClass"] = "SnapshotTransformer"
-
-        _make_loadfile(target, maketransformer=False)
+        _make_loadfile(target)
         basis = self.LinearBasis.load(target)
         assert isinstance(basis, self.LinearBasis)
         assert np.all(basis.entries == Vr)
-        assert basis.transformer is None
         os.remove(target)
-
-        _make_loadfile(target, maketransformer=True, dometa=True)
-        basis = self.LinearBasis.load(target)
-        assert isinstance(basis, self.LinearBasis)
-        assert np.all(basis.entries == Vr)
-        assert isinstance(basis.transformer, opinf.pre.SnapshotTransformer)
-        assert not basis.transformer.center
-        assert not basis.transformer.scaling
-        assert basis.transformer.verbose
-
-        _make_loadfile(target, maketransformer=True, dometa=False)
-        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
-            self.LinearBasis.load(target)
-        assert ex.value.args[0] == "invalid save format (meta/ not found)"
 
         # Check that save() and load() are inverses for an empty basis.
         basis1 = self.LinearBasis()
@@ -251,14 +165,13 @@ class TestLinearBasisMulti:
 
     def test_init(self):
         """Test LinearBasisMulti.__init__()."""
-        basis = self.LinearBasisMulti(4, None, list("abcd"))
-        for attr in ["num_variables", "variable_names", "transformer",
+        basis = self.LinearBasisMulti(4, list("abcd"))
+        for attr in ["num_variables", "variable_names",
                      "r", "rs", "n", "ni", "entries", "bases"]:
             assert hasattr(basis, attr)
 
         assert basis.num_variables == 4
         assert basis.variable_names == list("abcd")
-        assert basis.transformer is None
         assert basis.r is None
         assert basis.rs is None
         assert basis.n is None
@@ -271,7 +184,6 @@ class TestLinearBasisMulti:
             assert isinstance(subbasis, self.LinearBasisMulti._BasisClass)
             assert subbasis.r is None
             assert subbasis.entries is None
-            assert subbasis.transformer is None
 
     def test_properties(self, nvars=4, ni=10, k=27):
         """Test LinearBasisMulti properties r, rs, and entries."""
@@ -322,23 +234,13 @@ class TestLinearBasisMulti:
         for name in "ABCD":
             assert f"\n* {name} : Empty LinearBasis" in bstr
 
-        # Empty basis with transformer.
-        basis.transformer = DummyTransformer()
-        bstr = str(basis)
-        assert bstr.startswith(
-            f"Empty {num:d}-variable LinearBasis with DummyTransformer")
-        for name in "ABCD":
-            assert f"\n* {name} : Empty LinearBasis" in bstr
-        assert bstr.count("DummyTransformer") == 1
-        assert len(bstr.split('\n')) == 5
-
         # Non-empty basis.
         rs = np.random.randint(2, 10, num)
         Vs = [np.random.standard_normal((20, r)) for r in rs]
         basis.fit(Vs)
         bstr = str(basis)
         assert bstr.startswith(
-            f"{num:d}-variable LinearBasis with DummyTransformer")
+            f"{num:d}-variable LinearBasis")
         for i, (name, r) in enumerate(zip("ABCD", rs)):
             assert f"\n* {name} : LinearBasis" in bstr
             assert f"Full-order dimension    n{i+1} = 20" in bstr
@@ -399,11 +301,6 @@ class TestLinearBasisMulti:
         basis.save(target, overwrite=False)
         assert os.path.isfile(target)
 
-        # Save a basis with a transformer.
-        basis = self.LinearBasisMulti(nvars, transformer=DummyTransformer())
-        basis.save(target, overwrite=True)
-        assert os.path.isfile(target)
-
         # Save a nonempty basis.
         Vs = [la.qr(np.random.standard_normal((ni, i+2)), mode="economic")[0]
               for i in range(nvars)]
@@ -438,7 +335,6 @@ class TestLinearBasisMulti:
         assert basis2.r is None
         assert basis2.rs is None
         assert basis2.entries is None
-        assert basis2.transformer is None
         assert basis1 == basis2
 
         # Save a basis to a temporary file (don't interrogate the file).
@@ -459,14 +355,6 @@ class TestLinearBasisMulti:
             assert subbasis.shape == Vs[i].shape
             assert np.all(subbasis.entries == Vs[i])
         assert basis1 == basis2
-
-        # Repeat with a transformer.
-        basis1.transformer = opinf.pre.SnapshotTransformer()
-        basis1.save(target, overwrite=True)
-        basis2 = self.LinearBasisMulti.load(target)
-        assert basis2.transformer is not None
-        assert basis2.transformer == basis1.transformer
-        assert basis2 == basis1
 
         with h5py.File(target, 'a') as hf:
             hf["meta"].attrs["num_variables"] = nvars + 2

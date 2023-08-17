@@ -4,27 +4,9 @@
 import abc
 import scipy.linalg as la
 
-from ..transform._base import _check_is_transformer
-
 
 class _BaseBasis(abc.ABC):
     """Abstract base class for all basis classes."""
-    def __init__(self, transformer=None):
-        """Set the transformer."""
-        self.transformer = transformer
-
-    # Transformer -------------------------------------------------------------
-    @property
-    def transformer(self):
-        """Transformer for pre-processing states before dimension reduction."""
-        return self.__transformer
-
-    @transformer.setter
-    def transformer(self, tf):
-        """Set the transformer, ensuring it has the necessary attributes."""
-        if tf is not None:
-            _check_is_transformer(tf)
-        self.__transformer = tf
 
     # Fitting -----------------------------------------------------------------
     @abc.abstractmethod

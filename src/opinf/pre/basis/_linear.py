@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 from ...errors import LoadfileFormatError
 from ...utils import hdf5_savehandle, hdf5_loadhandle
 from .._multivar import _MultivarMixin
-from .. import transform
 from ._base import _BaseBasis
 
 
@@ -22,11 +21,6 @@ class LinearBasis(_BaseBasis):
 
         q = Vr @ q_ := sum([Vr[:, j]*q_[j] for j in range(Vr.shape[1])])
         (full_state = basis * reduced_state).
-
-    Parameters
-    ----------
-    transformer : Transformer or None
-        Transformer for pre-processing states before dimensionality reduction.
 
     Attributes
     ----------
@@ -39,10 +33,9 @@ class LinearBasis(_BaseBasis):
     entries : (n, r) ndarray
         Entries of the basis matrix Vr.
     """
-    def __init__(self, transformer=None):
-        """Initialize an empty basis and set the transformer."""
+    def __init__(self):
+        """Initialize an empty basis."""
         self.__entries = None
-        _BaseBasis.__init__(self, transformer)
 
     # Properties --------------------------------------------------------------
     @property
@@ -70,12 +63,12 @@ class LinearBasis(_BaseBasis):
         return self.entries[key]
 
     def fit(self, basis):
-        """Store the basis entries (without any filtering by the transformer).
+        """Store the basis entries.
 
         Parameters
         ----------
         basis : (n, r) ndarray
-            Basis entries. These entries are NOT filtered by the transformer.
+            Basis entries.
 
         Returns
         -------
@@ -91,8 +84,6 @@ class LinearBasis(_BaseBasis):
     def __str__(self):
         """String representation: class and dimensions."""
         out = [self.__class__.__name__]
-        if self.transformer is not None:
-            out[0] = f"{out[0]} with {self.transformer.__class__.__name__}"
         if self.n is None:
             out[0] = f"Empty {out[0]}"
         else:
@@ -121,11 +112,9 @@ class LinearBasis(_BaseBasis):
             Low-dimensional latent coordinate vector, or a collection of k
             such vectors organized as the columns of a matrix.
         """
-        if self.transformer is not None:
-            state = self.transformer.transform(state)
         return self.entries.T @ state
 
-    def decode(self, state_):
+    def decode(self, state_, locs=None):
         """Map low-dimensional latent coordinates to high-dimensional states.
 
         Parameters
@@ -133,6 +122,9 @@ class LinearBasis(_BaseBasis):
         state_ : (r,) or (r, k) ndarray
             Low-dimensional latent coordinate vector, or a collection of k
             such vectors organized as the columns of a matrix.
+        locs : slice or (p,) ndarray of integers or None
+            If given, return the decoded state at only the specified
+            locations (indices).
 
         Returns
         -------
@@ -140,10 +132,7 @@ class LinearBasis(_BaseBasis):
             High-dimensional state vector, or a collection of k such vectors
             organized as the columns of a matrix.
         """
-        state = self.entries @ state_
-        if self.transformer is not None:
-            state = self.transformer.inverse_transform(state)
-        return state
+        return (self.entries if locs is None else self.entries[locs]) @ state_
 
     # Visualizations ----------------------------------------------------------
     def plot1D(self, x, rmax=None, ax=None, **kwargs):
@@ -190,32 +179,20 @@ class LinearBasis(_BaseBasis):
             return False
         if self.shape != other.shape:
             return False
-        if self.transformer != other.transformer:
-            return False
         return np.all(self.entries == other.entries)
 
-    def save(self, savefile, save_transformer=True, overwrite=False):
+    def save(self, savefile, overwrite=False):
         """Save the basis to an HDF5 file.
 
         Parameters
         ----------
         savefile : str
             Path of the file to save the basis in.
-        save_transformer : bool
-            If True, save the transformer as well as the basis entries.
-            If False, only save the basis entries.
         overwrite : bool
             If True, overwrite the file if it already exists. If False
             (default), raise a FileExistsError if the file already exists.
         """
         with hdf5_savehandle(savefile, overwrite) as hf:
-
-            if save_transformer and self.transformer is not None:
-                meta = hf.create_dataset("meta", shape=(0,))
-                TransformerClass = self.transformer.__class__.__name__
-                meta.attrs["TransformerClass"] = TransformerClass
-                self.transformer.save(hf.create_group("transformer"))
-
             if self.entries is not None:
                 hf.create_dataset("entries", data=self.entries)
 
@@ -230,23 +207,15 @@ class LinearBasis(_BaseBasis):
 
         Returns
         -------
-        _BaseTransformer
+        LinearBasis
         """
-        entries, transformer = None, None
+        entries = None
         with hdf5_loadhandle(loadfile) as hf:
-
-            if "transformer" in hf:
-                if "meta" not in hf:
-                    raise LoadfileFormatError("invalid save format "
-                                              "(meta/ not found)")
-                TransformerClassName = hf["meta"].attrs["TransformerClass"]
-                TransformerClass = getattr(transform, TransformerClassName)
-                transformer = TransformerClass.load(hf["transformer"])
 
             if "entries" in hf:
                 entries = hf["entries"][:]
 
-            return cls(transformer).fit(entries)
+            return cls().fit(entries)
 
 
 class LinearBasisMulti(LinearBasis, _MultivarMixin):
@@ -267,10 +236,6 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         num_variables=3 means the first n entries of a snapshot correspond to
         the first variable, and the next n entries correspond to the second
         variable, and the last n entries correspond to the third variable.
-    transformer : Transformer or None
-        Transformer for pre-processing states before dimensionality reduction.
-        See SnapshotTransformerMulti for a transformer that scales state
-        variables individually.
     variable_names : list of num_variables strings, optional
         Names for each of the `num_variables` variables.
         Defaults to "variable 1", "variable 2", ....
@@ -293,14 +258,13 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
     """
     _BasisClass = LinearBasis
 
-    def __init__(self, num_variables, transformer=None, variable_names=None):
-        """Initialize an empty basis and set the transformer."""
-        # Store dimensions and transformer.
+    def __init__(self, num_variables, variable_names=None):
+        """Initialize an empty basis for each variable."""
+        # Store dimensions.
         _MultivarMixin.__init__(self, num_variables, variable_names)
-        LinearBasis.__init__(self, transformer)
+        LinearBasis.__init__(self)
 
-        self.bases = [self._BasisClass(transformer=None)
-                      for _ in range(self.num_variables)]
+        self.bases = [self._BasisClass() for _ in range(self.num_variables)]
 
     # Properties -------------------------------------------------------------
     @property
@@ -339,8 +303,6 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
     def __str__(self):
         """String representation: centering and scaling directives."""
         out = [f"{self.num_variables}-variable {self._BasisClass.__name__}"]
-        if self.transformer is not None:
-            out[0] = f"{out[0]} with {self.transformer.__class__.__name__}"
         namelength = max(len(name) for name in self.variable_names)
         sep = " " * (namelength + 5)
         for i, (name, st) in enumerate(zip(self.variable_names, self.bases)):
@@ -357,12 +319,12 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
 
     # Main routines -----------------------------------------------------------
     def fit(self, bases):
-        """Store the basis entries (without any filtering by the transformer).
+        """Store the basis entries.
 
         Parameters
         ----------
         bases : list of num_entries (n, ri) ndarrays
-            Basis entries. These entries are NOT filtered by the transformer.
+            Basis entries.
 
         Returns
         -------
@@ -374,16 +336,13 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         return self
 
     # Persistence -------------------------------------------------------------
-    def save(self, savefile, save_transformer=True, overwrite=False):
+    def save(self, savefile, overwrite=False):
         """Save the basis to an HDF5 file.
 
         Parameters
         ----------
         savefile : str
             Path of the file to save the basis in.
-        save_transformer : bool
-            If True, save the transformer as well as the basis entries.
-            If False, only save the basis entries.
         overwrite : bool
             If True, overwrite the file if it already exists. If False
             (default), raise a FileExistsError if the file already exists.
@@ -394,11 +353,6 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_variables"] = self.num_variables
             meta.attrs["variable_names"] = self.variable_names
-
-            if save_transformer and self.transformer is not None:
-                TransformerClass = self.transformer.__class__.__name__
-                meta.attrs["TransformerClass"] = TransformerClass
-                self.transformer.save(hf.create_group("transformer"))
 
             for i in range(self.num_variables):
                 self.bases[i].save(hf.create_group(f"variable{i+1:d}"))
@@ -416,7 +370,6 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         -------
         PODBasis object
         """
-        transformer = None
         with hdf5_loadhandle(loadfile) as hf:
             # Load metadata.
             if "meta" not in hf:
@@ -424,12 +377,6 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
                                           "(meta/ not found)")
             num_variables = hf["meta"].attrs["num_variables"]
             variable_names = hf["meta"].attrs["variable_names"].tolist()
-
-            # Load transformer if present.
-            if "transformer" in hf:
-                TransformerClassName = hf["meta"].attrs["TransformerClass"]
-                TransformerClass = getattr(transform, TransformerClassName)
-                transformer = TransformerClass.load(hf["transformer"])
 
             # Load individual bases.
             bases = []
@@ -441,8 +388,7 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
                 bases.append(cls._BasisClass.load(hf[group]))
 
             # Initialize and return the basis object.
-            basis = cls(num_variables,
-                        transformer=transformer, variable_names=variable_names)
+            basis = cls(num_variables, variable_names=variable_names)
             basis.bases = bases
             basis._set_entries()
             return basis

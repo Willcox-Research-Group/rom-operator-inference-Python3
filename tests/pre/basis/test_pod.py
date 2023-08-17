@@ -12,21 +12,6 @@ from matplotlib import pyplot as plt
 import opinf
 
 
-class DummyTransformer(opinf.pre.transform._base._BaseTransformer):
-    """Instantiable version of _BaseTransformer."""
-    def fit_transform(self, states):
-        return states + 1
-
-    def transform(self, states):
-        return self.fit_transform(states)
-
-    def inverse_transform(self, states):
-        return states - 1
-
-    def save(self, hf):
-        pass
-
-
 class TestPODBasis:
     """Test pre.basis._pod.PODBasis."""
     PODBasis = opinf.pre.PODBasis
@@ -34,7 +19,6 @@ class TestPODBasis:
     def test_init(self):
         """Test __init__()."""
         basis = self.PODBasis()
-        assert basis.transformer is None
         assert basis.r is None
         assert basis.n is None
         assert basis.shape is None
@@ -187,14 +171,6 @@ class TestPODBasis:
         assert np.allclose(basis.svdvals, vals)
         assert np.allclose(basis.dual, Wt[:r, :].T)
 
-        # Test with a transformer.
-        basis = self.PODBasis(transformer=DummyTransformer())
-        basis.fit(states, r)
-        U, vals, Wt = la.svd(states + 1, full_matrices=False)
-        assert np.allclose(basis.entries, U[:, :r])
-        assert np.allclose(basis.svdvals, vals)
-        assert np.allclose(basis.dual, Wt[:r, :].T)
-
         # TODO: weighted inner product matrix.
 
         # Repeat with list of state trajectories.
@@ -218,21 +194,6 @@ class TestPODBasis:
         WrTWr = basis.dual.T @ basis.dual
         assert np.allclose(WrTWr, Ir)
         assert basis.r == r
-        # Flip the signs in U and W if needed so things will match.
-        for i in range(r):
-            if np.sign(U[0, i]) != np.sign(basis[0, i]):
-                U[:, i] *= -1
-            if np.sign(Wt[i, 0]) != np.sign(basis.dual[0, i]):
-                Wt[i, :] *= -1
-        assert la.norm(basis.entries - U[:, :r], ord=2) < tol
-        assert la.norm(basis.svdvals - vals[:r]) / la.norm(basis.svdvals) < tol
-        assert la.norm(basis.dual - Wt[:r, :].T, ord=2) < tol
-
-        # Test with a transformer.
-        states = np.random.standard_normal((n, n))
-        basis = self.PODBasis(transformer=DummyTransformer())
-        basis.fit_randomized(states, r, **options)
-        U, vals, Wt = la.svd(states + 1, full_matrices=False)
         # Flip the signs in U and W if needed so things will match.
         for i in range(r):
             if np.sign(U[0, i]) != np.sign(basis[0, i]):
@@ -294,13 +255,6 @@ class TestPODBasis:
         basis.save(target)
         assert os.path.isfile(target)
 
-        # Repeat with a transformer.
-        basis = self.PODBasis(transformer=DummyTransformer())
-        basis.fit(np.random.random((n, k)), r)
-        basis.save(target, overwrite=True)
-        assert os.path.isfile(target)
-        os.remove(target)
-
     def test_load(self, n=20, k=14, r=6):
         """Test load()."""
         # Clean up after old tests.
@@ -325,7 +279,6 @@ class TestPODBasis:
         assert basis2.r is None
         assert basis2.entries is None
         assert basis2.dual is None
-        assert basis2.transformer is None
         assert basis2.economize is True
         assert basis1 == basis2
 
@@ -355,13 +308,6 @@ class TestPODBasis:
         assert np.allclose(basis2.svdvals, basis1.svdvals[:rnew])
         assert np.allclose(basis2.dual, basis1.dual[:, :rnew])
 
-        # Repeat with a transformer.
-        st = opinf.pre.transform.SnapshotTransformer()
-        basis1 = self.PODBasis(transformer=st).fit(np.random.random((n, k)), r)
-        basis1.save(target, overwrite=True)
-        basis2 = self.PODBasis.load(target)
-        assert basis1 == basis2
-
         # Clean up.
         os.remove(target)
 
@@ -372,14 +318,13 @@ class TestPODBasisMulti:
 
     def test_init(self):
         """Test __init__()."""
-        basis = self.PODBasisMulti(4, None, True, list("abcd"))
-        for attr in ["num_variables", "variable_names", "transformer",
+        basis = self.PODBasisMulti(4, True, list("abcd"))
+        for attr in ["num_variables", "variable_names",
                      "r", "rs", "entries", "economize", "bases"]:
             assert hasattr(basis, attr)
 
         assert basis.num_variables == 4
         assert basis.variable_names == list("abcd")
-        assert basis.transformer is None
         assert basis.r is None
         assert basis.rs is None
         assert basis.entries is None
@@ -392,11 +337,10 @@ class TestPODBasisMulti:
             assert subbasis.economize is True
             assert subbasis.r is None
             assert subbasis.entries is None
-            assert subbasis.transformer is None
 
     def test_properties(self, nvars=4, ni=10, k=27):
         """Test properties r, rs, economize, and entries."""
-        basis = self.PODBasisMulti(nvars, None, False)
+        basis = self.PODBasisMulti(nvars, False)
 
         with pytest.raises(AttributeError) as ex:
             basis.r = 3
@@ -510,26 +454,6 @@ class TestPODBasisMulti:
             assert basis_prod.shape == Id.shape
             assert np.allclose(basis_prod.toarray(), Id)
 
-        # Test with a transformer.
-        basis = self.PODBasisMulti(nvars, transformer=DummyTransformer())
-        basis.fit(states, rs=[3]*nvars)
-        Us = [la.svd(s + 1, full_matrices=False)[0]
-              for s in np.split(states, nvars, axis=0)]
-        assert isinstance(basis.entries, sparse.csc_matrix)
-        assert basis.shape == (n, nvars * 3)
-        for i, subbasis in enumerate(basis.bases):
-            assert subbasis.r == 3
-            assert isinstance(subbasis.entries, np.ndarray)
-            assert subbasis.shape == (ni, 3)
-            assert np.allclose(subbasis.entries, Us[i][:, :3])
-        topleft = basis.entries.toarray()[:ni, :3]
-        assert np.all(topleft == basis.bases[0].entries)
-        assert np.all(basis.entries.toarray()[ni:, :3] == 0)
-        basis_prod = basis.entries.T @ basis.entries
-        Id = np.eye(3 * nvars)
-        assert basis_prod.shape == Id.shape
-        assert np.allclose(basis_prod.toarray(), Id)
-
     def test_fit_randomized(self, nvars=3, ni=13, k=11, tol=1e-6):
         """Test fit_randomized()."""
         options = dict(n_oversamples=30, n_iter=10, random_state=42)
@@ -567,31 +491,6 @@ class TestPODBasisMulti:
         assert basis_prod.shape == Id.shape
         assert np.allclose(basis_prod.toarray(), Id)
 
-        # Test with a transformer.
-        basis = self.PODBasisMulti(nvars, transformer=DummyTransformer())
-        options.pop("random_state")
-        basis.fit_randomized(states, rs=[3]*nvars, **options)
-        Us = [la.svd(s + 1, full_matrices=False)[0]
-              for s in np.split(states, nvars, axis=0)]
-        assert isinstance(basis.entries, sparse.csc_matrix)
-        assert basis.shape == (n, nvars * 3)
-        for i, subbasis in enumerate(basis.bases):
-            assert subbasis.r == 3
-            assert isinstance(subbasis.entries, np.ndarray)
-            assert subbasis.shape == (ni, 3)
-            for j in range(subbasis.r):
-                # Flip signs for comparison as needed.
-                if np.sign(Us[i][0, j]) != np.sign(subbasis.entries[0, j]):
-                    Us[i][:, j] *= -1
-            assert np.allclose(subbasis.entries, Us[i][:, :3], atol=tol)
-        topleft = basis.entries.toarray()[:ni, :3]
-        assert np.all(topleft == basis.bases[0].entries)
-        assert np.all(basis.entries.toarray()[ni:, :3] == 0)
-        basis_prod = basis.entries.T @ basis.entries
-        Id = np.eye(3 * nvars)
-        assert basis_prod.shape == Id.shape
-        assert np.allclose(basis_prod.toarray(), Id)
-
     def test_save(self, nvars=4, ni=12, k=15):
         """Lightly test PODBasisMulti.save()."""
         # Clean up after old tests.
@@ -602,11 +501,6 @@ class TestPODBasisMulti:
         # Save an empty basis.
         basis = self.PODBasisMulti(nvars)
         basis.save(target, overwrite=False)
-        assert os.path.isfile(target)
-
-        # Save a basis with a transformer.
-        basis = self.PODBasisMulti(nvars, transformer=DummyTransformer())
-        basis.save(target, overwrite=True)
         assert os.path.isfile(target)
 
         # Save a nonempty basis.
@@ -643,7 +537,6 @@ class TestPODBasisMulti:
         assert basis2.r is None
         assert basis2.rs is None
         assert basis2.entries is None
-        assert basis2.transformer is None
         assert basis2.economize is True
         assert basis1 == basis2
 
