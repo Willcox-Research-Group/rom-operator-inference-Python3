@@ -485,24 +485,45 @@ class TestSnapshotTransformer:
         assert ex.value.args[0] == \
             "transformer not trained (call fit_transform())"
 
-        for scaling, center in itertools.product({None, *st._VALID_SCALINGS},
-                                                 (True, False)):
-            st.scaling = scaling
-            st.center = center
-            st.fit_transform(X, inplace=False)
-            Y = np.random.randint(0, 100, (n, k)).astype(float)
+        def _test_single(st, Y):
             Z = st.transform(Y, inplace=False)
             assert Z.shape == Y.shape
             st.inverse_transform(Z, inplace=True)
             assert Z.shape == Y.shape
             assert np.allclose(Z, Y)
 
-            Y = np.random.randint(0, 100, n).astype(float)
+        def _test_locs(st, Y, locs):
+            Ylocs = Y[locs]
             Z = st.transform(Y, inplace=False)
-            assert Z.shape == Y.shape
-            st.inverse_transform(Z, inplace=True)
-            assert Z.shape == Y.shape
-            assert np.allclose(Z, Y)
+            Zlocs = Z[locs]
+            Ynew = st.inverse_transform(Zlocs, inplace=False, locs=locs)
+            assert Ynew.shape == Ylocs.shape
+            assert np.allclose(Ynew, Ylocs)
+            st.inverse_transform(Zlocs, inplace=True, locs=locs)
+            assert Zlocs.shape == Ylocs.shape
+            assert np.allclose(Zlocs, Ylocs)
+
+        for scaling, center in itertools.product({None, *st._VALID_SCALINGS},
+                                                 (True, False)):
+            st.scaling = scaling
+            st.center = center
+            st.fit_transform(X, inplace=False)
+            locs = np.unique(np.sort(np.random.randint(0, n, n//4)))
+
+            # Test matrix of snapshots.
+            Y = np.random.randint(0, 100, (n, k)).astype(float)
+            _test_single(st, Y)
+            _test_locs(st, Y, locs)
+
+            # Test a single snapshot.
+            locs = slice(n//6)
+            Y = np.random.randint(0, 100, n).astype(float)
+            _test_single(st, Y)
+            _test_locs(st, Y, locs)
+
+        with pytest.raises(ValueError) as ex:
+            st.inverse_transform(Y, locs=locs)
+        assert ex.value.args[0] == "states_transformed not aligned with locs"
 
 
 class TestSnapshotTransformerMulti:
@@ -628,6 +649,12 @@ class TestSnapshotTransformerMulti:
         stm = opinf.pre.SnapshotTransformerMulti(10)
         for i in [3, 4, 7]:
             assert stm[i] is stm.transformers[i]
+
+        names = list("ABCD")
+        stm = opinf.pre.SnapshotTransformerMulti(len(names),
+                                                 variable_names=names)
+        for name in names:
+            assert stm[name] is stm.transformers[names.index(name)]
 
     def test_setitem(self):
         """Test pre.SnapshotTransformerMulti.__setitem__()."""
@@ -952,7 +979,20 @@ class TestSnapshotTransformerMulti:
         W = stm.inverse_transform(Z, inplace=True)
         assert W is Z
 
+        # Non-inplace transformation.
         Z = stm.transform(Y, inplace=False)
         W = stm.inverse_transform(Z, inplace=False)
         assert W is not Z
         assert np.allclose(W, Y)
+
+        # Use locs to act on a subset of the snapshots.
+        locs = np.unique(np.sort(np.random.randint(0, stm.ni, stm.ni//4)))
+        Ylocs = np.vstack([YY[locs]
+                           for YY in np.split(Y, stm.num_variables, axis=0)])
+        Zlocs = np.vstack([ZZ[locs]
+                           for ZZ in np.split(Z, stm.num_variables, axis=0)])
+        assert Ylocs.shape == (locs.size*stm.num_variables, Y.shape[1])
+        Wlocs = stm.inverse_transform(Zlocs, inplace=False, locs=locs)
+        assert Wlocs is not Zlocs
+        assert Wlocs.shape == Ylocs.shape
+        assert np.allclose(Wlocs, Ylocs)

@@ -223,7 +223,7 @@ class SnapshotTransformer(_BaseTransformer):
             raise TypeError("'center' must be True or False")
         if ctr != self.__center:
             self._clear()
-            self.__center = ctr
+            self.__center = bool(ctr)
 
     @property
     def scaling(self):
@@ -456,13 +456,13 @@ class SnapshotTransformer(_BaseTransformer):
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
-        self._check_shape(states)
 
+        self._check_shape(states)
         Y = states if inplace else states.copy()
 
         # Center the snapshots by the mean training snapshot.
-        if self.center is True:
-            Y -= (self.mean_.reshape((-1, 1)) if Y.ndim > 1 else self.mean_)
+        if self.center:
+            Y -= self.mean_.reshape((-1, 1)) if Y.ndim > 1 else self.mean_
 
         # Scale (non-dimensionalize) the centered snapshot entries.
         if self.scaling is not None:
@@ -472,26 +472,37 @@ class SnapshotTransformer(_BaseTransformer):
 
         return Y
 
-    def inverse_transform(self, states_transformed, inplace=False):
+    def inverse_transform(self, states_transformed, inplace=False, locs=None):
         """Apply the inverse of the learned transformation.
 
         Parameters
         ----------
-        states_transformed : (n, k) ndarray
+        states_transformed : (n, k) or (p, k) ndarray
             Matrix of k transformed snapshots of dimension n.
         inplace : bool
             If True, overwrite the input data during inverse transformation.
             If False, create a copy of the data to untransform.
+        locs : slice or (p,) ndarray of integers or None
+            If given, assume `states_transformed` contains the transformed
+            snapshots at only the p indices given by `locs`.
 
         Returns
         -------
-        states: (n, k) ndarray
-            Matrix of k untransformed snapshots of dimension n.
+        states: (n, k) or (p, k) ndarray
+            Matrix of k untransformed snapshots of dimension n, or the p
+            entries of such at the indices specified by `loc`.
         """
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
-        self._check_shape(states_transformed)
+
+        if locs is not None:
+            if isinstance(locs, slice):
+                locs = np.arange(self.n)[locs]
+            if states_transformed.shape[0] != locs.size:
+                raise ValueError("states_transformed not aligned with locs")
+        else:
+            self._check_shape(states_transformed)
 
         Y = states_transformed if inplace else states_transformed.copy()
 
@@ -502,7 +513,8 @@ class SnapshotTransformer(_BaseTransformer):
 
         # Uncenter the unscaled snapshots.
         if self.center:
-            Y += (self.mean_.reshape((-1, 1)) if Y.ndim > 1 else self.mean_)
+            mean_ = self.mean_ if locs is None else self.mean_[locs]
+            Y += (mean_.reshape((-1, 1)) if Y.ndim > 1 else mean_)
 
         return Y
 
@@ -558,7 +570,7 @@ class SnapshotTransformer(_BaseTransformer):
                 raise LoadfileFormatError("invalid save format "
                                           "(meta/ not found)")
             scl = hf["meta"].attrs["scaling"]
-            transformer = cls(center=hf["meta"].attrs["center"],
+            transformer = cls(center=bool(hf["meta"].attrs["center"]),
                               scaling=scl if scl else None,
                               byrow=hf["meta"].attrs["byrow"],
                               verbose=hf["meta"].attrs["verbose"])
@@ -714,6 +726,8 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
 
     def __getitem__(self, key):
         """Get the transformer for variable i."""
+        if key in self.variable_names:
+            key = self.variable_names.index(key)
         return self.transformers[key]
 
     def __setitem__(self, key, obj):
@@ -754,17 +768,24 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         """Return True if transform() and inverse_transform() are ready."""
         return all(st._is_trained() for st in self.transformers)
 
-    def _apply(self, method, Q, inplace):
+    def _apply(self, method, Q, inplace, locs=None):
         """Apply a method of each transformer to the corresponding chunk of Q.
         """
+        options = dict(inplace=inplace)
+        if locs is not None:
+            options["locs"] = locs
+
         Ys = []
         for st, var, name in zip(self.transformers,
                                  np.split(Q, self.num_variables, axis=0),
                                  self.variable_names):
             if method is SnapshotTransformer.fit_transform and self.verbose:
                 print(f"{name}:")
-            Ys.append(method(st, var, inplace=inplace))
-        return Q if inplace else np.concatenate(Ys, axis=0)
+            Ys.append(method(st, var, **options))
+
+        if inplace and locs is None:
+            return Q
+        return np.concatenate(Ys, axis=0)
 
     def fit_transform(self, states, inplace=False):
         """Learn and apply the transformation.
@@ -786,8 +807,7 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         if states.ndim != 2:
             raise ValueError("2D array required to fit transformer")
         self.n = states.shape[0]
-        Y = self._apply(SnapshotTransformer.fit_transform, states, inplace)
-        return Y
+        return self._apply(SnapshotTransformer.fit_transform, states, inplace)
 
     def transform(self, states, inplace=False):
         """Apply the learned transformation.
@@ -809,31 +829,36 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
-        self._check_shape(states)
         return self._apply(SnapshotTransformer.transform, states, inplace)
 
-    def inverse_transform(self, states_transformed, inplace=False):
+    def inverse_transform(self, states_transformed, inplace=False, locs=None):
         """Apply the inverse of the learned transformation.
 
         Parameters
         ----------
-        states_transformed : (n, k) ndarray
-            Matrix of k transformed n-dimensional snapshots.
+        states_transformed : (n, k) or (num_variables*p, k) ndarray
+            Matrix of k transformed n-dimensional snapshots, or the p entries
+            of the snapshots at the indices specified by `locs`.
         inplace : bool
             If True, overwrite the input data during inverse transformation.
             If False, create a copy of the data to untransform.
+        locs : slice or (p,) ndarray of integers or None
+            If given, assume `states_transformed` contains the transformed
+            snapshots at only the indices given by `locs` for each variable.
 
         Returns
         -------
-        states: (n, k) ndarray
-            Matrix of k untransformed n-dimensional snapshots.
+        states: (n, k) or (num_variables*p, k) ndarray
+            Matrix of k untransformed snapshots of dimension n, or the p
+            entries of such at the indices specified by `loc`.
         """
         if not self._is_trained():
             raise AttributeError("transformer not trained "
                                  "(call fit_transform())")
-        self._check_shape(states_transformed)
+        if locs is None:
+            self._check_shape(states_transformed)
         return self._apply(SnapshotTransformer.inverse_transform,
-                           states_transformed, inplace)
+                           states_transformed, inplace, locs)
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile, overwrite=False):
@@ -889,5 +914,6 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
                     raise LoadfileFormatError("invalid save format "
                                               f"({group}/ not found)")
                 stm[i] = SnapshotTransformer.load(hf[group])
+            stm.n = stm[0].n * num_variables
 
             return stm
