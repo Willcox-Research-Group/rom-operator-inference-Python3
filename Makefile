@@ -51,6 +51,7 @@ docs: install
 
 
 docs_light:
+	$(PYTHON) -m pip install .
 	jupyter-book build --nitpick docs
 
 

@@ -57,47 +57,51 @@ class _BaseBasis(abc.ABC):
 
     # Projection --------------------------------------------------------------
     def project(self, state):
-        """Project a high-dimensional state vector to the subset of the high-
-        dimensional space that can be represented by the basis by expressing
-        the state in low-dimensional latent coordinates, then decoding those
-        coordinates: `project(`Q`)` = `decompress(compress(`Q`))`.
+        """Project a high-dimensional state vector to the subset of the
+        high-dimensional space that can be represented by the basis by
+        1) expressing the state in low-dimensional latent coordinates, then 2)
+        reconstructing the high-dimensional state corresponding to those
+        coordinates. That is, ``project(Q)`` is equivalent to
+        ``decompress(compress(Q))``.
 
         Parameters
         ----------
         state : (n,) or (n, k) ndarray
-            High-dimensional state vector, or a collection of k such vectors
+            High-dimensional state vector, or a collection of `k` such vectors
             organized as the columns of a matrix.
 
         Returns
         -------
         state_projected : (n,) or (n, k) ndarray
-            High-dimensional state vector, or a collection of k such vectors
+            High-dimensional state vector, or a collection of `k` such vectors
             organized as the columns of a matrix, projected to the basis range.
         """
         return self.decompress(self.compress(state))
 
     def projection_error(self, state, relative=True):
-        """Compute the error of the basis representation of a state or states:
+        r"""Compute the error of the basis representation of a state or states:
+        ``|| state - project(state) || / || state ||``.
 
-            err_absolute = || state - project(state) ||
-            err_relative = || state - project(state) || / || state ||
-
-        If `state` is one-dimensional then || . || is the vector 2-norm.
-        If `state` is two-dimensional then || . || is the Frobenius norm.
-        See scipy.linalg.norm().
+        If ``state`` is one-dimensional then :math:`||\cdot||` is the vector
+        2-norm. If ``state`` is two-dimensional then :math:`||\cdot||` is the
+        Frobenius norm.
 
         Parameters
         ----------
         state : (n,) or (n, k) ndarray
-            High-dimensional state vector, or a collection of k such vectors
+            High-dimensional state vector, or a collection of `k` such vectors
             organized as the columns of a matrix.
         relative : bool
-            If True, normalize the error by the norm of the original state.
+            If True, return the relative error
+            ``|| state - project(state) || / || state ||``.
+            If False, return the absolute error
+            ``|| state - project(state) ||``.
 
         Returns
         -------
-            Relative error of the projection (relative=True) or
-            absolute error of the projection (relative=False).
+        float
+            Relative error of the projection (``relative=True``) or
+            absolute error of the projection (``relative=False``).
         """
         diff = la.norm(state - self.project(state))
         if relative:

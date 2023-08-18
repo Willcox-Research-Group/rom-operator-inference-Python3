@@ -7,12 +7,10 @@
    :no-inherited-members:
    :no-special-members:
 
-   .. automethod:: __init__
-
-   {% block attributes %}
+   {% block properties %}
    {% if attributes %}
 
-   **Attributes**
+   **Properties**
 
    .. autosummary::
    {% for item in all_attributes %}

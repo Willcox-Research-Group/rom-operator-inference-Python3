@@ -17,10 +17,17 @@ from ._base import _BaseBasis
 
 
 class LinearBasis(_BaseBasis):
-    """Linear basis for representing the low-dimensional approximation
+    r"""Linear basis for representing the low-dimensional state approximation
 
-        q = Vr @ q_ := sum([Vr[:, j]*q_[j] for j in range(Vr.shape[1])])
-        (full_state = basis * reduced_state).
+    .. math::
+        \mathbf{q}
+        \approx \mathbf{V}_{r}\widehat{\mathbf{q}}
+        = \sum_{i=1}^{r}\hat{q}_{i}\mathbf{v}_{i},
+    where :math:`\mathbf{q}\in\mathbb{R}^{n}`,
+    :math:`\mathbf{V}_{r}
+    = [\mathbf{v}_{1}, \ldots, \mathbf{v}_{r}]\in \mathbb{R}^{n\times r}`, and
+    :math:`\widehat{\mathbf{q}}
+    = [\hat{q}_{1},\ldots,\hat{q}_{r}]\in\mathbb{R}^{r}`.
 
     Attributes
     ----------
@@ -31,7 +38,7 @@ class LinearBasis(_BaseBasis):
     shape : tulpe
         Dimensions (n, r).
     entries : (n, r) ndarray
-        Entries of the basis matrix Vr.
+        Entries of the basis matrix :math:`\mathbf{V}_{r}`.
     """
     def __init__(self):
         """Initialize an empty basis."""

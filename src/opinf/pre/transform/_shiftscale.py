@@ -124,19 +124,50 @@ def scale(states, scale_to, scale_from=None):
 
 # Object-oriented paradigm ====================================================
 class SnapshotTransformer(_BaseTransformer):
-    """Process snapshots by centering and/or scaling (in that order).
+    r"""Process snapshots by centering and/or scaling (in that order).
 
     Parameters
     ----------
     center : bool
-        If True, shift the snapshots by the mean training snapshot.
+        If True, shift the snapshots by the mean training snapshot, i.e.,
+        :math:`\mathbf{Q}'
+        = \mathbf{Q} - \frac{1}{k}\sum_{j=1}^{k}\mathbf{Q}_{:,j}`.
+        Otherwise, :math:`\mathbf{Q}' = \mathbf{Q}`.
     scaling : str or None
         If given, scale (non-dimensionalize) the centered snapshot entries.
-        * 'standard': standardize to zero mean and unit standard deviation.
-        * 'minmax': minmax scaling to [0, 1].
-        * 'minmaxsym': minmax scaling to [-1, 1].
-        * 'maxabs': maximum absolute scaling to [-1, 1] (no shift).
-        * 'maxabssym': maximum absolute scaling to [-1, 1] (with mean shift).
+        Options:
+
+        - ``'standard'``: standardize to zero mean and unit standard
+            deviation:
+            :math:`\mathbf{Q}''
+            = (\mathbf{Q}' - \text{mean}(\mathbf{Q}')
+            / \text{std}(\mathbf{Q}')`.
+            Guarantees :math:`\text{mean}(\mathbf{Q}'') = 0` and
+            :math:`\text{std}(\mathbf{Q}'') = 1`.
+        - ``'minmax'``: minmax scaling to [0, 1]:
+            :math:`\mathbf{Q}''
+            = (\mathbf{Q}' - \text{min}(\mathbf{Q}'))
+            /(\text{max}(\mathbf{Q}') - \text{min}(\mathbf{Q}'))`.
+        - ``'minmaxsym'``: minmax scaling to [-1, 1]:
+            :math:`\mathbf{Q}''
+            = 2(\mathbf{Q}' - \text{min}(\mathbf{Q}'))
+            /(\text{max}(\mathbf{Q}') - \text{min}(\mathbf{Q}')) - 1`.
+            Guarantees :math:`\text{min}(\mathbf{Q}'') = -1` and
+            :math:`\text{max}(\mathbf{Q}'') = 1`.
+        - ``'maxabs'``: maximum absolute scaling to [-1, 1] (no scalar
+            shift):
+            :math:`\mathbf{Q}''
+            = \mathbf{Q}' / \text{max}(\text{abs}(\mathbf{Q}'))`.
+            Guarantees :math:`\text{mean}(\mathbf{Q}'')
+            = \text{mean}(\mathbf{Q}') / \text{max}(\text{abs}(\mathbf{Q}'))`
+            and :math:`\text{max}(\text{abs}(\mathbf{Q}'')) = 1`.
+        - ``'maxabssym'``: maximum absolute scaling to [-1, 1] (with scalar
+            mean shift):
+            :math:`\mathbf{Q}''
+            = (\mathbf{Q}' - \text{mean}(\mathbf{Q}'))
+            / \text{max}(abs(\mathbf{Q}' - \text{mean}(\mathbf{Q}')))`.
+            Guarantees :math:`\text{mean}(\mathbf{Q}'') = 0` and
+            :math:`\text{max}(\text{abs}(\mathbf{Q}'')) = 1`.
     byrow : bool
         If True, scale each row of the snapshot matrix separately when a
         scaling is specified. Otherwise, scale the entire matrix at once.
@@ -150,34 +181,14 @@ class SnapshotTransformer(_BaseTransformer):
     mean_ : (n,) ndarray
         Mean training snapshot. Only recorded if center = True.
     scale_ : float or (n,) ndarray
-        Multiplicative factor of scaling (the a of q -> aq + b).
-        Only recorded if scaling != None.
-        If byrow = True, a different factor is applied to each row.
+        Multiplicative factor of scaling (the :math:`a` of
+        :math:`q \mapsto aq + b`).
+        Only recorded if ``scaling != None``.
+        If ``byrow = True``, a different factor is applied to each row.
     shift_ : float or (n,) ndarray
-        Additive factor of scaling (the b of q -> aq + b).
-        Only recorded if scaling != None.
-        If byrow = True, a different factor is applied to each row.
-
-    Notes
-    -----
-    Snapshot centering (center=True):
-        Q' = Q - mean(Q, axis=1);
-        Guarantees mean(Q', axis=1) = [0, ..., 0].
-    Standard scaling (scaling='standard'):
-        Q' = (Q - mean(Q)) / std(Q);
-        Guarantees mean(Q') = 0, std(Q') = 1.
-    Min-max scaling (scaling='minmax'):
-        Q' = (Q - min(Q))/(max(Q) - min(Q));
-        Guarantees min(Q') = 0, max(Q') = 1.
-    Symmetric min-max scaling (scaling='minmaxsym'):
-        Q' = (Q - min(Q))*2/(max(Q) - min(Q)) - 1
-        Guarantees min(Q') = -1, max(Q') = 1.
-    Maximum absolute scaling (scaling='maxabs'):
-        Q' = Q / max(abs(Q));
-        Guarantees mean(Q') = mean(Q) / max(abs(Q)), max(abs(Q')) = 1.
-    Min-max absolute scaling (scaling='maxabssym'):
-        Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)));
-        Guarantees mean(Q') = 0, max(abs(Q')) = 1.
+        Additive factor of scaling (the :math:`b` of :math:`q \mapsto aq + b`).
+        Only recorded if ``scaling != None``.
+        If ``byrow = True``, a different factor is applied to each row.
     """
     _VALID_SCALINGS = {
         "standard",
@@ -600,9 +611,10 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         Number of variables represented in a single snapshot (number of
         individual transformations to learn). The dimension `n` of the
         snapshots must be evenly divisible by num_variables; for example,
-        num_variables=3 means the first n entries of a snapshot correspond to
-        the first variable, and the next n entries correspond to the second
-        variable, and the last n entries correspond to the third variable.
+        ``num_variables=3`` means the first `n` entries of a snapshot
+        correspond to the first variable, and the next `n` entries correspond
+        to the second variable, and the last `n` entries correspond to the
+        third variable.
     center : bool OR list of num_variables bools
         If True, shift the snapshots by the mean training snapshot.
         If a list, center[i] is the centering directive for the ith variable.
