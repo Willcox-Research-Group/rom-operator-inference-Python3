@@ -68,25 +68,9 @@ Lifting transformations should not be added to this package disguised as snapsho
 All basis classes must
 - Inherit from `pre.basis._base._BaseBasis`.
 - Accept `transformer` as an argument and call `_BaseBasis.__init__(self, transformer)` in the constructor.
-- Implement `fit()`, `encode()`, and `decode()`.
+- Implement `fit()`, `compress()`, and `decompress()`.
 
-Note that `project()` is **not** the same as `encode()`: `project(q) = decode(encode(q))`. This is a change from previous versions.
-
-This is not required by `_BaseBasis`, but all public basis classes have a `transformer` attribute that is set in the constructor.
-If present, the transformer should be trained at the beginning of the basis' `fit()` method and the data should be transformed before doing the basis computation. For example,
-
-```python
-class MyBasis:
-    def fit(self, states, r=None):
-        # First fit the transformer and transform the data.
-        if self.transformer is not None:
-            states = self.transformer.fit_transform(state)
-
-        # Then compute the basis entries.
-        self.entries = pod_basis(states, r)
-```
-
-If a basis has a `transformer`, `encode()` should `transform()` any input data before performing dimension reduction; similarly, `decode()` should `inverse_transform()` after undoing the dimension reduction.
+Note that `project()` is **not** the same as `compress()`: `project(q) = decompress(compress(q))`. This is a change from previous versions.
 
 Before implementing a new basis class, take a close look at `LinearBasis` and then `PODBasis`.
 
@@ -281,7 +265,7 @@ It handles
 - Dimensions (`n`, `r`, and `m`).
 - The basis $\mathbf{V}_{r}$ (`basis`).
 - Reduced-order operators (`c_`, `A_`, `H_`, `G_`, and `B_`).
-- Projection $\mathbf{q}\mapsto\widehat{\mathbf{q}} := \mathbf{V}_{r}^{\top}\mathbf{q}$ (`project()`) and reconstruction $\widehat{\mathbf{q}} \mapsto \mathbf{V}_{r}\widehat{\mathbf{q}}$ (`reconstruct()`).
+- Compression $\mathbf{q}\mapsto\widehat{\mathbf{q}} := \mathbf{V}_{r}^{\top}\mathbf{q}$ (`compress()`) and decompression $\widehat{\mathbf{q}} \mapsto \mathbf{V}_{r}\widehat{\mathbf{q}}$ (`decompress()`).
 - Evaluation of the right-hand side of the ROM (`evaluate()`) and its Jacobian (`jacobian()`).
 
 Classes that inherit from `_BaseROM` must (eventually) implement the following methods.
@@ -313,7 +297,7 @@ classDiagram
         n, m, r
         basis
         c_, A_, H_, G_, B_
-        project(), reconstruct()
+        compress(), decompress()
         evaluate(), jacobian()
     }
     class _NonparametricOpInfROM{
@@ -392,7 +376,7 @@ classDiagram
         n, m, r
         basis
         c_, A_, H_, G_, B_
-        project(), reconstruct()
+        compress(), decompress()
         evaluate(), jacobian()
     }
     class _BaseParametricROM{

@@ -251,12 +251,12 @@ $$
 
 All ROM classes have the following methods.
 
-### Encoding and Decoding
+### Dimensionality Reduction
 
-The `encode()` method maps a state quantity from the high-dimensional space $\mathbb{R}^{n}$ to the low-dimensional space $\mathbb{R}^{r}$.
-Conversely, `decode()` maps from $\mathbb{R}^{r}$ to $\mathbb{R}^{n}$.
-<!-- These methods are not quite inverses: the results of `decode()` are restricted to the portion of $\mathbb{R}^{n}$ that can be represented through the underlying basis. -->
-These methods wrap the `encode()` and `decode()` methods of the `basis` attribute; see [Preprocessing](sec-preprocessing) and [Basis Computation](sec-basis-computation) for more details.
+The `compress()` method maps a state quantity from the high-dimensional space $\mathbb{R}^{n}$ to the low-dimensional space $\mathbb{R}^{r}$.
+Conversely, `decompress()` maps from $\mathbb{R}^{r}$ to $\mathbb{R}^{n}$.
+<!-- These methods are not quite inverses: the results of `decompress()` are restricted to the portion of $\mathbb{R}^{n}$ that can be represented through the underlying basis. -->
+These methods wrap the `compress()` and `decompress()` methods of the `basis` attribute; see [Preprocessing](sec-preprocessing) and [Basis Computation](sec-basis-computation) for more details.
 
 ### Training
 
@@ -319,8 +319,8 @@ Several programming languages support HDF5 format (MATLAB, C, C++, etc.), making
 
 | Method | Description |
 | :----- | :---------- |
-| `project()` | Map high-dimensional states to their low-dimensional coordinates |
-| `reconstruct()` | Use low-dimensional coordinates to construct a high-dimensional state |
+| `compress()` | Map high-dimensional states to their low-dimensional coordinates |
+| `decompress()` | Use low-dimensional coordinates to construct a high-dimensional state |
 | `fit()` | Use training data to infer the operators defining the ROM |
 | `evaluate()` | Evaluate the reduced-order model for a given state / input |
 | `predict()` | Solve the reduced-order model |
@@ -395,7 +395,7 @@ evaluate(self, t, state_, input_func=None)
 The `predict()` method of `ContinuousOpInfROM` wraps [`scpiy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/integrate.html) to solve the reduced-order model over a given time domain.
 
 ```python
-predict(self, state0, t, input_func=None, reconstruct=True, **options)
+predict(self, state0, t, input_func=None, decompress=True, **options)
 ```
 
 | Argument | Type | Description |
@@ -403,7 +403,7 @@ predict(self, state0, t, input_func=None, reconstruct=True, **options)
 | `state0` | `(n,) or (r,) ndarray` | Initial state vector $\mathbf{q}(0)\in\mathbb{R}^{n}$ or $\widehat{\mathbf{q}}(0)\in\mathbb{R}^{r}$ |
 | `t` | `(nt,) ndarray` | Time domain over which to integrate the ROM |
 | `input_func` | `callable` | Mapping $t \mapsto \mathbf{u}(t)$ |
-| `reconstruct` | `bool` | If True and the `basis` is not `None`, decode the results to the $n$-dimensional state space |
+| `decompress` | `bool` | If True and the `basis` is not `None`, reconstruct the results in the $n$-dimensional state space |
 | `**options` | | Additional arguments for `scipy.integrate.solve_ivp()` |
 
 <!-- TODO: implement common solvers and document here. -->
@@ -468,7 +468,7 @@ The `predict()` method of `DiscreteOpInfROM` iterates the system to solve the re
 Unlike the continuous-time case, there are no choices to make about what scheme to use to solve the problem: the solution iteration is explicitly described by the reduced-order model.
 
 ```python
-predict(self, state0, niters, inputs=None, reconstruct=True)
+predict(self, state0, niters, inputs=None, decompress=True)
 ```
 
 | Argument | Type | Description |
@@ -476,7 +476,7 @@ predict(self, state0, niters, inputs=None, reconstruct=True)
 | `state0` | `(n,) or (r,) ndarray` | Initial state vector $\mathbf{q}_{0}\in\mathbb{R}^{n}$ or $\widehat{\mathbf{q}}_{0}\in\mathbb{R}^{r}$ |
 | `niters` | `int` | Number of times to step the system forward |
 | `inputs` | `(m, niters-1) ndarray` | Inputs $\mathbf{u}_{j}$ for the next `niters-1` time steps |
-| `reconstruct` | `bool` | If True and the `basis` is not `None`, decode the results to the $n$-dimensional state space |
+| `decompress` | `bool` | If True and the `basis` is not `None`, reconstruct the results in the $n$-dimensional state space |
 
 <!-- TODO: implement common solvers and document here. -->
 
