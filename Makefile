@@ -59,15 +59,16 @@ docs_all: install
 
 
 # Deployment (ADMINISTRATORS ONLY) --------------------------------------------
-deploy_package: test docs_all
+deploy_package: test
 	git checkout main
-	$(PYTHON) -m pip install build
+	$(PYTHON) -m pip install --upgrade build
+	$(PYTHON) -m pip install --upgrade twine
 	$(PYTHON) -m build --sdist --wheel
 	$(PYTHON) -m twine check dist/*
 	$(PYTHON) -m twine upload dist/*
 
 
-deploy_docs: docs_all
+deploy_docs: docs
 	$(PYTHON) -m pip install --upgrade ghp-import
 	git checkout main
 	ghp-import --remote upstream --no-jekyll --push --force --no-history docs/_build/html
