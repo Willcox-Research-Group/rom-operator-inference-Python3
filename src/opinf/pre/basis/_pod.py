@@ -60,7 +60,7 @@ class PODBasis(LinearBasis):
         self.__entries = None
         self.__svdvals = None
         self.__dual = None
-        self.__spatialweights = None
+        # self.__spatialweights = None
         self.economize = bool(economize)
         LinearBasis.__init__(self)
 
@@ -168,53 +168,53 @@ class PODBasis(LinearBasis):
         """Leading *right* singular vectors."""
         return None if self.__dual is None else self.__dual[:, :self.r]
 
-    @property
-    def spatialweights(self):
-        """Symmetric positive definite weighting matrix for the inner product.
-        """
-        return self.__spatialweights
+    # @property
+    # def spatialweights(self):
+    #     """Symmetric positive definite weighting matrix for the inner
+    #     product. """
+    #     return self.__spatialweights
 
-    @spatialweights.setter
-    def spatialweights(self, weights):
-        """Set the spatial weights, checking dimension."""
-        if weights is not None and self.n is not None:
-            if weights.shape[0] != self.n:
-                raise ValueError(f"{weights.shape} spatialweights "
-                                 f"not aligned with dimension n = {self.n}")
-        self.__spatialweights = weights
+    # @spatialweights.setter
+    # def spatialweights(self, weights):
+    #     """Set the spatial weights, checking dimension."""
+    #     if weights is not None and self.n is not None:
+    #         if weights.shape[0] != self.n:
+    #             raise ValueError(f"{weights.shape} spatialweights "
+    #                              f"not aligned with dimension n = {self.n}")
+    #     self.__spatialweights = weights
 
-    def _spatial_weighting(self, state, weights):
-        """Weight a state or a collection of states (spatially)."""
-        if weights is not None:
-            if weights.ndim == 1:
-                if state.ndim == 2:
-                    weights = weights.reshape(-1, 1)
-                return weights * state
-            return weights @ state
-        return state
+    # def _spatial_weighting(self, state, weights):
+    #     """Weight a state or a collection of states (spatially)."""
+    #     if weights is not None:
+    #         if weights.ndim == 1:
+    #             if state.ndim == 2:
+    #                 weights = weights.reshape(-1, 1)
+    #             return weights * state
+    #         return weights @ state
+    #     return state
 
     # Dimension reduction -----------------------------------------------------
-    def compress(self, state):
-        """Map high-dimensional states to low-dimensional latent coordinates.
+    # def compress(self, state):
+    #     """Map high-dimensional states to low-dimensional latent coordinates.
 
-        Parameters
-        ----------
-        state : (n,) or (n, k) ndarray
-            High-dimensional state vector, or a collection of k such vectors
-            organized as the columns of a matrix.
+    #     Parameters
+    #     ----------
+    #     state : (n,) or (n, k) ndarray
+    #         High-dimensional state vector, or a collection of k such vectors
+    #         organized as the columns of a matrix.
 
-        Returns
-        -------
-        state_ : (r,) or (r, k) ndarray
-            Low-dimensional latent coordinate vector, or a collection of k
-            such vectors organized as the columns of a matrix.
-        """
-        # if self.spatialweights.ndim == 1 and
-        # # state.ndim == 2 and state.shape[1] < self.r:
-        #     return self._spatial_weighting(self.entries,
-        #                                 self.spatialweights).T @ state
-        return self.entries.T @ self._spatial_weighting(state,
-                                                        self.spatialweights)
+    #     Returns
+    #     -------
+    #     state_ : (r,) or (r, k) ndarray
+    #         Low-dimensional latent coordinate vector, or a collection of k
+    #         such vectors organized as the columns of a matrix.
+    #     """
+    #     # if self.spatialweights.ndim == 1 and
+    #     # # state.ndim == 2 and state.shape[1] < self.r:
+    #     #     return self._spatial_weighting(self.entries,
+    #     #                                 self.spatialweights).T @ state
+    #     return self.entries.T @ self._spatial_weighting(state,
+    #                                                     self.spatialweights)
 
     # Fitting -----------------------------------------------------------------
     @staticmethod
@@ -230,8 +230,8 @@ class PODBasis(LinearBasis):
         self.__svdvals = np.sort(svals)[::-1] if svals is not None else None
         self.__dual = Wt.T if Wt is not None else None
 
-    def _fit(self, driver, states, r, cumulative_energy, residual_energy,
-             spatialweights, temporalweights, **options):
+    def _fit(self, driver, states,
+             r, cumulative_energy, residual_energy, **options):
         """Compute the POD basis of rank r corresponding to the states using
         `driver()` to compute the SVD.
 
@@ -262,43 +262,43 @@ class PODBasis(LinearBasis):
         This method computes the full singular value decomposition of `states`.
         The method fit_randomized() uses a randomized SVD.
         """
+        #  spatialweights, temporalweights, **options):
         if np.ndim(states) == 3:
             # Concatenate list of states.
             states = np.hstack(states)
         self._validate_rank(states, r)
 
-        # Weight the states.
-        if spatialweights is not None:
-            if spatialweights.ndim == 1:
-                root_weights = np.sqrt(spatialweights)
-                inv_root_weights = 1 / root_weights
-            elif spatialweights.ndim == 2:
-                root_weights = la.sqrtm(spatialweights)
-                inv_root_weights = la.inv(root_weights)
-            else:
-                raise ValueError("1D spatial weights only")
-            states = self._spatial_weighting(states, root_weights)
+        # # Weight the states.
+        # if spatialweights is not None:
+        #     if spatialweights.ndim == 1:
+        #         root_weights = np.sqrt(spatialweights)
+        #         inv_root_weights = 1 / root_weights
+        #     elif spatialweights.ndim == 2:
+        #         root_weights = la.sqrtm(spatialweights)
+        #         inv_root_weights = la.inv(root_weights)
+        #     else:
+        #         raise ValueError("1D spatial weights only")
+        #     states = self._spatial_weighting(states, root_weights)
 
         # Compute the SVD.
         V, svdvals, Wt = driver(states, **options)
 
         # Unweight the basis vectors.
-        if spatialweights is not None:
-            if spatialweights.ndim == 1:
-                V *= np.reshape(1 / root_weights, (-1, 1))
-            elif spatialweights.ndim == 2:
-                V = inv_root_weights @ V
+        # if spatialweights is not None:
+        #     if spatialweights.ndim == 1:
+        #         V *= np.reshape(1 / root_weights, (-1, 1))
+        #     elif spatialweights.ndim == 2:
+        #         V = inv_root_weights @ V
 
         # Store the results.
         self._store_svd(V, svdvals, Wt)
         self.set_dimension(r, cumulative_energy, residual_energy)
-        self.spatialweights = spatialweights
+        # self.spatialweights = spatialweights
 
         return self
 
     def fit(self, states,
-            r=None, cumulative_energy=None, residual_energy=None,
-            spatialweights=None, temporalweights=None, **options):
+            r=None, cumulative_energy=None, residual_energy=None, **options):
         """Compute the POD basis of rank r corresponding to the states
         via the compact/thin singular value decomposition (scipy.linalg.svd()).
 
@@ -327,14 +327,14 @@ class PODBasis(LinearBasis):
         This method computes the full singular value decomposition of `states`.
         The method fit_randomized() uses a randomized SVD.
         """
+        # spatialweights=None, temporalweights=None, **options):
         options["full_matrices"] = False
 
         return self._fit(la.svd,
                          states, r, cumulative_energy, residual_energy,
-                         spatialweights, temporalweights, **options)
+                         **options)
 
-    def fit_randomized(self, states, r,
-                       spatialweights=None, temporalweights=None, **options):
+    def fit_randomized(self, states, r, **options):
         """Compute the POD basis of rank r corresponding to the states
         via the randomized singular value decomposition
         (sklearn.utils.extmath.randomized_svd()).
@@ -355,13 +355,15 @@ class PODBasis(LinearBasis):
         value decomposition, which can be useful for very large n.
         The method fit() computes the full singular value decomposition.
         """
+        # spatialweights=None, temporalweights=None, **options):
         if "random_state" not in options:
             options["random_state"] = None
         options["n_components"] = r
 
         return self._fit(sklmath.randomized_svd,
                          states, r, None, None,
-                         spatialweights, temporalweights, **options)
+                         # spatialweights, temporalweights,
+                         **options)
 
     # Visualization -----------------------------------------------------------
     def _check_svdvals_exist(self):
@@ -415,7 +417,7 @@ class PODBasis(LinearBasis):
 
         Parameters
         ----------
-        threshold : 0 ≤ float ≤ 1 or None
+        threshold : 0 ≤ float ≤ 1 or None
             Cutoff value to mark on the plot.
         ax : plt.Axes or None
             Matplotlib Axes to plot on. If None, a new figure is created.
@@ -453,7 +455,7 @@ class PODBasis(LinearBasis):
 
         Parameters
         ----------
-        threshold : 0 ≤ float ≤ 1 or None
+        threshold : 0 ≤ float ≤ 1 or None
             Cutoff value to mark on the plot.
         ax : plt.Axes or None
             Matplotlib Axes to plot on. If None, a new figure is created.

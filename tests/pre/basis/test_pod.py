@@ -207,6 +207,7 @@ class TestPODBasis:
         # Repeat with list of state trajectories.
         states = [np.random.standard_normal((n, n)) for _ in range(4)]
         basis = self.PODBasis()
+        options.pop("random_state")
         basis.fit_randomized(states, r, **options)
         assert basis.n == n
 
