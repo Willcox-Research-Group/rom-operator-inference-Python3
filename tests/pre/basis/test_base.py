@@ -12,10 +12,10 @@ class TestBaseBasis:
         def fit(self):
             pass
 
-        def encode(self, state):
+        def compress(self, state):
             return state + 2
 
-        def decode(self, state_):
+        def decompress(self, state_):
             return state_ - 1
 
     def test_project(self):

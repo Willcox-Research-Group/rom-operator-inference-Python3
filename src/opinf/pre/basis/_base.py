@@ -14,9 +14,9 @@ class _BaseBasis(abc.ABC):
         """Construct the basis."""
         raise NotImplementedError
 
-    # Encoding / Decoding -----------------------------------------------------
+    # Dimension reduction -----------------------------------------------------
     @abc.abstractmethod
-    def encode(self, state):                                # pragma: no cover
+    def compress(self, state):                              # pragma: no cover
         """Map high-dimensional states to low-dimensional latent coordinates.
 
         Parameters
@@ -34,7 +34,7 @@ class _BaseBasis(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def decode(self, state_):                               # pragma: no cover
+    def decompress(self, state_):                           # pragma: no cover
         """Map low-dimensional latent coordinates to high-dimensional states.
 
         Parameters
@@ -54,9 +54,9 @@ class _BaseBasis(abc.ABC):
     # Projection --------------------------------------------------------------
     def project(self, state):
         """Project a high-dimensional state vector to the subset of the high-
-        dimensional space that can be represented by the basis by encoding the
-        state in low-dimensional latent coordinates, then decoding those
-        coordinates: project(Q) = decode(encode(Q)).
+        dimensional space that can be represented by the basis by expressing
+        the state in low-dimensional latent coordinates, then decoding those
+        coordinates: `project(`Q`)` = `decompress(compress(`Q`))`.
 
         Parameters
         ----------
@@ -70,7 +70,7 @@ class _BaseBasis(abc.ABC):
             High-dimensional state vector, or a collection of k such vectors
             organized as the columns of a matrix, projected to the basis range.
         """
-        return self.decode(self.encode(state))
+        return self.decompress(self.compress(state))
 
     def projection_error(self, state, relative=True):
         """Compute the error of the basis representation of a state or states:

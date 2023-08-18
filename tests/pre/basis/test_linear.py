@@ -54,22 +54,22 @@ class TestLinearBasis:
             "\nFull-order dimension    n = 9" \
             "\nReduced-order dimension r = 5"
 
-    # Encoder / decoder -------------------------------------------------------
-    def test_encode(self, n=9, r=4):
-        """Test encode()."""
+    # Dimension reduction  ----------------------------------------------------
+    def test_compress(self, n=9, r=4):
+        """Test compress()."""
         Vr = np.random.random((n, r))
         basis = self.LinearBasis().fit(Vr)
         q = np.random.random(n)
         q_ = Vr.T @ q
-        assert np.allclose(basis.encode(q), q_)
+        assert np.allclose(basis.compress(q), q_)
 
-    def test_decode(self, n=9, r=4):
-        """Test encode()."""
+    def test_decompress(self, n=9, r=4):
+        """Test decompress()."""
         Vr = np.random.random((n, r))
         basis = self.LinearBasis().fit(Vr)
         q_ = np.random.random(r)
         q = Vr @ q_
-        assert np.allclose(basis.decode(q_), q)
+        assert np.allclose(basis.decompress(q_), q)
 
     # Visualization -----------------------------------------------------------
     def test_plot1D(self, n=20, r=4):

@@ -193,8 +193,8 @@ class PODBasis(LinearBasis):
             return weights @ state
         return state
 
-    # Encoding ----------------------------------------------------------------
-    def encode(self, state):
+    # Dimension reduction -----------------------------------------------------
+    def compress(self, state):
         """Map high-dimensional states to low-dimensional latent coordinates.
 
         Parameters

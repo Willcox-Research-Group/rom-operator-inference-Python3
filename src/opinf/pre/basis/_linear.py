@@ -96,8 +96,8 @@ class LinearBasis(_BaseBasis):
         uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
         return f"{uniqueID}\n{str(self)}"
 
-    # Encoder / decoder -------------------------------------------------------
-    def encode(self, state):
+    # Dimension reduction -----------------------------------------------------
+    def compress(self, state):
         """Map high-dimensional states to low-dimensional latent coordinates.
 
         Parameters
@@ -114,7 +114,7 @@ class LinearBasis(_BaseBasis):
         """
         return self.entries.T @ state
 
-    def decode(self, state_, locs=None):
+    def decompress(self, state_, locs=None):
         """Map low-dimensional latent coordinates to high-dimensional states.
 
         Parameters
@@ -123,7 +123,7 @@ class LinearBasis(_BaseBasis):
             Low-dimensional latent coordinate vector, or a collection of k
             such vectors organized as the columns of a matrix.
         locs : slice or (p,) ndarray of integers or None
-            If given, return the decoded state at only the specified
+            If given, return the decompressed state at only the specified
             locations (indices).
 
         Returns

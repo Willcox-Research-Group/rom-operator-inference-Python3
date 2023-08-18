@@ -105,8 +105,8 @@ class TestPODBasis:
         assert basis.shape == (n, 1)
         assert basis.dual.shape == (n, 1)
         assert basis.svdvals.shape == (r,)
-        assert basis.encode(np.random.random(n,)).shape == (1,)
-        assert basis.encode(np.random.random((n, n))).shape == (1, n)
+        assert basis.compress(np.random.random(n,)).shape == (1,)
+        assert basis.compress(np.random.random((n, n))).shape == (1, n)
 
     def test_set_dimension(self, n=20):
         """Test set_dimension()."""
