@@ -71,6 +71,10 @@ class TestLinearBasis:
         q = Vr @ q_
         assert np.allclose(basis.decompress(q_), q)
 
+        # Get only a few coordinates.
+        locs = np.array([0, 2], dtype=int)
+        assert np.allclose(basis.decompress(q_, locs=locs), q[locs])
+
     # Visualization -----------------------------------------------------------
     def test_plot1D(self, n=20, r=4):
         """Lightly test plot1D()."""

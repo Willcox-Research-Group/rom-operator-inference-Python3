@@ -123,14 +123,15 @@ class LinearBasis(_BaseBasis):
             Low-dimensional latent coordinate vector, or a collection of k
             such vectors organized as the columns of a matrix.
         locs : slice or (p,) ndarray of integers or None
-            If given, return the decompressed state at only the specified
+            If given, return the reconstructed state at only the specified
             locations (indices).
 
         Returns
         -------
         state : (n,) or (n, k) ndarray
             High-dimensional state vector, or a collection of k such vectors
-            organized as the columns of a matrix.
+            organized as the columns of a matrix. If `locs` is given, only
+            the specified coordinates are returned.
         """
         return (self.entries if locs is None else self.entries[locs]) @ state_
 

@@ -34,7 +34,7 @@ class _BaseBasis(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def decompress(self, state_):                           # pragma: no cover
+    def decompress(self, state_, locs=None):                # pragma: no cover
         """Map low-dimensional latent coordinates to high-dimensional states.
 
         Parameters
@@ -42,12 +42,16 @@ class _BaseBasis(abc.ABC):
         state_ : (r,) or (r, k) ndarray
             Low-dimensional latent coordinate vector, or a collection of k
             such vectors organized as the columns of a matrix.
+        locs : slice or (p,) ndarray of integers or None
+            If given, return the reconstructed state at only the specified
+            locations (indices).
 
         Returns
         -------
         state : (n,) or (n, k) ndarray
             High-dimensional state vector, or a collection of k such vectors
-            organized as the columns of a matrix.
+            organized as the columns of a matrix. If `locs` is given, only
+            the specified coordinates are returned.
         """
         raise NotImplementedError
 
