@@ -10,8 +10,8 @@ __all__ = [
 
 import numpy as np
 
-from ...errors import LoadfileFormatError
-from ...utils import hdf5_savehandle, hdf5_loadhandle
+from ..errors import LoadfileFormatError
+from ..utils import hdf5_savehandle, hdf5_loadhandle
 from .._multivar import _MultivarMixin
 from ._base import _BaseTransformer
 

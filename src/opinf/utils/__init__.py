@@ -7,6 +7,24 @@ This module contains miscellaneous support functions for the rest of the
 package.
 
 
+Derivative Estimation
+=====================
+
+For time-continuous reduced-order models, Operator Inference requires the time
+derivative of the state snapshots. If they are not available from a full-order
+solver, the time derivatives can often be estimated from the snapshots.
+The following functions implement finite difference estimators for the time
+derivative of snapshots.
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    ddt
+    ddt_nonuniform
+    ddt_uniform
+
+
 Kronecker Products
 ==================
 
@@ -52,3 +70,4 @@ file. The following functions facilitate that data transfer.
 
 from ._hdf5 import *
 from ._kronecker import *
+from ._finite_difference import *

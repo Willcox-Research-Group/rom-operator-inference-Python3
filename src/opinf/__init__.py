@@ -10,4 +10,4 @@ GitHub:
 __version__ = "0.4.4"
 
 from .core import *
-from . import errors, lstsq, pre, post, utils
+from . import basis, errors, lstsq, pre, post, utils

@@ -6,8 +6,8 @@ __all__ = []
 import abc
 import numpy as np
 
-from .. import pre
 from . import operators
+from .. import basis as _basis
 
 _isparametricop = operators.is_parametric_operator
 
@@ -145,15 +145,15 @@ class _BaseROM(abc.ABC):
     # Properties: basis -------------------------------------------------------
     @property
     def basis(self):
-        """Basis for the linear reduced space (e.g., POD ), of shape (n, r)."""
+        """Basis for the reduced space (e.g., POD ), of shape (n, r)."""
         return self.__basis
 
     @basis.setter
     def basis(self, basis):
         """Set the basis, thereby fixing the dimensions n and r."""
         if basis is not None:
-            if not isinstance(basis, pre.basis._base._BaseBasis):
-                basis = pre.LinearBasis().fit(basis)
+            if not isinstance(basis, _basis._base._BaseBasis):
+                basis = _basis.LinearBasis().fit(basis)
             if basis.shape[0] < basis.shape[1]:
                 raise ValueError("basis must be n x r with n > r")
             self.__r = basis.shape[1]

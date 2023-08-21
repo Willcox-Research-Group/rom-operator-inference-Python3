@@ -17,8 +17,8 @@ import scipy.linalg as la
 import sklearn.utils.extmath as sklmath
 import matplotlib.pyplot as plt
 
-from ...errors import LoadfileFormatError
-from ...utils import hdf5_savehandle, hdf5_loadhandle
+from ..errors import LoadfileFormatError
+from ..utils import hdf5_savehandle, hdf5_loadhandle
 from ._linear import LinearBasis, LinearBasisMulti
 
 

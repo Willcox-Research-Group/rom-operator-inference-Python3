@@ -6,7 +6,8 @@ __all__ = []
 import numpy as np
 
 from .._base import _BaseROM
-from ... import lstsq, pre
+from ... import lstsq
+from ... import basis as _basis
 from ...utils import kron2c, kron3c, hdf5_savehandle, hdf5_loadhandle
 
 
@@ -424,7 +425,7 @@ class _NonparametricOpInfROM(_BaseROM):
             # Load basis if present.
             if "basis" in hf:
                 BasisClassName = hf["meta"].attrs["BasisClass"]
-                basis = getattr(pre, BasisClassName).load(hf["basis"])
+                basis = getattr(_basis, BasisClassName).load(hf["basis"])
 
             # Load operators.
             operators = {f"{key}_": hf[f"operators/{key}_"][:]

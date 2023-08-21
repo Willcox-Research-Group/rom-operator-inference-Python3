@@ -11,7 +11,7 @@ __all__ = [
 import numpy as np
 from scipy import linalg as la
 
-from ..pre import projection_error
+from ..basis import projection_error
 
 
 def _absolute_and_relative_error(Qtrue, Qapprox, norm):

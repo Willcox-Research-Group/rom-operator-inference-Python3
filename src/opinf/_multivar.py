@@ -1,11 +1,11 @@
 # pre/_multivar.py
-"""Private mixin class for transfomers and basis with multivariate states."""
+"""Private mixin class for transfomers and bases with multivariate states."""
 
 import numpy as np
 
 
 class _MultivarMixin:
-    """Private mixin class for transfomers and basis with multivariate states.
+    """Private mixin class for transfomers and bases with multivariate states.
 
     Parameters
     ----------

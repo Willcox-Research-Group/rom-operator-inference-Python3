@@ -15,7 +15,7 @@ import numpy as np
 import scipy.interpolate
 from collections.abc import Iterable
 
-from ... import pre
+from ... import basis as _basis
 from ...utils import hdf5_savehandle, hdf5_loadhandle
 from .._base import _BaseParametricROM
 from ..nonparametric._base import _NonparametricOpInfROM
@@ -419,7 +419,7 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
             # Load basis if present.
             if "basis" in hf:
                 BasisClassName = hf["meta"].attrs["BasisClass"]
-                basis = getattr(pre, BasisClassName).load(hf["basis"])
+                basis = getattr(_basis, BasisClassName).load(hf["basis"])
 
             # Load operators.
             parameters = hf["parameters"][:]
