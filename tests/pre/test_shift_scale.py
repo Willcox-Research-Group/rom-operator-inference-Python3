@@ -1,4 +1,4 @@
-# pre/transform/test_shift_scale.py
+# pre/test_shift_scale.py
 """Tests for pre._shift_scale.py."""
 
 import os
@@ -11,9 +11,9 @@ import opinf
 
 
 # Data preprocessing: shifting and MinMax scaling / unscaling =================
-def test_shift(set_up_basis_data):
+def test_shift(set_up_transformer_data):
     """Test pre._shift_scale.shift()."""
-    X = set_up_basis_data
+    X = set_up_transformer_data
 
     # Try with bad data shape.
     with pytest.raises(ValueError) as ex:
@@ -42,9 +42,9 @@ def test_shift(set_up_basis_data):
     assert np.allclose(X, opinf.pre.shift(Xshifted, -xbar))
 
 
-def test_scale(set_up_basis_data):
+def test_scale(set_up_transformer_data):
     """Test pre._shift_scale.scale()."""
-    X = set_up_basis_data
+    X = set_up_transformer_data
 
     # Try with bad scales.
     with pytest.raises(ValueError) as ex:

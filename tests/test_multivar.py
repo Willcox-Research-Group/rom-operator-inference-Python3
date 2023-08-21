@@ -1,5 +1,5 @@
-# pre/test_multivar.py
-"""Tests for pre._multivar.py."""
+# test_multivar.py
+"""Tests for _multivar.py."""
 
 import pytest
 import numpy as np
@@ -8,11 +8,11 @@ import opinf
 
 
 class TestMultivarMixin:
-    """Test for .pre._multivar._MultivarMixin."""
-    Mixin = opinf.pre._multivar._MultivarMixin
+    """Test for ._multivar._MultivarMixin."""
+    Mixin = opinf._multivar._MultivarMixin
 
     def test_init(self, nvar=4):
-        """Test MultivarMixin.__init__()."""
+        """Test _MultivarMixin.__init__()."""
         with pytest.raises(ValueError) as ex:
             self.Mixin(-1)
         assert ex.value.args[0] == "num_variables must be a positive integer"
@@ -23,7 +23,7 @@ class TestMultivarMixin:
         assert mix.ni is None
 
     def test_variable_names(self, nvar=3):
-        """Test MultivarMixin.variable_names."""
+        """Test _MultivarMixin.variable_names."""
         vnames = list("abcdefghijklmnopqrstuvwxyz")[:nvar]
         mix = self.Mixin(nvar, vnames)
         assert len(mix.variable_names) == nvar
@@ -45,7 +45,7 @@ class TestMultivarMixin:
             f"variable_names must be a list of length {nvar}"
 
     def test_n_properties(self, nvar=5):
-        """Test MultivarMixin.n and ni."""
+        """Test _MultivarMixin.n and ni."""
         mix = self.Mixin(nvar)
         assert mix.n is None
         assert mix.ni is None
@@ -65,7 +65,7 @@ class TestMultivarMixin:
 
     # Convenience methods -----------------------------------------------------
     def test_get_varslice(self):
-        """Test pre.SnapshotTransformerMulti.get_varslice()."""
+        """Test _MultivarMixin.get_varslice()."""
         mix = self.Mixin(4, variable_names=list("abcd"))
         mix.n = 12
         s0 = mix.get_varslice(0)
@@ -82,7 +82,7 @@ class TestMultivarMixin:
         assert s2.stop == 3*mix.ni
 
     def test_get_var(self):
-        """Test pre.SnapshotTransformerMulti.get_var()."""
+        """Test _MultivarMixin.get_var()."""
         mix = self.Mixin(4, variable_names=list("abcd"))
         mix.n = 12
         q = np.random.random(mix.n)
@@ -97,7 +97,7 @@ class TestMultivarMixin:
         assert np.all(q2 == q[2*mix.ni:3*mix.ni])
 
     def test_check_shape(self):
-        """Test pre.SnapshotTransformerMulti._check_shape()."""
+        """Test _MultivarMixin._check_shape()."""
         mix = self.Mixin(12)
         mix.n = 120
         X = np.random.randint(0, 100, (120, 23)).astype(float)

@@ -1,5 +1,5 @@
-# pre/basis/test_linear.py
-"""Tests for pre.basis._linear."""
+# basis/test_linear.py
+"""Tests for basis._linear."""
 
 import os
 import h5py
@@ -13,8 +13,8 @@ import opinf
 
 
 class TestLinearBasis:
-    """Test pre.basis._linear.LinearBasis."""
-    LinearBasis = opinf.pre.basis.LinearBasis
+    """Test basis._linear.LinearBasis."""
+    LinearBasis = opinf.basis.LinearBasis
 
     def test_init(self):
         """Test __init__() and entries properties."""
@@ -164,8 +164,8 @@ class TestLinearBasis:
 
 
 class TestLinearBasisMulti:
-    """Test pre.basis._linear._LinearBasis."""
-    LinearBasisMulti = opinf.pre.basis.LinearBasisMulti
+    """Test basis._linear._LinearBasis."""
+    LinearBasisMulti = opinf.basis.LinearBasisMulti
 
     def test_init(self):
         """Test LinearBasisMulti.__init__()."""

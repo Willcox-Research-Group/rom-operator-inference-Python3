@@ -1,5 +1,5 @@
-# pre/basis/test_pod.py
-"""Tests for pre.basis._pod."""
+# basis/test_pod.py
+"""Tests for basis._pod."""
 
 import os
 import h5py
@@ -13,8 +13,8 @@ import opinf
 
 
 class TestPODBasis:
-    """Test pre.basis._pod.PODBasis."""
-    PODBasis = opinf.pre.PODBasis
+    """Test basis._pod.PODBasis."""
+    PODBasis = opinf.basis.PODBasis
 
     def test_init(self):
         """Test __init__()."""
@@ -314,8 +314,8 @@ class TestPODBasis:
 
 
 class TestPODBasisMulti:
-    """Test opinf.pre.basis._pod.PODBasisMulti."""
-    PODBasisMulti = opinf.pre.PODBasisMulti
+    """Test basis._pod.PODBasisMulti."""
+    PODBasisMulti = opinf.basis.PODBasisMulti
 
     def test_init(self):
         """Test __init__()."""
@@ -334,7 +334,7 @@ class TestPODBasisMulti:
         # Test individual bases.
         assert len(basis.bases) == 4
         for subbasis in basis.bases:
-            assert isinstance(subbasis, opinf.pre.PODBasis)
+            assert isinstance(subbasis, opinf.basis.PODBasis)
             assert subbasis.economize is True
             assert subbasis.r is None
             assert subbasis.entries is None
@@ -565,25 +565,25 @@ class TestPODBasisMulti:
 
 # Basis computation ===========================================================
 def test_pod_basis(set_up_basis_data):
-    """Test pre.basis._pod.pod_basis()."""
+    """Test basis._pod.pod_basis()."""
     Q = set_up_basis_data
     n, k = Q.shape
 
     # Try with an invalid rank.
     rmax = min(n, k)
     with pytest.raises(ValueError) as exc:
-        opinf.pre.pod_basis(Q, rmax+1)
+        opinf.basis.pod_basis(Q, rmax+1)
     assert exc.value.args[0] == \
         f"invalid POD rank r = {rmax+1} (need 1 ≤ r ≤ {rmax})"
 
     with pytest.raises(ValueError) as exc:
-        opinf.pre.pod_basis(Q, -1)
+        opinf.basis.pod_basis(Q, -1)
     assert exc.value.args[0] == \
         f"invalid POD rank r = -1 (need 1 ≤ r ≤ {rmax})"
 
     # Try with an invalid mode.
     with pytest.raises(NotImplementedError) as exc:
-        opinf.pre.pod_basis(Q, None, mode="full")
+        opinf.basis.pod_basis(Q, None, mode="full")
     assert exc.value.args[0] == "invalid mode 'full'"
 
     U, vals, Wt = la.svd(Q, full_matrices=False)
@@ -596,8 +596,8 @@ def test_pod_basis(set_up_basis_data):
         for mode in ("dense", "randomized"):
 
             print(r, mode)
-            basis, svdvals = opinf.pre.pod_basis(Q, r, mode=mode)
-            _, _, W = opinf.pre.pod_basis(Q, r, mode=mode, return_W=True)
+            basis, svdvals = opinf.basis.pod_basis(Q, r, mode=mode)
+            _, _, W = opinf.basis.pod_basis(Q, r, mode=mode, return_W=True)
             assert basis.shape == (n, r)
             assert np.allclose(basis.T @ basis, Id)
             assert W.shape == (k, r)
@@ -623,16 +623,16 @@ def test_pod_basis(set_up_basis_data):
 
 # Reduced dimension selection =================================================
 def test_svdval_decay(set_up_basis_data):
-    """Test pre.basis._pod.svdval_decay()."""
+    """Test basis._pod.svdval_decay()."""
     Q = set_up_basis_data
     svdvals = la.svdvals(Q)
 
     # Single cutoffs.
-    r = opinf.pre.svdval_decay(svdvals, 1e-14, plot=False)
+    r = opinf.basis.svdval_decay(svdvals, 1e-14, plot=False)
     assert isinstance(r, int) and r >= 1
 
     # Multiple cutoffss.
-    rs = opinf.pre.svdval_decay(svdvals, [1e-10, 1e-12], plot=False)
+    rs = opinf.basis.svdval_decay(svdvals, [1e-10, 1e-12], plot=False)
     assert isinstance(rs, list)
     for r in rs:
         assert isinstance(r, int) and r >= 1
@@ -641,29 +641,29 @@ def test_svdval_decay(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = opinf.pre.svdval_decay(svdvals, .0001, plot=True)
+    rs = opinf.basis.svdval_decay(svdvals, .0001, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = opinf.pre.svdval_decay(svdvals, [1e-4, 1e-8, 1e-12], plot=True)
+    rs = opinf.basis.svdval_decay(svdvals, [1e-4, 1e-8, 1e-12], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
 
     # Specific test.
     svdvals = [.9, .09, .009, .0009, .00009, .000009, .0000009]
-    rs = opinf.pre.svdval_decay(svdvals, [.8, .1, .0004],
-                                normalize=False, plot=False)
+    rs = opinf.basis.svdval_decay(svdvals, [.8, .1, .0004],
+                                  normalize=False, plot=False)
     assert len(rs) == 3
     assert rs == [1, 1, 4]
 
     svdvals = np.array([1e1, 1e2, 1e3, 1e0, 1e-2]) - 1e-3
-    rs = opinf.pre.svdval_decay(svdvals, [9e-1, 9e-2, 5e-4, 0],
-                                normalize=True, plot=False)
+    rs = opinf.basis.svdval_decay(svdvals, [9e-1, 9e-2, 5e-4, 0],
+                                  normalize=True, plot=False)
     assert len(rs) == 4
     assert rs == [1, 2, 4, 5]
 
 
 def test_cumulative_energy(set_up_basis_data):
-    """Test pre.basis._pod.cumulative_energy()."""
+    """Test basis._pod.cumulative_energy()."""
     Q = set_up_basis_data
     svdvals = la.svdvals(Q)
     energy = np.cumsum(svdvals**2)/np.sum(svdvals**2)
@@ -676,12 +676,12 @@ def test_cumulative_energy(set_up_basis_data):
 
     # Single threshold.
     thresh = .9
-    r = opinf.pre.cumulative_energy(svdvals, thresh, plot=False)
+    r = opinf.basis.cumulative_energy(svdvals, thresh, plot=False)
     _test(r, thresh)
 
     # Multiple thresholds.
     thresh = [.9, .99, .999]
-    rs = opinf.pre.cumulative_energy(svdvals, thresh, plot=False)
+    rs = opinf.basis.cumulative_energy(svdvals, thresh, plot=False)
     assert isinstance(rs, list)
     for r, t in zip(rs, thresh):
         _test(r, t)
@@ -690,22 +690,22 @@ def test_cumulative_energy(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = opinf.pre.cumulative_energy(svdvals, .999, plot=True)
+    rs = opinf.basis.cumulative_energy(svdvals, .999, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = opinf.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=True)
+    rs = opinf.basis.cumulative_energy(svdvals, [.9, .99, .999], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
 
     # Specific test.
     svdvals = np.sqrt([.9, .09, .009, .0009, .00009, .000009, .0000009])
-    rs = opinf.pre.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
+    rs = opinf.basis.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
     assert len(rs) == 3
     assert rs == [1, 2, 3]
 
 
 def test_residual_energy(set_up_basis_data):
-    """Test pre.basis._pod.residual_energy()."""
+    """Test basis._pod.residual_energy()."""
     Q = set_up_basis_data
     svdvals = la.svdvals(Q)
     resid = 1 - np.cumsum(svdvals**2)/np.sum(svdvals**2)
@@ -718,12 +718,12 @@ def test_residual_energy(set_up_basis_data):
 
     # Single tolerance.
     tol = 1e-2
-    r = opinf.pre.residual_energy(svdvals, tol, plot=False)
+    r = opinf.basis.residual_energy(svdvals, tol, plot=False)
     _test(r, tol)
 
     # Multiple tolerances.
     tols = [1e-2, 1e-4, 1e-6]
-    rs = opinf.pre.residual_energy(svdvals, tols, plot=False)
+    rs = opinf.basis.residual_energy(svdvals, tols, plot=False)
     assert isinstance(rs, list)
     for r, t in zip(rs, tols):
         _test(r, t)
@@ -732,20 +732,20 @@ def test_residual_energy(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = opinf.pre.residual_energy(svdvals, 1e-3, plot=True)
+    rs = opinf.basis.residual_energy(svdvals, 1e-3, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = opinf.pre.cumulative_energy(svdvals, [1e-2, 1e-4, 1e-6], plot=True)
+    rs = opinf.basis.cumulative_energy(svdvals, [1e-2, 1e-4, 1e-6], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
 
 
 def test_projection_error(set_up_basis_data):
-    """Test pre.basis._pod.projection_error()."""
+    """Test basis._pod.projection_error()."""
     Q = set_up_basis_data
     Vr = la.svd(Q, full_matrices=False)[0][:, :Q.shape[1]//3]
 
-    abserr, relerr = opinf.pre.projection_error(Q, Vr)
+    abserr, relerr = opinf.basis.projection_error(Q, Vr)
     assert np.isscalar(abserr)
     assert abserr >= 0
     assert np.isscalar(relerr)

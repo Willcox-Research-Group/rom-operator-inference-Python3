@@ -1,4 +1,4 @@
-# pre/test_finite_difference.py
+# utils/test_finite_difference.py
 """Tests for utils._finite_difference.py"""
 
 import pytest

@@ -1,13 +1,13 @@
-# pre/basis/test_base.py
-"""Tests for pre.basis._base."""
+# basis/test_base.py
+"""Tests for basis._base."""
 
 import opinf
 
 
 class TestBaseBasis:
-    """Test pre.basis._base._BaseBasis."""
+    """Test basis._base._BaseBasis."""
 
-    class Dummy(opinf.pre.basis._base._BaseBasis):
+    class Dummy(opinf.basis._base._BaseBasis):
         """Instantiable version of _BaseBasis."""
         def fit(self):
             pass
