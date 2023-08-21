@@ -44,7 +44,7 @@ Through {eq}`eq-basis-basis-def`, the basis matrix is the link between the high-
 :width: 80 %
 :::
 
-:::::{note}
+<!-- :::::{note}
 If $\mathbf{V}_{r}\in\mathbb{R}^{n\times r}$ has orthogonal columns, the corresponding encoder is $\boldsymbol{\Gamma}^{*}(\mathbf{q}) = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$.
 
 :::{dropdown} Proof
@@ -109,7 +109,7 @@ $$
     = \widehat{\mathbf{q}}.
 $$
 
-:::::
+::::: -->
 
 <!-- :::{note}
 If the data is preprocessed, for example using `pre.SnapshotTransformer`, then the low-dimensional representation is slightly different from {eq}`eq-basis-basis-def`.

@@ -41,22 +41,3 @@ class TestBaseTransformer:
         with pytest.raises(NotImplementedError) as ex:
             self.Dummy.load("test")
         assert ex.value.args[0] == "use pickle/joblib"
-
-
-def test_check_is_transformer():
-    """Test pre.transform._base._check_is_transformer()."""
-
-    class Dummy:
-        def transform(self):
-            pass
-
-        def fit_transform(self):
-            pass
-
-    with pytest.raises(TypeError) as ex:
-        opinf.pre.transform._base._check_is_transformer(Dummy())
-    assert ex.value.args[0] == \
-        "transformer missing required method inverse_transform()"
-
-    dummy = TestBaseTransformer.Dummy()
-    opinf.pre.transform._base._check_is_transformer(dummy)

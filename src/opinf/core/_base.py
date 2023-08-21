@@ -463,7 +463,7 @@ class _BaseROM(abc.ABC):
         # Save keys of known operators.
         self._projected_operators_ = ''.join(known_operators.keys())
 
-    def encode(self, state, label="argument"):
+    def compress(self, state, label="argument"):
         """Map high-dimensional states to low-dimensional latent coordinates.
 
         Parameters
@@ -485,9 +485,11 @@ class _BaseROM(abc.ABC):
             if self.basis is None:
                 raise AttributeError("basis not set")
             raise ValueError(f"{label} not aligned with basis")
-        return self.basis.encode(state) if state.shape[0] == self.n else state
+        if state.shape[0] == self.n:
+            return self.basis.compress(state)
+        return state
 
-    def decode(self, state_, label="argument"):
+    def decompress(self, state_, label="argument"):
         """Map low-dimensional latent coordinates to high-dimensional states.
 
         Parameters
@@ -506,27 +508,7 @@ class _BaseROM(abc.ABC):
             raise AttributeError("basis not set")
         if state_.shape[0] != self.r:
             raise ValueError(f"{label} not aligned with basis")
-        return self.basis.decode(state_)
-
-    # def project(self, state):
-    #     """Project high-dimensional states to the subspace that can be
-    #     represented by the basis by encoding the state in low-dimensional
-    #     latent coordinates, then decoding those coordinates:
-    #     project(Q) = decode(encode(Q)).
-    #
-    #     Parameters
-    #     ----------
-    #     state : (n, ...) ndarray
-    #         High-dimensional state vector or a collection of these.
-    #
-    #     Returns
-    #     -------
-    #     state_projected : (n, ...) ndarray
-    #         High-dimensional state vector, or a collection of k such vectors
-    #         organized as the columns of a matrix, projected to the range of
-    #         the basis.
-    #     """
-    #     return self.decode(self.encode(state))
+        return self.basis.decompress(state_)
 
     # ROM evaluation ----------------------------------------------------------
     def evaluate(self, state_, input_=None):

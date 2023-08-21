@@ -249,7 +249,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             self, basis, states, nextstates, inputs=inputs,
             known_operators=known_operators, solver=solver)
 
-    def predict(self, state0, niters, inputs=None, decode=True):
+    def predict(self, state0, niters, inputs=None, decompress=True):
         """Step forward the learned ROM `niters` steps.
 
         Parameters
@@ -265,7 +265,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             >>> states[:, 1] = F(state0, inputs[:, 0])
             >>> states[:, 2] = F(states[:, 1], inputs[:, 1])
             ...
-        decode : bool
+        decompress : bool
             If True and the basis is not None, reconstruct the solutions in
             the original n-dimensional state space.
 
@@ -273,7 +273,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         -------
         states : (n, niters) or (r, niters) ndarray
             Approximate solution to the system, including the given
-            initial condition. If the basis exists and decode=True,
+            initial condition. If the basis exists and decompress=True,
             return solutions in the full n-dimensional state space (n rows);
             otherwise, return reduced-order state solution (r rows).
         """
@@ -281,7 +281,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
 
         # Process inputs and project initial conditions if needed.
         self._check_inputargs(inputs, "inputs")
-        state0_ = self.encode(state0, "state0")
+        state0_ = self.compress(state0, "state0")
 
         # Verify iteration argument.
         if not isinstance(niters, int) or niters < 1:
@@ -307,8 +307,8 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
                 states_[:, j+1] = self.evaluate(states_[:, j])
 
         # Return state results.
-        if decode and (self.basis is not None):
-            return self.decode(states_)
+        if decompress and (self.basis is not None):
+            return self.basis.decompress(states_)
         return states_
 
 
@@ -446,7 +446,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             self, basis, states, ddts, inputs=inputs,
             known_operators=known_operators, solver=solver)
 
-    def predict(self, state0, t, input_func=None, decode=True, **options):
+    def predict(self, state0, t, input_func=None, decompress=True, **options):
         """Simulate the learned ROM with scipy.integrate.solve_ivp().
 
         Parameters
@@ -460,7 +460,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             Input as a function of time (preferred) or the input at the
             times `t`. If given as an array, cubic spline interpolation
             on the known data points is used as needed.
-        decode : bool
+        decompress : bool
             If True and the basis is not None, reconstruct the solutions
             in the original n-dimensional state space.
         options
@@ -484,7 +484,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         -------
         states : (n, nt) or (r, nt) ndarray
             Approximate solution to the system over the time domain `t`.
-            If the basis exists and decode=True, return solutions in the
+            If the basis exists and decompress=True, return solutions in the
             original n-dimensional state space (n rows); otherwise, return
             reduced-order state solutions (r rows).
             A more detailed report on the integration results is stored as
@@ -494,7 +494,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
 
         # Process inputs and project initial conditions if needed.
         self._check_inputargs(input_func, "input_func")
-        state0_ = self.encode(state0, "state0")
+        state0_ = self.compress(state0, "state0")
 
         # Verify time domain.
         if t.ndim != 1:
@@ -542,6 +542,6 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
 
         # Return state results.
         self.predict_result_ = out
-        if decode and (self.basis is not None):
-            return self.decode(out.y)
+        if decompress and (self.basis is not None):
+            return self.basis.decompress(out.y)
         return out.y

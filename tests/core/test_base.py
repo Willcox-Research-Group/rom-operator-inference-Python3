@@ -562,63 +562,63 @@ class TestBaseROM:
 
         # TODO: Special case: G(q) = q^3
 
-    def test_encode(self, n=60, k=50, r=10):
-        """Test _BaseROM.encode()."""
+    def test_compress(self, n=60, k=50, r=10):
+        """Test _BaseROM.compress()."""
         Q, Qdot, _ = _get_data(n, k, 2)
         rom = self.Dummy("c")
 
-        # Try to encode without reduced dimension r set.
+        # Try to compress without reduced dimension r set.
         with pytest.raises(AttributeError) as ex:
-            rom.encode(Q, 'things')
+            rom.compress(Q, 'things')
         assert ex.value.args[0] == "reduced dimension not set"
 
-        # Try to encode with r set but with wrong shape.
+        # Try to compress with r set but with wrong shape.
         rom.r = r
         with pytest.raises(AttributeError) as ex:
-            rom.encode(Q, 'arg')
+            rom.compress(Q, 'arg')
         assert ex.value.args[0] == "basis not set"
 
-        # Try to encode with basis set but with wrong shape.
+        # Try to compress with basis set but with wrong shape.
         Vr = np.random.random((n, r))
         rom.basis = Vr
         with pytest.raises(ValueError) as ex:
-            rom.encode(Q[:-1, :], 'state')
+            rom.compress(Q[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
 
         # Correct usage.
         for S, label in [(Q, 'state'), (Qdot, 'ddts')]:
-            S_ = rom.encode(S, label)
+            S_ = rom.compress(S, label)
             assert S_.shape == (r, k)
             assert np.allclose(S_, Vr.T @ S)
-            assert np.allclose(S_, rom.basis.encode(S))
-            S_ = rom.encode(S[:r, :], label)
+            assert np.allclose(S_, rom.basis.compress(S))
+            S_ = rom.compress(S[:r, :], label)
             assert S_.shape == (r, k)
             assert np.all(S_ == S[:r, :])
 
-    def test_decode(self, n=60, k=20, r=8):
-        """Test _BaseROM.decode()."""
+    def test_decompress(self, n=60, k=20, r=8):
+        """Test _BaseROM.decompress()."""
         Q_, Qdot_, _ = _get_data(r, k, 2)
         rom = self.Dummy("c")
 
-        # Try to decode without basis.
+        # Try to decompress without basis.
         rom.r = r
         with pytest.raises(AttributeError) as ex:
-            rom.decode(Q_, 'arg')
+            rom.decompress(Q_, 'arg')
         assert ex.value.args[0] == "basis not set"
 
-        # Try to encode with basis set but with wrong shape.
+        # Try to compress with basis set but with wrong shape.
         Vr = np.random.random((n, r))
         rom.basis = Vr
         with pytest.raises(ValueError) as ex:
-            rom.decode(Q_[:-1, :], 'state')
+            rom.decompress(Q_[:-1, :], 'state')
         assert ex.value.args[0] == "state not aligned with basis"
 
         # Correct usage.
         for S_, label in [(Q_, 'state_'), (Qdot_, 'ddts_')]:
-            S = rom.decode(S_, label)
+            S = rom.decompress(S_, label)
             assert S.shape == (n, k)
             assert np.allclose(S, Vr @ S_)
-            assert np.allclose(S, rom.basis.decode(S_))
+            assert np.allclose(S, rom.basis.decompress(S_))
 
     # def test_project(self, n=63, k=19, r=7):
     #     """Lightly test _BaseROM.project()."""

@@ -154,8 +154,8 @@ class _NonparametricOpInfROM(_BaseROM):
         self._check_training_data_shapes(to_check)
 
         # Encode states and lhs in the reduced subspace (if needed).
-        states_ = self.encode(states, "states")
-        lhs_ = self.encode(lhs, self._LHS_ARGNAME)
+        states_ = self.compress(states, "states")
+        lhs_ = self.compress(lhs, self._LHS_ARGNAME)
 
         # Subtract known data from the lhs data.
         for key in self._projected_operators_:

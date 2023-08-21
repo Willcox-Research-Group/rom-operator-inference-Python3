@@ -298,7 +298,7 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
                                          solvers=solvers)
 
     def predict(self, parameter, state0, niters, inputs=None,
-                decode=True):
+                decompress=True):
         """Step forward the ROM `niters` steps at the given parameter value.
 
         Parameters
@@ -316,7 +316,7 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
             >>> states[:, 1] = F(state0, inputs[:, 0])
             >>> states[:, 2] = F(states[:, 1], inputs[:, 1])
             ...
-        decode : bool
+        decompress : bool
             If True and the basis is not None, reconstruct the solutions
             in the original n-dimensional state space.
 
@@ -324,13 +324,13 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
         -------
         states : (n, niters) or (r, niters) ndarray
             Approximate solution to the system, including the given
-            initial condition. If the basis exists and decode=True,
+            initial condition. If the basis exists and decompress=True,
             return solutions in the full n-dimensional state space (n rows);
             otherwise, return reduced-order state solution (r rows).
         """
         return _InterpolatedOpInfROM.predict(self, parameter,
                                              state0, niters, inputs,
-                                             decode)
+                                             decompress)
 
 
 class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
@@ -466,7 +466,7 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
             known_operators=known_operators, solvers=solvers)
 
     def predict(self, parameter, state0, t, input_func=None,
-                decode=True, **options):
+                decompress=True, **options):
         """Simulate the learned ROM at the given parameter value with
         scipy.integrate.solve_ivp().
 
@@ -483,7 +483,7 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
             Input as a function of time (preferred) or the input at the
             times `t`. If given as an array, cubic spline interpolation
             on the known data points is used as needed.
-        decode : bool
+        decompress : bool
             If True and the basis is not None, reconstruct the solutions
             in the original n-dimensional state space.
         options
@@ -507,7 +507,7 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
         -------
         states : (n, nt) or (r, nt) ndarray
             Approximate solution to the system over the time domain `t`.
-            If the basis exists and decode=True, return solutions in the
+            If the basis exists and decompress=True, return solutions in the
             original n-dimensional state space (n rows); otherwise, return
             reduced-order state solutions (r rows).
             A more detailed report on the integration results is stored as
@@ -515,4 +515,4 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
         """
         return _InterpolatedOpInfROM.predict(self, parameter,
                                              state0, t, input_func,
-                                             decode, **options)
+                                             decompress, **options)

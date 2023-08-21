@@ -61,7 +61,7 @@ class _BaseTransformer(abc.ABC):
         raise NotImplementedError                           # pragma: no cover
 
     @abc.abstractmethod
-    def inverse_transform(self, states_transformed, inplace=False):
+    def inverse_transform(self, states_transformed, inplace=False, locs=None):
         """Apply the inverse of the learned transformation.
 
         Parameters
@@ -71,11 +71,15 @@ class _BaseTransformer(abc.ABC):
         inplace : bool
             If True, overwrite the input data during inverse transformation.
             If False, create a copy of the data to untransform.
+        locs : slice or (p,) ndarray of integers or None
+            If given, return the untransformed variable at only the specified
+            locations (indices). In this case, `inplace` is ignored.
 
         Returns
         -------
         states: (n, k) ndarray
-            Matrix of k untransformed snapshots of dimension n.
+            Matrix of k untransformed snapshots of dimension n, or the p
+            entries of such at the indices specified by `loc`.
         """
         raise NotImplementedError                           # pragma: no cover
 
@@ -88,10 +92,3 @@ class _BaseTransformer(abc.ABC):
     def load(cls, *args, **kwargs):
         """Load a transformer from an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")
-
-
-def _check_is_transformer(obj):
-    """Raise a RuntimeError if `obj` cannot be used as a transformer."""
-    for mtd in _BaseTransformer.__abstractmethods__:
-        if not hasattr(obj, mtd):
-            raise TypeError(f"transformer missing required method {mtd}()")

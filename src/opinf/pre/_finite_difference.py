@@ -91,6 +91,7 @@ def ddt_uniform(states, dt, order=2):
                          - Q[:, 4:])/(12*dt)
 
         # Forward / backward differences on the front / end.
+        # TODO: don't use fully forward / fully backward for interior points.
         for j in range(2):
             ddts[:, j] = _fwd4(Q[:, j:j+5].T, dt)                 # Forward
             ddts[:, -j-1] = -_fwd4(Q[:, -j-5:k-j].T[::-1], dt)    # Backward
@@ -101,6 +102,7 @@ def ddt_uniform(states, dt, order=2):
                          - 45*Q[:, 2:-4] + 45*Q[:, 4:-2]
                          - 9*Q[:, 5:-1] + Q[:, 6:]) / (60*dt)
 
+        # TODO: don't use fully forward / fully backward for interior points.
         # Forward / backward differences on the front / end.
         for j in range(3):
             ddts[:, j] = _fwd6(Q[:, j:j+7].T, dt)                 # Forward
