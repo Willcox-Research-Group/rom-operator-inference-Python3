@@ -171,7 +171,7 @@ class TestBaseROM:
         assert rom.n == n
         assert rom.m == 0
         assert rom.r == r
-        assert isinstance(rom.basis, opinf.pre.LinearBasis)
+        assert isinstance(rom.basis, opinf.basis.LinearBasis)
 
         # Try setting n with basis already set.
         with pytest.raises(AttributeError) as ex:
@@ -243,7 +243,7 @@ class TestBaseROM:
         assert rom.n == n
         assert rom.r == r
         assert rom.m == 0
-        assert isinstance(rom.basis, opinf.pre.LinearBasis)
+        assert isinstance(rom.basis, opinf.basis.LinearBasis)
         assert rom.c_.entries is c
         assert rom.A_.entries is A
         assert rom.H_.entries is H

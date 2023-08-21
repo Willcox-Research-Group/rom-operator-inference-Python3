@@ -169,7 +169,7 @@ class TestNonparametricOpInfROM:
         Q_, lhs_, solver = rom._process_fit_arguments(Vr, Q, lhs, U)
         assert rom.n == n
         assert rom.r == r
-        assert isinstance(rom.basis, opinf.pre.LinearBasis)
+        assert isinstance(rom.basis, opinf.basis.LinearBasis)
         assert np.all(rom.basis.entries == Vr)
         assert rom.m == m
         assert np.allclose(Q_, Vr.T @ Q)
@@ -195,7 +195,7 @@ class TestNonparametricOpInfROM:
         assert rom._projected_operators_ == ""
         assert rom.n == n
         assert rom.r == r
-        assert isinstance(rom.basis, opinf.pre.LinearBasis)
+        assert isinstance(rom.basis, opinf.basis.LinearBasis)
         assert np.all(rom.basis.entries == Vr)
         assert rom.m == 0
         assert np.allclose(Q_, Vr.T @ Q)
@@ -494,7 +494,7 @@ class TestNonparametricOpInfROM:
         assert rom.n is None
 
         # Add the basis and then load the file correctly.
-        basis = opinf.pre.LinearBasis().fit(Vr)
+        basis = opinf.basis.LinearBasis().fit(Vr)
         with h5py.File(target, 'a') as hf:
             hf["meta"].attrs["BasisClass"] = "LinearBasis"
             basis.save(hf.create_group("basis"))

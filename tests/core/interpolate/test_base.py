@@ -492,7 +492,7 @@ class TestInterpolatedOpInfROM:
         assert rom.basis is None
 
         # Add the basis and then load the file correctly.
-        basis = opinf.pre.LinearBasis().fit(Vr)
+        basis = opinf.basis.LinearBasis().fit(Vr)
         with h5py.File(target, 'a') as hf:
             hf["meta"].attrs["BasisClass"] = "LinearBasis"
             basis.save(hf.create_group("basis"))
