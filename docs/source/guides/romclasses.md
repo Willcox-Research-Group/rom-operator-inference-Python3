@@ -81,7 +81,7 @@ If there is no input (meaning `modelform` does not contain `'B'`), then `m` is s
 
 The `basis` attribute is the mapping between the $n$-dimensional state space of the full-order data and the smaller $r$-dimensional state space of the reduced-order model (e.g., POD basis).
 This is the first input to the `fit()` method.
-See [Basis Computation](sec-basis-computation) for details.
+See the [Dimensionality Reduction](sec-guide-dimensionality) guide for details.
 
 ### Operators
 
@@ -256,7 +256,7 @@ All ROM classes have the following methods.
 The `compress()` method maps a state quantity from the high-dimensional space $\mathbb{R}^{n}$ to the low-dimensional space $\mathbb{R}^{r}$.
 Conversely, `decompress()` maps from $\mathbb{R}^{r}$ to $\mathbb{R}^{n}$.
 <!-- These methods are not quite inverses: the results of `decompress()` are restricted to the portion of $\mathbb{R}^{n}$ that can be represented through the underlying basis. -->
-These methods wrap the `compress()` and `decompress()` methods of the `basis` attribute; see [Preprocessing](sec-preprocessing) and [Basis Computation](sec-basis-computation) for more details.
+These methods wrap the `compress()` and `decompress()` methods of the `basis` attribute.
 
 ### Training
 

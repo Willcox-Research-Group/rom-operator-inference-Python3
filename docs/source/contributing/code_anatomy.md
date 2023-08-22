@@ -4,7 +4,8 @@
 This page briefly reviews the package anatomy and gives instructions for new additions.
 The source code is stored in [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) and is divided into the following submodules:
 - `core`: operator and reduced-order model classes.
-- [**pre**](opinf.pre): pre-processing tools (basis computation, state transformations, etc.).
+- [**pre**](opinf.pre): pre-processing tools for transforming snapshots before dimension reduction.
+- [**basis**](opinf.basis): dimensionality reduction (compression) tools.
 - [**lstsq**](opinf.lstsq): solvers for the least-squares regression problem at the heart of Operator Inference.
 - [**post**](opinf.post): post-processing tools (mostly error evaluation).
 - [**utils**](opinf.utils): other routines that don't obviously fit into another submodule. These functions are usually not important for casual users, but advanced users and developers may need access to them.
@@ -44,33 +45,41 @@ See [Linting](sec-contrib-linting) for more.
 
 ## Pre Module
 
-The [**pre**](opinf.pre) submodule contains all transformer and basis class definitions.
-Transformers and bases can be _monolithic_ (treating the state as one variable) or _multivariable_ (treating different chunks of the state as separate variables).
-Multivariable transformers and bases inherit from `pre._multivar._MultivarMixin` and should have, as attributes, a list of monolithic counterparts.
+The [**pre**](opinf.pre) submodule contains transformer class definitions and related tools.
+Transformers can be _monolithic_ (treating the state as one variable) or _multivariable_ (treating different chunks of the state as separate variables).
+Multivariable transformers and bases inherit from `_multivar._MultivarMixin` and should have, as attributes, a list of monolithic counterparts.
 
-Read [Data Scaling](sec-pre-scaling) and [Basis Computation](sec-basis-computation) before starting work here.
+Read [Data Preprocessing](sec-guide-preprocessing) before starting work here.
 
 (subsec-contrib-transformerclass)=
 ### Transformer Classes
 
 All transformer classes must
-- Inherit from `pre.transform._base._BaseTransformer`.
+- Inherit from `pre._base._BaseTransformer`.
 - Accept and store any hyperparameters (transformation settings) in the constructor.
-- Implement `transform()`, `fit_transform()`, and `inverse_transform()`. Note that `fit()` is alredy implemented in `_BaseTransformer`.
+- Implement `transform()`, `fit_transform()`, and `inverse_transform()`. Note that `fit()` is already implemented in `_BaseTransformer` and should work as long as `fit_transform()` is implemented.
 
-There are two main transformers, `SnapshotTransformer` (monolithic) and `SnapshotTransformerMulti` (multivariable).
+There are two basic transformers, `SnapshotTransformer` (monolithic) and `SnapshotTransformerMulti` (multivariable).
 These classes handle standard shifting / scaling transformations.
 Lifting transformations should not be added to this package disguised as snapshot transformers (too problem dependent).
+
+## Basis Module
+
+The [**basis**](opinf.basis) submodule contains basis class definitions and related tools.
+Bases can be _monolithic_ (treating the state as one variable) or _multivariable_ (treating different chunks of the state as separate variables).
+Multivariable transformers and bases inherit from `_multivar._MultivarMixin` and should have, as attributes, a list of monolithic counterparts.
+
+Read [Dimensionality Reduction](sec-guide-dimensionality) before starting work here.
 
 (subsec-contrib-basisclass)=
 ### Basis Classes
 
 All basis classes must
-- Inherit from `pre.basis._base._BaseBasis`.
-- Accept `transformer` as an argument and call `_BaseBasis.__init__(self, transformer)` in the constructor.
+- Inherit from `basis._base._BaseBasis`.
+- Accept and store any hyperparameters in the constructor.
 - Implement `fit()`, `compress()`, and `decompress()`.
 
-Note that `project()` is **not** the same as `compress()`: `project(q) = decompress(compress(q))`. This is a change from previous versions.
+Note that `project()` is **not** the same as `compress()`: `project(q) = decompress(compress(q))`. This is a name change from previous versions.
 
 Before implementing a new basis class, take a close look at `LinearBasis` and then `PODBasis`.
 

@@ -1,5 +1,5 @@
-(sec-basis-computation)=
-# Basis Computation
+(sec-guide-dimensionality)=
+# Dimensionality Reduction
 
 The purpose of learning a reduced-order model is to achieve a computational speedup, which is a result of reducing the dimension of the state $\mathbf{q}(t)\in\mathbb{R}^{n}$ from $n$ to $r \ll n$.
 This is accomplished by introducing a low-dimensional approximation $\mathbf{q}(t) \approx \boldsymbol{\Gamma}(\widehat{\mathbf{q}}(t))$, where $\widehat{\mathbf{q}}(t)\in\mathbb{R}^{r}$.
@@ -36,7 +36,8 @@ $$
     \end{array}\right] \in \mathbb{R}^{r}.
 $$
 
-We call $\mathbf{V}_{r} \in \mathbb{R}^{n \times r}$ the _basis matrix_ and typically require that it has orthonormal columns, i.e., $\mathbf{V}^{\mathsf{T}}\mathbf{V} = \mathbf{I} \in \mathbb{R}^{r \times r}$, the identity matrix.
+The matrix $\mathbf{V}_{r} \in \mathbb{R}^{n \times r}$ is called the _basis matrix_.
+We typically require that it has orthonormal columns, i.e., $\mathbf{V}^{\mathsf{T}}\mathbf{V} = \mathbf{I} \in \mathbb{R}^{r \times r}$, the identity matrix.
 Through {eq}`eq-basis-basis-def`, the basis matrix is the link between the high-dimensional state space of the full-order model and the low-dimensional state space of the reduced-order model.
 
 :::{image} ../../images/basis-projection.svg
@@ -44,11 +45,13 @@ Through {eq}`eq-basis-basis-def`, the basis matrix is the link between the high-
 :width: 80 %
 :::
 
-<!-- :::::{note}
-If $\mathbf{V}_{r}\in\mathbb{R}^{n\times r}$ has orthogonal columns, the corresponding encoder is $\boldsymbol{\Gamma}^{*}(\mathbf{q}) = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$.
+The [**basis.LinearBasis**](opinf.basis.LinearBasis) class implements this type of basis.
+
+:::::{note}
+If $\mathbf{V}_{r}\in\mathbb{R}^{n\times r}$ has orthogonal columns, the appropriate compression operator is $\boldsymbol{\Gamma}^{*}(\mathbf{q}) = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$.
 
 :::{dropdown} Proof
-The encoder is defined by
+The optimal compression operator is defined by
 
 $$
     \boldsymbol{\Gamma}^{*}(\mathbf{q})
@@ -83,13 +86,13 @@ $$
 :margin: 2 2 0 0
 
 :::{grid-item-card}
-`encode(state)`
+`compress(state)`
 ^^^
 $\mathbf{q} \to \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$
 :::
 
 :::{grid-item-card}
-`decode(state_)`
+`decompress(state_)`
 ^^^
 $\widehat{\mathbf{q}} \to \mathbf{V}_{r}\widehat{\mathbf{q}}$
 :::
@@ -101,7 +104,7 @@ $\mathbf{q}\to\mathbf{V}_{r}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$.
 :::
 ::::
 
-Orthogonal bases also enjoy the property that `encode(decode(q_)) = q_`:
+Orthogonal bases also enjoy the property that `compress(decompress(q_)) = q_`:
 
 $$
     \boldsymbol{\Gamma}^{*}(\boldsymbol{\Gamma}(\widehat{\mathbf{q}}))
@@ -109,38 +112,15 @@ $$
     = \widehat{\mathbf{q}}.
 $$
 
-::::: -->
-
-<!-- :::{note}
-If the data is preprocessed, for example using `pre.SnapshotTransformer`, then the low-dimensional representation is slightly different from {eq}`eq-basis-basis-def`.
-For example, suppose we first change variables from the original states $\mathbf{q}(t)$ using a lifting transformation $\mathcal{L}$.
-Then {eq}`eq-basis-basis-def` becomes
-
-$$
-    \mathbf{q}(t)
-    \approx \mathbf{V}_{r} \mathcal{L}(\widehat{\mathbf{q}}(t)).
-$$
-
-If the data is also shifted by the mean (transformed) snapshot $\bar{\mathbf{q}}$ before computing the basis, then the representation is the following:
-
-$$
-    \mathbf{q}(t)
-    \approx \bar{\mathbf{q}} + \mathbf{V}_{r} \mathcal{L}(\widehat{\mathbf{q}}(t)).
-$$
-
-Finally, if the shifted data is also scaled before computing the basis with a scaling transformation $\mathcal{S}$, then the representation is as follows.
-
-$$
-    \mathbf{q}(t)
-    \approx \bar{\mathbf{q}} + \mathbf{V}_{r} \mathcal{S}(\mathcal{L}(\widehat{\mathbf{q}}(t))).
-$$
-::: -->
+If $\mathbf{V}_{r}\in\mathbb{R}^{n\times r}$ does _not_ have orthogonal columns, the appropriate compression operator is $\boldsymbol{\Gamma}^{*}(\mathbf{q}) = \mathbf{V}_{r}^{\dagger}\mathbf{q}$, where $\mathbf{V}_{r}^{\dagger}$ is the [Moore-Penrose pseudoinverse](https://en.wikipedia.org/wiki/Moore%E2%80%93Penrose_inverse) of $\mathbf{V}_{r}$.
+:::::
 
 (subsec-pod)=
 ## Proper Orthogonal Decomposition
 
-Any low-dimensional representation or choice of basis can be used with OpInf, but for most problems we suggest using the [proper orthogonal decomposition](https://en.wikipedia.org/wiki/Proper_orthogonal_decomposition) (POD), which is closely related to the [singular value decomposition](https://en.wikipedia.org/wiki/Singular_value_decomposition) (SVD) and [principal component analysis](https://en.wikipedia.org/wiki/Principal_component_analysis) (PCA).
+Any low-dimensional representation or choice of basis can be used with OpInf, but for most problems we suggest using the [proper orthogonal decomposition](https://en.wikipedia.org/wiki/Proper_orthogonal_decomposition) (POD), a linear basis that is closely related to the [singular value decomposition](https://en.wikipedia.org/wiki/Singular_value_decomposition) (SVD) and [principal component analysis](https://en.wikipedia.org/wiki/Principal_component_analysis) (PCA).
 The POD basis consists of the first $r < n$ left singular vectors of the state snapshot matrix: if $\mathbf{Q} = \boldsymbol{\Phi}\boldsymbol{\Sigma}\boldsymbol{\Psi}^{\mathsf{T}}$ is the (thin) SVD of $\mathbf{Q}$, then we set $\mathbf{V}_{r} = \boldsymbol{\Phi}_{:,:r}$.
+The function [**basis.pod_basis()**](opinf.basis.pod_basis) and the class [**basis.PODBasis**](opinf.basis.PODBasis) implement these approaches.
 
 ### Computation Strategies
 
@@ -149,26 +129,23 @@ This method may be inefficient for very large snapshot matrices $\mathbf{Q}$; in
 
 ::::{margin}
 :::{note}
-If `r` is not specified, the number of singular values `pre.pod_basis()` returns is always $\min\{n,k\}$.
+If `r` is not specified, the number of singular values `basis.pod_basis()` returns is always $\min\{n,k\}$.
 When `r` is specified, the number of returned singular values depends on the `mode`:
 - `"dense"` (default): all $\min\{n,k\}$ singular values.
 - `"randomized"`: only the first $r$ singular values.
 :::
 ::::
 
-The function `pre.pod_basis()` implements these approaches.
 The `mode` keyword argument specifies the strategy for computing the basis:
-- `"dense"` (default): Use [`scipy.linalg.svd()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.svd.html) to compute the full SVD.
-- `"randomized"`: Use [`sklearn.utils.extmath.randomized_svd()`](https://scikit-learn.org/stable/modules/generated/sklearn.utils.extmath.randomized_svd.html) to compute the randomized SVD.
-
-<!-- - `"sparse"`: Use [`scipy.sparse.linalg.svds()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.svds.html) to compute only the first $r$ left singular vectors with [ARPACK](https://www.caam.rice.edu/software/ARPACK/). This method is most effective for [sparse](https://docs.scipy.org/doc/scipy/reference/sparse.html) snapshot matrices. -->
+- `"dense"` (default): Use [**scipy.linalg.svd()**](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.svd.html) to compute the full SVD.
+- `"randomized"`: Use [**sklearn.utils.extmath.randomized_svd()**](https://scikit-learn.org/stable/modules/generated/sklearn.utils.extmath.randomized_svd.html) to compute the randomized SVD.
 
 Additional parameters for the SVD solver can be included with the `options` keyword argument.
-For example, the following call tells `scipy.linalg.svd()` to use a non-default solver.
+For example, the following call tells [**scipy.linalg.svd()**](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.svd.html) to use a non-default solver.
 
 ```python
->>> opinf.pre.pod_basis(states, r=10, mode="dense",
-...                     options=dict(lapack_driver="gesvd"))
+>>> opinf.basis.pod_basis(states, r=10, mode="dense",
+...                       options=dict(lapack_driver="gesvd"))
 ```
 
 (subsec-basis-size)=
@@ -176,7 +153,7 @@ For example, the following call tells `scipy.linalg.svd()` to use a non-default 
 
 ::::{margin}
 :::{tip}
-Choosing $r$ carefully is important: if $r$ is too small, the basis may not be expressive enough to capture the features of the solution; as $r$ increases, so does the computational cost of solving the reduced-order model.
+Choosing $r$ carefully is important: if $r$ is too small, the basis may not be expressive enough to capture the features of the solution, but as $r$ increases, so does the computational cost of solving the reduced-order model.
 :::
 ::::
 
@@ -192,15 +169,15 @@ $
     \mathcal{E}_{r}(\mathbf{Q})
     = \frac{\sum_{j=1}^{r}\sigma_{j}^{2}}{\sum_{j=1}^{\ell}\sigma_{j}^{2}}.
 $
-We call $\mathcal{E}_{r}(\mathbf{Q})$ the _cumulative energy_, which represents how much "energy" in the system is captured by the first $r$ POD modes.
+The value $\mathcal{E}_{r}(\mathbf{Q})$ is called the _cumulative energy_, which represents how much "energy" in the system is captured by the first $r$ POD modes.
 - **Residual energy**. Choose the smallest integer $r$ such that $1 - \mathcal{E}_{r}(\mathbf{Q}) = \frac{\sum_{j =r+1}^{\ell}\sigma_{j}^{2}}{\sum_{j=1}^{\ell}\sigma_{j}^{2}} < \varepsilon$. This is equivalent to the previous strategy with $\varepsilon = 1 - \kappa$.
-We call $1 - \mathcal{E}_{r}(\mathbf{Q})$ the _residual energy_, which represents how much "energy" in the system is neglected by discarding all but the first $r$ POD modes.
+The value $1 - \mathcal{E}_{r}(\mathbf{Q})$ is called the _residual energy_, which represents how much "energy" in the system is neglected by discarding all but the first $r$ POD modes.
 - **Projection error**. Choose the smallest integer $r$ such that $\mathcal{P}_{r}(\mathbf{Q}) < \varepsilon$, where
 $
     \mathcal{P}_{r}(\mathbf{Q})
     = \frac{\|\mathbf{Q} - \mathbf{V}_{r}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{Q}\|_{F}}{\|\mathbf{Q}\|_{F}}.
 $
-We call $\mathcal{P}_{r}(\mathbf{Q})$ the _projection error_, which quantifies how well $\mathbf{Q}$ can be represented in the column span of $\mathbf{V}_{r}$.
+The value $\mathcal{P}_{r}(\mathbf{Q})$ is called the _projection error_, which quantifies how well $\mathbf{Q}$ can be represented in the column span of $\mathbf{V}_{r}$.
 
 ::::{margin}
 :::{tip}
@@ -215,10 +192,10 @@ The following functions help measure these criteria.
 
 | Function | Description |
 | :------- | :---------- |
-| `opinf.pre.svdval_decay()` | Plot the singular value decay and counts the number of singular values that are larger than a given $\varepsilon$. |
-| `pre.cumulative_energy()` | Plot the cumulative energy as a function of $r$. |
-| `pre.residual_energy()` | Plot the residual energy as a function of $r$. |
-| `pre.projection_error()` | Calculate projection error. |
+| [**basis.svdval_decay()**](opinf.basis.svdval_decay) | Plot the singular value decay and counts the number of singular values that are larger than a given $\varepsilon$. |
+| [**basis.cumulative_energy()**](opinf.basis.cumulative_energy) | Plot the cumulative energy as a function of $r$. |
+| [**basis.residual_energy()**](opinf.basis.residual_energy) | Plot the residual energy as a function of $r$. |
+| [**basis.projection_error()**](opinf.basis.projection_error) | Calculate projection error. |
 
 ::::{note}
 Each of the singular value-based selection criteria are related.
@@ -325,56 +302,3 @@ $$
 
 :::
 ::::
-
-<!-- ## Basis Classes
-
-The `pre` module implements convenience classes for representing low-dimensional approximations.
-
-### LinearBasis
-
-The class `pre.LinearBasis` represents a linear basis and has the following attributes and methods.
-
-| Attribute | Description |
-| :-------- | :---------- |
-| `n` | Dimension of the high-dimensional state space. |
-| `r` | Dimension of the low-dimensional latent space. |
-| `entries` | Entries of the basis, the array $\mathbf{V}_{r}$. |
-
-| Method | Description |
-| :----- | :---------- |
-| `fit()` | Store a basis matrix. |
-| `encode()` | Encode a high-dimensional state vector in low-dimensional latent coordinates. |
-| `decode()` | Decode low-dimensional latent coordinates to the high-dimensional state space. |
-| `project()` | Project a high-dimensional state vector, i.e., $\mathbf{q} \to \mathbf{V}_{r}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$. |
-| `projection_error()` | Calculate the projection error of a high-dimensional state vector. |
-| `save()` | Save the basis to an HDF5 file. |
-| `load()` | Load a basis previously saved to an HDF5 file. |
-
-The [ROM classes](sec-romclasses) wrap basis matrices as a `LinearBasis` object under the hood.
-
-### PODBasis
-
-The class `pre.PODBasis` inherits from `pre.LinearBasis` and calculates the basis matrix in `fit()` or `fit_randomize()`.
-
-| Attribute | Description |
-| :-------- | :---------- |
-| `n` | Dimension of the high-dimensional state space. |
-| `r` | Dimension of the low-dimensional latent space. |
-| `entries` | Entries of the basis, the array $\mathbf{V}_{r}$. |
-| `svdvals` | Singular values associated with the basis vectors. |
-| `dual` | Right singular vectors, $\boldsymbol{\Psi}$. |
-| `rmax` | Total number of stored basis vectors, i.e., the maximal value for `r`. |
-| `economize` | If True, throw away basis vectors beyond the first `r` whenever `r` is changed. |
-
-| Method | Description |
-| :----- | :---------- |
-| `fit()` | Compute the POD basis matrix via SVD through `scipy.linalg.svd()`. |
-| `fit_randomized()` | Compute the POD basis via randomized SVD through `sklearn.utils.extmath.randomized_svd()`. |
-| `encode()` | Encode a high-dimensional state vector in low-dimensional latent coordinates. |
-| `decode()` | Decode low-dimensional latent coordinates to the high-dimensional state space. |
-| `project()` | Project a high-dimensional state vector, i.e., $\mathbf{q} \to \mathbf{V}_{r}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}$. |
-| `projection_error()` | Calculate the projection error of a high-dimensional state vector. |
-| `save()` | Save the basis to an HDF5 file. |
-| `load()` | Load a basis previously saved to an HDF5 file. |
-
-Alternatively, the function `opinf.pre.pod_basis()` computes the basis matrix $\mathbf{V}_{r}$ and the associated singular values, i.e., the diagonal entries of $\boldsymbol{\Sigma}$. -->

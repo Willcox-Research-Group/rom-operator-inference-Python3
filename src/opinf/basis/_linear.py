@@ -85,6 +85,7 @@ class LinearBasis(_BaseBasis):
             not hasattr(basis, "T") or not hasattr(basis, "__matmul__")
         ):
             raise TypeError("invalid basis")
+        # TODO: check for orthogonality?
         self.__entries = basis
         return self
 

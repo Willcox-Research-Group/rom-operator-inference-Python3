@@ -153,7 +153,7 @@ Common preprocessing steps include
 2. Centering or shifting data to account for boundary conditions.
 3. Scaling / nondimensionalizing the variables represented in the state.
 
-See [Data Scaling](sec-pre-scaling) for details and examples.
+See [Data Preprocessing](sec-guide-preprocessing) for details and examples.
 :::
 
 Operator Inference uses a regression problem to compute the reduced-order operators, which requires state data ($\mathbf{Q}$), input data ($\mathbf{U}$), _and_ data for the corresponding time derivatives:
@@ -234,7 +234,7 @@ The basis matrix is the link between the high-dimensional state space of the ful
 :width: 80 %
 :::
 
-See [Basis Computation](sec-basis-computation) for tools to compute the basis $\mathbf{V}_{r}\in\mathbb{R}^{n \times r}$ and select an appropriate dimension $r$.
+See [Dimensionality Reduction](sec-guide-dimensionality) for tools to compute the basis $\mathbf{V}_{r}\in\mathbb{R}^{n \times r}$ and select an appropriate dimension $r$.
 
 <!-- :::{tip}
 In the case of finite differences, the time derivative estimation can be done after the data is projected to the low-dimensional subspace defined by the basis (the column space of $\mathbf{V}_{r}$).
