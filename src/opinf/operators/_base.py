@@ -114,7 +114,7 @@ class _BaseParametricOperator(abc.ABC):
     def OperatorClass(self):
         """Class of nonparametric operator to represent this parametric
         operator at a particular parameter, a subclass of
-        core.operators._BaseNonparametricOperator:
+        operators._BaseNonparametricOperator:
         >>> type(MyParametricOperator(init_args)(parameter_value)).
         """
         return self._OperatorClass

@@ -10,7 +10,7 @@ from scipy import linalg as la
 import opinf
 
 from .. import (MODELFORM_KEYS, MODEL_FORMS,
-                _get_data, _get_operators, _trainedmodel, _isoperator)
+                _get_data, _get_operators, _trainedmodel)
 
 
 class TestNonparametricOpInfROM:
@@ -295,7 +295,7 @@ class TestNonparametricOpInfROM:
                 assert hasattr(rom, attr)
                 value = getattr(rom, attr)
                 if prefix in form:
-                    assert _isoperator(value)
+                    assert opinf.operators.is_operator(value)
                     assert value.shape == shapes[attr]
                 else:
                     assert value is None
@@ -330,8 +330,8 @@ class TestNonparametricOpInfROM:
         _, A, _, _, B = _get_operators(n, m)
         rom.fit(Vr, None, None, known_operators={"A": A, "B": B})
         assert rom.solver_ is None
-        assert _isoperator(rom.A_)
-        assert _isoperator(rom.B_)
+        assert opinf.operators.is_operator(rom.A_)
+        assert opinf.operators.is_operator(rom.B_)
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
         assert np.allclose(rom.B_.entries, Vr.T @ B)
 
@@ -414,7 +414,7 @@ class TestNonparametricOpInfROM:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_"]:
             got = getattr(rom2, attr)
-            assert _isoperator(got)
+            assert opinf.operators.is_operator(got)
             assert np.all(getattr(rom, attr).entries == got.entries)
         for attr in ["c_", "H_", "G_"]:
             assert getattr(rom, attr) is getattr(rom2, attr) is None
@@ -429,7 +429,7 @@ class TestNonparametricOpInfROM:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_"]:
             got = getattr(rom2, attr)
-            assert _isoperator(got)
+            assert opinf.operators.is_operator(got)
             assert np.all(getattr(rom, attr).entries == got.entries)
         for attr in ["n", "c_", "H_", "G_", "basis"]:
             assert getattr(rom, attr) is getattr(rom2, attr) is None
@@ -480,7 +480,7 @@ class TestNonparametricOpInfROM:
             assert rom.r == r
             assert rom.m == m
             for attr in ["c_", "A_", "B_"]:
-                assert _isoperator(getattr(rom, attr))
+                assert opinf.operators.is_operator(getattr(rom, attr))
             assert np.all(rom.c_.entries == c_)
             assert np.all(rom.A_.entries == A_)
             assert rom.H_ is None
@@ -520,7 +520,7 @@ class TestNonparametricOpInfROM:
         assert rom.r == r
         assert rom.m == 0
         for attr in ["H_", "G_"]:
-            assert _isoperator(getattr(rom, attr))
+            assert opinf.operators.is_operator(getattr(rom, attr))
         assert rom.c_ is None
         assert rom.A_ is None
         assert np.all(rom.H_.entries == H_)

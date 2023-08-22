@@ -15,15 +15,15 @@ def _get_interp_operators(s, r, m):
     """Get s 1D parameters and dummy interpolated operators."""
     params = np.sort(np.random.uniform(size=s))
     c_, A_, H_, G_, B_ = _get_operators(r, m)
-    c_ = opinf.core.operators.InterpolatedConstantOperator(
+    c_ = opinf.operators.InterpolatedConstantOperator(
         params, [c_ + p for p in params], scipy.interpolate.CubicSpline)
-    A_ = opinf.core.operators.InterpolatedLinearOperator(
+    A_ = opinf.operators.InterpolatedLinearOperator(
         params, [A_ + 2*p for p in params], scipy.interpolate.CubicSpline)
-    H_ = opinf.core.operators.InterpolatedQuadraticOperator(
+    H_ = opinf.operators.InterpolatedQuadraticOperator(
         params, [H_ + p**2 for p in params], scipy.interpolate.CubicSpline)
-    G_ = opinf.core.operators.InterpolatedCubicOperator(
+    G_ = opinf.operators.InterpolatedCubicOperator(
         params, [G_ + p**3 for p in params], scipy.interpolate.CubicSpline)
-    B_ = opinf.core.operators.InterpolatedLinearOperator(
+    B_ = opinf.operators.InterpolatedLinearOperator(
         params, [B_ + 2*p for p in params], scipy.interpolate.CubicSpline)
     return params, c_, A_, H_, G_, B_
 
@@ -41,7 +41,7 @@ class TestInterpolatedDiscreteOpInfROM:
     def test_evaluate(self, r=6, m=3, s=4):
         """Test InterpolatedDiscreteOpInfROM.evaluate()."""
         params, c_, A_, H_, G_, B_ = _get_interp_operators(s, r, m)
-        B1d_ = opinf.core.operators.InterpolatedLinearOperator(
+        B1d_ = opinf.operators.InterpolatedLinearOperator(
             params, [B[:, 0] for B in B_.matrices],
             scipy.interpolate.CubicSpline)
 
@@ -110,17 +110,17 @@ class TestInterpolatedDiscreteOpInfROM:
         rom.modelform = "cA"
         rom.fit(Vr, params, None, known_operators=dict(c=cs, A=As))
         assert isinstance(rom.c_,
-                          opinf.core.operators.InterpolatedConstantOperator)
+                          opinf.operators.InterpolatedConstantOperator)
         assert isinstance(rom.A_,
-                          opinf.core.operators.InterpolatedLinearOperator)
+                          opinf.operators.InterpolatedLinearOperator)
         assert np.allclose(rom.A_.matrices, [Vr.T @ A @ Vr for A in As])
         assert np.allclose(rom.c_.matrices, [Vr.T @ c for c in cs])
 
         # Special case: fully intrusive, fully nonparametric.
         rom.modelform = "BA"
         rom.fit(Vr, params, None, None, known_operators={"A": A, "B": B})
-        assert isinstance(rom.A_, opinf.core.operators.LinearOperator)
-        assert isinstance(rom.B_, opinf.core.operators.LinearOperator)
+        assert isinstance(rom.A_, opinf.operators.LinearOperator)
+        assert isinstance(rom.B_, opinf.operators.LinearOperator)
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
         assert np.allclose(rom.B_.entries, Vr.T @ B)
 
@@ -129,7 +129,7 @@ class TestInterpolatedDiscreteOpInfROM:
         # Construct a dummy model.
         params = np.sort(np.random.uniform(size=s))
         A_ = np.random.random((r, r))
-        A_ = opinf.core.operators.InterpolatedLinearOperator(
+        A_ = opinf.operators.InterpolatedLinearOperator(
             params, [A_/(1 + p)**2 for p in params],
             scipy.interpolate.CubicSpline)
         rom = self.ModelClass("A")
@@ -216,17 +216,17 @@ class TestInterpolatedContinuousOpInfROM:
         rom.modelform = "cA"
         rom.fit(Vr, params, None, None, known_operators=dict(c=cs, A=As))
         assert isinstance(rom.c_,
-                          opinf.core.operators.InterpolatedConstantOperator)
+                          opinf.operators.InterpolatedConstantOperator)
         assert isinstance(rom.A_,
-                          opinf.core.operators.InterpolatedLinearOperator)
+                          opinf.operators.InterpolatedLinearOperator)
         assert np.allclose(rom.A_.matrices, [Vr.T @ A @ Vr for A in As])
         assert np.allclose(rom.c_.matrices, [Vr.T @ c for c in cs])
 
         # Special case: fully intrusive, fully nonparametric.
         rom.modelform = "BA"
         rom.fit(Vr, params, None, None, known_operators={"A": A, "B": B})
-        assert isinstance(rom.A_, opinf.core.operators.LinearOperator)
-        assert isinstance(rom.B_, opinf.core.operators.LinearOperator)
+        assert isinstance(rom.A_, opinf.operators.LinearOperator)
+        assert isinstance(rom.B_, opinf.operators.LinearOperator)
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
         assert np.allclose(rom.B_.entries, Vr.T @ B)
 
@@ -235,7 +235,7 @@ class TestInterpolatedContinuousOpInfROM:
         # Construct a dummy model.
         params = np.sort(np.random.uniform(size=s))
         A_ = np.eye(r)
-        A_ = opinf.core.operators.InterpolatedLinearOperator(
+        A_ = opinf.operators.InterpolatedLinearOperator(
             params, [A_/(1 + p)**2 for p in params],
             scipy.interpolate.CubicSpline)
         rom = self.ModelClass("A")

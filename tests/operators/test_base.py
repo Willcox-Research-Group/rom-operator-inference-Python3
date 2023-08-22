@@ -1,5 +1,5 @@
-# core/operators/test_base.py
-"""Tests for core.operators._base."""
+# operators/test_base.py
+"""Tests for operators._base."""
 
 import pytest
 import numpy as np
@@ -7,11 +7,11 @@ import numpy as np
 import opinf
 
 
-_module = opinf.core.operators._base
+_module = opinf.operators._base
 
 
 class TestBaseNonparametricOperator:
-    """Test core.operators._nonparametric._BaseNonparametricOperator."""
+    """Test operators._nonparametric._BaseNonparametricOperator."""
     class Dummy(_module._BaseNonparametricOperator):
         """Instantiable version of _BaseNonparametricOperator."""
         def __init__(self, entries):
@@ -82,7 +82,7 @@ class TestBaseNonparametricOperator:
 
 
 class TestBaseParametricOperator:
-    """Test core.operators._nonparametric._BaseNonparametricOperator."""
+    """Test operators._nonparametric._BaseNonparametricOperator."""
     class Dummy(_module._BaseParametricOperator):
         """Instantiable version of _BaseParametricOperator."""
         _OperatorClass = _module._BaseNonparametricOperator

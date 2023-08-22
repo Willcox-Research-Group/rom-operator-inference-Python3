@@ -1,16 +1,16 @@
-# core/operators/test_affine.py
-"""Tests for core.operators._affine."""
+# operators/test_affine.py
+"""Tests for operators._affine."""
 
 import pytest
 import numpy as np
 
 import opinf
 
-from .. import _get_operators
+from . import _get_operators
 
 
-_module = opinf.core.operators._affine
-_base = opinf.core.operators._base
+_module = opinf.operators._affine
+_base = opinf.operators._base
 
 
 class _OperatorDummy(_base._BaseNonparametricOperator):
@@ -26,10 +26,10 @@ class _OperatorDummy(_base._BaseNonparametricOperator):
 
 
 class TestAffineOperator:
-    """Test opinf.core.operators._affine._AffineOperator."""
+    """Test operators._affine._AffineOperator."""
 
     class Dummy(_module._AffineOperator):
-        """Instantiable version of core.operators._affine._AffineOperator."""
+        """Instantiable version of operators._affine._AffineOperator."""
         _OperatorClass = _OperatorDummy
 
     @staticmethod
@@ -40,7 +40,7 @@ class TestAffineOperator:
         return coefficient_functions, matrices
 
     def test_init(self):
-        """Test core.operators._affine._AffineOperator.__init__()."""
+        """Test operators._affine._AffineOperator.__init__()."""
         funcs, matrices = self._set_up_affine_expansion()
 
         # Try with non-callables.
@@ -156,21 +156,21 @@ def test_affineoperators(r=10, m=3, s=5):
     # Call each affine operator on a new parameter.
     p = .314159
     c_new = caffineop(p)
-    assert isinstance(c_new, opinf.core.operators.ConstantOperator)
+    assert isinstance(c_new, opinf.operators.ConstantOperator)
     assert c_new.shape == c.shape
 
     A_new = Aaffineop(p)
-    assert isinstance(A_new, opinf.core.operators.LinearOperator)
+    assert isinstance(A_new, opinf.operators.LinearOperator)
     assert A_new.shape == A.shape
 
     H_new = Haffineop(p)
-    assert isinstance(H_new, opinf.core.operators.QuadraticOperator)
+    assert isinstance(H_new, opinf.operators.QuadraticOperator)
     assert H_new.shape == H.shape
 
     G_new = Gaffineop(p)
-    assert isinstance(G_new, opinf.core.operators.CubicOperator)
+    assert isinstance(G_new, opinf.operators.CubicOperator)
     assert G_new.shape == G.shape
 
     B_new = Baffineop(p)
-    assert isinstance(B_new, opinf.core.operators.LinearOperator)
+    assert isinstance(B_new, opinf.operators.LinearOperator)
     assert B_new.shape == B.shape

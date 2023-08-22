@@ -1,5 +1,5 @@
-# core/operators/test_interpolate.py
-"""Tests for core.operators._interpolate."""
+# operators/test_interpolate.py
+"""Tests for operators._interpolate."""
 
 import pytest
 import numpy as np
@@ -7,10 +7,10 @@ import scipy.interpolate as interp
 
 import opinf
 
-from .. import _get_operators
+from . import _get_operators
 
-_module = opinf.core.operators._interpolate
-_base = opinf.core.operators._base
+_module = opinf.operators._interpolate
+_base = opinf.operators._base
 
 
 class _OperatorDummy(_base._BaseNonparametricOperator):
@@ -39,7 +39,7 @@ class _InterpolatorDummy:
 
 
 class TestInterpolatedOperator:
-    """Test opinf.core.operators._interpolate._InterpolatedOperator."""
+    """Test operators._interpolate._InterpolatedOperator."""
 
     class Dummy(_module._InterpolatedOperator):
         """Instantiable version of _InterpolatedOperator."""
@@ -175,23 +175,23 @@ def test_1Doperators(r=10, m=3, s=5):
             operator.set_interpolator(IC)
 
         c_new = cinterp(parameter)
-        assert isinstance(c_new, opinf.core.operators.ConstantOperator)
+        assert isinstance(c_new, opinf.operators.ConstantOperator)
         assert c_new.shape == c.shape
 
         A_new = Ainterp(parameter)
-        assert isinstance(A_new, opinf.core.operators.LinearOperator)
+        assert isinstance(A_new, opinf.operators.LinearOperator)
         assert A_new.shape == A.shape
 
         H_new = Hinterp(parameter)
-        assert isinstance(H_new, opinf.core.operators.QuadraticOperator)
+        assert isinstance(H_new, opinf.operators.QuadraticOperator)
         assert H_new.shape == H.shape
 
         G_new = Ginterp(parameter)
-        assert isinstance(G_new, opinf.core.operators.CubicOperator)
+        assert isinstance(G_new, opinf.operators.CubicOperator)
         assert G_new.shape == G.shape
 
         B_new = Binterp(parameter)
-        assert isinstance(B_new, opinf.core.operators.LinearOperator)
+        assert isinstance(B_new, opinf.operators.LinearOperator)
         assert B_new.shape == B.shape
 
         with pytest.raises(ValueError) as ex:

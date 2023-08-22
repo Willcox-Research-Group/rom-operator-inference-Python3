@@ -210,14 +210,14 @@ class TestInterpolatedOpInfROM:
         assert rom.m == m
         assert rom.c_ is None
         assert isinstance(rom.A_,
-                          opinf.core.operators.InterpolatedLinearOperator)
+                          opinf.operators.InterpolatedLinearOperator)
         assert isinstance(rom.A_.interpolator, rom.InterpolatorClass)
         assert len(rom.A_.matrices) == s
         for i, nonparametricrom in enumerate(roms):
             assert np.all(rom.A_.matrices[i] == nonparametricrom.A_.entries)
         assert rom.H_ is None
         assert rom.G_ is None
-        assert isinstance(rom.B_, opinf.core.operators.LinearOperator)
+        assert isinstance(rom.B_, opinf.operators.LinearOperator)
         assert np.all(rom.B_.entries == B)
 
     def test_fit(self, n=50, m=3, s=4, r=10, k=40):
@@ -246,13 +246,13 @@ class TestInterpolatedOpInfROM:
 
         # Check consistency with the non-parametric ROMs at training points.
         for i in range(s):
-            assert isinstance(rom.c_, opinf.core.operators.ConstantOperator)
+            assert isinstance(rom.c_, opinf.operators.ConstantOperator)
             assert np.all(rom.c_.entries == c_)
             assert isinstance(rom.A_,
-                              opinf.core.operators.InterpolatedLinearOperator)
+                              opinf.operators.InterpolatedLinearOperator)
             assert np.all(rom.A_.matrices[i] == nproms[i].A_.entries)
             assert isinstance(rom.B_,
-                              opinf.core.operators.InterpolatedLinearOperator)
+                              opinf.operators.InterpolatedLinearOperator)
             assert np.all(rom.B_.matrices[i] == nproms[i].B_.entries)
 
     def test_set_interpolator(self, m=2, s=5, r=8):
@@ -275,14 +275,14 @@ class TestInterpolatedOpInfROM:
 
         # Verify initial interpolation.
         assert isinstance(rom.A_,
-                          opinf.core.operators.InterpolatedLinearOperator)
+                          opinf.operators.InterpolatedLinearOperator)
         assert isinstance(rom.A_.interpolator, scipy.interpolate.CubicSpline)
         assert len(rom.A_.matrices) == s
         for i, nonparametricrom in enumerate(roms):
             assert np.all(rom.A_.matrices[i] == nonparametricrom.A_.entries)
         assert rom.H_ is None
         assert rom.G_ is None
-        assert isinstance(rom.B_, opinf.core.operators.LinearOperator)
+        assert isinstance(rom.B_, opinf.operators.LinearOperator)
         assert np.all(rom.B_.entries == B)
 
         # Change the interpolator and verify.
@@ -292,7 +292,7 @@ class TestInterpolatedOpInfROM:
         assert len(rom.A_.matrices) == s
         for i, nonparametricrom in enumerate(roms):
             assert np.all(rom.A_.matrices[i] == nonparametricrom.A_.entries)
-        assert isinstance(rom.B_, opinf.core.operators.LinearOperator)
+        assert isinstance(rom.B_, opinf.operators.LinearOperator)
         assert np.all(rom.B_.entries == B)
 
     # Model persistence -------------------------------------------------------
@@ -394,7 +394,7 @@ class TestInterpolatedOpInfROM:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["A_", "B_"]:
             got = getattr(rom2, attr)
-            assert opinf.core.operators.is_operator(got)
+            assert opinf.operators.is_operator(got)
             assert np.allclose(getattr(rom, attr).matrices, got.matrices)
         for attr in ["c_", "H_", "G_"]:
             assert getattr(rom, attr) is getattr(rom2, attr) is None
@@ -410,7 +410,7 @@ class TestInterpolatedOpInfROM:
             assert getattr(rom, attr) == getattr(rom2, attr)
         for attr in ["c_", "H_"]:
             got = getattr(rom2, attr)
-            assert opinf.core.operators.is_operator(got)
+            assert opinf.operators.is_operator(got)
             assert np.allclose(getattr(rom, attr).matrices, got.matrices)
         for attr in ["n", "A_", "B_", "G_", "basis"]:
             assert getattr(rom, attr) is getattr(rom2, attr) is None
@@ -479,7 +479,7 @@ class TestInterpolatedOpInfROM:
             assert rom.r == r
             assert rom.m == m
             for attr in ["c_", "A_", "B_"]:
-                assert opinf.core.operators.is_operator(getattr(rom, attr))
+                assert opinf.operators.is_operator(getattr(rom, attr))
             assert np.allclose(rom.c_.matrices, ops['c'])
             assert np.all(rom.A_.entries == ops['A'])
             assert rom.H_ is None
@@ -517,7 +517,7 @@ class TestInterpolatedOpInfROM:
         assert rom.r == r
         assert rom.m == 0
         for attr in ["H_", "G_"]:
-            assert opinf.core.operators.is_operator(getattr(rom, attr))
+            assert opinf.operators.is_operator(getattr(rom, attr))
         assert rom.c_ is None
         assert rom.A_ is None
         assert np.allclose(rom.H_.matrices, ops["H"])

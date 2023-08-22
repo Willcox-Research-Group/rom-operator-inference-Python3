@@ -711,7 +711,7 @@ class TestBaseParametricROM:
         """Instantiable version of _BaseParametricROM."""
         _ModelClass = TestBaseROM.Dummy
 
-    class DummyOperator(opinf.core.operators._base._BaseParametricOperator):
+    class DummyOperator(opinf.operators._base._BaseParametricOperator):
         """Instantiable version of _BaseParametricOperator."""
         def __init__(self, shape):
             self.entries = np.ones(shape)
