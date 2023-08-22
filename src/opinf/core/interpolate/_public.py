@@ -5,7 +5,7 @@ dependence of operators are handled with elementwise interpolation, i.e,
 where µ1, µ2, ... are parameter values and A1, A2, ... are the corresponding
 operator matrices, e.g., A1 = A(µ1).
 
-Relevant operator classes are defined in core.operators._interpolate.
+Relevant operator classes are defined in operators._interpolate.
 """
 
 __all__ = [
@@ -61,7 +61,7 @@ from ..nonparametric._frozen import (
 #         Basis matrix defining the relationship between the high- and
 #         low-dimensional state spaces. If None, arguments of fit() are assumed
 #         to be in the reduced dimension.
-#     c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+#     c_, A_, H_ G_, B_ : Operator objects (see opinf.operators) or None
 #         Low-dimensional operators composing the reduced-order model.
 #     """
 #     _ModelClass = _FrozenSteadyROM
@@ -194,7 +194,7 @@ class InterpolatedDiscreteOpInfROM(_InterpolatedOpInfROM):
         Basis matrix defining the relationship between the high- and
         low-dimensional state spaces. If None, arguments of fit() are assumed
         to be in the reduced dimension.
-    c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+    c_, A_, H_ G_, B_ : Operator objects (see opinf.operators) or None
         Low-dimensional operators composing the reduced-order model.
     """
     _ModelClass = _FrozenDiscreteROM
@@ -368,7 +368,7 @@ class InterpolatedContinuousOpInfROM(_InterpolatedOpInfROM):
         Basis matrix defining the relationship between the high- and
         low-dimensional state spaces. If None, arguments of fit() are assumed
         to be in the reduced dimension.
-    c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+    c_, A_, H_ G_, B_ : Operator objects (see opinf.operators) or None
         Low-dimensional operators composing the reduced-order model.
     """
     _ModelClass = _FrozenContinuousROM

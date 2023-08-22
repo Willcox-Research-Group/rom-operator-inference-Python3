@@ -5,7 +5,7 @@ dependencies of operators are handled with elementwise interpolation, i.e,
 where µ1, µ2, ... are parameter values and A1, A2, ... are the corresponding
 operator matrices, e.g., A1 = A(µ1).
 
-Relevant operator classes are defined in core.operators._interpolate.
+Relevant operator classes are defined in operators._interpolate.
 """
 
 __all__ = []

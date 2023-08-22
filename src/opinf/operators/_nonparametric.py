@@ -1,4 +1,4 @@
-# core/operators/_nonparametric.py
+# operators/_nonparametric.py
 """Classes for polynomial operators with no external parameter dependencies."""
 
 # TODO: Jacobian operations for each operator.
@@ -14,7 +14,7 @@ __all__ = [
 
 import numpy as np
 
-from ... import utils
+from .. import utils
 from ._base import _BaseNonparametricOperator
 
 
@@ -27,7 +27,7 @@ class ConstantOperator(_BaseNonparametricOperator):
     Examples
     --------
     >>> import numpy as np
-    >>> c = opinf.core.operators.ConstantOperator(np.random.random(10))
+    >>> c = opinf.operators.ConstantOperator(np.random.random(10))
     >>> c.evaluate()                # Extract c.
     """
     def __init__(self, entries):
@@ -61,7 +61,7 @@ class LinearOperator(_BaseNonparametricOperator):
     Examples
     --------
     >>> import numpy as np
-    >>> A = opinf.core.operators.LinearOperator(np.random.random((10, 10)))
+    >>> A = opinf.operators.LinearOperator(np.random.random((10, 10)))
     >>> q = np.random.random(10)
     >>> A.evaluate(q)               # Compute Aq.
     """
@@ -94,7 +94,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
     Examples
     --------
     >>> import numpy as np
-    >>> H = opinf.core.operators.QuadraticOperator(np.random.random((10, 100)))
+    >>> H = opinf.operators.QuadraticOperator(np.random.random((10, 100)))
     >>> q = np.random.random(10)
     >>> H.evaluate(q)               # Compute H[q ⊗ q].
     """
@@ -152,7 +152,7 @@ class CubicOperator(_BaseNonparametricOperator):
     Examples
     --------
     >>> import numpy as np
-    >>> G = opinf.core.operators.CubicOperator(np.random.random((10, 1000)))
+    >>> G = opinf.operators.CubicOperator(np.random.random((10, 1000)))
     >>> q = np.random.random(10)
     >>> G.evaluate(q)               # Compute G[q ⊗ q ⊗ q].
     """

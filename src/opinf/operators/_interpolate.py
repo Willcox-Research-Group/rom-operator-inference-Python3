@@ -1,4 +1,4 @@
-# core/operators/_interpolate.py
+# operators/_interpolate.py
 """Classes for parametric operators where the parametric dependence is handled
 with element-wise interpolation, i.e.,
 
@@ -47,7 +47,7 @@ class _InterpolatedOperator(_BaseParametricOperator):
         Shape of the operator entries.
     OperatorClass : class
         Class of operator to construct, a subclass of
-        core.operators._BaseNonparametricOperator.
+        operators._BaseNonparametricOperator.
     interpolator : scipy.interpolate class (or similar)
         Object that constructs the operator at new parameter values, i.e.,
         >>> new_operator_entries = interpolator(new_parameter)
@@ -175,7 +175,7 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
         Shape of the operator entries.
     OperatorClass : class
         Class of operator to construct, a subclass of
-        core.operators._BaseNonparametricOperator.
+        operators._BaseNonparametricOperator.
     interpolator : scipy.interpolate class (or similar)
         Object that constructs the operator at new parameter values, i.e.,
         >>> new_operator_entries = interpolator(new_parameter)
@@ -204,7 +204,7 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
         Shape of the operator entries.
     OperatorClass : class
         Class of operator to construct, a subclass of
-        core.operators._BaseNonparametricOperator.
+        operators._BaseNonparametricOperator.
     interpolator : scipy.interpolate class (or similar)
         Object that constructs the operator at new parameter values, i.e.,
         >>> new_operator_entries = interpolator(new_parameter)
@@ -233,7 +233,7 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
         Shape of the operator entries.
     OperatorClass : class
         Class of operator to construct, a subclass of
-        core.operators._BaseNonparametricOperator.
+        operators._BaseNonparametricOperator.
     interpolator : scipy.interpolate class (or similar)
         Object that constructs the operator at new parameter values, i.e.,
         >>> new_operator_entries = interpolator(new_parameter)
@@ -262,7 +262,7 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
         Shape of the operator entries.
     OperatorClass : class
         Class of operator to construct, a subclass of
-        core.operators._BaseNonparametricOperator.
+        operators._BaseNonparametricOperator.
     interpolator : scipy.interpolate class (or similar)
         Object that constructs the operator at new parameter values, i.e.,
         >>> new_operator_entries = interpolator(new_parameter)

@@ -45,7 +45,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         Basis matrix defining the relationship between the high- and
         low-dimensional state spaces. If None, arguments of fit() are assumed
         to be in the reduced dimension.
-    c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+    c_, A_, H_ G_, B_ : Operator objects (see opinf.operators) or None
         Low-dimensional operators composing the reduced-order model.
     """
     _LHS_ARGNAME = "forcing"
@@ -144,7 +144,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         Basis matrix defining the relationship between the high- and
         low-dimensional state spaces. If None, arguments of fit() are assumed
         to be in the reduced dimension.
-    c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+    c_, A_, H_ G_, B_ : Operator objects (see opinf.operators) or None
         Low-dimensional operators composing the reduced-order model.
     """
     _LHS_ARGNAME = "nextstates"
@@ -349,7 +349,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
     #     Basis matrix defining the relationship between the high- and
     #     low-dimensional state spaces. If None, arguments of fit() are assumed
     #     to be in the reduced dimension.
-    # c_, A_, H_ G_, B_ : Operator objects (see opinf.core.operators) or None
+    # c_, A_, H_ G_, B_ : Operator objects (see opinf.operators) or None
     #     Low-dimensional operators composing the reduced-order model.
     _LHS_ARGNAME = "ddts"
     _LHS_LABEL = "dq / dt"

@@ -10,7 +10,7 @@ where µ1, µ2, ... are parameter values and A1, A2, ... are the corresponding
 operator matrices, e.g., A1 = A(µ1).
 
 Relevant operator classes are defined in
-:ref:`core.operators._interpolate <opinf.core.operators._interpolate>`.
+:ref:`operators._interpolate <opinf.operators._interpolate>`.
 
 .. tip::
     This module is private.  All public objects are available in the

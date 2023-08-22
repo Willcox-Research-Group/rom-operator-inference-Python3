@@ -8,7 +8,7 @@ import scipy.linalg as la
 import opinf
 
 from .. import (MODEL_FORMS,
-                _get_data, _get_operators, _trainedmodel, _isoperator)
+                _get_data, _get_operators, _trainedmodel)
 
 
 class TestSteadyOpInfROM:
@@ -55,8 +55,8 @@ class TestSteadyOpInfROM:
         c, A, _, _, _ = _get_operators(n, 2)
         rom.fit(Vr, None, None, known_operators={"c": c, "A": A})
         assert rom.solver_ is None
-        assert _isoperator(rom.c_)
-        assert _isoperator(rom.A_)
+        assert opinf.operators.is_operator(rom.c_)
+        assert opinf.operators.is_operator(rom.A_)
         assert np.allclose(rom.c_.entries, Vr.T @ c)
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
 
@@ -130,8 +130,8 @@ class TestDiscreteOpInfROM:
         _, A, _, _, B = _get_operators(n, m)
         rom.fit(Vr, None, None, known_operators={"A": A, "B": B})
         assert rom.solver_ is None
-        assert _isoperator(rom.A_)
-        assert _isoperator(rom.B_)
+        assert opinf.operators.is_operator(rom.A_)
+        assert opinf.operators.is_operator(rom.B_)
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
         assert np.allclose(rom.B_.entries, Vr.T @ B)
 
@@ -318,8 +318,8 @@ class TestContinuousOpInfROM:
         _, A, _, _, B = _get_operators(n, m)
         rom.fit(Vr, None, None, known_operators={"A": A, "B": B})
         assert rom.solver_ is None
-        assert _isoperator(rom.A_)
-        assert _isoperator(rom.B_)
+        assert opinf.operators.is_operator(rom.A_)
+        assert opinf.operators.is_operator(rom.B_)
         assert np.allclose(rom.A_.entries, Vr.T @ A @ Vr)
         assert np.allclose(rom.B_.entries, Vr.T @ B)
 

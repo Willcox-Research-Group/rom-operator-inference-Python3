@@ -1,4 +1,4 @@
-# core/operators/_base.py
+# operators/_base.py
 """Abstract base classes for operators.
 
 Classes

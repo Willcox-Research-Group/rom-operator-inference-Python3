@@ -1,4 +1,4 @@
-# core/operators/_affine.py
+# operators/_affine.py
 """Classes for operators that depend affinely on external parameters, i.e.,
 
     A(µ) = sum_{i=1}^{nterms} θ_{i}(µ) * A_{i}.
