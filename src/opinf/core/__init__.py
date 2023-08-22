@@ -17,7 +17,6 @@
     interpolate
 """
 
-from . import operators
 from .nonparametric import *
 from .interpolate import *
 

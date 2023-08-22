@@ -1,7 +1,7 @@
-# core/operators/__init__.py
+# operators/__init__.py
 r"""Operator classes for the individual components of polynomial models.
 
-.. currentmodule:: opinf.core.operators
+.. currentmodule:: opinf.operators
 
 For instance, for models with the form
 

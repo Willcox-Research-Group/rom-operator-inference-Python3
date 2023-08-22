@@ -15,11 +15,11 @@ import numpy as np
 import scipy.interpolate
 from collections.abc import Iterable
 
+from ... import operators
 from ... import basis as _basis
 from ...utils import hdf5_savehandle, hdf5_loadhandle
 from .._base import _BaseParametricROM
 from ..nonparametric._base import _NonparametricOpInfROM
-from .. import operators
 
 
 class _InterpolatedOpInfROM(_BaseParametricROM):

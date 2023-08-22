@@ -6,7 +6,7 @@ __all__ = []
 import abc
 import numpy as np
 
-from . import operators
+from .. import operators
 from .. import basis as _basis
 
 _isparametricop = operators.is_parametric_operator
