@@ -1,5 +1,5 @@
-# core/interpolate/test_base.py
-"""Tests for core.interpolate._base."""
+# roms/interpolate/test_base.py
+"""Tests for roms.interpolate._base."""
 
 import os
 import h5py
@@ -10,7 +10,7 @@ import scipy.interpolate
 import opinf
 
 
-class BaseDummy(opinf.core.nonparametric._base._NonparametricOpInfROM):
+class BaseDummy(opinf.roms.nonparametric._base._NonparametricOpInfROM):
     """Instantiable version of _NonparametricOpInfROM."""
 
     def predict(*args, **kwargs):
@@ -18,9 +18,9 @@ class BaseDummy(opinf.core.nonparametric._base._NonparametricOpInfROM):
 
 
 class TestInterpolatedOpInfROM:
-    """Test core.interpolate._base._InterpolatedOpInfROM."""
+    """Test roms.interpolate._base._InterpolatedOpInfROM."""
 
-    class Dummy(opinf.core.interpolate._base._InterpolatedOpInfROM):
+    class Dummy(opinf.roms.interpolate._base._InterpolatedOpInfROM):
         """Instantiable version of _InterpolatedOpInfROM."""
         _LHS_ARGNAME = "ddts"
         _ModelClass = BaseDummy

@@ -1,4 +1,4 @@
-# core/nonparametric/_frozen.py
+# roms/nonparametric/_frozen.py
 """Evaluations of parametric ROM classes with fit() disabled."""
 
 __all__ = []

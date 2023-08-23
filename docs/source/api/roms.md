@@ -1,6 +1,6 @@
 (sec-main)=
-# Core (`opinf.core`)
+# Reduced-order Models (`opinf.roms`)
 
 :::{eval-rst}
-.. automodule:: opinf.core
+.. automodule:: opinf.roms
 :::

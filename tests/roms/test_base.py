@@ -1,5 +1,5 @@
-# core/test_base.py
-"""Tests for core._base."""
+# roms/test_base.py
+"""Tests for roms._base."""
 
 import pytest
 import numpy as np
@@ -10,9 +10,9 @@ from . import MODEL_FORMS, _get_data, _get_operators
 
 
 class TestBaseROM:
-    """Test core._base._BaseROM."""
+    """Test roms._base._BaseROM."""
 
-    class Dummy(opinf.core._base._BaseROM):
+    class Dummy(opinf.roms._base._BaseROM):
         """Instantiable version of _BaseROM."""
         _LHS_LABEL = "dq / dt"
         _STATE_LABEL = "q(t)"
@@ -105,7 +105,7 @@ class TestBaseROM:
         assert firstline(self.Dummy("A")).startswith("<Dummy object at")
 
     def test_modelform_properties(self, n=10, r=3, m=5):
-        """Test the properties related to core._base._BaseROM.modelform."""
+        """Test the properties related to roms._base._BaseROM.modelform."""
         c_, A_, H_, G_, B_ = _get_operators(r, m)
 
         # Try with invalid modelform.
@@ -113,7 +113,7 @@ class TestBaseROM:
             self.Dummy("bad_form")
         assert ex.value.args[0] == \
             "invalid modelform key 'b'; options are " \
-            f"{', '.join(opinf.core._base._BaseROM._MODELFORM_KEYS)}"
+            f"{', '.join(opinf.roms._base._BaseROM._MODELFORM_KEYS)}"
 
         # Check initial attributes exist.
         rom = self.Dummy("BAc")
@@ -158,7 +158,7 @@ class TestBaseROM:
         assert rom.B_ is None
 
     def test_dimension_properties(self, n=20, m=3, r=7):
-        """Test the properties core._base._BaseROM.(n|r|basis)."""
+        """Test the properties roms._base._BaseROM.(n|r|basis)."""
         rom = self.Dummy("cH")
         assert rom.n is None
         assert rom.m == 0
@@ -215,7 +215,7 @@ class TestBaseROM:
         assert ex.value.args[0] == "basis must be n x r with n > r"
 
     def test_operator_properties(self, m=4, r=7):
-        """Test the properties core._base._BaseROM.(c_|A_|H_|G_|B_)."""
+        """Test the properties roms._base._BaseROM.(c_|A_|H_|G_|B_)."""
         c, A, H, G, B = operators = _get_operators(r, m)
 
         rom = self.Dummy(self.Dummy._MODELFORM_KEYS)
@@ -705,9 +705,9 @@ class TestBaseROM:
 
 
 class TestBaseParametricROM:
-    """Test core._base._BaseParametricROM."""
+    """Test roms._base._BaseParametricROM."""
 
-    class Dummy(opinf.core._base._BaseParametricROM, TestBaseROM.Dummy):
+    class Dummy(opinf.roms._base._BaseParametricROM, TestBaseROM.Dummy):
         """Instantiable version of _BaseParametricROM."""
         _ModelClass = TestBaseROM.Dummy
 

@@ -34,9 +34,9 @@ parts:
     - file: source/api/pre.md
     - file: source/api/operators.md
     - file: source/api/lstsq.md
+    - file: source/api/roms.md
     - file: source/api/post.md
     - file: source/api/utils.md
-    - file: source/api/core.md
 
   # Instructions for developers.
   - caption: Developer Guide

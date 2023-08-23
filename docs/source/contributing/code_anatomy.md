@@ -3,10 +3,11 @@
 
 This page briefly reviews the package anatomy and gives instructions for new additions.
 The source code is stored in [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) and is divided into the following submodules:
-- `core`: operator and reduced-order model classes.
 - [**pre**](opinf.pre): pre-processing tools for transforming snapshots before dimension reduction.
 - [**basis**](opinf.basis): dimensionality reduction (compression) tools.
+- [**operators**](opinf.operators): operators classes (individual terms for reduced-order models).
 - [**lstsq**](opinf.lstsq): solvers for the least-squares regression problem at the heart of Operator Inference.
+- [**roms**](opinf.roms): reduced-order model classes.
 - [**post**](opinf.post): post-processing tools (mostly error evaluation).
 - [**utils**](opinf.utils): other routines that don't obviously fit into another submodule. These functions are usually not important for casual users, but advanced users and developers may need access to them.
 
@@ -83,24 +84,19 @@ Note that `project()` is **not** the same as `compress()`: `project(q) = decompr
 
 Before implementing a new basis class, take a close look at `LinearBasis` and then `PODBasis`.
 
-## Core Module
-
-The `core` module contains all operator and reduced-order model class definitions.
-Read [ROM Classes](sec-romclasses) before starting work here.
-
 (subsec-contrib-opclass)=
-### Operator Classes
+## Operators Module
 
 The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that define the terms of the model, for example $\widehat{\mathbf{A}}$ and $\widehat{\mathbf{B}}$ of $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t) + \widehat{\mathbf{B}}\mathbf{u}(t)$.
-Operator classes are defined in `core/operators`.
+Operator classes are defined in the [**operators**](opinf.operators) module.
 
 #### Non-parametric Operators
 
 A _non-parametric_ operator has constant entries that do not depend on external parameters.
-Classes for representing non-parametric operators are defined in `core/operators/_nonparametric.py`.
+Classes for representing non-parametric operators are defined in `operators/_nonparametric.py`.
 These classes
 
-- Inherit from `core.operators._base._BaseNonparametricOperator`.
+- Inherit from `operators._base._BaseNonparametricOperator`.
 
 - Are initialized with a NumPy array (the entries of the operator).
     Specifically, `__init__(self, entries)`
@@ -155,10 +151,10 @@ classDiagram
 #### Parametric Operators
 
 The entries of a _parametric_ operator depend on external parameters, e.g., $\widehat{\mathbf{A}} = \widehat{\mathbf{A}}(\mu)$.
-Classes for representing parametric operators are grouped by the parametrization strategy into single files in `core/operators/`, e.g., `core/operators/_affine.py`.
+Classes for representing parametric operators are grouped by the parametrization strategy into single files in `operators/`, e.g., `operators/_affine.py`.
 These classes should
 
-- Inherit from `core.operators._base._BaseParametricOperator`.
+- Inherit from `operators._base._BaseParametricOperator`.
 
 - Be initialized with whatever parameter data, matrices, and/or functions are needed to represent the parametric operator and validate these inputs (e.g., shape checking on any matrices).
 
@@ -192,7 +188,7 @@ These classes should
 
     Use `self.OperatorClass` to access this within the class (this is a property inherited from `_BaseParametricOperator`).
 
-Here's an example of the inheritance hierarchy for affine-parametric operators, defined in `core/operators/_affine.py`.
+Here's an example of the inheritance hierarchy for affine-parametric operators, defined in `operators/_affine.py`.
 
 :::{mermaid}
 %%{init: {'theme': 'neutral'}}%%
@@ -266,10 +262,15 @@ class AffineLinearOperator(_AffineOperator):
 This strategy reduces boilerplate and testing code by isolating the heavy lifting to the intermediate class (`_AffineOperator`).
 :::
 
+## ROMs Module
+
+The [**roms**](opinf.roms) module contains all operator and reduced-order model class definitions.
+Read [ROM Classes](sec-romclasses) before starting work here.
+
 (subsec-contrib-romclass)=
 ### ROM Classes
 
-The `_BaseROM` class of `core/_base.py` is the base class for all reduced-order models.
+The `_BaseROM` class of `roms/_base.py` is the base class for all reduced-order models.
 It handles
 - Dimensions (`n`, `r`, and `m`).
 - The basis $\mathbf{V}_{r}$ (`basis`).
@@ -284,16 +285,16 @@ Classes that inherit from `_BaseROM` must (eventually) implement the following m
 - `load()`: Load a previously saved reduced-order model from an HDF5 file. This should be a [`@classmethod`](https://stackoverflow.com/questions/136097/difference-between-staticmethod-and-classmethod).
 
 To write a new ROM class, start with an intermediate base class that inherits from `_BaseROM` and implements `fit()`, `save()`, and `load()`.
-See `core.nonparametric._base._NonparametricOpInfROM`, for example.
+See `roms.nonparametric._base._NonparametricOpInfROM`, for example.
 Then write classes that inherit from your intermediate base class for handling steady-state, discrete-time, and continuous-time problems by implementing `predict()`.
 
 #### Non-parametric ROMs
 
 A _non-parametric_ ROM has exclusively non-parametric operators, i.e., their entries do not depend on external parameters.
-Classes for representing non-parametric ROMs are defined in the `core/nonparametric/` folder, which has the following files:
-- `core/nonparametric/_base.py` defines a base class, `_NonparametricOpInfROM`, which implements Operator Inference in the non-parametric setting.
-- `core/nonparametric/_public.py` defines public-facing classes that inherit from `_NonparametricOpInfROM`, one for [the discrete setting](sec-discrete) and one for the [continuous setting](sec-continuous).
-- `core/nonparametric/_frozen.py` defines classes that inherit from the public-facing classes but which have their `fit()` method disabled. These classes provide a helpful protection for the parametric case, described later.
+Classes for representing non-parametric ROMs are defined in the `roms/nonparametric/` folder, which has the following files:
+- `roms/nonparametric/_base.py` defines a base class, `_NonparametricOpInfROM`, which implements Operator Inference in the non-parametric setting.
+- `roms/nonparametric/_public.py` defines public-facing classes that inherit from `_NonparametricOpInfROM`, one for [the discrete setting](sec-discrete) and one for the [continuous setting](sec-continuous).
+- `roms/nonparametric/_frozen.py` defines classes that inherit from the public-facing classes but which have their `fit()` method disabled. These classes provide a helpful protection for the parametric case, described later.
 
 The following diagram shows the inheritance hierarchy for the non-parametric ROM classes.
 
@@ -346,16 +347,16 @@ classDiagram
 
 ::::{margin}
 :::{note}
-For every parameterization strategy, there should be 1) a file in `core/operators/` implementing parametric operator classes, and 2) a folder in `core/` grouping the parametric ROM classes.
-For example, the ROM classes defined in `core/affine/` use the operator classes defined in `core/operators/_affine.py`.
+For every parameterization strategy, there should be 1) a file in `operators/` implementing parametric operator classes, and 2) a folder in `roms/` grouping the parametric ROM classes.
+For example, the ROM classes defined in `roms/affine/` use the operator classes defined in `operators/_affine.py`.
 :::
 ::::
 
 A _parametric ROM_ has one or more parametric operators.
-Classes for representing parametric ROMs should be grouped by parameterization strategy in a new folder within `core/` (e.g., `core/affine/`).
+Classes for representing parametric ROMs should be grouped by parameterization strategy in a new folder within `roms/` (e.g., `roms/affine/`).
 These classes should
 
-- Inherit from `core._base._BaseParametricROM`, which adds an attribute `p` for the parameter space dimension and implements the following methods:
+- Inherit from `roms._base._BaseParametricROM`, which adds an attribute `p` for the parameter space dimension and implements the following methods:
     - `__call__(self, parameter)` results in a parametric ROM whose operators correspond to the given parameter.
     - `evaluate(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `evaluate()` method with the remaining arguments.
     - `predict(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `predict()` method with the remaining arguments.
@@ -369,7 +370,7 @@ These classes should
         >>> isinstance(nonparametric_rom, _NonparametricOpInfROM)
         True
 
-    The `_ModelClass` should be one of the "frozen" non-parametric ROM classes in `core/nonparametric/_frozen.py`, which have their `fit()` method disabled.
+    The `_ModelClass` should be one of the "frozen" non-parametric ROM classes in `roms/nonparametric/_frozen.py`, which have their `fit()` method disabled.
     This prevents the user from calling `fit()` on the evaluated parametric ROM (`nonparametric_rom` in the code block above) when they meant to fit the parametric ROM (`parametric_rom`).
 
 <!-- TODO: set dimensions. -->

@@ -1,4 +1,4 @@
-# core/nonparametric/_base.py
+# roms/nonparametric/_base.py
 """Base class for nonparametric Operator Inference reduced-order models."""
 
 __all__ = []

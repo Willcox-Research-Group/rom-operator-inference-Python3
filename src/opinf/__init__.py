@@ -9,6 +9,6 @@ GitHub:
 
 __version__ = "0.4.5"
 
-from .core import *
+from .roms import *
 from .operators import *
-from . import basis, errors, lstsq, operators, pre, post, utils
+from . import basis, errors, lstsq, operators, pre, post, roms, utils

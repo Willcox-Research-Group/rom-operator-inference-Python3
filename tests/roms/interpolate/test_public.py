@@ -1,5 +1,5 @@
-# core/interpolate/test_public.py
-"""Tests for core.interpolate._public."""
+# roms/interpolate/test_public.py
+"""Tests for roms.interpolate._public."""
 
 # import pytest
 import numpy as np
@@ -28,15 +28,15 @@ def _get_interp_operators(s, r, m):
     return params, c_, A_, H_, G_, B_
 
 
-# # TODO: Copy TestSteadyOpInfROM from tests/core/nonparametric/test_public.py.
+# # TODO: Copy TestSteadyOpInfROM from tests/roms/nonparametric/test_public.py.
 # class TestInterpolatedSteadyOpInfROM:
-#     """Test core.interpolate._public.InterpolatedSteadyOpInfROM."""
-#     ModelClass = opinf.core.interpolate._public.InterpolatedSteadyOpInfROM
+#     """Test roms.interpolate._public.InterpolatedSteadyOpInfROM."""
+#     ModelClass = opinf.roms.interpolate._public.InterpolatedSteadyOpInfROM
 
 
 class TestInterpolatedDiscreteOpInfROM:
-    """Test core.interpolate._public.InterpolatedDiscreteOpInfROM."""
-    ModelClass = opinf.core.interpolate._public.InterpolatedDiscreteOpInfROM
+    """Test roms.interpolate._public.InterpolatedDiscreteOpInfROM."""
+    ModelClass = opinf.roms.interpolate._public.InterpolatedDiscreteOpInfROM
 
     def test_evaluate(self, r=6, m=3, s=4):
         """Test InterpolatedDiscreteOpInfROM.evaluate()."""
@@ -147,8 +147,8 @@ class TestInterpolatedDiscreteOpInfROM:
 
 
 class TestInterpolatedContinuousOpInfROM:
-    """Test core.interpolate._public.InterpolatedContinuousOpInfROM."""
-    ModelClass = opinf.core.interpolate._public.InterpolatedContinuousOpInfROM
+    """Test roms.interpolate._public.InterpolatedContinuousOpInfROM."""
+    ModelClass = opinf.roms.interpolate._public.InterpolatedContinuousOpInfROM
 
     def test_evaluate(self, r=6, m=3, s=4):
         """Test InterpolatedContinuousOpInfROM.evaluate()."""

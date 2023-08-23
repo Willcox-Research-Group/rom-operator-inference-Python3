@@ -1,5 +1,5 @@
-# core/__init__.py
-"""Global variables and helper routines for setting up core tests."""
+# roms/__init__.py
+"""Global variables and helper routines for setting up roms tests."""
 
 import itertools
 import numpy as np
@@ -8,7 +8,7 @@ import opinf
 
 
 # Global variables for testsing ===============================================
-MODELFORM_KEYS = opinf.core._base._BaseROM._MODELFORM_KEYS
+MODELFORM_KEYS = opinf.roms._base._BaseROM._MODELFORM_KEYS
 
 MODEL_FORMS = [''.join(s) for k in range(1, len(MODELFORM_KEYS)+1)
                for s in itertools.combinations(MODELFORM_KEYS, k)]

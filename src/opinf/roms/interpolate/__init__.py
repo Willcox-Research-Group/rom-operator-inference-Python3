@@ -1,4 +1,4 @@
-# core/interpolate/__init__.py
+# roms/interpolate/__init__.py
 """Parametric reduced-order models where the parametric dependence of the
 operators are handled with element-wise interpolation.
 

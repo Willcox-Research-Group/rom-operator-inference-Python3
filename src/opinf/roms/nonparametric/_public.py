@@ -1,4 +1,4 @@
-# core/nonparametric/_public.py
+# roms/nonparametric/_public.py
 """Public nonparametric Operator Inference ROM classes."""
 
 __all__ = [

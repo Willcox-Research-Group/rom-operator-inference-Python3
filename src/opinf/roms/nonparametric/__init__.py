@@ -1,7 +1,7 @@
-# core/nonparametric/__init__.py
+# roms/nonparametric/__init__.py
 """Nonparametric Operator Inference reduced-order model (ROM) classes.
 
-.. currentmodule:: opinf.core.nonparametric
+.. currentmodule:: opinf.roms.nonparametric
 
 .. tip::
     This module is private.  All public objects are available in the

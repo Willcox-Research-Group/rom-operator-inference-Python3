@@ -1,4 +1,4 @@
-# core/interpolate/_base.py
+# roms/interpolate/_base.py
 """Base class for parametric reduced-order models where the parametric
 dependencies of operators are handled with elementwise interpolation, i.e,
     A(µ)[i,j] = Interpolator([µ1, µ2, ...], [A1[i,j], A2[i,j], ...])(µ).

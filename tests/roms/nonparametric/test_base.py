@@ -1,5 +1,5 @@
-# core/nonparametric/test_base.py
-"""Tests for core.nonparametric._base."""
+# roms/nonparametric/test_base.py
+"""Tests for roms.nonparametric._base."""
 
 import os
 import h5py
@@ -14,9 +14,9 @@ from .. import (MODELFORM_KEYS, MODEL_FORMS,
 
 
 class TestNonparametricOpInfROM:
-    """Test core.nonparametric._base._NonparametricOpInfROM."""
+    """Test roms.nonparametric._base._NonparametricOpInfROM."""
 
-    class Dummy(opinf.core.nonparametric._base._NonparametricOpInfROM):
+    class Dummy(opinf.roms.nonparametric._base._NonparametricOpInfROM):
         """Instantiable version of _NonparametricOpInfROM."""
         _LHS_ARGNAME = "ddts"
 

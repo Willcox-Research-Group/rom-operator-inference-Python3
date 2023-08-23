@@ -86,7 +86,7 @@ See the [Dimensionality Reduction](sec-guide-dimensionality) guide for details.
 ### Operators
 
 These attributes are the operators corresponding to the learned parts of the reduced-order model.
-The classes are defined in `opinf.core.operators`.
+The classes are defined in the [**operators**](opinf.operators) submodule.
 
 <!-- TODO: Operator Class with links to API docs -->
 
@@ -111,7 +111,7 @@ This array can also be accessed by slicing the operator object directly.
 >>> import opinf
 
 >>> arr = np.arange(16).reshape(4, 4)
->>> operator = opinf.core.operators.LinearOperator(arr)
+>>> operator = opinf.operators.LinearOperator(arr)
 
 >>> operator.entries
 array([[ 0,  1,  2,  3],
@@ -151,7 +151,7 @@ Nothing special is happening under the hood for constant and linear operators, b
 ```python
 >>> r = 5
 >>> arr2 = np.random.random((r, r**2))
->>> quadratic_operator = opinf.core.operators.QuadraticOperator(arr2)
+>>> quadratic_operator = opinf.operators.QuadraticOperator(arr2)
 >>> q_ = np.random.random(r)
 
 >>> np.allclose(quadratic_operator.evaluate(q_), arr2 @ (np.kron(q_, q_)))
@@ -524,7 +524,7 @@ flowchart LR
 >>> entries = np.random.random((4, 3))
 
 # Construct a parametric constant operator c(µ).
->>> c_ = opinf.core.operators.InterpolatedConstantOperator(
+>>> c_ = opinf.operators.InterpolatedConstantOperator(
 ...     parameters, entries, scipy.interpolate.CubicSpline
 ... )
 >>> type(c_)
@@ -532,7 +532,7 @@ flowchart LR
 # Evaluate the parametric constant operator at a given parameter.
 >>> c_static_ = c_(.5)
 >>> type(c_static_)
-opinf.core.operators._nonparametric.ConstantOperator
+opinf.operators._nonparametric.ConstantOperator
 
 >>> c_static_.evaluate()
 array([0.89308692, 0.81232528, 0.52454941])

@@ -1,7 +1,7 @@
-# _core/__init__.py
+# roms/__init__.py
 """Classes for reduced-order models (ROMs) and the operators they consist of.
 
-.. currentmodule:: opinf.core
+.. currentmodule:: opinf.roms
 
 .. tip::
     This module is private.  All public objects are available in the

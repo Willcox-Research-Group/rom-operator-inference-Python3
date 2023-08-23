@@ -1,4 +1,4 @@
-# core/_base.py
+# roms/_base.py
 """Abstract base classes for reduced-order models."""
 
 __all__ = []
@@ -618,7 +618,7 @@ class _BaseParametricROM(_BaseROM):
     @property
     def ModelClass(self):
         """Class of nonparametric ROM to represent this parametric ROM
-        at a particular parameter, a subclass of core._base._BaseROM:
+        at a particular parameter, a subclass of roms._base._BaseROM:
         >>> type(MyParametricROM(init_args).fit(fit_args)(parameter_value)).
         """
         return self._ModelClass

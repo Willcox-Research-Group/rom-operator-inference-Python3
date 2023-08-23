@@ -1,5 +1,5 @@
-# core/nonparametric/test_public.py
-"""Tests for core.nonparametric._public."""
+# roms/nonparametric/test_public.py
+"""Tests for roms.nonparametric._public."""
 
 import pytest
 import numpy as np
@@ -12,8 +12,8 @@ from .. import (MODEL_FORMS,
 
 
 class TestSteadyOpInfROM:
-    """Test core.nonparametric._public.SteadyOpInfROM."""
-    ModelClass = opinf.core.nonparametric._public.SteadyOpInfROM
+    """Test roms.nonparametric._public.SteadyOpInfROM."""
+    ModelClass = opinf.roms.nonparametric._public.SteadyOpInfROM
 
     def test_evaluate(self, r=10):
         """Test SteadyOpInfROM.evaluate()."""
@@ -66,8 +66,8 @@ class TestSteadyOpInfROM:
 
 
 class TestDiscreteOpInfROM:
-    """Test core.nonparametric._public.DiscreteOpInfROM."""
-    ModelClass = opinf.core.nonparametric._public.DiscreteOpInfROM
+    """Test roms.nonparametric._public.DiscreteOpInfROM."""
+    ModelClass = opinf.roms.nonparametric._public.DiscreteOpInfROM
 
     def test_evaluate(self, r=6, m=3):
         """Test DiscreteOpInfROM.evaluate()."""
@@ -210,8 +210,8 @@ class TestDiscreteOpInfROM:
 
 
 class TestContinuousOpInfROM:
-    """Test core.nonparametric._public.ContinuousOpInfROM."""
-    ModelClass = opinf.core.nonparametric._public.ContinuousOpInfROM
+    """Test roms.nonparametric._public.ContinuousOpInfROM."""
+    ModelClass = opinf.roms.nonparametric._public.ContinuousOpInfROM
 
     def test_evaluate(self, r=5, m=2):
         """Test ContinuousOpInfROM.evaluate()."""
