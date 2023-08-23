@@ -58,9 +58,11 @@ They should be written as Jupyter notebooks and placed in `docs/content/tutorial
 :::
 
 - [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) contains the actual package code, see the [Source Code Guide](sec-contrib-anatomy). The code is divided into submodules:
-    - `core`: operator and reduced-order model classes.
-    - [**pre**](opinf.pre): pre-processing tools (basis computation, state transformations, etc.).
+    - [**pre**](opinf.pre): pre-processing tools.
+    - [**basis**](opinf.basis): dimensionality reduction (compression) tools.
+    - [**operators**](opinf.operators): operators classes (individual terms for reduced-order models).
     - [**lstsq**](opinf.lstsq): solvers for the linear regression problem at the heart of Operator Inference.
+    - [**roms**](opinf.roms): reduced-order model classes.
     - [**post**](opinf.post): post-processing tools (mostly error evaluation).
     - [**utils**](opinf.utils): other routines that are not important to casual users, but which advanced users may want access to.
 - [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/opinf/`. See [Testing](sec-contrib-testing).

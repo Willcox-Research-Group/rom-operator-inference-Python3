@@ -18,7 +18,7 @@ The main namespace of `opinf` defines the following classes and submodules.
     InterpolatedDiscreteOpInfROM
 :::
 
-These classes are also defined in `opinf.core`.
+The above classes are also defined in the [**roms**](opinf.roms) submodule.
 
 **Submodules**
 
@@ -29,7 +29,10 @@ These classes are also defined in `opinf.core`.
 .. autosummary::
 
     opinf.pre
+    opinf.basis
+    opinf.operators
     opinf.lstsq
+    opinf.roms
     opinf.post
     opinf.utils
 :::

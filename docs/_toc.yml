@@ -20,24 +20,24 @@ parts:
     # numbered: 1
     chapters:
     - file: source/tutorials/basics.ipynb
-    - file: source/guides/preprocessing.md
-      sections:
-      - file: source/guides/lifting.md
-      - file: source/guides/scaling.md
-      - file: source/guides/basis.ipynb
+    - file: source/guides/preprocessing.ipynb
+    - file: source/guides/reduction.md
+    # TODO: operators guide
     - file: source/guides/romclasses.md
     - file: source/tutorials/heat_equation.ipynb
 
-  # API reference via sphinx-autodoc + some handwritten guides.
+  # API reference via sphinx-autodoc + limited handwritten documentation.
   - caption: API Reference
     # numbered: 1
     chapters:
     - file: source/api/main.md
     - file: source/api/pre.md
+    - file: source/api/basis.md
+    - file: source/api/operators.md
     - file: source/api/lstsq.md
+    - file: source/api/roms.md
     - file: source/api/post.md
     - file: source/api/utils.md
-    - file: source/api/core.md
 
   # Instructions for developers.
   - caption: Developer Guide
