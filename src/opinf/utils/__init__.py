@@ -7,8 +7,8 @@ This module contains miscellaneous support functions for the rest of the
 package.
 
 
-Derivative Estimation
-=====================
+Time Derivative Estimation
+==========================
 
 For time-continuous reduced-order models, Operator Inference requires the time
 derivative of the state snapshots. If they are not available from a full-order

@@ -8,6 +8,7 @@ This page lists major changes made between package versions.
 - Moved basis classes and dimensionality reduction tools to a new `basis` submodule.
 - Moved operator classes from `core.operators` to a new `operators` submodule.
 - Renamed the `core` submodule to `roms`.
+- Moved time derivative estimation tools to the `utils` module.
 
 ## New in Version 0.4.4
 
