@@ -23,7 +23,7 @@ Nonparametric Operator Classes
 
 These classes represent operators that do not depend on external parameters.
 They are used by :class:`ContinuousOpInfROM <opinf.ContinuousOpInfROM>` and
-:class:`DiscreteOpInf <opinf.DiscreteOpInfROM>`
+:class:`DiscreteOpInfROM <opinf.DiscreteOpInfROM>`
 
 .. autosummary::
     :toctree: _autosummaries
@@ -60,8 +60,9 @@ with element-wise interpolation between known operator matrices, i.e.,
 where :math:`\mu_{1}, \mu_{2}, \ldots` are parameter values and
 :math:`\mathbf{A}^{(1)}, \mathbf{A}^{(2)}, ...` are the corresponding operator
 matrices, i.e., :math:`\mathbf{A}^{(1)} = \mathbf{A}(\mu_{i})`.
-These operator classes are used by :class:`InterpolatedDiscreteOpInfROM` and
-:class:`InterpolatedContinuousOpInfROM`.
+These operator classes are used by
+:class:`InterpolatedDiscreteOpInfROM <opinf.InterpolatedDiscreteOpInfROM>` and
+:class:`InterpolatedContinuousOpInfROM <opinf.InterpolatedContinuousOpInfROM>`.
 
 .. autosummary::
     :toctree: _autosummaries
@@ -85,8 +86,6 @@ known "affine" structure,
 
 where :math:`\theta_{i}` are scalar-valued functions and
 :math:`\mathbf{A}^{(i)}` are matrices.
-These operator classes are used by :class:`AffineDiscreteOpInfROM` and
-:class:`AffineContinuousOpInfROM`.
 
 .. autosummary::
     :toctree: _autosummaries

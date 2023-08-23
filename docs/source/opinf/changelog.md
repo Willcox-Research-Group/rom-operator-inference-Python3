@@ -6,6 +6,8 @@ This page lists major changes made between package versions.
 ## New in Version 0.4.5
 
 - Moved basis classes and dimensionality reduction tools to a new `basis` submodule.
+- Moved operator classes from `core.operators` to a new `operators` submodule.
+- Renamed the `core` submodule to `roms`.
 
 ## New in Version 0.4.4
 

@@ -32,6 +32,7 @@ parts:
     chapters:
     - file: source/api/main.md
     - file: source/api/pre.md
+    - file: source/api/operators.md
     - file: source/api/lstsq.md
     - file: source/api/post.md
     - file: source/api/utils.md
