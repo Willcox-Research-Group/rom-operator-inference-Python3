@@ -12,7 +12,6 @@
 .. autosummary::
     :toctree: _autosummaries
 
-    operators
     nonparametric
     interpolate
 """

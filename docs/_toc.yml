@@ -34,8 +34,9 @@ parts:
     - file: source/api/pre.md
     - file: source/api/basis.md
     - file: source/api/operators.md
-    - file: source/api/lstsq.md
+    - file: source/api/operators_new.md
     - file: source/api/roms.md
+    - file: source/api/lstsq.md
     - file: source/api/post.md
     - file: source/api/utils.md
 
