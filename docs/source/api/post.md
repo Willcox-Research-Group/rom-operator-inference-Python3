@@ -1,4 +1,4 @@
-# Postprocessing (`opinf.post`)
+# `opinf.post`
 
 :::{eval-rst}
 .. automodule:: opinf.post

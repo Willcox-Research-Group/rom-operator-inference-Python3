@@ -1,6 +1,8 @@
 # basis/__init__.py
 r"""Tools for compressing snapshot data.
 
+.. currentmodule:: opinf.basis
+
 The purpose of learning a reduced-order model is to achieve a computational
 speedup, which is a result of reducing the dimension of the state
 :math:`\mathbf{q}(t)\in\mathbb{R}^{n}` from :math:`n` to :math:`r \ll n`.
@@ -8,8 +10,6 @@ This is accomplished by introducing a low-dimensional approximation
 :math:`\mathbf{q}(t) \approx \boldsymbol{\Gamma}(\widehat{\mathbf{q}}(t))`,
 where :math:`\widehat{\mathbf{q}}(t)\in\mathbb{R}^{r}`.
 The following tools construct this approximation.
-
-.. currentmodule:: opinf.basis
 
 **Classes**
 

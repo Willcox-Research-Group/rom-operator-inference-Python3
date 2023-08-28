@@ -1,9 +1,10 @@
 # pre/__init__.py
 r"""Tools for preprocessing snapshot data, prior to compression.
-See :ref:`the preprocessing guide <sec-preprocessing-guide>` for discussion
-and examples.
 
 .. currentmodule:: opinf.pre
+
+See :ref:`the preprocessing guide <sec-guide-preprocessing>` for discussion
+and examples.
 
 Data Scaling
 ============

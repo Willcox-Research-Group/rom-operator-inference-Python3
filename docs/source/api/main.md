@@ -1,7 +1,7 @@
 (sec-main)=
-# Main Namespace
+# `opinf`
 
-The main namespace of `opinf` defines the following classes and submodules.
+The root `opinf` namespace defines the following classes and submodules.
 
 **Classes**
 
@@ -31,8 +31,8 @@ The above classes are also defined in the [**roms**](opinf.roms) submodule.
     opinf.pre
     opinf.basis
     opinf.operators
-    opinf.lstsq
     opinf.roms
+    opinf.lstsq
     opinf.post
     opinf.utils
 :::

@@ -1,5 +1,5 @@
 (sec-lstsq)=
-# Least-squares (`opinf.lstsq`)
+# `opinf.lstsq`
 
 :::{eval-rst}
 .. automodule:: opinf.lstsq

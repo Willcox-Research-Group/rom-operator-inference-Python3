@@ -1,5 +1,5 @@
 (sec-main)=
-# Reduced-order Models (`opinf.roms`)
+# `opinf.roms`
 
 :::{eval-rst}
 .. automodule:: opinf.roms

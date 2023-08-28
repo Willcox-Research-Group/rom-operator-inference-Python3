@@ -1,5 +1,5 @@
 (sec-basis)=
-# ROM Basis (`opinf.basis`)
+# `opinf.basis`
 
 :::{eval-rst}
 .. automodule:: opinf.basis

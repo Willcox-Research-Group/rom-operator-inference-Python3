@@ -1,5 +1,5 @@
 # lstsq/__init__.py
-r"""Least-squares solvers for the Operator Inference problem.
+r"""Solvers for Operator Inference least-squares problems.
 
 .. currentmodule:: opinf.lstsq
 

@@ -1,5 +1,5 @@
 # utils/__init__.py
-r"""Utility functions for Operator Inference.
+r"""Utility functions.
 
 .. currentmodule:: opinf.utils
 

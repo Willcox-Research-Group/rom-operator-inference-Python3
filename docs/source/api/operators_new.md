@@ -1,4 +1,4 @@
-# `opinf.operators_new`: ROM Operators
+# `opinf.operators` (new)
 
 :::{eval-rst}
 .. automodule:: opinf.operators_new

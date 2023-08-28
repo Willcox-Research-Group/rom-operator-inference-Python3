@@ -3,7 +3,7 @@ r"""Operator classes for the individual terms of reduced-order models.
 
 .. currentmodule:: opinf.operators_new
 
-For instance, for models with the form
+For models with the form
 
 .. math::
     \frac{\textup{d}}{\textup{d}t}\widehat{\mathbf{q}}(t)

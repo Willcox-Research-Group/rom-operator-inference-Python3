@@ -3,7 +3,6 @@ r"""Tools for computing errors of reduced-order model solutions.
 
 .. currentmodule:: opinf.post
 
-
 Absolute and Relative Error
 ===========================
 
@@ -24,7 +23,6 @@ In the context of this package, :math:`\mathbf{Q}\in\mathbb{R}^{n \times k}` is
 typically a matrix whose :math:`j`th column is the true state vector at time
 :math:`t_{j}`, and the approximation :math:`\breve{\mathbf{Q}}\in\mathbb{R}^{n
 \times k}` is the corresponding matrix of reduced-order model solutions.
-
 
 Projection Error
 ================
@@ -56,7 +54,6 @@ The following function computes this projection error, given a basis matrix
 This function is also available as :func:`opinf.pre.projection_error`; basis
 classes such as :class:`opinf.pre.PODBasis` also have a ``projection_error()``
 method.
-
 
 Reduced-order Model Error
 =========================

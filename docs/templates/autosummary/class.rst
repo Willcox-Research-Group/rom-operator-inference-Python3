@@ -30,7 +30,7 @@
       :toctree:
       :nosignatures:
    {% for item in all_methods %}
-      {%- if not item.startswith('_') %}
+      {%- if not item.startswith('_') or item in ['__call__'] %}
       ~{{ name }}.{{ item }}
       {%- endif -%}
    {%- endfor %}
