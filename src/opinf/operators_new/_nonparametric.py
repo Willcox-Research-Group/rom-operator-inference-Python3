@@ -143,10 +143,10 @@ class ConstantOperator(_BaseNonparametricOperator):
 
         Returns
         -------
-        ones : (k,) ndarray
-            Vector of 1's.
+        ones : (1, k) ndarray
+            Vector of ones.
         """
-        return np.ones(np.atleast_1d(state_).shape[-1])
+        return np.ones((1, np.atleast_1d(state_).shape[-1]))
 
 
 class LinearOperator(_BaseNonparametricOperator):
@@ -270,10 +270,10 @@ class LinearOperator(_BaseNonparametricOperator):
 
         Returns
         -------
-        state_ : (r, k) or (k,) ndarray
+        state_ : (r, k) ndarray
             State vectors. Each column is a single state vector.
         """
-        return state_
+        return np.atleast_2d(state_)
 
 
 class QuadraticOperator(_BaseNonparametricOperator):
@@ -303,6 +303,12 @@ class QuadraticOperator(_BaseNonparametricOperator):
     @staticmethod
     def _str(statestr, inputstr=None):
         return f"H[{statestr} ⊗ {statestr}]"
+
+    def _clear(self):
+        """Delete operator ``entries`` and related attributes."""
+        self._mask = None
+        self._jac = None
+        _BaseNonparametricOperator._clear(self)
 
     def set_entries(self, entries):
         """Set the ``entries`` attribute.
@@ -448,12 +454,12 @@ class QuadraticOperator(_BaseNonparametricOperator):
 
         Returns
         -------
-        state_ : (r(r+1)/2, k) or (r(r+1)/2) ndarray
-            Compressed Khatri-Rao product of the state with itself.
+        product_ : (r(r+1)/2, k) ndarray
+            Compressed Khatri-Rao product of the ``state_`` with itself.
         """
-        if state_.ndim == 1:
-            return state_**2
-        return _kronecker.kron2c(state_)
+        # if state_.ndim == 1:
+        #     return state_**2
+        return _kronecker.kron2c(np.atleast_2d(state_))
 
 
 class CubicOperator(_BaseNonparametricOperator):
@@ -485,6 +491,12 @@ class CubicOperator(_BaseNonparametricOperator):
     @staticmethod
     def _str(statestr, inputstr=None):
         return f"G[{statestr} ⊗ {statestr} ⊗ {statestr}]"
+
+    def _clear(self):
+        """Delete operator ``entries`` and related attributes."""
+        self._mask = None
+        self._jac = None
+        _BaseNonparametricOperator._clear(self)
 
     def set_entries(self, entries):
         """Set the ``entries`` attribute.
@@ -637,12 +649,12 @@ class CubicOperator(_BaseNonparametricOperator):
 
         Returns
         -------
-        state_ : (r(r+1)(r+2)/6, k) or (r(r+1)(r+2)/6,) ndarray
-            Compressed Khatri-Rao product of the state with itself.
+        product_ : (r(r+1)(r+2)/6, k) ndarray
+            Compressed triple Khatri-Rao product of the ``state_`` with itself.
         """
-        if state_.ndim == 1:
-            return state_**3
-        return _kronecker.kron3c(state_)
+        # if state_.ndim == 1:
+        #     return state_**3
+        return _kronecker.kron3c(np.atleast_2d(state_))
 
 
 class InputOperator(_BaseNonparametricOperator):
@@ -773,10 +785,10 @@ class InputOperator(_BaseNonparametricOperator):
 
         Returns
         -------
-        input_ : (m, k) or (k,) ndarray
+        input_ : (m, k) ndarray
             Input vectors. Each column is a single input vector.
         """
-        return input_
+        return np.atleast_2d(input_)
 
 
 class StateInputOperator(_BaseNonparametricOperator):
@@ -961,11 +973,7 @@ class StateInputOperator(_BaseNonparametricOperator):
 
         Returns
         -------
-        input_ : (m, k) or (k,) ndarray or None
-            Input vectors. Each column is a single input vector.
+        product_ : (m, k) ndarray or None
+            Compressed Khatri-Rao product of the ``input_`` and the ``state_``.
         """
-        Q_ = np.atleast_2d(state_)
-        U = np.atleast_2d(input_)
-        if Q_.shape[0] == 1 and U.shape[0] == 1:
-            return U[0] * Q_[0]
-        return la.khatri_rao(U, Q_)
+        return la.khatri_rao(np.atleast_2d(input_), np.atleast_2d(state_))

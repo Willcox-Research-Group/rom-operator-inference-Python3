@@ -7,6 +7,8 @@ Classes
 * _BaseParametricOperator: base for operators with parameter dependence.
 """
 
+__all__ = []
+
 import abc
 import functools
 import numpy as np
@@ -48,6 +50,10 @@ class _BaseNonparametricOperator(abc.ABC):
             raise ValueError("operator entries must not be NaN")
         elif np.any(np.isinf(entries)):
             raise ValueError("operator entries must not be Inf")
+
+    def _clear(self):
+        """Delete operator ``entries`` and related attributes."""
+        self.__entries = None
 
     # Properties --------------------------------------------------------------
     @property
