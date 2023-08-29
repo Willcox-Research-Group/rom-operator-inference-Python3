@@ -4,8 +4,8 @@
 .. currentmodule:: opinf.roms
 
 .. tip::
-    This module is private.  All public objects from this module are available
-    in the root `opinf` namespace.
+    All public objects from this module are also available in the root
+    `opinf` namespace.
 
 **Submodules**
 

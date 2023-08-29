@@ -40,9 +40,6 @@ class TestBaseNonparametricOperator:
         def set_entries(self, entries):
             super().set_entries(entries)
 
-        def datablock(*args, **kwargs):
-            pass
-
         @_module._requires_entries
         def __call__(*args, **kwargs):
             pass
@@ -52,6 +49,12 @@ class TestBaseNonparametricOperator:
 
         @_module._requires_entries
         def jacobian(*args, **kwargs):
+            pass
+
+        def datablock(*args, **kwargs):
+            pass
+
+        def column_dimension(*args, **kwargs):
             pass
 
     class Dummy2(Dummy):

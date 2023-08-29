@@ -116,7 +116,7 @@ class ConstantOperator(_BaseNonparametricOperator):
         return np.zeros((r, r))
 
     @staticmethod
-    def datablock(state_, input_=None):
+    def datablock(states_, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
         a vector of 1's.
 
@@ -146,7 +146,20 @@ class ConstantOperator(_BaseNonparametricOperator):
         ones : (1, k) ndarray
             Vector of ones.
         """
-        return np.ones((1, np.atleast_1d(state_).shape[-1]))
+        return np.ones((1, np.atleast_1d(states_).shape[-1]))
+
+    @staticmethod
+    def column_dimension(r=None, m=None):
+        r"""Column dimension of the operator entries (always 1).
+
+        Parameters
+        ----------
+        r : int
+            Dimension of the reduced-order state space.
+        m : int or None
+            Number of inputs.
+        """
+        return 1
 
 
 class LinearOperator(_BaseNonparametricOperator):
@@ -240,7 +253,7 @@ class LinearOperator(_BaseNonparametricOperator):
         return self.entries
 
     @staticmethod
-    def datablock(state_, input_=None):
+    def datablock(states_, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
         the ``state_``.
 
@@ -273,7 +286,20 @@ class LinearOperator(_BaseNonparametricOperator):
         state_ : (r, k) ndarray
             State vectors. Each column is a single state vector.
         """
-        return np.atleast_2d(state_)
+        return np.atleast_2d(states_)
+
+    @staticmethod
+    def column_dimension(r, m=None):
+        """Column dimension :math:`r` of the operator entries.
+
+        Parameters
+        ----------
+        r : int
+            Dimension of the reduced-order state space.
+        m : int or None
+            Number of inputs.
+        """
+        return r
 
 
 class QuadraticOperator(_BaseNonparametricOperator):
@@ -332,7 +358,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         r, r2 = entries.shape
         if r2 == r**2:
             entries = _kronecker.compress_quadratic(entries)
-        elif r2 != r * (r + 1) // 2:
+        elif r2 != self.column_dimension(r):
             raise ValueError("invalid QuadraticOperator entries dimensions")
 
         # Precompute compressed Kronecker product mask and Jacobian matrix.
@@ -393,7 +419,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         return self._jac @ np.atleast_1d(state_)
 
     @staticmethod
-    def datablock(state_, input_=None):
+    def datablock(states_, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
         the Khatri-Rao product of the state with itself:
         :math:`\widehat{\mathbf{Q}}\odot\widehat{\mathbf{Q}}` where
@@ -457,9 +483,20 @@ class QuadraticOperator(_BaseNonparametricOperator):
         product_ : (r(r+1)/2, k) ndarray
             Compressed Khatri-Rao product of the ``state_`` with itself.
         """
-        # if state_.ndim == 1:
-        #     return state_**2
-        return _kronecker.kron2c(np.atleast_2d(state_))
+        return _kronecker.kron2c(np.atleast_2d(states_))
+
+    @staticmethod
+    def column_dimension(r, m=None):
+        """Column dimension :math:`r(r+1)/2` of the operator entries.
+
+        Parameters
+        ----------
+        r : int
+            Dimension of the reduced-order state space.
+        m : int or None
+            Number of inputs.
+        """
+        return r * (r + 1) // 2
 
 
 class CubicOperator(_BaseNonparametricOperator):
@@ -519,7 +556,7 @@ class CubicOperator(_BaseNonparametricOperator):
         r, r3 = entries.shape
         if r3 == r**3:
             entries = _kronecker.compress_cubic(entries)
-        elif r3 != r * (r + 1) * (r + 2) // 6:
+        elif r3 != self.column_dimension(r):
             raise ValueError("invalid CubicOperator entries dimensions")
 
         # Precompute compressed Kronecker product mask and Jacobian tensor.
@@ -585,7 +622,7 @@ class CubicOperator(_BaseNonparametricOperator):
         return (self._jac @ q_) @ q_
 
     @staticmethod
-    def datablock(state_, input_=None):
+    def datablock(states_, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
         the Khatri-Rao product of the state with itself three times:
         :math:`\widehat{\mathbf{Q}}\odot\widehat{\mathbf{Q}}
@@ -652,9 +689,20 @@ class CubicOperator(_BaseNonparametricOperator):
         product_ : (r(r+1)(r+2)/6, k) ndarray
             Compressed triple Khatri-Rao product of the ``state_`` with itself.
         """
-        # if state_.ndim == 1:
-        #     return state_**3
-        return _kronecker.kron3c(np.atleast_2d(state_))
+        return _kronecker.kron3c(np.atleast_2d(states_))
+
+    @staticmethod
+    def column_dimension(r, m=None):
+        """Column dimension :math:`r(r+1)(r+2)/6` of the operator entries.
+
+        Parameters
+        ----------
+        r : int
+            Dimension of the reduced-order state space.
+        m : int or None
+            Number of inputs.
+        """
+        return r * (r + 1) * (r + 2) // 6
 
 
 class InputOperator(_BaseNonparametricOperator):
@@ -755,7 +803,7 @@ class InputOperator(_BaseNonparametricOperator):
         return np.zeros((r, r))
 
     @staticmethod
-    def datablock(state_, input_):
+    def datablock(states_, inputs):
         r"""Return the data matrix block corresponding to the operator,
         the ``input_``.
 
@@ -788,7 +836,20 @@ class InputOperator(_BaseNonparametricOperator):
         input_ : (m, k) ndarray
             Input vectors. Each column is a single input vector.
         """
-        return np.atleast_2d(input_)
+        return np.atleast_2d(inputs)
+
+    @staticmethod
+    def column_dimension(r, m):
+        """Column dimension :math:`rm` of the operator entries.
+
+        Parameters
+        ----------
+        r : int
+            Dimension of the reduced-order state space.
+        m : int or None
+            Number of inputs.
+        """
+        return m
 
 
 class StateInputOperator(_BaseNonparametricOperator):
@@ -909,7 +970,7 @@ class StateInputOperator(_BaseNonparametricOperator):
         ], axis=0)
 
     @staticmethod
-    def datablock(state_, input_):
+    def datablock(states_, inputs):
         r"""Return the data matrix block corresponding to the operator,
         the Khatri-Rao product of the inputs and the states:
 
@@ -976,4 +1037,17 @@ class StateInputOperator(_BaseNonparametricOperator):
         product_ : (m, k) ndarray or None
             Compressed Khatri-Rao product of the ``input_`` and the ``state_``.
         """
-        return la.khatri_rao(np.atleast_2d(input_), np.atleast_2d(state_))
+        return la.khatri_rao(np.atleast_2d(inputs), np.atleast_2d(states_))
+
+    @staticmethod
+    def column_dimension(r, m):
+        """Column dimension :math:`rm` of the operator entries.
+
+        Parameters
+        ----------
+        r : int
+            Dimension of the reduced-order state space.
+        m : int or None
+            Number of inputs.
+        """
+        return r * m

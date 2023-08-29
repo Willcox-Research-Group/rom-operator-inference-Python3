@@ -116,6 +116,12 @@ class TestConstantOperator:
         _test_single(op.datablock(np.random.random((3, k))))
         _test_single(op.datablock(np.random.random(k)))
 
+    def test_column_dimension(self):
+        """Test ConstantOperator.column_dimension()."""
+        assert self._OpClass.column_dimension() == 1
+        assert self._OpClass.column_dimension(4) == 1
+        assert self._OpClass.column_dimension(1, 6) == 1
+
 
 class TestLinearOperator:
     """Test operators._nonparametric.LinearOperator."""
@@ -209,6 +215,11 @@ class TestLinearOperator:
         block = op.datablock(state_)
         assert block.shape == (1, k)
         assert np.all(block[0] == state_)
+
+    def test_column_dimension(self):
+        """Test LinearOperator.column_dimension()."""
+        assert self._OpClass.column_dimension(2) == 2
+        assert self._OpClass.column_dimension(4, 6) == 4
 
 
 class TestQuadraticOperator:
@@ -333,6 +344,12 @@ class TestQuadraticOperator:
         evald = op(state_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
+
+    def test_column_dimension(self):
+        """Test QuadraticOperator.column_dimension()."""
+        assert self._OpClass.column_dimension(1) == 1
+        assert self._OpClass.column_dimension(3) == 6
+        assert self._OpClass.column_dimension(5, 7) == 15
 
 
 class TestCubicOperator:
@@ -470,6 +487,12 @@ class TestCubicOperator:
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
 
+    def test_column_dimension(self):
+        """Test CubicOperator.column_dimension()."""
+        assert self._OpClass.column_dimension(1) == 1
+        assert self._OpClass.column_dimension(3) == 10
+        assert self._OpClass.column_dimension(5, 2) == 35
+
 
 class TestInputOperator:
     """Test operators._nonparametric.InputOperator."""
@@ -588,6 +611,12 @@ class TestInputOperator:
         block = op.datablock(state_, input_)
         assert block.shape == (1, k)
         assert np.all(block[0] == input_)
+
+    def test_column_dimension(self):
+        """Test InputOperator.column_dimension()."""
+        assert self._OpClass.column_dimension(1, 3) == 3
+        assert self._OpClass.column_dimension(3, 8) == 8
+        assert self._OpClass.column_dimension(5, 2) == 2
 
 
 class TestStateInputOperator:
@@ -782,3 +811,9 @@ class TestStateInputOperator:
         evald = op(state_, input_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
+
+    def test_column_dimension(self):
+        """Test StateInputOperator.column_dimension()."""
+        assert self._OpClass.column_dimension(1, 2) == 2
+        assert self._OpClass.column_dimension(3, 6) == 18
+        assert self._OpClass.column_dimension(5, 2) == 10

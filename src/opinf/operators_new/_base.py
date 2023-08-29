@@ -112,7 +112,7 @@ class _BaseNonparametricOperator(abc.ABC):
         self.__entries = entries
 
     @abc.abstractmethod
-    def __call__(selfm, state_, input_=None):                # pragma: no cover
+    def __call__(self, state_, input_=None):                # pragma: no cover
         """Apply the operator mapping to the given state / input.
 
         This method is also accessible as ``evaluate()``.
@@ -161,7 +161,7 @@ class _BaseNonparametricOperator(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def datablock(state_, input_=None):                     # pragma: no cover
+    def datablock(states_, inputs=None):                    # pragma: no cover
         r"""Return the data matrix block corresponding to the operator.
 
         Let :math:`\widehat{\mathbf{F}}(\widehat{\mathbf{q}},\mathbf{u})`
@@ -192,10 +192,10 @@ class _BaseNonparametricOperator(abc.ABC):
 
         Parameters
         ----------
-        state_ : (r, k) or (k,) ndarray
+        states_ : (r, k) or (k,) ndarray
             State vectors. Each column is a single state vector.
             If one dimensional, it is assumed that :math:`r = 1`.
-        input_ : (m, k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Input vectors. Each column is a single input vector.
             If one dimensional, it is assumed that :math:`m = 1`.
 
@@ -203,5 +203,20 @@ class _BaseNonparametricOperator(abc.ABC):
         -------
         block : (d, k) or (d,) ndarray
             Data matrix block. Here, :math:`d` is ``entries.shape[1]``.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def column_dimension(r, m=None):                       # pragma: no cover
+        r"""Column dimension of the operator entries.
+
+        This method should NOT depend on the ``entries`` attribute.
+
+        Parameters
+        ----------
+        r : int
+            Dimension of the reduced-order state space.
+        m : int or None
+            Number of inputs.
         """
         raise NotImplementedError
