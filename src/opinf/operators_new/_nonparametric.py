@@ -16,7 +16,6 @@ import scipy.linalg as la
 
 from . import _kronecker
 from ._base import _BaseNonparametricOperator, _requires_entries
-# from .. import errors
 
 
 class ConstantOperator(_BaseNonparametricOperator):

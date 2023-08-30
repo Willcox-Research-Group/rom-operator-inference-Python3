@@ -38,7 +38,7 @@ class _BaseNonparametricOperator(abc.ABC):
     """
     def __init__(self, entries=None):
         """Initialize empty operator."""
-        self.__entries = None
+        self._clear()
         self.evaluate = self.__call__
         if entries is not None:
             self._validate_entries(entries)
@@ -68,6 +68,11 @@ class _BaseNonparametricOperator(abc.ABC):
     def entries(self, entries):
         """Set the ``entries`` attribute."""
         self.set_entries(entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        self._clear()
 
     @property
     def shape(self):

@@ -12,4 +12,6 @@ __version__ = "0.5.0"
 from .roms import *
 from .operators import *
 from . import basis, errors, lstsq, operators, pre, post, roms, utils
-from . import operators_new
+
+# Development
+from . import operators_new, roms_new
