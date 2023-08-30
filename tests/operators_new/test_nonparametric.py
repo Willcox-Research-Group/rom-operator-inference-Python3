@@ -11,6 +11,7 @@ import opinf
 _module = opinf.operators_new._nonparametric
 
 
+# No dependence on state or input =============================================
 class TestConstantOperator:
     """Test operators._nonparametric.ConstantOperator."""
     _OpClass = _module.ConstantOperator
@@ -103,6 +104,22 @@ class TestConstantOperator:
         _test_single(op.jacobian([1, 2]))
         _test_single(op.jacobian([1], 2))
 
+    def test_galerkin(self, n=10, r=3, ntrials=10):
+        """Test ConstantOperator.galerkin()."""
+        Vr = np.random.random((n, r))
+        Wr = np.random.random((n, r))
+        c = np.random.random(n)
+
+        op = self._OpClass(c)
+        op_ = op.galerkin(Vr, Wr)
+        assert isinstance(op_, self._OpClass)
+        assert op_.shape == (r,)
+        for _ in range(ntrials):
+            q_ = np.random.random(r)
+            full = Wr.T @ op.evaluate(Vr @ q_)
+            reduced = op_.evaluate(q_)
+            assert np.allclose(reduced, full)
+
     def test_datablock(self, k=20):
         """Test ConstantOperator.datablock()."""
         op = self._OpClass()
@@ -123,6 +140,7 @@ class TestConstantOperator:
         assert self._OpClass.column_dimension(1, 6) == 1
 
 
+# Dependent on state but not on input =========================================
 class TestLinearOperator:
     """Test operators._nonparametric.LinearOperator."""
     _OpClass = _module.LinearOperator
@@ -201,6 +219,22 @@ class TestLinearOperator:
         assert jac.shape == A.shape
         assert np.all(jac == A)
 
+    def test_galerkin(self, n=10, r=3, ntrials=10):
+        """Test LinearOperator.galerkin()."""
+        Vr = np.random.random((n, r))
+        Wr = np.random.random((n, r))
+        A = np.random.random((n, n))
+
+        op = self._OpClass(A)
+        op_ = op.galerkin(Vr, Wr)
+        assert isinstance(op_, self._OpClass)
+        assert op_.shape == (r, r)
+        for _ in range(ntrials):
+            q_ = np.random.random(r)
+            full = Wr.T @ op.evaluate(Vr @ q_)
+            reduced = op_.evaluate(q_)
+            assert np.allclose(reduced, full)
+
     def test_datablock(self, m=3, k=20, r=10):
         """Test LinearOperator.datablock()."""
         op = self._OpClass()
@@ -275,6 +309,12 @@ class TestQuadraticOperator:
         op.set_entries(H)
         assert op.entries is H
 
+        # Test _clear().
+        op._clear()
+        assert op.entries is None
+        assert op._mask is None
+        assert op._jac is None
+
     def test_evaluate(self, r=4, ntrials=10):
         """Test QuadraticOperator.evaluate()/__call__()."""
         H = np.random.random((r, r**2))
@@ -319,6 +359,22 @@ class TestQuadraticOperator:
             jac = op.jacobian(q)
             assert jac.shape == (1, 1)
             assert np.isclose(jac[0, 0], jac_true)
+
+    def test_galerkin(self, n=10, r=3, ntrials=10):
+        """Test QuadraticOperator.galerkin()."""
+        Vr = np.random.random((n, r))
+        Wr = np.random.random((n, r))
+        H = np.random.random((n, n**2))
+
+        op = self._OpClass(H)
+        op_ = op.galerkin(Vr, Wr)
+        assert isinstance(op_, self._OpClass)
+        assert op_.shape == (r, r*(r + 1)//2)
+        for _ in range(ntrials):
+            q_ = np.random.random(r)
+            full = Wr.T @ op.evaluate(Vr @ q_)
+            reduced = op_.evaluate(q_)
+            assert np.allclose(reduced, full)
 
     def test_datablock(self, k=20, r=10):
         """Test QuadraticOperator.datablock()."""
@@ -404,6 +460,12 @@ class TestCubicOperator:
         op.set_entries(G)
         assert op.entries is G
 
+        # Test _clear().
+        op._clear()
+        assert op.entries is None
+        assert op._mask is None
+        assert op._jac is None
+
     def test_evaluate(self, r=4, ntrials=10):
         """Test CubicOperator.evaluate()/__call__()."""
         # Full operator, compressed internally.
@@ -462,6 +524,22 @@ class TestCubicOperator:
             assert jac.shape == (1, 1)
             assert np.isclose(jac[0, 0], jac_true)
 
+    def test_galerkin(self, n=5, r=2, ntrials=10):
+        """Test CubicOperator.galerkin()."""
+        Vr = np.random.random((n, r))
+        Wr = np.random.random((n, r))
+        H = np.random.random((n, n**3))
+
+        op = self._OpClass(H)
+        op_ = op.galerkin(Vr, Wr)
+        assert isinstance(op_, self._OpClass)
+        assert op_.shape == (r, r*(r + 1)*(r + 2)//6)
+        for _ in range(ntrials):
+            q_ = np.random.random(r)
+            full = Wr.T @ op.evaluate(Vr @ q_)
+            reduced = op_.evaluate(q_)
+            assert np.allclose(reduced, full)
+
     def test_datablock(self, k=20, r=10):
         """Test CubicOperator.datablock()."""
         op = self._OpClass()
@@ -494,6 +572,7 @@ class TestCubicOperator:
         assert self._OpClass.column_dimension(5, 2) == 35
 
 
+# Dependent on input but not on state =========================================
 class TestInputOperator:
     """Test operators._nonparametric.InputOperator."""
     _OpClass = _module.InputOperator
@@ -597,6 +676,23 @@ class TestInputOperator:
         assert jac.shape == (r, r)
         assert np.all(jac == 0)
 
+    def test_galerkin(self, n=10, r=4, m=3, ntrials=10):
+        """Test InputOperator.galerkin()."""
+        Vr = np.random.random((n, r))
+        Wr = np.random.random((n, r))
+        B = np.random.random((n, m))
+
+        op = self._OpClass(B)
+        op_ = op.galerkin(Vr, Wr)
+        assert isinstance(op_, self._OpClass)
+        assert op_.shape == (r, m)
+        for _ in range(ntrials):
+            q_ = np.random.random(r)
+            u = np.random.random(m)
+            full = Wr.T @ op.evaluate(Vr @ q_, u)
+            reduced = op_.evaluate(q_, u)
+            assert np.allclose(reduced, full)
+
     def test_datablock(self, m=3, k=20, r=10):
         """Test InputOperator.datablock()."""
         op = self._OpClass()
@@ -619,6 +715,7 @@ class TestInputOperator:
         assert self._OpClass.column_dimension(5, 2) == 2
 
 
+# Dependent on state and input ================================================
 class TestStateInputOperator:
     """Test operators._nonparametric.StateInputOperator."""
     _OpClass = _module.StateInputOperator
@@ -765,6 +862,23 @@ class TestStateInputOperator:
             jac = op.jacobian(q, u)
             assert jac.shape == (1, 1)
             assert np.isclose(jac[0, 0], jac_true)
+
+    def test_galerkin(self, n=10, r=4, m=3, ntrials=10):
+        """Test StateInputOperator.galerkin()."""
+        Vr = np.random.random((n, r))
+        Wr = np.random.random((n, r))
+        N = np.random.random((n, n*m))
+
+        op = self._OpClass(N)
+        op_ = op.galerkin(Vr, Wr)
+        assert isinstance(op_, self._OpClass)
+        assert op_.shape == (r, r*m)
+        for _ in range(ntrials):
+            q_ = np.random.random(r)
+            u = np.random.random(m)
+            full = Wr.T @ op.evaluate(Vr @ q_, u)
+            reduced = op_.evaluate(q_, u)
+            assert np.allclose(reduced, full)
 
     def test_datablock(self, m=3, k=20, r=10):
         """Test StateInputOperator.datablock()."""

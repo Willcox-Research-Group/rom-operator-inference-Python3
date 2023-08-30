@@ -13,6 +13,9 @@ import abc
 import functools
 import numpy as np
 
+from .. import errors
+from ..utils import hdf5_savehandle, hdf5_loadhandle
+
 
 def _requires_entries(func):
     """Wrapper for Operator methods that require the ``entries`` attribute
@@ -69,7 +72,7 @@ class _BaseNonparametricOperator(abc.ABC):
     @property
     def shape(self):
         """Shape of the operator entries array."""
-        return self.entries.shape
+        return None if self.entries is None else self.entries.shape
 
     def __getitem__(self, key):
         """Slice into the entries of the operator."""
@@ -106,11 +109,13 @@ class _BaseNonparametricOperator(abc.ABC):
         """
         raise NotImplementedError
 
+    # Initialization - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     @abc.abstractmethod
     def set_entries(self, entries):
         """Set the ``entries`` attribute."""
         self.__entries = entries
 
+    # Evaluation - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     @abc.abstractmethod
     def __call__(self, state_, input_=None):                # pragma: no cover
         """Apply the operator mapping to the given state / input.
@@ -160,6 +165,73 @@ class _BaseNonparametricOperator(abc.ABC):
         """
         raise NotImplementedError
 
+    # Dimensionality reduction - - - - - - - - - - - - - - - - - - - - - - - -
+    @abc.abstractmethod
+    def galerkin(self, Vr, Wr, func):
+        r"""Return the Galerkin projection of the operator.
+
+        If a full-order operator is given by the evaluation
+        :math:`(\mathbf{q},\mathbf{u})\mapsto
+        \mathbf{F}(\mathbf{q},\mathbf{u})`,
+        then the Galerkin projection of the operator is the evaluation
+        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
+        \mathbf{W}_{r}^\mathsf{T}
+        \mathbf{F}(\mathbf{V}_{r}\widehat{\mathbf{q}},\mathbf{u})`,
+        where :math:`\mathbf{q}\in\mathbb{R}^{n}` is the full-order state,
+        :math:`\mathbf{u}\in\mathbb{R}^{m}` is the input,
+        :math:`\widehat{\mathbf{q}}\in\mathbb{R}^{r}`
+        is the reduced-order state, and
+        :math:`\mathbf{q}\approx\mathbf{V}_{r}\widehat{\mathbf{q}}_{r}` is the
+        reduced-order approximation of the full-order state, with trial basis
+        :math:`\mathbf{V}_{r}\in\mathbb{R}^{n \times r}` (``Vr``) and test
+        basis :math:`\mathbf{W}_{r}\in\mathbb{R}^{n \times r}` (``Wr``).
+        Usually :math:`\mathbf{W}_{r} = \mathbf{V}_{r}`, which results in a
+        _Galerkin projection_. If :math:`\mathbf{W}_{r} \neq \mathbf{V}_{r}`,
+        it is called a _Petrov-Galerkin projection_.
+
+        For example, consider the linear full-order operator
+        :math:`(\mathbf{q},\mathbf{u})\mapsto\mathbf{A}\mathbf{q}` where
+        :math:`\mathbf{A}\in\mathbb{R}^{n \times n}`.
+        The Galerkin projection of this operator is the linear operator
+        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
+        \widehat{\mathbf{A}}\widehat{\mathbf{q}}`, where
+        :math:`\widehat{\mathbf{A}} = \mathbf{W}_{r}^\mathsf{T}
+        \mathbf{A}\mathbf{V}_{r} \in \mathbb{R}^{r \times r}`.
+
+        Subclasses may implement this function as follows:
+
+            @_requires_entries
+            def galerkin(self, Vr, Wr=None):
+                '''Docstring'''
+                return _BaseNonparametricOperator.galerkin(self, Vr, Wr,
+                    lambda A, V, W:  # compute Galerkin projection of A.
+                )
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+        func : callable
+            Function of the operator entries, Vr, and Wr that returns the
+            entries of the Galerking projection of the operator.
+
+        Returns
+        -------
+        op : operator
+            ``self`` or operator object of the same class as ``self``.
+        """
+        if Wr is None:
+            Wr = Vr
+        n, r = Wr.shape
+        if self.entries.shape[0] == n:
+            return self.__class__(func(self.entries, Vr, Wr))
+        elif self.entries.shape[0] != r:
+            raise errors.DimensionalityError("basis and operator not aligned")
+        return self
+
+    # Data matrix construction - - - - - - - - - - - - - - - - - - - - - - - -
     @abc.abstractmethod
     def datablock(states_, inputs=None):                    # pragma: no cover
         r"""Return the data matrix block corresponding to the operator.
@@ -207,7 +279,7 @@ class _BaseNonparametricOperator(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def column_dimension(r, m=None):                       # pragma: no cover
+    def column_dimension(r, m=None):                        # pragma: no cover
         r"""Column dimension of the operator entries.
 
         This method should NOT depend on the ``entries`` attribute.
@@ -220,3 +292,38 @@ class _BaseNonparametricOperator(abc.ABC):
             Number of inputs.
         """
         raise NotImplementedError
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        """Save the operator to an HDF5 file.
+
+        Parameters
+        ----------
+        savefile : str
+            Path of the file to save the basis in.
+        overwrite : bool
+            If ``True``, overwrite the file if it already exists. If ``False``
+            (default), raise a ``FileExistsError`` if the file already exists.
+        """
+        with hdf5_savehandle(savefile, overwrite) as hf:
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["class"] = self.__class__.__name__
+            if self.entries is not None:
+                hf.create_dataset("entries", data=self.entries)
+
+    @classmethod
+    def load(cls, loadfile):
+        """Load an operator from an HDF5 file.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the operator was stored (via ``save()``).
+        """
+        with hdf5_loadhandle(loadfile) as hf:
+            if "meta" not in hf:
+                raise errors.LoadfileFormatError(
+                    "invalid save format (meta/ not found)")
+            entries = hf["entries"][:] if "entries" in hf else None
+
+        return cls(entries)

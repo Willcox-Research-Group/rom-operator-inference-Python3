@@ -16,6 +16,7 @@ import scipy.linalg as la
 
 from . import _kronecker
 from ._base import _BaseNonparametricOperator, _requires_entries
+# from .. import errors
 
 
 class ConstantOperator(_BaseNonparametricOperator):
@@ -114,6 +115,26 @@ class ConstantOperator(_BaseNonparametricOperator):
         """
         r = self.entries.size
         return np.zeros((r, r))
+
+    @_requires_entries
+    def galerkin(self, Vr, Wr=None):
+        r"""Return the Galerkin projection of the operator,
+        :math:`\widehat{\mathbf{c}} = \mathbf{W}_{r}^{\mathsf{T}}\mathbf{c}`.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        op : operator
+            ``self`` or new ``ConstantOperator`` object.
+        """
+        return _BaseNonparametricOperator.galerkin(
+            self, Vr, Wr, lambda c, V, W: W.T @ c)
 
     @staticmethod
     def datablock(states_, inputs=None):
@@ -251,6 +272,27 @@ class LinearOperator(_BaseNonparametricOperator):
             Operator Jacobian, the operator entries.
         """
         return self.entries
+
+    @_requires_entries
+    def galerkin(self, Vr, Wr=None):
+        r"""Return the Galerkin projection of the operator,
+        :math:`\widehat{\mathbf{A}} =
+        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{A}\mathbf{V}_{r}`.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        op : operator
+            ``self`` or new ``LinearOperator`` object.
+        """
+        return _BaseNonparametricOperator.galerkin(
+            self, Vr, Wr, lambda A, V, W: W.T @ A @ V)
 
     @staticmethod
     def datablock(states_, inputs=None):
@@ -417,6 +459,30 @@ class QuadraticOperator(_BaseNonparametricOperator):
             Operator Jacobian.
         """
         return self._jac @ np.atleast_1d(state_)
+
+    @_requires_entries
+    def galerkin(self, Vr, Wr=None):
+        r"""Return the Galerkin projection of the operator,
+        :math:`\widehat{\mathbf{H}} =
+        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{H}
+        (\mathbf{V}_{r}\otimes\mathbf{V}_{r})`.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        op : operator
+            ``self`` or new ``QuadraticOperator`` object.
+        """
+        def _project(H, V, W):
+            return W.T @ _kronecker.expand_quadratic(H) @ np.kron(V, V)
+
+        return _BaseNonparametricOperator.galerkin(self, Vr, Wr, _project)
 
     @staticmethod
     def datablock(states_, inputs=None):
@@ -621,6 +687,30 @@ class CubicOperator(_BaseNonparametricOperator):
         q_ = np.atleast_1d(state_)
         return (self._jac @ q_) @ q_
 
+    @_requires_entries
+    def galerkin(self, Vr, Wr=None):
+        r"""Return the Galerkin projection of the operator,
+        :math:`\widehat{\mathbf{G}} =
+        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{G}
+        (\mathbf{V}_{r}\otimes\mathbf{V}_{r}\otimes\mathbf{V}_{r})`.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        op : operator
+            ``self`` or new ``CubicOperator`` object.
+        """
+        def _project(G, V, W):
+            return W.T @ _kronecker.expand_cubic(G) @ np.kron(V, np.kron(V, V))
+
+        return _BaseNonparametricOperator.galerkin(self, Vr, Wr, _project)
+
     @staticmethod
     def datablock(states_, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
@@ -802,6 +892,27 @@ class InputOperator(_BaseNonparametricOperator):
         r = self.entries.shape[0]
         return np.zeros((r, r))
 
+    @_requires_entries
+    def galerkin(self, Vr, Wr=None):
+        r"""Return the Galerkin projection of the operator,
+        :math:`\widehat{\mathbf{B}} =
+        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{B}`.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        op : operator
+            ``self`` or new ``InputOperator`` object.
+        """
+        return _BaseNonparametricOperator.galerkin(
+            self, Vr, Wr, lambda B, V, W: W.T @ B)
+
     @staticmethod
     def datablock(states_, inputs):
         r"""Return the data matrix block corresponding to the operator,
@@ -968,6 +1079,33 @@ class StateInputOperator(_BaseNonparametricOperator):
         return np.sum([
             um*Nm for um, Nm in zip(u, np.split(self.entries, m, axis=1))
         ], axis=0)
+
+    @_requires_entries
+    def galerkin(self, Vr, Wr=None):
+        r"""Return the Galerkin projection of the operator,
+        :math:`\widehat{\mathbf{N}} =
+        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{N}
+        (\mathbf{I}_{m}\otimes\mathbf{V}_{r})`.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        op : operator
+            ``self`` or new ``CubicOperator`` object.
+        """
+        def _project(N, V, W):
+            r, rm = N.shape
+            m = rm // r
+            Id = np.eye(m)
+            return W.T @ N @ np.kron(Id, V)
+
+        return _BaseNonparametricOperator.galerkin(self, Vr, Wr, _project)
 
     @staticmethod
     def datablock(states_, inputs):
