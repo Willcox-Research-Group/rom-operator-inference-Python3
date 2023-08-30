@@ -45,21 +45,21 @@ from ..utils import (
 
 
 def ddt_uniform(*args, **kwargs):
-    _warnings.warn(DeprecationWarning,
-                   "ddt_uniform() has been moved to the utils submodule"
-                   " and will be removed from pre in a future release")
+    _warnings.warn("ddt_uniform() has been moved to the utils submodule"
+                   " and will be removed from pre in a future release",
+                   DeprecationWarning)
     return _ddt_uniform(*args, **kwargs)
 
 
 def ddt_nonuniform(*args, **kwargs):
-    _warnings.warn(DeprecationWarning,
-                   "ddt_nonuniform() has been moved to the utils submodule"
-                   " and will be removed from pre in a future release")
+    _warnings.warn("ddt_nonuniform() has been moved to the utils submodule"
+                   " and will be removed from pre in a future release",
+                   DeprecationWarning)
     return _ddt_nonuniform(*args, **kwargs)
 
 
 def ddt(*args, **kwargs):
-    _warnings.warn(DeprecationWarning,
-                   "ddt() has been moved to the utils submodule"
-                   " and will be removed from pre in a future release")
+    _warnings.warn("ddt() has been moved to the utils submodule"
+                   " and will be removed from pre in a future release",
+                   DeprecationWarning)
     return _ddt(*args, **kwargs)
