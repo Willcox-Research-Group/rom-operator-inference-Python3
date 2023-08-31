@@ -96,6 +96,16 @@ class TestBaseROM:
         assert ex.value.args[0] == "operators not aligned with basis " \
             f"(operators[1].shape[0] = {r+1} must be r = {r} or n = {n})"
 
+        # Try to instantiate with input operators not aligned.
+        bad_ops = [
+            opinf_operators.InputOperator(np.random.random((r, m-1))),
+            opinf_operators.StateInputOperator(np.random.random((r, r*m))),
+        ]
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            self.Dummy(None, bad_ops)
+        assert ex.value.args[0] == "input operators not aligned " \
+            "(input dimension 'm' must be the same)"
+
         # Test operators.setter().
         rom = self.Dummy(None, [opinf_operators.ConstantOperator()])
         for attr in (
@@ -138,7 +148,7 @@ class TestBaseROM:
         assert len(rom._indices_of_known_operators) == 2
         assert rom._indices_of_known_operators == [0, 1]
         assert rom._has_inputs is True
-        assert rom.m is None
+        assert rom.m == m
         assert rom.r == r
         for i in rom._indices_of_operators_to_infer:
             assert rom.operators[i] is operators[i+3]
@@ -165,6 +175,7 @@ class TestBaseROM:
         for i in rom._indices_of_known_operators:
             assert rom.operators[i].entries is not None
         assert rom.r == r       # Dimensions not erased.
+        assert rom.m == m       # Dimensions not erased.
 
         # Test __init__() shortcuts.
         rom = self.Dummy(None, "cHB")
@@ -308,7 +319,6 @@ class TestBaseROM:
 
         # Successful check.
         rom.operators = _get_operators("cABH", r, m)
-        rom.m = m
         rom._check_is_trained()
 
     # Dimensionality reduction ------------------------------------------------
@@ -391,7 +401,6 @@ class TestBaseROM:
 
         kron2c = opinf_operators._kronecker.kron2c
         rom = self.Dummy(None, [H_, B_])
-        rom.m = m
         for _ in range(ntrials):
             u = np.random.random(m)
             q_ = np.random.random(r)

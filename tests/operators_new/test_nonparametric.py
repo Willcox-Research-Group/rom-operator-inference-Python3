@@ -25,9 +25,10 @@ class TestConstantOperator:
 
     def test_set_entries(self):
         """Test ConstantOperator.set_entries()."""
+        op = self._OpClass()
+
         # Too many dimensions.
         cbad = np.arange(12).reshape((4, 3))
-        op = self._OpClass()
         with pytest.raises(ValueError) as ex:
             op.set_entries(cbad)
         assert ex.value.args[0] == \
@@ -598,11 +599,13 @@ class TestInputOperator:
         B = Bbad.reshape((4, 3))
         op.set_entries(B)
         assert op.entries is B
+        assert op.m == 3
 
         # Special case: r > 1, m = 1
         B = np.random.random(5)
         op.set_entries(B)
         assert op.shape == (5, 1)
+        assert op.m == 1
         assert np.allclose(op.entries[:, 0], B)
 
         # Special case: r = 1, m > 1
@@ -749,12 +752,14 @@ class TestStateInputOperator:
         N = np.random.random((r, r*m))
         op.set_entries(N)
         assert op.entries is N
+        assert op.m == m
 
         # Special case: r = 1, m = 1 (scalar B).
         n = np.random.random()
         op.set_entries(n)
         assert op.shape == (1, 1)
         assert op[0, 0] == n
+        assert op.m == 1
 
     def test_evaluate(self, k=20):
         """Test StateInputOperator.evaluate()/__call__()."""

@@ -32,6 +32,7 @@ def test_requires_entries():
     assert dummy.required() == 1
 
 
+# Nonparametric operators =====================================================
 class TestBaseNonparametricOperator:
     """Test operators._nonparametric._BaseNonparametricOperator."""
     class Dummy(_module._BaseNonparametricOperator):
@@ -128,6 +129,8 @@ class TestBaseNonparametricOperator:
         op.set_entries(A)
         assert op.entries is A
         assert op.shape == A.shape
+        del op.entries
+        assert op.entries is None
 
         A2 = np.random.random(A.shape)
         op.entries = A2
@@ -237,3 +240,20 @@ class TestBaseNonparametricOperator:
         assert ex.value.args[0] == "invalid save format (meta/ not found)"
 
         os.remove(target)
+
+
+# Parametric operators ========================================================
+# TODO
+
+# Mixin for operators acting on inputs ========================================
+def test_is_input_operator():
+    """Test operators._base._is_input_operator."""
+
+    class Dummy(_module._InputMixin):
+        """Instantiable verison of _InputMixin."""
+        def m(self):
+            pass
+
+    op = Dummy()
+    assert _module._is_input_operator(op)
+    assert not _module._is_input_operator(5)

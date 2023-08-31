@@ -15,9 +15,10 @@ import numpy as np
 import scipy.linalg as la
 
 from . import _kronecker
-from ._base import _BaseNonparametricOperator, _requires_entries
+from ._base import _requires_entries, _BaseNonparametricOperator, _InputMixin
 
 
+# No dependence on state or input =============================================
 class ConstantOperator(_BaseNonparametricOperator):
     r"""Constant 'operator' :math:`\widehat{\mathbf{c}} \in \mathbb{R}^{r}`
     representing the action
@@ -182,6 +183,7 @@ class ConstantOperator(_BaseNonparametricOperator):
         return 1
 
 
+# Dependent on state but not on input =========================================
 class LinearOperator(_BaseNonparametricOperator):
     r"""Linear state operator
     :math:`\widehat{\mathbf{A}} \in \mathbb{R}^{r \times r}`
@@ -794,7 +796,8 @@ class CubicOperator(_BaseNonparametricOperator):
         return r * (r + 1) * (r + 2) // 6
 
 
-class InputOperator(_BaseNonparametricOperator):
+# Dependent on input but not on state =========================================
+class InputOperator(_BaseNonparametricOperator, _InputMixin):
     r"""Linear input operator
     :math:`\widehat{\mathbf{B}} \in \mathbb{R}^{r \times m}`
     representing the action
@@ -814,6 +817,8 @@ class InputOperator(_BaseNonparametricOperator):
     >>> np.allclose(out, entries @ u)
     True
     """
+    _has_inputs = True
+
     @staticmethod
     def _str(statestr, inputstr):
         return f"B{inputstr}"
@@ -950,7 +955,7 @@ class InputOperator(_BaseNonparametricOperator):
 
     @staticmethod
     def column_dimension(r, m):
-        """Column dimension :math:`rm` of the operator entries.
+        """Column dimension :math:`m` of the operator entries.
 
         Parameters
         ----------
@@ -961,8 +966,15 @@ class InputOperator(_BaseNonparametricOperator):
         """
         return m
 
+    @property
+    @_requires_entries
+    def m(self):
+        """Input dimension."""
+        return self.entries.shape[1]
 
-class StateInputOperator(_BaseNonparametricOperator):
+
+# Dependent on state and input ================================================
+class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
     r"""Linear state / input interaction operator
     :math:`\widehat{\mathbf{N}} \in \mathbb{R}^{r \times rm}`
     representing the action
@@ -983,6 +995,8 @@ class StateInputOperator(_BaseNonparametricOperator):
     >>> np.allclose(out, entries @ np.kron(u, q))
     True
     """
+    _has_inputs = True
+
     @staticmethod
     def _str(statestr, inputstr):
         return f"N[{inputstr} ⊗ {statestr}]"
@@ -1188,3 +1202,9 @@ class StateInputOperator(_BaseNonparametricOperator):
             Number of inputs.
         """
         return r * m
+
+    @property
+    @_requires_entries
+    def m(self):
+        """Input dimension."""
+        return self.entries.shape[1] // self.entries.shape[0]

@@ -13,14 +13,22 @@ from .. import operators_new as _operators
 
 
 class _BaseROM(abc.ABC):
-    """Base class for all opinf reduced model classes."""
+    """Base class for all monolithic reduced-order model classes."""
     _LHS_ARGNAME = "lhs"    # Name of LHS argument in fit(), e.g., "ddts".
     _LHS_LABEL = None       # String representation of LHS, e.g., "dq / dt".
     _STATE_LABEL = None     # String representation of state, e.g., "q(t)".
     _INPUT_LABEL = None     # String representation of input, e.g., "u(t)".
 
     def __init__(self, basis, operators):
-        """Set the basis and define the model structure."""
+        """Set the basis and define the model structure.
+
+        Parameters
+        ----------
+        basis : opinf.basis object or (n, r) ndarray
+            Basis for the reduced space (e.g., POD).
+        operators : list of opinf.operators objects
+            Operators comprising the terms of the reduced-order model.
+        """
         self.__r = None
         self.__m = None
         self.__basis = None
@@ -91,11 +99,8 @@ class _BaseROM(abc.ABC):
                 toinfer.append(i)
             else:
                 known.append(i)
-            if isinstance(op, (_operators.InputOperator,
-                               _operators.StateInputOperator)):
+            if _operators._base._is_input_operator(op):
                 self._has_inputs = True
-        if not self._has_inputs:
-            self.m = 0
 
         # Validate shapes of operators with known entries.
         if len(known) > 0:
@@ -113,6 +118,17 @@ class _BaseROM(abc.ABC):
                             "operators not aligned with basis "
                             f"(operators[{i}].shape[0] = {dim} must be "
                             f"r = {self.r} or n = {self.n})")
+            if self._has_inputs:
+                # Input operators must have same input dimension.
+                ms = {ops[i].m for i in known
+                      if _operators._base._is_input_operator(ops[i])}
+                if len(ms) > 1:
+                    raise errors.DimensionalityError(
+                        "input operators not aligned "
+                        "(input dimension 'm' must be the same)")
+                self.m = ms.pop()
+        if not self._has_inputs:
+            self.m = 0
 
         # Store attributes.
         self.__operators = ops

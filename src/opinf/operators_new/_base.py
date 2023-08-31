@@ -31,6 +31,7 @@ def _requires_entries(func):
     return _decorator
 
 
+# Nonparametric operators =====================================================
 class _BaseNonparametricOperator(abc.ABC):
     """Base class for reduced-order model operators that do not depend on
     external parameters. Call the instantiated object to evaluate the operator
@@ -79,6 +80,7 @@ class _BaseNonparametricOperator(abc.ABC):
         """Shape of the operator entries array."""
         return None if self.entries is None else self.entries.shape
 
+    # Magic methods -----------------------------------------------------------
     def __getitem__(self, key):
         """Slice into the entries of the operator."""
         return None if self.entries is None else self.entries[key]
@@ -332,3 +334,32 @@ class _BaseNonparametricOperator(abc.ABC):
             entries = hf["entries"][:] if "entries" in hf else None
 
         return cls(entries)
+
+
+# Parametric operators ========================================================
+# TODO
+
+# Mixin for operators acting on inputs ========================================
+class _InputMixin(abc.ABC):
+    """Mixin for operator classes whose ``evaluate()`` method uses the
+    ``input_`` argument.
+    """
+    @abc.abstractmethod
+    def m(self):                                            # pragma: no cover
+        """Input dimension. Subclasses should implement this method as follows:
+
+            @property
+            @_requires_entries
+            def m(self):
+                '''Input dimension.'''
+                return  # calculate m from ``self.entries``.
+        """
+        raise NotImplementedError
+
+
+def _is_input_operator(obj):
+    """Return ``True`` if ``obj`` is an operator class whose ``evaluate()``
+    method uses the ``input_`` argument (by checking that it is derived from
+    ``operators._base._InputMixin``).
+    """
+    return isinstance(obj, _InputMixin)
