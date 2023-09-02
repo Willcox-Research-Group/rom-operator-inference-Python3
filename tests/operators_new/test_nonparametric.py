@@ -54,27 +54,27 @@ class TestConstantOperator:
         assert op.shape == (1,)
         assert op.entries[0] == c
 
-    def test_evaluate(self):
+    def test_evaluate(self, k=20):
         """Test ConstantOperator.evaluate()/__call__()."""
         op = self._OpClass()
 
-        def _test_single(c):
+        def _test_single(r):
+            c = np.random.random(r)
             op.set_entries(c)
             assert np.allclose(op.evaluate(), c)
             # Evaluation for a single vector.
-            q = np.random.random(c.shape[-1])
+            q = np.random.random(r)
             assert np.allclose(op.evaluate(q), op.entries)
             # Vectorized evaluation.
-            shape = (c.shape[-1], 20)
-            Q = np.random.random(shape)
-            ccc = np.column_stack([c for _ in range(shape[1])])
+            Q = np.random.random((r, k))
+            ccc = np.column_stack([c for _ in range(k)])
             out = op.evaluate(Q)
-            assert out.shape == shape
+            assert out.shape == (r, k)
             assert np.all(out == ccc)
 
-        _test_single(np.random.random(10))
-        _test_single(np.random.random(20))
-        _test_single(np.random.random(1))
+        _test_single(10)
+        _test_single(20)
+        _test_single(1)
 
         # Special case: r = 1, scalar q.
         c = np.random.random()
@@ -85,9 +85,9 @@ class TestConstantOperator:
         assert np.isscalar(out)
         assert out == c
         # Vectorized evaluation.
-        q = np.random.random(20)
-        out = op.evaluate(q)
-        assert out.shape == (20,)
+        Q = np.random.random(k)
+        out = op.evaluate(Q)
+        assert out.shape == (k,)
         assert np.all(out == c)
 
     def test_jacobian(self, r=10):
@@ -181,22 +181,23 @@ class TestLinearOperator:
         assert op.shape == (1, 1)
         assert op[0, 0] == a
 
-    def test_evaluate(self):
+    def test_evaluate(self, k=20):
         """Test LinearOperator.evaluate()/__call__()."""
         op = self._OpClass()
 
-        def _test_single(A):
+        def _test_single(r):
+            A = np.random.random((r, r))
             op.set_entries(A)
             # Evaluation for a single vector.
-            q = np.random.random(A.shape[-1])
+            q = np.random.random(r)
             assert np.allclose(op.evaluate(q), A @ q)
             # Vectorized evaluation.
-            Q = np.random.random((A.shape[-1], 20))
+            Q = np.random.random((r, k))
             assert np.allclose(op.evaluate(Q), A @ Q)
 
-        _test_single(np.random.random((10, 10)))
-        _test_single(np.random.random((4, 4)))
-        _test_single(np.random.random((1, 1)))
+        _test_single(10)
+        _test_single(4)
+        _test_single(1)
 
         # Special case: A is 1x1 and q is a scalar.
         A = np.random.random()
@@ -207,9 +208,9 @@ class TestLinearOperator:
         assert np.isscalar(out)
         assert np.allclose(out, A * q)
         # Vectorized evaluation.
-        Q = np.random.random(20)
+        Q = np.random.random(k)
         out = op(Q)
-        assert out.shape == (20,)
+        assert out.shape == (k,)
         assert np.allclose(out, A * Q)
 
     def test_jacobian(self, r=9):
@@ -316,26 +317,47 @@ class TestQuadraticOperator:
         assert op._mask is None
         assert op._jac is None
 
-    def test_evaluate(self, r=4, ntrials=10):
+    def test_evaluate(self, k=10, ntrials=10):
         """Test QuadraticOperator.evaluate()/__call__()."""
-        H = np.random.random((r, r**2))
-        op = self._OpClass(H)
-        for _ in range(ntrials):
-            q = np.random.random(r)
-            evaltrue = H @ np.kron(q, q)
-            evalgot = op.evaluate(q)
-            assert evalgot.shape == (r,)
-            assert np.allclose(evalgot, evaltrue)
+        op = self._OpClass()
 
-        # Special case: r = 1
-        H = np.random.random((1, 1))
+        def _test_single(r):
+            H = np.random.random((r, r**2))
+            op.set_entries(H)
+            for _ in range(ntrials):
+                # Evaluation for a single vector.
+                q = np.random.random(r)
+                evaltrue = H @ np.kron(q, q)
+                evalgot = op.evaluate(q)
+                assert evalgot.shape == (r,)
+                assert np.allclose(evalgot, evaltrue)
+                # Vectorized evaluation.
+                Q = np.random.random((r, k))
+                evaltrue = H @ la.khatri_rao(Q, Q)
+                evalgot = op.evaluate(Q)
+                assert evalgot.shape == (r, k)
+                assert np.allclose(evalgot, evaltrue)
+
+        _test_single(5)
+        _test_single(2)
+        _test_single(1)
+
+        # Special case: r = 1 and q is a scalar.
+        H = np.random.random()
         op.set_entries(H)
         for _ in range(ntrials):
+            # Evaluation for a single vector.
             q = np.random.random()
-            evaltrue = H[0, 0] * q**2
+            evaltrue = H * q**2
             evalgot = op.evaluate(q)
             assert np.isscalar(evalgot)
             assert np.isclose(evalgot, evaltrue)
+            # Vectorized evaluation.
+            Q = np.random.random(k)
+            evaltrue = H * Q**2
+            evalgot = op.evaluate(Q)
+            assert evalgot.shape == (k,)
+            assert np.allclose(evalgot, evaltrue)
 
     def test_jacobian(self, r=5, ntrials=10):
         """Test QuadraticOperator.jacobian()."""
@@ -467,35 +489,46 @@ class TestCubicOperator:
         assert op._mask is None
         assert op._jac is None
 
-    def test_evaluate(self, r=4, ntrials=10):
+    def test_evaluate(self, k=20, ntrials=10):
         """Test CubicOperator.evaluate()/__call__()."""
-        # Full operator, compressed internally.
-        G = np.random.random((r, r**3))
-        op = self._OpClass(G)
-        for _ in range(ntrials):
-            q = np.random.random(r)
-            evaltrue = G @ np.kron(np.kron(q, q), q)
-            Gq = op.evaluate(q)
-            assert np.allclose(Gq, evaltrue)
+        op = self._OpClass()
 
-        # Compressed operator.
-        G = np.random.random((r, r*(r + 1)*(r + 2)//6))
-        op.set_entries(G)
-        for _ in range(ntrials):
-            q = np.random.random(r)
-            evaltrue = G @ opinf.utils.kron3c(q)
-            Gq = op.evaluate(q)
-            assert np.allclose(Gq, evaltrue)
+        def _test_single(r):
+            G = np.random.random((r, r**3))
+            op.set_entries(G)
+            for _ in range(ntrials):
+                # Evaluation for a single vector.
+                q = np.random.random(r)
+                evaltrue = G @ np.kron(np.kron(q, q), q)
+                evalgot = op.evaluate(q)
+                assert np.allclose(evalgot, evaltrue)
+                # Vectorized evaluation.
+                Q = np.random.random((r, k))
+                evaltrue = G @ la.khatri_rao(Q, la.khatri_rao(Q, Q))
+                evalgot = op.evaluate(Q)
+                assert evalgot.shape == (r, k)
+                assert np.allclose(evalgot, evaltrue)
 
-        # Special case: r = 1
+        _test_single(5)
+        _test_single(3)
+        _test_single(1)
+
+        # Special case: r = 1 and q is a scalar.
         G = np.random.random()
         op.set_entries(G)
         for _ in range(ntrials):
+            # Evaluation for a single vector.
             q = np.random.random()
             evaltrue = G * q**3
-            Gq = op.evaluate(q)
-            assert np.isscalar(Gq)
-            assert np.allclose(Gq, evaltrue)
+            evalgot = op.evaluate(q)
+            assert np.isscalar(evalgot)
+            assert np.allclose(evalgot, evaltrue)
+            # Vectorized evaluation.
+            Q = np.random.random(k)
+            evaltrue = G * Q**3
+            evalgot = op.evaluate(Q)
+            assert evalgot.shape == (k,)
+            assert np.allclose(evalgot, evaltrue)
 
     def test_jacobian(self, r=5, ntrials=10):
         """Test CubicOperator.jacobian()."""
@@ -624,21 +657,29 @@ class TestInputOperator:
         """Test InputOperator.evaluate()/__call__()."""
         op = self._OpClass()
 
-        def _test_single(B):
-            r, m = B.shape
+        def _test_single(r, m):
+            B = np.random.random((r, m))
             op.set_entries(B)
             # Evaluation for a single vector.
             q = np.random.random(r)
             u = np.random.random(m)
-            assert np.allclose(op.evaluate(q, u), B @ u)
+            evaltrue = B @ u
+            evalgot = op.evaluate(q, u)
+            assert evalgot.shape == (r,)
+            assert np.allclose(evalgot, evaltrue)
             # Vectorized evaluation.
             Q = np.random.random((r, k))
             U = np.random.random((m, k))
+            evaltrue = B @ U
+            evalgot = op.evaluate(Q, U)
+            assert evalgot.shape == (r, k)
             assert np.allclose(op.evaluate(Q, U), B @ U)
 
-        _test_single(np.random.random((10, 2)))
-        _test_single(np.random.random((2, 5)))
-        _test_single(np.random.random((1, 1)))
+        _test_single(10, 2)
+        _test_single(2, 5)
+        _test_single(3, 1)
+        _test_single(1, 4)
+        _test_single(1, 1)
 
         # Special case: B is 1x1 and u is a scalar.
         B = np.random.random()
@@ -765,23 +806,30 @@ class TestStateInputOperator:
         """Test StateInputOperator.evaluate()/__call__()."""
         op = self._OpClass()
 
-        def _test_single(N):
-            r, rm = N.shape
-            m = rm // r
+        def _test_single(r, m):
+            N = np.random.random((r, r*m))
             op.set_entries(N)
             # Evaluation for a single vector.
             q = np.random.random(r)
             u = np.random.random(m)
-            assert np.allclose(op.evaluate(q, u), N @ np.kron(u, q))
+            evaltrue = N @ np.kron(u, q)
+            evalgot = op.evaluate(q, u)
+            assert evalgot.shape == (r,)
+            assert np.allclose(evalgot, evaltrue)
             # Vectorized evaluation.
             Q = np.random.random((r, k))
             U = np.random.random((m, k))
-            assert np.allclose(op.evaluate(Q, U), N @ la.khatri_rao(U, Q))
+            evaltrue = N @ la.khatri_rao(U, Q)
+            evalgot = op.evaluate(Q, U)
+            assert evalgot.shape == (r, k)
+            assert np.allclose(evalgot, evaltrue)
 
-        _test_single(np.random.random((10, 20)))
-        _test_single(np.random.random((2, 6)))
-        _test_single(np.random.random((3, 3)))
-        _test_single(np.random.random((1, 1)))
+        _test_single(10, 20)
+        _test_single(2, 6)
+        _test_single(3, 3)
+        _test_single(2, 1)
+        _test_single(1, 4)
+        _test_single(1, 1)
 
         # Special case: N is 1x1 and q, u are scalars.
         N = np.random.random()
@@ -905,7 +953,7 @@ class TestStateInputOperator:
         block = op.datablock(state_, input_)
         assert block.shape == (m, k)
         op.entries = np.random.random((1, m))
-        mult = op.entries[0] @ block
+        mult = op.entries @ block
         evald = op(state_, input_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)

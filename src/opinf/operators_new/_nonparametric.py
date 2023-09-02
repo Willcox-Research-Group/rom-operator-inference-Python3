@@ -862,10 +862,10 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
         out : (r,) ndarray
             The evaluation :math:`\widehat{\mathbf{B}}\mathbf{u}`.
         """
-        if self.entries.shape[1] == 1:
+        if self.entries.shape[1] == 1 and (dim := np.ndim(input_)) != 2:
             if self.entries.shape[0] == 1:
                 return self.entries[0, 0] * input_          # r = m = 1.
-            if np.ndim(input_) == 1:                        # r, k > 1, m = 1.
+            if dim == 1 and input_.size > 1:                # r, k > 1, m = 1.
                 return np.outer(self.entries[:, 0], input_)
             return self.entries[:, 0] * input_              # r > 1, m = k = 1.
         return self.entries @ input_                        # m > 1.
@@ -1044,20 +1044,19 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
             \mathbf{u}\otimes\widehat{\mathbf{q}}]`.
         """
         # Determine if arguments represent one snapshot or several.
-        dim = np.ndim(state_)
-        # multi = (self.entries.shape[0] == 1 and dim == 1) or dim > 1
-        single = dim <= 1 and (self.entries.shape[0] != 1 or dim != 1)
+        multi = (sdim := np.ndim(state_)) > 1
+        multi |= (idim := np.ndim(input_)) > 1
+        multi |= (self.shape[0] == 1 and sdim == 1 and state_.shape[0] > 1)
+        multi |= (self.shape[1] == 1 and idim == 1 and input_.shape[0] > 1)
+        single = not multi
 
-        N_ = self.entries
-        if self.entries.shape[0] == 1:
-            N_ = N_[0]
-            if self.entries.shape[1] == 1 and single:
-                return N_[0] * input_ * state_              # r = m = k = 1.
+        if self.shape[1] == 1:
+            return self.entries[0, 0] * input_ * state_     # r = m = 1.
         if single:
-            return N_ @ np.kron(input_, state_)             # k = 1.
+            return self.entries @ np.kron(input_, state_)   # k = 1, rm > 1.
         Q_ = np.atleast_2d(state_)
         U = np.atleast_2d(input_)
-        return N_ @ la.khatri_rao(U, Q_)                    # k > 1.
+        return self.entries @ la.khatri_rao(U, Q_)          # k > 1, rm > 1.
 
     @functools.wraps(__call__)
     def evaluate(self, state_, input_):                     # pragma: no cover

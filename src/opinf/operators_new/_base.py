@@ -234,9 +234,9 @@ class _BaseNonparametricOperator(abc.ABC):
         n, r = Wr.shape
         if self.entries.shape[0] == n:
             return self.__class__(func(self.entries, Vr, Wr))
-        elif self.entries.shape[0] != r:
-            raise errors.DimensionalityError("basis and operator not aligned")
-        return self
+        elif self.entries.shape[0] == r:
+            return self
+        raise errors.DimensionalityError("basis and operator not aligned")
 
     # Data matrix construction - - - - - - - - - - - - - - - - - - - - - - - -
     @abc.abstractmethod
@@ -328,12 +328,11 @@ class _BaseNonparametricOperator(abc.ABC):
             Path to the file where the operator was stored (via ``save()``).
         """
         with hdf5_loadhandle(loadfile) as hf:
-            if "meta" not in hf:
-                raise errors.LoadfileFormatError(
-                    "invalid save format (meta/ not found)")
-            entries = hf["entries"][:] if "entries" in hf else None
-
-        return cls(entries)
+            ClassName = hf["meta"].attrs["class"]
+            if ClassName != cls.__name__:
+                raise TypeError(f"file '{loadfile}' contains '{ClassName}' "
+                                f"object, use '{ClassName}.load()")
+            return cls(hf["entries"][:] if "entries" in hf else None)
 
 
 # Parametric operators ========================================================

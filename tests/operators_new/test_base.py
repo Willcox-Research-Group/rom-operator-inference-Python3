@@ -232,12 +232,13 @@ class TestBaseNonparametricOperator:
         op2 = self.Dummy.load(target)
         assert op1 == op2
 
-        with h5py.File(target, 'w'):
+        class Dummy2(self.Dummy):
             pass
 
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
-            self.Dummy.load(target)
-        assert ex.value.args[0] == "invalid save format (meta/ not found)"
+            Dummy2.load(target)
+        assert ex.value.args[0] == \
+            f"file '{target}' contains 'Dummy' object, use 'Dummy.load()"
 
         os.remove(target)
 
