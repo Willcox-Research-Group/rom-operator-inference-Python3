@@ -10,6 +10,8 @@ import os
 import h5py
 import warnings
 
+from .. import errors
+
 
 class _hdf5_filehandle:
     """Get a handle to an open HDF5 file to read or write to.
@@ -59,7 +61,7 @@ class _hdf5_filehandle:
         return self.file_handle
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        """CLose the file if needed."""
+        """Close the file if needed."""
         if self.close_when_done:
             self.file_handle.close()
         if exc_type:
@@ -105,3 +107,12 @@ class hdf5_loadhandle(_hdf5_filehandle):
     """
     def __init__(self, loadfile):
         return _hdf5_filehandle.__init__(self, loadfile, "load")
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        """Close the file if needed. Raise a LoadfileFormatError if needed."""
+        try:
+            _hdf5_filehandle.__exit__(self, exc_type, exc_value, exc_traceback)
+        except errors.LoadfileFormatError:
+            raise
+        except Exception as ex:
+            raise errors.LoadfileFormatError(ex.args[0]) from ex

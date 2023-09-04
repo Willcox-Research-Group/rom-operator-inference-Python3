@@ -28,15 +28,71 @@ derivative of snapshots.
 Kronecker Products
 ==================
 
-The quadratic term
+The matrix-vector product
 :math:`\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]`,
-where :math:`\widehat{\mathbf{H}}\in\mathbb{R}^{r\times r^{2}}`, can be
-represented more compactly as
+where :math:`\widehat{\mathbf{q}}\in\mathbb{R}^{r}` and
+:math:`\widehat{\mathbf{H}}\in\mathbb{R}^{r\times r^{2}}`,
+can be represented more compactly as
 :math:`\check{\mathbf{H}}[\widehat{\mathbf{q}}
 \ \widehat{\otimes}\ \widehat{\mathbf{q}}]`
 where $\check{\mathbf{H}}\in\mathbb{R}^{r\times r(r+1)/2}$ and
 :math:`\widehat{\otimes}` is a compressed version of the Kronecker product.
-The following functions facilitate this compressed evaluation.
+Specifically, if
+:math:`\widehat{\mathbf{q}} = [\hat{q}_{1},\ldots,\hat{q}_{r}]^{\mathsf{T}}`,
+then the full Kronecker product of :math:`\widehat{\mathbf{q}}` with itself is
+
+.. math::
+    \widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}
+    = \left[\begin{array}{c}
+        \hat{q}_{1}\widehat{\mathbf{q}}
+        \\ \vdots \\
+        \hat{q}_{r}\widehat{\mathbf{q}}
+    \end{array}\right]
+    =
+    \left[\begin{array}{c}
+        \hat{q}_{1}^{2} \\
+        \hat{q}_{1}\hat{q}_{2} \\
+        \vdots \\
+        \hat{q}_{1}\hat{q}_{r} \\
+        \hat{q}_{1}\hat{q}_{2} \\
+        \hat{q}_{2}^{2} \\
+        \vdots \\
+        \hat{q}_{2}\hat{q}_{r} \\
+        \vdots
+        \hat{q}_{r}^{2}
+    \end{array}\right] \in\mathbb{R}^{r^{2}}.
+
+The term :math:`\hat{q}_{1}\hat{q}_{2}` appears twice in the full Kronecker
+product :math:`\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}`.
+The compressed Kronecker product is defined here as
+
+.. math::
+    \widehat{\mathbf{q}}\ \widehat{\otimes}\ \widehat{\mathbf{q}}
+    = \left[\begin{array}{c}
+        \hat{q}_{1}^2
+        \\
+        \hat{q}_{2}\widehat{\mathbf{q}}_{1:2}
+        \\ \vdots \\
+        \hat{q}_{r}\widehat{\mathbf{q}}_{1:r}
+    \end{array}\right]
+    = \left[\begin{array}{c}
+        \hat{q}_{1}^2 \\
+        \hat{q}_{1}\hat{q}_{2} \\ \hat{q}_{2}^{2} \\
+        \\ \vdots \\ \hline
+        \hat{q}_{1}\hat{q}_{r} \\ \hat{q}_{2}\hat{q}_{r}
+        \\ \vdots \\ \hat{q}_{r}^{2}
+    \end{array}\right]
+    \in \mathbb{R}^{r(r+1)/2},
+
+where
+
+.. math::
+    \widehat{\mathbf{q}}_{1:i}
+    &= \left[\begin{array}{c}
+        \hat{q}_{1} \\ \vdots \\ \hat{q}_{i}
+    \end{array}\right]\in\mathbb{R}^{i}.
+
+The following functions facilitate compressed Kronecker products of this type.
 
 .. autosummary::
     :toctree: _autosummaries

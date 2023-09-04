@@ -295,7 +295,7 @@ class TestQuadraticOperator:
         # Full operator, compressed internally.
         # More thorough tests elsewhere for _kronecker.compress_quadratic().
         H = np.random.random((r, r**2))
-        H_ = opinf.operators_new._kronecker.compress_quadratic(H)
+        H_ = opinf.utils.compress_quadratic(H)
         op.set_entries(H)
         r2_ = r*(r + 1)//2
         assert op.shape == (r, r2_)
@@ -467,7 +467,7 @@ class TestCubicOperator:
         # Full operator, compressed internally.
         # More thorough tests elsewhere for _kronecker.compress_cubic().
         G = np.random.random((r, r**3))
-        G_ = opinf.operators_new._kronecker.compress_cubic(G)
+        G_ = opinf.utils.compress_cubic(G)
         op.set_entries(G)
         r3_ = r*(r + 1)*(r + 2)//6
         assert op.shape == (r, r3_)

@@ -156,9 +156,20 @@ def test_hdf5_loadhandle():
         assert bool(hf)
         assert hf.mode == "r"
     assert not bool(hf)
-    os.remove(target)
+
+    # Exception within block is wrapped as LoadfileFormatError.
+    with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+        with subject(target) as hf:
+            raise RuntimeError("error within block")
+    assert ex.value.args[0] == "error within block"
+
+    with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+        with subject(target) as hf:
+            raise opinf.errors.LoadfileFormatError("error2")
+    assert ex.value.args[0] == "error2"
 
     # Try loading a nonexistent file.
+    os.remove(target)
     with pytest.raises(FileNotFoundError) as ex:
         with subject(target):
             pass

@@ -14,7 +14,7 @@ import functools
 import numpy as np
 import scipy.linalg as la
 
-from . import _kronecker
+from .. import utils
 from ._base import _requires_entries, _BaseNonparametricOperator, _InputMixin
 
 
@@ -400,13 +400,13 @@ class QuadraticOperator(_BaseNonparametricOperator):
                              "two-dimensional")
         r, r2 = entries.shape
         if r2 == r**2:
-            entries = _kronecker.compress_quadratic(entries)
+            entries = utils.compress_quadratic(entries)
         elif r2 != self.column_dimension(r):
             raise ValueError("invalid QuadraticOperator entries dimensions")
 
         # Precompute compressed Kronecker product mask and Jacobian matrix.
-        self._mask = _kronecker.kron2c_indices(r)
-        Ht = _kronecker.expand_quadratic(entries).reshape((r, r, r))
+        self._mask = utils.kron2c_indices(r)
+        Ht = utils.expand_quadratic(entries).reshape((r, r, r))
         self._jac = Ht + Ht.transpose(0, 2, 1)
 
         _BaseNonparametricOperator.set_entries(self, entries)
@@ -481,7 +481,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
             ``self`` or new ``QuadraticOperator`` object.
         """
         def _project(H, V, W):
-            return W.T @ _kronecker.expand_quadratic(H) @ np.kron(V, V)
+            return W.T @ utils.expand_quadratic(H) @ np.kron(V, V)
 
         return _BaseNonparametricOperator.galerkin(self, Vr, Wr, _project)
 
@@ -550,7 +550,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         product_ : (r(r+1)/2, k) ndarray
             Compressed Khatri-Rao product of the ``state_`` with itself.
         """
-        return _kronecker.kron2c(np.atleast_2d(states_))
+        return utils.kron2c(np.atleast_2d(states_))
 
     @staticmethod
     def column_dimension(r, m=None):
@@ -622,13 +622,13 @@ class CubicOperator(_BaseNonparametricOperator):
             raise ValueError("CubicOperator entries must be two-dimensional")
         r, r3 = entries.shape
         if r3 == r**3:
-            entries = _kronecker.compress_cubic(entries)
+            entries = utils.compress_cubic(entries)
         elif r3 != self.column_dimension(r):
             raise ValueError("invalid CubicOperator entries dimensions")
 
         # Precompute compressed Kronecker product mask and Jacobian tensor.
-        self._mask = _kronecker.kron3c_indices(r)
-        Gt = _kronecker.expand_cubic(entries).reshape([r]*4)
+        self._mask = utils.kron3c_indices(r)
+        Gt = utils.expand_cubic(entries).reshape([r]*4)
         self._jac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
 
         _BaseNonparametricOperator.set_entries(self, entries)
@@ -708,7 +708,7 @@ class CubicOperator(_BaseNonparametricOperator):
             ``self`` or new ``CubicOperator`` object.
         """
         def _project(G, V, W):
-            return W.T @ _kronecker.expand_cubic(G) @ np.kron(V, np.kron(V, V))
+            return W.T @ utils.expand_cubic(G) @ np.kron(V, np.kron(V, V))
 
         return _BaseNonparametricOperator.galerkin(self, Vr, Wr, _project)
 
@@ -780,7 +780,7 @@ class CubicOperator(_BaseNonparametricOperator):
         product_ : (r(r+1)(r+2)/6, k) ndarray
             Compressed triple Khatri-Rao product of the ``state_`` with itself.
         """
-        return _kronecker.kron3c(np.atleast_2d(states_))
+        return utils.kron3c(np.atleast_2d(states_))
 
     @staticmethod
     def column_dimension(r, m=None):
