@@ -9,14 +9,16 @@ PYTEST = pytest --cov opinf tests --cov-report html
 # About -----------------------------------------------------------------------
 help:
 	@echo "usage:"
-	@echo "  make clean: remove all build, test, coverage and Python artifacts"
+	@echo "  make clean: remove all build, test, and Python artifacts"
 	@echo "  make install: install the package locally from source"
 	@echo "  make lint: check style with flake8"
 	@echo "  make test: run unit tests via pytest"
+	@echo "  make test_light: run unit tests without reinstalling package"
 	@echo "  make docs: build jupyter-book documentation"
+	@echo "  make docs_light: build documentation without cleaning files"
 
 
-# Installation ----------------------------------------------------------------
+# Cleanup ---------------------------------------------------------------------
 clean:
 	find . -type d -name "build" | xargs $(REMOVE)
 	find . -type d -name "dist" | xargs $(REMOVE)
@@ -30,8 +32,21 @@ clean:
 	find docs -type d -name "_autosummaries" | xargs $(REMOVE)
 
 
-install: clean
+# Installation ----------------------------------------------------------------
+install:
 	$(PYTHON) -m pip install .
+
+
+install_tests:
+	$(PYTHON) -m pip install ".[tests]"
+
+
+install_docs:
+	$(PYTHON) -m pip install ".[docs]"
+
+
+install_all:
+	$(PYTHON) -m pip install ".[tests,docs]"
 
 
 # Testing ---------------------------------------------------------------------
@@ -40,22 +55,29 @@ lint:
 	$(PYTHON) -m flake8 tests
 
 
-test: lint install
+# Run tests as is (no cleanup / installation).
+test_light: lint
 	$(PYTHON) -m $(PYTEST)
 	# open htmlcov/index.html
 
 
+# Clean everything, re-install package, and run tests.
+test: clean install_tests test_light
+
+
 # Documentation ---------------------------------------------------------------
-docs: install
+# Clean everything, re-install package, and build docs.
+docs: clean install_docs
 	jupyter-book build --nitpick docs
 
 
-docs_light:
-	$(PYTHON) -m pip install .
+# No cleaning, take advantage of caching.
+docs_light: install_docs
 	jupyter-book build --nitpick docs
 
 
-docs_all: install
+# Clean everything, re-install package, and build docs with error detection.
+docs_all: clean install_docs
 	jupyter-book build --nitpick --warningiserror --all docs
 
 
