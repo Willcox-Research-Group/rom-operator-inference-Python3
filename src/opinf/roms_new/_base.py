@@ -12,6 +12,16 @@ from .. import basis as _basis
 from .. import operators_new as _operators
 
 
+_OPERATOR_SHORTCUTS = {
+    'c': _operators.ConstantOperator,
+    'A': _operators.LinearOperator,
+    'H': _operators.QuadraticOperator,
+    'G': _operators.CubicOperator,
+    'B': _operators.InputOperator,
+    'N': _operators.StateInputOperator,
+}
+
+
 class _BaseROM(abc.ABC):
     """Base class for all monolithic reduced-order model classes."""
     _LHS_ARGNAME = "lhs"    # Name of LHS argument in fit(), e.g., "ddts".
@@ -35,16 +45,6 @@ class _BaseROM(abc.ABC):
         self.__operators = None
 
         self.basis = basis
-        if isinstance(operators, str):
-            operators = [
-                OpClass() for key, OpClass in [
-                    ('c', _operators.ConstantOperator),
-                    ('A', _operators.LinearOperator),
-                    ('H', _operators.QuadraticOperator),
-                    ('G', _operators.CubicOperator),
-                    ('B', _operators.InputOperator),
-                    ('N', _operators.StateInputOperator),
-                ] if key in operators]
         self.operators = operators
 
     # Properties: basis -------------------------------------------------------
@@ -92,7 +92,11 @@ class _BaseROM(abc.ABC):
         toinfer = []                    # Operators to infer (no entries yet).
         known = []                      # Operators whose entries are set.
         self._has_inputs = False        # Whether any operators use inputs.
-        for i, op in enumerate(ops):
+        ops = list(ops)
+        for i in range(len(ops)):
+            op = ops[i]
+            if isinstance(op, str) and op in _OPERATOR_SHORTCUTS:
+                op = ops[i] = _OPERATOR_SHORTCUTS[op]()
             if not isinstance(op, _operators._base._BaseNonparametricOperator):
                 raise TypeError("expected list of nonparametric operators")
             if op.entries is None:
@@ -311,6 +315,17 @@ class _BaseROM(abc.ABC):
         if state_.shape[0] != self.r:
             raise errors.DimensionalityError(f"{label} not aligned with basis")
         return self.basis.decompress(state_)
+
+    def galerkin(self):
+        """Replace known full-order operators with their Galerkin projections.
+        """
+        for i in self._indices_of_known_operators:
+            op = self.operators[i]
+            if op.shape[0] != self.r:
+                if self.basis is None:
+                    raise RuntimeError(
+                        "basis required for Galerkin projection")
+                self.operators[i] = op.galerkin(self.basis.entries)
 
     # ROM evaluation ----------------------------------------------------------
     def evaluate(self, state_, input_=None):

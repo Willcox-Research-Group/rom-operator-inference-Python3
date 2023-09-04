@@ -18,30 +18,38 @@ MODEL_FORMS = [''.join(s) for k in range(1, len(MODELFORM_KEYS)+1)
 
 # Helper functions for testing ================================================
 def _get_data(n=60, k=25, m=20):
-    """Get fake snapshot, time derivative, and input data."""
-    X = np.random.random((n, k))
-    Xdot = np.random.random((n, k))
+    """Get dummy snapshot, time derivative, and input data."""
+    Q = np.random.random((n, k))
+    Qdot = np.random.random((n, k))
     U = np.ones((m, k))
 
-    return X, Xdot, U
+    return Q, Qdot, U
 
 
 def _get_operators(operatorkeys, r=8, m=1):
     """Construct fake model operators."""
-    possibles = {
-        'c': opinf_operators.ConstantOperator(np.random.random(r)),
-        'A': opinf_operators.LinearOperator(np.eye(r)),
-        'H': opinf_operators.QuadraticOperator(np.zeros((r, r*(r+1)//2))),
-        'G': opinf_operators.CubicOperator(np.zeros((r, r*(r+1)*(r+2)//6))),
-        'B': opinf_operators.InputOperator(np.random.random((r, m))),
-        'N': opinf_operators.StateInputOperator(np.random.random((r, r*m))),
-    }
-    return [possibles[k] for k in operatorkeys]
+    ops = []
+    for key in operatorkeys:
+        if key == 'c':
+            ops.append(opinf_operators.ConstantOperator(np.random.random(r)))
+        elif key == 'A':
+            ops.append(opinf_operators.LinearOperator(np.eye(r)))
+        elif key == 'H':
+            entries = np.zeros((r, r*(r+1)//2))
+            ops.append(opinf_operators.QuadraticOperator(entries))
+        elif key == 'G':
+            entries = np.zeros((r, r*(r+1)*(r+2)//6))
+            ops.append(opinf_operators.CubicOperator(entries))
+        elif key == 'B':
+            ops.append(opinf_operators.InputOperator(np.random.random((r, m))))
+        elif key == 'N':
+            entries = np.random.random((r, r*m))
+            ops.append(opinf_operators.StateInputOperator(entries))
+        else:
+            raise KeyError
+    return ops
 
 
-def _trainedmodel(ModelClass, modelform, basis, m=20):
+def _trainedmodel(ModelClass, operatorkeys, basis, m=20):
     """Construct a base class with model operators already constructed."""
-    n, r = basis.shape
-    rom = ModelClass(_get_operators(modelform, r, m))
-    rom.basis = basis
-    return rom
+    return ModelClass(basis, _get_operators(operatorkeys, basis.shape[1], m))

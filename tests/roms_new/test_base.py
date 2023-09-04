@@ -186,6 +186,14 @@ class TestBaseROM:
         assert isinstance(rom.operators[1], opinf_operators.QuadraticOperator)
         assert isinstance(rom.operators[2], opinf_operators.InputOperator)
 
+        rom.operators = [opinf_operators.ConstantOperator(), "A", "N"]
+        assert len(rom.operators) == 3
+        for i in range(3):
+            assert rom.operators[i].entries is None
+        assert isinstance(rom.operators[0], opinf_operators.ConstantOperator)
+        assert isinstance(rom.operators[1], opinf_operators.LinearOperator)
+        assert isinstance(rom.operators[2], opinf_operators.StateInputOperator)
+
     def test_operator_shortcuts(self, m=4, r=7):
         """Test _BaseROM.[caHGBN]_ property shortcuts (_get_operator_of_type()).
         """
@@ -379,6 +387,30 @@ class TestBaseROM:
             assert S.shape == (n, k)
             assert np.allclose(S, Vr @ S_)
             assert np.allclose(S, rom.basis.decompress(S_))
+
+    def test_galerkin(self, n=20, r=6):
+        """Test _BaseROM.galerkin()."""
+        A = _get_operators("A", n)[0]
+        Vr = np.random.random((20, 6))
+
+        # Galerkin projection without a basis.
+        rom = self.Dummy(None, ['c', A, 'H'])
+        rom.r = n // 2
+        with pytest.raises(RuntimeError) as ex:
+            rom.galerkin()
+        assert ex.value.args[0] == "basis required for Galerkin projection"
+
+        # Galerkin projection with a basis.
+        rom.basis = Vr
+        rom.galerkin()
+        newA = rom.operators[1]
+        assert isinstance(newA, opinf_operators.LinearOperator)
+        assert newA.entries.shape == (r, r)
+        assert np.allclose(newA.entries, Vr.T @ A.entries @ Vr)
+        assert isinstance(rom.operators[0], opinf_operators.ConstantOperator)
+        assert isinstance(rom.operators[2], opinf_operators.QuadraticOperator)
+        for i in [0, 2]:
+            assert rom.operators[i].entries is None
 
     # ROM evaluation ----------------------------------------------------------
     def test_evaluate(self, m=2, k=10, r=5, ntrials=10):
