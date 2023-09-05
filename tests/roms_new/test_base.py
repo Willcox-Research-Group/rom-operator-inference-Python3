@@ -195,8 +195,7 @@ class TestBaseROM:
         assert isinstance(rom.operators[2], opinf_operators.StateInputOperator)
 
     def test_operator_shortcuts(self, m=4, r=7):
-        """Test _BaseROM.[caHGBN]_ property shortcuts (_get_operator_of_type()).
-        """
+        """Test _BaseROM.[caHGBN]_ properties (_get_operator_of_type())."""
         [c, A, H, B, N] = _get_operators("cAHBN", r, m)
         rom = self.Dummy(None, [A, B, c, H, N])
 
@@ -431,7 +430,7 @@ class TestBaseROM:
             assert out.shape == Y_.shape
             assert np.allclose(out, Y_)
 
-        kron2c = opinf_operators._kronecker.kron2c
+        kron2c = opinf.utils.kron2c
         rom = self.Dummy(None, [H_, B_])
         for _ in range(ntrials):
             u = np.random.random(m)
