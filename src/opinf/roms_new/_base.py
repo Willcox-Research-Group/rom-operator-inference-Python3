@@ -276,14 +276,14 @@ class _BaseROM(abc.ABC):
         ----------
         state : (n, ...) or (r, ...) ndarray
             High- or low-dimensional state vector or a collection of these.
-            If ``state.shape[0]`` is r (already low-dimensional), do nothing.
+            If ``state.shape[0]`` is `r` (already low-dimensional), do nothing.
         label : str
             Name for state (used only in error reporting).
 
         Returns
         -------
         state_ : (r, ...) ndarray
-            Low-dimensional encoding of `state`.
+            Low-dimensional compression of ``state``.
         """
         if self.r is None:
             raise AttributeError("reduced dimension 'r' not set")
@@ -308,7 +308,7 @@ class _BaseROM(abc.ABC):
         Returns
         -------
         state : (n, ...) ndarray
-            High-dimensional decoding of ``state_``.
+            High-dimensional decompression of ``state_``.
         """
         if self.basis is None:
             raise AttributeError("basis not set")

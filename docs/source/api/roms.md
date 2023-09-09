@@ -1,4 +1,3 @@
-(sec-main)=
 # `opinf.roms`
 
 :::{eval-rst}

@@ -46,6 +46,7 @@ tests = [
     "flake8>=6.1.0",
 ]
 docs = [
+    "chardet>=5.0",
     "jupyter-book>=0.14.0,<0.15.0",
     "numpydoc>=1.2",
     "sphinx-design>=0.1.0",

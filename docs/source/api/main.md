@@ -31,7 +31,9 @@ The above classes are also defined in the [**roms**](opinf.roms) submodule.
     opinf.pre
     opinf.basis
     opinf.operators
+    opinf.operators_new
     opinf.roms
+    opinf.roms_new
     opinf.lstsq
     opinf.post
     opinf.utils

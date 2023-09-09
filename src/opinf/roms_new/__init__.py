@@ -5,9 +5,14 @@
 
 .. tip::
     All public objects from this module are also available in the root
-    `opinf` namespace.
+    ``opinf`` namespace.
 
 **Submodules**
+
+.. autosummary::
+    :toctree: _autosummaries
+
+    nonparametric
 """
 
-from . import _base, nonparametric
+from .nonparametric import *

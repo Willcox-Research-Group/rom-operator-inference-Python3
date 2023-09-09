@@ -28,7 +28,7 @@ parts:
 
   # API reference via sphinx-autodoc + limited handwritten documentation.
   - caption: API Reference
-    # numbered: 1
+    maxdepth: 1
     chapters:
     - file: source/api/main.md
     - file: source/api/pre.md
@@ -36,6 +36,7 @@ parts:
     - file: source/api/operators.md
     - file: source/api/operators_new.md
     - file: source/api/roms.md
+    - file: source/api/roms_new.md
     - file: source/api/lstsq.md
     - file: source/api/post.md
     - file: source/api/utils.md

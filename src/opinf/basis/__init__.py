@@ -15,7 +15,6 @@ The following tools construct this approximation.
 
 .. autosummary::
     :toctree: _autosummaries
-    :nosignatures:
 
     LinearBasis
     LinearBasisMulti
@@ -26,7 +25,6 @@ The following tools construct this approximation.
 
 .. autosummary::
     :toctree: _autosummaries
-    :nosignatures:
 
     cumulative_energy
     pod_basis

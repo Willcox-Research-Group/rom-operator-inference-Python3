@@ -66,15 +66,12 @@ test: clean install_tests test_light
 
 
 # Documentation ---------------------------------------------------------------
-# Clean everything, re-install package, and build docs.
-docs: clean install_docs
-	jupyter-book build --nitpick docs
-
-
 # No cleaning, take advantage of caching.
-docs_light: install_docs
+docs_light:
 	jupyter-book build --nitpick docs
 
+# Clean everything, re-install package, and build docs.
+docs: clean install_docs docs_light
 
 # Clean everything, re-install package, and build docs with error detection.
 docs_all: clean install_docs
