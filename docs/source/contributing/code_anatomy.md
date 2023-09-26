@@ -94,33 +94,37 @@ Operator classes are defined in the [**operators**](opinf.operators) module.
 
 A _non-parametric_ operator has constant entries that do not depend on external parameters.
 Classes for representing non-parametric operators are defined in `operators/_nonparametric.py`.
-These classes
+These classes inherit from `operators._base._BaseNonparametricOperator` and must implement its abstract methods.
 
-- Inherit from `operators._base._BaseNonparametricOperator`.
+**Base Class for Nonparametric Operators**
 
-- Are initialized with a NumPy array (the entries of the operator).
-    Specifically, `__init__(self, entries)`
-    1. calls `self._validate_entries(entries)` to ensure `entries` is a valid NumPy array,
-    2. does any shape checking needed on `entries`, and
-    3. calls `_BaseNonparametricOperator.__init__(self, entries)`.
+:::{eval-rst}
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
 
-- Implements `evaluate(self, state)` as the mapping defined by the operator.
-    For the linear term $\widehat{\mathbf{A}}$ this is simply matrix multiplication $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$;
-    for the quadratic term $\widehat{\mathbf{H}}$ this is the mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, which is done efficiently by computing only the unique terms of the Kronecker product $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$.
+    opinf.operators_new._base._BaseNonparametricOperator
+:::
 
-- Implements `jacobian(self, state)` to evaluate of the Jacobian of the operator, i.e., $\frac{\partial}{\partial \widehat{\mathbf{q}}}$ of the mapping in `evaluate()`.
-    For the linear mapping $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$, the Jacobian is $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}$;
-    for the quadratic mapping $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$, the Jacobian is $\widehat{\mathbf{q}}\mapsto\widehat{\mathbf{H}}[(\mathbf{I}\otimes\widehat{\mathbf{q}}) + (\widehat{\mathbf{q}}\otimes\mathbf{I})]$.
+**Abstract Methods to Implement**
+
+**Operator Class Template**
+
+```python
+class MyNewOperator(_BaseNonparametricOperator):
+    TODO
+```
 
 ::::{margin}
 :::{note}
-For nonparametric operators, `__call__()` is essentially an alias for `evaluate()`, so the action of an operator `H` on a state `q` may be computed as `H.evaluate(q)` or `H(q)`.
+For nonparametric operators, `evaluate()` is essentially an alias for `__call__()`, so the action of an operator `H` on a state `q` may be computed as `H.evaluate(q)` or `H(q)`.
 However, parametric operators _do not have_ an `evaluate()` method, and `__call__()` is implemented to construct a nonparametric operator corresponding to a given parameter value.
 :::
 ::::
 
 The following diagram shows the class hierarchy for non-parametric operators.
 
+<!-- TODO: update this chart! -->
 :::{mermaid}
 %%{init: {'theme': 'neutral'}}%%
 classDiagram

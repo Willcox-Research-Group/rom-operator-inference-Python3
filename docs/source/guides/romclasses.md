@@ -1,8 +1,270 @@
 (sec-romclasses)=
-# ROM Classes
+# Reduced-order Model Design
 
-There are several reduced-order model (ROM) classes defined in the main namespace of `opinf`.
-Each class corresponds to a specific problem setting: _continuous_ models are ordinary differential equations while _discrete_ models are discrete dynamical systems; in _parametric_ models, the equations may depend on an external parameter.
+The `opinf` module provides several classes for representing reduced-order models (ROMs).
+This page discusses the different kinds of ROMs and how to build a ROM by specifying a model structure and using Operator Inference to calibrate the model to data.
+
+:::{admonition} Overview
+:class: note
+Every ROM has two main components: a low-dimensional approximation of the full state (see [Dimensionality Reduction](sec-guide-dimensionality)), and a set equations describing the dynamics of the reduced state.
+The user specifies the structure of the reduced dynamics by providing a list of [operators](sec-operator-classes) to a ROM class.
+Operators are calibrated through a least-squares regression of available state and input data.
+
+```python
+import opinf
+
+# Specify the ROM structure through a list of operators.
+rom = opinf.ContinuousOpInfROM(
+    basis=basis,
+    operators=[
+        opinf.operators.LinearOperator(),
+        opinf.operators.InputOperator(),
+    ]
+)
+
+# Calibrate the operator entries through Operator Inference.
+rom.fit(state_snapshots, state_time_derivatives, corresponding_inputs)
+
+# Compute solutions of the ROM.
+result = rom.predict(initial_condition, time_domain, input_function)
+```
+:::
+
+:::{admonition} Notation
+:class: attention
+On this page, we use $\mathbf{F}$ to denote the function governing the dynamics of the full-order state $\mathbf{q}\in\mathbb{R}^{n}$.
+Likewise, the function $\widehat{\mathbf{F}}$ determines the dynamics of the reduced-order state $\widehat{\mathbf{q}}\in\mathbb{R}^{r}$, where $r \ll n$.
+Inputs are written as $\mathbf{u}\in\mathbb{R}^{m}$.
+For parametric problems, we use $\mu \in \mathbb{R}^{p}$ to denote the free parameters.
+:::
+
+## Types of Reduced-order Models
+
+ROM classes are included in the main [**opinf**](sec-main) namespace.
+The type of ROM class to use depends on three factors:
+
+1. **Continuous vs Discrete:** _Continuous-time_ ROMs are for systems of ordinary differential equations (or spatially discretized partial differential equations), and _discrete-time_ ROMs are for discrete dynamical systems.
+2. **Monolithic vs Multilithic:** A _monolithic_ ROM defines a single set of equations for the reduced state variable, while a _multilithic_ ROM defines specific equations for individual parts of the reduced state variable.
+<!-- See [Dimensionality Reduction / Multilithic](TODO). -->
+3. **Parametric vs Nonparametric:** In a _parametric_ ROM, the dynamics depend on one or more external parameters; a _nonparametric_ ROM has no external parameter dependence.
+
+### Continuous-time ROMs
+
+Continuous-time ROMs are for systems of ordinary differential equations (ODEs), for example those resulting from spatially discretizing partial differential equations.
+The state $\mathbf{q}(t)\in\mathbb{R}^{n}$ and the input $\mathbf{u}(t)\in\mathbb{R}^{m}$ are time-dependent.
+
+::::{tab-set}
+:::{tab-item} Nonparametric Problem
+$$
+\frac{\text{d}}{\text{d}t}\mathbf{q}(t)
+= \mathbf{F}(\mathbf{q}(t), \mathbf{u}(t))
+$$
+:::
+
+:::{tab-item} Parametric Problem
+$$
+\frac{\text{d}}{\text{d}t}\mathbf{q}(t;\mu)
+= \mathbf{F}(\mathbf{q}(t;\mu), \mathbf{u}(t); \mu)
+$$
+:::
+::::
+
+The reduced-order dynamics are a system of ODEs for the reduced state $\widehat{\mathbf{q}}(t)$.
+In the multilithic case, the reduced state is decomposed into chunks,
+
+$$
+\widehat{\mathbf{q}}(t)
+= \left[\begin{array}{c}
+\widehat{\mathbf{q}}_{0}(t)
+\\ \vdots \\
+\widehat{\mathbf{q}}_{d-1}(t)
+\end{array}\right],
+$$
+
+and a set of ODEs is defined for each $\widehat{\mathbf{q}}_{\ell}(t)$, $\ell=0,\ldots,d-1$.
+
+| ROM Type | `opinf` Class | Reduced-order Dynamics |
+| :------- | :------------ | :--------------------- |
+| Monolithic Nonparametric  | [**`ContinuousROM`**](opinf.ContinuousOpInfROM) | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}(t), \mathbf{u}(t))$ |
+| Monolithic Parametric     | **`ContinuousPROM`** | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
+| Multilithic Nonparametric | **`ContinuousROMMulti`** | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}_{\ell}(t) = \widehat{\mathbf{F}}_{\ell}(\widehat{\mathbf{q}}(t), \mathbf{u}(t)),\quad\ell=1,\ldots,d-1$ |
+| Multilithic Parametric | **`ContinuousPROMMulti`** | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}_{\ell}(t;\mu) = \widehat{\mathbf{F}}_{\ell}(\widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu),\quad\ell=1,\ldots,d-1$ |
+
+:::{dropdown} Multilithic System Example: Linear Hamiltonian System
+Consider the system of ODEs given by
+
+$$
+\frac{\text{d}}{\text{d}t}\mathbf{q}(t)
+= \frac{\text{d}}{\text{d}t}\left[\begin{array}{c}
+\mathbf{q}_{0}(t) \\ \mathbf{q}_{1}(t)
+\end{array}\right]
+= \left[\begin{array}{cc}
+\mathbf{0} & \mathbf{A}_{0,1} \\ \mathbf{A}_{1,0} & \mathbf{0}
+\end{array}\right]\left[\begin{array}{c}
+\mathbf{q}_{0}(t) \\ \mathbf{q}_{1}(t)
+\end{array}\right]
+= \mathbf{A}\mathbf{q}(t),
+$$
+
+where $\mathbf{q}_{0}(t),\mathbf{q}_{1}(t)\in\mathbb{R}^{n/2}$, $\mathbf{A}_{0,1},\mathbf{A}_{1,0}\in\mathbb{R}^{n/2\times n/2}$, and
+
+$$
+\mathbf{q}(t) = \left[\begin{array}{c}
+\mathbf{q}_{0}(t) \\ \mathbf{q}_{1}(t)
+\end{array}\right]\in\mathbb{R}^{n},
+\qquad
+\mathbf{A} = \left[\begin{array}{cc}
+\mathbf{0} & \mathbf{A}_{0,1} \\ \mathbf{A}_{1,0} & \mathbf{0}
+\end{array}\right]\in\mathbb{R}^{n\times n}.
+$$
+
+If a monolithic dimensionality reduction technique is used, the structure of the system is lost:
+approximating $\mathbf{q}(t) \approx \mathbf{V}_{r}\widehat{\mathbf{q}}$ where $\widehat{\mathbf{q}}(t)\in\mathbb{R}^{r}$ and $\mathbf{V}_{r}\in\mathbb{R}^{n\times r}$ has orthogonal columns,
+Galerkin projection leads to the ROM
+
+$$
+\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
+= \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t),
+\qquad
+\widehat{\mathbf{A}} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{A}\mathbf{V}_{r}.
+$$
+
+In most cases, $\widehat{\mathbf{A}}$ will be dense and not have the block structure of $\mathbf{A}$.
+Alternatively, consider the multilithic approximation $\mathbf{q}_{0}(t) \approx \mathbf{V}_{0}\widehat{\mathbf{q}}_{0}$ and $\mathbf{q}_{1}(t) \approx \mathbf{V}_{1}\widehat{\mathbf{q}}_{1}$ where $\widehat{\mathbf{q}}_{0},\widehat{\mathbf{q}}_{1}\in\mathbb{R}^{r/2}$ and $\mathbf{V}_{0},\mathbf{V}_{1}\in\mathbb{R}^{n/2\times r/2}$, i.e.,
+
+$$
+\mathbf{q}(t)
+= \left[\begin{array}{c}
+\mathbf{q}_{0}(t) \\ \mathbf{q}_{1}(t)
+\end{array}\right]
+\approx
+\left[\begin{array}{cc}
+\mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
+\end{array}\right]
+\left[\begin{array}{c}
+\widehat{\mathbf{q}}_{0}(t) \\ \widehat{\mathbf{q}}_{1}(t)
+\end{array}\right].
+$$
+
+In this case, Galerkin projection produces a ROM
+$
+\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
+= \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
+$ as before, but now with
+
+$$
+\widehat{\mathbf{A}}
+= \left[\begin{array}{cc}
+\mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
+\end{array}\right]^{\mathsf{T}}
+\left[\begin{array}{cc}
+\mathbf{0} & \mathbf{A}_{0,1} \\ \mathbf{A}_{1,0} & \mathbf{0}
+\end{array}\right]
+\left[\begin{array}{cc}
+\mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
+\end{array}\right]
+=
+\left[\begin{array}{cc}
+\mathbf{0} & \mathbf{V}_{0}^{\mathsf{T}}\mathbf{A}_{0,1}\mathbf{V}_{1}
+\\
+\mathbf{V}_{1}^{\mathsf{T}}\mathbf{A}_{1,0}\mathbf{V}_{0} & \mathbf{0}
+\end{array}\right],
+$$
+
+which has the same block structure as $\mathbf{A}$.
+:::
+
+### Discrete-time ROMs
+
+Discrete-time ROMs are for discrete dynamical systems, where values of the state $\mathbf{q}\in\mathbb{R}^{n}$ and the input $\mathbf{u}\in\mathbb{R}^{m}$ are given at discrete iterates, denoted with the superscripted $\mathbf{q}^{(j)}$, $\mathbf{u}^{(j)}$.
+The full-order model is an updated formula for $\mathbf{q}^{(j+1)}$ in terms of $\mathbf{q}^{(j)}$ and $\mathbf{u}^{(j)}$.
+
+::::{tab-set}
+:::{tab-item} Nonparametric Problem
+$$
+\mathbf{q}^{(j+1)}
+= \mathbf{F}(\mathbf{q}^{(j)}, \mathbf{u}^{(j)})
+$$
+:::
+
+:::{tab-item} Parametric Problem
+$$
+\mathbf{q}^{(j+1)}(\mu)
+= \mathbf{F}(\mathbf{q}^{(j)}(\mu), \mathbf{u}^{(j)}; \mu)
+$$
+:::
+::::
+
+The reduced-order dynamics are a discrete dynamical system for the reduced state $\widehat{\mathbf{q}}$.
+In the multilithic case, the reduced state is decomposed as $\widehat{\mathbf{q}} = [~\widehat{\mathbf{q}}^{\mathsf{T}}~~\widehat{\mathbf{q}}_{1}^{\mathsf{T}}~~\cdots~~\widehat{\mathbf{q}}_{d-1}^{\mathsf{T}}~]^{\mathsf{T}}$ and an update formula is defined for each $\widehat{\mathbf{q}}_{\ell}$, $\ell=0,\ldots,d-1$.
+
+| ROM Type | `opinf` Class | Reduced-order Dynamics |
+| :------- | :------------ | :--------------------- |
+| Monolithic Nonparametric | [**`DiscreteROM`**](opinf.DiscreteOpInfROM) | $\widehat{\mathbf{q}}^{(j+1)} = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}^{(j)}, \mathbf{u}^{(j)})$ |
+| Monolithic Parametric    | **`DiscretePROM`** | $\widehat{\mathbf{q}}^{(j+1)}(\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}^{(j)}(\mu), \mathbf{u}^{(j)}; \mu)$ |
+| Multilithic Nonparametric | **`DiscreteROMMulti`** | $\widehat{\mathbf{q}}_{\ell}^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\widehat{\mathbf{q}}^{(j)}, \mathbf{u}^{(j)}),\quad\ell=1,\ldots,d-1$ |
+| Multilithic Parametric | **`DiscretePROMMulti`** | $\widehat{\mathbf{q}}_{\ell}(\mu)^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\widehat{\mathbf{q}}(\mu)^{(j)}, \mathbf{u}^{(j)}; \mu),\quad\ell=1,\ldots,d-1$ |
+
+<!-- TODO: Steady-state Problems -->
+
+(sec-operator-classes)=
+## Operator Classes
+
+All ROM classes are initialized with two arguments: a `basis` (usually a class from [**`opinf.basis`**](opinf.basis)) and a list of `operators` that define the structure of the reduced-order model dynamics, i.e., the function $\widehat{\mathbf{F}}$.
+Operator classes are defined in the [**`opinf.operators`**](opinf.operators) submodule.
+
+Each operator class represents a function of the reduced state-input pair $(\widehat{\mathbf{q}},\mathbf{u})$.
+In order to be used in Operator Inference, an operator evaluation must be expressible as a matrix-vector product
+$
+(\widehat{\mathbf{q}},\mathbf{u}) \mapsto
+\widehat{\mathbf{Z}}\mathbf{f}(\widehat{\mathbf{q}},\mathbf{u}),
+$
+where $\widehat{\mathbf{Z}}\in\mathbb{R}^{r\times d_{z}}$ and where $\mathbf{f} : \mathbb{R}^{r}\times\mathbb{R}^{m}\to\mathbb{R}^{d_{z}}$ may be a nonlinear function.
+<!-- For example, a linear operation $(\widehat{\mathbf{q}},\mathbf{u}) \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$ where $\widehat{\mathbf{A}}\in\mathbb{R}^{r\times r}$ uses $\widehat{\mathbf{Z}}=\widehat{\mathbf{A}}$ and $\mathbf{f}(\widehat{\mathbf{q}},\mathbf{u})=\widehat{\mathbf{q}}$;
+A quadratic operation $(\widehat{\mathbf{q}},\mathbf{u}) \mapsto \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ uses $\widehat{\mathbf{Z}}=\widehat{\mathbf{H}}$ and $\mathbf{f}(\widehat{\mathbf{q}},\mathbf{u})=\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$. -->
+
+### Nonparametric Monolithic Operators
+
+:::{warning}
+This page is under construction.
+:::
+
+- Constructor, `set_entries()`
+- `entries`, access shortcuts with `[:]`
+- `evaluate()` and `jacobian()` methods
+- `datablock()` and `column_dimension()` methods
+- `galerkin()` method
+- `save()` and `load()` methods
+- Refer to the list of monolithic operators.
+
+| Operator class | Operator action |
+| :------------- | :-------------- |
+| `opinf.operators.ConstantOperator` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{c}}$ |
+
+### Nonparametric Multilithic Operators
+
+### Parametric Operators
+
+- Constructor takes in parameter information (and anything needed by the underlying nonparametric class)
+- `__call__()` maps parameter value to a nonparametric operator
+
+#### Interpolated Operators
+
+$$
+\widehat{\mathbf{A}}(\mu) = \text{interpolate}((\mu_{1},\mathbf{A}_{1}),\ldots,(\mu_{s},\mathbf{A}_{s}); \mu)
+$$
+
+- Constructor takes in `s` (the number of parameter samples) and the interpolator.
+
+#### Affine-parametric Operators
+
+$$
+\widehat{\mathbf{A}}(\mu) = \sum_{i=1}^{n_{A}}\theta_{i}(\mu)\mathbf{A}_{i}
+$$
+
+- Constructor takes in list of $\theta_{i}$ functions
+
+## ROM Classes
 
 ::::{margin}
 :::{tip}
@@ -10,25 +272,40 @@ The API for these classes adopts some principles from the [scikit-learn](https:/
 :::
 ::::
 
-| Class Name | Reduced-order Model |
-| :--------- | :-----------------: |
-| [**ContinuousOpInfROM**](opinf.ContinuousOpInfROM) | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t), \mathbf{u}(t))$ |
-| [**DiscreteOpInfROM**](opinf.DiscreteOpInfROM) | $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})$ |
-| [**InterpolatedContinuousOpInfROM**](opinf.InterpolatedContinuousOpInfROM) | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
-| [**InterpolatedDiscreteOpInfROM**](opinf.InterpolatedDiscreteOpInfROM) | $\widehat{\mathbf{q}}_{j+1}(\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}(\mu), \mathbf{u}_{j}; \mu)$ |
+- `basis`, `operators`
+- Dimensions: `n`, `m`
+- `compress()` and `decompress()`
+- `fit()`
+- `predict()`
+- `save()` and `load()`
 
-<!-- | `SteadyOpInfROM` | $\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\widehat{\mathbf{q}})$ |
-| `AffineContinuousOpInfROM` | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
-| `AffineDiscreteOpInfROM` | $\widehat{\mathbf{q}}_{j+1}(\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}(\mu), \mathbf{u}_{j}; \mu)$ | -->
+### Nonparametric Monolithic ROMs
 
-Here $\widehat{\mathbf{q}} \in \mathbb{R}^{n}$ is the reduced-order state, $\mathbf{u} \in \mathbb{R}^{m}$ is the input, and $\mu\in\mathbb{R}^{p}$ is an external parameter (e.g., PDE coefficients).
-Our goal is to learn an appropriate representation of $\widehat{\mathbf{F}}$ from data.
+- `basis` can be any basis object, ndarray (`LinearBasis`), or `None`
+- `operators` is a single list of nonparametric monolithic operators (or strings for shorthand)
+- Dimension attribute: `r`
+- Shortcut properties for accessing operators: `c_`, `A_`, `H_`, `G_`, `B_`, `N_`.
+
+### Nonparametric Multilithic ROMs
+
+- `basis` **must** be multilithic
+- `operators` is a list of lists of nonparametric multilithic operators
+- Dimension attribute: `rs` and `r = sum(rs)`
+
+### Parametric ROMs
+
+- `__call__()` maps parameter values to a nonparametric ROM object.
+- `operators` can be nonparametric or parametric operators.
+- `fit()` takes in parameter values, lists of snapshots, lists of LHS, and lists of inputs.
+- `predict()` takes in a parameter value, then whatever else.
+
+## OLD MATERIAL
 
 In the following discussion we begin with the non-parametric ROM classes; parametric classes are considered in [Parametric ROMs](subsec-parametric-roms).
 
 
 (subsec-romclass-constructor)=
-## Defining Model Structure
+### Defining Model Structure
 
 ROM classes are instantiated with a single argument, `modelform`, which is a string denoting the structure of the right-hand side function $\widehat{\mathbf{F}}$.
 Each character in the string corresponds to a single term in the model.
