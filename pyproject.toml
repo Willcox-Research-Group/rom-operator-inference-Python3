@@ -5,18 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "opinf"
 description = "Operator Inference for data-driven model reduction of dynamical systems."
-dynamic = [
-    "version",
-]
+dynamic = ["version"]
 authors = [
-    {name = "Willcox Research Group", email = "kwillcox@oden.utexas.edu"},
+    { name = "Willcox Research Group", email = "kwillcox@oden.utexas.edu" },
 ]
-maintainers = [
-    {name = "Shane A. McQuarrie", email = "shanemcq@utexas.edu"},
-]
-readme = {file = "README.md", content-type = "text/markdown"}
+maintainers = [{ name = "Shane A. McQuarrie", email = "shanemcq@utexas.edu" }]
+readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 keywords = [
     "operator inference",
     "model reduction",
@@ -43,7 +39,9 @@ dependencies = [
 tests = [
     "pytest>=6.0.2",
     "pytest-cov>=2.12.1",
+    "black>=23.10.0",
     "flake8>=3.9.0",
+    "pre-commit>=3.5.0",
 ]
 docs = [
     "jupyter-book>=0.14.0,<0.15.0",
@@ -57,10 +55,11 @@ homepage = "https://willcox-research-group.github.io/rom-operator-inference-Pyth
 documentation = "https://willcox-research-group.github.io/rom-operator-inference-Python3/source/index.html"
 repository = "https://github.com/Willcox-Research-Group/rom-operator-inference-Python3.git"
 
+[tool.black]
+line-length = 79
+
 [tool.pytest.ini_options]
-testpaths = [
-    "tests",
-]
+testpaths = ["tests"]
 
 [tool.setuptools.dynamic]
-version = {attr = "opinf.__version__"}
+version = { attr = "opinf.__version__" }

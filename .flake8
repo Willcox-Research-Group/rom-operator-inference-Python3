@@ -2,8 +2,11 @@
 ignore =
     # continuation line over indented
     E126,
+    # contested rule that conflicts with black
+    E203,
     # whitespace around arithmetic operator
     E226,
+max-line-length = 79
 per-file-ignores =
     __init__.py: F401,F403,F405,
     src/opinf/utils/_finite_difference.py: W503,
