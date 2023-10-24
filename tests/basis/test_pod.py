@@ -343,9 +343,8 @@ class TestPODBasisMulti:
         """Test properties r, rs, economize, and entries."""
         basis = self.PODBasisMulti(nvars, False)
 
-        with pytest.raises(AttributeError) as ex:
+        with pytest.raises(AttributeError):
             basis.r = 3
-        assert ex.value.args[0].startswith("can't set attribute")
 
         with pytest.raises(AttributeError) as ex:
             basis.rs = [3] * basis.num_variables

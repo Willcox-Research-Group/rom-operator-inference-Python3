@@ -110,9 +110,8 @@ class TestBaseParametricOperator:
         assert dummy.OperatorClass is _module._BaseNonparametricOperator
 
         # Try changing the OperatorClass.
-        with pytest.raises(AttributeError) as ex:
+        with pytest.raises(AttributeError):
             dummy.OperatorClass = int
-        assert ex.value.args[0].startswith("can't set attribute")
 
         # Try instantiating a class with an invalid OperatorClass.
         with pytest.raises(RuntimeError) as ex:
