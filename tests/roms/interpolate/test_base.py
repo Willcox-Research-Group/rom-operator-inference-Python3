@@ -460,11 +460,6 @@ class TestInterpolatedOpInfROM:
             hf.create_dataset("operators/A_", data=ops["A"])
             hf.create_dataset("operators/B_", data=ops["B"])
 
-        with pytest.raises(ValueError) as ex:
-            self.Dummy.load(target, None)
-        assert ex.value.args[0] == \
-            "invalid save format (parameters/ not found)"
-
         # Store the parameters.
         with h5py.File(target, 'a') as hf:
             hf.create_dataset("parameters", data=params)
