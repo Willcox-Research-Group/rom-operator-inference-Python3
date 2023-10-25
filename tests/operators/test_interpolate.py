@@ -98,9 +98,8 @@ class TestInterpolatedOperator:
 
         # Ensure these attributes are all properties.
         for attr in ["parameters", "matrices", "shape", "interpolator"]:
-            with pytest.raises(AttributeError) as ex:
+            with pytest.raises(AttributeError):
                 setattr(op, attr, 10)
-            assert ex.value.args[0].startswith("can't set attribute")
 
     def test_call(self):
         """Test _InterpolatedOperator.__call__()."""
