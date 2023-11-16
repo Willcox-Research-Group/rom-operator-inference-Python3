@@ -223,4 +223,3 @@ class PlainSolver(_BaseSolver):
     def predict(self):
         """Solve the least-squares problem."""
         return la.lstsq(self.A, self.B, **self.options)[0]
-
