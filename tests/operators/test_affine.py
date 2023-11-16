@@ -79,9 +79,8 @@ class TestAffineOperator:
 
         # Ensure these attributes are all properties.
         for attr in ["coefficient_functions", "matrices", "shape"]:
-            with pytest.raises(AttributeError) as ex:
+            with pytest.raises(AttributeError):
                 setattr(op, attr, 10)
-            assert ex.value.args[0].startswith("can't set attribute")
 
     def test_validate_coefficient_functions(self):
         """Test _AffineOperator._validate_coefficient_functions()."""

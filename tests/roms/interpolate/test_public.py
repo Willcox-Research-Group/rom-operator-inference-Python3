@@ -1,7 +1,7 @@
 # roms/interpolate/test_public.py
 """Tests for roms.interpolate._public."""
 
-# import pytest
+import os
 import numpy as np
 import scipy.interpolate
 import scipy.linalg as la
@@ -251,3 +251,27 @@ class TestInterpolatedContinuousOpInfROM:
                                for tt in t]).T
             predicted = rom.predict(p, q0, t)
             assert np.allclose(predicted, actual)
+
+    def test_issue46(self, target="_interpcontinuoussavetest.h5"):
+        # Clean up after old tests.
+        if os.path.isfile(target):  # pragma: no cover
+            os.remove(target)
+
+        # Reproduce the issue.
+        N = 10
+        K = 5
+        n_snaps = 8
+        Phi = np.random.normal(size=(N, K))
+        states = np.random.normal(size=(N, n_snaps))
+        states_dot = np.random.normal(size=(N, n_snaps))
+        params = np.array([1])
+        rom = opinf.InterpolatedContinuousOpInfROM(
+            "A", InterpolatorClass="auto"
+        )
+        rom.fit(Phi, parameters=params, states=[states], ddts=[states_dot])
+
+        # Problem should be here.
+        rom.save(target, overwrite=True)
+
+        # Clean up.
+        os.remove(target)

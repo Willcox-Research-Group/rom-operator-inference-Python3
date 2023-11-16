@@ -377,9 +377,12 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
 
             # Store reduced operators.
             for key, op in zip(self.modelform, self):
-                if "parameters" not in hf:
-                    hf.create_dataset("parameters", data=op.parameters)
-                hf.create_dataset(f"operators/{key}_", data=op.matrices)
+                if operators.is_parametric_operator(op):
+                    if "parameters" not in hf:
+                        hf.create_dataset("parameters", data=op.parameters)
+                    hf.create_dataset(f"operators/{key}_", data=op.matrices)
+                else:
+                    hf.create_dataset(f"operators/{key}_", data=op.entries)
 
     @classmethod
     def load(cls, loadfile, InterpolatorClass):
@@ -409,8 +412,6 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
                 raise ValueError("invalid save format (meta/ not found)")
             if "operators" not in hf:
                 raise ValueError("invalid save format (operators/ not found)")
-            if "parameters" not in hf:
-                raise ValueError("invalid save format (parameters/ not found)")
 
             # Load metadata.
             modelform = hf["meta"].attrs["modelform"]
@@ -422,7 +423,8 @@ class _InterpolatedOpInfROM(_BaseParametricROM):
                 basis = getattr(_basis, BasisClassName).load(hf["basis"])
 
             # Load operators.
-            parameters = hf["parameters"][:]
+            if "parameters" in hf:
+                parameters = hf["parameters"][:]
             ops = {}
             for key in modelform:
                 attr = f"{key}_"

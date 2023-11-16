@@ -581,9 +581,8 @@ class TestSnapshotTransformerMulti:
         stm = opinf.pre.SnapshotTransformerMulti(2)
         for attr in "num_variables", "center", "scaling":
             assert hasattr(stm, attr)
-            with pytest.raises(AttributeError) as ex:
+            with pytest.raises(AttributeError):
                 setattr(stm, attr, 0)
-            assert ex.value.args[0].startswith("can't set attribute")
 
         # Variable names.
         stm = opinf.pre.SnapshotTransformerMulti(3, variable_names=None)
