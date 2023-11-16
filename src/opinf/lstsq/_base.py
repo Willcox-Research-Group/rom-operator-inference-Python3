@@ -3,7 +3,7 @@
 
 __all__ = [
     "lstsq_size",
-    "PlainSolver",
+    "PlainSolver"
 ]
 
 import abc
