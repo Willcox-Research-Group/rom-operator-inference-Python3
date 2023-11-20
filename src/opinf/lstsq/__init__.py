@@ -93,7 +93,21 @@ The following classes solve the above problem with different choices of
     L2SolverDecoupled
     TikhonovSolver
     TikhonovSolverDecoupled
+
+
+Total Least-Squares Solver
+============================
+
+If you want to use the total least-squares solver use
+the following class.
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    TotalLeastSquaresSolver
 """
 
 from ._base import *
 from ._tikhonov import *
+from ._total import *
