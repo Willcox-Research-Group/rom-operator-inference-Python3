@@ -2,11 +2,11 @@
 """Tools for preprocessing state snapshot data."""
 
 __all__ = [
-            "shift",
-            "scale",
-            "SnapshotTransformer",
-            "SnapshotTransformerMulti",
-          ]
+    "shift",
+    "scale",
+    "SnapshotTransformer",
+    "SnapshotTransformerMulti",
+]
 
 import numpy as np
 
@@ -53,7 +53,7 @@ def shift(states, shift_by=None):
         raise ValueError("argument `states` must be two-dimensional")
 
     # If not shift_by factor is provided, compute the mean column.
-    learning = (shift_by is None)
+    learning = shift_by is None
     if learning:
         shift_by = np.mean(states, axis=1)
     elif shift_by.ndim != 1:
@@ -103,7 +103,7 @@ def scale(states, scale_to, scale_from=None):
     >>> Q_again = pre.scale(Qscaled, scaled_from, scaled_to)
     """
     # If no scale_from bounds are provided, learn them.
-    learning = (scale_from is None)
+    learning = scale_from is None
     if learning:
         scale_from = np.min(states), np.max(states)
 
@@ -116,8 +116,8 @@ def scale(states, scale_to, scale_from=None):
     # Do the scaling.
     mini, maxi = scale_to
     xmin, xmax = scale_from
-    scl = (maxi - mini)/(xmax - xmin)
-    states_scaled = states*scl + (mini - xmin*scl)
+    scl = (maxi - mini) / (xmax - xmin)
+    states_scaled = states * scl + (mini - xmin * scl)
 
     return (states_scaled, scale_to, scale_from) if learning else states_scaled
 
@@ -130,44 +130,44 @@ class SnapshotTransformer(_BaseTransformer):
     ----------
     center : bool
         If True, shift the snapshots by the mean training snapshot, i.e.,
-        :math:`\mathbf{Q}'
-        = \mathbf{Q} - \frac{1}{k}\sum_{j=1}^{k}\mathbf{Q}_{:,j}`.
-        Otherwise, :math:`\mathbf{Q}' = \mathbf{Q}`.
+        :math:`\Q'
+        = \Q - \frac{1}{k}\sum_{j=1}^{k}\Q_{:,j}`.
+        Otherwise, :math:`\Q' = \Q`.
     scaling : str or None
         If given, scale (non-dimensionalize) the centered snapshot entries.
         Options:
 
         - ``'standard'``: standardize to zero mean and unit standard
             deviation:
-            :math:`\mathbf{Q}''
-            = (\mathbf{Q}' - \text{mean}(\mathbf{Q}')
-            / \text{std}(\mathbf{Q}')`.
-            Guarantees :math:`\text{mean}(\mathbf{Q}'') = 0` and
-            :math:`\text{std}(\mathbf{Q}'') = 1`.
+            :math:`\Q''
+            = (\Q' - \text{mean}(\Q')
+            / \text{std}(\Q')`.
+            Guarantees :math:`\text{mean}(\Q'') = 0` and
+            :math:`\text{std}(\Q'') = 1`.
         - ``'minmax'``: minmax scaling to [0, 1]:
-            :math:`\mathbf{Q}''
-            = (\mathbf{Q}' - \text{min}(\mathbf{Q}'))
-            /(\text{max}(\mathbf{Q}') - \text{min}(\mathbf{Q}'))`.
+            :math:`\Q''
+            = (\Q' - \text{min}(\Q'))
+            /(\text{max}(\Q') - \text{min}(\Q'))`.
         - ``'minmaxsym'``: minmax scaling to [-1, 1]:
-            :math:`\mathbf{Q}''
-            = 2(\mathbf{Q}' - \text{min}(\mathbf{Q}'))
-            /(\text{max}(\mathbf{Q}') - \text{min}(\mathbf{Q}')) - 1`.
-            Guarantees :math:`\text{min}(\mathbf{Q}'') = -1` and
-            :math:`\text{max}(\mathbf{Q}'') = 1`.
+            :math:`\Q''
+            = 2(\Q' - \text{min}(\Q'))
+            /(\text{max}(\Q') - \text{min}(\Q')) - 1`.
+            Guarantees :math:`\text{min}(\Q'') = -1` and
+            :math:`\text{max}(\Q'') = 1`.
         - ``'maxabs'``: maximum absolute scaling to [-1, 1] (no scalar
             shift):
-            :math:`\mathbf{Q}''
-            = \mathbf{Q}' / \text{max}(\text{abs}(\mathbf{Q}'))`.
-            Guarantees :math:`\text{mean}(\mathbf{Q}'')
-            = \text{mean}(\mathbf{Q}') / \text{max}(\text{abs}(\mathbf{Q}'))`
-            and :math:`\text{max}(\text{abs}(\mathbf{Q}'')) = 1`.
+            :math:`\Q''
+            = \Q' / \text{max}(\text{abs}(\Q'))`.
+            Guarantees :math:`\text{mean}(\Q'')
+            = \text{mean}(\Q') / \text{max}(\text{abs}(\Q'))`
+            and :math:`\text{max}(\text{abs}(\Q'')) = 1`.
         - ``'maxabssym'``: maximum absolute scaling to [-1, 1] (with scalar
             mean shift):
-            :math:`\mathbf{Q}''
-            = (\mathbf{Q}' - \text{mean}(\mathbf{Q}'))
-            / \text{max}(abs(\mathbf{Q}' - \text{mean}(\mathbf{Q}')))`.
-            Guarantees :math:`\text{mean}(\mathbf{Q}'') = 0` and
-            :math:`\text{max}(\text{abs}(\mathbf{Q}'')) = 1`.
+            :math:`\Q''
+            = (\Q' - \text{mean}(\Q'))
+            / \text{max}(abs(\Q' - \text{mean}(\Q')))`.
+            Guarantees :math:`\text{mean}(\Q'') = 0` and
+            :math:`\text{max}(\text{abs}(\Q'')) = 1`.
     byrow : bool
         If True, scale each row of the snapshot matrix separately when a
         scaling is specified. Otherwise, scale the entire matrix at once.
@@ -198,8 +198,10 @@ class SnapshotTransformer(_BaseTransformer):
         "maxabssym",
     }
 
-    _table_header = "    |     min    |    mean    |     max    |    std\n" \
-                    "----|------------|------------|------------|------------"
+    _table_header = (
+        "    |     min    |    mean    |     max    |    std\n"
+        "----|------------|------------|------------|------------"
+    )
 
     def __init__(self, center=False, scaling=None, byrow=False, verbose=False):
         """Set transformation hyperparameters."""
@@ -259,8 +261,9 @@ class SnapshotTransformer(_BaseTransformer):
             raise TypeError("'scaling' must be of type 'str'")
         if scl not in self._VALID_SCALINGS:
             opts = ", ".join([f"'{v}'" for v in self._VALID_SCALINGS])
-            raise ValueError(f"invalid scaling '{scl}'; "
-                             f"valid options are {opts}")
+            raise ValueError(
+                f"invalid scaling '{scl}'; valid options are {opts}"
+            )
         if scl != self.__scaling:
             self._clear()
             self.__scaling = scl
@@ -312,8 +315,9 @@ class SnapshotTransformer(_BaseTransformer):
     @staticmethod
     def _statistics_report(Q):
         """Return a string of basis statistics about a data set."""
-        return " | ".join([f"{f(Q):>10.3e}"
-                           for f in (np.min, np.mean, np.max, np.std)])
+        return " | ".join(
+            [f"{f(Q):>10.3e}" for f in (np.min, np.mean, np.max, np.std)]
+        )
 
     def __str__(self):
         """String representation: scaling type + centering bool."""
@@ -329,7 +333,7 @@ class SnapshotTransformer(_BaseTransformer):
             out.append(f"with '{self.scaling}' scaling")
         if not trained:
             out.append("(call fit_transform() to train)")
-        return ' '.join(out)
+        return " ".join(out)
 
     def __repr__(self):
         """Unique ID + string representation."""
@@ -340,8 +344,9 @@ class SnapshotTransformer(_BaseTransformer):
     def _check_shape(self, Q):
         """Verify the shape of the snapshot set Q."""
         if Q.shape[0] != self.n:
-            raise ValueError(f"states.shape[0] = {Q.shape[0]:d} "
-                             f"!= {self.n} = n")
+            raise ValueError(
+                f"states.shape[0] = {Q.shape[0]:d} != {self.n} = n"
+            )
 
     def _is_trained(self):
         """Return True if transform() and inverse_transform() are ready."""
@@ -349,8 +354,9 @@ class SnapshotTransformer(_BaseTransformer):
             return False
         if self.center and not hasattr(self, "mean_"):
             return False
-        if self.scaling and any(not hasattr(self, attr)
-                                for attr in ("scale_", "shift_")):
+        if self.scaling and any(
+            not hasattr(self, attr) for attr in ("scale_", "shift_")
+        ):
             return False
         return True
 
@@ -375,7 +381,7 @@ class SnapshotTransformer(_BaseTransformer):
         self.n = states.shape[0]
 
         Y = states if inplace else states.copy()
-        axis = (1 if self.byrow else None)
+        axis = 1 if self.byrow else None
 
         # Record statistics of the training data.
         if self.verbose:
@@ -398,42 +404,42 @@ class SnapshotTransformer(_BaseTransformer):
             if self.scaling == "standard":
                 mu = np.mean(Y, axis=axis)
                 sigma = np.std(Y, axis=axis)
-                self.scale_ = 1/sigma
-                self.shift_ = -mu*self.scale_
+                self.scale_ = 1 / sigma
+                self.shift_ = -mu * self.scale_
 
             # Min-max: Q' = (Q - min(Q))/(max(Q) - min(Q))
             elif self.scaling == "minmax":
                 Ymin = np.min(Y, axis=axis)
                 Ymax = np.max(Y, axis=axis)
-                self.scale_ = 1/(Ymax - Ymin)
-                self.shift_ = -Ymin*self.scale_
+                self.scale_ = 1 / (Ymax - Ymin)
+                self.shift_ = -Ymin * self.scale_
 
             # Symmetric min-max: Q' = (Q - min(Q))*2/(max(Q) - min(Q)) - 1
             elif self.scaling == "minmaxsym":
                 Ymin = np.min(Y, axis=axis)
                 Ymax = np.max(Y, axis=axis)
-                self.scale_ = 2/(Ymax - Ymin)
-                self.shift_ = -Ymin*self.scale_ - 1
+                self.scale_ = 2 / (Ymax - Ymin)
+                self.shift_ = -Ymin * self.scale_ - 1
 
             # MaxAbs: Q' = Q / max(abs(Q))
             elif self.scaling == "maxabs":
-                self.scale_ = 1/np.max(np.abs(Y), axis=axis)
+                self.scale_ = 1 / np.max(np.abs(Y), axis=axis)
                 self.shift_ = 0 if axis is None else np.zeros(self.n)
 
             # maxabssym: Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)))
             elif self.scaling == "maxabssym":
                 mu = np.mean(Y, axis=axis)
-                Y -= (mu if axis is None else mu.reshape((-1, 1)))
-                self.scale_ = 1/np.max(np.abs(Y), axis=axis)
-                self.shift_ = -mu*self.scale_
-                Y += (mu if axis is None else mu.reshape((-1, 1)))
+                Y -= mu if axis is None else mu.reshape((-1, 1))
+                self.scale_ = 1 / np.max(np.abs(Y), axis=axis)
+                self.shift_ = -mu * self.scale_
+                Y += mu if axis is None else mu.reshape((-1, 1))
 
-            else:                               # pragma nocover
+            else:  # pragma nocover
                 raise RuntimeError(f"invalid scaling '{self.scaling}'")
 
             # Apply the scaling.
-            Y *= (self.scale_ if axis is None else self.scale_.reshape(-1, 1))
-            Y += (self.shift_ if axis is None else self.shift_.reshape(-1, 1))
+            Y *= self.scale_ if axis is None else self.scale_.reshape(-1, 1)
+            Y += self.shift_ if axis is None else self.shift_.reshape(-1, 1)
 
             if self.verbose:
                 if self.center:
@@ -443,7 +449,7 @@ class SnapshotTransformer(_BaseTransformer):
                 report.append(f"Q'' | {self._statistics_report(Y)}")
 
         if self.verbose:
-            print('\n'.join(report) + '\n')
+            print("\n".join(report) + "\n")
 
         return Y
 
@@ -465,8 +471,9 @@ class SnapshotTransformer(_BaseTransformer):
             Matrix of k transformed snapshots of dimension n.
         """
         if not self._is_trained():
-            raise AttributeError("transformer not trained "
-                                 "(call fit_transform())")
+            raise AttributeError(
+                "transformer not trained (call fit_transform())"
+            )
 
         self._check_shape(states)
         Y = states if inplace else states.copy()
@@ -478,8 +485,8 @@ class SnapshotTransformer(_BaseTransformer):
         # Scale (non-dimensionalize) the centered snapshot entries.
         if self.scaling is not None:
             _flip = self.byrow and Y.ndim > 1
-            Y *= (self.scale_.reshape((-1, 1)) if _flip else self.scale_)
-            Y += (self.shift_.reshape((-1, 1)) if _flip else self.shift_)
+            Y *= self.scale_.reshape((-1, 1)) if _flip else self.scale_
+            Y += self.shift_.reshape((-1, 1)) if _flip else self.shift_
 
         return Y
 
@@ -504,8 +511,9 @@ class SnapshotTransformer(_BaseTransformer):
             entries of such at the indices specified by `loc`.
         """
         if not self._is_trained():
-            raise AttributeError("transformer not trained "
-                                 "(call fit_transform())")
+            raise AttributeError(
+                "transformer not trained (call fit_transform())"
+            )
 
         if locs is not None:
             if isinstance(locs, slice):
@@ -525,7 +533,7 @@ class SnapshotTransformer(_BaseTransformer):
         # Uncenter the unscaled snapshots.
         if self.center:
             mean_ = self.mean_ if locs is None else self.mean_[locs]
-            Y += (mean_.reshape((-1, 1)) if Y.ndim > 1 else mean_)
+            Y += mean_.reshape((-1, 1)) if Y.ndim > 1 else mean_
 
         return Y
 
@@ -542,7 +550,6 @@ class SnapshotTransformer(_BaseTransformer):
             (default), raise a FileExistsError if the file already exists.
         """
         with hdf5_savehandle(savefile, overwrite) as hf:
-
             # Store transformation hyperparameter metadata.
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["center"] = self.center
@@ -575,16 +582,18 @@ class SnapshotTransformer(_BaseTransformer):
         SnapshotTransformer
         """
         with hdf5_loadhandle(loadfile) as hf:
-
             # Load transformation hyperparameters.
             if "meta" not in hf:
-                raise LoadfileFormatError("invalid save format "
-                                          "(meta/ not found)")
+                raise LoadfileFormatError(
+                    "invalid save format (meta/ not found)"
+                )
             scl = hf["meta"].attrs["scaling"]
-            transformer = cls(center=bool(hf["meta"].attrs["center"]),
-                              scaling=scl if scl else None,
-                              byrow=hf["meta"].attrs["byrow"],
-                              verbose=hf["meta"].attrs["verbose"])
+            transformer = cls(
+                center=bool(hf["meta"].attrs["center"]),
+                scaling=scl if scl else None,
+                byrow=hf["meta"].attrs["byrow"],
+                verbose=hf["meta"].attrs["verbose"],
+            )
 
             # Load learned transformation parameters.
             if "dimension" in hf:
@@ -659,8 +668,15 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
     >>> stm = SnapshotTransformerMulti(6, center=True, scaling=None)
     >>> stm[-1].scaling = "standard"
     """
-    def __init__(self, num_variables, center=False, scaling=None,
-                 variable_names=None, verbose=False):
+
+    def __init__(
+        self,
+        num_variables,
+        center=False,
+        scaling=None,
+        variable_names=None,
+        verbose=False,
+    ):
         """Interpret hyperparameters and initialize transformers."""
         _MultivarMixin.__init__(self, num_variables, variable_names)
 
@@ -669,8 +685,10 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
             if isinstance(attr, dtype):
                 attr = (attr,) * num_variables
             if len(attr) != num_variables:
-                raise ValueError(f"len({name}) = {len(attr)} "
-                                 f"!= {num_variables} = num_variables")
+                raise ValueError(
+                    f"len({name}) = {len(attr)} "
+                    f"!= {num_variables} = num_variables"
+                )
             return attr
 
         # Process and store transformation directives.
@@ -678,9 +696,12 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         scalings = _process_arg(scaling, "scaling", (type(None), str))
 
         # Initialize transformers.
-        self.transformers = [SnapshotTransformer(center=ctr, scaling=scl,
-                                                 byrow=False, verbose=False)
-                             for ctr, scl in zip(centers, scalings)]
+        self.transformers = [
+            SnapshotTransformer(
+                center=ctr, scaling=scl, byrow=False, verbose=False
+            )
+            for ctr, scl in zip(centers, scalings)
+        ]
         self.verbose = verbose
 
     # Properties --------------------------------------------------------------
@@ -711,8 +732,10 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         if names is None:
             names = [f"variable {i+1}" for i in range(self.num_variables)]
         if not isinstance(names, list) or len(names) != self.num_variables:
-            raise TypeError("variable_names must be list of"
-                            f" length {self.num_variables}")
+            raise TypeError(
+                "variable_names must be list of"
+                f" length {self.num_variables}"
+            )
         self.__variable_names = names
 
     @property
@@ -733,8 +756,9 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         if not self._is_trained():
             return None
         zeros = np.zeros(self.ni)
-        return np.concatenate([(st.mean_ if st.center else zeros)
-                               for st in self.transformers])
+        return np.concatenate(
+            [(st.mean_ if st.center else zeros) for st in self.transformers]
+        )
 
     def __getitem__(self, key):
         """Get the transformer for variable i."""
@@ -758,8 +782,9 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
             return False
         if self.num_variables != other.num_variables:
             return False
-        return all(t1 == t2 for t1, t2 in zip(self.transformers,
-                                              other.transformers))
+        return all(
+            t1 == t2 for t1, t2 in zip(self.transformers, other.transformers)
+        )
 
     # Printing ----------------------------------------------------------------
     def __str__(self):
@@ -768,7 +793,7 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         namelength = max(len(name) for name in self.variable_names)
         for name, st in zip(self.variable_names, self.transformers):
             out.append(f"* {{:>{namelength}}} | {st}".format(name))
-        return '\n'.join(out)
+        return "\n".join(out)
 
     def __repr__(self):
         """Unique ID + string representation."""
@@ -781,16 +806,19 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         return all(st._is_trained() for st in self.transformers)
 
     def _apply(self, method, Q, inplace, locs=None):
-        """Apply a method of each transformer to the corresponding chunk of Q.
+        """
+        Apply a method of each transformer to the corresponding chunk of Q.
         """
         options = dict(inplace=inplace)
         if locs is not None:
             options["locs"] = locs
 
         Ys = []
-        for st, var, name in zip(self.transformers,
-                                 np.split(Q, self.num_variables, axis=0),
-                                 self.variable_names):
+        for st, var, name in zip(
+            self.transformers,
+            np.split(Q, self.num_variables, axis=0),
+            self.variable_names,
+        ):
             if method is SnapshotTransformer.fit_transform and self.verbose:
                 print(f"{name}:")
             Ys.append(method(st, var, **options))
@@ -839,8 +867,9 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
             Matrix of k transformed n-dimensional snapshots.
         """
         if not self._is_trained():
-            raise AttributeError("transformer not trained "
-                                 "(call fit_transform())")
+            raise AttributeError(
+                "transformer not trained (call fit_transform())"
+            )
         return self._apply(SnapshotTransformer.transform, states, inplace)
 
     def inverse_transform(self, states_transformed, inplace=False, locs=None):
@@ -865,12 +894,17 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
             entries of such at the indices specified by `loc`.
         """
         if not self._is_trained():
-            raise AttributeError("transformer not trained "
-                                 "(call fit_transform())")
+            raise AttributeError(
+                "transformer not trained (call fit_transform())"
+            )
         if locs is None:
             self._check_shape(states_transformed)
-        return self._apply(SnapshotTransformer.inverse_transform,
-                           states_transformed, inplace, locs)
+        return self._apply(
+            SnapshotTransformer.inverse_transform,
+            states_transformed,
+            inplace,
+            locs,
+        )
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile, overwrite=False):
@@ -885,7 +919,6 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
             (default), raise a FileExistsError if the file already exists.
         """
         with hdf5_savehandle(savefile, overwrite) as hf:
-
             # Metadata
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_variables"] = self.num_variables
@@ -909,11 +942,11 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
         SnapshotTransformerMulti
         """
         with hdf5_loadhandle(loadfile) as hf:
-
             # Load transformation hyperparameters.
             if "meta" not in hf:
-                raise LoadfileFormatError("invalid save format "
-                                          "(meta/ not found)")
+                raise LoadfileFormatError(
+                    "invalid save format (meta/ not found)"
+                )
             num_variables = hf["meta"].attrs["num_variables"]
             verbose = hf["meta"].attrs["verbose"]
             names = hf["meta"].attrs["variable_names"].tolist()
@@ -923,8 +956,9 @@ class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
             for i in range(num_variables):
                 group = f"variable{i+1}"
                 if group not in hf:
-                    raise LoadfileFormatError("invalid save format "
-                                              f"({group}/ not found)")
+                    raise LoadfileFormatError(
+                        f"invalid save format ({group}/ not found)"
+                    )
                 stm[i] = SnapshotTransformer.load(hf[group])
             stm.n = stm[0].n * num_variables
 

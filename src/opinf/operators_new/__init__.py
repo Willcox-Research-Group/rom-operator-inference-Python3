@@ -6,20 +6,15 @@ r"""Operator classes for the individual terms of reduced-order models.
 For models with the form
 
 .. math::
-    \frac{\textup{d}}{\textup{d}t}\widehat{\mathbf{q}}(t)
-    = \widehat{\mathbf{c}}
-    + \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
-    + \widehat{\mathbf{H}}[
-    \widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]
-    + \widehat{\mathbf{G}}[
-    \widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)
-    \otimes\widehat{\mathbf{q}}(t)]
-    + \widehat{\mathbf{B}}\mathbf{u}(t),
+    \ddt\qhat(t)
+    = \chat + \Ahat\qhat(t) + \Hhat[\qhat(t)\otimes\qhat(t)]
+    + \Ghat[\qhat(t)\otimes\qhat(t)\otimes\qhat(t)]
+    + \Bhat\u(t),
 
-these classes represent the operators :math:`\widehat{\mathbf{c}}` (constant),
-:math:`\widehat{\mathbf{A}}` (linear), :math:`\widehat{\mathbf{H}}`
+these classes represent the operators :math:`\chat` (constant),
+:math:`\Ahat` (linear), :math:`\Hhat`
 (quadratic), :math:`\widehat{\mathbf{G}}` (cubic), and
-:math:`\widehat{\mathbf{B}}` (input).
+:math:`\Bhat` (input).
 
 
 Nonparametric Operator Classes

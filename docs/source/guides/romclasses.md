@@ -32,10 +32,10 @@ result = rom.predict(initial_condition, time_domain, input_function)
 
 :::{admonition} Notation
 :class: attention
-On this page, we use $\mathbf{F}$ to denote the function governing the dynamics of the full-order state $\mathbf{q}\in\mathbb{R}^{n}$.
-Likewise, the function $\widehat{\mathbf{F}}$ determines the dynamics of the reduced-order state $\widehat{\mathbf{q}}\in\mathbb{R}^{r}$, where $r \ll n$.
-Inputs are written as $\mathbf{u}\in\mathbb{R}^{m}$.
-For parametric problems, we use $\mu \in \mathbb{R}^{p}$ to denote the free parameters.
+On this page, we use $\mathbf{F}$ to denote the function governing the dynamics of the full-order state $\q\in\RR^{n}$.
+Likewise, the function $\widehat{\mathbf{F}}$ determines the dynamics of the reduced-order state $\qhat\in\RR^{r}$, where $r \ll n$.
+Inputs are written as $\u\in\RR^{m}$.
+For parametric problems, we use $\mu \in \RR^{p}$ to denote the free parameters.
 :::
 
 ## Types of Reduced-order Models
@@ -51,159 +51,159 @@ The type of ROM class to use depends on three factors:
 ### Continuous-time ROMs
 
 Continuous-time ROMs are for systems of ordinary differential equations (ODEs), for example those resulting from spatially discretizing partial differential equations.
-The state $\mathbf{q}(t)\in\mathbb{R}^{n}$ and the input $\mathbf{u}(t)\in\mathbb{R}^{m}$ are time-dependent.
+The state $\q(t)\in\RR^{n}$ and the input $\u(t)\in\RR^{m}$ are time-dependent.
 
 ::::{tab-set}
 :::{tab-item} Nonparametric Problem
 $$
-\frac{\text{d}}{\text{d}t}\mathbf{q}(t)
-= \mathbf{F}(\mathbf{q}(t), \mathbf{u}(t))
+\frac{\text{d}}{\text{d}t}\q(t)
+= \mathbf{F}(\q(t), \u(t))
 $$
 :::
 
 :::{tab-item} Parametric Problem
 $$
-\frac{\text{d}}{\text{d}t}\mathbf{q}(t;\mu)
-= \mathbf{F}(\mathbf{q}(t;\mu), \mathbf{u}(t); \mu)
+\frac{\text{d}}{\text{d}t}\q(t;\mu)
+= \mathbf{F}(\q(t;\mu), \u(t); \mu)
 $$
 :::
 ::::
 
-The reduced-order dynamics are a system of ODEs for the reduced state $\widehat{\mathbf{q}}(t)$.
+The reduced-order dynamics are a system of ODEs for the reduced state $\qhat(t)$.
 In the multilithic case, the reduced state is decomposed into chunks,
 
 $$
-\widehat{\mathbf{q}}(t)
+\qhat(t)
 = \left[\begin{array}{c}
-\widehat{\mathbf{q}}_{0}(t)
+\qhat_{0}(t)
 \\ \vdots \\
-\widehat{\mathbf{q}}_{d-1}(t)
+\qhat_{d-1}(t)
 \end{array}\right],
 $$
 
-and a set of ODEs is defined for each $\widehat{\mathbf{q}}_{\ell}(t)$, $\ell=0,\ldots,d-1$.
+and a set of ODEs is defined for each $\qhat_{\ell}(t)$, $\ell=0,\ldots,d-1$.
 
 | ROM Type | `opinf` Class | Reduced-order Dynamics |
 | :------- | :------------ | :--------------------- |
-| Monolithic Nonparametric  | [**`ContinuousROM`**](opinf.ContinuousOpInfROM) | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}(t), \mathbf{u}(t))$ |
-| Monolithic Parametric     | **`ContinuousPROM`** | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu)$ |
-| Multilithic Nonparametric | **`ContinuousROMMulti`** | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}_{\ell}(t) = \widehat{\mathbf{F}}_{\ell}(\widehat{\mathbf{q}}(t), \mathbf{u}(t)),\quad\ell=1,\ldots,d-1$ |
-| Multilithic Parametric | **`ContinuousPROMMulti`** | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}_{\ell}(t;\mu) = \widehat{\mathbf{F}}_{\ell}(\widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu),\quad\ell=1,\ldots,d-1$ |
+| Monolithic Nonparametric  | [**`ContinuousROM`**](opinf.ContinuousOpInfROM) | $\frac{\text{d}}{\text{d}t}\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))$ |
+| Monolithic Parametric     | **`ContinuousPROM`** | $\frac{\text{d}}{\text{d}t}\qhat(t;\mu) = \widehat{\mathbf{F}}(\qhat(t;\mu), \u(t); \mu)$ |
+| Multilithic Nonparametric | **`ContinuousROMMulti`** | $\frac{\text{d}}{\text{d}t}\qhat_{\ell}(t) = \widehat{\mathbf{F}}_{\ell}(\qhat(t), \u(t)),\quad\ell=1,\ldots,d-1$ |
+| Multilithic Parametric | **`ContinuousPROMMulti`** | $\frac{\text{d}}{\text{d}t}\qhat_{\ell}(t;\mu) = \widehat{\mathbf{F}}_{\ell}(\qhat(t;\mu), \u(t); \mu),\quad\ell=1,\ldots,d-1$ |
 
 :::{dropdown} Multilithic System Example: Linear Hamiltonian System
 Consider the system of ODEs given by
 
 $$
-\frac{\text{d}}{\text{d}t}\mathbf{q}(t)
+\frac{\text{d}}{\text{d}t}\q(t)
 = \frac{\text{d}}{\text{d}t}\left[\begin{array}{c}
-\mathbf{q}_{0}(t) \\ \mathbf{q}_{1}(t)
+\q_{0}(t) \\ \q_{1}(t)
 \end{array}\right]
 = \left[\begin{array}{cc}
-\mathbf{0} & \mathbf{A}_{0,1} \\ \mathbf{A}_{1,0} & \mathbf{0}
+\mathbf{0} & \A_{0,1} \\ \A_{1,0} & \mathbf{0}
 \end{array}\right]\left[\begin{array}{c}
-\mathbf{q}_{0}(t) \\ \mathbf{q}_{1}(t)
+\q_{0}(t) \\ \q_{1}(t)
 \end{array}\right]
-= \mathbf{A}\mathbf{q}(t),
+= \A\q(t),
 $$
 
-where $\mathbf{q}_{0}(t),\mathbf{q}_{1}(t)\in\mathbb{R}^{n/2}$, $\mathbf{A}_{0,1},\mathbf{A}_{1,0}\in\mathbb{R}^{n/2\times n/2}$, and
+where $\q_{0}(t),\q_{1}(t)\in\RR^{n/2}$, $\A_{0,1},\A_{1,0}\in\RR^{n/2\times n/2}$, and
 
 $$
-\mathbf{q}(t) = \left[\begin{array}{c}
-\mathbf{q}_{0}(t) \\ \mathbf{q}_{1}(t)
-\end{array}\right]\in\mathbb{R}^{n},
+\q(t) = \left[\begin{array}{c}
+\q_{0}(t) \\ \q_{1}(t)
+\end{array}\right]\in\RR^{n},
 \qquad
-\mathbf{A} = \left[\begin{array}{cc}
-\mathbf{0} & \mathbf{A}_{0,1} \\ \mathbf{A}_{1,0} & \mathbf{0}
-\end{array}\right]\in\mathbb{R}^{n\times n}.
+\A = \left[\begin{array}{cc}
+\mathbf{0} & \A_{0,1} \\ \A_{1,0} & \mathbf{0}
+\end{array}\right]\in\RR^{n\times n}.
 $$
 
 If a monolithic dimensionality reduction technique is used, the structure of the system is lost:
-approximating $\mathbf{q}(t) \approx \mathbf{V}_{r}\widehat{\mathbf{q}}$ where $\widehat{\mathbf{q}}(t)\in\mathbb{R}^{r}$ and $\mathbf{V}_{r}\in\mathbb{R}^{n\times r}$ has orthogonal columns,
+approximating $\q(t) \approx \Vr\qhat$ where $\qhat(t)\in\RR^{r}$ and $\Vr\in\RR^{n\times r}$ has orthogonal columns,
 Galerkin projection leads to the ROM
 
 $$
-\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
-= \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t),
+\frac{\text{d}}{\text{d}t}\qhat(t)
+= \Ahat\qhat(t),
 \qquad
-\widehat{\mathbf{A}} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{A}\mathbf{V}_{r}.
+\Ahat = \Vr\trp\A\Vr.
 $$
 
-In most cases, $\widehat{\mathbf{A}}$ will be dense and not have the block structure of $\mathbf{A}$.
-Alternatively, consider the multilithic approximation $\mathbf{q}_{0}(t) \approx \mathbf{V}_{0}\widehat{\mathbf{q}}_{0}$ and $\mathbf{q}_{1}(t) \approx \mathbf{V}_{1}\widehat{\mathbf{q}}_{1}$ where $\widehat{\mathbf{q}}_{0},\widehat{\mathbf{q}}_{1}\in\mathbb{R}^{r/2}$ and $\mathbf{V}_{0},\mathbf{V}_{1}\in\mathbb{R}^{n/2\times r/2}$, i.e.,
+In most cases, $\Ahat$ will be dense and not have the block structure of $\A$.
+Alternatively, consider the multilithic approximation $\q_{0}(t) \approx \mathbf{V}_{0}\qhat_{0}$ and $\q_{1}(t) \approx \mathbf{V}_{1}\qhat_{1}$ where $\qhat_{0},\qhat_{1}\in\RR^{r/2}$ and $\mathbf{V}_{0},\mathbf{V}_{1}\in\RR^{n/2\times r/2}$, i.e.,
 
 $$
-\mathbf{q}(t)
+\q(t)
 = \left[\begin{array}{c}
-\mathbf{q}_{0}(t) \\ \mathbf{q}_{1}(t)
+\q_{0}(t) \\ \q_{1}(t)
 \end{array}\right]
 \approx
 \left[\begin{array}{cc}
 \mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
 \end{array}\right]
 \left[\begin{array}{c}
-\widehat{\mathbf{q}}_{0}(t) \\ \widehat{\mathbf{q}}_{1}(t)
+\qhat_{0}(t) \\ \qhat_{1}(t)
 \end{array}\right].
 $$
 
 In this case, Galerkin projection produces a ROM
 $
-\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
-= \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
+\frac{\text{d}}{\text{d}t}\qhat(t)
+= \Ahat\qhat(t)
 $ as before, but now with
 
 $$
-\widehat{\mathbf{A}}
+\Ahat
 = \left[\begin{array}{cc}
 \mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
-\end{array}\right]^{\mathsf{T}}
+\end{array}\right]\trp
 \left[\begin{array}{cc}
-\mathbf{0} & \mathbf{A}_{0,1} \\ \mathbf{A}_{1,0} & \mathbf{0}
+\mathbf{0} & \A_{0,1} \\ \A_{1,0} & \mathbf{0}
 \end{array}\right]
 \left[\begin{array}{cc}
 \mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
 \end{array}\right]
 =
 \left[\begin{array}{cc}
-\mathbf{0} & \mathbf{V}_{0}^{\mathsf{T}}\mathbf{A}_{0,1}\mathbf{V}_{1}
+\mathbf{0} & \mathbf{V}_{0}\trp\A_{0,1}\mathbf{V}_{1}
 \\
-\mathbf{V}_{1}^{\mathsf{T}}\mathbf{A}_{1,0}\mathbf{V}_{0} & \mathbf{0}
+\mathbf{V}_{1}\trp\A_{1,0}\mathbf{V}_{0} & \mathbf{0}
 \end{array}\right],
 $$
 
-which has the same block structure as $\mathbf{A}$.
+which has the same block structure as $\A$.
 :::
 
 ### Discrete-time ROMs
 
-Discrete-time ROMs are for discrete dynamical systems, where values of the state $\mathbf{q}\in\mathbb{R}^{n}$ and the input $\mathbf{u}\in\mathbb{R}^{m}$ are given at discrete iterates, denoted with the superscripted $\mathbf{q}^{(j)}$, $\mathbf{u}^{(j)}$.
-The full-order model is an updated formula for $\mathbf{q}^{(j+1)}$ in terms of $\mathbf{q}^{(j)}$ and $\mathbf{u}^{(j)}$.
+Discrete-time ROMs are for discrete dynamical systems, where values of the state $\q\in\RR^{n}$ and the input $\u\in\RR^{m}$ are given at discrete iterates, denoted with the superscripted $\q^{(j)}$, $\u^{(j)}$.
+The full-order model is an updated formula for $\q^{(j+1)}$ in terms of $\q^{(j)}$ and $\u^{(j)}$.
 
 ::::{tab-set}
 :::{tab-item} Nonparametric Problem
 $$
-\mathbf{q}^{(j+1)}
-= \mathbf{F}(\mathbf{q}^{(j)}, \mathbf{u}^{(j)})
+\q^{(j+1)}
+= \mathbf{F}(\q^{(j)}, \u^{(j)})
 $$
 :::
 
 :::{tab-item} Parametric Problem
 $$
-\mathbf{q}^{(j+1)}(\mu)
-= \mathbf{F}(\mathbf{q}^{(j)}(\mu), \mathbf{u}^{(j)}; \mu)
+\q^{(j+1)}(\mu)
+= \mathbf{F}(\q^{(j)}(\mu), \u^{(j)}; \mu)
 $$
 :::
 ::::
 
-The reduced-order dynamics are a discrete dynamical system for the reduced state $\widehat{\mathbf{q}}$.
-In the multilithic case, the reduced state is decomposed as $\widehat{\mathbf{q}} = [~\widehat{\mathbf{q}}^{\mathsf{T}}~~\widehat{\mathbf{q}}_{1}^{\mathsf{T}}~~\cdots~~\widehat{\mathbf{q}}_{d-1}^{\mathsf{T}}~]^{\mathsf{T}}$ and an update formula is defined for each $\widehat{\mathbf{q}}_{\ell}$, $\ell=0,\ldots,d-1$.
+The reduced-order dynamics are a discrete dynamical system for the reduced state $\qhat$.
+In the multilithic case, the reduced state is decomposed as $\qhat = [~\qhat\trp~~\qhat_{1}\trp~~\cdots~~\qhat_{d-1}\trp~]\trp$ and an update formula is defined for each $\qhat_{\ell}$, $\ell=0,\ldots,d-1$.
 
 | ROM Type | `opinf` Class | Reduced-order Dynamics |
 | :------- | :------------ | :--------------------- |
-| Monolithic Nonparametric | [**`DiscreteROM`**](opinf.DiscreteOpInfROM) | $\widehat{\mathbf{q}}^{(j+1)} = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}^{(j)}, \mathbf{u}^{(j)})$ |
-| Monolithic Parametric    | **`DiscretePROM`** | $\widehat{\mathbf{q}}^{(j+1)}(\mu) = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}^{(j)}(\mu), \mathbf{u}^{(j)}; \mu)$ |
-| Multilithic Nonparametric | **`DiscreteROMMulti`** | $\widehat{\mathbf{q}}_{\ell}^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\widehat{\mathbf{q}}^{(j)}, \mathbf{u}^{(j)}),\quad\ell=1,\ldots,d-1$ |
-| Multilithic Parametric | **`DiscretePROMMulti`** | $\widehat{\mathbf{q}}_{\ell}(\mu)^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\widehat{\mathbf{q}}(\mu)^{(j)}, \mathbf{u}^{(j)}; \mu),\quad\ell=1,\ldots,d-1$ |
+| Monolithic Nonparametric | [**`DiscreteROM`**](opinf.DiscreteOpInfROM) | $\qhat^{(j+1)} = \widehat{\mathbf{F}}(\qhat^{(j)}, \u^{(j)})$ |
+| Monolithic Parametric    | **`DiscretePROM`** | $\qhat^{(j+1)}(\mu) = \widehat{\mathbf{F}}(\qhat^{(j)}(\mu), \u^{(j)}; \mu)$ |
+| Multilithic Nonparametric | **`DiscreteROMMulti`** | $\qhat_{\ell}^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\qhat^{(j)}, \u^{(j)}),\quad\ell=1,\ldots,d-1$ |
+| Multilithic Parametric | **`DiscretePROMMulti`** | $\qhat_{\ell}(\mu)^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\qhat(\mu)^{(j)}, \u^{(j)}; \mu),\quad\ell=1,\ldots,d-1$ |
 
 <!-- TODO: Steady-state Problems -->
 
@@ -213,15 +213,15 @@ In the multilithic case, the reduced state is decomposed as $\widehat{\mathbf{q}
 All ROM classes are initialized with two arguments: a `basis` (usually a class from [**`opinf.basis`**](opinf.basis)) and a list of `operators` that define the structure of the reduced-order model dynamics, i.e., the function $\widehat{\mathbf{F}}$.
 Operator classes are defined in the [**`opinf.operators`**](opinf.operators) submodule.
 
-Each operator class represents a function of the reduced state-input pair $(\widehat{\mathbf{q}},\mathbf{u})$.
+Each operator class represents a function of the reduced state-input pair $(\qhat,\u)$.
 In order to be used in Operator Inference, an operator evaluation must be expressible as a matrix-vector product
 $
-(\widehat{\mathbf{q}},\mathbf{u}) \mapsto
-\widehat{\mathbf{Z}}\mathbf{f}(\widehat{\mathbf{q}},\mathbf{u}),
+(\qhat,\u) \mapsto
+\widehat{\mathbf{Z}}\mathbf{f}(\qhat,\u),
 $
-where $\widehat{\mathbf{Z}}\in\mathbb{R}^{r\times d_{z}}$ and where $\mathbf{f} : \mathbb{R}^{r}\times\mathbb{R}^{m}\to\mathbb{R}^{d_{z}}$ may be a nonlinear function.
-<!-- For example, a linear operation $(\widehat{\mathbf{q}},\mathbf{u}) \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$ where $\widehat{\mathbf{A}}\in\mathbb{R}^{r\times r}$ uses $\widehat{\mathbf{Z}}=\widehat{\mathbf{A}}$ and $\mathbf{f}(\widehat{\mathbf{q}},\mathbf{u})=\widehat{\mathbf{q}}$;
-A quadratic operation $(\widehat{\mathbf{q}},\mathbf{u}) \mapsto \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ uses $\widehat{\mathbf{Z}}=\widehat{\mathbf{H}}$ and $\mathbf{f}(\widehat{\mathbf{q}},\mathbf{u})=\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$. -->
+where $\widehat{\mathbf{Z}}\in\RR^{r\times d_{z}}$ and where $\mathbf{f} : \RR^{r}\times\RR^{m}\to\RR^{d_{z}}$ may be a nonlinear function.
+<!-- For example, a linear operation $(\qhat,\u) \mapsto \Ahat\qhat$ where $\Ahat\in\RR^{r\times r}$ uses $\widehat{\mathbf{Z}}=\Ahat$ and $\mathbf{f}(\qhat,\u)=\qhat$;
+A quadratic operation $(\qhat,\u) \mapsto \Hhat[\qhat\otimes\qhat]$ uses $\widehat{\mathbf{Z}}=\Hhat$ and $\mathbf{f}(\qhat,\u)=\qhat\otimes\qhat$. -->
 
 ### Nonparametric Monolithic Operators
 
@@ -239,7 +239,7 @@ This page is under construction.
 
 | Operator class | Operator action |
 | :------------- | :-------------- |
-| `opinf.operators.ConstantOperator` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{c}}$ |
+| `opinf.operators.ConstantOperator` | $\qhat \mapsto \chat$ |
 
 ### Nonparametric Multilithic Operators
 
@@ -251,7 +251,7 @@ This page is under construction.
 #### Interpolated Operators
 
 $$
-\widehat{\mathbf{A}}(\mu) = \text{interpolate}((\mu_{1},\mathbf{A}_{1}),\ldots,(\mu_{s},\mathbf{A}_{s}); \mu)
+\Ahat(\mu) = \text{interpolate}((\mu_{1},\A_{1}),\ldots,(\mu_{s},\A_{s}); \mu)
 $$
 
 - Constructor takes in `s` (the number of parameter samples) and the interpolator.
@@ -259,7 +259,7 @@ $$
 #### Affine-parametric Operators
 
 $$
-\widehat{\mathbf{A}}(\mu) = \sum_{i=1}^{n_{A}}\theta_{i}(\mu)\mathbf{A}_{i}
+\Ahat(\mu) = \sum_{i=1}^{n_{A}}\theta_{i}(\mu)\A_{i}
 $$
 
 - Constructor takes in list of $\theta_{i}$ functions
@@ -312,29 +312,29 @@ Each character in the string corresponds to a single term in the model.
 
 | Character | Name | Continuous Term | Discrete Term |
 | :-------- | :--- | :-------------- | :------------ |
-| `c` | Constant | $\widehat{\mathbf{c}}$ | $\widehat{\mathbf{c}}$ |
-| `A` | Linear | $\widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ | $\widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}$ |
-| `H` | Quadratic | $\widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t) \otimes \widehat{\mathbf{q}}(t)]$ | $\widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]$ |
-| `G` | Cubic | $\widehat{\mathbf{G}}[\widehat{\mathbf{q}}(t) \otimes \widehat{\mathbf{q}}(t) \otimes \widehat{\mathbf{q}}(t)]$ | $\widehat{\mathbf{G}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]$ |
-| `B` | Input | $\widehat{\mathbf{B}}\mathbf{u}(t)$ | $\widehat{\mathbf{B}}\mathbf{u}_{j}$ |
+| `c` | Constant | $\chat$ | $\chat$ |
+| `A` | Linear | $\Ahat\qhat(t)$ | $\Ahat\qhat_{j}$ |
+| `H` | Quadratic | $\Hhat[\qhat(t) \otimes \qhat(t)]$ | $\Hhat[\qhat_{j} \otimes \qhat_{j}]$ |
+| `G` | Cubic | $\widehat{\mathbf{G}}[\qhat(t) \otimes \qhat(t) \otimes \qhat(t)]$ | $\widehat{\mathbf{G}}[\qhat_{j} \otimes \qhat_{j} \otimes \qhat_{j}]$ |
+| `B` | Input | $\Bhat\u(t)$ | $\Bhat\u_{j}$ |
 
 
-<!-- | `C` | Output | $\mathbf{y}(t)=\widehat{C}\widehat{\mathbf{q}}(t)$ | $\mathbf{y}_{k}=\hat{C}\widehat{\mathbf{q}}_{k}$ | -->
+<!-- | `C` | Output | $\mathbf{y}(t)=\widehat{C}\qhat(t)$ | $\mathbf{y}_{k}=\hat{C}\qhat_{k}$ | -->
 
 The full model form is specified as a single string.
 
 | `modelform` | Continuous ROM Structure | Discrete ROM Structure |
 | :---------- | :----------------------- | ---------------------- |
-|  `"A"`      | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ | $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}$ |
-|  `"cA"`     | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{c}} + \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ | $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{c}} + \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}$ |
-|  `"AB"`   | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t) + \widehat{\mathbf{B}}\mathbf{u}(t)$ | $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j} + \widehat{\mathbf{B}}\mathbf{u}_{j}$ |
-|  `"HB"`     | $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)] + \widehat{\mathbf{B}}\mathbf{u}(t)$ | $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j}\otimes\widehat{\mathbf{q}}_{j}] + \widehat{\mathbf{B}}\mathbf{u}_{j}$ |
+|  `"A"`      | $\frac{\text{d}}{\text{d}t}\qhat(t) = \Ahat\qhat(t)$ | $\qhat_{j+1} = \Ahat\qhat_{j}$ |
+|  `"cA"`     | $\frac{\text{d}}{\text{d}t}\qhat(t) = \chat + \Ahat\qhat(t)$ | $\qhat_{j+1} = \chat + \Ahat\qhat_{j}$ |
+|  `"AB"`   | $\frac{\text{d}}{\text{d}t}\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$ | $\qhat_{j+1} = \Ahat\qhat_{j} + \Bhat\u_{j}$ |
+|  `"HB"`     | $\frac{\text{d}}{\text{d}t}\qhat(t) = \Hhat[\qhat(t)\otimes\qhat(t)] + \Bhat\u(t)$ | $\qhat_{j+1} = \Hhat[\qhat_{j}\otimes\qhat_{j}] + \Bhat\u_{j}$ |
 
 <!-- | Steady ROM Structure |
-| $\widehat{\mathbf{g}} = \widehat{\mathbf{A}}\widehat{\mathbf{q}}$ |
-| $\widehat{\mathbf{g}} = \widehat{\mathbf{c}} + \widehat{\mathbf{A}}\widehat{\mathbf{q}}$ |
-| $\widehat{\mathbf{g}} = \widehat{\mathbf{A}}\widehat{\mathbf{q}} + \widehat{\mathbf{B}}\mathbf{u}$ |
-| $\widehat{\mathbf{g}} = \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}] + \widehat{\mathbf{B}}\mathbf{u}$ | -->
+| $\widehat{\mathbf{g}} = \Ahat\qhat$ |
+| $\widehat{\mathbf{g}} = \chat + \Ahat\qhat$ |
+| $\widehat{\mathbf{g}} = \Ahat\qhat + \Bhat\u$ |
+| $\widehat{\mathbf{g}} = \Hhat[\qhat\otimes\qhat] + \Bhat\u$ | -->
 
 
 ## ROM Attributes
@@ -348,9 +348,9 @@ They cannot be altered manually after calling `fit()`.
 
 | Attribute | Description |
 | :-------- | :---------- |
-| `n` | Dimension of the high-dimensional training data $\mathbf{q}$. |
-| `r` | Dimension of the reduced-order model state $\widehat{\mathbf{q}}$. |
-| `m` | Dimension of the input $\mathbf{u}$. |
+| `n` | Dimension of the high-dimensional training data $\q$. |
+| `r` | Dimension of the reduced-order model state $\qhat$. |
+| `m` | Dimension of the input $\u$. |
 
 If there is no input (meaning `modelform` does not contain `'B'`), then `m` is set to 0.
 
@@ -369,11 +369,11 @@ The classes are defined in the [**operators**](opinf.operators) submodule.
 
 | Attribute | Evaluation mapping | Jacobian mapping |
 | :-------- | :----------------- | :--------------- |
-| `c_` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{c}}$ | $\widehat{\mathbf{q}} \mapsto \mathbf{0}$ |
-| `A_` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$ | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}$ |
-| `H_` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{H}}[(\mathbf{I}\otimes\widehat{\mathbf{q}}) + (\widehat{\mathbf{q}}\otimes\mathbf{I})]$ |
-| `G_` | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{G}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ | $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{G}}[(\mathbf{I}\otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}) + \cdots + (\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}\otimes\mathbf{I})]$ |
-| `B_` | $\mathbf{u} \mapsto \widehat{\mathbf{B}}\mathbf{u}$ | $\mathbf{u} \mapsto \widehat{\mathbf{B}}$ |
+| `c_` | $\qhat \mapsto \chat$ | $\qhat \mapsto \mathbf{0}$ |
+| `A_` | $\qhat \mapsto \Ahat\qhat$ | $\qhat \mapsto \Ahat$ |
+| `H_` | $\qhat \mapsto \Hhat[\qhat\otimes\qhat]$ | $\qhat \mapsto \Hhat[(\I\otimes\qhat) + (\qhat\otimes\I)]$ |
+| `G_` | $\qhat \mapsto \widehat{\mathbf{G}}[\qhat\otimes\qhat\otimes\qhat]$ | $\qhat \mapsto \widehat{\mathbf{G}}[(\I\otimes\qhat\otimes\qhat) + \cdots + (\qhat\otimes\qhat\otimes\I)]$ |
+| `B_` | $\u \mapsto \Bhat\u$ | $\u \mapsto \Bhat$ |
 
 All operators are set to `None` initially and only changed by `fit()` if the operator is included in the prescribed `modelform` (e.g., if `modelform="AHG"`, then `c_` and `B_` are always `None`).
 <!-- Note that Jacobian mapping of the input operation _with respect to the state_ is zero. -->
@@ -406,7 +406,7 @@ array([[ 0,  1,  2,  3],
 (4, 4)
 ```
 
-In practice, with a ROM object `rom`, the entries of (e.g.) the linear state matrix $\widehat{\mathbf{A}}$ are accessed with `rom.A_[:]` or `rom.A_.entries`.
+In practice, with a ROM object `rom`, the entries of (e.g.) the linear state matrix $\Ahat$ are accessed with `rom.A_[:]` or `rom.A_.entries`.
 
 #### Operator Methods
 
@@ -423,7 +423,7 @@ array([14, 38, 62, 86])
 ```
 
 ::::{note}
-Nothing special is happening under the hood for constant and linear operators, but the quadratic and cubic operators use a compressed representation to efficiently compute the operator action on the quadratic or cubic Kronecker products $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$ or $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$.
+Nothing special is happening under the hood for constant and linear operators, but the quadratic and cubic operators use a compressed representation to efficiently compute the operator action on the quadratic or cubic Kronecker products $\qhat\otimes\qhat$ or $\qhat\otimes\qhat\otimes\qhat$.
 
 ```python
 >>> r = 5
@@ -441,15 +441,15 @@ True
 The shape of the quadratic operator `entries` has been reduced from $r \times r^{2}$ to $r \times \frac{r(r + 1)}{2}$ to exploit the structure of the Kronecker products.
 
 :::{dropdown} Details
-Let $\widehat{\mathbf{q}} = [~\hat{q}_{1}~\cdots~\hat{q}_{r}~]^{\mathsf{T}}\in\mathbb{R}^{r}$ and consider the Kronecker product
+Let $\qhat = [~\hat{q}_{1}~\cdots~\hat{q}_{r}~]\trp\in\RR^{r}$ and consider the Kronecker product
 
 $$
-\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}
+\qhat\otimes\qhat
 = \left[\begin{array}{c}
-    \hat{q}_{1}\widehat{\mathbf{q}} \\
-    \hat{q}_{2}\widehat{\mathbf{q}} \\
+    \hat{q}_{1}\qhat \\
+    \hat{q}_{2}\qhat \\
     \vdots \\
-    \hat{q}_{r}\widehat{\mathbf{q}} \\
+    \hat{q}_{r}\qhat \\
 \end{array}\right]
 = \left[\begin{array}{c}
     \hat{q}_{1}^{2} \\
@@ -463,18 +463,18 @@ $$
     \vdots \\
     \hat{q}_{r}^{2}
 \end{array}\right]
-\in \mathbb{R}^{r^{2}}.
+\in \RR^{r^{2}}.
 $$
 
-Note that $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$ has some redundant entries, for example $\hat{q}_{1}\hat{q}_{2}$ shows up twice. In fact, $\hat{q}_{i}\hat{q}_{j}$ occurs twice for every choice of $i \neq j$.
-Thus, $\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}$ can be represented with only $r (r + 1)/2$ degrees of freedom as, for instance,
+Note that $\qhat\otimes\qhat$ has some redundant entries, for example $\hat{q}_{1}\hat{q}_{2}$ shows up twice. In fact, $\hat{q}_{i}\hat{q}_{j}$ occurs twice for every choice of $i \neq j$.
+Thus, $\qhat\otimes\qhat$ can be represented with only $r (r + 1)/2$ degrees of freedom as, for instance,
 
 $$
 \left[\begin{array}{c}
-    \widehat{\mathbf{q}}^{(1)} \\
-    \widehat{\mathbf{q}}^{(2)} \\
+    \qhat^{(1)} \\
+    \qhat^{(2)} \\
     \vdots \\
-    \widehat{\mathbf{q}}^{(r)}
+    \qhat^{(r)}
 \end{array}\right]
 = \left[\begin{array}{c}
     \hat{q}_{1}^{2} \\
@@ -486,15 +486,15 @@ $$
     \vdots \\
     \hat{q}_{r}^{2}
 \end{array}\right]
-\in \mathbb{R}^{r(r + 1)/2},
+\in \RR^{r(r + 1)/2},
 \qquad
-\widehat{\mathbf{q}}^{(i)}
+\qhat^{(i)}
 = \hat{q}_{i}\left[\begin{array}{c}
     \hat{q}_{1} \\ \vdots \\ \hat{q}_{i}
-\end{array}\right]\in\mathbb{R}^{i}.
+\end{array}\right]\in\RR^{i}.
 $$
 
-This is the same as filling a vector with the upper-triangular entries of the outer product $\widehat{\mathbf{q}}\widehat{\mathbf{q}}^{\mathsf{T}}$.
+This is the same as filling a vector with the upper-triangular entries of the outer product $\qhat\qhat\trp$.
 The dimension $r (r + 1)/2$ arises because we choose 2 of r entries _without replacement_, i.e., this is a [multiset coefficient](https://en.wikipedia.org/wiki/Multiset#Counting_multisets):
 
 $$
@@ -513,15 +513,15 @@ $$
 
 | Attribute | Description |
 | :-------- | :---------- |
-| `n` | Dimension of the high-dimensional training data $\mathbf{q}$. |
-| `r` | Dimension of the reduced-order model state $\widehat{\mathbf{q}}$. |
-| `m` | Dimension of the input $\mathbf{u}$. |
+| `n` | Dimension of the high-dimensional training data $\q$. |
+| `r` | Dimension of the reduced-order model state $\qhat$. |
+| `m` | Dimension of the input $\u$. |
 | `basis` | Mapping between the $n$-dimensional state space of the full-order data and the $r$-dimensional state space of the ROM |
-| `c_` | Constant operator $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{c}}$ |
-| `A_` | Linear operator $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}$ |
-| `H_` | Quadratic operator $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ |
-| `G_` | Cubic operator $\widehat{\mathbf{q}} \mapsto \widehat{\mathbf{G}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]$ |
-| `B_` | Input operator $\mathbf{u} \mapsto \widehat{\mathbf{B}}\mathbf{u}$ |
+| `c_` | Constant operator $\qhat \mapsto \chat$ |
+| `A_` | Linear operator $\qhat \mapsto \Ahat\qhat$ |
+| `H_` | Quadratic operator $\qhat \mapsto \Hhat[\qhat\otimes\qhat]$ |
+| `G_` | Cubic operator $\qhat \mapsto \widehat{\mathbf{G}}[\qhat\otimes\qhat\otimes\qhat]$ |
+| `B_` | Input operator $\u \mapsto \Bhat\u$ |
 
 
 ## ROM Methods
@@ -530,20 +530,20 @@ All ROM classes have the following methods.
 
 ### Dimensionality Reduction
 
-The `compress()` method maps a state quantity from the high-dimensional space $\mathbb{R}^{n}$ to the low-dimensional space $\mathbb{R}^{r}$.
-Conversely, `decompress()` maps from $\mathbb{R}^{r}$ to $\mathbb{R}^{n}$.
-<!-- These methods are not quite inverses: the results of `decompress()` are restricted to the portion of $\mathbb{R}^{n}$ that can be represented through the underlying basis. -->
+The `compress()` method maps a state quantity from the high-dimensional space $\RR^{n}$ to the low-dimensional space $\RR^{r}$.
+Conversely, `decompress()` maps from $\RR^{r}$ to $\RR^{n}$.
+<!-- These methods are not quite inverses: the results of `decompress()` are restricted to the portion of $\RR^{n}$ that can be represented through the underlying basis. -->
 These methods wrap the `compress()` and `decompress()` methods of the `basis` attribute.
 
 ### Training
 
 ::::{margin}
 :::{tip}
-The `fit()` method accepts `basis=None`, in which case the state arguments for training are assumed to be already reduced to an $r$-dimensional state space (e.g., $\widehat{\mathbf{Q}} = \mathbf{V}_{r}^{\top}\mathbf{Q}$ instead of $\mathbf{Q}$).
+The `fit()` method accepts `basis=None`, in which case the state arguments for training are assumed to be already reduced to an $r$-dimensional state space (e.g., $\widehat{\Q} = \Vr^{\top}\Q$ instead of $\Q$).
 :::
 ::::
 
-The `fit()` method sets up and solves a [least-squares regression](subsec-opinf-regression) to determine the entries of the operators $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\widehat{\mathbf{H}}$, $\widehat{\mathbf{G}}$, and/or $\widehat{\mathbf{B}}$.
+The `fit()` method sets up and solves a [least-squares regression](subsec-opinf-regression) to determine the entries of the operators $\chat$, $\Ahat$, $\Hhat$, $\widehat{\mathbf{G}}$, and/or $\Bhat$.
 Common inputs are
 - the basis
 - state snapshot data
@@ -560,11 +560,11 @@ The `evaluate()` and `jacobian()` methods are useful for constructing custom sol
 ::: -->
 
 $$
-(\widehat{\mathbf{q}},\mathbf{u}) \mapsto
-\widehat{\mathbf{c}}
-+ \widehat{\mathbf{A}}\widehat{\mathbf{q}}
-+ \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]
-+ \widehat{\mathbf{B}}\mathbf{u}.
+(\qhat,\u) \mapsto
+\chat
++ \Ahat\qhat
++ \Hhat[\qhat\otimes\qhat]
++ \Bhat\u.
 $$
 
 The `predict()` method solves the reduced-order model for given initial conditions and inputs.
@@ -611,8 +611,8 @@ Several programming languages support HDF5 format (MATLAB, C, C++, etc.), making
 A continuous-time ROM is a surrogate for a system of ordinary differential equations, written generally as
 
 $$
-\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu)
-= \widehat{\mathbf{F}}(t, \widehat{\mathbf{q}}(t;\mu), \mathbf{u}(t); \mu).
+\frac{\text{d}}{\text{d}t}\qhat(t;\mu)
+= \widehat{\mathbf{F}}(t, \qhat(t;\mu), \u(t); \mu).
 $$
 
 The following ROM classes target the continuous-time setting.
@@ -624,25 +624,25 @@ The following ROM classes target the continuous-time setting.
 The OpInf regression problem for the continuous-time setting is {eq}`eq:opinf-lstsq-residual`:
 
 $$
-\min_{\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}}\sum_{j=0}^{k-1}\left\|
-    \widehat{\mathbf{c}}
-    + \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}
-    + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]
-    + \widehat{\mathbf{B}}\mathbf{u}_{j}
-    - \dot{\widehat{\mathbf{q}}}_{j}
+\min_{\chat,\Ahat,\Hhat,\Bhat}\sum_{j=0}^{k-1}\left\|
+    \chat
+    + \Ahat\qhat_{j}
+    + \Hhat[\qhat_{j} \otimes \qhat_{j}]
+    + \Bhat\u_{j}
+    - \dot{\qhat}_{j}
 \right\|_{2}^{2}
-+ \mathcal{R}(\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}),
++ \mathcal{R}(\chat,\Ahat,\Hhat,\Bhat),
 $$
 
 where
-- $\widehat{\mathbf{q}}_{j} := \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j})$ is the projected state at time $t_{j}$,
-- $\dot{\widehat{\mathbf{q}}}_{j} := \frac{\textrm{d}}{\textrm{d}t}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}\big|_{t=t_{j}}$ is the projected time derivative of the state at time $t_{j}$,
-- $\mathbf{u}_{j} := \mathbf{u}(t_j)$ is the input at time $t_{j}$, and
+- $\qhat_{j} := \Vr\trp\q(t_{j})$ is the projected state at time $t_{j}$,
+- $\dot{\qhat}_{j} := \ddt\Vr\trp\q\big|_{t=t_{j}}$ is the projected time derivative of the state at time $t_{j}$,
+- $\u_{j} := \u(t_j)$ is the input at time $t_{j}$, and
 - $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
 
-The state time derivatives $\dot{\mathbf{q}}_{j}$ are required in the regression.
+The state time derivatives $\dot{\q}_{j}$ are required in the regression.
 These may be available from the full-order solver that generated the training data, but not all solvers provide such data.
-One option is to use the states $\mathbf{q}_{j}$ to estimate the time derivatives via finite difference or spectral differentiation.
+One option is to use the states $\q_{j}$ to estimate the time derivatives via finite difference or spectral differentiation.
 See `opinf.pre.ddt()` for details.
 
 ### ROM Evaluation
@@ -650,8 +650,8 @@ See `opinf.pre.ddt()` for details.
 The `evaluate()` method of `ContinuousOpInfROM` is the mapping
 
 $$
-(\widehat{\mathbf{q}}(t), \mathbf{u}(\cdot))
-\mapsto \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
+(\qhat(t), \u(\cdot))
+\mapsto \frac{\text{d}}{\text{d}t}\qhat(t)
 $$
 
 as defined by the ROM.
@@ -663,8 +663,8 @@ evaluate(self, t, state_, input_func=None)
 | Argument | Type | Description |
 | :------- | :--- | :---------- |
 | `t` | `float` | Time corresponding to the state |
-| `state_` | `(r,) ndarray` | Reduced state vector $\widehat{\mathbf{q}}(t)$ |
-| `input_func` | `callable` | Mapping $t \mapsto \mathbf{u}(t)$ |
+| `state_` | `(r,) ndarray` | Reduced state vector $\qhat(t)$ |
+| `input_func` | `callable` | Mapping $t \mapsto \u(t)$ |
 
 
 ### Time Integration
@@ -677,9 +677,9 @@ predict(self, state0, t, input_func=None, decompress=True, **options)
 
 | Argument | Type | Description |
 | :------- | :--- | :---------- |
-| `state0` | `(n,) or (r,) ndarray` | Initial state vector $\mathbf{q}(0)\in\mathbb{R}^{n}$ or $\widehat{\mathbf{q}}(0)\in\mathbb{R}^{r}$ |
+| `state0` | `(n,) or (r,) ndarray` | Initial state vector $\q(0)\in\RR^{n}$ or $\qhat(0)\in\RR^{r}$ |
 | `t` | `(nt,) ndarray` | Time domain over which to integrate the ROM |
-| `input_func` | `callable` | Mapping $t \mapsto \mathbf{u}(t)$ |
+| `input_func` | `callable` | Mapping $t \mapsto \u(t)$ |
 | `decompress` | `bool` | If True and the `basis` is not `None`, reconstruct the results in the $n$-dimensional state space |
 | `**options` | | Additional arguments for `scipy.integrate.solve_ivp()` |
 
@@ -693,8 +693,8 @@ The OpInf framework can be used to construct reduced-order models for approximat
 A discrete-time ROM is a surrogate for a system of difference equations, written generally as
 
 $$
-\widehat{\mathbf{q}}_{j+1}(\mu)
-= \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}(\mu), \mathbf{u}_{j}; \mu).
+\qhat_{j+1}(\mu)
+= \widehat{\mathbf{F}}(\qhat_{j}(\mu), \u_{j}; \mu).
 $$
 
 The following ROM classes target the discrete setting.
@@ -706,19 +706,19 @@ The following ROM classes target the discrete setting.
 The OpInf regression problem for the discrete-time setting is a slight modification of the continuous-time OpInf regression {eq}`eq:opinf-lstsq-residual`:
 
 $$
-\min_{\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}}\sum_{j=0}^{k-1}\left\|
-    \widehat{\mathbf{c}}
-    + \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}
-    + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]
-    + \widehat{\mathbf{B}}\mathbf{u}_{j}
-    - \widehat{\mathbf{q}}_{j+1}
+\min_{\chat,\Ahat,\Hhat,\Bhat}\sum_{j=0}^{k-1}\left\|
+    \chat
+    + \Ahat\qhat_{j}
+    + \Hhat[\qhat_{j} \otimes \qhat_{j}]
+    + \Bhat\u_{j}
+    - \qhat_{j+1}
 \right\|_{2}^{2}
-+ \mathcal{R}(\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}),
++ \mathcal{R}(\chat,\Ahat,\Hhat,\Bhat),
 $$
 
 where
-- $\widehat{\mathbf{q}}_{j} := \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}_{j}$ is the $j$th projected state,
-- $\mathbf{u}_{j}$ is the input corresponding to the $j$th state, and
+- $\qhat_{j} := \Vr\trp\q_{j}$ is the $j$th projected state,
+- $\u_{j}$ is the input corresponding to the $j$th state, and
 - $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
 
 ### ROM Evaluation
@@ -726,8 +726,8 @@ where
 The `evaluate()` method of `DiscreteOpInfROM` is the mapping
 
 $$
-(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})
-\mapsto \widehat{\mathbf{q}}_{j+1}
+(\qhat_{j}, \u_{j})
+\mapsto \qhat_{j+1}
 $$
 
 ```python
@@ -736,8 +736,8 @@ evaluate(self, state_, input_=None)
 
 | Argument | Type | Description |
 | :------- | :--- | :---------- |
-| `state_` | `(r,) ndarray` | Reduced state vector $\widehat{\mathbf{q}}$ |
-| `input_` | `(m,) ndarray` | Input vector $\mathbf{u}$ corresponding to the state |
+| `state_` | `(r,) ndarray` | Reduced state vector $\qhat$ |
+| `input_` | `(m,) ndarray` | Input vector $\u$ corresponding to the state |
 
 ### Solution Iteration
 
@@ -750,9 +750,9 @@ predict(self, state0, niters, inputs=None, decompress=True)
 
 | Argument | Type | Description |
 | :------- | :--- | :---------- |
-| `state0` | `(n,) or (r,) ndarray` | Initial state vector $\mathbf{q}_{0}\in\mathbb{R}^{n}$ or $\widehat{\mathbf{q}}_{0}\in\mathbb{R}^{r}$ |
+| `state0` | `(n,) or (r,) ndarray` | Initial state vector $\q_{0}\in\RR^{n}$ or $\qhat_{0}\in\RR^{r}$ |
 | `niters` | `int` | Number of times to step the system forward |
-| `inputs` | `(m, niters-1) ndarray` | Inputs $\mathbf{u}_{j}$ for the next `niters-1` time steps |
+| `inputs` | `(m, niters-1) ndarray` | Inputs $\u_{j}$ for the next `niters-1` time steps |
 | `decompress` | `bool` | If True and the `basis` is not `None`, reconstruct the results in the $n$-dimensional state space |
 
 <!-- TODO: implement common solvers and document here. -->
@@ -762,13 +762,13 @@ predict(self, state0, niters, inputs=None, decompress=True)
 ## Parametric ROMs
 
 The `ContinuousOpInfROM` and `DiscreteOpInfROM` classes are _non-parametric_ ROMs.
-A _parametric_ ROM is one that depends on one or more external parameters $\mu\in\mathbb{R}^{p}$, meaning the operators themselves may depend on the external parameters.
-This is different from the ROM depending on external inputs $\mathbf{u}$ that are provided at prediction time; by "parametric ROM" we mean the _operators_ of the ROM depend on $\mu$.
+A _parametric_ ROM is one that depends on one or more external parameters $\mu\in\RR^{p}$, meaning the operators themselves may depend on the external parameters.
+This is different from the ROM depending on external inputs $\u$ that are provided at prediction time; by "parametric ROM" we mean the _operators_ of the ROM depend on $\mu$.
 For example, a linear time-continuous parametric ROM has the form
 
 $$
-\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu)
-= \widehat{\mathbf{A}}(\mu)\widehat{\mathbf{q}}(t;\mu).
+\frac{\text{d}}{\text{d}t}\qhat(t;\mu)
+= \Ahat(\mu)\qhat(t;\mu).
 $$
 
 ### Additional Attributes
@@ -837,20 +837,20 @@ For example, `parametric_rom.evaluate(parameter, state_)` and `parametric_rom(pa
 Consider the problem of learning a parametric reduced-order model of the form
 
 $$
-\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t;\mu)
-= \widehat{\mathbf{A}}(\mu)\widehat{\mathbf{q}}(t;\mu) + \widehat{\mathbf{B}}(\mu)\mathbf{u}(t),
+\frac{\text{d}}{\text{d}t}\qhat(t;\mu)
+= \Ahat(\mu)\qhat(t;\mu) + \Bhat(\mu)\u(t),
 $$
 
 where
-- $\widehat{\mathbf{q}}(t;\mu)\in\mathbb{R}^{r}$ is the ROM state,
-- $\mathbf{u}(t)\in\mathbb{R}^{m}$ is an independent input, and
-- $\mu \in \mathbb{R}^{p}$ is a free parameter.
+- $\qhat(t;\mu)\in\RR^{r}$ is the ROM state,
+- $\u(t)\in\RR^{m}$ is an independent input, and
+- $\mu \in \RR^{p}$ is a free parameter.
 
 We assume to have state/input training data for $s$ parameter samples $\mu_{1},\ldots,\mu_{s}$.
 
 ### Training Strategy
 
-One way to deal with the parametric dependence of $\widehat{\mathbf{A}}$ and $\widehat{\mathbf{B}}$ on $\mu$ is to independently learn a reduced-order model for each parameter sample, then interpolate the learned models in order to make predictions for a new parameter sample.
+One way to deal with the parametric dependence of $\Ahat$ and $\Bhat$ on $\mu$ is to independently learn a reduced-order model for each parameter sample, then interpolate the learned models in order to make predictions for a new parameter sample.
 This approach is implemented by the following ROM classes.
 - `InterpolatedContinuousOpInfROM`
 - `InterpolatedDiscreteOpInfROM`
@@ -858,22 +858,22 @@ This approach is implemented by the following ROM classes.
 The OpInf learning problem is the following:
 
 $$
-\min_{\widehat{\mathbf{A}}^{(i)},\widehat{\mathbf{B}}^{(i)}}\sum_{j=0}^{k-1}\left\|
-    \widehat{\mathbf{A}}^{(i)}\widehat{\mathbf{q}}_{ij} + \widehat{\mathbf{B}}^{(i)}\mathbf{u}_{ij} - \dot{\widehat{\mathbf{q}}}_{ij}
+\min_{\Ahat^{(i)},\Bhat^{(i)}}\sum_{j=0}^{k-1}\left\|
+    \Ahat^{(i)}\qhat_{ij} + \Bhat^{(i)}\u_{ij} - \dot{\qhat}_{ij}
 \right\|_{2}^{2}
-+ \mathcal{R}^{(i)}(\widehat{\mathbf{A}}^{(i)},\widehat{\mathbf{B}}^{(i)}),
++ \mathcal{R}^{(i)}(\Ahat^{(i)},\Bhat^{(i)}),
 $$
 
 where
-- $\widehat{\mathbf{q}}_{ij} := \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j};\mu_{i})$ is the projected state,
-- $\dot{\widehat{\mathbf{q}}}_{j} := \frac{\textrm{d}}{\textrm{d}t}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t;\mu_{i})\big|_{t=t_{j}}$ is the projected time derivative of the state,
-- $\mathbf{u}_{ij} := \mathbf{u}(t_j)$ is the input corresponding to the state $\mathbf{q}_{ij}$, and
+- $\qhat_{ij} := \Vr\trp\q(t_{j};\mu_{i})$ is the projected state,
+- $\dot{\qhat}_{j} := \ddt\Vr\trp\q(t;\mu_{i})\big|_{t=t_{j}}$ is the projected time derivative of the state,
+- $\u_{ij} := \u(t_j)$ is the input corresponding to the state $\q_{ij}$, and
 - $\mathcal{R}^{(i)}$ is a _regularization term_ that penalizes the entries of the learned operators.
 
-Once $\widehat{\mathbf{A}}^{(1)},\ldots,\widehat{\mathbf{A}}^{(s)}$ and $\widehat{\mathbf{B}}^{(1)},\ldots,\widehat{\mathbf{B}}^{(s)}$ are chosen, $\widehat{\mathbf{A}}(\mu)$ and $\widehat{\mathbf{B}}(\mu)$ are defined by interpolation, i.e.,
+Once $\Ahat^{(1)},\ldots,\Ahat^{(s)}$ and $\Bhat^{(1)},\ldots,\Bhat^{(s)}$ are chosen, $\Ahat(\mu)$ and $\Bhat(\mu)$ are defined by interpolation, i.e.,
 
 $$
-\widehat{\mathbf{A}}(\mu) = \text{interpolate}(\widehat{\mathbf{A}}^{(1)},\ldots,\widehat{\mathbf{A}}^{(s)}; \mu).
+\Ahat(\mu) = \text{interpolate}(\Ahat^{(1)},\ldots,\Ahat^{(s)}; \mu).
 $$
 
 ### Choose an Interpolator
@@ -903,7 +903,7 @@ After the reduced-order model has been constructed through `fit()`, the interpol
 Interpolated ROM `fit()` methods accept the training data in the  following formats.
 - The basis
 - A list of training parameters $[\mu_{1},\ldots,\mu_{s}]$ for which we have data
-- A list of states $[\mathbf{Q}(\mu_{1}),\ldots,\mathbf{Q}(\mu_{s})]$ corresponding to the training parameters
+- A list of states $[\Q(\mu_{1}),\ldots,\Q(\mu_{s})]$ corresponding to the training parameters
 - A single regularization parameter or a list of $s$ regularization parameters
 
 ### ROM Evaluation

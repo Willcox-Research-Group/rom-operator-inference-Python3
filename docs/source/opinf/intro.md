@@ -26,15 +26,15 @@ We are most often interested in full-order models that are spatial discretizatio
 :::
 ::::
 
-Consider a system of ordinary differential equations (ODEs) with state $\mathbf{q}(t)\in\mathbb{R}^{n}$ and inputs $\mathbf{u}(t)\in\mathbb{R}^{m}$,
+Consider a system of ordinary differential equations (ODEs) with state $\q(t)\in\RR^{n}$ and inputs $\u(t)\in\RR^{m}$,
 
 $$
-    \frac{\text{d}}{\text{d}t}\mathbf{q}(t)
-    = \mathbf{F}(t, \mathbf{q}(t), \mathbf{u}(t)).
+    \frac{\text{d}}{\text{d}t}\q(t)
+    = \mathbf{F}(t, \q(t), \u(t)).
 $$ (eq:opinf-example-fom)
 
 We call {eq}`eq:opinf-example-fom` the _full-order model_.
-Given samples of the state $\mathbf{q}(t)$, Operator Inference learns a surrogate system for {eq}`eq:opinf-example-fom` with the much smaller state $\widehat{\mathbf{q}}(t) \in \mathbb{R}^{r}, r \ll n,$ and a polynomial structure, for example:
+Given samples of the state $\q(t)$, Operator Inference learns a surrogate system for {eq}`eq:opinf-example-fom` with the much smaller state $\qhat(t) \in \RR^{r}, r \ll n,$ and a polynomial structure, for example:
 
 ::::{margin}
 :::{note}
@@ -43,35 +43,35 @@ The $\otimes$ operator is called the [Kronecker product](https://en.wikipedia.or
 ::::
 
 $$
-    \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
-    = \widehat{\mathbf{c}}
-    + \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
-    + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]
-    + \widehat{\mathbf{B}}\mathbf{u}(t).
+    \frac{\text{d}}{\text{d}t}\qhat(t)
+    = \chat
+    + \Ahat\qhat(t)
+    + \Hhat[\qhat(t)\otimes\qhat(t)]
+    + \Bhat\u(t).
 $$ (eq:opinf-example-rom)
 
 We call {eq}`eq:opinf-example-rom` a _reduced-order model_ for {eq}`eq:opinf-example-fom`.
-Our goal is to infer the _reduced-order operators_ $\widehat{\mathbf{c}} \in \mathbb{R}^{r}$, $\widehat{\mathbf{A}}\in\mathbb{R}^{r\times r}$, $\widehat{\mathbf{H}}\in\mathbb{R}^{r\times r^{2}}$, and/or $\widehat{\mathbf{B}}\in\mathbb{R}^{r\times m}$ using data from {eq}`eq:opinf-example-fom`.
+Our goal is to infer the _reduced-order operators_ $\chat \in \RR^{r}$, $\Ahat\in\RR^{r\times r}$, $\Hhat\in\RR^{r\times r^{2}}$, and/or $\Bhat\in\RR^{r\times m}$ using data from {eq}`eq:opinf-example-fom`.
 The user specifies [which terms to include in the model](subsec-romclass-constructor).
 
 ::::{important}
 :name: projection-preserves-structure
-The right-hand side of {eq}`eq:opinf-example-rom` is a polynomial with respect to the state $\widehat{\mathbf{q}}(t)$:
-$\widehat{\mathbf{c}}$ are the constant terms, $\widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)$ are the linear terms, $\widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]$ are the quadratic terms, with input terms $\widehat{\mathbf{B}}\mathbf{u}(t)$.
+The right-hand side of {eq}`eq:opinf-example-rom` is a polynomial with respect to the state $\qhat(t)$:
+$\chat$ are the constant terms, $\Ahat\qhat(t)$ are the linear terms, $\Hhat[\qhat(t)\otimes\qhat(t)]$ are the quadratic terms, with input terms $\Bhat\u(t)$.
 The user must choose which terms to include in the reduced-order model, and this choice should be motivated by the structure of the full-order model {eq}`eq:opinf-example-fom`.
 For example, if the full-order model can be written as
 
 $$
-    \frac{\text{d}}{\text{d}t}\mathbf{q}(t)
-    = \mathbf{A}\mathbf{q}(t) + \mathbf{B}\mathbf{u}(t),
+    \frac{\text{d}}{\text{d}t}\q(t)
+    = \A\q(t) + \B\u(t),
 $$
 
 then the reduced-order model should mirror this structure as
 
 $$
-    \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
-    = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
-    + \widehat{\mathbf{B}}\mathbf{u}(t).
+    \frac{\text{d}}{\text{d}t}\qhat(t)
+    = \Ahat\qhat(t)
+    + \Bhat\u(t).
 $$
 
 :::{dropdown} Motivation
@@ -79,36 +79,36 @@ $$
 The classical (Galerkin) projection-based reduced-order model for the system
 
 $$
-    \frac{\text{d}}{\text{d}t}\mathbf{q}(t)
-    = \mathbf{c}
-    + \mathbf{A}\mathbf{q}(t)
-    + \mathbf{H}[\mathbf{q}(t)\otimes\mathbf{q}(t)]
-    + \mathbf{B}\mathbf{u}(t)
+    \frac{\text{d}}{\text{d}t}\q(t)
+    = \c
+    + \A\q(t)
+    + \H[\q(t)\otimes\q(t)]
+    + \B\u(t)
 $$
 
-is obtained by substituting $\mathbf{q}(t)$ with $\mathbf{V}\widehat{\mathbf{q}}(t)$ for some orthonormal $\mathbf{V}\in\mathbb{R}^{n \times r}$ and $\widehat{\mathbf{q}}(t)\in \mathbb{R}^{r}$, then multiplying both sides by $\mathbf{V}^{\mathsf{T}}$:
+is obtained by substituting $\q(t)$ with $\mathbf{V}\qhat(t)$ for some orthonormal $\mathbf{V}\in\RR^{n \times r}$ and $\qhat(t)\in \RR^{r}$, then multiplying both sides by $\mathbf{V}\trp$:
 
 $$
-    \mathbf{V}^{\mathsf{T}}\frac{\text{d}}{\text{d}t}\left[\mathbf{V}\widehat{\mathbf{q}}(t)\right]
-    = \mathbf{V}^{\mathsf{T}}\left(\mathbf{c}
-    + \mathbf{A}\mathbf{V}\widehat{\mathbf{q}}(t)
-    + \mathbf{H}[(\mathbf{V}\widehat{\mathbf{q}}(t))\otimes(\mathbf{V}\widehat{\mathbf{q}}(t))]
-    + \mathbf{B}\mathbf{u}(t)\right).
+    \mathbf{V}\trp\frac{\text{d}}{\text{d}t}\left[\mathbf{V}\qhat(t)\right]
+    = \mathbf{V}\trp\left(\c
+    + \A\mathbf{V}\qhat(t)
+    + \H[(\mathbf{V}\qhat(t))\otimes(\mathbf{V}\qhat(t))]
+    + \B\u(t)\right).
 $$
 
-Since $\mathbf{V}^{\mathsf{T}}\mathbf{V}$ is the identity and $(\mathbf{X}\mathbf{Y})\otimes(\mathbf{Z}\mathbf{W}) = (\mathbf{X}\otimes \mathbf{Z})(\mathbf{Y}\otimes\mathbf{W})$, this simplifies to
+Since $\mathbf{V}\trp\mathbf{V}$ is the identity and $(\mathbf{X}\mathbf{Y})\otimes(\mathbf{Z}\mathbf{W}) = (\mathbf{X}\otimes \mathbf{Z})(\mathbf{Y}\otimes\mathbf{W})$, this simplifies to
 
 $$
-    \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
+    \frac{\text{d}}{\text{d}t}\qhat(t)
     =
-    \widehat{\mathbf{c}}
-    + \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
-    + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]
-    + \widehat{\mathbf{B}}\mathbf{u}(t),
+    \chat
+    + \Ahat\qhat(t)
+    + \Hhat[\qhat(t)\otimes\qhat(t)]
+    + \Bhat\u(t),
 $$
 
-where $\widehat{\mathbf{c}} = \mathbf{V}^{\mathsf{T}}\mathbf{c}$, $\widehat{\mathbf{A}} = \mathbf{V}^{\mathsf{T}}\mathbf{A}\mathbf{V}$, $\widehat{\mathbf{H}} = \mathbf{V}^{\mathsf{T}}\mathbf{H}\left(\mathbf{V}\otimes\mathbf{V}^{\mathsf{T}}\right)$, and $\widehat{\mathbf{B}} = \mathbf{V}^{\mathsf{T}}\mathbf{B}$.
-Operator Inference learns $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\widehat{\mathbf{H}}$, and/or $\widehat{\mathbf{B}}$ _from data_ and is therefore useful for situations where $\mathbf{c}$, $\mathbf{A}$, $\mathbf{H}$, and/or $\mathbf{B}$ are not explicitly available for matrix computations.
+where $\chat = \mathbf{V}\trp\c$, $\Ahat = \mathbf{V}\trp\A\mathbf{V}$, $\Hhat = \mathbf{V}\trp\H\left(\mathbf{V}\otimes\mathbf{V}\trp\right)$, and $\Bhat = \mathbf{V}\trp\B$.
+Operator Inference learns $\chat$, $\Ahat$, $\Hhat$, and/or $\Bhat$ _from data_ and is therefore useful for situations where $\c$, $\A$, $\H$, and/or $\B$ are not explicitly available for matrix computations.
 :::
 ::::
 
@@ -118,31 +118,31 @@ Operator Inference learns $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\wide
 ## Get Training Data
 
 Operator Inference learns reduced-order models from full-order state/input data.
-Start by gathering solution and input data and organizing them columnwise into the _state snapshot matrix_ $\mathbf{Q}$ and _input matrix_ $\mathbf{U}$,
+Start by gathering solution and input data and organizing them columnwise into the _state snapshot matrix_ $\Q$ and _input matrix_ $\U$,
 
 \begin{align*}
-    \mathbf{Q}
+    \Q
     &= \left[\begin{array}{cccc}
         & & & \\
-        \mathbf{q}_{1} & \mathbf{q}_{2} & \cdots & \mathbf{q}_{k}
+        \q_{1} & \q_{2} & \cdots & \q_{k}
         \\ & & &
     \end{array}\right]
-    \in \mathbb{R}^{n \times k},
+    \in \RR^{n \times k},
     &
-    \mathbf{U}
+    \U
     &= \left[\begin{array}{cccc}
         & & & \\
-        \mathbf{u}_{1} & \mathbf{u}_{2} & \cdots & \mathbf{u}_{k}
+        \u_{1} & \u_{2} & \cdots & \u_{k}
         \\ & & &
     \end{array}\right]
-    \in \mathbb{R}^{m \times k},
+    \in \RR^{m \times k},
 \end{align*}
 
-where $n$ is the dimension of the (discretized) state, $m$ is the dimension of the input, $k$ is the number of available data points, and the columns of $\mathbf{Q}$ and $\mathbf{U}$ are the solution to the full-order model at some time $t_j$:
+where $n$ is the dimension of the (discretized) state, $m$ is the dimension of the input, $k$ is the number of available data points, and the columns of $\Q$ and $\U$ are the solution to the full-order model at some time $t_j$:
 
 $$
-    \frac{\text{d}}{\text{d}t}\mathbf{q}\bigg|_{t = t_j}
-    = \mathbf{F}(t_{j}, \mathbf{q}_{j}, \mathbf{u}_{j}).
+    \frac{\text{d}}{\text{d}t}\q\bigg|_{t = t_j}
+    = \mathbf{F}(t_{j}, \q_{j}, \u_{j}).
 $$
 
 :::{important}
@@ -156,24 +156,24 @@ Common preprocessing steps include
 See [Data Preprocessing](sec-guide-preprocessing) for details and examples.
 :::
 
-Operator Inference uses a regression problem to compute the reduced-order operators, which requires state data ($\mathbf{Q}$), input data ($\mathbf{U}$), _and_ data for the corresponding time derivatives:
+Operator Inference uses a regression problem to compute the reduced-order operators, which requires state data ($\Q$), input data ($\U$), _and_ data for the corresponding time derivatives:
 
 $$
-    \dot{\mathbf{Q}}
+    \dot{\Q}
     = \left[\begin{array}{cccc}
         & & & \\
-        \dot{\mathbf{q}}_{1} &
-        \dot{\mathbf{q}}_{2} & \cdots &
-        \dot{\mathbf{q}}_{k}
+        \dot{\q}_{1} &
+        \dot{\q}_{2} & \cdots &
+        \dot{\q}_{k}
         \\ & & &
     \end{array}\right]
-    \in \mathbb{R}^{n \times k},
+    \in \RR^{n \times k},
     \qquad
-    \dot{\mathbf{q}}_{j} = \frac{\text{d}}{\text{d}t}\mathbf{q}\bigg|_{t = t_j} \in \mathbb{R}^{n}.
+    \dot{\q}_{j} = \frac{\text{d}}{\text{d}t}\q\bigg|_{t = t_j} \in \RR^{n}.
 $$
 
 :::{note}
-If these time derivatives cannot be computed directly by evaluating $\mathbf{F}(t_{j}, \mathbf{q}_{j}, \mathbf{u}_{j})$, they may be inferred from the state snapshots.
+If these time derivatives cannot be computed directly by evaluating $\mathbf{F}(t_{j}, \q_{j}, \u_{j})$, they may be inferred from the state snapshots.
 The simplest approach is to use [finite differences](https://en.wikipedia.org/wiki/Numerical_differentiation) of the state snapshots, implemented in this package as `opinf.pre.ddt()`.
 :::
 
@@ -185,10 +185,10 @@ If you do any preprocessing on the states, be sure to use the time derivatives o
 Operator Inference can also be used to learn discrete dynamical systems with polynomial structure, for example,
 
 $$
-    \mathbf{q}_{j+1}
-    = \mathbf{A}\mathbf{q}_{j}
-    + \mathbf{H}(\mathbf{q}_{j}\otimes\mathbf{q}_{j})
-    + \mathbf{B}\mathbf{u}_{j}.
+    \q_{j+1}
+    = \A\q_{j}
+    + \H(\q_{j}\otimes\q_{j})
+    + \B\u_{j}.
 $$
 
 In this case, the left-hand side data is a simply subset of the state snapshot matrix.
@@ -205,28 +205,28 @@ This is accomplished by introducing an approximate representation of the $n$-dim
 The most common approach is to represent the state as a linear combination of $r$ vectors:
 
 $$
-    \mathbf{q}(t)
-    \approx \mathbf{V}_{r} \widehat{\mathbf{q}}(t)
-    = \sum_{i=1}^{r}\mathbf{v}_{i}\hat{q}_{i}(t),
+    \q(t)
+    \approx \Vr \qhat(t)
+    = \sum_{i=1}^{r}\v_{i}\hat{q}_{i}(t),
 $$ (eq-opinf-basis-def)
 
 where
 
 $$
-    \mathbf{V}_{r}
+    \Vr
     = \left[\begin{array}{ccc}
         & & \\
-        \mathbf{v}_{1} & \cdots & \mathbf{v}_{r}
+        \v_{1} & \cdots & \v_{r}
         \\ & &
-    \end{array}\right] \in \mathbb{R}^{n \times r},
+    \end{array}\right] \in \RR^{n \times r},
     \qquad
-    \widehat{\mathbf{q}}
+    \qhat
     = \left[\begin{array}{c}
         \hat{q}_{1}(t) \\ \vdots \\ \hat{q}_{r}(t)
-    \end{array}\right] \in \mathbb{R}^{r}.
+    \end{array}\right] \in \RR^{r}.
 $$
 
-We call $\mathbf{V}_{r} \in \mathbb{R}^{n \times r}$ the _basis matrix_ and typically require that it have orthonormal columns.
+We call $\Vr \in \RR^{n \times r}$ the _basis matrix_ and typically require that it have orthonormal columns.
 The basis matrix is the link between the high-dimensional state space of the full-order model {eq}`eq:opinf-example-fom` and the low-dimensional state space of the reduced-order model {eq}`eq:opinf-example-rom`.
 
 :::{image} ../../images/basis-projection.svg
@@ -234,12 +234,12 @@ The basis matrix is the link between the high-dimensional state space of the ful
 :width: 80 %
 :::
 
-See [Dimensionality Reduction](sec-guide-dimensionality) for tools to compute the basis $\mathbf{V}_{r}\in\mathbb{R}^{n \times r}$ and select an appropriate dimension $r$.
+See [Dimensionality Reduction](sec-guide-dimensionality) for tools to compute the basis $\Vr\in\RR^{n \times r}$ and select an appropriate dimension $r$.
 
 <!-- :::{tip}
-In the case of finite differences, the time derivative estimation can be done after the data is projected to the low-dimensional subspace defined by the basis (the column space of $\mathbf{V}_{r}$).
-Instead of feeding the data matrix $\mathbf{Q}$ to `opinf.pre.ddt()`, consider computing $\widehat{\mathbf{Q}} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{Q}$ first and using that as the input to `opinf.pre.ddt()`.
-You can also use $\widehat{\mathbf{Q}}$ as the input when you fit the reduced-order model object.
+In the case of finite differences, the time derivative estimation can be done after the data is projected to the low-dimensional subspace defined by the basis (the column space of $\Vr$).
+Instead of feeding the data matrix $\Q$ to `opinf.pre.ddt()`, consider computing $\widehat{\Q} = \Vr\trp\Q$ first and using that as the input to `opinf.pre.ddt()`.
+You can also use $\widehat{\Q}$ as the input when you fit the reduced-order model object.
 ::: -->
 
 ---
@@ -247,32 +247,32 @@ You can also use $\widehat{\mathbf{Q}}$ as the input when you fit the reduced-or
 (subsec-opinf-regression)=
 ## Set up and Solve a Low-dimensional Regression
 
-Operator Inference determines the operators $\widehat{\mathbf{c}}$, $\widehat{\mathbf{A}}$, $\widehat{\mathbf{H}}$, and/or $\widehat{\mathbf{B}}$ by solving the following data-driven regression:
+Operator Inference determines the operators $\chat$, $\Ahat$, $\Hhat$, and/or $\Bhat$ by solving the following data-driven regression:
 
 $$
-\min_{\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}}\sum_{j=0}^{k-1}\left\|
-    \widehat{\mathbf{c}}
-    + \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}
-    + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]
-    + \widehat{\mathbf{B}}\mathbf{u}_{j}
-    - \dot{\widehat{\mathbf{q}}}_{j}
+\min_{\chat,\Ahat,\Hhat,\Bhat}\sum_{j=0}^{k-1}\left\|
+    \chat
+    + \Ahat\qhat_{j}
+    + \Hhat[\qhat_{j} \otimes \qhat_{j}]
+    + \Bhat\u_{j}
+    - \dot{\qhat}_{j}
 \right\|_{2}^{2}
-+ \mathcal{R}(\widehat{\mathbf{c}},\widehat{\mathbf{A}},\widehat{\mathbf{H}},\widehat{\mathbf{B}}),
++ \mathcal{R}(\chat,\Ahat,\Hhat,\Bhat),
 $$ (eq:opinf-lstsq-residual)
 
 where
-- $\widehat{\mathbf{q}}_{j} = \mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}(t_{j})$ is the state at time $t_{j}$ represented in the coordinates of the basis,
-- $\dot{\widehat{\mathbf{q}}}_{j} = \frac{\textrm{d}}{\textrm{d}t}\mathbf{V}_{r}^{\mathsf{T}}\mathbf{q}\big|_{t=t_{j}}$ is the time derivative of the state at time $t_{j}$ in the coordinates of the basis,
-- $\mathbf{u}_{j} = \mathbf{u}(t_j)$ is the input at time $t_{j}$, and
+- $\qhat_{j} = \Vr\trp\q(t_{j})$ is the state at time $t_{j}$ represented in the coordinates of the basis,
+- $\dot{\qhat}_{j} = \ddt\Vr\trp\q\big|_{t=t_{j}}$ is the time derivative of the state at time $t_{j}$ in the coordinates of the basis,
+- $\u_{j} = \u(t_j)$ is the input at time $t_{j}$, and
 - $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
 
 
 The least-squares minimization {eq}`eq:opinf-lstsq-residual` can be written in the more standard form
 
 $$
-\min_{\widehat{\mathbf{O}}}\left\|
-    \mathbf{D}\widehat{\mathbf{O}}^{\mathsf{T}} - \mathbf{Y}^{\mathsf{T}}
-\right\|_{F}^{2} + \mathcal{R}(\widehat{\mathbf{O}}),
+\min_{\Ohat}\left\|
+    \D\Ohat\trp - \mathbf{Y}\trp
+\right\|_{F}^{2} + \mathcal{R}(\Ohat),
 $$
 
 where
@@ -296,28 +296,28 @@ $$ -->
 ::::
 
 \begin{align*}
-    \widehat{\mathbf{O}}
-    &= \left[~\widehat{\mathbf{c}}~~\widehat{\mathbf{A}}~~\widehat{\mathbf{H}}~~\widehat{\mathbf{B}}~\right]\in\mathbb{R}^{r\times d(r,m)},
+    \Ohat
+    &= \left[~\chat~~\Ahat~~\Hhat~~\Bhat~\right]\in\RR^{r\times d(r,m)},
     &\text{(unknown operators)}
     \\
-    \mathbf{D}
-    &= \left[~\mathbf{1}_{k}~~\widehat{\mathbf{Q}}^{\mathsf{T}}~~(\widehat{\mathbf{Q}}\odot\widehat{\mathbf{Q}})^{\mathsf{T}}~~\mathbf{U}^{\mathsf{T}}~\right]\in\mathbb{R}^{k\times d(r,m)},
+    \D
+    &= \left[~\mathbf{1}_{k}~~\widehat{\Q}\trp~~(\widehat{\Q}\odot\widehat{\Q})\trp~~\U\trp~\right]\in\RR^{k\times d(r,m)},
     &\text{(known data)}
     \\
-    \widehat{\mathbf{Q}}
-    &= \left[~\widehat{\mathbf{q}}_0~~\widehat{\mathbf{q}}_1~~\cdots~~\widehat{\mathbf{q}}_{k-1}~\right]\in\mathbb{R}^{r\times k}
+    \widehat{\Q}
+    &= \left[~\qhat_0~~\qhat_1~~\cdots~~\qhat_{k-1}~\right]\in\RR^{r\times k}
     &\text{(snapshots)}
     \\
     \mathbf{Y}
-    &= \left[~\dot{\widehat{\mathbf{q}}}_0~~\dot{\widehat{\mathbf{q}}}_1~~\cdots~~\dot{\widehat{\mathbf{q}}}_{k-1}~\right]\in\mathbb{R}^{r\times k},
+    &= \left[~\dot{\qhat}_0~~\dot{\qhat}_1~~\cdots~~\dot{\qhat}_{k-1}~\right]\in\RR^{r\times k},
     &\text{(time derivatives)}
     \\
-    \mathbf{U}
-    &= \left[~\mathbf{u}_0~\mathbf{u}_1~\cdots~\mathbf{u}_{k-1}~\right]\in\mathbb{R}^{m\times k},
+    \U
+    &= \left[~\u_0~\u_1~\cdots~\u_{k-1}~\right]\in\RR^{m\times k},
     &\text{(inputs)}
 \end{align*}
 
-in which $d(r,m) = 1 + r + r(r+1)/2 + m$ and $\mathbf{1}_{k}\in\mathbb{R}^{k}$ is a vector of ones.
+in which $d(r,m) = 1 + r + r(r+1)/2 + m$ and $\mathbf{1}_{k}\in\RR^{k}$ is a vector of ones.
 
 :::{dropdown} Derivation
 The Frobenius norm of a matrix is the square root of the sum of the squared entries.
@@ -325,7 +325,7 @@ If $\mathbf{Z}$ has entries $z_{ij}$, then
 
 $$
 \|\mathbf{Z}\|_{F}
-= \sqrt{\text{trace}(\mathbf{Z}^{\mathsf{T}}\mathbf{Z})}
+= \sqrt{\text{trace}(\mathbf{Z}\trp\mathbf{Z})}
 = \sqrt{\sum_{i,j}z_{ij}^{2}}.
 $$
 
@@ -346,65 +346,65 @@ $$
 \|\mathbf{Z}\|_F^2 = \sum_{j=0}^{k-1}\|\mathbf{z}_j\|_2^2.
 $$
 
-Furthermore, $\|\mathbf{Z}\|_{F} = \|\mathbf{Z}^{\mathsf{T}}\|_{F}$.
+Furthermore, $\|\mathbf{Z}\|_{F} = \|\mathbf{Z}\trp\|_{F}$.
 Using these two properties, we can rewrite the least-squares residual as follows:
 
 \begin{align*}
     \sum_{j=0}^{k-1}\left\|
-        \widehat{\mathbf{c}}
-        + \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}
-        + \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]
-        + \widehat{\mathbf{B}}\mathbf{u}_{j}
-        - \dot{\widehat{\mathbf{q}}}_{j}
+        \chat
+        + \Ahat\qhat_{j}
+        + \Hhat[\qhat_{j} \otimes \qhat_{j}]
+        + \Bhat\u_{j}
+        - \dot{\qhat}_{j}
     \right\|_{2}^{2}
     &= \left\|
-        \widehat{\mathbf{c}}\mathbf{1}^{\mathsf{T}}
-        + \widehat{\mathbf{A}}\widehat{\mathbf{Q}}
-        + \widehat{\mathbf{H}}[\widehat{\mathbf{Q}} \odot \widehat{\mathbf{Q}}]
-        + \widehat{\mathbf{B}}\mathbf{U}
-        - \dot{\widehat{\mathbf{Q}}}
+        \chat\mathbf{1}\trp
+        + \Ahat\widehat{\Q}
+        + \Hhat[\widehat{\Q} \odot \widehat{\Q}]
+        + \Bhat\U
+        - \dot{\widehat{\Q}}
     \right\|_{F}^{2}
     \\
     &= \left\|
         \left[\begin{array}{cccc}
-            \widehat{\mathbf{c}} & \widehat{\mathbf{A}} & \widehat{\mathbf{H}} & \widehat{\mathbf{B}}
+            \chat & \Ahat & \Hhat & \Bhat
         \end{array}\right]
         \left[\begin{array}{c}
-            \mathbf{1}^{\mathsf{T}}
-            \\ \widehat{\mathbf{Q}}
-            \\ \widehat{\mathbf{Q}} \odot \widehat{\mathbf{Q}}
-            \\ \mathbf{U}
+            \mathbf{1}\trp
+            \\ \widehat{\Q}
+            \\ \widehat{\Q} \odot \widehat{\Q}
+            \\ \U
         \end{array}\right]
-        - \dot{\widehat{\mathbf{Q}}}
+        - \dot{\widehat{\Q}}
     \right\|_{F}^{2}
     \\
     &= \left\|
         \left[\begin{array}{c}
-            \mathbf{1}^{\mathsf{T}}
-            \\ \widehat{\mathbf{Q}}
-            \\ \widehat{\mathbf{Q}} \odot \widehat{\mathbf{Q}}
-            \\ \mathbf{U}
-        \end{array}\right]^{\mathsf{T}}
+            \mathbf{1}\trp
+            \\ \widehat{\Q}
+            \\ \widehat{\Q} \odot \widehat{\Q}
+            \\ \U
+        \end{array}\right]\trp
         \left[\begin{array}{cccc}
-            \widehat{\mathbf{c}} & \widehat{\mathbf{A}} & \widehat{\mathbf{H}} & \widehat{\mathbf{B}}
-        \end{array}\right]^{\mathsf{T}}
-        - \dot{\widehat{\mathbf{Q}}}^{\mathsf{T}}
+            \chat & \Ahat & \Hhat & \Bhat
+        \end{array}\right]\trp
+        - \dot{\widehat{\Q}}\trp
     \right\|_{F}^{2}
     \\
     &= \left\|
         \left[\begin{array}{cccc}
             \mathbf{1}
-            & \widehat{\mathbf{Q}}^{\mathsf{T}}
-            & [\widehat{\mathbf{Q}} \odot \widehat{\mathbf{Q}}]^{\mathsf{T}}
-            & \mathbf{U}^{\mathsf{T}}
+            & \widehat{\Q}\trp
+            & [\widehat{\Q} \odot \widehat{\Q}]\trp
+            & \U\trp
         \end{array}\right]
         \left[\begin{array}{c}
-            \widehat{\mathbf{c}}^{\mathsf{T}}
-            \\ \widehat{\mathbf{A}}^{\mathsf{T}}
-            \\ \widehat{\mathbf{H}}^{\mathsf{T}}
-            \\ \widehat{\mathbf{B}}^{\mathsf{T}}
+            \chat\trp
+            \\ \Ahat\trp
+            \\ \Hhat\trp
+            \\ \Bhat\trp
         \end{array}\right]
-        - \dot{\widehat{\mathbf{Q}}}^{\mathsf{T}}
+        - \dot{\widehat{\Q}}\trp
     \right\|_{F}^{2},
 \end{align*}
 
@@ -413,30 +413,30 @@ which is the standard form given above.
 
 :::{important}
 Writing the problem in standard form reveals an important fact:
-for the most common choices of $\mathcal{R}$, the Operator Inference learning problem {eq}`eq:opinf-lstsq-residual` has a unique solution if and only if $\mathbf{D}$ has full column rank.
+for the most common choices of $\mathcal{R}$, the Operator Inference learning problem {eq}`eq:opinf-lstsq-residual` has a unique solution if and only if $\D$ has full column rank.
 A necessary condition for this to happen is $k \ge d(r,m)$, that is, the number of training snapshots $k$ should exceed the number of reduced-order operator entries to be learned for each system mode.
 If you are experiencing poor performance with Operator Inference reduced models, try decreasing $r$, increasing $k$, or adding a regularization term to improve the conditioning of the learning problem.
 :::
 
 :::{note}
-Let $\widehat{\mathbf{o}}_{1},\ldots,\widehat{\mathbf{o}}_{r}\in\mathbb{R}^{d(r,m)}$ be the rows of $\widehat{\mathbf{O}}$.
+Let $\ohat_{1},\ldots,\ohat_{r}\in\RR^{d(r,m)}$ be the rows of $\Ohat$.
 If the regularization can be written as
 
 $$
-\mathcal{R}(\widehat{\mathbf{O}})
-= \sum_{i=1}^{r}\mathcal{R}_{i}(\widehat{\mathbf{o}}_{i}),
+\mathcal{R}(\Ohat)
+= \sum_{i=1}^{r}\mathcal{R}_{i}(\ohat_{i}),
 $$
 
-then the Operator Inference regression decouples along the rows of $\widehat{\mathbf{O}}$ into $r$ independent least-squares problems:
+then the Operator Inference regression decouples along the rows of $\Ohat$ into $r$ independent least-squares problems:
 
 $$
-\min_{\widehat{\mathbf{O}}}\left\{\left\|
-    \mathbf{D}\widehat{\mathbf{O}}^{\mathsf{T}} - \mathbf{Y}^{\mathsf{T}}
-\right\|_{F}^{2} + \mathcal{R}(\widehat{\mathbf{O}})\right\}
+\min_{\Ohat}\left\{\left\|
+    \D\Ohat\trp - \mathbf{Y}\trp
+\right\|_{F}^{2} + \mathcal{R}(\Ohat)\right\}
 =
-\sum_{i=1}^{r}\min_{\widehat{\mathbf{o}}_{i}}\left\{\left\|
-    \mathbf{D}\widehat{\mathbf{o}}_{i} - \mathbf{y}_{i}
-\right\|_{2}^{2} + \mathcal{R}_{i}(\widehat{\mathbf{o}}_{i})\right\},
+\sum_{i=1}^{r}\min_{\ohat_{i}}\left\{\left\|
+    \D\ohat_{i} - \mathbf{y}_{i}
+\right\|_{2}^{2} + \mathcal{R}_{i}(\ohat_{i})\right\},
 $$
 
 where $\mathbf{y}_{i},\ldots,\mathbf{y}_{r}$ are the rows of $\mathbf{Y}$.
@@ -451,8 +451,8 @@ Once the reduced-order operators have been determined, the corresponding reduced
 The computational cost of solving the reduced-order model scales with $r$, the number of degrees of freedom in the low-dimensional representation of the state.
 
 For example, we may use the reduced-order model to obtain approximate solutions of the full-order model {eq}`eq:opinf-example-fom` with
-- new initial conditions $\mathbf{q}_{0}$,
-- a different input function $\mathbf{u}(t)$,
+- new initial conditions $\q_{0}$,
+- a different input function $\u(t)$,
 - a longer time horizon than the training data,
 - different system parameters (see [Parametric ROMs](subsec-parametric-roms)).
 
@@ -470,18 +470,18 @@ Suppose we have the following variables.
 
 | Variable | Symbol | Description |
 | :------- | :----- | :---------- |
-| `Q` | $\mathbf{Q}\in\mathbb{R}^{n\times k}$ | State snapshot matrix |
-| `U` | $\mathbf{U}\in\mathbb{R}^{m}$ | Input matrix |
+| `Q` | $\Q\in\RR^{n\times k}$ | State snapshot matrix |
+| `U` | $\U\in\RR^{m}$ | Input matrix |
 | `t` | $t$ | Time domain for snapshot data |
 
 That is, `Q[:, j]` and `U[:, j]` are the state and input, respectively, corresponding to time `t[j]`.
 Then the following code learns a reduced-order model of the form
 
 $$
-    \frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
-    = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
-    + \widehat{\mathbf{H}}(\widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t))
-    + \widehat{\mathbf{B}}\widehat{\mathbf{u}}(t)
+    \frac{\text{d}}{\text{d}t}\qhat(t)
+    = \Ahat\qhat(t)
+    + \Hhat(\qhat(t)\otimes\qhat(t))
+    + \Bhat\widehat{\u}(t)
 $$
 
 from the training data, uses the reduced-order model to reconstruct the training data, and computes the error of the reconstruction.

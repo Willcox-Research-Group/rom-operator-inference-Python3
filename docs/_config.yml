@@ -59,17 +59,28 @@ sphinx:
         macros:
           "trp": "{^{\\mathsf{T}}}"                   # transpose
           "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"  # time derivative
-          "R": "\\mathbb{R}"                          # reals
+          "RR": "\\mathbb{R}"                         # reals
+          "I": "\\mmathbf{I}"                         # identity matrix
           "q": "\\mathbf{q}"                          # state vector
           "u": "\\mathbf{u}"                          # input vector
-          "Q": "\\mathbf{q}"                          # state data
-          "U": "\\mathbf{u}"                          # input data
-          "ohat": "\\widehat{\\mathbf{o}}"            # operator vector
-          "Ohat": "\\widehat{\\mathbf{O}}"            # operator matrix
+          "Q": "\\mathbf{Q}"                          # state data
+          "U": "\\mathbf{U}"                          # input data
           "c": "\\mathbf{c}"                          # constant operator
           "A": "\\mathbf{A}"                          # linear operator
           "H": "\\mathbf{H}"                          # quadratic operator
-          "B": "\\mathbf{H}"                          # input operator
+          "B": "\\mathbf{B}"                          # input operator
+          "v": "\\mathbf{v}"                          # basis vector
+          "Vr": "\\mathbf{V}_{r}"                     # trial basis matrix
+          "Wr": "\\mathbf{W}_{r}"                     # test basis matrix
+          "qhat": "\\widehat{\\mathbf{q}}"            # reduced state vector
+          "Qhat": "\\widehat{\\mathbf{Q}}"            # reduced state data
+          "chat": "\\widehat{\\mathbf{c}}"            # reduced constant operator
+          "Ahat": "\\widehat{\\mathbf{A}}"            # reduced linear operator
+          "Hhat": "\\widehat{\\mathbf{H}}"            # reduced quadratic operator
+          "Bhat": "\\widehat{\\mathbf{H}}"            # reduced input operator
+          "D": "\\mathbf{D}"                          # data matrix
+          "ohat": "\\widehat{\\mathbf{o}}"            # operator vector
+          "Ohat": "\\widehat{\\mathbf{O}}"            # operator matrix
           "bfmu": "\\boldsymbol{mu}"                  # parameter vector
           "bfGamma": "\\boldsymbol{Gamma}"            # regularization matrix
           "bfPhi": "\\boldsymbol{Phi}"                # left singular vectors

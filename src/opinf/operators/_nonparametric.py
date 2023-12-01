@@ -4,13 +4,13 @@
 # TODO: Jacobian operations for each operator.
 
 __all__ = [
-            "ConstantOperator",
-            "LinearOperator",
-            "QuadraticOperator",
-            # CrossQuadraticOperator",
-            "CubicOperator",
-            "nonparametric_operators",
-          ]
+    "ConstantOperator",
+    "LinearOperator",
+    "QuadraticOperator",
+    # CrossQuadraticOperator",
+    "CubicOperator",
+    "nonparametric_operators",
+]
 
 import numpy as np
 
@@ -22,7 +22,7 @@ class ConstantOperator(_BaseNonparametricOperator):
     r"""Constant operator.
 
     .. math::
-        \widehat{\mathbf{c}} \in \mathbb{R}^{r}
+        \chat \in \RR^{r}
 
     Examples
     --------
@@ -30,6 +30,7 @@ class ConstantOperator(_BaseNonparametricOperator):
     >>> c = opinf.operators.ConstantOperator(np.random.random(10))
     >>> c.evaluate()                # Extract c.
     """
+
     def __init__(self, entries):
         self._validate_entries(entries)
 
@@ -54,9 +55,9 @@ class LinearOperator(_BaseNonparametricOperator):
     r"""Linear state or input operator.
 
     .. math::
-        \widehat{\mathbf{q}} \mapsto \widehat{\mathbf{A}}\widehat{\mathbf{q}}
+        \qhat \mapsto \Ahat\qhat
 
-        \widehat{\mathbf{u}} \mapsto \widehat{\mathbf{B}}\widehat{\mathbf{u}}
+        \widehat{\u} \mapsto \Bhat\widehat{\u}
 
     Examples
     --------
@@ -65,6 +66,7 @@ class LinearOperator(_BaseNonparametricOperator):
     >>> q = np.random.random(10)
     >>> A.evaluate(q)               # Compute Aq.
     """
+
     def __init__(self, entries):
         """Check dimensions and set operator entries."""
         self._validate_entries(entries)
@@ -87,8 +89,8 @@ class QuadraticOperator(_BaseNonparametricOperator):
     r"""Operator for quadratic interactions of a state/input with itself.
 
     .. math::
-        \widehat{\mathbf{q}} \mapsto
-        \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]
+        \qhat \mapsto
+        \Hhat[\qhat\otimes\qhat]
 
 
     Examples
@@ -98,6 +100,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
     >>> q = np.random.random(10)
     >>> H.evaluate(q)               # Compute H[q ⊗ q].
     """
+
     def __init__(self, entries):
         """Check dimensions and set operator entries."""
         self._validate_entries(entries)
@@ -113,7 +116,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         elif r2 != r1 * (r1 + 1) // 2:
             raise ValueError("invalid dimensions for quadratic operator")
         self._mask = utils.kron2c_indices(r1)
-        Ht = utils.expand_quadratic(entries).reshape([r1]*3)
+        Ht = utils.expand_quadratic(entries).reshape([r1] * 3)
         self._jac = Ht + Ht.transpose(0, 2, 1)
 
         _BaseNonparametricOperator.__init__(self, entries)
@@ -145,9 +148,9 @@ class CubicOperator(_BaseNonparametricOperator):
     r"""Operator for cubic interactions of a state/input with itself.
 
     .. math::
-        \widehat{\mathbf{q}} \mapsto
-        \widehat{\mathbf{H}}[\widehat{\mathbf{q}}
-        \otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]
+        \qhat \mapsto
+        \Hhat[\qhat
+        \otimes\qhat\otimes\qhat]
 
     Examples
     --------
@@ -156,6 +159,7 @@ class CubicOperator(_BaseNonparametricOperator):
     >>> q = np.random.random(10)
     >>> G.evaluate(q)               # Compute G[q ⊗ q ⊗ q].
     """
+
     def __init__(self, entries):
         self._validate_entries(entries)
 
@@ -170,7 +174,7 @@ class CubicOperator(_BaseNonparametricOperator):
         elif r2 != r1 * (r1 + 1) * (r1 + 2) // 6:
             raise ValueError("invalid dimensions for cubic operator")
         self._mask = utils.kron3c_indices(r1)
-        Gt = utils.expand_cubic(entries).reshape([r1]*4)
+        Gt = utils.expand_cubic(entries).reshape([r1] * 4)
         self._jac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
 
         _BaseNonparametricOperator.__init__(self, entries)

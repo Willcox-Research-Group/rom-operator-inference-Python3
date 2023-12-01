@@ -21,11 +21,14 @@ def _requires_entries(func):
     """Wrapper for Operator methods that require the ``entries`` attribute
     to be initialized first through ``set_entries()``.
     """
+
     @functools.wraps(func)
     def _decorator(self, *args, **kwargs):
         if self.entries is None:
-            raise RuntimeError("operator entries have not been set, "
-                               "call set_entries() first")
+            raise RuntimeError(
+                "operator entries have not been set, "
+                "call set_entries() first"
+            )
         return func(self, *args, **kwargs)
 
     return _decorator
@@ -34,9 +37,10 @@ def _requires_entries(func):
 # Nonparametric operators =====================================================
 class _BaseNonparametricOperator(abc.ABC):
     """Base class for reduced-order model operators that do not depend on
-    external parameters. Call the instantiated object to evaluate the operator
-    on an input.
+    external parameters. Call the instantiated object to apply the operator
+    to an input.
     """
+
     def __init__(self, entries=None):
         """Initialize empty operator."""
         self._clear()
@@ -97,16 +101,16 @@ class _BaseNonparametricOperator(abc.ABC):
 
     # Abstract methods --------------------------------------------------------
     @abc.abstractmethod
-    def _str(self, statestr, inputstr):                     # pragma: no cover
+    def _str(self, statestr, inputstr):  # pragma: no cover
         """String representation of the operator, used when printing out the
         structure of a reduced-order model.
 
         Parameters
         ----------
         statestr : str
-            String representation of the state, e.g., `"q(t)"` or "`q_j`".
+            String representation of the state, e.g., ``"q(t)"`` or ``"q_j"``.
         inputstr : str
-            String representation of the input, e.g., `"u(t)"` or "`u_j`".
+            String representation of the input, e.g., ``"u(t)"`` or ``"u_j"``.
 
         Returns
         -------
@@ -124,10 +128,10 @@ class _BaseNonparametricOperator(abc.ABC):
 
     # Evaluation - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     @abc.abstractmethod
-    def __call__(self, state_, input_=None):                # pragma: no cover
+    def __call__(self, state_, input_=None):  # pragma: no cover
         """Apply the operator mapping to the given state / input.
 
-        This method is also accessible as ``evaluate()``.
+        This method is also accessible as ``apply()``.
 
         Parameters
         ----------
@@ -143,20 +147,20 @@ class _BaseNonparametricOperator(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def evaluate(self, state_, input_):                     # pragma: no cover
+    def apply(self, state_, input_):  # pragma: no cover
         '''Mirror of __call__().
 
         Subclasses should define the following method exactly as follows:
 
             @functools.wraps(__call__)
-            def evaluate(self, state_, input_):
+            def apply(self, state_, input_):
                 """Mirror of __call__()."""
                 return self(state_, input_)
         '''
         return self(state_, input_)
 
     @abc.abstractmethod
-    def jacobian(self, state_, input_=None):                # pragma: no cover
+    def jacobian(self, state_, input_=None):  # pragma: no cover
         """Construct the Jacobian of the operator at the given state / input.
 
         Parameters
@@ -178,32 +182,32 @@ class _BaseNonparametricOperator(abc.ABC):
         r"""Return the Galerkin projection of the operator.
 
         If a full-order operator is given by the evaluation
-        :math:`(\mathbf{q},\mathbf{u})\mapsto
-        \mathbf{F}(\mathbf{q},\mathbf{u})`,
+        :math:`(\q,\u)\mapsto
+        \mathbf{F}(\q,\u)`,
         then the Galerkin projection of the operator is the evaluation
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-        \mathbf{W}_{r}^\mathsf{T}
-        \mathbf{F}(\mathbf{V}_{r}\widehat{\mathbf{q}},\mathbf{u})`,
-        where :math:`\mathbf{q}\in\mathbb{R}^{n}` is the full-order state,
-        :math:`\mathbf{u}\in\mathbb{R}^{m}` is the input,
-        :math:`\widehat{\mathbf{q}}\in\mathbb{R}^{r}`
+        :math:`(\qhat,\u)\mapsto
+        \Wr\trp
+        \mathbf{F}(\Vr\qhat,\u)`,
+        where :math:`\q\in\RR^{n}` is the full-order state,
+        :math:`\u\in\RR^{m}` is the input,
+        :math:`\qhat\in\RR^{r}`
         is the reduced-order state, and
-        :math:`\mathbf{q}\approx\mathbf{V}_{r}\widehat{\mathbf{q}}_{r}` is the
+        :math:`\q\approx\Vr\qhat_{r}` is the
         reduced-order approximation of the full-order state, with trial basis
-        :math:`\mathbf{V}_{r}\in\mathbb{R}^{n \times r}` (``Vr``) and test
-        basis :math:`\mathbf{W}_{r}\in\mathbb{R}^{n \times r}` (``Wr``).
-        Usually :math:`\mathbf{W}_{r} = \mathbf{V}_{r}`, which results in a
-        _Galerkin projection_. If :math:`\mathbf{W}_{r} \neq \mathbf{V}_{r}`,
+        :math:`\Vr\in\RR^{n \times r}` (``Vr``) and test
+        basis :math:`\Wr\in\RR^{n \times r}` (``Wr``).
+        Usually :math:`\Wr = \Vr`, which results in a
+        _Galerkin projection_. If :math:`\Wr \neq \Vr`,
         it is called a _Petrov-Galerkin projection_.
 
         For example, consider the linear full-order operator
-        :math:`(\mathbf{q},\mathbf{u})\mapsto\mathbf{A}\mathbf{q}` where
-        :math:`\mathbf{A}\in\mathbb{R}^{n \times n}`.
+        :math:`(\q,\u)\mapsto\A\q` where
+        :math:`\A\in\RR^{n \times n}`.
         The Galerkin projection of this operator is the linear operator
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-        \widehat{\mathbf{A}}\widehat{\mathbf{q}}`, where
-        :math:`\widehat{\mathbf{A}} = \mathbf{W}_{r}^\mathsf{T}
-        \mathbf{A}\mathbf{V}_{r} \in \mathbb{R}^{r \times r}`.
+        :math:`(\qhat,\u)\mapsto
+        \Ahat\qhat`, where
+        :math:`\Ahat = \Wr\trp
+        \A\Vr \in \RR^{r \times r}`.
 
         Subclasses may implement this function as follows:
 
@@ -240,17 +244,17 @@ class _BaseNonparametricOperator(abc.ABC):
 
     # Data matrix construction - - - - - - - - - - - - - - - - - - - - - - - -
     @abc.abstractmethod
-    def datablock(states_, inputs=None):                    # pragma: no cover
+    def datablock(states_, inputs=None):  # pragma: no cover
         r"""Return the data matrix block corresponding to the operator.
 
-        Let :math:`\widehat{\mathbf{F}}(\widehat{\mathbf{q}},\mathbf{u})`
+        Let :math:`\widehat{\mathbf{F}}(\qhat,\u)`
         represent the operator acting on a pair of state and input vectors.
         The data matrix block is the matrix
         :math:`\widehat{\mathbf{Z}}` such that the operator inference problem
 
         .. math::
             \min_{\widehat{\mathbf{F}}}\sum_{j=0}^{k-1}\left\|
-            \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})
+            \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})
             - \widehat{\mathbf{y}}_{j}
             \right\|_{2}^{2},
 
@@ -286,7 +290,7 @@ class _BaseNonparametricOperator(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def column_dimension(r, m=None):                        # pragma: no cover
+    def column_dimension(r, m=None):  # pragma: no cover
         r"""Column dimension of the operator entries.
 
         This method should NOT depend on the ``entries`` attribute.
@@ -330,28 +334,32 @@ class _BaseNonparametricOperator(abc.ABC):
         with hdf5_loadhandle(loadfile) as hf:
             ClassName = hf["meta"].attrs["class"]
             if ClassName != cls.__name__:
-                raise TypeError(f"file '{loadfile}' contains '{ClassName}' "
-                                f"object, use '{ClassName}.load()")
+                raise TypeError(
+                    f"file '{loadfile}' contains '{ClassName}' "
+                    f"object, use '{ClassName}.load()"
+                )
             return cls(hf["entries"][:] if "entries" in hf else None)
 
 
 # Parametric operators ========================================================
 # TODO
 
+
 # Mixin for operators acting on inputs ========================================
 class _InputMixin(abc.ABC):
     """Mixin for operator classes whose ``evaluate()`` method uses the
     ``input_`` argument.
     """
+
     @abc.abstractmethod
-    def m(self):                                            # pragma: no cover
+    def m(self):  # pragma: no cover
         """Input dimension. Subclasses should implement this method as follows:
 
-            @property
-            @_requires_entries
-            def m(self):
-                '''Input dimension.'''
-                return  # calculate m from ``self.entries``.
+        @property
+        @_requires_entries
+        def m(self):
+            '''Input dimension.'''
+            return  # calculate m from ``self.entries``.
         """
         raise NotImplementedError
 

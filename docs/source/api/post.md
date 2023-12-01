@@ -21,14 +21,14 @@ Raw -> Shifted -> Scaled -> Projected -> Solve
 
 ## Old API
 
-In the following documentation we denote $q_{ij} = [\mathbf{Q}]$ for the entries of a matrix $\mathbf{Q} \in \mathbb{R}^{n\times k}$ and $q_{i} = [\mathbf{q}]_{i}$ for the entries of a vector $q$.
+In the following documentation we denote $q_{ij} = [\Q]$ for the entries of a matrix $\Q \in \RR^{n\times k}$ and $q_{i} = [\q]_{i}$ for the entries of a vector $q$.
 
 **`post.frobenius_error(Qtrue, Qapprox)`**: Compute the absolute and relative Frobenius-norm errors between snapshot sets `Qtrue` and `Qapprox`.
 The [Frobenius matrix norm](https://en.wikipedia.org/wiki/Matrix_norm#Frobenius_norm) is defined by
 
 $$
-    \|\mathbf{Q}\|_{F}
-    = \sqrt{\text{trace}(\mathbf{Q}^{\mathsf{T}}\mathbf{Q})}
+    \|\Q\|_{F}
+    = \sqrt{\text{trace}(\Q\trp\Q)}
     = \left(\sum_{i=1}^{n}\sum_{j=1}^{k}|q_{ij}|^2\right)^{1/2}.
 $$
 
@@ -36,7 +36,7 @@ $$
 The [$\ell^{p}$ norm](https://en.wikipedia.org/wiki/Lp_space#The_p-norm_in_finite_dimensions) is defined by
 
 \begin{align*}
-    \|\mathbf{q}\|_{p}
+    \|\q\|_{p}
     = \begin{cases}
     \left(\displaystyle\sum_{i=1}^{n}|q_i|^p\right)^{1/p} & p < \infty,
     \\ & \\
@@ -50,7 +50,7 @@ If `normalize=True`, then the _normalized absolute error_ is computed instead of
 
 $$
     \text{norm\_abs\_error}_j
-    = \frac{\|\mathbf{q}_j - \mathbf{y}_j\|_{p}}{\max_{l=1,\ldots,k}\|\mathbf{q}_l\|_{p}},
+    = \frac{\|\q_j - \mathbf{y}_j\|_{p}}{\max_{l=1,\ldots,k}\|\q_l\|_{p}},
     \quad
     j = 1,\ldots,k.
 $$
@@ -59,22 +59,22 @@ $$
 The [$L^{p}$ norm](https://en.wikipedia.org/wiki/Lp_space#Lp_spaces) for vector-valued functions is defined by
 
 $$
-    \|\mathbf{q}(\cdot)\|_{L^p([a,b])}
+    \|\q(\cdot)\|_{L^p([a,b])}
     = \begin{cases}
-    \left(\displaystyle\int_{a}^{b}\|\mathbf{q}(t)\|_{p}^p\:dt\right)^{1/p} & p < \infty,
+    \left(\displaystyle\int_{a}^{b}\|\q(t)\|_{p}^p\:dt\right)^{1/p} & p < \infty,
     \\ & \\
-    \sup_{t\in[a,b]}\|\mathbf{q}(t)\|_{\infty} & p = \infty.
+    \sup_{t\in[a,b]}\|\q(t)\|_{\infty} & p = \infty.
     \end{cases}
 $$
 
 For finite _p_, the integrals are approximated by the trapezoidal rule:
 
 $$
-    \int_{a}^{b}\|\mathbf{q}(t)\|_{p}^{p}\:dt
+    \int_{a}^{b}\|\q(t)\|_{p}^{p}\:dt
     \approx \delta t\left(
-        \frac{1}{2}\|\mathbf{q}(t_0)\|_{p}^p
-        + \sum_{j=1}^{k-2}\|\mathbf{q}(t_j)\|_{p}^p
-        + \frac{1}{2}\|\mathbf{q}(t_{k-1})\|_{p}^p
+        \frac{1}{2}\|\q(t_0)\|_{p}^p
+        + \sum_{j=1}^{k-2}\|\q(t_j)\|_{p}^p
+        + \frac{1}{2}\|\q(t_{k-1})\|_{p}^p
     \right),
     \\
     a = t_0 < t_1 < \cdots < t_{k-1} = b.

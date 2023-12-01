@@ -13,21 +13,22 @@ from .. import operators_new as _operators
 
 
 _OPERATOR_SHORTCUTS = {
-    'c': _operators.ConstantOperator,
-    'A': _operators.LinearOperator,
-    'H': _operators.QuadraticOperator,
-    'G': _operators.CubicOperator,
-    'B': _operators.InputOperator,
-    'N': _operators.StateInputOperator,
+    "c": _operators.ConstantOperator,
+    "A": _operators.LinearOperator,
+    "H": _operators.QuadraticOperator,
+    "G": _operators.CubicOperator,
+    "B": _operators.InputOperator,
+    "N": _operators.StateInputOperator,
 }
 
 
 class _BaseROM(abc.ABC):
     """Base class for all monolithic reduced-order model classes."""
-    _LHS_ARGNAME = "lhs"    # Name of LHS argument in fit(), e.g., "ddts".
-    _LHS_LABEL = None       # String representation of LHS, e.g., "dq / dt".
-    _STATE_LABEL = None     # String representation of state, e.g., "q(t)".
-    _INPUT_LABEL = None     # String representation of input, e.g., "u(t)".
+
+    _LHS_ARGNAME = "lhs"  # Name of LHS argument in fit(), e.g., "ddts".
+    _LHS_LABEL = None  # String representation of LHS, e.g., "dq / dt".
+    _STATE_LABEL = None  # String representation of state, e.g., "q(t)".
+    _INPUT_LABEL = None  # String representation of input, e.g., "u(t)".
 
     def __init__(self, basis, operators):
         """Set the basis and define the model structure.
@@ -89,9 +90,9 @@ class _BaseROM(abc.ABC):
         if len(ops) == 0:
             raise ValueError("at least one operator required")
 
-        toinfer = []                    # Operators to infer (no entries yet).
-        known = []                      # Operators whose entries are set.
-        self._has_inputs = False        # Whether any operators use inputs.
+        toinfer = []  # Operators to infer (no entries yet).
+        known = []  # Operators whose entries are set.
+        self._has_inputs = False  # Whether any operators use inputs.
         ops = list(ops)
         for i in range(len(ops)):
             op = ops[i]
@@ -113,7 +114,8 @@ class _BaseROM(abc.ABC):
                 rs = {ops[i].shape[0] for i in known}
                 if len(rs) > 1:
                     raise errors.DimensionalityError(
-                        "operators not aligned (shape[0] must be the same)")
+                        "operators not aligned (shape[0] must be the same)"
+                    )
                 self.r = rs.pop()
             else:
                 for i in known:
@@ -121,15 +123,20 @@ class _BaseROM(abc.ABC):
                         raise errors.DimensionalityError(
                             "operators not aligned with basis "
                             f"(operators[{i}].shape[0] = {dim} must be "
-                            f"r = {self.r} or n = {self.n})")
+                            f"r = {self.r} or n = {self.n})"
+                        )
             if self._has_inputs:
                 # Input operators must have same input dimension.
-                ms = {ops[i].m for i in known
-                      if _operators._base._is_input_operator(ops[i])}
+                ms = {
+                    ops[i].m
+                    for i in known
+                    if _operators._base._is_input_operator(ops[i])
+                }
                 if len(ms) > 1:
                     raise errors.DimensionalityError(
                         "input operators not aligned "
-                        "(input dimension 'm' must be the same)")
+                        "(input dimension 'm' must be the same)"
+                    )
                 self.m = ms.pop()
         if not self._has_inputs:
             self.m = 0
@@ -240,7 +247,7 @@ class _BaseROM(abc.ABC):
         if self.r:
             out.append(f"Reduced-order dimension r = {self.r:d}")
 
-        return '\n'.join(out)
+        return "\n".join(out)
 
     def __repr__(self):
         """Unique ID + string representation."""
@@ -254,8 +261,11 @@ class _BaseROM(abc.ABC):
             raise ValueError(f"argument '{argname}' required")
 
         if not self._has_inputs and u is not None:
-            warnings.warn(f"argument '{argname}' should be None, "
-                          "argument will be ignored", UserWarning)
+            warnings.warn(
+                f"argument '{argname}' should be None, "
+                "argument will be ignored",
+                UserWarning,
+            )
 
     def _check_is_trained(self):
         """Ensure that the model is trained and ready for prediction."""
@@ -317,14 +327,16 @@ class _BaseROM(abc.ABC):
         return self.basis.decompress(state_)
 
     def galerkin(self):
-        """Replace known full-order operators with their Galerkin projections.
+        """
+        Replace known full-order operators with their Galerkin projections.
         """
         for i in self._indices_of_known_operators:
             op = self.operators[i]
             if op.shape[0] != self.r:
                 if self.basis is None:
                     raise RuntimeError(
-                        "basis required for Galerkin projection")
+                        "basis required for Galerkin projection"
+                    )
                 self.operators[i] = op.galerkin(self.basis.entries)
 
     # ROM evaluation ----------------------------------------------------------
@@ -332,17 +344,17 @@ class _BaseROM(abc.ABC):
         r"""Evaluate and sum each model operator.
 
         This is the right-hand side of the model, i.e., the function
-        :math:`\widehat{\mathbf{F}}(\widehat{\mathbf{q}}, \mathbf{u})`
+        :math:`\widehat{\mathbf{F}}(\qhat, \u)`
         where the model can be written as one of the following:
 
-        - :math:`\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
-            = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}(t), \mathbf{u}(t))`
+        - :math:`\frac{\text{d}}{\text{d}t}\qhat(t)
+            = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
             (continuous time)
-        - :math:`\widehat{\mathbf{q}}_{j+1}
-            = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})`
+        - :math:`\qhat_{j+1}
+            = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`
             (discrete time)
         - :math:`\widehat{\mathbf{g}}
-            = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}, \mathbf{u})`
+            = \widehat{\mathbf{F}}(\qhat, \u)`
             (steady state)
 
         Parameters
@@ -368,17 +380,17 @@ class _BaseROM(abc.ABC):
 
         This the derivative of the right-hand side of the model with respect
         to the state, i.e., the function :math:`\frac{
-        \partial \widehat{\mathbf{F}}}{\partial \widehat{\mathbf{q}}}`
+        \partial \widehat{\mathbf{F}}}{\partial \qhat}`
         where the model can be written as one of the following:
 
-        - :math:`\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t)
-            = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}(t), \mathbf{u}(t))`
+        - :math:`\frac{\text{d}}{\text{d}t}\qhat(t)
+            = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
             (continuous time)
-        - :math:`\widehat{\mathbf{q}}_{j+1}
-            = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})`
+        - :math:`\qhat_{j+1}
+            = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`
             (discrete time)
         - :math:`\widehat{\mathbf{g}}
-            = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}, \mathbf{u})`
+            = \widehat{\mathbf{F}}(\qhat, \u)`
             (steady state)
 
         Parameters
@@ -402,12 +414,12 @@ class _BaseROM(abc.ABC):
     @abc.abstractmethod
     def fit(*args, **kwargs):
         """Train the reduced-order model with the specified data."""
-        raise NotImplementedError                           # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def predict(*args, **kwargs):
         """Solve the reduced-order model under specified conditions."""
-        raise NotImplementedError                           # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     # Model persistence (not required but suggested) --------------------------
     def save(*args, **kwargs):

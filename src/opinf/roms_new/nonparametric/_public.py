@@ -16,12 +16,12 @@ from .._base import _BaseROM
 from ._base import _NonparametricOpInfROM
 
 
-class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
+class SteadyOpInfROM(_NonparametricOpInfROM):  # pragma: no cover
     r"""Reduced-order model for a nonparametric steady state problem:
 
     ..math ::
         \widehat{\mathbf{g}}
-        = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}).
+        = \widehat{\mathbf{F}}(\qhat).
 
     Here q is the state and g is a forcing term. The structure of F(q) is user
     specified (modelform), and the corresponding low-dimensional operators are
@@ -97,9 +97,10 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         self
         """
         if solver is None and regularizer is not None:
-            solver = regularizer                        # pragma: no cover
+            solver = regularizer  # pragma: no cover
         return _NonparametricOpInfROM.fit(
-            self, states, forcing, inputs=None, solver=solver)
+            self, states, forcing, inputs=None, solver=solver
+        )
 
     def predict(self, forcing, guess=None):
         raise NotImplementedError("TODO")
@@ -109,11 +110,11 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
     r"""Reduced-order model for a nonparametric discrete dynamical system.
 
     .. math::
-        \widehat{\mathbf{q}}_{j+1}
-        = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j}).
+        \qhat_{j+1}
+        = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j}).
 
-    Here, :math:`\widehat{\mathbf{q}}\in\mathbb{R}^{r}` is the reduced state
-    and :math:`\mathbf{u}\in\mathbb{R}^{m}` is the (optional) input.
+    Here, :math:`\qhat\in\RR^{r}` is the reduced state
+    and :math:`\u\in\RR^{m}` is the (optional) input.
     The structure of :math:`\widehat{\mathbf{F}}` is specified through the
     ``operators`` attribute.
 
@@ -158,8 +159,8 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
 
         This is the right-hand side of the model, i.e., the function
         :math:`\widehat{\mathbf{F}}` where the model can be written as
-        :math:`\widehat{\mathbf{q}}_{j+1}
-        = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})`.
+        :math:`\qhat_{j+1}
+        = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`.
 
         Parameters
         ----------
@@ -180,10 +181,10 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
 
         This the derivative of the right-hand side of the model with respect
         to the state, i.e., the function :math:`\frac{
-        \partial \widehat{\mathbf{F}}}{\partial \widehat{\mathbf{q}}}`
+        \partial \widehat{\mathbf{F}}}{\partial \qhat}`
         where the model can be written as
-        :math:`\widehat{\mathbf{q}}_{j+1}
-        = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}_{j}, \mathbf{u}_{j})`.
+        :math:`\qhat_{j+1}
+        = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`.
 
         Parameters
         ----------
@@ -199,8 +200,16 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         """
         return _BaseROM.jacobian(self, state_, input_)
 
-    def fit(self, basis, states, nextstates=None, inputs=None, solver=None,
-            *, regularizer=None):
+    def fit(
+        self,
+        basis,
+        states,
+        nextstates=None,
+        inputs=None,
+        solver=None,
+        *,
+        regularizer=None,
+    ):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -236,11 +245,12 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             nextstates = states[:, 1:]
             states = states[:, :-1]
         if inputs is not None:
-            inputs = inputs[..., :states.shape[1]]
+            inputs = inputs[..., : states.shape[1]]
         if solver is None and regularizer is not None:
-            solver = regularizer                        # pragma: no cover
+            solver = regularizer  # pragma: no cover
         return _NonparametricOpInfROM.fit(
-            self, basis, states, nextstates, inputs=inputs, solver=solver)
+            self, basis, states, nextstates, inputs=inputs, solver=solver
+        )
 
     def predict(self, state0, niters, inputs=None, decompress=True):
         """Step forward the reduced-order discrete dynamical system
@@ -292,13 +302,15 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             # Validate shape of input, reshaping if input is 1d.
             U = np.atleast_2d(inputs)
             if U.ndim != 2 or U.shape[0] != self.m or U.shape[1] < niters - 1:
-                raise ValueError(f"inputs.shape = ({U.shape} "
-                                 f"!= {(self.m, niters-1)} = (m, niters-1)")
+                raise ValueError(
+                    f"inputs.shape = ({U.shape} "
+                    f"!= {(self.m, niters-1)} = (m, niters-1)"
+                )
             for j in range(niters - 1):
-                states_[:, j+1] = self.evaluate(states_[:, j], U[:, j])
+                states_[:, j + 1] = self.evaluate(states_[:, j], U[:, j])
         else:
             for j in range(niters - 1):
-                states_[:, j+1] = self.evaluate(states_[:, j])
+                states_[:, j + 1] = self.evaluate(states_[:, j])
 
         # Return state results.
         if decompress and (self.basis is not None):
@@ -311,11 +323,11 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
     equations.
 
     .. math::
-        \frac{\textup{d}}{\textup{d}t} \widehat{\mathbf{q}}(t)
-        = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}(t), \mathbf{u}(t)).
+        \frac{\textup{d}}{\textup{d}t} \qhat(t)
+        = \widehat{\mathbf{F}}(\qhat(t), \u(t)).
 
-    Here, :math:`\widehat{\mathbf{q}}(t)\in\mathbb{R}^{r}` is the reduced state
-    and :math:`\mathbf{u}(t)\in\mathbb{R}^{m}` is the (optional) input.
+    Here, :math:`\qhat(t)\in\RR^{r}` is the reduced state
+    and :math:`\u(t)\in\RR^{m}` is the (optional) input.
     The structure of :math:`\widehat{\mathbf{F}}` is specified through the
     ``operators`` attribute.
 
@@ -336,15 +348,15 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
 
         This is the right-hand side of the model, i.e., the function
         :math:`\widehat{\mathbf{F}}` where the model can be written as
-        :math:`\frac{\textup{d}}{\textup{d}t} \widehat{\mathbf{q}}(t)
-        = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}(t), \mathbf{u}(t))`.
+        :math:`\frac{\textup{d}}{\textup{d}t} \qhat(t)
+        = \widehat{\mathbf{F}}(\qhat(t), \u(t))`.
 
         Parameters
         ----------
         t : float
             Time, a scalar.
         state_ : (r,) ndarray
-            Low-dimensional state vector :math:`\widehat{\mathbf{q}}(t)`
+            Low-dimensional state vector :math:`\qhat(t)`
             corresponding to time ``t``.
         input_func : callable(float) -> (m,), or None
             Input function that maps time ``t`` to an input vector of length
@@ -363,17 +375,17 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
 
         This the derivative of the right-hand side of the model with respect
         to the state, i.e., the function :math:`\frac{
-        \partial \widehat{\mathbf{F}}}{\partial \widehat{\mathbf{q}}}`
+        \partial \widehat{\mathbf{F}}}{\partial \qhat}`
         where the model can be written as
-        :math:`\frac{\textup{d}}{\textup{d}t} \widehat{\mathbf{q}}(t)
-        = \widehat{\mathbf{F}}(\widehat{\mathbf{q}}(t), \mathbf{u}(t))`.
+        :math:`\frac{\textup{d}}{\textup{d}t} \qhat(t)
+        = \widehat{\mathbf{F}}(\qhat(t), \u(t))`.
 
         Parameters
         ----------
         t : float
             Time, a scalar.
         state_ : (r,) ndarray
-            Low-dimensional state vector :math:`\widehat{\mathbf{q}}(t)`
+            Low-dimensional state vector :math:`\qhat(t)`
             corresponding to time ``t``.
         input_func : callable(float) -> (m,), or None
             Input function that maps time ``t`` to an input vector of length
@@ -387,8 +399,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         input_ = None if not self._has_inputs else input_func(t)
         return _BaseROM.jacobian(self, state_, input_)
 
-    def fit(self, states, ddts, inputs=None, solver=None,
-            *, regularizer=None):
+    def fit(self, states, ddts, inputs=None, solver=None, *, regularizer=None):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -417,9 +428,10 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         """
 
         if solver is None and regularizer is not None:
-            solver = regularizer                        # pragma: no cover
+            solver = regularizer  # pragma: no cover
         return _NonparametricOpInfROM.fit(
-            self, states, ddts, inputs=inputs, solver=solver)
+            self, states, ddts, inputs=inputs, solver=solver
+        )
 
     def predict(self, state0, t, input_func=None, decompress=True, **options):
         """Solve the reduced-order system of ordinary differential equations.
@@ -485,8 +497,10 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
                 # input_func must be (m, nt) ndarray. Interploate -> callable.
                 U = np.atleast_2d(input_func)
                 if U.shape != (self.m, nt):
-                    raise ValueError(f"input_func.shape = {U.shape} "
-                                     f"!= {(self.m, nt)} = (m, len(t))")
+                    raise ValueError(
+                        f"input_func.shape = {U.shape} "
+                        f"!= {(self.m, nt)} = (m, len(t))"
+                    )
                 input_func = CubicSpline(t, U, axis=1)
 
             # Check dimension of input_func() outputs.
@@ -494,28 +508,36 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             _shape = _tmp.shape if isinstance(_tmp, np.ndarray) else None
             if self.m == 1:
                 if not (np.isscalar(_tmp) or _shape == (1,)):
-                    raise ValueError("input_func() must return ndarray"
-                                     " of shape (m,) = (1,) or scalar")
+                    raise ValueError(
+                        "input_func() must return ndarray"
+                        " of shape (m,) = (1,) or scalar"
+                    )
             elif _shape != (self.m,):
-                raise ValueError("input_func() must return ndarray"
-                                 f" of shape (m,) = ({self.m},)")
+                raise ValueError(
+                    "input_func() must return ndarray"
+                    f" of shape (m,) = ({self.m},)"
+                )
 
         if "method" in options and options["method"] in (
             # These methods require the Jacobian.
-            "BDF", "Radau", "LSODA"
+            "BDF",
+            "Radau",
+            "LSODA",
         ):
             options["jac"] = self.jacobian
 
         # Integrate the reduced-order model.
-        out = solve_ivp(self.evaluate,          # Integrate this function
-                        [t[0], t[-1]],          # over this time interval
-                        state0_,                # from this initial condition
-                        args=(input_func,),     # with this input function
-                        t_eval=t,               # evaluated at these points
-                        **options)              # using these solver options.
+        out = solve_ivp(
+            self.evaluate,  # Integrate this function
+            [t[0], t[-1]],  # over this time interval
+            state0_,  # from this initial condition
+            args=(input_func,),  # with this input function
+            t_eval=t,  # evaluated at these points
+            **options,
+        )  # using these solver options.
 
         # Warn if the integration failed.
-        if not out.success:                     # pragma: no cover
+        if not out.success:  # pragma: no cover
             warnings.warn(out.message, IntegrationWarning)
 
         # Return state results.

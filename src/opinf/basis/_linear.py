@@ -20,14 +20,14 @@ class LinearBasis(_BaseBasis):
     r"""Linear basis for representing the low-dimensional state approximation
 
     .. math::
-        \mathbf{q}
-        \approx \mathbf{V}_{r}\widehat{\mathbf{q}}
-        = \sum_{i=1}^{r}\hat{q}_{i}\mathbf{v}_{i},
-    where :math:`\mathbf{q}\in\mathbb{R}^{n}`,
-    :math:`\mathbf{V}_{r}
-    = [\mathbf{v}_{1}, \ldots, \mathbf{v}_{r}]\in \mathbb{R}^{n\times r}`, and
-    :math:`\widehat{\mathbf{q}}
-    = [\hat{q}_{1},\ldots,\hat{q}_{r}]\in\mathbb{R}^{r}`.
+        \q
+        \approx \Vr\qhat
+        = \sum_{i=1}^{r}\hat{q}_{i}\v_{i},
+    where :math:`\q\in\RR^{n}`,
+    :math:`\Vr
+    = [\v_{1}, \ldots, \v_{r}]\in \RR^{n\times r}`, and
+    :math:`\qhat
+    = [\hat{q}_{1},\ldots,\hat{q}_{r}]\in\RR^{r}`.
 
     Attributes
     ----------
@@ -38,8 +38,9 @@ class LinearBasis(_BaseBasis):
     shape : tulpe
         Dimensions (n, r).
     entries : (n, r) ndarray
-        Entries of the basis matrix :math:`\mathbf{V}_{r}`.
+        Entries of the basis matrix :math:`\Vr`.
     """
+
     def __init__(self):
         """Initialize an empty basis."""
         self.__entries = None
@@ -220,7 +221,6 @@ class LinearBasis(_BaseBasis):
         """
         entries = None
         with hdf5_loadhandle(loadfile) as hf:
-
             if "entries" in hf:
                 entries = hf["entries"][:]
 
@@ -294,7 +294,7 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         """Stack individual basis entries as a block diagonal sparse matrix."""
         blocks = []
         for basis in self.bases:
-            if basis.n is None:                 # Quit if any basis is empty.
+            if basis.n is None:  # Quit if any basis is empty.
                 return
             if basis.n != self.bases[0].n:
                 raise ValueError("all bases must have the same row dimension")
@@ -315,7 +315,7 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         namelength = max(len(name) for name in self.variable_names)
         sep = " " * (namelength + 5)
         for i, (name, st) in enumerate(zip(self.variable_names, self.bases)):
-            ststr = str(st).replace('\n', f"\n{sep}")
+            ststr = str(st).replace("\n", f"\n{sep}")
             ststr = ststr.replace("n =", f"n{i+1:d} =")
             ststr = ststr.replace("r =", f"r{i+1:d} =")
             out.append(f"* {{:>{namelength}}} : {ststr}".format(name))
@@ -324,7 +324,7 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         else:
             out.append(f"Total full-order dimension    n = {self.n:d}")
             out.append(f"Total reduced-order dimension r = {self.r:d}")
-        return '\n'.join(out)
+        return "\n".join(out)
 
     # Main routines -----------------------------------------------------------
     def fit(self, bases):
@@ -357,7 +357,6 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
             (default), raise a FileExistsError if the file already exists.
         """
         with hdf5_savehandle(savefile, overwrite) as hf:
-
             # metadata
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_variables"] = self.num_variables
@@ -382,8 +381,9 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         with hdf5_loadhandle(loadfile) as hf:
             # Load metadata.
             if "meta" not in hf:
-                raise LoadfileFormatError("invalid save format "
-                                          "(meta/ not found)")
+                raise LoadfileFormatError(
+                    "invalid save format (meta/ not found)"
+                )
             num_variables = hf["meta"].attrs["num_variables"]
             variable_names = hf["meta"].attrs["variable_names"].tolist()
 
@@ -392,8 +392,9 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
             for i in range(num_variables):
                 group = f"variable{i+1}"
                 if group not in hf:
-                    raise LoadfileFormatError("invalid save format "
-                                              f"({group}/ not found)")
+                    raise LoadfileFormatError(
+                        f"invalid save format ({group}/ not found)"
+                    )
                 bases.append(cls._BasisClass.load(hf[group]))
 
             # Initialize and return the basis object.

@@ -24,9 +24,9 @@ One-off routines (such as computing a POD basis) should be implemented as standa
 The package has the following main class hierarchies:
 
 - [_Transformer classes_](subsec-contrib-transformerclass) are used for normalizing snapshot data.
-- [_Basis classes_](subsec-contrib-basisclass) represent the mapping between the full-order state space in $\mathbb{R}^{n}$ and the reduced-order state space in $\mathbb{R}^{r}$. A basis object may have a transformer as an attribute to link the two conveniently.
-- [_ROM classes_](subsec-contrib-romclass) encapsulate an entire reduced-order model, such as $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t) + \widehat{\mathbf{B}}\mathbf{u}(t)$ or $\widehat{\mathbf{q}}_{j+1} = \widehat{\mathbf{H}}[\widehat{\mathbf{q}}_{j} \otimes \widehat{\mathbf{q}}_{j}]$. These are the major objects that the user interacts with.
-- [_Operator classes_](subsec-contrib-opclass) represent a single operator that forms part of a reduced-order model, e.g., $\widehat{\mathbf{A}}$ or $\widehat{\mathbf{H}}$. Every ROM object has, as attributes, several operator classes.
+- [_Basis classes_](subsec-contrib-basisclass) represent the mapping between the full-order state space in $\RR^{n}$ and the reduced-order state space in $\RR^{r}$. A basis object may have a transformer as an attribute to link the two conveniently.
+- [_ROM classes_](subsec-contrib-romclass) encapsulate an entire reduced-order model, such as $\frac{\text{d}}{\text{d}t}\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$ or $\qhat_{j+1} = \Hhat[\qhat_{j} \otimes \qhat_{j}]$. These are the major objects that the user interacts with.
+- [_Operator classes_](subsec-contrib-opclass) represent a single operator that forms part of a reduced-order model, e.g., $\Ahat$ or $\Hhat$. Every ROM object has, as attributes, several operator classes.
 - [_Solver classes_](subsec-contrib-lstsqsolvers) handle the least-squares regression problem at the heart of Operator Inference.
 
 As you design new classes, take advantage of intermediate classes and inheritance to avoid duplicating code when appropriate.
@@ -87,7 +87,7 @@ Before implementing a new basis class, take a close look at `LinearBasis` and th
 (subsec-contrib-opclass)=
 ## Operators Module
 
-The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that define the terms of the model, for example $\widehat{\mathbf{A}}$ and $\widehat{\mathbf{B}}$ of $\frac{\text{d}}{\text{d}t}\widehat{\mathbf{q}}(t) = \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t) + \widehat{\mathbf{B}}\mathbf{u}(t)$.
+The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that define the terms of the model, for example $\Ahat$ and $\Bhat$ of $\frac{\text{d}}{\text{d}t}\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$.
 Operator classes are defined in the [**operators**](opinf.operators) module.
 
 #### Non-parametric Operators
@@ -154,7 +154,7 @@ classDiagram
 
 #### Parametric Operators
 
-The entries of a _parametric_ operator depend on external parameters, e.g., $\widehat{\mathbf{A}} = \widehat{\mathbf{A}}(\mu)$.
+The entries of a _parametric_ operator depend on external parameters, e.g., $\Ahat = \Ahat(\mu)$.
 Classes for representing parametric operators are grouped by the parametrization strategy into single files in `operators/`, e.g., `operators/_affine.py`.
 These classes should
 
@@ -277,9 +277,9 @@ Read [ROM Classes](sec-romclasses) before starting work here.
 The `_BaseROM` class of `roms/_base.py` is the base class for all reduced-order models.
 It handles
 - Dimensions (`n`, `r`, and `m`).
-- The basis $\mathbf{V}_{r}$ (`basis`).
+- The basis $\Vr$ (`basis`).
 - Reduced-order operators (`c_`, `A_`, `H_`, `G_`, and `B_`).
-- Compression $\mathbf{q}\mapsto\widehat{\mathbf{q}} := \mathbf{V}_{r}^{\top}\mathbf{q}$ (`compress()`) and decompression $\widehat{\mathbf{q}} \mapsto \mathbf{V}_{r}\widehat{\mathbf{q}}$ (`decompress()`).
+- Compression $\q\mapsto\qhat := \Vr^{\top}\q$ (`compress()`) and decompression $\qhat \mapsto \Vr\qhat$ (`decompress()`).
 - Evaluation of the right-hand side of the ROM (`evaluate()`) and its Jacobian (`jacobian()`).
 
 Classes that inherit from `_BaseROM` must (eventually) implement the following methods.
@@ -435,7 +435,7 @@ However, it is important to have tailored signatures and detailed docstrings for
 (subsec-contrib-lstsqsolvers)=
 ## Least-squares Module
 
-The [**lstsq**](opinf.lstsq) module houses classes and tools for solving the least-squares problems that arise in operator inference, namely $\min_{\mathbf{X}}\|\mathbf{A}\mathbf{X} - \mathbf{B}\|$ plus regularization and/or constraints.
+The [**lstsq**](opinf.lstsq) module houses classes and tools for solving the least-squares problems that arise in operator inference, namely $\min_{\mathbf{X}}\|\A\mathbf{X} - \B\|$ plus regularization and/or constraints.
 Each solver class defines 1) how the problem is posed (e.g., is there regularization and how is it structured, are there constraints and if so what are they, etc.) and 2) how the problem is to be solved (e.g., use the SVD, use the QR decomposition, solve the normal equations, etc.).
 
 The `fit()` method of each ROM class has a `solver` keyword argument which accepts a `lstsq` solver object to apply to the associated operator inference least-squares problem.
@@ -446,7 +446,7 @@ Least-squares solver classes must do the following.
 - Inherit from `lstsq._base._BaseSolver`.
 - Accept any hyperparameters (e.g., regularization values) in the constructor.
 - Have a `fit(A, B)` method that calls `_BaseSolver.fit(A, B)` and sets up the least-squares problem.
-- Have a `predict()` method returns the solution `X` to the least-squares problem $||\mathbf{AX} - \mathbf{B}||$ (+ regularization, etc.).
+- Have a `predict()` method returns the solution `X` to the least-squares problem $||\mathbf{AX} - \B||$ (+ regularization, etc.).
 - Have a `_LSTSQ_LABEL` class attribute that is a string describing the form of the least-squares problem, e.g., `"min_{X} ||AX - B||_F^2 + ||µX||_F^2"` This is used in the string representation of the class.
 
 See `lstsq._tikhonov.L2Solver` for an example. Here is the inheritance hierarchy of the current least-squares solvers.

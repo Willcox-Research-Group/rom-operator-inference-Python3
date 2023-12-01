@@ -20,27 +20,31 @@ class _NonparametricOpInfROM(_BaseROM):
     @property
     def operator_matrix_(self):
         r""":math:`r \times d(r, m)` Operator matrix, e.g.,
-        :math:`\widehat{\mathbf{O}} = [~
-        \widehat{\mathbf{c}}~~
-        \widehat{\mathbf{A}}~~
-        \widehat{\mathbf{H}}~~
-        \widehat{\mathbf{B}}~]`.
+        :math:`\Ohat = [~
+        \chat~~
+        \Ahat~~
+        \Hhat~~
+        \Bhat~]`.
 
         This matrix **does not** includes the entries of any operators whose
         entries are known _a priori_.
         """
         self._check_is_trained()
-        return np.column_stack([self.operators[i].entries
-                                for i in self._indices_of_operators_to_infer])
+        return np.column_stack(
+            [
+                self.operators[i].entries
+                for i in self._indices_of_operators_to_infer
+            ]
+        )
 
     @property
     def data_matrix_(self):
         r""":math:`k \times d(r, m)` Data matrix, e.g.,
-        :math:`\mathbf{D} = [~
+        :math:`\D = [~
         \mathbf{1}~~
-        \widehat{\mathbf{Q}}^\mathsf{T}~~
-        (\widehat{\mathbf{Q}}\odot\widehat{\mathbf{Q}})^\mathsf{T}~~
-        \mathbf{U}^\mathsf{T}~]`.
+        \widehat{\Q}\trp~~
+        (\widehat{\Q}\odot\widehat{\Q})\trp~~
+        \U\trp~]`.
         """
         if hasattr(self, "solver_"):
             return self.solver_.A if (self.solver_ is not None) else None
@@ -49,14 +53,16 @@ class _NonparametricOpInfROM(_BaseROM):
     @property
     def d(self):
         r"""Number of columns :math:`d(r, m)` of the data matrix
-        :math:`\mathbf{D}`, i.e., the number of unknowns in the Operator
+        :math:`\D`, i.e., the number of unknowns in the Operator
         Inference least-squares problem for each reduced-order mode.
         Always ``None`` if the dimensions ``r`` or ``m`` are not set.
         """
         if self.r is None or (self._has_inputs and self.m is None):
             return None
-        return sum(self.operators[i].column_dimension(self.r, self.m)
-                   for i in self._indices_of_operators_to_infer)
+        return sum(
+            self.operators[i].column_dimension(self.r, self.m)
+            for i in self._indices_of_operators_to_infer
+        )
 
     # Fitting -----------------------------------------------------------------
     def _process_fit_arguments(self, states, lhs, inputs, solver=None):
@@ -97,7 +103,8 @@ class _NonparametricOpInfROM(_BaseROM):
             if (dim := dataset.shape[0]) not in (self.n, self.r):
                 raise errors.DimensionalityError(
                     f"{label}.shape[0] = {dim} "
-                    f"!= n or r (n = {self.n}, r = {self.r})")
+                    f"!= n or r (n = {self.n}, r = {self.r})"
+                )
 
         # Process states, extract ROM dimension if needed.
         states = np.atleast_2d(states)
@@ -110,7 +117,8 @@ class _NonparametricOpInfROM(_BaseROM):
             """Dimension 1 must be k (number of snapshots)."""
             if (dim := dataset.shape[1]) != (k := states.shape[1]):
                 raise errors.DimensionalityError(
-                    f"{label}.shape[-1] = {dim} != {k} = states.shape[-1]")
+                    f"{label}.shape[-1] = {dim} != {k} = states.shape[-1]"
+                )
 
         # Process LHS.
         lhs = np.atleast_2d(lhs)
@@ -126,7 +134,8 @@ class _NonparametricOpInfROM(_BaseROM):
                 self.m = inputs.shape[0]
             if inputs.shape[0] != self.m:
                 raise errors.DimensionalityError(
-                    f"inputs.shape[0] = {inputs.shape[0]} != {self.m} = m")
+                    f"inputs.shape[0] = {inputs.shape[0]} != {self.m} = m"
+                )
             _check_valid_dimension1(inputs, "inputs")
 
         # Subtract known operator evaluations from the LHS.
@@ -141,22 +150,22 @@ class _NonparametricOpInfROM(_BaseROM):
 
         If the reduced-order model has the structure
         .. math::
-            \frac{\textrm{d}}{\textrm{d}t}\widehat{\mathbf{q}}(t)
-            = \widehat{\mathbf{c}}
-            + \widehat{\mathbf{A}}\widehat{\mathbf{q}}(t)
-            + \widehat{\mathbf{H}}[
-            \widehat{\mathbf{q}}(t)\otimes\widehat{\mathbf{q}}(t)]
-            + \widehat{\mathbf{B}}\mathbf{u}(t),
+            \ddt\qhat(t)
+            = \chat
+            + \Ahat\qhat(t)
+            + \Hhat[
+            \qhat(t)\otimes\qhat(t)]
+            + \Bhat\u(t),
 
         then the data matrix is
-        :math:`\mathbf{D} = [~
+        :math:`\D = [~
         \mathbf{1}~~
-        \widehat{\mathbf{Q}}^\mathsf{T}~~
-        (\widehat{\mathbf{Q}}\odot\widehat{\mathbf{Q}})^\mathsf{T}~~
-        \mathbf{U}^\mathsf{T}~]`,
+        \widehat{\Q}\trp~~
+        (\widehat{\Q}\odot\widehat{\Q})\trp~~
+        \U\trp~]`,
 
-        where :math:`\widehat{\mathbf{Q}}` is ``states_``
-        and :math:`\mathbf{U}` is `inputs`.
+        where :math:`\widehat{\Q}` is ``states_``
+        and :math:`\U` is `inputs`.
 
         Parameters
         ----------
@@ -170,8 +179,12 @@ class _NonparametricOpInfROM(_BaseROM):
         D : (k, d(r, m)) ndarray
             Operator Inference data matrix.
         """
-        return np.hstack([self.operators[i].datablock(states_, inputs).T
-                          for i in self._indices_of_operators_to_infer])
+        return np.hstack(
+            [
+                self.operators[i].datablock(states_, inputs).T
+                for i in self._indices_of_operators_to_infer
+            ]
+        )
 
     def _extract_operators(self, Ohat):
         """Extract and save the inferred operators from the solution to the
@@ -194,7 +207,8 @@ class _NonparametricOpInfROM(_BaseROM):
         of the Operator Inference least-squares problem.
         """
         states_, lhs_, inputs, solver = self._process_fit_arguments(
-            states, lhs, inputs, solver=solver)
+            states, lhs, inputs, solver=solver
+        )
 
         # Fully intrusive case (nothing to learn).
         if states_ is lhs_ is None:
@@ -268,7 +282,6 @@ class _NonparametricOpInfROM(_BaseROM):
             ``savefile`` already exists, raise an error.
         """
         with hdf5_savehandle(savefile, overwrite=overwrite) as hf:
-
             # Metadata.
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_operators"] = len(self.operators)
@@ -281,10 +294,12 @@ class _NonparametricOpInfROM(_BaseROM):
                 self.basis.save(hf.create_group("basis"))
 
             # Store operator data.
-            hf.create_dataset("indices_infer",
-                              data=self._indices_of_operators_to_infer)
-            hf.create_dataset("indices_known",
-                              data=self._indices_of_known_operators)
+            hf.create_dataset(
+                "indices_infer", data=self._indices_of_operators_to_infer
+            )
+            hf.create_dataset(
+                "indices_known", data=self._indices_of_known_operators
+            )
             for i, op in enumerate(self.operators):
                 op.save(hf.create_group(f"operator_{i}"))
 
@@ -304,7 +319,6 @@ class _NonparametricOpInfROM(_BaseROM):
             Trained reduced-order model.
         """
         with hdf5_loadhandle(loadfile) as hf:
-
             # Load metadata.
             num_operators = int(hf["meta"].attrs["num_operators"])
             indices_infer = [int(i) for i in hf["indices_infer"][:]]
@@ -329,9 +343,9 @@ class _NonparametricOpInfROM(_BaseROM):
             rom = cls(basis, ops)
             rom._indices_of_operators_to_infer = indices_infer
             rom._indices_of_known_operators = indices_known
-            if (r := hf["meta"].attrs['r']) and rom.basis is None:
+            if (r := hf["meta"].attrs["r"]) and rom.basis is None:
                 rom.r = int(r)
-            if (m := hf["meta"].attrs['m']) and rom._has_inputs:
+            if (m := hf["meta"].attrs["m"]) and rom._has_inputs:
                 rom.m = int(m)
 
         return rom

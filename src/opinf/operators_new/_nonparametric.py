@@ -2,13 +2,13 @@
 """Classes for operators with no external parameter dependencies."""
 
 __all__ = [
-            "ConstantOperator",
-            "LinearOperator",
-            "QuadraticOperator",
-            "CubicOperator",
-            "InputOperator",
-            "StateInputOperator",
-          ]
+    "ConstantOperator",
+    "LinearOperator",
+    "QuadraticOperator",
+    "CubicOperator",
+    "InputOperator",
+    "StateInputOperator",
+]
 
 import functools
 import numpy as np
@@ -20,9 +20,9 @@ from ._base import _requires_entries, _BaseNonparametricOperator, _InputMixin
 
 # No dependence on state or input =============================================
 class ConstantOperator(_BaseNonparametricOperator):
-    r"""Constant 'operator' :math:`\widehat{\mathbf{c}} \in \mathbb{R}^{r}`
+    r"""Constant 'operator' :math:`\chat \in \RR^{r}`
     representing the action
-    :math:`(\widehat{\mathbf{q}},\mathbf{u}) \mapsto \widehat{\mathbf{c}}`.
+    :math:`(\qhat,\u) \mapsto \chat`.
 
     Examples
     --------
@@ -36,6 +36,7 @@ class ConstantOperator(_BaseNonparametricOperator):
     >>> np.allclose(out, entries)
     True
     """
+
     @staticmethod
     def _str(statestr=None, inputstr=None):
         return "c"
@@ -57,8 +58,9 @@ class ConstantOperator(_BaseNonparametricOperator):
             if entries.ndim == 2 and 1 in entries.shape:
                 entries = np.ravel(entries)
             else:
-                raise ValueError("ConstantOperator entries must be "
-                                 "one-dimensional")
+                raise ValueError(
+                    "ConstantOperator entries must be one-dimensional"
+                )
 
         _BaseNonparametricOperator.set_entries(self, entries)
 
@@ -66,7 +68,7 @@ class ConstantOperator(_BaseNonparametricOperator):
     def __call__(self, state_=None, input_=None):
         r"""Apply the operator mapping to the given state / input.
         Since this is a constant operator, the result is always the same:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto\widehat{\mathbf{c}}`.
+        :math:`(\qhat,\u)\mapsto\chat`.
 
         Parameters
         ----------
@@ -78,28 +80,28 @@ class ConstantOperator(_BaseNonparametricOperator):
         Returns
         -------
         out : (r,) ndarray
-            The "evaluation" :math:`\widehat{\mathbf{c}}`.
+            The "evaluation" :math:`\chat`.
         """
         if self.entries.shape[0] == 1:
-            if state_ is None or np.isscalar(state_):       # r = k = 1.
+            if state_ is None or np.isscalar(state_):  # r = k = 1.
                 return self.entries[0]
-            return np.full_like(state_, self.entries[0])    # r = 1, k > 1.
+            return np.full_like(state_, self.entries[0])  # r = 1, k > 1.
         # if state_ is None or np.ndim(state_) == 1:
         #     return self.entries
-        if np.ndim(state_) == 2:                            # r, k > 1.
+        if np.ndim(state_) == 2:  # r, k > 1.
             return np.outer(self.entries, np.ones(state_.shape[-1]))
-        return self.entries                                 # r > 1, k = 1.
+        return self.entries  # r > 1, k = 1.
 
     @functools.wraps(__call__)
-    def evaluate(self, state_=None, input_=None):           # pragma: no cover
+    def evaluate(self, state_=None, input_=None):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_=None, input_=None):
         r"""Evaluate the Jacobian of the operator, the zero matrix:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-        \mathbf{0}\in\mathbb{R}^{r\times r}`.
+        :math:`(\qhat,\u)\mapsto
+        \mathbf{0}\in\RR^{r\times r}`.
 
         Parameters
         ----------
@@ -119,7 +121,7 @@ class ConstantOperator(_BaseNonparametricOperator):
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
-        :math:`\widehat{\mathbf{c}} = \mathbf{W}_{r}^{\mathsf{T}}\mathbf{c}`.
+        :math:`\chat = \Wr\trp\c`.
 
         Parameters
         ----------
@@ -134,7 +136,8 @@ class ConstantOperator(_BaseNonparametricOperator):
             ``self`` or new ``ConstantOperator`` object.
         """
         return _BaseNonparametricOperator.galerkin(
-            self, Vr, Wr, lambda c, V, W: W.T @ c)
+            self, Vr, Wr, lambda c, V, W: W.T @ c
+        )
 
     @staticmethod
     def datablock(states_, inputs=None):
@@ -142,17 +145,17 @@ class ConstantOperator(_BaseNonparametricOperator):
         a vector of 1's.
 
         .. math::
-            \min_{\widehat{\mathbf{c}}}\sum_{j=0}^{k-1}\left\|
-            \widehat{\mathbf{c}} - \widehat{\mathbf{y}}_{j}
+            \min_{\chat}\sum_{j=0}^{k-1}\left\|
+            \chat - \widehat{\mathbf{y}}_{j}
             \right\|_{2}^{2}
-            = \min_{\widehat{\mathbf{c}}}\left\|
-            \widehat{\mathbf{c}}\mathbf{1}^{\mathsf{T}} - \widehat{\mathbf{Y}}
+            = \min_{\chat}\left\|
+            \chat\mathbf{1}\trp - \widehat{\mathbf{Y}}
             \right\|_{F}^{2},
 
-        where :math:`\mathbf{1} \in \mathbb{R}^{k}` is a vector of 1's
+        where :math:`\mathbf{1} \in \RR^{k}` is a vector of 1's
         and :math:`\widehat{\mathbf{Y}} = [~
         \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
-        ~]\in\mathbb{R}^{r \times k}`.
+        ~]\in\RR^{r \times k}`.
 
         Parameters
         ----------
@@ -186,10 +189,10 @@ class ConstantOperator(_BaseNonparametricOperator):
 # Dependent on state but not on input =========================================
 class LinearOperator(_BaseNonparametricOperator):
     r"""Linear state operator
-    :math:`\widehat{\mathbf{A}} \in \mathbb{R}^{r \times r}`
+    :math:`\Ahat \in \RR^{r \times r}`
     representing the action
-    :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-    \widehat{\mathbf{A}}\widehat{\mathbf{q}}`.
+    :math:`(\qhat,\u)\mapsto
+    \Ahat\qhat`.
 
     Examples
     --------
@@ -204,6 +207,7 @@ class LinearOperator(_BaseNonparametricOperator):
     >>> np.allclose(out, entries @ q)
     True
     """
+
     @staticmethod
     def _str(statestr, inputstr=None):
         return f"A{statestr}"
@@ -231,8 +235,8 @@ class LinearOperator(_BaseNonparametricOperator):
     @_requires_entries
     def __call__(self, state_, input_=None):
         r"""Apply the operator mapping to the given state:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})
-        \mapsto\widehat{\mathbf{A}}\widehat{\mathbf{q}}`.
+        :math:`(\qhat,\u)
+        \mapsto\Ahat\qhat`.
 
         Parameters
         ----------
@@ -244,21 +248,21 @@ class LinearOperator(_BaseNonparametricOperator):
         Returns
         -------
         out : (r,) ndarray
-            The evaluation :math:`\widehat{\mathbf{A}}\widehat{\mathbf{q}}`.
+            The evaluation :math:`\Ahat\qhat`.
         """
         if self.entries.shape[0] == 1:
-            return self.entries[0, 0] * state_              # r = 1.
-        return self.entries @ state_                        # r > 1.
+            return self.entries[0, 0] * state_  # r = 1.
+        return self.entries @ state_  # r > 1.
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_=None):                # pragma: no cover
+    def evaluate(self, state_, input_=None):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_=None, input_=None):
         r"""Evaluate the Jacobian of the operator, the operator entries:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto\widehat{\mathbf{A}}`.
+        :math:`(\qhat,\u)\mapsto\Ahat`.
 
         Parameters
         ----------
@@ -277,8 +281,8 @@ class LinearOperator(_BaseNonparametricOperator):
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
-        :math:`\widehat{\mathbf{A}} =
-        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{A}\mathbf{V}_{r}`.
+        :math:`\Ahat =
+        \Wr\trp\A\Vr`.
 
         Parameters
         ----------
@@ -293,7 +297,8 @@ class LinearOperator(_BaseNonparametricOperator):
             ``self`` or new ``LinearOperator`` object.
         """
         return _BaseNonparametricOperator.galerkin(
-            self, Vr, Wr, lambda A, V, W: W.T @ A @ V)
+            self, Vr, Wr, lambda A, V, W: W.T @ A @ V
+        )
 
     @staticmethod
     def datablock(states_, inputs=None):
@@ -301,20 +306,20 @@ class LinearOperator(_BaseNonparametricOperator):
         the ``state_``.
 
         .. math::
-            \min_{\widehat{\mathbf{A}}}\sum_{j=0}^{k-1}\left\|
-            \widehat{\mathbf{A}}\widehat{\mathbf{q}}_{j}
+            \min_{\Ahat}\sum_{j=0}^{k-1}\left\|
+            \Ahat\qhat_{j}
             - \widehat{\mathbf{y}}_{j}
             \right\|_{2}^{2}
-            = \min_{\widehat{\mathbf{A}}}\left\|
-            \widehat{\mathbf{A}}\widehat{\mathbf{Q}} - \widehat{\mathbf{Y}}
+            = \min_{\Ahat}\left\|
+            \Ahat\widehat{\Q} - \widehat{\mathbf{Y}}
             \right\|_{F}^{2}.
 
-        Here, :math:`\widehat{\mathbf{Q}} = [~
-        \widehat{\mathbf{q}}_{0} ~~ \cdots ~~ \widehat{\mathbf{q}}_{k-1}
-        ~] \in \mathbb{R}^{r\times k}` is the ``state_``
+        Here, :math:`\widehat{\Q} = [~
+        \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
+        ~] \in \RR^{r\times k}` is the ``state_``
         and :math:`\widehat{\mathbf{Y}} = [~
         \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
-        ~]\in\mathbb{R}^{r \times k}`.
+        ~]\in\RR^{r \times k}`.
 
         Parameters
         ----------
@@ -347,14 +352,14 @@ class LinearOperator(_BaseNonparametricOperator):
 
 class QuadraticOperator(_BaseNonparametricOperator):
     r"""Quadratic state operator
-    :math:`\widehat{\mathbf{H}} \in \mathbb{R}^{r \times r^{2}}`
+    :math:`\Hhat \in \RR^{r \times r^{2}}`
     representing the action
-    :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-    \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]`.
+    :math:`(\qhat,\u)\mapsto
+    \Hhat[\qhat\otimes\qhat]`.
 
     Internally, the action of the operator is computed as the product of a
     :math:`r \times r(r+1)/2` matrix and a compressed version of the Kronecker
-    product :math:`\widehat{\mathbf{q}} \otimes \widehat{\mathbf{q}}`.
+    product :math:`\qhat \otimes \qhat`.
 
     Examples
     --------
@@ -369,6 +374,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
     >>> np.allclose(out, entries @ np.kron(q, q))
     True
     """
+
     @staticmethod
     def _str(statestr, inputstr=None):
         return f"H[{statestr} ⊗ {statestr}]"
@@ -396,8 +402,9 @@ class QuadraticOperator(_BaseNonparametricOperator):
             # Reshape (r x r x r) tensor.
             entries = entries.reshape((entries.shape[0], -1))
         if entries.ndim != 2:
-            raise ValueError("QuadraticOperator entries must be "
-                             "two-dimensional")
+            raise ValueError(
+                "QuadraticOperator entries must be two-dimensional"
+            )
         r, r2 = entries.shape
         if r2 == r**2:
             entries = utils.compress_quadratic(entries)
@@ -414,8 +421,8 @@ class QuadraticOperator(_BaseNonparametricOperator):
     @_requires_entries
     def __call__(self, state_, input_=None):
         r"""Apply the operator mapping to the given state:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-        \widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]`.
+        :math:`(\qhat,\u)\mapsto
+        \Hhat[\qhat\otimes\qhat]`.
 
         Parameters
         ----------
@@ -427,25 +434,25 @@ class QuadraticOperator(_BaseNonparametricOperator):
         Returns
         -------
         out : (r,) ndarray
-            The evaluation :math:`\widehat{\mathbf{H}}
-            [\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]`.
+            The evaluation :math:`\Hhat
+            [\qhat\otimes\qhat]`.
         """
         if self.entries.shape[0] == 1:
-            return self.entries[0, 0] * state_**2           # r = 1
+            return self.entries[0, 0] * state_**2  # r = 1
         return self.entries @ np.prod(state_[self._mask], axis=1)
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_=None):                # pragma: no cover
+    def evaluate(self, state_, input_=None):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_, input_=None):
         r"""Evaluate the Jacobian of the operator:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-        \widehat{\mathbf{H}}[
-        (\mathbf{I}\otimes\widehat{\mathbf{q}})
-        + (\widehat{\mathbf{q}}\otimes\mathbf{I})^\mathsf{T}]`.
+        :math:`(\qhat,\u)\mapsto
+        \Hhat[
+        (\I\otimes\qhat)
+        + (\qhat\otimes\I)\trp]`.
 
         Parameters
         ----------
@@ -464,9 +471,9 @@ class QuadraticOperator(_BaseNonparametricOperator):
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
-        :math:`\widehat{\mathbf{H}} =
-        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{H}
-        (\mathbf{V}_{r}\otimes\mathbf{V}_{r})`.
+        :math:`\Hhat =
+        \Wr\trp\H
+        (\Vr\otimes\Vr)`.
 
         Parameters
         ----------
@@ -480,6 +487,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         op : operator
             ``self`` or new ``QuadraticOperator`` object.
         """
+
         def _project(H, V, W):
             return W.T @ utils.expand_quadratic(H) @ np.kron(V, V)
 
@@ -489,34 +497,34 @@ class QuadraticOperator(_BaseNonparametricOperator):
     def datablock(states_, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
         the Khatri-Rao product of the state with itself:
-        :math:`\widehat{\mathbf{Q}}\odot\widehat{\mathbf{Q}}` where
-        :math:`\widehat{\mathbf{Q}}` is the ``state_``.
+        :math:`\widehat{\Q}\odot\widehat{\Q}` where
+        :math:`\widehat{\Q}` is the ``state_``.
 
         .. math::
-            \min_{\widehat{\mathbf{H}}}\sum_{j=0}^{k-1}\left\|
-            \widehat{\mathbf{H}}[
-            \widehat{\mathbf{q}}_{j}\otimes\widehat{\mathbf{q}}_{j}]
+            \min_{\Hhat}\sum_{j=0}^{k-1}\left\|
+            \Hhat[
+            \qhat_{j}\otimes\qhat_{j}]
             - \widehat{\mathbf{y}}_{j}
             \right\|_{2}^{2}
-            = \min_{\widehat{\mathbf{H}}}\left\|
-            \widehat{\mathbf{H}}[
-            \widehat{\mathbf{Q}} \odot \widehat{\mathbf{Q}}]
+            = \min_{\Hhat}\left\|
+            \Hhat[
+            \widehat{\Q} \odot \widehat{\Q}]
             - \widehat{\mathbf{Y}}
             \right\|_{F}^{2}.
 
-        Here, :math:`\widehat{\mathbf{Q}} = [~
-        \widehat{\mathbf{q}}_{0} ~~ \cdots ~~ \widehat{\mathbf{q}}_{k-1}
-        ~] \in \mathbb{R}^{r\times k}` is the ``state_``
+        Here, :math:`\widehat{\Q} = [~
+        \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
+        ~] \in \RR^{r\times k}` is the ``state_``
         and :math:`\widehat{\mathbf{Y}} = [~
         \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
-        ~]\in\mathbb{R}^{r \times k}`.
+        ~]\in\RR^{r \times k}`.
         The Khatri-Rao product :math:`\odot` is the Kronecker product applied
         columnwise:
 
         .. math::
             \left[\begin{array}{ccc}
             && \\
-            \widehat{\mathbf{q}}_{0} & \cdots & \widehat{\mathbf{q}}_{k-1}
+            \qhat_{0} & \cdots & \qhat_{k-1}
             \\ &&
             \end{array}\right]
             \odot
@@ -528,9 +536,9 @@ class QuadraticOperator(_BaseNonparametricOperator):
             =
             \left[\begin{array}{ccc}
             && \\
-            \widehat{\mathbf{q}}_{0} \otimes \widehat{\mathbf{p}}_{0}
+            \qhat_{0} \otimes \widehat{\mathbf{p}}_{0}
             & \cdots &
-            \widehat{\mathbf{q}}_{k-1} \otimes \widehat{\mathbf{p}}_{k-1}
+            \qhat_{k-1} \otimes \widehat{\mathbf{p}}_{k-1}
             \\ &&
             \end{array}\right].
 
@@ -568,16 +576,16 @@ class QuadraticOperator(_BaseNonparametricOperator):
 
 class CubicOperator(_BaseNonparametricOperator):
     r"""Cubic state operator
-    :math:`\widehat{\mathbf{G}} \in \mathbb{R}^{r \times r^{3}}`
+    :math:`\widehat{\mathbf{G}} \in \RR^{r \times r^{3}}`
     repesenting the action
-    :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-    \widehat{\mathbf{G}}[\widehat{\mathbf{q}}
-    \otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]`.
+    :math:`(\qhat,\u)\mapsto
+    \widehat{\mathbf{G}}[\qhat
+    \otimes\qhat\otimes\qhat]`.
 
     Internally, the action of the operator is computed as the product of a
     :math:`r \times r(r+1)(r+2)/6` matrix and a compressed version of the
-    triple Kronecker product :math:`\widehat{\mathbf{q}} \otimes
-    \widehat{\mathbf{q}} \otimes \widehat{\mathbf{q}}`.
+    triple Kronecker product :math:`\qhat \otimes
+    \qhat \otimes \qhat`.
 
     Examples
     --------
@@ -592,6 +600,7 @@ class CubicOperator(_BaseNonparametricOperator):
     >>> np.allclose(out, entries @ np.kron(q, np.kron(q, q)))
     True
     """
+
     @staticmethod
     def _str(statestr, inputstr=None):
         return f"G[{statestr} ⊗ {statestr} ⊗ {statestr}]"
@@ -628,7 +637,7 @@ class CubicOperator(_BaseNonparametricOperator):
 
         # Precompute compressed Kronecker product mask and Jacobian tensor.
         self._mask = utils.kron3c_indices(r)
-        Gt = utils.expand_cubic(entries).reshape([r]*4)
+        Gt = utils.expand_cubic(entries).reshape([r] * 4)
         self._jac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
 
         _BaseNonparametricOperator.set_entries(self, entries)
@@ -636,9 +645,9 @@ class CubicOperator(_BaseNonparametricOperator):
     @_requires_entries
     def __call__(self, state_, input_=None):
         r"""Apply the operator mapping to the given state:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-        \widehat{\mathbf{G}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}
-        \otimes\widehat{\mathbf{q}}]`.
+        :math:`(\qhat,\u)\mapsto
+        \widehat{\mathbf{G}}[\qhat\otimes\qhat
+        \otimes\qhat]`.
 
         Parameters
         ----------
@@ -651,27 +660,27 @@ class CubicOperator(_BaseNonparametricOperator):
         -------
         out : (r,) ndarray
             The evaluation :math:`\widehat{\mathbf{G}}
-            [\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}
-            \otimes\widehat{\mathbf{q}}]`.
+            [\qhat\otimes\qhat
+            \otimes\qhat]`.
         """
         if self.entries.shape[0] == 1:
-            return self.entries[0, 0] * state_**3           # r = 1.
+            return self.entries[0, 0] * state_**3  # r = 1.
         return self.entries @ np.prod(state_[self._mask], axis=1)
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_=None):                # pragma: no cover
+    def evaluate(self, state_, input_=None):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_, input_=None):
         r"""Evaluate the Jacobian of the operator:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
+        :math:`(\qhat,\u)\mapsto
         \widehat{\mathbf{G}}[
-        (\mathbf{I}\otimes\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}})
-        + (\widehat{\mathbf{q}}\otimes\mathbf{I}\otimes\widehat{\mathbf{q}})
-        + (\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}
-        \otimes\mathbf{I})^\mathsf{T}]`.
+        (\I\otimes\qhat\otimes\qhat)
+        + (\qhat\otimes\I\otimes\qhat)
+        + (\qhat\otimes\qhat
+        \otimes\I)\trp]`.
 
         Parameters
         ----------
@@ -692,8 +701,8 @@ class CubicOperator(_BaseNonparametricOperator):
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\widehat{\mathbf{G}} =
-        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{G}
-        (\mathbf{V}_{r}\otimes\mathbf{V}_{r}\otimes\mathbf{V}_{r})`.
+        \Wr\trp\mathbf{G}
+        (\Vr\otimes\Vr\otimes\Vr)`.
 
         Parameters
         ----------
@@ -707,6 +716,7 @@ class CubicOperator(_BaseNonparametricOperator):
         op : operator
             ``self`` or new ``CubicOperator`` object.
         """
+
         def _project(G, V, W):
             return W.T @ utils.expand_cubic(G) @ np.kron(V, np.kron(V, V))
 
@@ -716,37 +726,37 @@ class CubicOperator(_BaseNonparametricOperator):
     def datablock(states_, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
         the Khatri-Rao product of the state with itself three times:
-        :math:`\widehat{\mathbf{Q}}\odot\widehat{\mathbf{Q}}
-        \odot\widehat{\mathbf{Q}}`
-        where :math:`\widehat{\mathbf{Q}}` is the ``state_``.
+        :math:`\widehat{\Q}\odot\widehat{\Q}
+        \odot\widehat{\Q}`
+        where :math:`\widehat{\Q}` is the ``state_``.
 
         .. math::
             \min_{\widehat{\mathbf{G}}}\sum_{j=0}^{k-1}\left\|
             \widehat{\mathbf{G}}[
-            \widehat{\mathbf{q}}_{j}\otimes\widehat{\mathbf{q}}_{j}]
+            \qhat_{j}\otimes\qhat_{j}]
             - \widehat{\mathbf{y}}_{j}
             \right\|_{2}^{2}
             = \min_{\widehat{\mathbf{G}}}\left\|
             \widehat{\mathbf{G}}[
-            \widehat{\mathbf{Q}}
-            \odot \widehat{\mathbf{Q}}
-            \odot \widehat{\mathbf{Q}}]
+            \widehat{\Q}
+            \odot \widehat{\Q}
+            \odot \widehat{\Q}]
             - \widehat{\mathbf{Y}}
             \right\|_{F}^{2}.
 
-        Here, :math:`\widehat{\mathbf{Q}} = [~
-        \widehat{\mathbf{q}}_{0} ~~ \cdots ~~ \widehat{\mathbf{q}}_{k-1}
-        ~] \in \mathbb{R}^{r\times k}` is the ``state_``
+        Here, :math:`\widehat{\Q} = [~
+        \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
+        ~] \in \RR^{r\times k}` is the ``state_``
         and :math:`\widehat{\mathbf{Y}} = [~
         \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
-        ~]\in\mathbb{R}^{r \times k}`.
+        ~]\in\RR^{r \times k}`.
         The Khatri-Rao product :math:`\odot` is the Kronecker product applied
         columnwise:
 
         .. math::
             \left[\begin{array}{ccc}
             && \\
-            \widehat{\mathbf{q}}_{0} & \cdots & \widehat{\mathbf{q}}_{k-1}
+            \qhat_{0} & \cdots & \qhat_{k-1}
             \\ &&
             \end{array}\right]
             \odot
@@ -758,9 +768,9 @@ class CubicOperator(_BaseNonparametricOperator):
             =
             \left[\begin{array}{ccc}
             && \\
-            \widehat{\mathbf{q}}_{0} \otimes \widehat{\mathbf{p}}_{0}
+            \qhat_{0} \otimes \widehat{\mathbf{p}}_{0}
             & \cdots &
-            \widehat{\mathbf{q}}_{k-1} \otimes \widehat{\mathbf{p}}_{k-1}
+            \qhat_{k-1} \otimes \widehat{\mathbf{p}}_{k-1}
             \\ &&
             \end{array}\right].
 
@@ -799,10 +809,10 @@ class CubicOperator(_BaseNonparametricOperator):
 # Dependent on input but not on state =========================================
 class InputOperator(_BaseNonparametricOperator, _InputMixin):
     r"""Linear input operator
-    :math:`\widehat{\mathbf{B}} \in \mathbb{R}^{r \times m}`
+    :math:`\Bhat \in \RR^{r \times m}`
     representing the action
-    :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-    \widehat{\mathbf{B}}\mathbf{u}`.
+    :math:`(\qhat,\u)\mapsto
+    \Bhat\u`.
 
     Examples
     --------
@@ -847,8 +857,8 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
     @_requires_entries
     def __call__(self, state_, input_):
         r"""Apply the operator mapping to the given state:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})
-        \mapsto\widehat{\mathbf{B}}\mathbf{u}`.
+        :math:`(\qhat,\u)
+        \mapsto\Bhat\u`.
 
         Parameters
         ----------
@@ -860,26 +870,26 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
         Returns
         -------
         out : (r,) ndarray
-            The evaluation :math:`\widehat{\mathbf{B}}\mathbf{u}`.
+            The evaluation :math:`\Bhat\u`.
         """
         if self.entries.shape[1] == 1 and (dim := np.ndim(input_)) != 2:
             if self.entries.shape[0] == 1:
-                return self.entries[0, 0] * input_          # r = m = 1.
-            if dim == 1 and input_.size > 1:                # r, k > 1, m = 1.
+                return self.entries[0, 0] * input_  # r = m = 1.
+            if dim == 1 and input_.size > 1:  # r, k > 1, m = 1.
                 return np.outer(self.entries[:, 0], input_)
-            return self.entries[:, 0] * input_              # r > 1, m = k = 1.
-        return self.entries @ input_                        # m > 1.
+            return self.entries[:, 0] * input_  # r > 1, m = k = 1.
+        return self.entries @ input_  # m > 1.
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_):                     # pragma: no cover
+    def evaluate(self, state_, input_):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_=None, input_=None):
         r"""Evaluate the Jacobian of the operator, the zero matrix:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-        \mathbf{0}\in\mathbb{R}^{r\times r}`.
+        :math:`(\qhat,\u)\mapsto
+        \mathbf{0}\in\RR^{r\times r}`.
 
         Parameters
         ----------
@@ -899,8 +909,8 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
-        :math:`\widehat{\mathbf{B}} =
-        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{B}`.
+        :math:`\Bhat =
+        \Wr\trp\B`.
 
         Parameters
         ----------
@@ -915,7 +925,8 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
             ``self`` or new ``InputOperator`` object.
         """
         return _BaseNonparametricOperator.galerkin(
-            self, Vr, Wr, lambda B, V, W: W.T @ B)
+            self, Vr, Wr, lambda B, V, W: W.T @ B
+        )
 
     @staticmethod
     def datablock(states_, inputs):
@@ -923,20 +934,20 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
         the ``input_``.
 
         .. math::
-            \min_{\widehat{\mathbf{B}}}\sum_{j=0}^{k-1}\left\|
-            \widehat{\mathbf{B}}\mathbf{u}_{j}
+            \min_{\Bhat}\sum_{j=0}^{k-1}\left\|
+            \Bhat\u_{j}
             - \widehat{\mathbf{y}}_{j}
             \right\|_{2}^{2}
-            = \min_{\widehat{\mathbf{B}}}\left\|
-            \widehat{\mathbf{B}}\mathbf{U} - \widehat{\mathbf{Y}}
+            = \min_{\Bhat}\left\|
+            \Bhat\U - \widehat{\mathbf{Y}}
             \right\|_{F}^{2}.
 
-        Here, :math:`\mathbf{U} = [~
-        \mathbf{u}_{0} ~~ \cdots ~~ \mathbf{u}_{k-1}
-        ~] \in \mathbb{R}^{m\times k}` is the ``input_``
+        Here, :math:`\U = [~
+        \u_{0} ~~ \cdots ~~ \u_{k-1}
+        ~] \in \RR^{m\times k}` is the ``input_``
         and :math:`\widehat{\mathbf{Y}} = [~
         \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
-        ~]\in\mathbb{R}^{r \times k}`.
+        ~]\in\RR^{r \times k}`.
 
         Parameters
         ----------
@@ -976,10 +987,10 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
 # Dependent on state and input ================================================
 class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
     r"""Linear state / input interaction operator
-    :math:`\widehat{\mathbf{N}} \in \mathbb{R}^{r \times rm}`
+    :math:`\widehat{\mathbf{N}} \in \RR^{r \times rm}`
     representing the action
-    :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-    \widehat{\mathbf{N}}[\mathbf{u}\otimes\widehat{\mathbf{q}}]`.
+    :math:`(\qhat,\u)\mapsto
+    \widehat{\mathbf{N}}[\u\otimes\qhat]`.
 
     Examples
     --------
@@ -1015,8 +1026,9 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
 
         # Ensure that the operator has valid dimensions.
         if entries.ndim != 2:
-            raise ValueError("StateInputOperator entries must be "
-                             "two-dimensional")
+            raise ValueError(
+                "StateInputOperator entries must be two-dimensional"
+            )
         r, rm = entries.shape
         m = rm // r
         if rm != r * m:
@@ -1027,8 +1039,8 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
     @_requires_entries
     def __call__(self, state_, input_):
         r"""Apply the operator mapping to the given state:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
-        \widehat{\mathbf{N}}[\mathbf{u}\otimes\widehat{\mathbf{q}}]`.
+        :math:`(\qhat,\u)\mapsto
+        \widehat{\mathbf{N}}[\u\otimes\qhat]`.
 
         Parameters
         ----------
@@ -1041,32 +1053,32 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
         -------
         out : (r,) ndarray
             The evaluation :math:`\widehat{\mathbf{N}}[
-            \mathbf{u}\otimes\widehat{\mathbf{q}}]`.
+            \u\otimes\qhat]`.
         """
         # Determine if arguments represent one snapshot or several.
         multi = (sdim := np.ndim(state_)) > 1
         multi |= (idim := np.ndim(input_)) > 1
-        multi |= (self.shape[0] == 1 and sdim == 1 and state_.shape[0] > 1)
-        multi |= (self.shape[1] == 1 and idim == 1 and input_.shape[0] > 1)
+        multi |= self.shape[0] == 1 and sdim == 1 and state_.shape[0] > 1
+        multi |= self.shape[1] == 1 and idim == 1 and input_.shape[0] > 1
         single = not multi
 
         if self.shape[1] == 1:
-            return self.entries[0, 0] * input_ * state_     # r = m = 1.
+            return self.entries[0, 0] * input_ * state_  # r = m = 1.
         if single:
-            return self.entries @ np.kron(input_, state_)   # k = 1, rm > 1.
+            return self.entries @ np.kron(input_, state_)  # k = 1, rm > 1.
         Q_ = np.atleast_2d(state_)
         U = np.atleast_2d(input_)
-        return self.entries @ la.khatri_rao(U, Q_)          # k > 1, rm > 1.
+        return self.entries @ la.khatri_rao(U, Q_)  # k > 1, rm > 1.
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_):                     # pragma: no cover
+    def evaluate(self, state_, input_):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_, input_):
         r"""Evaluate the Jacobian of the operator:
-        :math:`(\widehat{\mathbf{q}},\mathbf{u})\mapsto
+        :math:`(\qhat,\u)\mapsto
         \sum_{i=1}^{m}u_{i}\widehat{\mathbf{N}}_{i}`, where
         :math:`\widehat{\mathbf{N}}
         =[~\widehat{\mathbf{N}}_{1}~~\cdots~~\widehat{\mathbf{N}}_{m}~]`.
@@ -1088,16 +1100,17 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
         u = np.atleast_1d(input_)
         if u.shape[0] != m:
             raise ValueError("invalid input_ shape")
-        return np.sum([
-            um*Nm for um, Nm in zip(u, np.split(self.entries, m, axis=1))
-        ], axis=0)
+        return np.sum(
+            [um * Nm for um, Nm in zip(u, np.split(self.entries, m, axis=1))],
+            axis=0,
+        )
 
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\widehat{\mathbf{N}} =
-        \mathbf{W}_{r}^{\mathsf{T}}\mathbf{N}
-        (\mathbf{I}_{m}\otimes\mathbf{V}_{r})`.
+        \Wr\trp\mathbf{N}
+        (\I_{m}\otimes\Vr)`.
 
         Parameters
         ----------
@@ -1111,6 +1124,7 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
         op : operator
             ``self`` or new ``CubicOperator`` object.
         """
+
         def _project(N, V, W):
             r, rm = N.shape
             m = rm // r
@@ -1124,52 +1138,52 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
         r"""Return the data matrix block corresponding to the operator,
         the Khatri-Rao product of the inputs and the states:
 
-        :math:`\mathbf{U}\odot\widehat{\mathbf{Q}}` where
-        :math:`\widehat{\mathbf{Q}}` is the ``state_`` and
-        :math:`\mathbf{U}` is the ``input_``.
+        :math:`\U\odot\widehat{\Q}` where
+        :math:`\widehat{\Q}` is the ``state_`` and
+        :math:`\U` is the ``input_``.
 
         .. math::
             \min_{\widehat{\mathbf{N}}}\sum_{j=0}^{k-1}\left\|
             \widehat{\mathbf{N}}[
-            \mathbf{u}_{j}\otimes\widehat{\mathbf{q}}_{j}]
+            \u_{j}\otimes\qhat_{j}]
             - \widehat{\mathbf{y}}_{j}
             \right\|_{2}^{2}
             = \min_{\widehat{\mathbf{N}}}\left\|
             \widehat{\mathbf{N}}[
-            \mathbf{U} \odot \widehat{\mathbf{Q}}]
+            \U \odot \widehat{\Q}]
             - \widehat{\mathbf{Y}}
             \right\|_{F}^{2}.
 
-        Here, :math:`\widehat{\mathbf{Q}} = [~
-        \widehat{\mathbf{q}}_{0} ~~ \cdots ~~ \widehat{\mathbf{q}}_{k-1}
-        ~] \in \mathbb{R}^{r\times k}` is the ``state_``,
-        :math:`\mathbf{U} = [~
-        \mathbf{u}_{0} ~~ \cdots ~~ \mathbf{u}_{k-1}
-        ~] \in \mathbb{R}^{m\times k}` is the ``input_``,
+        Here, :math:`\widehat{\Q} = [~
+        \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
+        ~] \in \RR^{r\times k}` is the ``state_``,
+        :math:`\U = [~
+        \u_{0} ~~ \cdots ~~ \u_{k-1}
+        ~] \in \RR^{m\times k}` is the ``input_``,
         and :math:`\widehat{\mathbf{Y}} = [~
         \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
-        ~]\in\mathbb{R}^{r \times k}`.
+        ~]\in\RR^{r \times k}`.
         The Khatri-Rao product :math:`\odot` is the Kronecker product applied
         columnwise:
 
         .. math::
             \left[\begin{array}{ccc}
             && \\
-            \mathbf{u}_{0} & \cdots & \mathbf{u}_{k-1}
+            \u_{0} & \cdots & \u_{k-1}
             \\ &&
             \end{array}\right]
             \odot
             \left[\begin{array}{ccc}
             && \\
-            \widehat{\mathbf{q}}_{0} & \cdots & \widehat{\mathbf{q}}_{k-1}
+            \qhat_{0} & \cdots & \qhat_{k-1}
             \\ &&
             \end{array}\right]
             =
             \left[\begin{array}{ccc}
             && \\
-            \mathbf{u}_{0} \otimes \widehat{\mathbf{q}}_{0}
+            \u_{0} \otimes \qhat_{0}
             & \cdots &
-            \mathbf{u}_{k-1} \otimes \widehat{\mathbf{q}}_{k-1}
+            \u_{k-1} \otimes \qhat_{k-1}
             \\ &&
             \end{array}\right].
 

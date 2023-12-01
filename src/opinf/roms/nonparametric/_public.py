@@ -16,7 +16,7 @@ from .._base import _BaseROM
 from ._base import _NonparametricOpInfROM
 
 
-class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
+class SteadyOpInfROM(_NonparametricOpInfROM):  # pragma: no cover
     """Reduced-order model for a nonparametric steady state problem:
 
         g = F(q).
@@ -48,6 +48,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
     c_, A_, H_ G_, B_ : Operator objects (see opinf.operators) or None
         Low-dimensional operators composing the reduced-order model.
     """
+
     _LHS_ARGNAME = "forcing"
     _LHS_LABEL = "g"
     _STATE_LABEL = "q"
@@ -69,8 +70,16 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         """
         return _BaseROM.evaluate(self, state_, None)
 
-    def fit(self, basis, states, forcing=None, *,
-            known_operators=None, solver=None, regularizer=None):
+    def fit(
+        self,
+        basis,
+        states,
+        forcing=None,
+        *,
+        known_operators=None,
+        solver=None,
+        regularizer=None,
+    ):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -104,10 +113,16 @@ class SteadyOpInfROM(_NonparametricOpInfROM):               # pragma: no cover
         self
         """
         if solver is None and regularizer is not None:
-            solver = regularizer                        # pragma: no cover
+            solver = regularizer  # pragma: no cover
         return _NonparametricOpInfROM.fit(
-            self, basis, states, forcing, inputs=None,
-            known_operators=known_operators, solver=solver)
+            self,
+            basis,
+            states,
+            forcing,
+            inputs=None,
+            known_operators=known_operators,
+            solver=solver,
+        )
 
     def predict(self, forcing, guess=None):
         raise NotImplementedError("TODO")
@@ -117,7 +132,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
     r"""Reduced-order model for a nonparametric discrete dynamical system:
 
     .. math::
-        \mathbf{q}_{j+1} = \mathbf{F}(\mathbf{q}_{j}, \mathbf{u}_{j}).
+        \q_{j+1} = \mathbf{F}(\q_{j}, \u_{j}).
 
     Here q is the state and u is the (optional) input. The structure of F(q, u)
     is user specified (modelform), and the corresponding low-dimensional
@@ -195,8 +210,17 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         """
         return _BaseROM.evaluate(self, state_, input_)
 
-    def fit(self, basis, states, nextstates=None, inputs=None, *,
-            known_operators=None, solver=None, regularizer=None):
+    def fit(
+        self,
+        basis,
+        states,
+        nextstates=None,
+        inputs=None,
+        *,
+        known_operators=None,
+        solver=None,
+        regularizer=None,
+    ):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -242,12 +266,18 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             nextstates = states[:, 1:]
             states = states[:, :-1]
         if inputs is not None:
-            inputs = inputs[..., :states.shape[1]]
+            inputs = inputs[..., : states.shape[1]]
         if solver is None and regularizer is not None:
-            solver = regularizer                        # pragma: no cover
+            solver = regularizer  # pragma: no cover
         return _NonparametricOpInfROM.fit(
-            self, basis, states, nextstates, inputs=inputs,
-            known_operators=known_operators, solver=solver)
+            self,
+            basis,
+            states,
+            nextstates,
+            inputs=inputs,
+            known_operators=known_operators,
+            solver=solver,
+        )
 
     def predict(self, state0, niters, inputs=None, decompress=True):
         """Step forward the learned ROM `niters` steps.
@@ -292,19 +322,20 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         states_[:, 0] = state0_.copy()
 
         # Run the iteration.
-        if 'B' in self.modelform:
+        if "B" in self.modelform:
             if callable(inputs):
                 raise TypeError("inputs must be NumPy array, not callable")
             # Validate shape of input, reshaping if input is 1d.
             U = np.atleast_2d(inputs)
             if U.ndim != 2 or U.shape[0] != self.m or U.shape[1] < niters - 1:
-                raise ValueError("inputs.shape = "
-                                 f"({U.shape} != {(self.m, niters-1)}")
+                raise ValueError(
+                    "inputs.shape = " f"({U.shape} != {(self.m, niters-1)}"
+                )
             for j in range(niters - 1):
-                states_[:, j+1] = self.evaluate(states_[:, j], U[:, j])
+                states_[:, j + 1] = self.evaluate(states_[:, j], U[:, j])
         else:
             for j in range(niters - 1):
-                states_[:, j+1] = self.evaluate(states_[:, j])
+                states_[:, j + 1] = self.evaluate(states_[:, j])
 
         # Return state results.
         if decompress and (self.basis is not None):
@@ -317,14 +348,14 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
     equations:
 
     .. math::
-        \frac{\textup{d}}{\textup{d}t} \mathbf{q}(t)
-        = \mathbf{F}(t, \mathbf{q}(t), \mathbf{u}(t)),
+        \frac{\textup{d}}{\textup{d}t} \q(t)
+        = \mathbf{F}(t, \q(t), \u(t)),
         \qquad
-        \mathbf{q}(0)
-        = \mathbf{q}_{0}.
+        \q(0)
+        = \q_{0}.
 
-    Here :math:`\mathbf{q}(t)\in\mathbb{R}^{n}` is the state and
-    :math:`\mathbf{u}(t)\in\mathbb{R}^{m}` is the (optional) input.
+    Here :math:`\q(t)\in\RR^{n}` is the state and
+    :math:`\u(t)\in\RR^{m}` is the (optional) input.
     The structure of :math:`\mathbf{F}` is specified via ``modelform``.
     """
     # Attributes
@@ -375,7 +406,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         dqdt_: (r,) ndarray
             Evaluation of the model.
         """
-        input_ = None if 'B' not in self.modelform else input_func(t)
+        input_ = None if "B" not in self.modelform else input_func(t)
         return _BaseROM.evaluate(self, state_, input_)
 
     def jacobian(self, t, state_, input_func=None):
@@ -397,11 +428,20 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         dFdq_: (r, r) ndarray
             Jacobian of the model.
         """
-        input_ = None if 'B' not in self.modelform else input_func(t)
+        input_ = None if "B" not in self.modelform else input_func(t)
         return _BaseROM.jacobian(self, state_, input_)
 
-    def fit(self, basis, states, ddts, inputs=None, *,
-            known_operators=None, solver=None, regularizer=None):
+    def fit(
+        self,
+        basis,
+        states,
+        ddts,
+        inputs=None,
+        *,
+        known_operators=None,
+        solver=None,
+        regularizer=None,
+    ):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -441,10 +481,16 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         self
         """
         if solver is None and regularizer is not None:
-            solver = regularizer                        # pragma: no cover
+            solver = regularizer  # pragma: no cover
         return _NonparametricOpInfROM.fit(
-            self, basis, states, ddts, inputs=inputs,
-            known_operators=known_operators, solver=solver)
+            self,
+            basis,
+            states,
+            ddts,
+            inputs=inputs,
+            known_operators=known_operators,
+            solver=solver,
+        )
 
     def predict(self, state0, t, input_func=None, decompress=True, **options):
         """Simulate the learned ROM with scipy.integrate.solve_ivp().
@@ -502,13 +548,14 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
         nt = t.shape[0]
 
         # Interpret control input argument `input_func`.
-        if 'B' in self.modelform:
+        if "B" in self.modelform:
             if not callable(input_func):
                 # input_func must be (m, nt) ndarray. Interploate -> callable.
                 U = np.atleast_2d(input_func)
                 if U.shape != (self.m, nt):
-                    raise ValueError("input_func.shape = "
-                                     f"{U.shape} != {(self.m, nt)}")
+                    raise ValueError(
+                        "input_func.shape = " f"{U.shape} != {(self.m, nt)}"
+                    )
                 input_func = CubicSpline(t, U, axis=1)
 
             # Check dimension of input_func() outputs.
@@ -516,28 +563,36 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             _shape = _tmp.shape if isinstance(_tmp, np.ndarray) else None
             if self.m == 1:
                 if not (np.isscalar(_tmp) or _shape == (1,)):
-                    raise ValueError("input_func() must return ndarray"
-                                     " of shape (m,) = (1,) or scalar")
+                    raise ValueError(
+                        "input_func() must return ndarray"
+                        " of shape (m,) = (1,) or scalar"
+                    )
             elif _shape != (self.m,):
-                raise ValueError("input_func() must return ndarray"
-                                 f" of shape (m,) = {(self.m,)}")
+                raise ValueError(
+                    "input_func() must return ndarray"
+                    f" of shape (m,) = {(self.m,)}"
+                )
 
         if "method" in options and options["method"] in (
             # These methods require the Jacobian.
-            "BDF", "Radau", "LSODA"
+            "BDF",
+            "Radau",
+            "LSODA",
         ):
             options["jac"] = self.jacobian
 
         # Integrate the reduced-order model.
-        out = solve_ivp(self.evaluate,          # Integrate this function
-                        [t[0], t[-1]],          # over this time interval
-                        state0_,                # from this initial condition
-                        args=(input_func,),     # with this input function
-                        t_eval=t,               # evaluated at these points
-                        **options)              # using these solver options.
+        out = solve_ivp(
+            self.evaluate,  # Integrate this function
+            [t[0], t[-1]],  # over this time interval
+            state0_,  # from this initial condition
+            args=(input_func,),  # with this input function
+            t_eval=t,  # evaluated at these points
+            **options,
+        )  # using these solver options.
 
         # Warn if the integration failed.
-        if not out.success:                     # pragma: no cover
+        if not out.success:  # pragma: no cover
             warnings.warn(out.message, IntegrationWarning)
 
         # Return state results.

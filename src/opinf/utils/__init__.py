@@ -29,24 +29,24 @@ Kronecker Products
 ==================
 
 The matrix-vector product
-:math:`\widehat{\mathbf{H}}[\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}]`,
-where :math:`\widehat{\mathbf{q}}\in\mathbb{R}^{r}` and
-:math:`\widehat{\mathbf{H}}\in\mathbb{R}^{r\times r^{2}}`,
+:math:`\Hhat[\qhat\otimes\qhat]`,
+where :math:`\qhat\in\RR^{r}` and
+:math:`\Hhat\in\RR^{r\times r^{2}}`,
 can be represented more compactly as
-:math:`\check{\mathbf{H}}[\widehat{\mathbf{q}}
-\ \widehat{\otimes}\ \widehat{\mathbf{q}}]`
-where $\check{\mathbf{H}}\in\mathbb{R}^{r\times r(r+1)/2}$ and
+:math:`\check{\H}[\qhat
+\ \widehat{\otimes}\ \qhat]`
+where $\check{\H}\in\RR^{r\times r(r+1)/2}$ and
 :math:`\widehat{\otimes}` is a compressed version of the Kronecker product.
 Specifically, if
-:math:`\widehat{\mathbf{q}} = [\hat{q}_{1},\ldots,\hat{q}_{r}]^{\mathsf{T}}`,
-then the full Kronecker product of :math:`\widehat{\mathbf{q}}` with itself is
+:math:`\qhat = [\hat{q}_{1},\ldots,\hat{q}_{r}]\trp`,
+then the full Kronecker product of :math:`\qhat` with itself is
 
 .. math::
-    \widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}
+    \qhat\otimes\qhat
     = \left[\begin{array}{c}
-        \hat{q}_{1}\widehat{\mathbf{q}}
+        \hat{q}_{1}\qhat
         \\ \vdots \\
-        \hat{q}_{r}\widehat{\mathbf{q}}
+        \hat{q}_{r}\qhat
     \end{array}\right]
     =
     \left[\begin{array}{c}
@@ -60,20 +60,20 @@ then the full Kronecker product of :math:`\widehat{\mathbf{q}}` with itself is
         \hat{q}_{2}\hat{q}_{r} \\
         \vdots
         \hat{q}_{r}^{2}
-    \end{array}\right] \in\mathbb{R}^{r^{2}}.
+    \end{array}\right] \in\RR^{r^{2}}.
 
 The term :math:`\hat{q}_{1}\hat{q}_{2}` appears twice in the full Kronecker
-product :math:`\widehat{\mathbf{q}}\otimes\widehat{\mathbf{q}}`.
+product :math:`\qhat\otimes\qhat`.
 The compressed Kronecker product is defined here as
 
 .. math::
-    \widehat{\mathbf{q}}\ \widehat{\otimes}\ \widehat{\mathbf{q}}
+    \qhat\ \widehat{\otimes}\ \qhat
     = \left[\begin{array}{c}
         \hat{q}_{1}^2
         \\
-        \hat{q}_{2}\widehat{\mathbf{q}}_{1:2}
+        \hat{q}_{2}\qhat_{1:2}
         \\ \vdots \\
-        \hat{q}_{r}\widehat{\mathbf{q}}_{1:r}
+        \hat{q}_{r}\qhat_{1:r}
     \end{array}\right]
     = \left[\begin{array}{c}
         \hat{q}_{1}^2 \\
@@ -82,15 +82,15 @@ The compressed Kronecker product is defined here as
         \hat{q}_{1}\hat{q}_{r} \\ \hat{q}_{2}\hat{q}_{r}
         \\ \vdots \\ \hat{q}_{r}^{2}
     \end{array}\right]
-    \in \mathbb{R}^{r(r+1)/2},
+    \in \RR^{r(r+1)/2},
 
 where
 
 .. math::
-    \widehat{\mathbf{q}}_{1:i}
+    \qhat_{1:i}
     &= \left[\begin{array}{c}
         \hat{q}_{1} \\ \vdots \\ \hat{q}_{i}
-    \end{array}\right]\in\mathbb{R}^{i}.
+    \end{array}\right]\in\RR^{i}.
 
 The following functions facilitate compressed Kronecker products of this type.
 
