@@ -32,7 +32,7 @@ class ConstantOperator(_BaseNonparametricOperator):
     >>> c.set_entries(np.random.random(10))
     >>> c.shape
     (10,)
-    >>> out = c.evaluate()                      # "Evaluate" the operator.
+    >>> out = c.apply()                         # "Apply" the operator.
     >>> np.allclose(out, entries)
     True
     """
@@ -93,13 +93,13 @@ class ConstantOperator(_BaseNonparametricOperator):
         return self.entries  # r > 1, k = 1.
 
     @functools.wraps(__call__)
-    def evaluate(self, state_=None, input_=None):  # pragma: no cover
+    def apply(self, state_=None, input_=None):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_=None, input_=None):
-        r"""Evaluate the Jacobian of the operator, the zero matrix:
+        r"""Construct the state Jacobian of the operator, the zero matrix:
         :math:`(\qhat,\u)\mapsto
         \mathbf{0}\in\RR^{r\times r}`.
 
@@ -203,7 +203,7 @@ class LinearOperator(_BaseNonparametricOperator):
     >>> A.shape
     (10, 10)
     >>> q = np.random.random(10)                # State vector.
-    >>> out = A.evaluate(q)                     # Compute Aq.
+    >>> out = A.apply(q)                        # Apply the operator to q.
     >>> np.allclose(out, entries @ q)
     True
     """
@@ -255,13 +255,13 @@ class LinearOperator(_BaseNonparametricOperator):
         return self.entries @ state_  # r > 1.
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_=None):  # pragma: no cover
+    def apply(self, state_, input_=None):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_=None, input_=None):
-        r"""Evaluate the Jacobian of the operator, the operator entries:
+        r"""Construct the state Jacobian of the operator, the operator entries:
         :math:`(\qhat,\u)\mapsto\Ahat`.
 
         Parameters
@@ -370,7 +370,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
     >>> H.shape                                 # Compressed shape.
     (10, 55)
     >>> q = np.random.random(10)                # State vector.
-    >>> out = H.evaluate(q)                     # Compute H[q ⊗ q].
+    >>> out = H.apply(q)                        # Apply the operator to q.
     >>> np.allclose(out, entries @ np.kron(q, q))
     True
     """
@@ -442,13 +442,13 @@ class QuadraticOperator(_BaseNonparametricOperator):
         return self.entries @ np.prod(state_[self._mask], axis=1)
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_=None):  # pragma: no cover
+    def apply(self, state_, input_=None):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_, input_=None):
-        r"""Evaluate the Jacobian of the operator:
+        r"""Construct the state Jacobian of the operator:
         :math:`(\qhat,\u)\mapsto
         \Hhat[
         (\I\otimes\qhat)
@@ -596,7 +596,7 @@ class CubicOperator(_BaseNonparametricOperator):
     >>> G.shape                                 # Compressed shape.
     (10, 220)
     >>> q = np.random.random(10)                # State vector.
-    >>> out = G.evaluate(q)                     # Compute G[q ⊗ q ⊗ q].
+    >>> out = G.apply(q)                        # Apply the operator to q.
     >>> np.allclose(out, entries @ np.kron(q, np.kron(q, q)))
     True
     """
@@ -668,13 +668,13 @@ class CubicOperator(_BaseNonparametricOperator):
         return self.entries @ np.prod(state_[self._mask], axis=1)
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_=None):  # pragma: no cover
+    def apply(self, state_, input_=None):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_, input_=None):
-        r"""Evaluate the Jacobian of the operator:
+        r"""Construct the state Jacobian of the operator:
         :math:`(\qhat,\u)\mapsto
         \widehat{\mathbf{G}}[
         (\I\otimes\qhat\otimes\qhat)
@@ -823,7 +823,7 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
     >>> B.shape
     (10, 3)
     >>> u = np.random.random(3)                 # Input vector.
-    >>> out = B.evaluate(u)                     # Compute Bu.
+    >>> out = B.apply(None, u)                  # Apply the operator to u.
     >>> np.allclose(out, entries @ u)
     True
     """
@@ -881,13 +881,13 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
         return self.entries @ input_  # m > 1.
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_):  # pragma: no cover
+    def apply(self, state_, input_):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_=None, input_=None):
-        r"""Evaluate the Jacobian of the operator, the zero matrix:
+        r"""Construct the state Jacobian of the operator, the zero matrix:
         :math:`(\qhat,\u)\mapsto
         \mathbf{0}\in\RR^{r\times r}`.
 
@@ -1002,7 +1002,7 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
     (10, 3)
     >>> q = np.random.random(10)                # State vector.
     >>> u = np.random.random(3)                 # Input vector.
-    >>> out = B.evaluate(u)                     # Compute N[u ⊗ q].
+    >>> out = N.apply(q, u)                     # Apply the operator to (q,u).
     >>> np.allclose(out, entries @ np.kron(u, q))
     True
     """
@@ -1071,13 +1071,13 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
         return self.entries @ la.khatri_rao(U, Q_)  # k > 1, rm > 1.
 
     @functools.wraps(__call__)
-    def evaluate(self, state_, input_):  # pragma: no cover
+    def apply(self, state_, input_):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
 
     @_requires_entries
     def jacobian(self, state_, input_):
-        r"""Evaluate the Jacobian of the operator:
+        r"""apply the Jacobian of the operator:
         :math:`(\qhat,\u)\mapsto
         \sum_{i=1}^{m}u_{i}\widehat{\mathbf{N}}_{i}`, where
         :math:`\widehat{\mathbf{N}}

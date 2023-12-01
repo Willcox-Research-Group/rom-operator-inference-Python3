@@ -14,6 +14,7 @@ _module = opinf.operators_new._base
 
 def test_requires_entries():
     """Test _requires_entries(), a decorator."""
+
     class Dummy:
         def __init__(self):
             self.entries = None
@@ -25,8 +26,10 @@ def test_requires_entries():
     dummy = Dummy()
     with pytest.raises(RuntimeError) as ex:
         dummy.required()
-    assert ex.value.args[0] == \
-        "operator entries have not been set, call set_entries() first"
+    assert (
+        ex.value.args[0] == "operator entries have not been set, "
+        "call set_entries() first"
+    )
 
     dummy.entries = 0
     assert dummy.required() == 1
@@ -35,8 +38,10 @@ def test_requires_entries():
 # Nonparametric operators =====================================================
 class TestBaseNonparametricOperator:
     """Test operators._nonparametric._BaseNonparametricOperator."""
+
     class Dummy(_module._BaseNonparametricOperator):
         """Instantiable version of _BaseNonparametricOperator."""
+
         def _str(*args, **kwargs):
             pass
 
@@ -47,8 +52,8 @@ class TestBaseNonparametricOperator:
         def __call__(*args, **kwargs):
             pass
 
-        def evaluate(*args, **kwargs):
-            pass
+        def apply(self, *args, **kwargs):
+            return self(*args, **kwargs)
 
         @_module._requires_entries
         def jacobian(*args, **kwargs):
@@ -65,6 +70,7 @@ class TestBaseNonparametricOperator:
 
     class Dummy2(Dummy):
         """A distinct instantiable version of _BaseNonparametricOperator."""
+
         pass
 
     def test_init(self):
@@ -74,19 +80,25 @@ class TestBaseNonparametricOperator:
 
         # Check _requires_entries decorator working within these classes.
         with pytest.raises(RuntimeError) as ex:
-            op.evaluate(5)
-        assert ex.value.args[0] == \
-            "operator entries have not been set, call set_entries() first"
+            op.apply(5)
+        assert (
+            ex.value.args[0] == "operator entries have not been set, "
+            "call set_entries() first"
+        )
 
         with pytest.raises(RuntimeError) as ex:
             op(5)
-        assert ex.value.args[0] == \
-            "operator entries have not been set, call set_entries() first"
+        assert (
+            ex.value.args[0] == "operator entries have not been set, "
+            "call set_entries() first"
+        )
 
         with pytest.raises(RuntimeError) as ex:
             op.jacobian(5)
-        assert ex.value.args[0] == \
-            "operator entries have not been set, call set_entries() first"
+        assert (
+            ex.value.args[0] == "operator entries have not been set, "
+            "call set_entries() first"
+        )
 
         A = np.random.random((10, 11))
         op = self.Dummy(A)
@@ -94,7 +106,7 @@ class TestBaseNonparametricOperator:
 
         # These should be callable now.
         op()
-        op.evaluate()
+        op.apply()
         op.jacobian()
 
     def test_validate_entries(self):
@@ -191,7 +203,7 @@ class TestBaseNonparametricOperator:
     # Model persistence -------------------------------------------------------
     def test_save(self, target="_baseoperatorsavetest.h5"):
         """Test _BaseNonparametricOperator.save()."""
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         op = self.Dummy()
@@ -219,7 +231,7 @@ class TestBaseNonparametricOperator:
 
     def test_load(self, target="_baseoperatorloadtest.h5"):
         """Test _BaseNonparametricOperator.load()."""
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         op1 = self.Dummy()
@@ -237,8 +249,10 @@ class TestBaseNonparametricOperator:
 
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             Dummy2.load(target)
-        assert ex.value.args[0] == \
-            f"file '{target}' contains 'Dummy' object, use 'Dummy.load()"
+        assert (
+            ex.value.args[0] == f"file '{target}' contains 'Dummy' object, "
+            "use 'Dummy.load()"
+        )
 
         os.remove(target)
 
@@ -246,12 +260,14 @@ class TestBaseNonparametricOperator:
 # Parametric operators ========================================================
 # TODO
 
+
 # Mixin for operators acting on inputs ========================================
 def test_is_input_operator():
     """Test operators._base._is_input_operator."""
 
     class Dummy(_module._InputMixin):
         """Instantiable verison of _InputMixin."""
+
         def m(self):
             pass
 

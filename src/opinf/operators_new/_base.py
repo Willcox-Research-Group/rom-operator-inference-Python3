@@ -161,7 +161,8 @@ class _BaseNonparametricOperator(abc.ABC):
 
     @abc.abstractmethod
     def jacobian(self, state_, input_=None):  # pragma: no cover
-        """Construct the Jacobian of the operator at the given state / input.
+        r"""Construct the state Jacobian of the operator,
+        :math:`\frac{\textrm{d}}{\textrm{d}\qhat}\mathcal{F}(\qhat,\u)`.
 
         Parameters
         ----------
@@ -185,20 +186,16 @@ class _BaseNonparametricOperator(abc.ABC):
         :math:`(\q,\u)\mapsto
         \mathbf{F}(\q,\u)`,
         then the Galerkin projection of the operator is the evaluation
-        :math:`(\qhat,\u)\mapsto
-        \Wr\trp
-        \mathbf{F}(\Vr\qhat,\u)`,
+        :math:`(\qhat,\u)\mapsto\Wr\trp\mathbf{F}(\Vr\qhat,\u)`,
         where :math:`\q\in\RR^{n}` is the full-order state,
         :math:`\u\in\RR^{m}` is the input,
-        :math:`\qhat\in\RR^{r}`
-        is the reduced-order state, and
-        :math:`\q\approx\Vr\qhat_{r}` is the
-        reduced-order approximation of the full-order state, with trial basis
-        :math:`\Vr\in\RR^{n \times r}` (``Vr``) and test
-        basis :math:`\Wr\in\RR^{n \times r}` (``Wr``).
-        Usually :math:`\Wr = \Vr`, which results in a
-        _Galerkin projection_. If :math:`\Wr \neq \Vr`,
-        it is called a _Petrov-Galerkin projection_.
+        :math:`\qhat\in\RR^{r}` is the reduced-order state, and
+        :math:`\q\approx\Vr\qhat_{r}` is the reduced-order approximation
+        of the full-order state, with trial basis
+        :math:`\Vr\in\RR^{n \times r}` (``Vr``)
+        and test basis :math:`\Wr\in\RR^{n \times r}` (``Wr``).
+        If :math:`\Wr = \Vr`, the result is a _Galerkin projection_.
+        If :math:`\Wr \neq \Vr`, it is called a _Petrov-Galerkin projection_.
 
         For example, consider the linear full-order operator
         :math:`(\q,\u)\mapsto\A\q` where

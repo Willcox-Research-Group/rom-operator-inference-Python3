@@ -14,6 +14,7 @@ _module = opinf.operators_new._nonparametric
 # No dependence on state or input =============================================
 class TestConstantOperator:
     """Test operators._nonparametric.ConstantOperator."""
+
     _OpClass = _module.ConstantOperator
 
     def test_str(self):
@@ -31,8 +32,10 @@ class TestConstantOperator:
         cbad = np.arange(12).reshape((4, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(cbad)
-        assert ex.value.args[0] == \
-            "ConstantOperator entries must be one-dimensional"
+        assert (
+            ex.value.args[0] == "ConstantOperator entries must be "
+            "one-dimensional"
+        )
 
         # Case 1: one-dimensional array.
         c = np.arange(12)
@@ -54,21 +57,21 @@ class TestConstantOperator:
         assert op.shape == (1,)
         assert op.entries[0] == c
 
-    def test_evaluate(self, k=20):
-        """Test ConstantOperator.evaluate()/__call__()."""
+    def test_apply(self, k=20):
+        """Test ConstantOperator.apply()/__call__()."""
         op = self._OpClass()
 
         def _test_single(r):
             c = np.random.random(r)
             op.set_entries(c)
-            assert np.allclose(op.evaluate(), c)
+            assert np.allclose(op.apply(), c)
             # Evaluation for a single vector.
             q = np.random.random(r)
-            assert np.allclose(op.evaluate(q), op.entries)
+            assert np.allclose(op.apply(q), op.entries)
             # Vectorized evaluation.
             Q = np.random.random((r, k))
             ccc = np.column_stack([c for _ in range(k)])
-            out = op.evaluate(Q)
+            out = op.apply(Q)
             assert out.shape == (r, k)
             assert np.all(out == ccc)
 
@@ -81,12 +84,12 @@ class TestConstantOperator:
         op.set_entries(c)
         # Evaluation for a single vector.
         q = np.random.random()
-        out = op.evaluate(q)
+        out = op.apply(q)
         assert np.isscalar(out)
         assert out == c
         # Vectorized evaluation.
         Q = np.random.random(k)
-        out = op.evaluate(Q)
+        out = op.apply(Q)
         assert out.shape == (k,)
         assert np.all(out == c)
 
@@ -117,8 +120,8 @@ class TestConstantOperator:
         assert op_.shape == (r,)
         for _ in range(ntrials):
             q_ = np.random.random(r)
-            full = Wr.T @ op.evaluate(Vr @ q_)
-            reduced = op_.evaluate(q_)
+            full = Wr.T @ op.apply(Vr @ q_)
+            reduced = op_.apply(q_)
             assert np.allclose(reduced, full)
 
     def test_datablock(self, k=20):
@@ -144,6 +147,7 @@ class TestConstantOperator:
 # Dependent on state but not on input =========================================
 class TestLinearOperator:
     """Test operators._nonparametric.LinearOperator."""
+
     _OpClass = _module.LinearOperator
 
     def test_str(self):
@@ -160,15 +164,18 @@ class TestLinearOperator:
         Abad = np.arange(12).reshape((2, 2, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Abad)
-        assert ex.value.args[0] == \
-            "LinearOperator entries must be two-dimensional"
+        assert (
+            ex.value.args[0] == "LinearOperator entries must be "
+            "two-dimensional"
+        )
 
         # Nonsquare.
         Abad = Abad.reshape((4, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Abad)
-        assert ex.value.args[0] == \
-            "LinearOperator entries must be square (r x r)"
+        assert (
+            ex.value.args[0] == "LinearOperator entries must be square (r x r)"
+        )
 
         # Correct square usage.
         A = Abad[:3, :3]
@@ -181,8 +188,8 @@ class TestLinearOperator:
         assert op.shape == (1, 1)
         assert op[0, 0] == a
 
-    def test_evaluate(self, k=20):
-        """Test LinearOperator.evaluate()/__call__()."""
+    def test_apply(self, k=20):
+        """Test LinearOperator.apply()/__call__()."""
         op = self._OpClass()
 
         def _test_single(r):
@@ -190,10 +197,10 @@ class TestLinearOperator:
             op.set_entries(A)
             # Evaluation for a single vector.
             q = np.random.random(r)
-            assert np.allclose(op.evaluate(q), A @ q)
+            assert np.allclose(op.apply(q), A @ q)
             # Vectorized evaluation.
             Q = np.random.random((r, k))
-            assert np.allclose(op.evaluate(Q), A @ Q)
+            assert np.allclose(op.apply(Q), A @ Q)
 
         _test_single(10)
         _test_single(4)
@@ -233,8 +240,8 @@ class TestLinearOperator:
         assert op_.shape == (r, r)
         for _ in range(ntrials):
             q_ = np.random.random(r)
-            full = Wr.T @ op.evaluate(Vr @ q_)
-            reduced = op_.evaluate(q_)
+            full = Wr.T @ op.apply(Vr @ q_)
+            reduced = op_.apply(q_)
             assert np.allclose(reduced, full)
 
     def test_datablock(self, m=3, k=20, r=10):
@@ -260,6 +267,7 @@ class TestLinearOperator:
 
 class TestQuadraticOperator:
     """Test operators._nonparametric.QuadraticOperator."""
+
     _OpClass = _module.QuadraticOperator
 
     def test_str(self):
@@ -276,15 +284,18 @@ class TestQuadraticOperator:
         Hbad = np.arange(16).reshape((2, 2, 2, 2))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Hbad)
-        assert ex.value.args[0] == \
-            "QuadraticOperator entries must be two-dimensional"
+        assert (
+            ex.value.args[0] == "QuadraticOperator entries must be "
+            "two-dimensional"
+        )
 
         # Two-dimensional but invalid shape.
         Hbad = Hbad.reshape((r, r))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Hbad)
-        assert ex.value.args[0] == \
-            "invalid QuadraticOperator entries dimensions"
+        assert (
+            ex.value.args[0] == "invalid QuadraticOperator entries dimensions"
+        )
 
         # Special case: r = 1, H a scalar.
         H = np.random.random()
@@ -297,7 +308,7 @@ class TestQuadraticOperator:
         H = np.random.random((r, r**2))
         H_ = opinf.utils.compress_quadratic(H)
         op.set_entries(H)
-        r2_ = r*(r + 1)//2
+        r2_ = r * (r + 1) // 2
         assert op.shape == (r, r2_)
         assert np.allclose(op.entries, H_)
 
@@ -317,8 +328,8 @@ class TestQuadraticOperator:
         assert op._mask is None
         assert op._jac is None
 
-    def test_evaluate(self, k=10, ntrials=10):
-        """Test QuadraticOperator.evaluate()/__call__()."""
+    def test_apply(self, k=10, ntrials=10):
+        """Test QuadraticOperator.apply()/__call__()."""
         op = self._OpClass()
 
         def _test_single(r):
@@ -328,13 +339,13 @@ class TestQuadraticOperator:
                 # Evaluation for a single vector.
                 q = np.random.random(r)
                 evaltrue = H @ np.kron(q, q)
-                evalgot = op.evaluate(q)
+                evalgot = op.apply(q)
                 assert evalgot.shape == (r,)
                 assert np.allclose(evalgot, evaltrue)
                 # Vectorized evaluation.
                 Q = np.random.random((r, k))
                 evaltrue = H @ la.khatri_rao(Q, Q)
-                evalgot = op.evaluate(Q)
+                evalgot = op.apply(Q)
                 assert evalgot.shape == (r, k)
                 assert np.allclose(evalgot, evaltrue)
 
@@ -349,13 +360,13 @@ class TestQuadraticOperator:
             # Evaluation for a single vector.
             q = np.random.random()
             evaltrue = H * q**2
-            evalgot = op.evaluate(q)
+            evalgot = op.apply(q)
             assert np.isscalar(evalgot)
             assert np.isclose(evalgot, evaltrue)
             # Vectorized evaluation.
             Q = np.random.random(k)
             evaltrue = H * Q**2
-            evalgot = op.evaluate(Q)
+            evalgot = op.apply(Q)
             assert evalgot.shape == (k,)
             assert np.allclose(evalgot, evaltrue)
 
@@ -392,18 +403,18 @@ class TestQuadraticOperator:
         op = self._OpClass(H)
         op_ = op.galerkin(Vr, Wr)
         assert isinstance(op_, self._OpClass)
-        assert op_.shape == (r, r*(r + 1)//2)
+        assert op_.shape == (r, r * (r + 1) // 2)
         for _ in range(ntrials):
             q_ = np.random.random(r)
-            full = Wr.T @ op.evaluate(Vr @ q_)
-            reduced = op_.evaluate(q_)
+            full = Wr.T @ op.apply(Vr @ q_)
+            reduced = op_.apply(q_)
             assert np.allclose(reduced, full)
 
     def test_datablock(self, k=20, r=10):
         """Test QuadraticOperator.datablock()."""
         op = self._OpClass()
         state_ = np.random.random((r, k))
-        r2_ = r*(r + 1)//2
+        r2_ = r * (r + 1) // 2
 
         # More thorough tests elsewhere for _kronecker.kron2c().
         block = op.datablock(state_)
@@ -433,6 +444,7 @@ class TestQuadraticOperator:
 
 class TestCubicOperator:
     """Test operators._nonparametric.CubicOperator."""
+
     _OpClass = _module.CubicOperator
 
     def test_str(self):
@@ -449,8 +461,9 @@ class TestCubicOperator:
         Gbad = np.arange(4).reshape((1, 2, 1, 2))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Gbad)
-        assert ex.value.args[0] == \
-            "CubicOperator entries must be two-dimensional"
+        assert (
+            ex.value.args[0] == "CubicOperator entries must be two-dimensional"
+        )
 
         # Two-dimensional but invalid shape.
         Gbad = np.random.random((3, 8))
@@ -469,7 +482,7 @@ class TestCubicOperator:
         G = np.random.random((r, r**3))
         G_ = opinf.utils.compress_cubic(G)
         op.set_entries(G)
-        r3_ = r*(r + 1)*(r + 2)//6
+        r3_ = r * (r + 1) * (r + 2) // 6
         assert op.shape == (r, r3_)
         assert np.allclose(op.entries, G_)
 
@@ -489,8 +502,8 @@ class TestCubicOperator:
         assert op._mask is None
         assert op._jac is None
 
-    def test_evaluate(self, k=20, ntrials=10):
-        """Test CubicOperator.evaluate()/__call__()."""
+    def test_apply(self, k=20, ntrials=10):
+        """Test CubicOperator.apply()/__call__()."""
         op = self._OpClass()
 
         def _test_single(r):
@@ -500,12 +513,12 @@ class TestCubicOperator:
                 # Evaluation for a single vector.
                 q = np.random.random(r)
                 evaltrue = G @ np.kron(np.kron(q, q), q)
-                evalgot = op.evaluate(q)
+                evalgot = op.apply(q)
                 assert np.allclose(evalgot, evaltrue)
                 # Vectorized evaluation.
                 Q = np.random.random((r, k))
                 evaltrue = G @ la.khatri_rao(Q, la.khatri_rao(Q, Q))
-                evalgot = op.evaluate(Q)
+                evalgot = op.apply(Q)
                 assert evalgot.shape == (r, k)
                 assert np.allclose(evalgot, evaltrue)
 
@@ -520,13 +533,13 @@ class TestCubicOperator:
             # Evaluation for a single vector.
             q = np.random.random()
             evaltrue = G * q**3
-            evalgot = op.evaluate(q)
+            evalgot = op.apply(q)
             assert np.isscalar(evalgot)
             assert np.allclose(evalgot, evaltrue)
             # Vectorized evaluation.
             Q = np.random.random(k)
             evaltrue = G * Q**3
-            evalgot = op.evaluate(Q)
+            evalgot = op.apply(Q)
             assert evalgot.shape == (k,)
             assert np.allclose(evalgot, evaltrue)
 
@@ -567,18 +580,18 @@ class TestCubicOperator:
         op = self._OpClass(H)
         op_ = op.galerkin(Vr, Wr)
         assert isinstance(op_, self._OpClass)
-        assert op_.shape == (r, r*(r + 1)*(r + 2)//6)
+        assert op_.shape == (r, r * (r + 1) * (r + 2) // 6)
         for _ in range(ntrials):
             q_ = np.random.random(r)
-            full = Wr.T @ op.evaluate(Vr @ q_)
-            reduced = op_.evaluate(q_)
+            full = Wr.T @ op.apply(Vr @ q_)
+            reduced = op_.apply(q_)
             assert np.allclose(reduced, full)
 
     def test_datablock(self, k=20, r=10):
         """Test CubicOperator.datablock()."""
         op = self._OpClass()
         state_ = np.random.random((r, k))
-        r3_ = r*(r + 1)*(r + 2)//6
+        r3_ = r * (r + 1) * (r + 2) // 6
 
         # More thorough tests elsewhere for _kronecker.kron2c().
         block = op.datablock(state_)
@@ -609,6 +622,7 @@ class TestCubicOperator:
 # Dependent on input but not on state =========================================
 class TestInputOperator:
     """Test operators._nonparametric.InputOperator."""
+
     _OpClass = _module.InputOperator
 
     def test_str(self):
@@ -625,8 +639,9 @@ class TestInputOperator:
         Bbad = np.arange(12).reshape((2, 2, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Bbad)
-        assert ex.value.args[0] == \
-            "InputOperator entries must be two-dimensional"
+        assert (
+            ex.value.args[0] == "InputOperator entries must be two-dimensional"
+        )
 
         # Nonsquare is OK.
         B = Bbad.reshape((4, 3))
@@ -653,8 +668,8 @@ class TestInputOperator:
         assert op.shape == (1, 1)
         assert op[0, 0] == b
 
-    def test_evaluate(self, k=20):
-        """Test InputOperator.evaluate()/__call__()."""
+    def test_apply(self, k=20):
+        """Test InputOperator.apply()/__call__()."""
         op = self._OpClass()
 
         def _test_single(r, m):
@@ -664,16 +679,16 @@ class TestInputOperator:
             q = np.random.random(r)
             u = np.random.random(m)
             evaltrue = B @ u
-            evalgot = op.evaluate(q, u)
+            evalgot = op.apply(q, u)
             assert evalgot.shape == (r,)
             assert np.allclose(evalgot, evaltrue)
             # Vectorized evaluation.
             Q = np.random.random((r, k))
             U = np.random.random((m, k))
             evaltrue = B @ U
-            evalgot = op.evaluate(Q, U)
+            evalgot = op.apply(Q, U)
             assert evalgot.shape == (r, k)
-            assert np.allclose(op.evaluate(Q, U), B @ U)
+            assert np.allclose(op.apply(Q, U), B @ U)
 
         _test_single(10, 2)
         _test_single(2, 5)
@@ -710,11 +725,11 @@ class TestInputOperator:
         U = np.random.random(k)
         out = op(None, U)
         assert out.shape == (r, k)
-        assert np.allclose(out, np.column_stack([B*u for u in U]))
+        assert np.allclose(out, np.column_stack([B * u for u in U]))
 
     def test_jacobian(self, r=9):
         """Test InputOperator.jacobian()."""
-        B = np.random.random((r, r-2))
+        B = np.random.random((r, r - 2))
         op = self._OpClass(B)
         jac = op.jacobian(np.random.random(r))
         assert jac.shape == (r, r)
@@ -733,8 +748,8 @@ class TestInputOperator:
         for _ in range(ntrials):
             q_ = np.random.random(r)
             u = np.random.random(m)
-            full = Wr.T @ op.evaluate(Vr @ q_, u)
-            reduced = op_.evaluate(q_, u)
+            full = Wr.T @ op.apply(Vr @ q_, u)
+            reduced = op_.apply(q_, u)
             assert np.allclose(reduced, full)
 
     def test_datablock(self, m=3, k=20, r=10):
@@ -762,6 +777,7 @@ class TestInputOperator:
 # Dependent on state and input ================================================
 class TestStateInputOperator:
     """Test operators._nonparametric.StateInputOperator."""
+
     _OpClass = _module.StateInputOperator
 
     def test_str(self):
@@ -778,19 +794,22 @@ class TestStateInputOperator:
         Nbad = np.arange(12).reshape((2, 2, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Nbad)
-        assert ex.value.args[0] == \
-            "StateInputOperator entries must be two-dimensional"
+        assert (
+            ex.value.args[0] == "StateInputOperator entries must be "
+            "two-dimensional"
+        )
 
         # Two-dimensional but invalid shape.
         Nbad = np.random.random((3, 7))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Nbad)
-        assert ex.value.args[0] == \
-            "invalid StateInputOperator entries dimensions"
+        assert (
+            ex.value.args[0] == "invalid StateInputOperator entries dimensions"
+        )
 
         # Correct dimensions.
         r, m = 5, 3
-        N = np.random.random((r, r*m))
+        N = np.random.random((r, r * m))
         op.set_entries(N)
         assert op.entries is N
         assert op.m == m
@@ -802,25 +821,25 @@ class TestStateInputOperator:
         assert op[0, 0] == n
         assert op.m == 1
 
-    def test_evaluate(self, k=20):
-        """Test StateInputOperator.evaluate()/__call__()."""
+    def test_apply(self, k=20):
+        """Test StateInputOperator.apply()/__call__()."""
         op = self._OpClass()
 
         def _test_single(r, m):
-            N = np.random.random((r, r*m))
+            N = np.random.random((r, r * m))
             op.set_entries(N)
             # Evaluation for a single vector.
             q = np.random.random(r)
             u = np.random.random(m)
             evaltrue = N @ np.kron(u, q)
-            evalgot = op.evaluate(q, u)
+            evalgot = op.apply(q, u)
             assert evalgot.shape == (r,)
             assert np.allclose(evalgot, evaltrue)
             # Vectorized evaluation.
             Q = np.random.random((r, k))
             U = np.random.random((m, k))
             evaltrue = N @ la.khatri_rao(U, Q)
-            evalgot = op.evaluate(Q, U)
+            evalgot = op.apply(Q, U)
             assert evalgot.shape == (r, k)
             assert np.allclose(evalgot, evaltrue)
 
@@ -862,8 +881,9 @@ class TestStateInputOperator:
         U = np.random.random(k)
         out = op(Q, U)
         assert out.shape == (r, k)
-        assert np.allclose(out, np.column_stack([N @ q * u
-                                                 for q, u in zip(Q.T, U)]))
+        assert np.allclose(
+            out, np.column_stack([N @ q * u for q, u in zip(Q.T, U)])
+        )
 
     def test_jacobian(self, r=9, m=4, ntrials=10):
         """Test StateInputOperator.jacobian()."""
@@ -872,7 +892,7 @@ class TestStateInputOperator:
         op = self._OpClass(N)
 
         with pytest.raises(ValueError) as ex:
-            op.jacobian(np.random.random(r), np.random.random(m-1))
+            op.jacobian(np.random.random(r), np.random.random(m - 1))
         assert ex.value.args[0] == "invalid input_ shape"
 
         for _ in range(ntrials):
@@ -920,17 +940,17 @@ class TestStateInputOperator:
         """Test StateInputOperator.galerkin()."""
         Vr = np.random.random((n, r))
         Wr = np.random.random((n, r))
-        N = np.random.random((n, n*m))
+        N = np.random.random((n, n * m))
 
         op = self._OpClass(N)
         op_ = op.galerkin(Vr, Wr)
         assert isinstance(op_, self._OpClass)
-        assert op_.shape == (r, r*m)
+        assert op_.shape == (r, r * m)
         for _ in range(ntrials):
             q_ = np.random.random(r)
             u = np.random.random(m)
-            full = Wr.T @ op.evaluate(Vr @ q_, u)
-            reduced = op_.evaluate(q_, u)
+            full = Wr.T @ op.apply(Vr @ q_, u)
+            reduced = op_.apply(q_, u)
             assert np.allclose(reduced, full)
 
     def test_datablock(self, m=3, k=20, r=10):

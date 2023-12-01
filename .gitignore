@@ -46,3 +46,6 @@ html/
 # Data files
 *.h5
 *.np[yz]
+
+# Other
+.markdownlint.json
