@@ -17,6 +17,7 @@ html:
   home_page_in_navbar: false
   use_edit_page_button: false
   use_issues_button: true
+  use_multitoc_numbering: false
   use_repository_button: true
   favicon: images/favicon.svg
 
@@ -53,6 +54,27 @@ sphinx:
     #   "numpy": ("https://numpy.org/devdocs", None),
     #   "matplotlib": ("https://matplotlib.org/stable", None),
     # }
+    mathjax3_config:
+      tex:
+        macros:
+          "trp": "{^{\\mathsf{T}}}"                   # transpose
+          "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"  # time derivative
+          "R": "\\mathbb{R}"                          # reals
+          "q": "\\mathbf{q}"                          # state vector
+          "u": "\\mathbf{u}"                          # input vector
+          "Q": "\\mathbf{q}"                          # state data
+          "U": "\\mathbf{u}"                          # input data
+          "ohat": "\\widehat{\\mathbf{o}}"            # operator vector
+          "Ohat": "\\widehat{\\mathbf{O}}"            # operator matrix
+          "c": "\\mathbf{c}"                          # constant operator
+          "A": "\\mathbf{A}"                          # linear operator
+          "H": "\\mathbf{H}"                          # quadratic operator
+          "B": "\\mathbf{H}"                          # input operator
+          "bfmu": "\\boldsymbol{mu}"                  # parameter vector
+          "bfGamma": "\\boldsymbol{Gamma}"            # regularization matrix
+          "bfPhi": "\\boldsymbol{Phi}"                # left singular vectors
+          "bfSigma": "\\boldsymbol{Sigma}"            # singular values
+          "bfPsi": "\\boldsymbol{Psi}"                # right singular vectors
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     numfig_secnum_depth: 1              # Eq (1.1) instead of (1).
     numpydoc_class_members_toctree: false
