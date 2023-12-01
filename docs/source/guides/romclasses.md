@@ -1,4 +1,3 @@
-(sec-romclasses)=
 # Reduced-order Model Design
 
 The `opinf` module provides several classes for representing reduced-order models (ROMs).
@@ -14,7 +13,7 @@ Operators are calibrated through a least-squares regression of available state a
 import opinf
 
 # Specify the ROM structure through a list of operators.
-rom = opinf.ContinuousOpInfROM(
+rom = opinf.ContinuousROM(
     basis=basis,
     operators=[
         opinf.operators.LinearOperator(),
@@ -28,6 +27,7 @@ rom.fit(state_snapshots, state_time_derivatives, corresponding_inputs)
 # Compute solutions of the ROM.
 result = rom.predict(initial_condition, time_domain, input_function)
 ```
+
 :::
 
 :::{admonition} Notation
@@ -85,7 +85,7 @@ and a set of ODEs is defined for each $\qhat_{\ell}(t)$, $\ell=0,\ldots,d-1$.
 
 | ROM Type | `opinf` Class | Reduced-order Dynamics |
 | :------- | :------------ | :--------------------- |
-| Monolithic Nonparametric  | [**`ContinuousROM`**](opinf.ContinuousOpInfROM) | $\frac{\text{d}}{\text{d}t}\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))$ |
+| Monolithic Nonparametric  | [**`ContinuousROM`**](opinf.ContinuousROM) | $\frac{\text{d}}{\text{d}t}\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))$ |
 | Monolithic Parametric     | **`ContinuousPROM`** | $\frac{\text{d}}{\text{d}t}\qhat(t;\mu) = \widehat{\mathbf{F}}(\qhat(t;\mu), \u(t); \mu)$ |
 | Multilithic Nonparametric | **`ContinuousROMMulti`** | $\frac{\text{d}}{\text{d}t}\qhat_{\ell}(t) = \widehat{\mathbf{F}}_{\ell}(\qhat(t), \u(t)),\quad\ell=1,\ldots,d-1$ |
 | Multilithic Parametric | **`ContinuousPROMMulti`** | $\frac{\text{d}}{\text{d}t}\qhat_{\ell}(t;\mu) = \widehat{\mathbf{F}}_{\ell}(\qhat(t;\mu), \u(t); \mu),\quad\ell=1,\ldots,d-1$ |
@@ -200,7 +200,7 @@ In the multilithic case, the reduced state is decomposed as $\qhat = [~\qhat\trp
 
 | ROM Type | `opinf` Class | Reduced-order Dynamics |
 | :------- | :------------ | :--------------------- |
-| Monolithic Nonparametric | [**`DiscreteROM`**](opinf.DiscreteOpInfROM) | $\qhat^{(j+1)} = \widehat{\mathbf{F}}(\qhat^{(j)}, \u^{(j)})$ |
+| Monolithic Nonparametric | [**`DiscreteROM`**](opinf.DiscreteROM) | $\qhat^{(j+1)} = \widehat{\mathbf{F}}(\qhat^{(j)}, \u^{(j)})$ |
 | Monolithic Parametric    | **`DiscretePROM`** | $\qhat^{(j+1)}(\mu) = \widehat{\mathbf{F}}(\qhat^{(j)}(\mu), \u^{(j)}; \mu)$ |
 | Multilithic Nonparametric | **`DiscreteROMMulti`** | $\qhat_{\ell}^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\qhat^{(j)}, \u^{(j)}),\quad\ell=1,\ldots,d-1$ |
 | Multilithic Parametric | **`DiscretePROMMulti`** | $\qhat_{\ell}(\mu)^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\qhat(\mu)^{(j)}, \u^{(j)}; \mu),\quad\ell=1,\ldots,d-1$ |
@@ -208,6 +208,7 @@ In the multilithic case, the reduced state is decomposed as $\qhat = [~\qhat\trp
 <!-- TODO: Steady-state Problems -->
 
 (sec-operator-classes)=
+
 ## Operator Classes
 
 All ROM classes are initialized with two arguments: a `basis` (usually a class from [**`opinf.basis`**](opinf.basis)) and a list of `operators` that define the structure of the reduced-order model dynamics, i.e., the function $\widehat{\mathbf{F}}$.
@@ -303,8 +304,8 @@ The API for these classes adopts some principles from the [scikit-learn](https:/
 
 In the following discussion we begin with the non-parametric ROM classes; parametric classes are considered in [Parametric ROMs](subsec-parametric-roms).
 
-
 (subsec-romclass-constructor)=
+
 ### Defining Model Structure
 
 ROM classes are instantiated with a single argument, `modelform`, which is a string denoting the structure of the right-hand side function $\widehat{\mathbf{F}}$.
@@ -317,7 +318,6 @@ Each character in the string corresponds to a single term in the model.
 | `H` | Quadratic | $\Hhat[\qhat(t) \otimes \qhat(t)]$ | $\Hhat[\qhat_{j} \otimes \qhat_{j}]$ |
 | `G` | Cubic | $\widehat{\mathbf{G}}[\qhat(t) \otimes \qhat(t) \otimes \qhat(t)]$ | $\widehat{\mathbf{G}}[\qhat_{j} \otimes \qhat_{j} \otimes \qhat_{j}]$ |
 | `B` | Input | $\Bhat\u(t)$ | $\Bhat\u_{j}$ |
-
 
 <!-- | `C` | Output | $\mathbf{y}(t)=\widehat{C}\qhat(t)$ | $\mathbf{y}_{k}=\hat{C}\qhat_{k}$ | -->
 
@@ -335,7 +335,6 @@ The full model form is specified as a single string.
 | $\widehat{\mathbf{g}} = \chat + \Ahat\qhat$ |
 | $\widehat{\mathbf{g}} = \Ahat\qhat + \Bhat\u$ |
 | $\widehat{\mathbf{g}} = \Hhat[\qhat\otimes\qhat] + \Bhat\u$ | -->
-
 
 ## ROM Attributes
 
@@ -523,7 +522,6 @@ $$
 | `G_` | Cubic operator $\qhat \mapsto \widehat{\mathbf{G}}[\qhat\otimes\qhat\otimes\qhat]$ |
 | `B_` | Input operator $\u \mapsto \Bhat\u$ |
 
-
 ## ROM Methods
 
 All ROM classes have the following methods.
@@ -545,6 +543,7 @@ The `fit()` method accepts `basis=None`, in which case the state arguments for t
 
 The `fit()` method sets up and solves a [least-squares regression](subsec-opinf-regression) to determine the entries of the operators $\chat$, $\Ahat$, $\Hhat$, $\widehat{\mathbf{G}}$, and/or $\Bhat$.
 Common inputs are
+
 - the basis
 - state snapshot data
 - left-hand side data (time derivatives)
@@ -562,9 +561,9 @@ The `evaluate()` and `jacobian()` methods are useful for constructing custom sol
 $$
 (\qhat,\u) \mapsto
 \chat
-+ \Ahat\qhat
-+ \Hhat[\qhat\otimes\qhat]
-+ \Bhat\u.
+- \Ahat\qhat
+- \Hhat[\qhat\otimes\qhat]
+- \Bhat\u.
 $$
 
 The `predict()` method solves the reduced-order model for given initial conditions and inputs.
@@ -577,10 +576,10 @@ Such files store metadata for the model class and structure, the reduced-order m
 ```python
 >>> import opinf
 
-# Assume we have a ROM as an opinf.ContinuousOpInfROM object, called `rom`.
+# Assume we have a ROM as an opinf.ContinuousROM object, called `rom`.
 
 >>> rom.save("trained_rom.h5")                                # Save a trained model.
->>> rom2 = opinf.ContinuousOpInfROM.load("trained_rom.h5")    # Load a model from file.
+>>> rom2 = opinf.ContinuousROM.load("trained_rom.h5")    # Load a model from file.
 >>> rom == rom2
 True
 ```
@@ -604,8 +603,8 @@ Several programming languages support HDF5 format (MATLAB, C, C++, etc.), making
 | `save()` | Save the ROM data to an HDF5 file |
 | `load()` | Load a ROM from an HDF5 file |
 
-
 (sec-continuous)=
+
 ## Continuous-time ROMs
 
 A continuous-time ROM is a surrogate for a system of ordinary differential equations, written generally as
@@ -616,8 +615,9 @@ $$
 $$
 
 The following ROM classes target the continuous-time setting.
-- [**ContinuousOpInfROM**](opinf.ContinuousOpInfROM) (nonparametric)
-- [**InterpolatedContinuousOpInfROM**](opinf.InterpolatedContinuousOpInfROM) (parametric via interpolation)
+
+- [**ContinuousROM**](opinf.ContinuousROM) (nonparametric)
+- [**InterpolatedContinuousROM**](opinf.InterpolatedContinuousROM) (parametric via interpolation)
 
 ### Time Derivative Data
 
@@ -631,10 +631,11 @@ $$
     + \Bhat\u_{j}
     - \dot{\qhat}_{j}
 \right\|_{2}^{2}
-+ \mathcal{R}(\chat,\Ahat,\Hhat,\Bhat),
+- \mathcal{R}(\chat,\Ahat,\Hhat,\Bhat),
 $$
 
 where
+
 - $\qhat_{j} := \Vr\trp\q(t_{j})$ is the projected state at time $t_{j}$,
 - $\dot{\qhat}_{j} := \ddt\Vr\trp\q\big|_{t=t_{j}}$ is the projected time derivative of the state at time $t_{j}$,
 - $\u_{j} := \u(t_j)$ is the input at time $t_{j}$, and
@@ -647,7 +648,7 @@ See `opinf.pre.ddt()` for details.
 
 ### ROM Evaluation
 
-The `evaluate()` method of `ContinuousOpInfROM` is the mapping
+The `evaluate()` method of `ContinuousROM` is the mapping
 
 $$
 (\qhat(t), \u(\cdot))
@@ -666,10 +667,9 @@ evaluate(self, t, state_, input_func=None)
 | `state_` | `(r,) ndarray` | Reduced state vector $\qhat(t)$ |
 | `input_func` | `callable` | Mapping $t \mapsto \u(t)$ |
 
-
 ### Time Integration
 
-The `predict()` method of `ContinuousOpInfROM` wraps [`scpiy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/integrate.html) to solve the reduced-order model over a given time domain.
+The `predict()` method of `ContinuousROM` wraps [`scpiy.integrate.solve_ivp()`](https://docs.scipy.org/doc/scipy/reference/integrate.html) to solve the reduced-order model over a given time domain.
 
 ```python
 predict(self, state0, t, input_func=None, decompress=True, **options)
@@ -685,8 +685,8 @@ predict(self, state0, t, input_func=None, decompress=True, **options)
 
 <!-- TODO: implement common solvers and document here. -->
 
-
 (sec-discrete)=
+
 ## Discrete-time ROMs
 
 The OpInf framework can be used to construct reduced-order models for approximating _discrete_ dynamical systems, as may arise from discretizing PDEs in both space and time.
@@ -698,8 +698,9 @@ $$
 $$
 
 The following ROM classes target the discrete setting.
-- [**DiscreteOpInfROM**](opinf.DiscreteOpInfROM) (nonparametric)
-- [**InterpolatedDiscreteOpInfROM**](opinf.InterpolatedDiscreteOpInfROM) (parametric via interpolation)
+
+- [**DiscreteROM**](opinf.DiscreteROM) (nonparametric)
+- [**InterpolatedDiscreteROM**](opinf.InterpolatedDiscreteROM) (parametric via interpolation)
 
 ### Iterated Training Data
 
@@ -713,17 +714,18 @@ $$
     + \Bhat\u_{j}
     - \qhat_{j+1}
 \right\|_{2}^{2}
-+ \mathcal{R}(\chat,\Ahat,\Hhat,\Bhat),
+- \mathcal{R}(\chat,\Ahat,\Hhat,\Bhat),
 $$
 
 where
+
 - $\qhat_{j} := \Vr\trp\q_{j}$ is the $j$th projected state,
 - $\u_{j}$ is the input corresponding to the $j$th state, and
 - $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
 
 ### ROM Evaluation
 
-The `evaluate()` method of `DiscreteOpInfROM` is the mapping
+The `evaluate()` method of `DiscreteROM` is the mapping
 
 $$
 (\qhat_{j}, \u_{j})
@@ -741,7 +743,7 @@ evaluate(self, state_, input_=None)
 
 ### Solution Iteration
 
-The `predict()` method of `DiscreteOpInfROM` iterates the system to solve the reduced-order model for a given number of steps.
+The `predict()` method of `DiscreteROM` iterates the system to solve the reduced-order model for a given number of steps.
 Unlike the continuous-time case, there are no choices to make about what scheme to use to solve the problem: the solution iteration is explicitly described by the reduced-order model.
 
 ```python
@@ -757,11 +759,11 @@ predict(self, state0, niters, inputs=None, decompress=True)
 
 <!-- TODO: implement common solvers and document here. -->
 
-
 (subsec-parametric-roms)=
+
 ## Parametric ROMs
 
-The `ContinuousOpInfROM` and `DiscreteOpInfROM` classes are _non-parametric_ ROMs.
+The `ContinuousROM` and `DiscreteROM` classes are _non-parametric_ ROMs.
 A _parametric_ ROM is one that depends on one or more external parameters $\mu\in\RR^{p}$, meaning the operators themselves may depend on the external parameters.
 This is different from the ROM depending on external inputs $\u$ that are provided at prediction time; by "parametric ROM" we mean the _operators_ of the ROM depend on $\mu$.
 For example, a linear time-continuous parametric ROM has the form
@@ -842,6 +844,7 @@ $$
 $$
 
 where
+
 - $\qhat(t;\mu)\in\RR^{r}$ is the ROM state,
 - $\u(t)\in\RR^{m}$ is an independent input, and
 - $\mu \in \RR^{p}$ is a free parameter.
@@ -852,8 +855,9 @@ We assume to have state/input training data for $s$ parameter samples $\mu_{1},\
 
 One way to deal with the parametric dependence of $\Ahat$ and $\Bhat$ on $\mu$ is to independently learn a reduced-order model for each parameter sample, then interpolate the learned models in order to make predictions for a new parameter sample.
 This approach is implemented by the following ROM classes.
-- `InterpolatedContinuousOpInfROM`
-- `InterpolatedDiscreteOpInfROM`
+
+- `InterpolatedContinuousROM`
+- `InterpolatedDiscreteROM`
 
 The OpInf learning problem is the following:
 
@@ -861,10 +865,11 @@ $$
 \min_{\Ahat^{(i)},\Bhat^{(i)}}\sum_{j=0}^{k-1}\left\|
     \Ahat^{(i)}\qhat_{ij} + \Bhat^{(i)}\u_{ij} - \dot{\qhat}_{ij}
 \right\|_{2}^{2}
-+ \mathcal{R}^{(i)}(\Ahat^{(i)},\Bhat^{(i)}),
+- \mathcal{R}^{(i)}(\Ahat^{(i)},\Bhat^{(i)}),
 $$
 
 where
+
 - $\qhat_{ij} := \Vr\trp\q(t_{j};\mu_{i})$ is the projected state,
 - $\dot{\qhat}_{j} := \ddt\Vr\trp\q(t;\mu_{i})\big|_{t=t_{j}}$ is the projected time derivative of the state,
 - $\u_{ij} := \u(t_j)$ is the input corresponding to the state $\q_{ij}$, and
@@ -880,15 +885,17 @@ $$
 
 In addition to the `modelform`, the constructor of interpolatory ROM classes takes an additional argument, `InterpolatorClass`, which handles the actual interpolation.
 This class must obey the following API requirements:
+
 - Initialized with `interpolator = InterpolatorClass(parameters, values)` where
-    - `parameters` is a list of $s$ parameter values (all of the same shape)
-    - `values` is a list of $s$ vectors/matrices
+  - `parameters` is a list of $s$ parameter values (all of the same shape)
+  - `values` is a list of $s$ vectors/matrices
 - Evaluated by calling the object with `interpolator(parameter)`, resulting in a vector/matrix of the same shape as `values[0]`.
 
 Many of the classes in [`scipy.interpolate`](https://docs.scipy.org/doc/scipy/reference/interpolate.html) match this style.
 
 :::{tip}
 There are a few convenience options for the `InterpolatorClass` arguments.
+
 - `"cubicspline"` sets `InterpolatorClass` to `scipy.interpolate.CubicSpline`. This interpolator requires a parameter dimension of $p = 1$.
 - `"linear"`: sets `InterpolatorClass` to `scipy.interpolate.LinearNDInterpolator`. This interpolator requires a parameter dimension of $p > 1$.
 - `"auto"`: choose between `scipy.interpolate.CubicSpline` and `scipy.interpolate.LinearNDInterpolator` based on the parameter dimension $p$.
@@ -901,6 +908,7 @@ After the reduced-order model has been constructed through `fit()`, the interpol
 ### Training Data Organization
 
 Interpolated ROM `fit()` methods accept the training data in the  following formats.
+
 - The basis
 - A list of training parameters $[\mu_{1},\ldots,\mu_{s}]$ for which we have data
 - A list of states $[\Q(\mu_{1}),\ldots,\Q(\mu_{s})]$ corresponding to the training parameters

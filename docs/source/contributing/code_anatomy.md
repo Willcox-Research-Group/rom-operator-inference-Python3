@@ -1,46 +1,54 @@
-(sec-contrib-anatomy)=
 # Source Code Guide
 
 This page briefly reviews the package anatomy and gives instructions for new additions.
 The source code is stored in [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) and is divided into the following submodules:
-- [**pre**](opinf.pre): pre-processing tools for transforming snapshots before dimension reduction.
-- [**basis**](opinf.basis): dimensionality reduction (compression) tools.
-- [**operators**](opinf.operators): operators classes (individual terms for reduced-order models).
-- [**lstsq**](opinf.lstsq): solvers for the least-squares regression problem at the heart of Operator Inference.
-- [**roms**](opinf.roms): reduced-order model classes.
-- [**post**](opinf.post): post-processing tools (mostly error evaluation).
-- [**utils**](opinf.utils): other routines that don't obviously fit into another submodule. These functions are usually not important for casual users, but advanced users and developers may need access to them.
+
+- {mod}`opinf.pre`: pre-processing tools for transforming snapshots before dimension reduction.
+- {mod}`opinf.basis`: dimensionality reduction (compression) tools.
+- {mod}`opinf.operators`: operators classes (individual terms for reduced-order models).
+- {mod}`opinf.lstsq`: solvers for the least-squares regression problem at the heart of Operator Inference.
+- {mod}`opinf.roms`: reduced-order model classes.
+- {mod}`opinf.post`: post-processing tools (mostly error evaluation).
+- {mod}`opinf.utils`: other routines that don't obviously fit into another submodule. These functions are usually not important for casual users, but advanced users and developers may need access to them.
 
 ---
 
 ## Conventions
 
-See the [Index of Notation](sec-notation) for specific naming conventions for both mathematical exposition and source code variables.
+See the [Index of Notation](./notation.md) for specific naming conventions for both mathematical exposition and source code variables.
 
 ### Object-oriented Philosophy
 
 Python is a highly [object-oriented language](https://docs.python.org/3/tutorial/classes.html), which is advantageous for building mathematical software with abstract objects.
-One-off routines (such as computing a POD basis) should be implemented as standalone functions, but a class structure is preferable when possible.
-The package has the following main class hierarchies:
+One-off routines may be implemented as standalone functions, but a class structure is preferable when possible.
+The package defines the following main class hierarchies:
 
-- [_Transformer classes_](subsec-contrib-transformerclass) are used for normalizing snapshot data.
-- [_Basis classes_](subsec-contrib-basisclass) represent the mapping between the full-order state space in $\RR^{n}$ and the reduced-order state space in $\RR^{r}$. A basis object may have a transformer as an attribute to link the two conveniently.
-- [_ROM classes_](subsec-contrib-romclass) encapsulate an entire reduced-order model, such as $\frac{\text{d}}{\text{d}t}\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$ or $\qhat_{j+1} = \Hhat[\qhat_{j} \otimes \qhat_{j}]$. These are the major objects that the user interacts with.
-- [_Operator classes_](subsec-contrib-opclass) represent a single operator that forms part of a reduced-order model, e.g., $\Ahat$ or $\Hhat$. Every ROM object has, as attributes, several operator classes.
-- [_Solver classes_](subsec-contrib-lstsqsolvers) handle the least-squares regression problem at the heart of Operator Inference.
+- [_Transformer classes_](subsec-contrib-transformerclass) are used for normalizing snapshot data (see {mod}`opinf.pre`).
+- [_Basis classes_](subsec-contrib-basisclass) represent the mapping between the full-order state space in $\RR^{n}$ and the reduced-order state space in $\RR^{r}$ (see {mod}`opinf.basis`)
+- [_ROM classes_](subsec-contrib-romclass) encapsulate an entire reduced-order model, such as $\frac{\text{d}}{\text{d}t}\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$ or $\qhat_{j+1} = \Hhat[\qhat_{j} \otimes \qhat_{j}]$. These are the major objects that the user interacts with (see {mod}`opinf.roms`).
+- [_Operator classes_](subsec-contrib-opclass) represent a single operator that forms part of a reduced-order model, e.g., $\Ahat\q$ or $\Hhat[\qhat\otimes\qhat]$. Every ROM object has an `operators` attribute that is a list of operator objects (see {mod}`opinf.operators`).
+- [_Solver classes_](subsec-contrib-lstsqsolvers) handle the least-squares regression problem at the heart of Operator Inference (see {mod}`opinf.lstsq`).
 
+:::{tip}
 As you design new classes, take advantage of intermediate classes and inheritance to avoid duplicating code when appropriate.
+For example, the operator classes {class}`opinf.operators.LinearOperator` and {class}`opinf.operators.QuadraticOperator` both inherit from ``operators._base._BaseNonparametricOperator``, which handles tasks that are common to all nonparametric operators.
+:::
 
-### Scikit-Learn Style
+:::{admonition} Scikit-Learn Style
+:class: note
 
 We strive to follow [`scikit-learn` conventions](https://scikit-learn.org/stable/developers/develop.html#api-overview) and other paradigms that are common in machine learning Python libraries.
 Specifically, both ROM classes and solver classes follow these rules.
-- The `fit()` method receives training data and solves an inference problem.
-- Attributes learned during `fit()` end with an underscore, in particular the reduced-order operators `c_`, `A_`, and so on. For consistency, low-dimensional quantities also end with an underscore (e.g., `state` is high dimensional but `state_` is low dimensional).
-- The `predict()` method receives a scenario (e.g., initial conditions) and uses information learned during `fit()` to make a prediction for the specified scenario.
 
-In addition, we follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) and other standard Python formatting guidelines.
-See [Linting](sec-contrib-linting) for more.
+- The `fit()` method receives training data and solves an inference problem.
+- Attributes learned during `fit()` end with an underscore, e.g., `solver_`. For consistency, low-dimensional quantities also end with an underscore (e.g., `state` is high dimensional ($\q$) but `state_` is low dimensional ($\qhat$)).
+- The `predict()` method receives a scenario (e.g., initial conditions) and uses information learned during `fit()` to make a prediction for that scenario.
+:::
+
+### Code Style
+
+We follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) and other standard Python formatting guidelines.
+See [Linting](sec-contrib-linting) and [Formatting](sec-contrib-formatting) for more.
 
 ---
 
@@ -56,6 +64,7 @@ Read [Data Preprocessing](sec-guide-preprocessing) before starting work here.
 ### Transformer Classes
 
 All transformer classes must
+
 - Inherit from `pre._base._BaseTransformer`.
 - Accept and store any hyperparameters (transformation settings) in the constructor.
 - Implement `transform()`, `fit_transform()`, and `inverse_transform()`. Note that `fit()` is already implemented in `_BaseTransformer` and should work as long as `fit_transform()` is implemented.
@@ -76,13 +85,17 @@ Read [Dimensionality Reduction](sec-guide-dimensionality) before starting work h
 ### Basis Classes
 
 All basis classes must
+
 - Inherit from `basis._base._BaseBasis`.
 - Accept and store any hyperparameters in the constructor.
 - Implement `fit()`, `compress()`, and `decompress()`.
 
-Note that `project()` is **not** the same as `compress()`: `project(q) = decompress(compress(q))`. This is a name change from previous versions.
+:::{versionchanged} 0.4.4
+Note that `project()` is **not** the same as `compress()`, in fact `project(q) = decompress(compress(q))`.
+This is a name change from previous versions.
+:::
 
-Before implementing a new basis class, take a close look at `LinearBasis` and then `PODBasis`.
+Before implementing a new basis class, take a close look at {class}`opinf.basis.LinearBasis` and then {class}`opinf.basis.PODBasis`.
 
 (subsec-contrib-opclass)=
 ## Operators Module
@@ -90,13 +103,13 @@ Before implementing a new basis class, take a close look at `LinearBasis` and th
 The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that define the terms of the model, for example $\Ahat$ and $\Bhat$ of $\frac{\text{d}}{\text{d}t}\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$.
 Operator classes are defined in the [**operators**](opinf.operators) module.
 
-#### Non-parametric Operators
+### Non-parametric Operators
 
 A _non-parametric_ operator has constant entries that do not depend on external parameters.
 Classes for representing non-parametric operators are defined in `operators/_nonparametric.py`.
 These classes inherit from `operators._base._BaseNonparametricOperator` and must implement its abstract methods.
 
-**Base Class for Nonparametric Operators**
+#### Base Class for Nonparametric Operators
 
 :::{eval-rst}
 .. autosummary::
@@ -106,9 +119,9 @@ These classes inherit from `operators._base._BaseNonparametricOperator` and must
     opinf.operators_new._base._BaseNonparametricOperator
 :::
 
-**Abstract Methods to Implement**
+#### Abstract Methods to Implement
 
-**Operator Class Template**
+#### Operator Class Template
 
 ```python
 class MyNewOperator(_BaseNonparametricOperator):
@@ -117,40 +130,10 @@ class MyNewOperator(_BaseNonparametricOperator):
 
 ::::{margin}
 :::{note}
-For nonparametric operators, `evaluate()` is essentially an alias for `__call__()`, so the action of an operator `H` on a state `q` may be computed as `H.evaluate(q)` or `H(q)`.
-However, parametric operators _do not have_ an `evaluate()` method, and `__call__()` is implemented to construct a nonparametric operator corresponding to a given parameter value.
+For nonparametric operators, `apply()` is essentially an alias for `__call__()`, so the action of an operator `H` on a state `q` may be computed as `H.apply(q)` or `H(q)`.
+However, parametric operators _do not have_ an `apply()` method, and `__call__()` is implemented to construct a nonparametric operator corresponding to a given parameter value.
 :::
 ::::
-
-The following diagram shows the class hierarchy for non-parametric operators.
-
-<!-- TODO: update this chart! -->
-:::{mermaid}
-%%{init: {'theme': 'neutral'}}%%
-classDiagram
-    class _BaseNonparametricOperator{
-        <<abstract>>
-        entries, shape
-        __getitem__(), __eq__()
-    }
-    class ConstantOperator{
-        __init__(), evaluate(), jacobian()
-    }
-    class LinearOperator{
-        __init__(), evaluate(), jacobian()
-    }
-    class QuadraticOperator{
-        __init__(), evaluate(), jacobian()
-    }
-    class CubicOperator{
-        __init__(), evaluate(), jacobian()
-    }
-    _BaseNonparametricOperator --> ConstantOperator
-    _BaseNonparametricOperator --> LinearOperator
-    _BaseNonparametricOperator --> QuadraticOperator
-    _BaseNonparametricOperator --> CubicOperator
-:::
-
 
 #### Parametric Operators
 
@@ -200,7 +183,7 @@ classDiagram
     class _BaseParametricOperator{
         <<abstract>>
     }
-    class _BaseAffineOperator{
+    class_BaseAffineOperator{
         <<abstract>>
         matrices, coefficients, shape
         __getitem__(), __eq__()
@@ -221,7 +204,7 @@ classDiagram
     class LinearOperator
     class QuadraticOperator
     class CubicOperator
-    _BaseParametricOperator --> _BaseAffineOperator
+    _BaseParametricOperator -->_BaseAffineOperator
     _BaseAffineOperator --> ConstantAffineOperator
     _BaseAffineOperator --> LinearAffineOperator
     _BaseAffineOperator --> QuadraticAffineOperator
@@ -235,6 +218,7 @@ classDiagram
 :::{tip}
 Usually a group of new parametric operator classes can be implemented by writing an intermediate class that does all of the work, then writing child classes for constant, linear, quadratic, and cubic terms which each set `_OperatorClass` appropriately.
 For example, here is a simplified version of `_AffineOperator`:
+
 ```python
 class _AffineOperator(_BaseParametricOperator):
     """Base class for parametric operators with affine structure."""
@@ -247,12 +231,14 @@ class _AffineOperator(_BaseParametricOperator):
     def __call__(self, parameter):
         """Evaluate the affine operator at the given parameter."""
         entries = sum([thetai(parameter) * Ai
-                       for thetai, Ai in zip(self.coefficient_functions,
-                                             self.matrices)])
+                    for thetai, Ai in zip(self.coefficient_functions,
+                                            self.matrices)])
         return self.OperatorClass(entries)
 ```
+
 Note that `__call__()` uses `self.OperatorClass` to wrap the entries of the evaluated operator.
 Now to define constant-affine and linear-affine classes, we simply inherit from `_AffineOperator` and set the `_OperatorClass` appropriately.
+
 ```python
 class AffineConstantOperator(_AffineOperator):
     """Constant operator with affine parametric structure."""
@@ -263,19 +249,21 @@ class AffineLinearOperator(_AffineOperator):
     """Linear operator with affine parametric structure."""
     _OperatorClass = LinearOperator
 ```
+
 This strategy reduces boilerplate and testing code by isolating the heavy lifting to the intermediate class (`_AffineOperator`).
 :::
 
 ## ROMs Module
 
-The [**roms**](opinf.roms) module contains all operator and reduced-order model class definitions.
-Read [ROM Classes](sec-romclasses) before starting work here.
+The {mod}`opinf.roms` module contains all operator and reduced-order model class definitions.
+Read [Reduced-order Model Design](../guides/romclasses.md) before starting work here.
 
 (subsec-contrib-romclass)=
 ### ROM Classes
 
 The `_BaseROM` class of `roms/_base.py` is the base class for all reduced-order models.
 It handles
+
 - Dimensions (`n`, `r`, and `m`).
 - The basis $\Vr$ (`basis`).
 - Reduced-order operators (`c_`, `A_`, `H_`, `G_`, and `B_`).
@@ -283,21 +271,23 @@ It handles
 - Evaluation of the right-hand side of the ROM (`evaluate()`) and its Jacobian (`jacobian()`).
 
 Classes that inherit from `_BaseROM` must (eventually) implement the following methods.
+
 - `fit()`: Train the reduced-order model with the specified data.
 - `predict()`: Solve the reduced-order model under specified conditions.
 - `save()`: Save the reduced-order structure / operators locally in HDF5 format.
 - `load()`: Load a previously saved reduced-order model from an HDF5 file. This should be a [`@classmethod`](https://stackoverflow.com/questions/136097/difference-between-staticmethod-and-classmethod).
 
 To write a new ROM class, start with an intermediate base class that inherits from `_BaseROM` and implements `fit()`, `save()`, and `load()`.
-See `roms.nonparametric._base._NonparametricOpInfROM`, for example.
+See `roms.nonparametric._base._NonparametricROM`, for example.
 Then write classes that inherit from your intermediate base class for handling steady-state, discrete-time, and continuous-time problems by implementing `predict()`.
 
 #### Non-parametric ROMs
 
 A _non-parametric_ ROM has exclusively non-parametric operators, i.e., their entries do not depend on external parameters.
 Classes for representing non-parametric ROMs are defined in the `roms/nonparametric/` folder, which has the following files:
-- `roms/nonparametric/_base.py` defines a base class, `_NonparametricOpInfROM`, which implements Operator Inference in the non-parametric setting.
-- `roms/nonparametric/_public.py` defines public-facing classes that inherit from `_NonparametricOpInfROM`, one for [the discrete setting](sec-discrete) and one for the [continuous setting](sec-continuous).
+
+- `roms/nonparametric/_base.py` defines a base class, `_NonparametricROM`, which implements Operator Inference in the non-parametric setting.
+- `roms/nonparametric/_public.py` defines public-facing classes that inherit from `_NonparametricROM`, one for [the discrete setting](sec-discrete) and one for the [continuous setting](sec-continuous).
 - `roms/nonparametric/_frozen.py` defines classes that inherit from the public-facing classes but which have their `fit()` method disabled. These classes provide a helpful protection for the parametric case, described later.
 
 The following diagram shows the inheritance hierarchy for the non-parametric ROM classes.
@@ -314,37 +304,37 @@ classDiagram
         compress(), decompress()
         evaluate(), jacobian()
     }
-    class _NonparametricOpInfROM{
+    class _NonparametricROM{
         <<abstract>>
         operator_matrix_
         data_matrix_
         fit(), save(), load()
     }
-    class SteadyOpInfROM{
+    class SteadyROM{
         evaluate(), fit(), predict()
     }
-    class DiscreteOpInfROM{
+    class DiscreteROM{
         evaluate(), fit(), predict()
     }
-    class ContinuousOpInfROM{
+    class ContinuousROM{
         evaluate(), fit(), predict()
     }
     class _FrozenMixin{
         fit()
     }
-    class _FrozenSteadyROM
+    class_FrozenSteadyROM
     class _FrozenDiscreteROM
-    class _FrozenContinuousROM
-    _BaseROM --|> _NonparametricOpInfROM
-    _NonparametricOpInfROM --|> SteadyOpInfROM
-    _NonparametricOpInfROM --|> DiscreteOpInfROM
-    _NonparametricOpInfROM --|> ContinuousOpInfROM
+    class_FrozenContinuousROM
+    _BaseROM --|>_NonparametricROM
+    _NonparametricROM --|> SteadyROM
+    _NonparametricROM --|> DiscreteROM
+    _NonparametricROM --|> ContinuousROM
     _FrozenMixin --|> _FrozenSteadyROM
     _FrozenMixin --|> _FrozenDiscreteROM
     _FrozenMixin --|> _FrozenContinuousROM
-    SteadyOpInfROM --|> _FrozenSteadyROM
-    DiscreteOpInfROM --|> _FrozenDiscreteROM
-    ContinuousOpInfROM --|> _FrozenContinuousROM
+    SteadyROM --|>_FrozenSteadyROM
+    DiscreteROM --|> _FrozenDiscreteROM
+    ContinuousROM --|>_FrozenContinuousROM
 :::
 
 #### Parametric ROMs
@@ -361,9 +351,9 @@ Classes for representing parametric ROMs should be grouped by parameterization s
 These classes should
 
 - Inherit from `roms._base._BaseParametricROM`, which adds an attribute `p` for the parameter space dimension and implements the following methods:
-    - `__call__(self, parameter)` results in a parametric ROM whose operators correspond to the given parameter.
-    - `evaluate(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `evaluate()` method with the remaining arguments.
-    - `predict(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `predict()` method with the remaining arguments.
+  - `__call__(self, parameter)` results in a parametric ROM whose operators correspond to the given parameter.
+  - `evaluate(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `evaluate()` method with the remaining arguments.
+  - `predict(self, parameter, *args, **kwargs)` evaluates the parametric ROM at the given parameter, then calls the resulting object's `predict()` method with the remaining arguments.
 
 - Call `_BaseParametricROM.__init__(self)` in the constructor.
 
@@ -371,7 +361,7 @@ These classes should
 
         >>> parametric_rom = MyNewParametricROM(init_args).fit(fit_args)
         >>> nonparametric_rom = parametric_rom(parameter)
-        >>> isinstance(nonparametric_rom, _NonparametricOpInfROM)
+        >>> isinstance(nonparametric_rom, _NonparametricROM)
         True
 
     The `_ModelClass` should be one of the "frozen" non-parametric ROM classes in `roms/nonparametric/_frozen.py`, which have their `fit()` method disabled.
@@ -395,32 +385,32 @@ classDiagram
     }
     class _BaseParametricROM{
         p
-        predict(), evaluate(), __call__()
+        predict(), evaluate(), **call**()
     }
-    class _AffineOpInfROM{
+    class_AffineROM{
         <<abstract>>
         fit(), save(), load()
     }
-    class AffineSteadyOpInfROM{
+    class AffineSteadyROM{
         fit(), predict(), evaluate()
     }
-    class AffineDiscreteOpInfROM{
+    class AffineDiscreteROM{
         fit(), predict(), evaluate()
     }
-    class AffineContinuousOpInfROM{
+    class AffineContinuousROM{
         fit(), predict(), evaluate()
     }
     class _FrozenSteadyROM
-    class _FrozenDiscreteROM
+    class_FrozenDiscreteROM
     class _FrozenContinuousROM
     _BaseROM --|> _BaseParametricROM
-    _BaseParametricROM --|> _AffineOpInfROM
-    _AffineOpInfROM --|> AffineSteadyOpInfROM
-    _AffineOpInfROM --|> AffineDiscreteOpInfROM
-    _AffineOpInfROM --|> AffineContinuousOpInfROM
-    AffineSteadyOpInfROM ..|> _FrozenSteadyROM : rom(parameter)
-    AffineDiscreteOpInfROM ..|> _FrozenDiscreteROM : rom(parameter)
-    AffineContinuousOpInfROM ..|> _FrozenContinuousROM : rom(parameter)
+    _BaseParametricROM --|> _AffineROM
+    _AffineROM --|> AffineSteadyROM
+    _AffineROM --|> AffineDiscreteROM
+    _AffineROM --|> AffineContinuousROM
+    AffineSteadyROM ..|> _FrozenSteadyROM : rom(parameter)
+    AffineDiscreteROM ..|>_FrozenDiscreteROM : rom(parameter)
+    AffineContinuousROM ..|> _FrozenContinuousROM : rom(parameter)
 :::
 
 :::{tip}
@@ -428,7 +418,6 @@ Similar to parametric operators, a group of new parametric ROM classes can usual
 For instance, the intermediate class can often implement `fit()`, `save()`, and `load()`, and `_BaseParametricROM` implements `evaluate()`, `predict()`, and `jacobian()` already.
 However, it is important to have tailored signatures and detailed docstrings for `fit()` and `predict()`, so these should be carefully defined for every public-facing class.
 :::
-
 
 ---
 
@@ -443,6 +432,7 @@ The `fit()` method of each ROM class has a `solver` keyword argument which accep
 ### Solver Classes
 
 Least-squares solver classes must do the following.
+
 - Inherit from `lstsq._base._BaseSolver`.
 - Accept any hyperparameters (e.g., regularization values) in the constructor.
 - Have a `fit(A, B)` method that calls `_BaseSolver.fit(A, B)` and sets up the least-squares problem.
@@ -462,7 +452,7 @@ classDiagram
     class PlainSolver{
         predict()
     }
-    class _BaseTikhonovSolver{
+    class_BaseTikhonovSolver{
         <<abstract>>
         regularizer
     }

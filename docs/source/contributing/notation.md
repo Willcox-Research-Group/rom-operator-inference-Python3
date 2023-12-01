@@ -1,4 +1,3 @@
-(sec-notation)=
 # Index of Notation
 
 In the documentation, we generally denote scalars in lower case, vectors in bold lower case, matrices in upper case, and indicate low-dimensional quantities with a hat.
