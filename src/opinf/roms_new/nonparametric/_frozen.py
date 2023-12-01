@@ -3,11 +3,12 @@
 
 __all__ = []
 
-from ._public import SteadyOpInfROM, DiscreteOpInfROM, ContinuousOpInfROM
+from ._public import SteadyROM, DiscreteROM, ContinuousROM
 
 
 class _FrozenMixin:
     """Mixin for evaluations of parametric ROMs (disables fit())."""
+
     @property
     def data_matrix_(self):
         return None
@@ -17,20 +18,25 @@ class _FrozenMixin:
         return None
 
     def fit(*args, **kwargs):
-        raise NotImplementedError("fit() is disabled for this class, "
-                                  "call fit() on the parametric ROM object")
+        raise NotImplementedError(
+            "fit() is disabled for this class, "
+            "call fit() on the parametric ROM object"
+        )
 
 
-class _FrozenSteadyROM(_FrozenMixin, SteadyOpInfROM):
+class _FrozenSteadyROM(_FrozenMixin, SteadyROM):
     """Steady-state ROM that is the evaluation of a parametric ROM."""
-    pass                                                    # pragma: no cover
+
+    pass  # pragma: no cover
 
 
-class _FrozenDiscreteROM(_FrozenMixin, DiscreteOpInfROM):
+class _FrozenDiscreteROM(_FrozenMixin, DiscreteROM):
     """Discrete-time ROM that is the evaluation of a parametric ROM."""
-    pass                                                    # pragma: no cover
+
+    pass  # pragma: no cover
 
 
-class _FrozenContinuousROM(_FrozenMixin, ContinuousOpInfROM):
+class _FrozenContinuousROM(_FrozenMixin, ContinuousROM):
     """Continuous-time ROM that is the evaluation of a parametric ROM."""
-    pass                                                    # pragma: no cover
+
+    pass  # pragma: no cover

@@ -22,7 +22,7 @@ _OPERATOR_SHORTCUTS = {
 }
 
 
-class _BaseROM(abc.ABC):
+class _BaseMonolithicROM(abc.ABC):
     """Base class for all monolithic reduced-order model classes."""
 
     _LHS_ARGNAME = "lhs"  # Name of LHS argument in fit(), e.g., "ddts".
@@ -35,7 +35,7 @@ class _BaseROM(abc.ABC):
 
         Parameters
         ----------
-        basis : opinf.basis object or (n, r) ndarray
+        basis : :mod:`opinf.basis` object or (n, r) ndarray
             Basis for the reduced space (e.g., POD).
         operators : list of opinf.operators objects
             Operators comprising the terms of the reduced-order model.
@@ -372,7 +372,7 @@ class _BaseROM(abc.ABC):
         state_ = np.atleast_1d(state_)
         out = np.zeros(state_.shape, dtype=float)
         for op in self.operators:
-            out += op.evaluate(state_, input_)
+            out += op.apply(state_, input_)
         return out
 
     def jacobian(self, state_, input_=None):

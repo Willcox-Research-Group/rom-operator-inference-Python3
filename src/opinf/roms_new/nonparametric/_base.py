@@ -5,7 +5,7 @@ __all__ = []
 
 import numpy as np
 
-from .._base import _BaseROM
+from .._base import _BaseMonolithicROM
 from ... import lstsq
 from ... import errors
 from ... import basis as _basis
@@ -13,8 +13,8 @@ from ... import operators_new as _operators
 from ...utils import hdf5_savehandle, hdf5_loadhandle
 
 
-class _NonparametricOpInfROM(_BaseROM):
-    """Base class for nonparametric Operator Inference reduced-order models."""
+class _NonparametricROM(_BaseMonolithicROM):
+    """Base nonparametric monolithic operator inference reduced-order model."""
 
     # Properties --------------------------------------------------------------
     @property
@@ -140,7 +140,7 @@ class _NonparametricOpInfROM(_BaseROM):
 
         # Subtract known operator evaluations from the LHS.
         for i in self._indices_of_known_operators:
-            lhs_ = lhs_ - self.operators[i].evaluate(states_, inputs)
+            lhs_ = lhs_ - self.operators[i].apply(states_, inputs)
 
         return states_, lhs_, inputs, solver
 
@@ -315,7 +315,7 @@ class _NonparametricOpInfROM(_BaseROM):
 
         Returns
         -------
-        rom : _NonparametricOpInfROM
+        rom : _NonparametricROM
             Trained reduced-order model.
         """
         with hdf5_loadhandle(loadfile) as hf:

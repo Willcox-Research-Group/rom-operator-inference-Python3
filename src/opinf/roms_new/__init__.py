@@ -4,7 +4,7 @@
 .. currentmodule:: opinf.roms_new
 
 .. tip::
-    All public objects from this module are also available in the root
+    Public objects from this module are also available in the root
     ``opinf`` namespace.
 
 **Submodules**

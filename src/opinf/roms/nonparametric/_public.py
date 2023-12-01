@@ -329,7 +329,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             U = np.atleast_2d(inputs)
             if U.ndim != 2 or U.shape[0] != self.m or U.shape[1] < niters - 1:
                 raise ValueError(
-                    "inputs.shape = " f"({U.shape} != {(self.m, niters-1)}"
+                    f"inputs.shape = ({U.shape} != {(self.m, niters-1)}"
                 )
             for j in range(niters - 1):
                 states_[:, j + 1] = self.evaluate(states_[:, j], U[:, j])
@@ -554,7 +554,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
                 U = np.atleast_2d(input_func)
                 if U.shape != (self.m, nt):
                     raise ValueError(
-                        "input_func.shape = " f"{U.shape} != {(self.m, nt)}"
+                        f"input_func.shape = {U.shape} != {(self.m, nt)}"
                     )
                 input_func = CubicSpline(t, U, axis=1)
 

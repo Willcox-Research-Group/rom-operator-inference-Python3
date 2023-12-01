@@ -2,9 +2,9 @@
 """Public nonparametric Operator Inference ROM classes."""
 
 __all__ = [
-    # "SteadyOpInfROM",
-    "DiscreteOpInfROM",
-    "ContinuousOpInfROM",
+    # "SteadyROM",
+    "DiscreteROM",
+    "ContinuousROM",
 ]
 
 import warnings
@@ -12,11 +12,10 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.integrate import solve_ivp, IntegrationWarning
 
-from .._base import _BaseROM
-from ._base import _NonparametricOpInfROM
+from ._base import _NonparametricROM
 
 
-class SteadyOpInfROM(_NonparametricOpInfROM):  # pragma: no cover
+class SteadyROM(_NonparametricROM):  # pragma: no cover
     r"""Reduced-order model for a nonparametric steady state problem:
 
     ..math ::
@@ -61,7 +60,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):  # pragma: no cover
         g_: (r,) ndarray
             Evaluation of the model.
         """
-        return _BaseROM.evaluate(self, state_, None)
+        return _NonparametricROM.evaluate(self, state_, None)
 
     def fit(self, states, forcing=None, *, solver=None, regularizer=None):
         """Learn the reduced-order model operators from data.
@@ -98,7 +97,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):  # pragma: no cover
         """
         if solver is None and regularizer is not None:
             solver = regularizer  # pragma: no cover
-        return _NonparametricOpInfROM.fit(
+        return _NonparametricROM.fit(
             self, states, forcing, inputs=None, solver=solver
         )
 
@@ -106,7 +105,7 @@ class SteadyOpInfROM(_NonparametricOpInfROM):  # pragma: no cover
         raise NotImplementedError("TODO")
 
 
-class DiscreteOpInfROM(_NonparametricOpInfROM):
+class DiscreteROM(_NonparametricROM):
     r"""Reduced-order model for a nonparametric discrete dynamical system.
 
     .. math::
@@ -174,7 +173,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         evaluation : (r,) ndarray
             Evaluation of the right-hand side of the model.
         """
-        return _BaseROM.evaluate(self, state_, input_)
+        return _NonparametricROM.evaluate(self, state_, input_)
 
     def jacobian(self, state_, input_=None):
         r"""Construct and sum the Jacobian of each model operators.
@@ -198,7 +197,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         jac : (r, r) ndarray
             Jacobian of the right-hand side of the model.
         """
-        return _BaseROM.jacobian(self, state_, input_)
+        return _NonparametricROM.jacobian(self, state_, input_)
 
     def fit(
         self,
@@ -248,7 +247,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
             inputs = inputs[..., : states.shape[1]]
         if solver is None and regularizer is not None:
             solver = regularizer  # pragma: no cover
-        return _NonparametricOpInfROM.fit(
+        return _NonparametricROM.fit(
             self, basis, states, nextstates, inputs=inputs, solver=solver
         )
 
@@ -318,7 +317,7 @@ class DiscreteOpInfROM(_NonparametricOpInfROM):
         return states_
 
 
-class ContinuousOpInfROM(_NonparametricOpInfROM):
+class ContinuousROM(_NonparametricROM):
     r"""Reduced-order model for a nonparametric system of ordinary differential
     equations.
 
@@ -368,7 +367,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             Evaluation of the right-hand side of the model.
         """
         input_ = None if not self._has_inputs else input_func(t)
-        return _BaseROM.evaluate(self, state_, input_)
+        return _NonparametricROM.evaluate(self, state_, input_)
 
     def jacobian(self, t, state_, input_func=None):
         r"""Construct and sum the Jacobian of each model operators.
@@ -397,7 +396,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
             Jacobian of the right-hand side of the model.
         """
         input_ = None if not self._has_inputs else input_func(t)
-        return _BaseROM.jacobian(self, state_, input_)
+        return _NonparametricROM.jacobian(self, state_, input_)
 
     def fit(self, states, ddts, inputs=None, solver=None, *, regularizer=None):
         """Learn the reduced-order model operators from data.
@@ -429,7 +428,7 @@ class ContinuousOpInfROM(_NonparametricOpInfROM):
 
         if solver is None and regularizer is not None:
             solver = regularizer  # pragma: no cover
-        return _NonparametricOpInfROM.fit(
+        return _NonparametricROM.fit(
             self, states, ddts, inputs=inputs, solver=solver
         )
 

@@ -4,8 +4,8 @@
 .. currentmodule:: opinf.roms_new.nonparametric
 
 .. tip::
-    All public objects from this module are also available in the root
-    `opinf` namespace.
+    Public objects from this module are also available in the root
+    ``opinf`` namespace.
 
 **Public Classes**
 
@@ -13,17 +13,17 @@
     :toctree: _autosummaries
     :nosignatures:
 
-    DiscreteOpInfROM
-    ContinuousOpInfROM
+    DiscreteROM
+    ContinuousROM
 
 **Private Classes**
 
-* ``_NonparametricOpInfROM``: Base class for nonparametric Operator Inference
+* ``_NonparametricROM``: Base class for nonparametric Operator Inference
   ROMs.
 * ``_FrozenMixin``: Mixin for evaluations of parametric ROMs
   (disables ``fit()``).
-* ``_FrozenDiscreteOpInfROM``: Evaluations of discrete-time parametric ROMs.
-* ``_FrozenContinuousOpInfROM``: Evaluations of continuous-time parametric
+* ``_FrozenDiscreteROM``: Evaluations of discrete-time parametric ROMs.
+* ``_FrozenContinuousROM``: Evaluations of continuous-time parametric
   ROMs.
 """
 
