@@ -1,4 +1,3 @@
-(sec-opinf-overview)=
 # What is Operator Inference?
 
 :::{image} ../../images/summary.svg
@@ -257,15 +256,16 @@ $$
     + \Bhat\u_{j}
     - \dot{\qhat}_{j}
 \right\|_{2}^{2}
+
 + \mathcal{R}(\chat,\Ahat,\Hhat,\Bhat),
+
 $$ (eq:opinf-lstsq-residual)
 
 where
-- $\qhat_{j} = \Vr\trp\q(t_{j})$ is the state at time $t_{j}$ represented in the coordinates of the basis,
-- $\dot{\qhat}_{j} = \ddt\Vr\trp\q\big|_{t=t_{j}}$ is the time derivative of the state at time $t_{j}$ in the coordinates of the basis,
-- $\u_{j} = \u(t_j)$ is the input at time $t_{j}$, and
-- $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
-
++ $\qhat_{j} = \Vr\trp\q(t_{j})$ is the state at time $t_{j}$ represented in the coordinates of the basis,
++ $\dot{\qhat}_{j} = \ddt\Vr\trp\q\big|_{t=t_{j}}$ is the time derivative of the state at time $t_{j}$ in the coordinates of the basis,
++ $\u_{j} = \u(t_j)$ is the input at time $t_{j}$, and
++ $\mathcal{R}$ is a _regularization term_ that penalizes the entries of the learned operators.
 
 The least-squares minimization {eq}`eq:opinf-lstsq-residual` can be written in the more standard form
 
@@ -423,20 +423,24 @@ Let $\ohat_{1},\ldots,\ohat_{r}\in\RR^{d(r,m)}$ be the rows of $\Ohat$.
 If the regularization can be written as
 
 $$
-\mathcal{R}(\Ohat)
-= \sum_{i=1}^{r}\mathcal{R}_{i}(\ohat_{i}),
+\begin{align*}
+    \mathcal{R}(\Ohat)
+    = \sum_{i=1}^{r}\mathcal{R}_{i}(\ohat_{i}),
+\end{align*}
 $$
 
 then the Operator Inference regression decouples along the rows of $\Ohat$ into $r$ independent least-squares problems:
 
 $$
-\min_{\Ohat}\left\{\left\|
-    \D\Ohat\trp - \mathbf{Y}\trp
-\right\|_{F}^{2} + \mathcal{R}(\Ohat)\right\}
-=
-\sum_{i=1}^{r}\min_{\ohat_{i}}\left\{\left\|
-    \D\ohat_{i} - \mathbf{y}_{i}
-\right\|_{2}^{2} + \mathcal{R}_{i}(\ohat_{i})\right\},
+\begin{align*}
+    \min_{\Ohat}\left\{\left\|
+        \D\Ohat\trp - \mathbf{Y}\trp
+    \right\|_{F}^{2} + \mathcal{R}(\Ohat)\right\}
+    =
+    \sum_{i=1}^{r}\min_{\ohat_{i}}\left\{\left\|
+        \D\ohat_{i} - \mathbf{y}_{i}
+    \right\|_{2}^{2} + \mathcal{R}_{i}(\ohat_{i})\right\},
+\end{align*}
 $$
 
 where $\mathbf{y}_{i},\ldots,\mathbf{y}_{r}$ are the rows of $\mathbf{Y}$.
@@ -451,15 +455,16 @@ Once the reduced-order operators have been determined, the corresponding reduced
 The computational cost of solving the reduced-order model scales with $r$, the number of degrees of freedom in the low-dimensional representation of the state.
 
 For example, we may use the reduced-order model to obtain approximate solutions of the full-order model {eq}`eq:opinf-example-fom` with
-- new initial conditions $\q_{0}$,
-- a different input function $\u(t)$,
-- a longer time horizon than the training data,
-- different system parameters (see [Parametric ROMs](subsec-parametric-roms)).
+
++ new initial conditions $\q_{0}$,
++ a different input function $\u(t)$,
++ a longer time horizon than the training data,
++ different system parameters (see [Parametric ROMs](subsec-parametric-roms)).
 
 :::{important}
 The accuracy of any data-driven model depends on how well the training data represents the full-order system.
 We should not expect a reduced-order model to perform well under conditions that are wildly different than the training data.
-The [**Getting Started**](sec-tutorial) tutorial demonstrates this concept in the case of prediction for new initial conditions.
+The [**Getting Started**](../tutorials/basics.ipynb) tutorial demonstrates this concept in the case of prediction for new initial conditions.
 :::
 
 ---

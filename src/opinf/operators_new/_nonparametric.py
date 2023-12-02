@@ -20,9 +20,8 @@ from ._base import _requires_entries, _BaseNonparametricOperator, _InputMixin
 
 # No dependence on state or input =============================================
 class ConstantOperator(_BaseNonparametricOperator):
-    r"""Constant 'operator' :math:`\chat \in \RR^{r}`
-    representing the action
-    :math:`(\qhat,\u) \mapsto \chat`.
+    r"""Constant operator
+    :math:`\Ophat(\qhat,\u) = \chat \in \RR^{r}`.
 
     Examples
     --------
@@ -66,9 +65,8 @@ class ConstantOperator(_BaseNonparametricOperator):
 
     @_requires_entries
     def __call__(self, state_=None, input_=None):
-        r"""Apply the operator mapping to the given state / input.
-        Since this is a constant operator, the result is always the same:
-        :math:`(\qhat,\u)\mapsto\chat`.
+        r"""Apply the operator to the given state / input:
+        :math:`\Ophat(\qhat,\u) = \chat`.
 
         Parameters
         ----------
@@ -80,7 +78,7 @@ class ConstantOperator(_BaseNonparametricOperator):
         Returns
         -------
         out : (r,) ndarray
-            The "evaluation" :math:`\chat`.
+            :math:`\chat`.
         """
         if self.entries.shape[0] == 1:
             if state_ is None or np.isscalar(state_):  # r = k = 1.
@@ -98,27 +96,6 @@ class ConstantOperator(_BaseNonparametricOperator):
         return self(state_, input_)
 
     @_requires_entries
-    def jacobian(self, state_=None, input_=None):
-        r"""Construct the state Jacobian of the operator, the zero matrix:
-        :math:`(\qhat,\u)\mapsto
-        \mathbf{0}\in\RR^{r\times r}`.
-
-        Parameters
-        ----------
-        state_ : (r,) ndarray or None
-            State vector (not used).
-        input_ : (m,) ndarray or None
-            Input vector (not used).
-
-        Returns
-        -------
-        jac : (r, r) ndarray
-            Operator Jacobian, the zero matrix.
-        """
-        r = self.entries.size
-        return np.zeros((r, r))
-
-    @_requires_entries
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\chat = \Wr\trp\c`.
@@ -132,8 +109,8 @@ class ConstantOperator(_BaseNonparametricOperator):
 
         Returns
         -------
-        op : operator
-            ``self`` or new ``ConstantOperator`` object.
+        projected : ConstantOperator
+            Projected operator.
         """
         return _BaseNonparametricOperator.galerkin(
             self, Vr, Wr, lambda c, V, W: W.T @ c
@@ -141,21 +118,16 @@ class ConstantOperator(_BaseNonparametricOperator):
 
     @staticmethod
     def datablock(states_, inputs=None):
-        r"""Return the data matrix block corresponding to the operator,
-        a vector of 1's.
+        r"""Return the data matrix block corresponding to the operator.
+
+        Since
 
         .. math::
-            \min_{\chat}\sum_{j=0}^{k-1}\left\|
-            \chat - \widehat{\mathbf{y}}_{j}
-            \right\|_{2}^{2}
-            = \min_{\chat}\left\|
-            \chat\mathbf{1}\trp - \widehat{\mathbf{Y}}
-            \right\|_{F}^{2},
+           \sum_{j=0}^{k-1}\left\| \chat - \zhat_{j} \right\|_{2}^{2}
+           = \left\| \chat\1\trp
+           - [~\zhat_0~~\cdots~~\zhat_{k-1}~] \right\|_{F}^{2},
 
-        where :math:`\mathbf{1} \in \RR^{k}` is a vector of 1's
-        and :math:`\widehat{\mathbf{Y}} = [~
-        \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
-        ~]\in\RR^{r \times k}`.
+        the data block is :math:`\1\trp\in\RR^{1\times k}`.
 
         Parameters
         ----------
@@ -167,7 +139,7 @@ class ConstantOperator(_BaseNonparametricOperator):
 
         Returns
         -------
-        ones : (1, k) ndarray
+        block : (1, k) ndarray
             Vector of ones.
         """
         return np.ones((1, np.atleast_1d(states_).shape[-1]))
@@ -189,10 +161,8 @@ class ConstantOperator(_BaseNonparametricOperator):
 # Dependent on state but not on input =========================================
 class LinearOperator(_BaseNonparametricOperator):
     r"""Linear state operator
-    :math:`\Ahat \in \RR^{r \times r}`
-    representing the action
-    :math:`(\qhat,\u)\mapsto
-    \Ahat\qhat`.
+    :math:`\Ophat(\qhat,\u) = \Ahat\qhat`
+    where :math:`\Ahat \in \RR^{r \times r}`.
 
     Examples
     --------
@@ -234,9 +204,8 @@ class LinearOperator(_BaseNonparametricOperator):
 
     @_requires_entries
     def __call__(self, state_, input_=None):
-        r"""Apply the operator mapping to the given state:
-        :math:`(\qhat,\u)
-        \mapsto\Ahat\qhat`.
+        r"""Apply the operator to the given state / input:
+        :math:`\Ophat(\qhat,\u) = \Ahat\qhat`.
 
         Parameters
         ----------
@@ -248,7 +217,7 @@ class LinearOperator(_BaseNonparametricOperator):
         Returns
         -------
         out : (r,) ndarray
-            The evaluation :math:`\Ahat\qhat`.
+            Application :math:`\Ahat\qhat`.
         """
         if self.entries.shape[0] == 1:
             return self.entries[0, 0] * state_  # r = 1.
@@ -261,8 +230,8 @@ class LinearOperator(_BaseNonparametricOperator):
 
     @_requires_entries
     def jacobian(self, state_=None, input_=None):
-        r"""Construct the state Jacobian of the operator, the operator entries:
-        :math:`(\qhat,\u)\mapsto\Ahat`.
+        r"""Construct the state Jacobian of the operator:
+        :math:`\ddqhat\Ophat(\qhat,\u)=\Ahat`.
 
         Parameters
         ----------
@@ -274,7 +243,7 @@ class LinearOperator(_BaseNonparametricOperator):
         Returns
         -------
         jac : (r, r) ndarray
-            Operator Jacobian, the operator entries.
+            State Jacobian :math:`\Ahat`.
         """
         return self.entries
 
@@ -352,10 +321,8 @@ class LinearOperator(_BaseNonparametricOperator):
 
 class QuadraticOperator(_BaseNonparametricOperator):
     r"""Quadratic state operator
-    :math:`\Hhat \in \RR^{r \times r^{2}}`
-    representing the action
-    :math:`(\qhat,\u)\mapsto
-    \Hhat[\qhat\otimes\qhat]`.
+    :math:`\Ophat(\q,\u) = \Hhat[\qhat\otimes\qhat]`
+    where :math:`\Hhat\in\RR^{r \times r^{2}}`.
 
     Internally, the action of the operator is computed as the product of a
     :math:`r \times r(r+1)/2` matrix and a compressed version of the Kronecker
@@ -420,9 +387,8 @@ class QuadraticOperator(_BaseNonparametricOperator):
 
     @_requires_entries
     def __call__(self, state_, input_=None):
-        r"""Apply the operator mapping to the given state:
-        :math:`(\qhat,\u)\mapsto
-        \Hhat[\qhat\otimes\qhat]`.
+        r"""Apply the operator to the given state / input:
+        :math:`\Ophat(\q,\u) = \Hhat[\qhat\otimes\qhat]`
 
         Parameters
         ----------
@@ -434,8 +400,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         Returns
         -------
         out : (r,) ndarray
-            The evaluation :math:`\Hhat
-            [\qhat\otimes\qhat]`.
+            Application :math:`\Hhat[\qhat\otimes\qhat]`.
         """
         if self.entries.shape[0] == 1:
             return self.entries[0, 0] * state_**2  # r = 1
@@ -449,10 +414,8 @@ class QuadraticOperator(_BaseNonparametricOperator):
     @_requires_entries
     def jacobian(self, state_, input_=None):
         r"""Construct the state Jacobian of the operator:
-        :math:`(\qhat,\u)\mapsto
-        \Hhat[
-        (\I\otimes\qhat)
-        + (\qhat\otimes\I)\trp]`.
+        :math:`\ddqhat\Ophat(\qhat,\u)
+        = \Hhat[(\I_r\otimes\qhat) + (\qhat\otimes\I_r)]`.
 
         Parameters
         ----------
@@ -464,7 +427,8 @@ class QuadraticOperator(_BaseNonparametricOperator):
         Returns
         -------
         jac : (r, r) ndarray
-            Operator Jacobian.
+            State Jacobian
+            :math:`\Hhat[(\I_r\otimes\qhat) + (\qhat\otimes\I_r)]`.
         """
         return self._jac @ np.atleast_1d(state_)
 
@@ -576,16 +540,14 @@ class QuadraticOperator(_BaseNonparametricOperator):
 
 class CubicOperator(_BaseNonparametricOperator):
     r"""Cubic state operator
-    :math:`\widehat{\mathbf{G}} \in \RR^{r \times r^{3}}`
-    repesenting the action
-    :math:`(\qhat,\u)\mapsto
-    \widehat{\mathbf{G}}[\qhat
-    \otimes\qhat\otimes\qhat]`.
+    :math:`\Ophat(\qhat,\u)
+    = \Ghat[\qhat\otimes\qhat\otimes\qhat]`
+    where
+    :math:`\Ghat\in\RR^{r \times r^{3}}`.
 
     Internally, the action of the operator is computed as the product of a
     :math:`r \times r(r+1)(r+2)/6` matrix and a compressed version of the
-    triple Kronecker product :math:`\qhat \otimes
-    \qhat \otimes \qhat`.
+    triple Kronecker product :math:`\qhat \otimes \qhat \otimes \qhat`.
 
     Examples
     --------
@@ -644,10 +606,9 @@ class CubicOperator(_BaseNonparametricOperator):
 
     @_requires_entries
     def __call__(self, state_, input_=None):
-        r"""Apply the operator mapping to the given state:
-        :math:`(\qhat,\u)\mapsto
-        \widehat{\mathbf{G}}[\qhat\otimes\qhat
-        \otimes\qhat]`.
+        r"""Apply the operator to the given state / input:
+        :math:`\Ophat(\qhat,\u)
+        = \Ghat[\qhat\otimes\qhat\otimes\qhat]`.
 
         Parameters
         ----------
@@ -659,9 +620,7 @@ class CubicOperator(_BaseNonparametricOperator):
         Returns
         -------
         out : (r,) ndarray
-            The evaluation :math:`\widehat{\mathbf{G}}
-            [\qhat\otimes\qhat
-            \otimes\qhat]`.
+            The evaluation :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat]`.
         """
         if self.entries.shape[0] == 1:
             return self.entries[0, 0] * state_**3  # r = 1.
@@ -675,12 +634,10 @@ class CubicOperator(_BaseNonparametricOperator):
     @_requires_entries
     def jacobian(self, state_, input_=None):
         r"""Construct the state Jacobian of the operator:
-        :math:`(\qhat,\u)\mapsto
-        \widehat{\mathbf{G}}[
-        (\I\otimes\qhat\otimes\qhat)
-        + (\qhat\otimes\I\otimes\qhat)
-        + (\qhat\otimes\qhat
-        \otimes\I)\trp]`.
+        :math:`\ddqhat\Ophat(\qhat,\u)
+        = \Ghat[(\I_r\otimes\qhat\otimes\qhat)
+        + (\qhat\otimes\I_r\otimes\qhat)
+        + (\qhat\otimes\qhat\otimes\I_r)]`.
 
         Parameters
         ----------
@@ -692,7 +649,10 @@ class CubicOperator(_BaseNonparametricOperator):
         Returns
         -------
         jac : (r, r) ndarray
-            Operator Jacobian.
+            State Jacobian
+            :math:`\Ghat[(\I_r\otimes\qhat\otimes\qhat)
+            + (\qhat\otimes\I_r\otimes\qhat)
+            + (\qhat\otimes\qhat\otimes\I_r)]`.
         """
         q_ = np.atleast_1d(state_)
         return (self._jac @ q_) @ q_
@@ -809,10 +769,8 @@ class CubicOperator(_BaseNonparametricOperator):
 # Dependent on input but not on state =========================================
 class InputOperator(_BaseNonparametricOperator, _InputMixin):
     r"""Linear input operator
-    :math:`\Bhat \in \RR^{r \times m}`
-    representing the action
-    :math:`(\qhat,\u)\mapsto
-    \Bhat\u`.
+    :math:`\Ophat(\qhat,\u) = \Bhat\u`
+    where :math:`\Bhat \in \RR^{r \times m}`.
 
     Examples
     --------
@@ -856,9 +814,8 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
 
     @_requires_entries
     def __call__(self, state_, input_):
-        r"""Apply the operator mapping to the given state:
-        :math:`(\qhat,\u)
-        \mapsto\Bhat\u`.
+        r"""Apply the operator to the given state / input:
+        :math:`\Ophat(\qhat,\u) = \Bhat\u`.
 
         Parameters
         ----------
@@ -870,7 +827,7 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
         Returns
         -------
         out : (r,) ndarray
-            The evaluation :math:`\Bhat\u`.
+            Application :math:`\Bhat\u`.
         """
         if self.entries.shape[1] == 1 and (dim := np.ndim(input_)) != 2:
             if self.entries.shape[0] == 1:
@@ -884,27 +841,6 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
     def apply(self, state_, input_):  # pragma: no cover
         """Mirror of __call__()."""
         return self(state_, input_)
-
-    @_requires_entries
-    def jacobian(self, state_=None, input_=None):
-        r"""Construct the state Jacobian of the operator, the zero matrix:
-        :math:`(\qhat,\u)\mapsto
-        \mathbf{0}\in\RR^{r\times r}`.
-
-        Parameters
-        ----------
-        state_ : (r,) ndarray or None
-            State vector (not used).
-        input_ : (m,) ndarray or None
-            Input vector (not used).
-
-        Returns
-        -------
-        jac : (r, r) ndarray
-            Operator Jacobian, the zero matrix
-        """
-        r = self.entries.shape[0]
-        return np.zeros((r, r))
 
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
@@ -987,10 +923,8 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
 # Dependent on state and input ================================================
 class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
     r"""Linear state / input interaction operator
-    :math:`\widehat{\mathbf{N}} \in \RR^{r \times rm}`
-    representing the action
-    :math:`(\qhat,\u)\mapsto
-    \widehat{\mathbf{N}}[\u\otimes\qhat]`.
+    :math:`\Ophat(\qhat,\u) = \Nhat[\u\otimes\qhat]`
+    where :math:`\Nhat \in \RR^{r \times rm}`.
 
     Examples
     --------
@@ -1038,9 +972,8 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
 
     @_requires_entries
     def __call__(self, state_, input_):
-        r"""Apply the operator mapping to the given state:
-        :math:`(\qhat,\u)\mapsto
-        \widehat{\mathbf{N}}[\u\otimes\qhat]`.
+        r"""Apply the operator to the given state / input:
+        :math:`\Ophat(\qhat,\u) = \Nhat[\u\otimes\qhat]`.
 
         Parameters
         ----------
@@ -1052,8 +985,7 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
         Returns
         -------
         out : (r,) ndarray
-            The evaluation :math:`\widehat{\mathbf{N}}[
-            \u\otimes\qhat]`.
+            The evaluation :math:`\Nhat[\u\otimes\qhat]`.
         """
         # Determine if arguments represent one snapshot or several.
         multi = (sdim := np.ndim(state_)) > 1
@@ -1077,23 +1009,22 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
 
     @_requires_entries
     def jacobian(self, state_, input_):
-        r"""apply the Jacobian of the operator:
-        :math:`(\qhat,\u)\mapsto
-        \sum_{i=1}^{m}u_{i}\widehat{\mathbf{N}}_{i}`, where
-        :math:`\widehat{\mathbf{N}}
-        =[~\widehat{\mathbf{N}}_{1}~~\cdots~~\widehat{\mathbf{N}}_{m}~]`.
+        r"""Construct the state Jacobian of the operator:
+        :math:`\ddqhat\Ophat(\qhat,\u) = \sum_{i=1}^{m}u_{i}\Nhat_{i}`
+        where :math:`\Nhat=[~\Nhat_{1}~~\cdots~~\Nhat_{m}~]`
+        and each :math:`\Nhat_i\in\RR^{r\times r},~i=1,\ldots,m`.
 
         Parameters
         ----------
-        state_ : (r,) ndarray
+        state_ : (r,) ndarray or None
             State vector.
-        input_ : (m,) ndarray
-            Input vector.
+        input_ : (m,) ndarray or None
+            Input vector (not used).
 
         Returns
         -------
         jac : (r, r) ndarray
-            Operator Jacobian.
+            State Jacobian :math:`\sum_{i=1}^{m}u_{i}\Nhat_{i}`.
         """
         r, rm = self.entries.shape
         m = rm // r

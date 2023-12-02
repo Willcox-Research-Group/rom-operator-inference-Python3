@@ -208,21 +208,10 @@ In the multilithic case, the reduced state is decomposed as $\qhat = [~\qhat\trp
 <!-- TODO: Steady-state Problems -->
 
 (sec-operator-classes)=
-
 ## Operator Classes
 
-All ROM classes are initialized with two arguments: a `basis` (usually a class from [**`opinf.basis`**](opinf.basis)) and a list of `operators` that define the structure of the reduced-order model dynamics, i.e., the function $\widehat{\mathbf{F}}$.
-Operator classes are defined in the [**`opinf.operators`**](opinf.operators) submodule.
-
-Each operator class represents a function of the reduced state-input pair $(\qhat,\u)$.
-In order to be used in Operator Inference, an operator evaluation must be expressible as a matrix-vector product
-$
-(\qhat,\u) \mapsto
-\widehat{\mathbf{Z}}\mathbf{f}(\qhat,\u),
-$
-where $\widehat{\mathbf{Z}}\in\RR^{r\times d_{z}}$ and where $\mathbf{f} : \RR^{r}\times\RR^{m}\to\RR^{d_{z}}$ may be a nonlinear function.
-<!-- For example, a linear operation $(\qhat,\u) \mapsto \Ahat\qhat$ where $\Ahat\in\RR^{r\times r}$ uses $\widehat{\mathbf{Z}}=\Ahat$ and $\mathbf{f}(\qhat,\u)=\qhat$;
-A quadratic operation $(\qhat,\u) \mapsto \Hhat[\qhat\otimes\qhat]$ uses $\widehat{\mathbf{Z}}=\Hhat$ and $\mathbf{f}(\qhat,\u)=\qhat\otimes\qhat$. -->
+All ROM classes are initialized with a list of `operators` that define the structure of the reduced-order model dynamics, i.e., the function $\widehat{\mathbf{F}}$.
+These are defined in the {class}`opinf.operators` submodule.
 
 ### Nonparametric Monolithic Operators
 
@@ -230,40 +219,7 @@ A quadratic operation $(\qhat,\u) \mapsto \Hhat[\qhat\otimes\qhat]$ uses $\wideh
 This page is under construction.
 :::
 
-- Constructor, `set_entries()`
-- `entries`, access shortcuts with `[:]`
-- `evaluate()` and `jacobian()` methods
 - `datablock()` and `column_dimension()` methods
-- `galerkin()` method
-- `save()` and `load()` methods
-- Refer to the list of monolithic operators.
-
-| Operator class | Operator action |
-| :------------- | :-------------- |
-| `opinf.operators.ConstantOperator` | $\qhat \mapsto \chat$ |
-
-### Nonparametric Multilithic Operators
-
-### Parametric Operators
-
-- Constructor takes in parameter information (and anything needed by the underlying nonparametric class)
-- `__call__()` maps parameter value to a nonparametric operator
-
-#### Interpolated Operators
-
-$$
-\Ahat(\mu) = \text{interpolate}((\mu_{1},\A_{1}),\ldots,(\mu_{s},\A_{s}); \mu)
-$$
-
-- Constructor takes in `s` (the number of parameter samples) and the interpolator.
-
-#### Affine-parametric Operators
-
-$$
-\Ahat(\mu) = \sum_{i=1}^{n_{A}}\theta_{i}(\mu)\A_{i}
-$$
-
-- Constructor takes in list of $\theta_{i}$ functions
 
 ## ROM Classes
 

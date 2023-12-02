@@ -112,11 +112,13 @@ These classes inherit from `operators._base._BaseNonparametricOperator` and must
 #### Base Class for Nonparametric Operators
 
 :::{eval-rst}
+.. currentmodule:: opinf.operators_new
+
 .. autosummary::
-    :toctree: _autosummaries
+    :toctree: ../api/_autosummaries
     :nosignatures:
 
-    opinf.operators_new._base._BaseNonparametricOperator
+    _base._BaseNonparametricOperator
 :::
 
 #### Abstract Methods to Implement

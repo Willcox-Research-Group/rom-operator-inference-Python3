@@ -3,8 +3,9 @@
 
 Classes
 -------
-* _BaseNonparametricOperator: base for operators without parameter dependence.
-* _BaseParametricOperator: base for operators with parameter dependence.
+
+* _BaseNonparametricOperator: base for monolithic nonparametric operators.
+* _InputMixin: Mix-in for operators that act on the input.
 """
 
 __all__ = []
@@ -116,7 +117,7 @@ class _BaseNonparametricOperator(abc.ABC):
         -------
         opstr : str
             String representation of the operator acting on the state/input,
-            e.g., Aq(t) or Bu(t) or H[q(t) ⊗ q(t)].
+            e.g., ``"Aq(t)"`` or ``"Bu(t)"`` or ``"H[q(t) ⊗ q(t)]"``.
         """
         raise NotImplementedError
 
@@ -152,17 +153,29 @@ class _BaseNonparametricOperator(abc.ABC):
 
         Subclasses should define the following method exactly as follows:
 
-            @functools.wraps(__call__)
-            def apply(self, state_, input_):
-                """Mirror of __call__()."""
-                return self(state_, input_)
+        .. code-block:: python
+
+           @functools.wraps(__call__)
+           def apply(self, state_, input_):
+               """Mirror of __call__()."""
+               return self(state_, input_)
         '''
         return self(state_, input_)
 
-    @abc.abstractmethod
+    @_requires_entries
     def jacobian(self, state_, input_=None):  # pragma: no cover
-        r"""Construct the state Jacobian of the operator,
-        :math:`\frac{\textrm{d}}{\textrm{d}\qhat}\mathcal{F}(\qhat,\u)`.
+        r"""Construct the state Jacobian of the operator.
+
+        If :math:`[\![\q]\!]_{i}` denotes the entry :math:`i` of a vector
+        :math:`\q`, then the entries of the state Jacobian are given by
+
+        .. math::
+           [\![\ddqhat\Ophat(\qhat,\u)]\!]_{i,j}
+           = \frac{\partial}{\partial[\![\qhat]\!]_j}
+           [\![\Ophat(\qhat,\u)]\!]_i.
+
+        If a child class does not implement this method, it is assumed that
+        the Jacobian is zero (i.e., the operator does not act on the state).
 
         Parameters
         ----------
@@ -173,47 +186,54 @@ class _BaseNonparametricOperator(abc.ABC):
 
         Returns
         -------
-        (r, r) ndarray
+        jac : (r, r) ndarray
+            State Jacobian.
         """
-        raise NotImplementedError
+        return 0
 
     # Dimensionality reduction - - - - - - - - - - - - - - - - - - - - - - - -
     @abc.abstractmethod
     def galerkin(self, Vr, Wr, func):
-        r"""Return the Galerkin projection of the operator.
+        r"""Return the projection of the operator.
 
-        If a full-order operator is given by the evaluation
-        :math:`(\q,\u)\mapsto
-        \mathbf{F}(\q,\u)`,
-        then the Galerkin projection of the operator is the evaluation
-        :math:`(\qhat,\u)\mapsto\Wr\trp\mathbf{F}(\Vr\qhat,\u)`,
-        where :math:`\q\in\RR^{n}` is the full-order state,
-        :math:`\u\in\RR^{m}` is the input,
-        :math:`\qhat\in\RR^{r}` is the reduced-order state, and
-        :math:`\q\approx\Vr\qhat_{r}` is the reduced-order approximation
-        of the full-order state, with trial basis
+        For a full-order operator
+        :math:`\mathcal{F}:\RR^{n}\times\RR^{m}\to\RR^{n}`,
+        the projection is the operator
+        :math:`\Ophat:\RR^{r}\times\RR^{m}\to\RR^{r}`
+        defined by
+
+        .. math::
+           \Ophat(\qhat, \u) = \Wr\trp\mathcal{F}(\Vr\qhat, u)
+
+        where
+        :math:`\qhat\in\RR^{r}` is the reduced-order state,
+        :math:`\u\in\RR^{m}` is the input, and
+        :math:`\q\approx\Vr\qhat_{r}\in\RR^{n}` is the reduced-order
+        approximation of the full-order state, with trial basis
         :math:`\Vr\in\RR^{n \times r}` (``Vr``)
         and test basis :math:`\Wr\in\RR^{n \times r}` (``Wr``).
-        If :math:`\Wr = \Vr`, the result is a _Galerkin projection_.
-        If :math:`\Wr \neq \Vr`, it is called a _Petrov-Galerkin projection_.
+        If :math:`\Wr = \Vr`, the result is called a *Galerkin projection*.
+        If :math:`\Wr \neq \Vr`, it is called a *Petrov-Galerkin projection*.
 
-        For example, consider the linear full-order operator
-        :math:`(\q,\u)\mapsto\A\q` where
-        :math:`\A\in\RR^{n \times n}`.
-        The Galerkin projection of this operator is the linear operator
-        :math:`(\qhat,\u)\mapsto
-        \Ahat\qhat`, where
-        :math:`\Ahat = \Wr\trp
-        \A\Vr \in \RR^{r \times r}`.
+        For example, consider the bilinear full-order operator
+        :math:`\mathcal{N}(\q,\u) = \N[\u\otimes\q]` where
+        :math:`\N\in\RR^{n \times nm}`.
+        The Galerkin projection of this operator is the bilinear operator
+        :math:`\widehat{\mathcal{N}}(\qhat,\u) = \Wr\trp\N[\u\otimes\Vr\qhat]`,
+        which can also be written as
+        :math:`\widehat{\mathcal{N}}(\qhat,\u) = \Nhat[\u\otimes\qhat]`
+        where :math:`\Nhat = \Wr\trp\N(\I_m\otimes\Vr) \in \RR^{r\times rm}`.
 
         Subclasses may implement this function as follows:
 
-            @_requires_entries
-            def galerkin(self, Vr, Wr=None):
-                '''Docstring'''
-                return _BaseNonparametricOperator.galerkin(self, Vr, Wr,
-                    lambda A, V, W:  # compute Galerkin projection of A.
-                )
+        .. code-block:: python
+
+           @_requires_entries
+           def galerkin(self, Vr, Wr=None):
+               '''Docstring'''
+               return _BaseNonparametricOperator.galerkin(self, Vr, Wr,
+                   lambda A, V, W:  # compute Galerkin projection of A.
+               )
 
         Parameters
         ----------
@@ -228,47 +248,39 @@ class _BaseNonparametricOperator(abc.ABC):
         Returns
         -------
         op : operator
-            ``self`` or operator object of the same class as ``self``.
+            New object of the same class as ``self``.
         """
         if Wr is None:
             Wr = Vr
         n, r = Wr.shape
         if self.entries.shape[0] == n:
             return self.__class__(func(self.entries, Vr, Wr))
-        elif self.entries.shape[0] == r:
-            return self
         raise errors.DimensionalityError("basis and operator not aligned")
 
     # Data matrix construction - - - - - - - - - - - - - - - - - - - - - - - -
+    @staticmethod
     @abc.abstractmethod
     def datablock(states_, inputs=None):  # pragma: no cover
-        r"""Return the data matrix block corresponding to the operator.
+        r"""Construct the data matrix block corresponding to the operator.
 
-        Let :math:`\widehat{\mathbf{F}}(\qhat,\u)`
-        represent the operator acting on a pair of state and input vectors.
-        The data matrix block is the matrix
-        :math:`\widehat{\mathbf{Z}}` such that the operator inference problem
+        For an operator :math:`\Ophat(\qhat,\u)`,
+        the data matrix block is the matrix :math:`\D` such that
 
         .. math::
-            \min_{\widehat{\mathbf{F}}}\sum_{j=0}^{k-1}\left\|
-            \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})
-            - \widehat{\mathbf{y}}_{j}
-            \right\|_{2}^{2},
+           \left[\begin{array}{c|c|c|c}
+           & & & \\
+           \Ophat(\qhat_0,\u_0) & \Ophat(\qhat_1,\u_1)
+           & \cdots &
+           \Ophat(\qhat_{k-1},\u_{k-1})
+           \\ & & &
+           \end{array}\right]
+           =
+           \Ohat\D
 
-        can be written equivalently as
+        where :math:`\Ohat` is a matrix (the operator entries) that is
+        *independent of the data* :math:`\{(\qhat_j,\u_j)\}_{j=0}^{k-1}`.
 
-        .. math::
-            \min_{\widehat{\mathbf{X}}}\left\|
-            \widehat{\mathbf{X}}\widehat{\mathbf{Z}} - \widehat{\mathbf{Y}}
-            \right\|_{F}^{2}
-
-        where :math:`\widehat{\mathbf{X}}` are the operator entries,
-        :math:`\widehat{\mathbf{Z}}` is the data matrix block containing the
-        state and input data, and :math:`\widehat{\mathbf{Y}} = [~
-        \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
-        ~]`.
-
-        This method should NOT depend on the ``entries`` attribute.
+        Child classes should implement this method as a @staticmethod.
 
         Parameters
         ----------
@@ -286,11 +298,12 @@ class _BaseNonparametricOperator(abc.ABC):
         """
         raise NotImplementedError
 
+    @staticmethod
     @abc.abstractmethod
     def column_dimension(r, m=None):  # pragma: no cover
         r"""Column dimension of the operator entries.
 
-        This method should NOT depend on the ``entries`` attribute.
+        Child classes should implement this method as a @staticmethod.
 
         Parameters
         ----------
@@ -344,7 +357,7 @@ class _BaseNonparametricOperator(abc.ABC):
 
 # Mixin for operators acting on inputs ========================================
 class _InputMixin(abc.ABC):
-    """Mixin for operator classes whose ``evaluate()`` method uses the
+    """Mixin for operator classes whose ``apply()`` method acts on the
     ``input_`` argument.
     """
 

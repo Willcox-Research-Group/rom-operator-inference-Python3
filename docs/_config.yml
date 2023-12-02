@@ -57,35 +57,51 @@ sphinx:
     mathjax3_config:
       tex:
         macros:
-          "trp": "{^{\\mathsf{T}}}"                   # transpose
-          "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"  # time derivative
-          "RR": "\\mathbb{R}"                         # reals
-          "I": "\\mmathbf{I}"                         # identity matrix
-          "q": "\\mathbf{q}"                          # state vector
-          "u": "\\mathbf{u}"                          # input vector
-          "Q": "\\mathbf{Q}"                          # state data
-          "U": "\\mathbf{U}"                          # input data
-          "c": "\\mathbf{c}"                          # constant operator
-          "A": "\\mathbf{A}"                          # linear operator
-          "H": "\\mathbf{H}"                          # quadratic operator
-          "B": "\\mathbf{B}"                          # input operator
-          "v": "\\mathbf{v}"                          # basis vector
-          "Vr": "\\mathbf{V}_{r}"                     # trial basis matrix
-          "Wr": "\\mathbf{W}_{r}"                     # test basis matrix
-          "qhat": "\\widehat{\\mathbf{q}}"            # reduced state vector
-          "Qhat": "\\widehat{\\mathbf{Q}}"            # reduced state data
-          "chat": "\\widehat{\\mathbf{c}}"            # reduced constant operator
-          "Ahat": "\\widehat{\\mathbf{A}}"            # reduced linear operator
-          "Hhat": "\\widehat{\\mathbf{H}}"            # reduced quadratic operator
-          "Bhat": "\\widehat{\\mathbf{H}}"            # reduced input operator
-          "D": "\\mathbf{D}"                          # data matrix
-          "ohat": "\\widehat{\\mathbf{o}}"            # operator vector
-          "Ohat": "\\widehat{\\mathbf{O}}"            # operator matrix
-          "bfmu": "\\boldsymbol{mu}"                  # parameter vector
-          "bfGamma": "\\boldsymbol{Gamma}"            # regularization matrix
-          "bfPhi": "\\boldsymbol{Phi}"                # left singular vectors
-          "bfSigma": "\\boldsymbol{Sigma}"            # singular values
-          "bfPsi": "\\boldsymbol{Psi}"                # right singular vectors
+          "RR": "\\mathbb{R}"                 # real numbers
+          "NN": "\\mathbb{N}"                 # natural numbers
+          "ZZ": "\\mathbb{Z}"                 # integers
+          "I": "\\mathbf{I}"                  # identity matrix
+          "0": "\\mathbf{0}"                  # zero vector or matrix
+          "1": "\\mathbf{1}"                  # vector of ones
+          "q": "\\mathbf{q}"                  # state vector
+          "u": "\\mathbf{u}"                  # input vector
+          "z": "\\mathbf{z}"                  # rhs vector
+          "d": "\\mathbf{d}"                  # data vector
+          "Q": "\\mathbf{Q}"                  # state data
+          "U": "\\mathbf{U}"                  # input data
+          "Z": "\\mathbf{Z}"                  # rhs data
+          "Op": "\\mathcal{F}"                # generic operator
+          "Ophat": "\\widehat{\\mathcal{F}}"  # generic reduced operator
+          "c": "\\mathbf{c}"                  # constant operator
+          "A": "\\mathbf{A}"                  # linear operator
+          "H": "\\mathbf{H}"                  # quadratic operator
+          "G": "\\mathbf{G}"                  # cubic operator
+          "B": "\\mathbf{B}"                  # input operator
+          "N": "\\mathbf{N}"                  # bilinear operator
+          "v": "\\mathbf{v}"                  # basis vector
+          "Vr": "\\mathbf{V}_{r}"             # trial basis matrix
+          "Wr": "\\mathbf{W}_{r}"             # test basis matrix
+          "qhat": "\\widehat{\\mathbf{q}}"    # reduced state vector
+          "zhat": "\\widehat{\\mathbf{z}}"    # reduced rhs vector
+          "Qhat": "\\widehat{\\mathbf{Q}}"    # reduced state data
+          "Zhat": "\\widehat{\\mathbf{Z}}"    # reduced rhs data
+          "chat": "\\widehat{\\mathbf{c}}"    # reduced constant operator
+          "Ahat": "\\widehat{\\mathbf{A}}"    # reduced linear operator
+          "Hhat": "\\widehat{\\mathbf{H}}"    # reduced quadratic operator
+          "Ghat": "\\widehat{\\mathbf{G}}"    # reduced cubic operator
+          "Bhat": "\\widehat{\\mathbf{B}}"    # reduced input operator
+          "Nhat": "\\widehat{\\mathbf{N}}"    # reduced bilinear operator
+          "D": "\\mathbf{D}"                  # data matrix
+          "ohat": "\\widehat{\\mathbf{o}}"    # operator vector
+          "Ohat": "\\widehat{\\mathbf{O}}"    # operator matrix
+          "bfmu": "\\boldsymbol{\\mu}"        # parameter vector
+          "bfGamma": "\\boldsymbol{\\Gamma}"  # regularization matrix
+          "bfPhi": "\\boldsymbol{\\Phi}"      # left singular vectors
+          "bfSigma": "\\boldsymbol{\\Sigma}"  # singular values
+          "bfPsi": "\\boldsymbol{\\Psi}"      # right singular vectors
+          "trp": "{^{\\mathsf{T}}}"           # transpose
+          "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"    # time derivative
+          "ddqhat": "\\frac{\\textrm{d}}{\\textrm{d}\\qhat}"  # d/dqhat
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     numfig_secnum_depth: 1              # Eq (1.1) instead of (1).
     numpydoc_class_members_toctree: false
