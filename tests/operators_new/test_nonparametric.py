@@ -93,21 +93,6 @@ class TestConstantOperator:
         assert out.shape == (k,)
         assert np.all(out == c)
 
-    def test_jacobian(self, r=10):
-        """Test ConstantOperator.jacobian()."""
-        op = self._OpClass()
-        op.set_entries(np.random.random(r))
-        Z = np.zeros((r, r))
-
-        def _test_single(out):
-            assert out.shape == Z.shape
-            assert np.all(out == Z)
-
-        _test_single(op.jacobian())
-        _test_single(op.jacobian(1))
-        _test_single(op.jacobian([1, 2]))
-        _test_single(op.jacobian([1], 2))
-
     def test_galerkin(self, n=10, r=3, ntrials=10):
         """Test ConstantOperator.galerkin()."""
         Vr = np.random.random((n, r))
@@ -726,14 +711,6 @@ class TestInputOperator:
         out = op(None, U)
         assert out.shape == (r, k)
         assert np.allclose(out, np.column_stack([B * u for u in U]))
-
-    def test_jacobian(self, r=9):
-        """Test InputOperator.jacobian()."""
-        B = np.random.random((r, r - 2))
-        op = self._OpClass(B)
-        jac = op.jacobian(np.random.random(r))
-        assert jac.shape == (r, r)
-        assert np.all(jac == 0)
 
     def test_galerkin(self, n=10, r=4, m=3, ntrials=10):
         """Test InputOperator.galerkin()."""

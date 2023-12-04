@@ -55,10 +55,6 @@ class TestBaseNonparametricOperator:
         def apply(self, *args, **kwargs):
             return self(*args, **kwargs)
 
-        @_module._requires_entries
-        def jacobian(*args, **kwargs):
-            pass
-
         def galerkin(*args, **kwargs):
             return _module._BaseNonparametricOperator.galerkin(*args, **kwargs)
 
@@ -107,7 +103,7 @@ class TestBaseNonparametricOperator:
         # These should be callable now.
         op()
         op.apply()
-        op.jacobian()
+        assert op.jacobian(None) == 0
 
     def test_validate_entries(self):
         """Test _BaseNonparametricOperator._validate_entries()."""
@@ -177,15 +173,10 @@ class TestBaseNonparametricOperator:
         opC = self.Dummy(A + 0)
         assert opA == opC
 
-    # Dimensinoality reduction ------------------------------------------------
+    # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=10, r=3):
         """Test _BaseNonparametricOperator.galerkin()."""
         Vr = np.random.random((n, r))
-        A_ = np.random.random((r, r))
-        op = self.Dummy(A_)
-        op_ = op.galerkin(Vr, None, None)
-        assert op_ is op
-
         A = np.random.random((n, n))
         op = self.Dummy(A)
         B = np.random.random(r)

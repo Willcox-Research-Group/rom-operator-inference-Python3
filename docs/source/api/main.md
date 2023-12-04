@@ -1,9 +1,8 @@
-(sec-main)=
 # `opinf`
 
 The root `opinf` namespace defines the following classes and submodules.
 
-**Classes**
+## Classes
 
 :::{eval-rst}
 .. currentmodule:: opinf
@@ -18,9 +17,9 @@ The root `opinf` namespace defines the following classes and submodules.
     InterpolatedDiscreteOpInfROM
 :::
 
-The above classes are also defined in the [**roms**](opinf.roms) submodule.
+The above classes are also defined in the {mod}`opinf.roms` submodule.
 
-**Submodules**
+## Submodules
 
 :::{eval-rst}
 
@@ -30,9 +29,7 @@ The above classes are also defined in the [**roms**](opinf.roms) submodule.
 
     opinf.pre
     opinf.basis
-    opinf.operators
     opinf.operators_new
-    opinf.roms
     opinf.roms_new
     opinf.lstsq
     opinf.post

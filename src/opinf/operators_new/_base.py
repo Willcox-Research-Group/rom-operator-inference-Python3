@@ -121,13 +121,13 @@ class _BaseNonparametricOperator(abc.ABC):
         """
         raise NotImplementedError
 
-    # Initialization - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # Initialization ----------------------------------------------------------
     @abc.abstractmethod
     def set_entries(self, entries):
         """Set the ``entries`` attribute."""
         self.__entries = entries
 
-    # Evaluation - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # Evaluation --------------------------------------------------------------
     @abc.abstractmethod
     def __call__(self, state_, input_=None):  # pragma: no cover
         """Apply the operator mapping to the given state / input.
