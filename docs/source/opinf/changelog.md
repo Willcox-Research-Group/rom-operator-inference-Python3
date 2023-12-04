@@ -5,6 +5,12 @@ This page lists major changes made between package versions.
 :::{versionchanged} 0.5.0
 
 - Overhauled the `operators` module so that each operator class is responsible for its portion of the Operator Inference data matrix.
+- New `StateInputOperator` for state-input bilinear interactions, $\Nhat[\u\otimes\qhat]$.
+- Renamed ROM classes:
+  - `ContinuousOpInfROM` to `ContinuousROM`
+  - `DiscreteOpInfROM` to `DiscreteROM`
+  - `SteadyOpInfROM` to `SteadyROM`
+  - TODO
 :::
 
 :::{versionchanged} 0.4.5

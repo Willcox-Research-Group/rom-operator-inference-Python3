@@ -30,20 +30,20 @@ class _BaseMonolithicROM(abc.ABC):
     _STATE_LABEL = None  # String representation of state, e.g., "q(t)".
     _INPUT_LABEL = None  # String representation of input, e.g., "u(t)".
 
-    def __init__(self, basis, operators):
+    def __init__(self, operators, basis=None):
         """Set the basis and define the model structure.
 
         Parameters
         ----------
+        operators : list of :mod:`opinf.operators` objects
+            Operators comprising the terms of the reduced-order model.
         basis : :mod:`opinf.basis` object or (n, r) ndarray
             Basis for the reduced space (e.g., POD).
-        operators : list of opinf.operators objects
-            Operators comprising the terms of the reduced-order model.
         """
         self.__r = None
         self.__m = None
-        self.__basis = None
         self.__operators = None
+        self.__basis = None
 
         self.basis = basis
         self.operators = operators
@@ -60,10 +60,9 @@ class _BaseMonolithicROM(abc.ABC):
 
         Parameters
         ----------
-        basis : opinf.basis object or (n, r) ndarray
-            An instantiated basis object or the entries of a linear basis, in
-            which case entries are wrapped in an ``opinf.basis.LinearBasis``
-            object.
+        basis : :mod:`opinf.basis` object or (n, r) ndarray
+            Instantiated basis object or the entries of a linear basis to be
+            wrapped in a :class:`opinf.basis.LinearBasis` object.
         """
         if basis is not None:
             if not isinstance(basis, _basis._base._BaseBasis):
@@ -347,14 +346,11 @@ class _BaseMonolithicROM(abc.ABC):
         :math:`\widehat{\mathbf{F}}(\qhat, \u)`
         where the model can be written as one of the following:
 
-        - :math:`\frac{\text{d}}{\text{d}t}\qhat(t)
-            = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
-            (continuous time)
-        - :math:`\qhat_{j+1}
-            = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`
-            (discrete time)
-        - :math:`\widehat{\mathbf{g}}
-            = \widehat{\mathbf{F}}(\qhat, \u)`
+        * :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
+          (continuous time)
+        * :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_j, \u_j)`
+          (discrete time)
+        * :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat, \u)`
             (steady state)
 
         Parameters

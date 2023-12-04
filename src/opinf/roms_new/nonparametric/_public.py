@@ -119,10 +119,10 @@ class DiscreteROM(_NonparametricROM):
 
     Parameters
     ----------
-    basis : opinf.basis object or (n, r) ndarray
-        Basis for the reduced space (e.g., POD).
-    operators : list of opinf.operators objects
+    operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the reduced-order model.
+    basis : :mod:`opinf.basis` object or (n, r) ndarray
+        Basis for the reduced space (e.g., POD).
     """
     _LHS_ARGNAME = "nextstates"
     _LHS_LABEL = r"q_{j+1}"
@@ -158,8 +158,7 @@ class DiscreteROM(_NonparametricROM):
 
         This is the right-hand side of the model, i.e., the function
         :math:`\widehat{\mathbf{F}}` where the model can be written as
-        :math:`\qhat_{j+1}
-        = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`.
+        :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`.
 
         Parameters
         ----------
@@ -182,8 +181,7 @@ class DiscreteROM(_NonparametricROM):
         to the state, i.e., the function :math:`\frac{
         \partial \widehat{\mathbf{F}}}{\partial \qhat}`
         where the model can be written as
-        :math:`\qhat_{j+1}
-        = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`.
+        :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`.
 
         Parameters
         ----------
@@ -321,21 +319,19 @@ class ContinuousROM(_NonparametricROM):
     r"""Reduced-order model for a nonparametric system of ordinary differential
     equations.
 
-    .. math::
-        \frac{\textup{d}}{\textup{d}t} \qhat(t)
-        = \widehat{\mathbf{F}}(\qhat(t), \u(t)).
+    .. math:: \ddt\qhat(t) = \Ophat(\qhat(t), \u(t)).
 
     Here, :math:`\qhat(t)\in\RR^{r}` is the reduced state
     and :math:`\u(t)\in\RR^{m}` is the (optional) input.
     The structure of :math:`\widehat{\mathbf{F}}` is specified through the
-    ``operators`` attribute.
+    ``operators`` argument.
 
     Parameters
     ----------
-    basis : opinf.basis object or (n, r) ndarray
-        Basis for the reduced space (e.g., POD).
-    operators : list of opinf.operators objects
+    operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the reduced-order model.
+    basis : :mod:`opinf.basis` object or (n, r) ndarray or None
+        Basis for the reduced space (e.g., a :class:`PODBasis` object).
     """
     _LHS_ARGNAME = "ddts"
     _LHS_LABEL = "dq / dt"

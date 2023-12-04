@@ -32,7 +32,7 @@ class TestBaseROM:
     def test_basis(self, r=3):
         """Test _BaseMonolithicROM.basis getter, setter, and deleter."""
         # Empty basis.
-        rom = self.Dummy(None, [opinf_operators.ConstantOperator()])
+        rom = self.Dummy([opinf_operators.ConstantOperator()])
         assert rom.basis is None
         assert rom.r is None
         assert rom.n is None
@@ -75,12 +75,12 @@ class TestBaseROM:
 
         # Try to instantiate without any operators.
         with pytest.raises(ValueError) as ex:
-            self.Dummy(None, [])
+            self.Dummy([])
         assert ex.value.args[0] == "at least one operator required"
 
         # Try to instantiate with non-operator.
         with pytest.raises(TypeError) as ex:
-            self.Dummy(None, [1])
+            self.Dummy([1])
         assert ex.value.args[0] == "expected list of nonparametric operators"
 
         # Try to instantiate with operators of mismatched shape (no basis).
@@ -89,7 +89,7 @@ class TestBaseROM:
             opinf_operators.ConstantOperator(np.random.random(r + 1)),
         ]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            self.Dummy(None, bad_ops)
+            self.Dummy(bad_ops)
         assert (
             ex.value.args[0] == "operators not aligned "
             "(shape[0] must be the same)"
@@ -97,7 +97,7 @@ class TestBaseROM:
 
         # Try to instantiate with operators not aligned with the basis.
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            self.Dummy(Vr, bad_ops)
+            self.Dummy(bad_ops, Vr)
         assert (
             ex.value.args[0] == "operators not aligned with basis "
             f"(operators[1].shape[0] = {r+1} must be r = {r} or n = {n})"
@@ -109,14 +109,14 @@ class TestBaseROM:
             opinf_operators.StateInputOperator(np.random.random((r, r * m))),
         ]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            self.Dummy(None, bad_ops)
+            self.Dummy(bad_ops)
         assert (
             ex.value.args[0] == "input operators not aligned "
             "(input dimension 'm' must be the same)"
         )
 
         # Test operators.setter().
-        rom = self.Dummy(None, [opinf_operators.ConstantOperator()])
+        rom = self.Dummy([opinf_operators.ConstantOperator()])
         for attr in (
             "basis",
             "operators",
@@ -138,7 +138,7 @@ class TestBaseROM:
         assert rom.r is None
 
         # Operators with entries, no inputs.
-        rom = self.Dummy(None, operators[:2])
+        rom = self.Dummy(operators[:2])
         assert len(rom._indices_of_operators_to_infer) == 0
         assert len(rom._indices_of_known_operators) == 2
         assert rom._indices_of_known_operators == [0, 1]
@@ -151,7 +151,7 @@ class TestBaseROM:
 
         # Some operators with entries, some without; with inputs.
         operators[5]._clear()
-        rom = self.Dummy(None, operators[3:6])
+        rom = self.Dummy(operators[3:6])
         assert len(rom._indices_of_operators_to_infer) == 1
         assert rom._indices_of_operators_to_infer == [2]
         assert len(rom._indices_of_known_operators) == 2
@@ -187,7 +187,7 @@ class TestBaseROM:
         assert rom.m == m  # Dimensions not erased.
 
         # Test __init__() shortcuts.
-        rom = self.Dummy(None, "cHB")
+        rom = self.Dummy("cHB")
         assert len(rom.operators) == 3
         for i in range(3):
             assert rom.operators[i].entries is None
@@ -208,7 +208,7 @@ class TestBaseROM:
         (_get_operator_of_type()).
         """
         [c, A, H, B, N] = _get_operators("cAHBN", r, m)
-        rom = self.Dummy(None, [A, B, c, H, N])
+        rom = self.Dummy([A, B, c, H, N])
 
         assert rom.A_ is rom.operators[0]
         assert rom.B_ is rom.operators[1]
@@ -220,7 +220,7 @@ class TestBaseROM:
     # Properties: dimensions --------------------------------------------------
     def test_dimension_properties(self, n=20, m=3, r=7):
         """Test the properties roms._base._BaseMonolithicROM.(n|r|basis)."""
-        rom = self.Dummy(None, "cH")
+        rom = self.Dummy("cH")
         assert rom.n is None
         assert rom.m == 0
         assert rom.r is None
@@ -253,7 +253,7 @@ class TestBaseROM:
         del rom.basis
         assert rom.basis is None
         assert rom.n is None
-        rom = self.Dummy(None, "AB")
+        rom = self.Dummy("AB")
         assert rom.m is None
         rom.r = r
         rom.m = m
@@ -263,26 +263,26 @@ class TestBaseROM:
         """Test _BaseMonolithicROM.__str__() (string representation)."""
 
         # Continuous ROMs
-        rom = self.Dummy(None, "A")
+        rom = self.Dummy("A")
         assert str(rom) == "Model structure: dq / dt = Aq(t)"
-        rom = self.Dummy(None, "cA")
+        rom = self.Dummy("cA")
         assert str(rom) == "Model structure: dq / dt = c + Aq(t)"
-        rom = self.Dummy(None, "HB")
+        rom = self.Dummy("HB")
         assert str(rom) == "Model structure: dq / dt = H[q(t) ⊗ q(t)] + Bu(t)"
-        rom = self.Dummy(None, "G")
+        rom = self.Dummy("G")
         assert str(rom) == "Model structure: dq / dt = G[q(t) ⊗ q(t) ⊗ q(t)]"
-        rom = self.Dummy(None, "cH")
+        rom = self.Dummy("cH")
         assert str(rom) == "Model structure: dq / dt = c + H[q(t) ⊗ q(t)]"
 
         # Dimension reporting.
-        rom = self.Dummy(np.empty((100, 20)), "A")
+        rom = self.Dummy("A", np.empty((100, 20)))
         romstr = str(rom).split("\n")
         assert len(romstr) == 3
         assert romstr[0] == "Model structure: dq / dt = Aq(t)"
         assert romstr[1] == "Full-order dimension    n = 100"
         assert romstr[2] == "Reduced-order dimension r = 20"
 
-        rom = self.Dummy(np.empty((80, 10)), "cB")
+        rom = self.Dummy("cB", np.empty((80, 10)))
         rom.m = 3
         romstr = str(rom).split("\n")
         assert len(romstr) == 4
@@ -297,20 +297,20 @@ class TestBaseROM:
         def firstline(obj):
             return repr(obj).split("\n")[0]
 
-        assert firstline(self.Dummy(None, "A")).startswith("<Dummy object at")
+        assert firstline(self.Dummy("A")).startswith("<Dummy object at")
 
     # Validation methods ------------------------------------------------------
     def test_check_inputargs(self):
         """Test _BaseMonolithicROM._check_inputargs()."""
 
         # Try with input operator but without inputs.
-        rom = self.Dummy(None, "cB")
+        rom = self.Dummy("cB")
         with pytest.raises(ValueError) as ex:
             rom._check_inputargs(None, "U")
         assert ex.value.args[0] == "argument 'U' required"
 
         # Try without input operator but with inputs.
-        rom = self.Dummy(None, "cA")
+        rom = self.Dummy("cA")
         with pytest.warns(UserWarning) as wn:
             rom._check_inputargs(1, "u")
         assert len(wn) == 1
@@ -321,7 +321,7 @@ class TestBaseROM:
 
     def test_is_trained(self, m=4, r=7):
         """Test _BaseMonolithicROM._check_is_trained()."""
-        rom = self.Dummy(None, "cB")
+        rom = self.Dummy("cB")
         with pytest.raises(AttributeError) as ex:
             rom._check_is_trained()
         assert ex.value.args[0] == "no reduced dimension 'r' (call fit())"
@@ -345,7 +345,7 @@ class TestBaseROM:
     def test_compress(self, n=60, k=50, r=10):
         """Test _BaseMonolithicROM.compress()."""
         Q, Qdot, _ = _get_data(n, k, 2)
-        rom = self.Dummy(None, "c")
+        rom = self.Dummy("c")
 
         # Try to compress without reduced dimension r set.
         with pytest.raises(AttributeError) as ex:
@@ -378,7 +378,7 @@ class TestBaseROM:
     def test_decompress(self, n=60, k=20, r=8):
         """Test _BaseMonolithicROM.decompress()."""
         Q_, Qdot_, _ = _get_data(r, k, 2)
-        rom = self.Dummy(None, "c")
+        rom = self.Dummy("c")
 
         # Try to decompress without basis.
         rom.r = r
@@ -406,7 +406,7 @@ class TestBaseROM:
         Vr = np.random.random((20, 6))
 
         # Galerkin projection without a basis.
-        rom = self.Dummy(None, ["c", A, "H"])
+        rom = self.Dummy(["c", A, "H"])
         rom.r = n // 2
         with pytest.raises(RuntimeError) as ex:
             rom.galerkin()
@@ -429,7 +429,7 @@ class TestBaseROM:
         """Test _BaseMonolithicROM.evaluate()."""
         c_, A_, H_, B_ = _get_operators("cAHB", r, m)
 
-        rom = self.Dummy(None, [c_, A_])
+        rom = self.Dummy([c_, A_])
         for _ in range(ntrials):
             q_ = np.random.random(r)
             y_ = c_.entries + A_.entries @ q_
@@ -444,7 +444,7 @@ class TestBaseROM:
             assert np.allclose(out, Y_)
 
         kron2c = opinf.utils.kron2c
-        rom = self.Dummy(None, [H_, B_])
+        rom = self.Dummy([H_, B_])
         for _ in range(ntrials):
             u = np.random.random(m)
             q_ = np.random.random(r)
@@ -461,7 +461,7 @@ class TestBaseROM:
             assert np.allclose(out, Y_)
 
         # Special case: r = 1, q is a scalar.
-        rom = self.Dummy(None, _get_operators("A", 1))
+        rom = self.Dummy(_get_operators("A", 1))
         a = rom.operators[0].entries[0]
         assert rom.r == 1
         for _ in range(ntrials):
@@ -482,14 +482,14 @@ class TestBaseROM:
         c_, A_, B_ = _get_operators("cAB", r, m)
 
         for oplist in ([c_, A_], [c_, A_, B_]):
-            rom = self.Dummy(None, oplist)
+            rom = self.Dummy(oplist)
             q_ = np.random.random(r)
             out = rom.jacobian(q_)
             assert out.shape == (r, r)
             assert np.allclose(out, A_.entries)
 
         # Special case: r = 1, q a scalar.
-        rom = self.Dummy(None, _get_operators("A", 1))
+        rom = self.Dummy(_get_operators("A", 1))
         q_ = np.random.random()
         out = rom.jacobian(q_)
         assert out.shape == (1, 1)
@@ -497,7 +497,7 @@ class TestBaseROM:
 
     def test_save(self):
         """Test _BaseMonolithicROM.save()."""
-        rom = self.Dummy(None, "cA")
+        rom = self.Dummy("cA")
         with pytest.raises(NotImplementedError) as ex:
             rom.save("nothing")
         assert ex.value.args[0] == "use pickle/joblib"

@@ -340,7 +340,7 @@ class _NonparametricROM(_BaseMonolithicROM):
                 ops.append(getattr(_operators, OpClassName).load(gp))
 
             # Construct the model.
-            rom = cls(basis, ops)
+            rom = cls(ops, basis)
             rom._indices_of_operators_to_infer = indices_infer
             rom._indices_of_known_operators = indices_known
             if (r := hf["meta"].attrs["r"]) and rom.basis is None:

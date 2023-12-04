@@ -31,7 +31,7 @@ class TestNonparametricROM:
         """Test _NonparametricROM.operator_matrix_."""
         c, A, H, G, B, N = _get_operators("cAHGBN", r, m)
 
-        rom = self.Dummy(None, "cA")
+        rom = self.Dummy("cA")
         rom.r = r
         rom.operators[:] = (c, A)
         D = np.column_stack([c.entries, A.entries])
@@ -53,7 +53,7 @@ class TestNonparametricROM:
         """
         Q, Qdot, U = _get_data(r, k, m)
 
-        rom = self.Dummy(None, "cAH")
+        rom = self.Dummy("cAH")
         with pytest.raises(AttributeError) as ex:
             D = rom.data_matrix_
         assert ex.value.args[0] == "data matrix not constructed (call fit())"
@@ -118,7 +118,7 @@ class TestNonparametricROM:
         # Exceptions #
 
         # Try with bad solver option.
-        rom = self.Dummy(None, "AB")
+        rom = self.Dummy("AB")
         with pytest.raises(TypeError) as ex:
             rom._process_fit_arguments(
                 None, None, None, solver=opinf.lstsq.PlainSolver
@@ -133,7 +133,7 @@ class TestNonparametricROM:
         assert ex.value.args[0] == "solver must have a 'fit()' method"
 
         # Intrusive projection without a basis.
-        rom = self.Dummy(None, [A])
+        rom = self.Dummy([A])
         rom.r = r
         with pytest.raises(RuntimeError) as ex:
             rom._process_fit_arguments(None, None, None)
@@ -141,7 +141,7 @@ class TestNonparametricROM:
 
         # States do not match dimensions 'r' or 'n'.
         A_ = opinf_operators.LinearOperator()
-        rom = self.Dummy(basis, [A_])
+        rom = self.Dummy([A_], basis)
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             rom._process_fit_arguments(Q[1:], None, None)
         assert (
@@ -189,7 +189,7 @@ class TestNonparametricROM:
         assert isinstance(solver, opinf.lstsq.PlainSolver)
 
         # Without basis and with a one-dimensional input.
-        rom = self.Dummy(None, "cHB")
+        rom = self.Dummy("cHB")
         Q_, lhs_, inputs, solver = rom._process_fit_arguments(
             Q, lhs, U1d, solver=0
         )
@@ -204,7 +204,7 @@ class TestNonparametricROM:
         assert isinstance(solver, opinf.lstsq.PlainSolver)
 
         # With basis and no input.
-        rom = self.Dummy(Vr, "cA")
+        rom = self.Dummy("cA", Vr)
         Q_, lhs_, inputs, solver = rom._process_fit_arguments(
             Q, lhs, None, solver=1
         )
@@ -217,13 +217,13 @@ class TestNonparametricROM:
         assert isinstance(solver, opinf.lstsq.L2Solver)
 
         # With known operators for A.
-        rom = self.Dummy(Vr, ["c", A])
+        rom = self.Dummy(["c", A], Vr)
         Q_, lhs_, _, _ = rom._process_fit_arguments(Q, lhs, None)
         assert np.allclose(lhs_, Vr.T @ (lhs - (A.entries @ Vr @ Q_)))
 
         # With known operators for c and B.
         c_, B_ = _get_operators("cB", r, m)
-        rom = self.Dummy(Vr, [c_, "A", B_])
+        rom = self.Dummy([c_, "A", B_], Vr)
         Q_, lhs_, _, _ = rom._process_fit_arguments(Q, lhs, U)
         lhstrue = (Vr.T @ lhs) - B_.entries @ U - np.outer(c_.entries, ones)
         assert np.allclose(lhs_, lhstrue)
@@ -239,7 +239,7 @@ class TestNonparametricROM:
         assert np.allclose(lhs_, (Vr.T @ lhs) - np.outer(B1d.entries, ones))
 
         # Fully intrusive.
-        rom = self.Dummy(Vr, [c, A])
+        rom = self.Dummy([c, A], Vr)
         Q_, lhs_, _, _ = rom._process_fit_arguments(Q, lhs, None)
         assert Q_ is None
         assert lhs_ is None
@@ -251,7 +251,7 @@ class TestNonparametricROM:
         # Get test data.
         Q_, _, U = _get_data(r, k, m)
 
-        rom = self.Dummy(None, "c")
+        rom = self.Dummy("c")
         rom.r = r
         for oplist, d in (
             ("c", 1),
@@ -298,7 +298,7 @@ class TestNonparametricROM:
 
     def test_extract_operators(self, m=2, r=10):
         """Test _NonparametricROM._extract_operators()."""
-        rom = self.Dummy(None, "c")
+        rom = self.Dummy("c")
         c, A, H, G, B, N = [
             op.entries for op in _get_operators("cAHGBN", r, m)
         ]
@@ -334,7 +334,7 @@ class TestNonparametricROM:
 
         # Fit the rom with each modelform.
         for oplist in MODEL_FORMS:
-            rom = self.Dummy(None, oplist)
+            rom = self.Dummy(oplist)
             if "B" in oplist or "N" in oplist:
                 # Without basis.
                 rom.fit(*args_r, U)  # Two-dimensional inputs.
@@ -376,7 +376,7 @@ class TestNonparametricROM:
             os.remove(target)
 
         Vr = np.random.random((n, r))
-        rom = self.Dummy(Vr, "cAHGB")
+        rom = self.Dummy("cAHGB", Vr)
         rom.save(target, save_basis=False)
         assert os.path.isfile(target)
 
@@ -409,17 +409,14 @@ class TestNonparametricROM:
 
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             rom = self.Dummy.load(target)
-        assert (
-            ex.value.args[0] == "Unable to open object "
-            "(object 'meta' doesn't exist)"
-        )
+        assert ex.value.args[0].endswith("(object 'meta' doesn't exist)")
 
         with h5py.File(target, "a") as hf:
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_operators"] = 1
 
         # Check that save() and load() are inverses.
-        rom = self.Dummy(Vr, "cAN")
+        rom = self.Dummy("cAN", Vr)
         rom.m = m
         rom.save(target, save_basis=True, overwrite=True)
         rom2 = rom.load(target)
@@ -442,7 +439,7 @@ class TestNonparametricROM:
             assert getattr(rom2, f"{name}_") is None
 
         # Check basis = None functionality.
-        rom = self.Dummy(None, "HGB")
+        rom = self.Dummy("HGB")
         rom.r = r
         rom.m = m
         rom.save(target, overwrite=True)
@@ -466,7 +463,7 @@ class TestNonparametricROM:
             assert attr.entries is None
 
         # Load ROM with operators with entries.
-        rom = self.Dummy(Vr, _get_operators("AG", r, m))
+        rom = self.Dummy(_get_operators("AG", r, m), Vr)
         rom.save(target, overwrite=True)
         rom2 = rom.load(target)
         assert rom2 is not rom
