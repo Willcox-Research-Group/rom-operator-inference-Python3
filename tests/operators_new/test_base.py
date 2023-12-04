@@ -36,17 +36,17 @@ def test_requires_entries():
 
 
 # Nonparametric operators =====================================================
-class TestBaseNonparametricOperator:
-    """Test operators._nonparametric._BaseNonparametricOperator."""
+class TestNonparametricOperator:
+    """Test operators._nonparametric._NonparametricOperator."""
 
-    class Dummy(_module._BaseNonparametricOperator):
-        """Instantiable version of _BaseNonparametricOperator."""
+    class Dummy(_module._NonparametricOperator):
+        """Instantiable version of _NonparametricOperator."""
 
         def _str(*args, **kwargs):
             pass
 
         def set_entries(*args, **kwargs):
-            _module._BaseNonparametricOperator.set_entries(*args, **kwargs)
+            _module._NonparametricOperator.set_entries(*args, **kwargs)
 
         @_module._requires_entries
         def __call__(*args, **kwargs):
@@ -56,7 +56,7 @@ class TestBaseNonparametricOperator:
             return self(*args, **kwargs)
 
         def galerkin(*args, **kwargs):
-            return _module._BaseNonparametricOperator.galerkin(*args, **kwargs)
+            return _module._NonparametricOperator.galerkin(*args, **kwargs)
 
         def datablock(*args, **kwargs):
             pass
@@ -65,12 +65,12 @@ class TestBaseNonparametricOperator:
             pass
 
     class Dummy2(Dummy):
-        """A distinct instantiable version of _BaseNonparametricOperator."""
+        """A distinct instantiable version of _NonparametricOperator."""
 
         pass
 
     def test_init(self):
-        """Test _BaseNonparametricOperator.__init__()."""
+        """Test _NonparametricOperator.__init__()."""
         op = self.Dummy()
         assert op.entries is None
 
@@ -106,8 +106,8 @@ class TestBaseNonparametricOperator:
         assert op.jacobian(None) == 0
 
     def test_validate_entries(self):
-        """Test _BaseNonparametricOperator._validate_entries()."""
-        func = _module._BaseNonparametricOperator._validate_entries
+        """Test _NonparametricOperator._validate_entries()."""
+        func = _module._NonparametricOperator._validate_entries
         with pytest.raises(TypeError) as ex:
             func([1, 2, 3, 4])
         assert ex.value.args[0] == "operator entries must be NumPy array"
@@ -129,7 +129,7 @@ class TestBaseNonparametricOperator:
 
     # Properties --------------------------------------------------------------
     def test_entries(self):
-        """Test _BaseNonparametricOperator.entries and shape()."""
+        """Test _NonparametricOperator.entries and shape()."""
         op = self.Dummy()
         assert op.shape is None
 
@@ -148,7 +148,7 @@ class TestBaseNonparametricOperator:
         assert op.entries is None
 
     def test_getitem(self):
-        """Test _BaseNonparametricOperator.__getitem__()."""
+        """Test _NonparametricOperator.__getitem__()."""
         op = self.Dummy()
         assert op[0, 1, 3:] is None
 
@@ -158,7 +158,7 @@ class TestBaseNonparametricOperator:
             assert np.all(op[s] == A[s])
 
     def test_eq(self):
-        """Test _BaseNonparametricOperator.__eq__()."""
+        """Test _NonparametricOperator.__eq__()."""
         A = np.arange(12).reshape((4, 3))
         opA = self.Dummy(A)
         opA2 = self.Dummy2(A)
@@ -175,7 +175,7 @@ class TestBaseNonparametricOperator:
 
     # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=10, r=3):
-        """Test _BaseNonparametricOperator.galerkin()."""
+        """Test _NonparametricOperator.galerkin()."""
         Vr = np.random.random((n, r))
         A = np.random.random((n, n))
         op = self.Dummy(A)
@@ -193,7 +193,7 @@ class TestBaseNonparametricOperator:
 
     # Model persistence -------------------------------------------------------
     def test_save(self, target="_baseoperatorsavetest.h5"):
-        """Test _BaseNonparametricOperator.save()."""
+        """Test _NonparametricOperator.save()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
@@ -221,7 +221,7 @@ class TestBaseNonparametricOperator:
         os.remove(target)
 
     def test_load(self, target="_baseoperatorloadtest.h5"):
-        """Test _BaseNonparametricOperator.load()."""
+        """Test _NonparametricOperator.load()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 

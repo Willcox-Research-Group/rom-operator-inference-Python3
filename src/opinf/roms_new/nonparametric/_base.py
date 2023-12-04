@@ -5,7 +5,7 @@ __all__ = []
 
 import numpy as np
 
-from .._base import _BaseMonolithicROM
+from .._base import _MonolithicROM
 from ... import lstsq
 from ... import errors
 from ... import basis as _basis
@@ -13,7 +13,7 @@ from ... import operators_new as _operators
 from ...utils import hdf5_savehandle, hdf5_loadhandle
 
 
-class _NonparametricROM(_BaseMonolithicROM):
+class _NonparametricROM(_MonolithicROM):
     """Base nonparametric monolithic operator inference reduced-order model."""
 
     # Properties --------------------------------------------------------------

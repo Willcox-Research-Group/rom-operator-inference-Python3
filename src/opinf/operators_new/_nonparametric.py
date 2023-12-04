@@ -15,11 +15,11 @@ import numpy as np
 import scipy.linalg as la
 
 from .. import utils
-from ._base import _requires_entries, _BaseNonparametricOperator, _InputMixin
+from ._base import _requires_entries, _NonparametricOperator, _InputMixin
 
 
 # No dependence on state or input =============================================
-class ConstantOperator(_BaseNonparametricOperator):
+class ConstantOperator(_NonparametricOperator):
     r"""Constant operator
     :math:`\Ophat(\qhat,\u) = \chat \in \RR^{r}`.
 
@@ -61,7 +61,7 @@ class ConstantOperator(_BaseNonparametricOperator):
                     "ConstantOperator entries must be one-dimensional"
                 )
 
-        _BaseNonparametricOperator.set_entries(self, entries)
+        _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
     def __call__(self, state_=None, input_=None):
@@ -112,7 +112,7 @@ class ConstantOperator(_BaseNonparametricOperator):
         projected : ConstantOperator
             Projected operator.
         """
-        return _BaseNonparametricOperator.galerkin(
+        return _NonparametricOperator.galerkin(
             self, Vr, Wr, lambda c, V, W: W.T @ c
         )
 
@@ -159,7 +159,7 @@ class ConstantOperator(_BaseNonparametricOperator):
 
 
 # Dependent on state but not on input =========================================
-class LinearOperator(_BaseNonparametricOperator):
+class LinearOperator(_NonparametricOperator):
     r"""Linear state operator
     :math:`\Ophat(\qhat,\u) = \Ahat\qhat`
     where :math:`\Ahat \in \RR^{r \times r}`.
@@ -200,7 +200,7 @@ class LinearOperator(_BaseNonparametricOperator):
         if entries.shape[0] != entries.shape[1]:
             raise ValueError("LinearOperator entries must be square (r x r)")
 
-        _BaseNonparametricOperator.set_entries(self, entries)
+        _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
     def __call__(self, state_, input_=None):
@@ -265,7 +265,7 @@ class LinearOperator(_BaseNonparametricOperator):
         op : operator
             ``self`` or new ``LinearOperator`` object.
         """
-        return _BaseNonparametricOperator.galerkin(
+        return _NonparametricOperator.galerkin(
             self, Vr, Wr, lambda A, V, W: W.T @ A @ V
         )
 
@@ -319,7 +319,7 @@ class LinearOperator(_BaseNonparametricOperator):
         return r
 
 
-class QuadraticOperator(_BaseNonparametricOperator):
+class QuadraticOperator(_NonparametricOperator):
     r"""Quadratic state operator
     :math:`\Ophat(\q,\u) = \Hhat[\qhat\otimes\qhat]`
     where :math:`\Hhat\in\RR^{r \times r^{2}}`.
@@ -350,7 +350,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         """Delete operator ``entries`` and related attributes."""
         self._mask = None
         self._jac = None
-        _BaseNonparametricOperator._clear(self)
+        _NonparametricOperator._clear(self)
 
     def set_entries(self, entries):
         """Set the ``entries`` attribute.
@@ -383,7 +383,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         Ht = utils.expand_quadratic(entries).reshape((r, r, r))
         self._jac = Ht + Ht.transpose(0, 2, 1)
 
-        _BaseNonparametricOperator.set_entries(self, entries)
+        _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
     def __call__(self, state_, input_=None):
@@ -455,7 +455,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         def _project(H, V, W):
             return W.T @ utils.expand_quadratic(H) @ np.kron(V, V)
 
-        return _BaseNonparametricOperator.galerkin(self, Vr, Wr, _project)
+        return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
 
     @staticmethod
     def datablock(states_, inputs=None):
@@ -538,7 +538,7 @@ class QuadraticOperator(_BaseNonparametricOperator):
         return r * (r + 1) // 2
 
 
-class CubicOperator(_BaseNonparametricOperator):
+class CubicOperator(_NonparametricOperator):
     r"""Cubic state operator
     :math:`\Ophat(\qhat,\u)
     = \Ghat[\qhat\otimes\qhat\otimes\qhat]`
@@ -571,7 +571,7 @@ class CubicOperator(_BaseNonparametricOperator):
         """Delete operator ``entries`` and related attributes."""
         self._mask = None
         self._jac = None
-        _BaseNonparametricOperator._clear(self)
+        _NonparametricOperator._clear(self)
 
     def set_entries(self, entries):
         """Set the ``entries`` attribute.
@@ -602,7 +602,7 @@ class CubicOperator(_BaseNonparametricOperator):
         Gt = utils.expand_cubic(entries).reshape([r] * 4)
         self._jac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
 
-        _BaseNonparametricOperator.set_entries(self, entries)
+        _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
     def __call__(self, state_, input_=None):
@@ -680,7 +680,7 @@ class CubicOperator(_BaseNonparametricOperator):
         def _project(G, V, W):
             return W.T @ utils.expand_cubic(G) @ np.kron(V, np.kron(V, V))
 
-        return _BaseNonparametricOperator.galerkin(self, Vr, Wr, _project)
+        return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
 
     @staticmethod
     def datablock(states_, inputs=None):
@@ -767,7 +767,7 @@ class CubicOperator(_BaseNonparametricOperator):
 
 
 # Dependent on input but not on state =========================================
-class InputOperator(_BaseNonparametricOperator, _InputMixin):
+class InputOperator(_NonparametricOperator, _InputMixin):
     r"""Linear input operator
     :math:`\Ophat(\qhat,\u) = \Bhat\u`
     where :math:`\Bhat \in \RR^{r \times m}`.
@@ -810,7 +810,7 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
         if entries.ndim != 2:
             raise ValueError("InputOperator entries must be two-dimensional")
 
-        _BaseNonparametricOperator.set_entries(self, entries)
+        _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
     def __call__(self, state_, input_):
@@ -860,7 +860,7 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
         op : operator
             ``self`` or new ``InputOperator`` object.
         """
-        return _BaseNonparametricOperator.galerkin(
+        return _NonparametricOperator.galerkin(
             self, Vr, Wr, lambda B, V, W: W.T @ B
         )
 
@@ -921,7 +921,7 @@ class InputOperator(_BaseNonparametricOperator, _InputMixin):
 
 
 # Dependent on state and input ================================================
-class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
+class StateInputOperator(_NonparametricOperator, _InputMixin):
     r"""Linear state / input interaction operator
     :math:`\Ophat(\qhat,\u) = \Nhat[\u\otimes\qhat]`
     where :math:`\Nhat \in \RR^{r \times rm}`.
@@ -968,7 +968,7 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
         if rm != r * m:
             raise ValueError("invalid StateInputOperator entries dimensions")
 
-        _BaseNonparametricOperator.set_entries(self, entries)
+        _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
     def __call__(self, state_, input_):
@@ -1062,7 +1062,7 @@ class StateInputOperator(_BaseNonparametricOperator, _InputMixin):
             Id = np.eye(m)
             return W.T @ N @ np.kron(Id, V)
 
-        return _BaseNonparametricOperator.galerkin(self, Vr, Wr, _project)
+        return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
 
     @staticmethod
     def datablock(states_, inputs):

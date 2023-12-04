@@ -4,7 +4,7 @@
 Classes
 -------
 
-* _BaseNonparametricOperator: base for monolithic nonparametric operators.
+* _NonparametricOperator: base for monolithic nonparametric operators.
 * _InputMixin: Mix-in for operators that act on the input.
 """
 
@@ -36,7 +36,7 @@ def _requires_entries(func):
 
 
 # Nonparametric operators =====================================================
-class _BaseNonparametricOperator(abc.ABC):
+class _NonparametricOperator(abc.ABC):
     """Base class for reduced-order model operators that do not depend on
     external parameters. Call the instantiated object to apply the operator
     to an input.
@@ -231,7 +231,7 @@ class _BaseNonparametricOperator(abc.ABC):
            @_requires_entries
            def galerkin(self, Vr, Wr=None):
                '''Docstring'''
-               return _BaseNonparametricOperator.galerkin(self, Vr, Wr,
+               return _NonparametricOperator.galerkin(self, Vr, Wr,
                    lambda A, V, W:  # compute Galerkin projection of A.
                )
 

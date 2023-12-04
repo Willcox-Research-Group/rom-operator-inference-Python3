@@ -22,7 +22,7 @@ _OPERATOR_SHORTCUTS = {
 }
 
 
-class _BaseMonolithicROM(abc.ABC):
+class _MonolithicROM(abc.ABC):
     """Base class for all monolithic reduced-order model classes."""
 
     _LHS_ARGNAME = "lhs"  # Name of LHS argument in fit(), e.g., "ddts".
