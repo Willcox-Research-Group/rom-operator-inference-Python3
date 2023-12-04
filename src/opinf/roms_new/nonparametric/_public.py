@@ -18,9 +18,7 @@ from ._base import _NonparametricROM
 class SteadyROM(_NonparametricROM):  # pragma: no cover
     r"""Reduced-order model for a nonparametric steady state problem:
 
-    ..math ::
-        \widehat{\mathbf{g}}
-        = \widehat{\mathbf{F}}(\qhat).
+    .. math:: \widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat).
 
     Here q is the state and g is a forcing term. The structure of F(q) is user
     specified (modelform), and the corresponding low-dimensional operators are
@@ -67,24 +65,12 @@ class SteadyROM(_NonparametricROM):  # pragma: no cover
 
         Parameters
         ----------
-        basis : (n, r) ndarray or None
-            Basis for the reduced state space (e.g., POD basis matrix).
-            If None, states and forcing are assumed to already be projected.
         states : (n, k) or (r, k) ndarray
             Column-wise snapshot training data (each column is a snapshot),
             either full order (n rows) or projected to reduced order (r rows).
         forcing : (n, k) or (r, k) ndarray or None
             Column-wise forcing data corresponding to the training snapshots,
             either full order (n rows) or projected to reduced order (r rows).
-        known_operators : dict or None
-            Dictionary of known full-order operators.
-            Corresponding reduced-order operators are computed directly
-            through projection; remaining operators are inferred from data.
-            Keys must match the modelform; values are ndarrays:
-            * 'c': (n,) constant term c.
-            * 'A': (n, n) linear state matrix A.
-            * 'H': (n, n**2) quadratic state matrix H.
-            * 'G': (n, n**3) cubic state matrix G.
         solver : lstsq Solver object or float > 0 or None
             Solver for the least-squares regression. Defaults:
             * None: lstsq.PlainSolver(), SVD-based solve without regularization
@@ -100,6 +86,26 @@ class SteadyROM(_NonparametricROM):  # pragma: no cover
         return _NonparametricROM.fit(
             self, states, forcing, inputs=None, solver=solver
         )
+
+    def jacobian(self, state_):
+        r"""Construct and sum the Jacobian of each model operators.
+
+        This the derivative of the right-hand side of the model with respect
+        to the state, i.e., the function :math:`\ddqhat\widehat{\mathbf{F}}}`
+        where the model can be written as
+        :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat)`.
+
+        Parameters
+        ----------
+        state_ : (r,) ndarray
+            Low-dimensional state vector.
+
+        Returns
+        -------
+        jac : (r, r) ndarray
+            Jacobian of the right-hand side of the model.
+        """
+        return _NonparametricROM.jacobian(self, state_, input_=None)
 
     def predict(self, forcing, guess=None):
         raise NotImplementedError("TODO")
@@ -129,29 +135,41 @@ class DiscreteROM(_NonparametricROM):
     _STATE_LABEL = r"q_{j}"
     _INPUT_LABEL = r"u_{j}"
 
-    # TODO: convenience method for dealing with multiple trajectories (bursts).
-    # @staticmethod
-    # def stack_training_bursts(statelist):
-    #     """Translate a collection of state trajectories to
-    #     (states, nextstates) arrays that are appropriate arguments for fit().
-    #
-    #     Parameters
-    #     ----------
-    #     statelist : list of s (n, k_i) ndarrays
-    #         Collection of state trajectories from various initial conditions.
-    #         Q = statelist[i] is the snapshot matrix for Q.shape[1] iterations
-    #         starting at initial condition q0 = Q[i, 0].
-    #
-    #     Returns
-    #     -------
-    #     states : (n, sum_i(k_i)-s) ndarray
-    #         States
-    #     nextstates : (n, sum_i(k_i)-s) ndarray
-    #         Nextstates
-    #     """
-    #     states = np.hstack([Q[:, :-1] for Q in statelist])
-    #     nextstates = np.hstack([Q[:, 1:] for Q in statelist])
-    #     return states, nextstates
+    @staticmethod
+    def stack_trajectories(statelist, inputlist=None):
+        """Translate a collection of state trajectories and (optionally) inputs
+        to arrays that are appropriate arguments for :meth:`fit()`.
+
+        Parameters
+        ----------
+        statelist : list of s (n, k_i) ndarrays
+            Collection of state trajectories.
+        inputlist : list of s (m, k_i) ndarrays
+            Collection of inputs corresponding to the state trajectories.
+
+        Returns
+        -------
+        states : (n, sum_i(k_i)) ndarray
+            Snapshot matrix with data from all but the final snapshot of each
+            trajectory in ``statelist``.
+        nextstates : (n, sum_i(k_i)) ndarray
+            Snapshot matrix with data from all but the first snapshot of each
+            trajectory in ``statelist``.
+        inputs : (n, sum_i(k_i)) ndarray
+            Input matrix with data from all but the last input for each
+            trajectory. Only returned if ``inputlist`` is provided.
+        """
+        states = np.hstack([Q[:, :-1] for Q in statelist])
+        nextstates = np.hstack([Q[:, 1:] for Q in statelist])
+        if inputlist is not None:
+            inputs = np.hstack(
+                [
+                    U[..., : (S.shape[1] - 1)]
+                    for S, U in zip(statelist, inputlist)
+                ]
+            )
+            return states, nextstates, inputs
+        return states, nextstates
 
     def evaluate(self, state_, input_=None):
         r"""Evaluate and sum each model operator.
@@ -178,8 +196,7 @@ class DiscreteROM(_NonparametricROM):
         r"""Construct and sum the Jacobian of each model operators.
 
         This the derivative of the right-hand side of the model with respect
-        to the state, i.e., the function :math:`\frac{
-        \partial \widehat{\mathbf{F}}}{\partial \qhat}`
+        to the state, i.e., the function :math:`\ddqhat\widehat{\mathbf{F}}}`
         where the model can be written as
         :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`.
 
@@ -199,7 +216,6 @@ class DiscreteROM(_NonparametricROM):
 
     def fit(
         self,
-        basis,
         states,
         nextstates=None,
         inputs=None,
@@ -246,31 +262,33 @@ class DiscreteROM(_NonparametricROM):
         if solver is None and regularizer is not None:
             solver = regularizer  # pragma: no cover
         return _NonparametricROM.fit(
-            self, basis, states, nextstates, inputs=inputs, solver=solver
+            self, states, nextstates, inputs=inputs, solver=solver
         )
 
     def predict(self, state0, niters, inputs=None, decompress=True):
         """Step forward the reduced-order discrete dynamical system
         ``niters`` steps. Essentially, this amounts to the following.
 
-            >>> states_[:, 0] = rom.compress(state0)
-            >>> states_[:, 1] = rom.evaluate(states_[:, 0], inputs[:, 0])
-            >>> states_[:, 2] = rom.evaluate(states_[:, 1], inputs[:, 1])
-            ...                                     # Repeat `niters` times.
-            >>> states = rom.decompress(states_)
+        .. code-block:: python
+
+           >>> states_[:, 0] = rom.compress(state0)
+           >>> states_[:, 1] = rom.evaluate(states_[:, 0], inputs[:, 0])
+           >>> states_[:, 2] = rom.evaluate(states_[:, 1], inputs[:, 1])
+           ...                                     # Repeat `niters` times.
+           >>> states = rom.decompress(states_)
 
         Parameters
         ----------
         state0 : (n,) or (r,) ndarray
-            Initial state vector, either full order (`n`-vector) or compressed
-            to reduced order (`r`-vector).
+            Initial state vector, either full order (``n``-vector)
+            or compressed to reduced order (``r``-vector).
         niters : int
             Number of times to step the system forward.
         inputs : (m, niters-1) ndarray or None
             Inputs for the next ``niters - 1`` time steps.
         decompress : bool
             If ``True`` and the ``basis`` is not ``None``, reconstruct the
-            solutions in the original `n`-dimensional state space.
+            solutions in the original ``n``-dimensional state space.
 
         Returns
         -------
@@ -296,6 +314,9 @@ class DiscreteROM(_NonparametricROM):
 
         # Run the iteration.
         if self._has_inputs:
+            if callable(inputs):
+                raise TypeError("inputs must be NumPy array, not callable")
+
             # Validate shape of input, reshaping if input is 1d.
             U = np.atleast_2d(inputs)
             if U.ndim != 2 or U.shape[0] != self.m or U.shape[1] < niters - 1:
@@ -339,12 +360,11 @@ class ContinuousROM(_NonparametricROM):
     _INPUT_LABEL = "u(t)"
 
     def evaluate(self, t, state_, input_func=None):
-        r"""Evaluate and sum each model operator.
+        r"""Apply each operator and sum the results.
 
         This is the right-hand side of the model, i.e., the function
         :math:`\widehat{\mathbf{F}}` where the model can be written as
-        :math:`\frac{\textup{d}}{\textup{d}t} \qhat(t)
-        = \widehat{\mathbf{F}}(\qhat(t), \u(t))`.
+        :math:`\ddt \qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`.
 
         Parameters
         ----------
@@ -355,7 +375,7 @@ class ContinuousROM(_NonparametricROM):
             corresponding to time ``t``.
         input_func : callable(float) -> (m,), or None
             Input function that maps time ``t`` to an input vector of length
-            `m`.
+            ``m``.
 
         Returns
         -------

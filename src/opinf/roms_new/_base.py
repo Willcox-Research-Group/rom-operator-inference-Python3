@@ -86,7 +86,9 @@ class _BaseMonolithicROM(abc.ABC):
     @operators.setter
     def operators(self, ops):
         """Set the operators."""
-        if len(ops) == 0:
+        if isinstance(ops, _operators._base._BaseNonparametricOperator):
+            ops = [ops]
+        if len(ops) == 0 or ops is None:
             raise ValueError("at least one operator required")
 
         toinfer = []  # Operators to infer (no entries yet).

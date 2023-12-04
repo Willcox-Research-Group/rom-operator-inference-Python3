@@ -116,7 +116,7 @@ class TestBaseROM:
         )
 
         # Test operators.setter().
-        rom = self.Dummy([opinf_operators.ConstantOperator()])
+        rom = self.Dummy(opinf_operators.ConstantOperator())
         for attr in (
             "basis",
             "operators",

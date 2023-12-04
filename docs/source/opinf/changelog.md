@@ -5,12 +5,12 @@ This page lists major changes made between package versions.
 :::{versionchanged} 0.5.0
 
 - Overhauled the `operators` module so that each operator class is responsible for its portion of the Operator Inference data matrix.
-- New `StateInputOperator` for state-input bilinear interactions, $\Nhat[\u\otimes\qhat]$.
+  - New `StateInputOperator` for state-input bilinear interactions, $\Nhat[\u\otimes\qhat]$.
 - Renamed ROM classes:
   - `ContinuousOpInfROM` to `ContinuousROM`
   - `DiscreteOpInfROM` to `DiscreteROM`
   - `SteadyOpInfROM` to `SteadyROM`
-  - TODO
+- ROM classes now take a list of operators and (optionally) the basis in the constructor. String shortcuts such as `"cAH"` are still valid. The `basis` argument has been removed from `fit()`.
 :::
 
 :::{versionchanged} 0.4.5
