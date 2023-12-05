@@ -151,9 +151,9 @@ class ConstantOperator(_NonparametricOperator):
         Parameters
         ----------
         r : int
-            Dimension of the reduced-order state space.
+            State dimension.
         m : int or None
-            Number of inputs.
+            Input dimension.
         """
         return 1
 
@@ -312,9 +312,9 @@ class LinearOperator(_NonparametricOperator):
         Parameters
         ----------
         r : int
-            Dimension of the reduced-order state space.
+            State dimension.
         m : int or None
-            Number of inputs.
+            Input dimension.
         """
         return r
 
@@ -349,7 +349,7 @@ class QuadraticOperator(_NonparametricOperator):
     def _clear(self):
         """Delete operator ``entries`` and related attributes."""
         self._mask = None
-        self._jac = None
+        self._prejac = None
         _NonparametricOperator._clear(self)
 
     def set_entries(self, entries):
@@ -381,7 +381,7 @@ class QuadraticOperator(_NonparametricOperator):
         # Precompute compressed Kronecker product mask and Jacobian matrix.
         self._mask = utils.kron2c_indices(r)
         Ht = utils.expand_quadratic(entries).reshape((r, r, r))
-        self._jac = Ht + Ht.transpose(0, 2, 1)
+        self._prejac = Ht + Ht.transpose(0, 2, 1)
 
         _NonparametricOperator.set_entries(self, entries)
 
@@ -430,7 +430,7 @@ class QuadraticOperator(_NonparametricOperator):
             State Jacobian
             :math:`\Hhat[(\I_r\otimes\qhat) + (\qhat\otimes\I_r)]`.
         """
-        return self._jac @ np.atleast_1d(state_)
+        return self._prejac @ np.atleast_1d(state_)
 
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
@@ -531,9 +531,9 @@ class QuadraticOperator(_NonparametricOperator):
         Parameters
         ----------
         r : int
-            Dimension of the reduced-order state space.
+            State dimension.
         m : int or None
-            Number of inputs.
+            Input dimension.
         """
         return r * (r + 1) // 2
 
@@ -570,7 +570,7 @@ class CubicOperator(_NonparametricOperator):
     def _clear(self):
         """Delete operator ``entries`` and related attributes."""
         self._mask = None
-        self._jac = None
+        self._prejac = None
         _NonparametricOperator._clear(self)
 
     def set_entries(self, entries):
@@ -600,7 +600,7 @@ class CubicOperator(_NonparametricOperator):
         # Precompute compressed Kronecker product mask and Jacobian tensor.
         self._mask = utils.kron3c_indices(r)
         Gt = utils.expand_cubic(entries).reshape([r] * 4)
-        self._jac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
+        self._prejac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
 
         _NonparametricOperator.set_entries(self, entries)
 
@@ -655,7 +655,7 @@ class CubicOperator(_NonparametricOperator):
             + (\qhat\otimes\qhat\otimes\I_r)]`.
         """
         q_ = np.atleast_1d(state_)
-        return (self._jac @ q_) @ q_
+        return (self._prejac @ q_) @ q_
 
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
@@ -759,9 +759,9 @@ class CubicOperator(_NonparametricOperator):
         Parameters
         ----------
         r : int
-            Dimension of the reduced-order state space.
+            State dimension.
         m : int or None
-            Number of inputs.
+            Input dimension.
         """
         return r * (r + 1) * (r + 2) // 6
 
@@ -907,18 +907,16 @@ class InputOperator(_NonparametricOperator, _InputMixin):
         Parameters
         ----------
         r : int
-            Dimension of the reduced-order state space.
+            State dimension.
         m : int or None
-            Number of inputs.
+            Input dimension.
         """
         return m
 
     @property
-    def m(self):
-        """Input dimension."""
-        if self.entries is None:
-            return None
-        return self.entries.shape[1]
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        return None if self.entries is None else self.entries.shape[1]
 
 
 # Dependent on state and input ================================================
@@ -1142,15 +1140,15 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
         Parameters
         ----------
         r : int
-            Dimension of the reduced-order state space.
+            State dimension.
         m : int or None
-            Number of inputs.
+            Input dimension.
         """
         return r * m
 
     @property
-    def m(self):
-        """Input dimension."""
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
         if self.entries is None:
             return None
         return self.entries.shape[1] // self.entries.shape[0]

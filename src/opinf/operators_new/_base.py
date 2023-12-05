@@ -13,6 +13,7 @@ __all__ = []
 import abc
 import functools
 import numpy as np
+import scipy.sparse as sparse
 
 from .. import errors
 from ..utils import hdf5_savehandle, hdf5_loadhandle
@@ -43,7 +44,7 @@ class _NonparametricOperator(abc.ABC):
     """
 
     def __init__(self, entries=None):
-        """Initialize empty operator."""
+        """Initialize an empty operator."""
         self._clear()
         self.evaluate = self.__call__
         if entries is not None:
@@ -53,8 +54,10 @@ class _NonparametricOperator(abc.ABC):
     @staticmethod
     def _validate_entries(entries):
         """Ensure argument is a NumPy array and screen for NaN, Inf entries."""
-        if not isinstance(entries, np.ndarray):
-            raise TypeError("operator entries must be NumPy array")
+        if not isinstance(entries, (np.ndarray, sparse.sparray)):
+            raise TypeError(
+                "operator entries must be NumPy or scipy.sparse array"
+            )
         if np.any(np.isnan(entries)):
             raise ValueError("operator entries must not be NaN")
         elif np.any(np.isinf(entries)):
@@ -67,7 +70,9 @@ class _NonparametricOperator(abc.ABC):
     # Properties --------------------------------------------------------------
     @property
     def entries(self):
-        """Discrete representation of the operator."""
+        r"""
+        Discrete representation of the operator, the matrix :math:`\Ohat`.
+        """
         return self.__entries
 
     @entries.setter
@@ -84,6 +89,11 @@ class _NonparametricOperator(abc.ABC):
     def shape(self):
         """Shape of the operator entries array."""
         return None if self.entries is None else self.entries.shape
+
+    @property
+    def state_dimension(self):
+        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
+        return None if self.entries is None else self.entries.shape[0]
 
     # Magic methods -----------------------------------------------------------
     def __getitem__(self, key):
@@ -194,7 +204,7 @@ class _NonparametricOperator(abc.ABC):
     # Dimensionality reduction - - - - - - - - - - - - - - - - - - - - - - - -
     @abc.abstractmethod
     def galerkin(self, Vr, Wr, func):
-        r"""Return the projection of the operator.
+        r"""Project the operator to a low-dimensional linear space.
 
         For a full-order operator
         :math:`\mathcal{F}:\RR^{n}\times\RR^{m}\to\RR^{n}`,
@@ -308,7 +318,7 @@ class _NonparametricOperator(abc.ABC):
         Parameters
         ----------
         r : int
-            Dimension of the reduced-order state space.
+            Dimension of the state space.
         m : int or None
             Number of inputs.
         """
@@ -362,14 +372,17 @@ class _InputMixin(abc.ABC):
     """
 
     @abc.abstractmethod
-    def m(self):  # pragma: no cover
-        """Input dimension. Subclasses should implement this method as follows:
+    def input_dimension(self):  # pragma: no cover
+        r"""Dimension of the input :math:`\u` that the operator acts on.
+
+        Child classes should implement this method as follows:
 
         .. code-block:: python
 
            @property
-           def m(self):
-               '''Input dimension.'''
+           def input_dimension(self):
+               r'''Dimension of the input :math:`\u` that the operator acts on.
+               '''
                if self.entries is None:
                    return None
                return  # calculate m from self.entries.

@@ -1,42 +1,48 @@
-# roms/nonparametric/_frozen.py
-"""Evaluations of parametric ROM classes with fit() disabled."""
+# models/nonparametric/_frozen.py
+"""Evaluations of parametric model classes with fit() disabled."""
 
 __all__ = []
 
-from ._public import SteadyROM, DiscreteROM, ContinuousROM
+from ._public import SteadyModel, DiscreteModel, ContinuousModel
 
 
 class _FrozenMixin:
-    """Mixin for evaluations of parametric ROMs (disables fit())."""
+    """Mixin for evaluations of parametric models (disables fit())."""
+
+    def _clear(self):
+        raise NotImplementedError(
+            "_clear() is disabled for this class, "
+            "call fit() on the parametric model object"
+        )
 
     @property
     def data_matrix_(self):
         return None
 
     @property
-    def d(self):
+    def operator_matrix_dimension(self):
         return None
 
     def fit(*args, **kwargs):
         raise NotImplementedError(
             "fit() is disabled for this class, "
-            "call fit() on the parametric ROM object"
+            "call fit() on the parametric model object"
         )
 
 
-class _FrozenSteadyROM(_FrozenMixin, SteadyROM):
-    """Steady-state ROM that is the evaluation of a parametric ROM."""
+class _FrozenSteadyModel(_FrozenMixin, SteadyModel):
+    """Steady-state model that is the evaluation of a parametric model."""
 
     pass  # pragma: no cover
 
 
-class _FrozenDiscreteROM(_FrozenMixin, DiscreteROM):
-    """Discrete-time ROM that is the evaluation of a parametric ROM."""
+class _FrozenDiscreteModel(_FrozenMixin, DiscreteModel):
+    """Discrete-time model that is the evaluation of a parametric model."""
 
     pass  # pragma: no cover
 
 
-class _FrozenContinuousROM(_FrozenMixin, ContinuousROM):
-    """Continuous-time ROM that is the evaluation of a parametric ROM."""
+class _FrozenContinuousModel(_FrozenMixin, ContinuousModel):
+    """Continuous-time model that is the evaluation of a parametric model."""
 
     pass  # pragma: no cover

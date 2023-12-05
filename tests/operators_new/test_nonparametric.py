@@ -45,16 +45,19 @@ class TestConstantOperator:
         # Case 2: two-dimensional array that can be flattened.
         op.set_entries(c.reshape((-1, 1)))
         assert op.shape == (12,)
+        assert op.state_dimension == 12
         assert np.all(op.entries == c)
 
         op.set_entries(c.reshape((1, -1)))
         assert op.shape == (12,)
+        assert op.state_dimension == 12
         assert np.all(op.entries == c)
 
         # Case 3: r = 1 and c is a scalar.
         c = np.random.random()
         op.set_entries(c)
         assert op.shape == (1,)
+        assert op.state_dimension == 1
         assert op.entries[0] == c
 
     def test_apply(self, k=20):
@@ -166,11 +169,13 @@ class TestLinearOperator:
         A = Abad[:3, :3]
         op.set_entries(A)
         assert op.entries is A
+        assert op.state_dimension == 3
 
         # Special case: r = 1, scalar A.
         a = np.random.random()
         op.set_entries(a)
         assert op.shape == (1, 1)
+        assert op.state_dimension == 1
         assert op[0, 0] == a
 
     def test_apply(self, k=20):
@@ -285,6 +290,7 @@ class TestQuadraticOperator:
         # Special case: r = 1, H a scalar.
         H = np.random.random()
         op.set_entries(H)
+        assert op.state_dimension == 1
         assert op.shape == (1, 1)
         assert op.entries[0, 0] == H
 
@@ -294,11 +300,13 @@ class TestQuadraticOperator:
         H_ = opinf.utils.compress_quadratic(H)
         op.set_entries(H)
         r2_ = r * (r + 1) // 2
+        assert op.state_dimension == r
         assert op.shape == (r, r2_)
         assert np.allclose(op.entries, H_)
 
         # Three-dimensional tensor.
         op.set_entries(H.reshape((r, r, r)))
+        assert op.state_dimension == r
         assert op.shape == (r, r2_)
         assert np.allclose(op.entries, H_)
 
@@ -306,12 +314,15 @@ class TestQuadraticOperator:
         H = np.random.random((r, r2_))
         op.set_entries(H)
         assert op.entries is H
+        assert op.state_dimension == r
 
         # Test _clear().
         op._clear()
         assert op.entries is None
         assert op._mask is None
-        assert op._jac is None
+        assert op._prejac is None
+        assert op.state_dimension is None
+        assert op.shape is None
 
     def test_apply(self, k=10, ntrials=10):
         """Test QuadraticOperator.apply()/__call__()."""
@@ -485,7 +496,7 @@ class TestCubicOperator:
         op._clear()
         assert op.entries is None
         assert op._mask is None
-        assert op._jac is None
+        assert op._prejac is None
 
     def test_apply(self, k=20, ntrials=10):
         """Test CubicOperator.apply()/__call__()."""
@@ -632,13 +643,13 @@ class TestInputOperator:
         B = Bbad.reshape((4, 3))
         op.set_entries(B)
         assert op.entries is B
-        assert op.m == 3
+        assert op.input_dimension == 3
 
         # Special case: r > 1, m = 1
         B = np.random.random(5)
         op.set_entries(B)
         assert op.shape == (5, 1)
-        assert op.m == 1
+        assert op.input_dimension == 1
         assert np.allclose(op.entries[:, 0], B)
 
         # Special case: r = 1, m > 1
@@ -750,6 +761,14 @@ class TestInputOperator:
         assert self._OpClass.column_dimension(3, 8) == 8
         assert self._OpClass.column_dimension(5, 2) == 2
 
+    def test_input_dimension(self):
+        """Test InputOperator.input_dimension()."""
+        op = self._OpClass()
+        assert op.input_dimension is None
+        for m in np.random.randint(1, 10, 5):
+            op = self._OpClass(np.random.random((3, m)))
+            assert op.input_dimension == m
+
 
 # Dependent on state and input ================================================
 class TestStateInputOperator:
@@ -789,14 +808,14 @@ class TestStateInputOperator:
         N = np.random.random((r, r * m))
         op.set_entries(N)
         assert op.entries is N
-        assert op.m == m
+        assert op.input_dimension == m
 
         # Special case: r = 1, m = 1 (scalar B).
         n = np.random.random()
         op.set_entries(n)
         assert op.shape == (1, 1)
         assert op[0, 0] == n
-        assert op.m == 1
+        assert op.input_dimension == 1
 
     def test_apply(self, k=20):
         """Test StateInputOperator.apply()/__call__()."""
@@ -981,3 +1000,11 @@ class TestStateInputOperator:
         assert self._OpClass.column_dimension(1, 2) == 2
         assert self._OpClass.column_dimension(3, 6) == 18
         assert self._OpClass.column_dimension(5, 2) == 10
+
+    def test_input_dimension(self):
+        """Test StateInputOperator.input_dimension()."""
+        op = self._OpClass()
+        assert op.input_dimension is None
+        for m in np.random.randint(1, 10, 5):
+            op = self._OpClass(np.random.random((3, 3 * m)))
+            assert op.input_dimension == m

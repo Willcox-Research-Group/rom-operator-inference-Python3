@@ -110,7 +110,10 @@ class TestNonparametricOperator:
         func = _module._NonparametricOperator._validate_entries
         with pytest.raises(TypeError) as ex:
             func([1, 2, 3, 4])
-        assert ex.value.args[0] == "operator entries must be NumPy array"
+        assert (
+            ex.value.args[0] == "operator entries must be "
+            "NumPy or scipy.sparse array"
+        )
 
         A = np.arange(12, dtype=float).reshape((4, 3)).T
         A[0, 0] = np.nan
@@ -259,7 +262,7 @@ def test_is_input_operator():
     class Dummy(_module._InputMixin):
         """Instantiable verison of _InputMixin."""
 
-        def m(self):
+        def input_dimension(self):
             pass
 
     op = Dummy()

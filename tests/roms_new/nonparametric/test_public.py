@@ -1,5 +1,5 @@
-# roms/nonparametric/test_public.py
-"""Tests for roms.nonparametric._public."""
+# models/nonparametric/test_public.py
+"""Tests for models.nonparametric._public."""
 
 import pytest
 import numpy as np
@@ -9,45 +9,45 @@ import opinf
 from .. import MODEL_FORMS, _get_data, _get_operators, _trainedmodel
 
 
-class TestSteadyROM:
-    """Test roms.nonparametric._public.SteadyROM."""
+class TestSteadyModel:
+    """Test models.nonparametric._public.SteadyModel."""
 
-    ModelClass = opinf.roms_new.nonparametric._public.SteadyROM
+    ModelClass = opinf.models.nonparametric._public.SteadyModel
 
     def test_evaluate(self, r=10):
-        """Lightly test SteadyROM.evaluate().
-        Stronger tests in test_base.TestNonparametricROM.test_evaluate().
+        """Lightly test SteadyModel.evaluate().
+        Stronger tests in test_base.TestNonparametricModel.test_evaluate().
         """
         rom = _trainedmodel(self.ModelClass, "cAH", r, 0)
         rom.evaluate(np.random.random(r))
 
     def test_jacobian(self, r=6, m=3):
-        """Lightly test DiscreteROM.jacobian().
-        Stronger tests in test_base.TestNonparametricROM.test_jacobian().
+        """Lightly test DiscreteModel.jacobian().
+        Stronger tests in test_base.TestNonparametricModel.test_jacobian().
         """
         rom = _trainedmodel(self.ModelClass, "A", r, 0)
         rom.jacobian(np.random.random(r))
 
     def test_fit(self, k=400, r=10):
-        """Lightly test SteadyROM.fit().
-        Stronger tests in test_base.TestNonparametricROM.test_fit().
+        """Lightly test SteadyModel.fit().
+        Stronger tests in test_base.TestNonparametricModel.test_fit().
         """
         Q, F, _ = _get_data(r, k, 2)
         rom = self.ModelClass("A")
         rom.fit(Q, F)
 
     # def test_predict(self):
-    #     """Test SteadyROM.predict()."""
+    #     """Test SteadyModel.predict()."""
     #     raise NotImplementedError
 
 
-class TestDiscreteROM:
-    """Test roms.nonparametric._public.DiscreteROM."""
+class TestDiscreteModel:
+    """Test models.nonparametric._public.DiscreteModel."""
 
-    ModelClass = opinf.roms_new.nonparametric._public.DiscreteROM
+    ModelClass = opinf.models.nonparametric._public.DiscreteModel
 
     def test_stack_trajectories(self, r=10, k=20, m=5, num_trajectories=4):
-        """Test DiscreteROM.stack_trajectories()."""
+        """Test DiscreteModel.stack_trajectories()."""
         statelist, inputlist = [], []
         for _ in range(num_trajectories):
             Q, _, U = _get_data(r, k, m)
@@ -91,21 +91,21 @@ class TestDiscreteROM:
             assert np.all(Usplit == inputlist_1d[i][: (k - 1)])
 
     def test_evaluate(self, r=6, m=3):
-        """Lightly test DiscreteROM.evaluate().
-        Stronger tests in test_base.TestNonparametricROM.test_evaluate().
+        """Lightly test DiscreteModel.evaluate().
+        Stronger tests in test_base.TestNonparametricModel.test_evaluate().
         """
         rom = _trainedmodel(self.ModelClass, "cG", r, 0)
         rom.evaluate(np.random.random(r))
 
     def test_jacobian(self, r=6, m=3):
-        """Lightly test DiscreteROM.jacobian().
-        Stronger tests in test_base.TestNonparametricROM.test_jacobian().
+        """Lightly test DiscreteModel.jacobian().
+        Stronger tests in test_base.TestNonparametricModel.test_jacobian().
         """
         rom = _trainedmodel(self.ModelClass, "cG", r, 0)
         rom.jacobian(np.random.random(r))
 
     def test_fit(self, k=50, r=5, m=3):
-        """Test DiscreteROM.fit()."""
+        """Test DiscreteModel.fit()."""
         Q, _, U = _get_data(r, k, m)
         Qnext = Q[:, 1:]
         rom = self.ModelClass("A").fit(Q)
@@ -118,7 +118,7 @@ class TestDiscreteROM:
         assert rom.B_ == rom2.B_
 
     def test_predict(self, k=20, m=6, r=4):
-        """Test DiscreteROM.predict()."""
+        """Test DiscreteModel.predict()."""
         # Get test data.
         Q = _get_data(r, k, m)[0]
         niters = 5
@@ -184,13 +184,13 @@ class TestDiscreteROM:
         assert out.shape == (r, niters)
 
 
-class TestContinuousROM:
-    """Test roms.nonparametric._public.ContinuousROM."""
+class TestContinuousModel:
+    """Test models.nonparametric._public.ContinuousModel."""
 
-    ModelClass = opinf.roms_new.nonparametric._public.ContinuousROM
+    ModelClass = opinf.models.nonparametric._public.ContinuousModel
 
     def test_evaluate(self, r=5, m=2):
-        """Test ContinuousROM.evaluate()."""
+        """Test ContinuousModel.evaluate()."""
         A_, B_ = _get_operators("AB", r, m)
 
         rom = self.ModelClass([A_])
@@ -208,7 +208,7 @@ class TestContinuousROM:
         rom.evaluate(np.pi, q_, input_func)
 
     def test_jacobian(self, r=6, m=3):
-        """Test ContinuousROM.jacobian()."""
+        """Test ContinuousModel.jacobian()."""
         A_, B_ = _get_operators("AB", r, m)
 
         rom = self.ModelClass([A_])
@@ -226,14 +226,14 @@ class TestContinuousROM:
         rom.jacobian(2, q_, input_func)
 
     def test_fit(self, k=20, m=3, r=4):
-        """Lightly test ContinuousROM.fit().
-        Stronger tests in test_base.TestNonparametricROM.test_fit().
+        """Lightly test ContinuousModel.fit().
+        Stronger tests in test_base.TestNonparametricModel.test_fit().
         """
         Q, Qdot, U = _get_data(r, k, m)
         self.ModelClass("AB").fit(Q, Qdot, U)
 
     def test_predict(self, k=50, m=10, r=6):
-        """Test ContinuousROM.predict()."""
+        """Test ContinuousModel.predict()."""
         # Get test data.
         Q = _get_data(r, k, m)[0]
         nt = 5

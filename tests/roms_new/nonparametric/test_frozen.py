@@ -1,5 +1,5 @@
-# roms/nonparametric/test_frozen.py
-"""Tests for roms.nonparametric._frozen."""
+# models/nonparametric/test_frozen.py
+"""Tests for models.nonparametric._frozen."""
 
 import pytest
 
@@ -7,11 +7,11 @@ import opinf
 
 
 class TestFrozenMixin:
-    """Test roms.nonparametric._frozen._FrozenMixin."""
+    """Test models.nonparametric._frozen._FrozenMixin."""
 
     class Dummy(
-        opinf.roms_new.nonparametric._frozen._FrozenMixin,
-        opinf.roms_new.nonparametric._base._NonparametricROM,
+        opinf.models.nonparametric._frozen._FrozenMixin,
+        opinf.models.nonparametric._base._NonparametricModel,
     ):
         """Instantiable version of _FrozenMixin."""
 
@@ -19,7 +19,7 @@ class TestFrozenMixin:
             pass
 
     def test_disabled(self, ModelClass=None):
-        """Test roms.nonparametric._frozen._FrozenMixin.fit()."""
+        """Test models.nonparametric._frozen._FrozenMixin.fit()."""
         if ModelClass is None:
             ModelClass = self.Dummy
         rom = ModelClass("A")
@@ -28,12 +28,12 @@ class TestFrozenMixin:
         assert rom.data_matrix_ is None
         rom.solver_ = "A"
         assert rom.data_matrix_ is None
-        assert rom.d is None
+        assert rom.operator_matrix_dimension is None
 
         # Test disabled fit().
         with pytest.raises(NotImplementedError) as ex:
             rom.fit(None, None, known_operators=None)
         assert ex.value.args[0] == (
             "fit() is disabled for this class, call fit() "
-            "on the parametric ROM object"
+            "on the parametric model object"
         )

@@ -1,5 +1,5 @@
-# roms/_base.py
-"""Abstract base classes for reduced-order models."""
+# models/_base.py
+"""Abstract base classes for dynamical systems models."""
 
 __all__ = []
 
@@ -23,8 +23,8 @@ _OPERATOR_SHORTCUTS = {
 }
 
 
-class _MonolithicROM(abc.ABC):
-    """Base class for all monolithic reduced-order model classes."""
+class _MonolithicModel(abc.ABC):
+    """Base class for all monolithic model classes."""
 
     _LHS_ARGNAME = "lhs"  # Name of LHS argument in fit(), e.g., "ddts".
     _LHS_LABEL = None  # String representation of LHS, e.g., "dq / dt".
@@ -37,7 +37,7 @@ class _MonolithicROM(abc.ABC):
         Parameters
         ----------
         operators : list of :mod:`opinf.operators` objects
-            Operators comprising the terms of the reduced-order model.
+            Operators comprising the terms of the model.
         """
         self.__r = None
         self.__m = None
@@ -48,7 +48,7 @@ class _MonolithicROM(abc.ABC):
     # Properties: operators ---------------------------------------------------
     @property
     def operators(self):
-        """Operators comprising the terms of the reduced-order model."""
+        """Operators comprising the terms of the model."""
         return self.__operators
 
     @operators.setter
@@ -84,7 +84,7 @@ class _MonolithicROM(abc.ABC):
         self._indices_of_known_operators = known
 
     def _clear(self):
-        """Reset the entries of the non-intrusive ROM operators and the
+        """Reset the entries of the non-intrusive operators and the
         state and input dimensions.
         """
         for i in self._indices_of_operators_to_infer:
@@ -93,7 +93,7 @@ class _MonolithicROM(abc.ABC):
         self.__m = self._check_input_dimension_consistency(self.operators)
 
     def __iter__(self):
-        """Iterate through the ROM operators."""
+        """Iterate through the model operators."""
         for op in self.operators:
             yield op
 
@@ -105,32 +105,32 @@ class _MonolithicROM(abc.ABC):
 
     @property
     def c_(self):
-        """ConstantOperator, of shape (r,)."""
+        """:class:`ConstantOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.ConstantOperator)
 
     @property
     def A_(self):
-        """LinearOperator, of shape (r, r)."""
+        """:class:`LinearOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.LinearOperator)
 
     @property
     def H_(self):
-        """QuadraticOperator, of shape (r, r(r+1)/2)."""
+        """:class:`QuadraticOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.QuadraticOperator)
 
     @property
     def G_(self):
-        """CubicOperator, of shape (r, r(r+1)(r+2)/6)."""
+        """:class:`CubicOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.CubicOperator)
 
     @property
     def B_(self):
-        """InputOperator, of shape (r, m)."""
+        """:class:`InputOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.InputOperator)
 
     @property
     def N_(self):
-        """StateInputOperator, of shape (r, rm)."""
+        """:class:`StateInputOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.StateInputOperator)
 
     # Properties: dimensions --------------------------------------------------
@@ -148,18 +148,18 @@ class _MonolithicROM(abc.ABC):
         return rs.pop() if len(rs) == 1 else None
 
     @property
-    def r(self):
-        """Dimension of the reduced-order state."""
+    def state_dimension(self):
+        """Dimension :math:`r` of the state."""
         return self.__r
 
-    @r.setter
-    def r(self, r):
-        """Set the reduced-order state dimension.
-        Not allowed if any existing operators have ``shape[0] != r``.
+    @state_dimension.setter
+    def state_dimension(self, r):
+        """Set the state dimension.
+        Not allowed if any existing operators have ``state_dimension != r``.
         """
         if self.__operators is not None:
             for op in self.operators:
-                if op.entries is not None and op.shape[0] != r:
+                if op.entries is not None and op.state_dimension != r:
                     raise AttributeError(
                         "can't set attribute "
                         f"(existing operators have r = {self.__r})"
@@ -169,11 +169,11 @@ class _MonolithicROM(abc.ABC):
     @staticmethod
     def _check_input_dimension_consistency(ops):
         """Ensure all *input* operators with initialized entries have the same
-        input dimension (``m``).
+        ``input dimension``.
         """
         if len(inputops := [op for op in ops if _is_inputop(op)]) == 0:
             return 0
-        ms = {op.m for op in inputops if op.entries is not None}
+        ms = {op.input_dimension for op in inputops if op.entries is not None}
         if len(ms) > 1:
             raise errors.DimensionalityError(
                 "input operators not aligned "
@@ -182,21 +182,25 @@ class _MonolithicROM(abc.ABC):
         return ms.pop() if len(ms) == 1 else None
 
     @property
-    def m(self):
-        """Dimension of the input term, if present."""
+    def input_dimension(self):
+        """Dimension :math:`m` of the input (zero if there are no inputs)."""
         return self.__m
 
-    @m.setter
-    def m(self, m):
-        """Set input dimension.
+    @input_dimension.setter
+    def input_dimension(self, m):
+        """Set the input dimension.
         Only allowed if an input-using operator is present in the model
-        and the ``m`` attribute of every existing input operator agrees.
+        and the ``input_dimension`` of every existing input operator agrees.
         """
         if not self._has_inputs and m != 0:
             raise AttributeError("can't set attribute (no input operators)")
         if self.__operators is not None:
             for op in self.operators:
-                if _is_inputop(op) and op.entries is not None and op.m != m:
+                if (
+                    _is_inputop(op)
+                    and op.entries is not None
+                    and op.input_dimension != m
+                ):
                     raise AttributeError(
                         "can't set attribute "
                         f"(existing input operators have m = {self.__m})"
@@ -214,10 +218,10 @@ class _MonolithicROM(abc.ABC):
         out.append(f"Model structure: {self._LHS_LABEL} = {structure}")
 
         # Report dimensions.
-        if self.r:
-            out.append(f"State dimension r = {self.r:d}")
-        if self.m:
-            out.append(f"Input dimension m = {self.m:d}")
+        if self.state_dimension:
+            out.append(f"State dimension r = {self.state_dimension:d}")
+        if self.input_dimension:
+            out.append(f"Input dimension m = {self.input_dimension:d}")
 
         return "\n".join(out)
 
@@ -242,9 +246,9 @@ class _MonolithicROM(abc.ABC):
 
     def _check_is_trained(self):
         """Ensure that the model is trained and ready for prediction."""
-        if self.r is None:
+        if self.state_dimension is None:
             raise AttributeError("no reduced dimension 'r' (call fit())")
-        if self._has_inputs and (self.m is None):
+        if self._has_inputs and (self.input_dimension is None):
             raise AttributeError("no input dimension 'm' (call fit())")
 
         for op in self.operators:
@@ -253,7 +257,7 @@ class _MonolithicROM(abc.ABC):
 
     # Dimensionality reduction ------------------------------------------------
     def galerkin(self, Vr, Wr=None):
-        """Construct a new ROM by taking the Galerkin projection of each
+        """Construct a new model by taking the Galerkin projection of each
         full-order operator.
         """
         return self.__class__(
@@ -265,12 +269,12 @@ class _MonolithicROM(abc.ABC):
             ]
         )
 
-    # ROM evaluation ----------------------------------------------------------
-    def evaluate(self, state_, input_=None):
-        r"""Evaluate and sum each model operator.
+    # Model evaluation --------------------------------------------------------
+    def rhs(self, state, input_=None):
+        r"""Evaluate the right-hand side of the model by applying each operator
+        and summing the results.
 
-        This is the right-hand side of the model, i.e., the function
-        :math:`\widehat{\mathbf{F}}(\qhat, \u)`
+        This is the function :math:`\widehat{\mathbf{F}}(\qhat, \u)`
         where the model can be written as one of the following:
 
         * :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
@@ -278,12 +282,12 @@ class _MonolithicROM(abc.ABC):
         * :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_j, \u_j)`
           (discrete time)
         * :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat, \u)`
-            (steady state)
+          (steady state)
 
         Parameters
         ----------
-        state_ : (r,) ndarray
-            Low-dimensional state vector.
+        state : (r,) ndarray
+            State vector.
         input_ : (m,) ndarray or None
             Input vector corresponding to the state.
 
@@ -292,67 +296,65 @@ class _MonolithicROM(abc.ABC):
         evaluation : (r,) ndarray
             Evaluation of the right-hand side of the model.
         """
-        state_ = np.atleast_1d(state_)
-        out = np.zeros(state_.shape, dtype=float)
+        state = np.atleast_1d(state)
+        out = np.zeros(state.shape, dtype=float)
         for op in self.operators:
-            out += op.apply(state_, input_)
+            out += op.apply(state, input_)
         return out
 
-    def jacobian(self, state_, input_=None):
-        r"""Construct and sum the Jacobian of each model operators.
+    def jacobian(self, state, input_=None):
+        r"""Construct and sum the state Jacobian of each model operator.
 
         This the derivative of the right-hand side of the model with respect
-        to the state, i.e., the function :math:`\frac{
-        \partial \widehat{\mathbf{F}}}{\partial \qhat}`
+        to the state, i.e., the function
+        :math:`\ddqhat\widehat{\mathbf{F}}}(\qhat, \u)`
         where the model can be written as one of the following:
 
-        - :math:`\frac{\text{d}}{\text{d}t}\qhat(t)
-            = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
-            (continuous time)
-        - :math:`\qhat_{j+1}
-            = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`
-            (discrete time)
-        - :math:`\widehat{\mathbf{g}}
-            = \widehat{\mathbf{F}}(\qhat, \u)`
-            (steady state)
+        - :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
+          (continuous time)
+        - :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`
+          (discrete time)
+        - :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat, \u)`
+          (steady state)
 
         Parameters
         ----------
-        state_ : (r,) ndarray
-            Low-dimensional state vector.
+        state : (r,) ndarray
+            State vector :math:`\qhat`.
         input_ : (m,) ndarray or None
-            Input vector corresponding to the state.
+            Input vector :math:`\u`.
 
         Returns
         -------
         jac : (r, r) ndarray
-            Jacobian of the right-hand side of the model.
+            State Jacobian of the right-hand side of the model.
         """
-        out = np.zeros((self.r, self.r), dtype=float)
+        r = self.state_dimension
+        out = np.zeros((r, r), dtype=float)
         for op in self.operators:
-            out += op.jacobian(state_, input_)
+            out += op.jacobian(state, input_)
         return out
 
     # Abstract public methods (must be implemented by child classes) ----------
     @abc.abstractmethod
     def fit(*args, **kwargs):
-        """Train the reduced-order model with the specified data."""
+        """Train the model with the specified data via operator inference."""
         raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def predict(*args, **kwargs):
-        """Solve the reduced-order model under specified conditions."""
+        """Solve the model under specified conditions."""
         raise NotImplementedError  # pragma: no cover
 
     # Model persistence (not required but suggested) --------------------------
     def save(*args, **kwargs):
-        """Save the reduced-order structure / operators in HDF5 format."""
+        """Save the model structure and operators in HDF5 format."""
         raise NotImplementedError("use pickle/joblib")
 
     @classmethod
     def load(*args, **kwargs):
-        """Load a previously saved reduced-order model from an HDF5 file."""
+        """Load a previously saved model from an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")
 
 
-# TODO: class _ParametricMonolithicROM(_MonolithicROM)?
+# TODO: class _ParametricMonolithicModel(_MonolithicModel)?
