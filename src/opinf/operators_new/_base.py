@@ -365,17 +365,20 @@ class _InputMixin(abc.ABC):
     def m(self):  # pragma: no cover
         """Input dimension. Subclasses should implement this method as follows:
 
-        @property
-        @_requires_entries
-        def m(self):
-            '''Input dimension.'''
-            return  # calculate m from ``self.entries``.
+        .. code-block:: python
+
+           @property
+           def m(self):
+               '''Input dimension.'''
+               if self.entries is None:
+                   return None
+               return  # calculate m from self.entries.
         """
         raise NotImplementedError
 
 
 def _is_input_operator(obj):
-    """Return ``True`` if ``obj`` is an operator class whose ``evaluate()``
+    """Return ``True`` if ``obj`` is an operator class whose ``apply()``
     method uses the ``input_`` argument (by checking that it is derived from
     ``operators._base._InputMixin``).
     """

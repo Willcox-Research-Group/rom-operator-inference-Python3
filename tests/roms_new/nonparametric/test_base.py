@@ -105,14 +105,12 @@ class TestNonparametricROM:
         assert rom.data_matrix_ is None
 
     # Fitting -----------------------------------------------------------------
-    def test_process_fit_arguments(self, n=20, k=50, m=4, r=6):
+    def test_process_fit_arguments(self, k=50, m=4, r=6):
         """Test _NonparametricROM._process_fit_arguments()."""
         # Get test data.
-        Q, lhs, U = _get_data(n, k, m)
-        c, A, B = _get_operators("cAB", n, m)
+        Q, lhs, U = _get_data(r, k, m)
+        A, B = _get_operators("AB", r, m)
         U1d = U[0, :]
-        Vr = la.svd(Q)[0][:, :r]
-        basis = opinf.basis.LinearBasis().fit(Vr)
         ones = np.ones(k)
 
         # Exceptions #
@@ -132,33 +130,23 @@ class TestNonparametricROM:
             rom._process_fit_arguments(None, None, None, solver=_DummySolver())
         assert ex.value.args[0] == "solver must have a 'fit()' method"
 
-        # Intrusive projection without a basis.
-        rom = self.Dummy([A])
-        rom.r = r
-        with pytest.raises(RuntimeError) as ex:
-            rom._process_fit_arguments(None, None, None)
-        assert ex.value.args[0] == "basis required for Galerkin projection"
-
-        # States do not match dimensions 'r' or 'n'.
-        A_ = opinf_operators.LinearOperator()
-        rom = self.Dummy([A_], basis)
+        # States do not match dimensions 'r'.
+        rom = self.Dummy(["c", A])
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             rom._process_fit_arguments(Q[1:], None, None)
-        assert (
-            ex.value.args[0] == f"states.shape[0] = {n-1} != n "
-            f"or r (n = {n}, r = {r})"
-        )
+        assert ex.value.args[0] == f"states.shape[0] = {r-1} != r = {r}"
 
         # LHS not aligned with states.
+        rom = self.Dummy([A, "B"])
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             rom._process_fit_arguments(Q, lhs[:, :-1], U)
         assert (
-            ex.value.args[0] == f"mylhs.shape[-1] = {k-1} "
+            ex.value.args[0] == f"{self.Dummy._LHS_ARGNAME}.shape[-1] = {k-1} "
             f"!= {k} = states.shape[-1]"
         )
 
         # Inputs do not match dimension 'm'.
-        rom.operators = [A_, B]
+        rom.operators = ["A", B]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             rom._process_fit_arguments(Q, lhs, U[1:])
         assert ex.value.args[0] == f"inputs.shape[0] = {m-1} != {m} = m"
@@ -173,29 +161,22 @@ class TestNonparametricROM:
 
         # Correct usage #
 
-        # With basis and input.
-        rom.basis = Vr
+        # With input.
         rom.operators = "AB"
-        Q_, lhs_, _, solver = rom._process_fit_arguments(Q, lhs, U)
-        assert rom.n == n
+        Q_, lhs_, U_, solver = rom._process_fit_arguments(Q, lhs, U)
         assert rom.r == r
-        assert isinstance(rom.basis, opinf.basis.LinearBasis)
-        assert np.all(rom.basis.entries == Vr)
         assert rom.m == m
-        assert Q_.shape == (r, k)
-        assert np.allclose(Q_, Vr.T @ Q)
-        assert lhs_.shape == (r, k)
-        assert np.allclose(lhs_, Vr.T @ lhs)
+        assert Q_ is Q
+        assert lhs_ is lhs
+        assert U_ is U
         assert isinstance(solver, opinf.lstsq.PlainSolver)
 
-        # Without basis and with a one-dimensional input.
+        # With a one-dimensional input.
         rom = self.Dummy("cHB")
         Q_, lhs_, inputs, solver = rom._process_fit_arguments(
             Q, lhs, U1d, solver=0
         )
-        assert rom.n is None
-        assert rom.r == n
-        assert rom.basis is None
+        assert rom.r == r
         assert rom.m == 1
         assert Q_ is Q
         assert lhs_ is lhs
@@ -203,29 +184,28 @@ class TestNonparametricROM:
         assert np.all(inputs[0] == U1d)
         assert isinstance(solver, opinf.lstsq.PlainSolver)
 
-        # With basis and no input.
-        rom = self.Dummy("cA", Vr)
+        # Without input.
+        rom = self.Dummy("cA")
         Q_, lhs_, inputs, solver = rom._process_fit_arguments(
             Q, lhs, None, solver=1
         )
-        assert rom.n == n
         assert rom.r == r
         assert rom.m == 0
         assert inputs is None
-        assert np.allclose(Q_, Vr.T @ Q)
-        assert np.allclose(lhs_, Vr.T @ lhs)
+        assert Q_ is Q
+        assert lhs_ is lhs
         assert isinstance(solver, opinf.lstsq.L2Solver)
 
         # With known operators for A.
-        rom = self.Dummy(["c", A], Vr)
+        rom = self.Dummy(["c", A])
         Q_, lhs_, _, _ = rom._process_fit_arguments(Q, lhs, None)
-        assert np.allclose(lhs_, Vr.T @ (lhs - (A.entries @ Vr @ Q_)))
+        assert np.allclose(lhs_, lhs - (A.entries @ Q))
 
         # With known operators for c and B.
         c_, B_ = _get_operators("cB", r, m)
-        rom = self.Dummy([c_, "A", B_], Vr)
+        rom = self.Dummy([c_, "A", B_])
         Q_, lhs_, _, _ = rom._process_fit_arguments(Q, lhs, U)
-        lhstrue = (Vr.T @ lhs) - B_.entries @ U - np.outer(c_.entries, ones)
+        lhstrue = lhs - B_.entries @ U - np.outer(c_.entries, ones)
         assert np.allclose(lhs_, lhstrue)
 
         # Special case: m = inputs.ndim = 1
@@ -236,24 +216,22 @@ class TestNonparametricROM:
         rom.operators = ["A", B1d]
         assert rom.m == 1
         Q_, lhs_, _, _ = rom._process_fit_arguments(Q, lhs, U1d)
-        assert np.allclose(lhs_, (Vr.T @ lhs) - np.outer(B1d.entries, ones))
+        assert np.allclose(lhs_, lhs - np.outer(B1d.entries, ones))
 
         # Fully intrusive.
-        rom = self.Dummy([c, A], Vr)
-        Q_, lhs_, _, _ = rom._process_fit_arguments(Q, lhs, None)
+        rom = self.Dummy([A, B])
+        Q_, lhs_, _, _ = rom._process_fit_arguments(Q, lhs, U)
         assert Q_ is None
         assert lhs_ is None
-        assert rom.operators[0].shape == (r,)
-        assert rom.operators[1].shape == (r, r)
+        assert rom.operators[0] is A
+        assert rom.operators[1] is B
 
     def test_assemble_data_matrix(self, k=50, m=6, r=8):
         """Test _NonparametricROM._assemble_data_matrix()."""
         # Get test data.
         Q_, _, U = _get_data(r, k, m)
 
-        rom = self.Dummy("c")
-        rom.r = r
-        for oplist, d in (
+        for opkeys, d in (
             ("c", 1),
             ("A", r),
             ("H", r * (r + 1) // 2),
@@ -263,7 +241,8 @@ class TestNonparametricROM:
             ("cHB", 1 + r * (r + 1) // 2 + m),
             ("AGN", r * (m + 1) + r * (r + 1) * (r + 2) // 6),
         ):
-            rom.operators = oplist
+            rom = self.Dummy(opkeys)
+            rom.r = r
             if rom._has_inputs:
                 rom.m = m
             D = rom._assemble_data_matrix(Q_, U)
@@ -311,6 +290,7 @@ class TestNonparametricROM:
         assert np.allclose(rom.H_.entries, H)
 
         rom.operators = "NA"
+        rom.r = r
         rom.m = m
         Ohat = np.column_stack((N, A))
         rom._extract_operators(Ohat)
@@ -318,43 +298,31 @@ class TestNonparametricROM:
         assert np.allclose(rom.A_.entries, A)
 
         rom.operators = "GB"
+        rom.r = r
+        rom.m = m
         Ohat = np.column_stack((G, B))
         rom._extract_operators(Ohat)
         assert np.allclose(rom.G_.entries, G)
         assert np.allclose(rom.B_.entries, B)
 
-    def test_fit(self, n=20, k=50, m=4, r=6):
+    def test_fit(self, k=50, m=4, r=6):
         """Test _NonparametricROM.fit()."""
         # Get test data.
-        Q, F, U = _get_data(n, k, m)
+        Q, F, U = _get_data(r, k, m)
         U1d = U[0, :]
-        Vr = la.svd(Q)[0][:, :r]
-        args_n = [Q, F]
-        args_r = [Vr.T @ Q, Vr.T @ F]
+        args = [Q, F]
 
         # Fit the rom with each modelform.
         for oplist in MODEL_FORMS:
             rom = self.Dummy(oplist)
             if "B" in oplist or "N" in oplist:
-                # Without basis.
-                rom.fit(*args_r, U)  # Two-dimensional inputs.
-                rom.m = 1
-                rom.fit(*args_r, U1d)  # One-dimensional inputs.
-                # With basis.
-                rom.basis = Vr
-                rom.m = m
-                rom.fit(*args_n, U)  # Two-dimensional inputs.
-                rom.m = 1
-                rom.fit(*args_n, U1d)  # One-dimensional inputs.
-
+                rom.fit(*args, U)  # Two-dimensional inputs.
+                rom.fit(*args, U1d)  # One-dimensional inputs.
             else:
-                rom.fit(*args_r)  # Without basis.
-                rom.basis = Vr
-                rom.fit(*args_n)  # With basis.
+                rom.fit(*args)  # No inputs.
 
         # Special case: fully intrusive.
-        A, B = _get_operators("AB", n, m)
-        rom.basis = Vr
+        A, B = _get_operators("AB", r, m)
         rom.operators = [A, B]
         rom.m = m
         rom.fit(None, None, None)
@@ -362,36 +330,31 @@ class TestNonparametricROM:
         romA_ = rom.A_
         assert romA_.entries is not None
         assert romA_.shape == (r, r)
-        assert np.allclose(rom.A_.entries, Vr.T @ A[:] @ Vr)
+        assert np.allclose(rom.A_.entries, A[:])
         romB_ = rom.B_
         assert romB_.entries is not None
         assert romB_.shape == (r, m)
-        assert np.allclose(romB_.entries, Vr.T @ B[:])
+        assert np.allclose(romB_.entries, B[:])
 
     # Model persistence -------------------------------------------------------
-    def test_save(self, n=15, m=2, r=3, target="_savemodeltest.h5"):
+    def test_save(self, m=2, r=3, target="_savemodeltest.h5"):
         """Test _NonparametricROM.save()."""
         # Clean up after old tests.
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
-        Vr = np.random.random((n, r))
-        rom = self.Dummy("cAHGB", Vr)
-        rom.save(target, save_basis=False)
+        rom = self.Dummy("cAHGB")
+        rom.save(target)
         assert os.path.isfile(target)
 
         with pytest.raises(FileExistsError) as ex:
             rom.save(target, overwrite=False)
         assert ex.value.args[0] == f"{target} (overwrite=True to ignore)"
 
-        rom.save(target, save_basis=True, overwrite=True)
-
-        rom.operators = "c"
         rom.save(target, overwrite=True)
 
         rom.operators = "AB"
-        rom.basis = None
-        rom.save(target, save_basis=True, overwrite=True)
+        rom.save(target, overwrite=True)
 
         os.remove(target)
 
@@ -400,8 +363,6 @@ class TestNonparametricROM:
         # Clean up after old tests if needed.
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
-
-        Vr = np.random.random((n, r))
 
         # Make an empty HDF5 file to start with.
         with h5py.File(target, "w"):
@@ -416,38 +377,12 @@ class TestNonparametricROM:
             meta.attrs["num_operators"] = 1
 
         # Check that save() and load() are inverses.
-        rom = self.Dummy("cAN", Vr)
-        rom.m = m
-        rom.save(target, save_basis=True, overwrite=True)
-        rom2 = rom.load(target)
-        assert rom2 is not rom
-        assert rom2.basis == rom.basis
-        for attr in [
-            "n",
-            "m",
-            "r",
-            "_indices_of_operators_to_infer",
-            "_indices_of_known_operators",
-            "__class__",
-        ]:
-            assert getattr(rom2, attr) == getattr(rom, attr)
-        for name in "cAN":
-            attr = getattr(rom2, f"{name}_")
-            assert attr is not None
-            assert attr.entries is None
-        for name in "HGB":
-            assert getattr(rom2, f"{name}_") is None
-
-        # Check basis = None functionality.
-        rom = self.Dummy("HGB")
-        rom.r = r
+        rom = self.Dummy("cAN")
         rom.m = m
         rom.save(target, overwrite=True)
         rom2 = rom.load(target)
         assert rom2 is not rom
-        assert rom2.basis is None
         for attr in [
-            "n",
             "m",
             "r",
             "_indices_of_operators_to_infer",
@@ -456,20 +391,18 @@ class TestNonparametricROM:
         ]:
             assert getattr(rom2, attr) == getattr(rom, attr)
         for name in "cAN":
-            assert getattr(rom2, f"{name}_") is None
-        for name in "HGB":
             attr = getattr(rom2, f"{name}_")
             assert attr is not None
             assert attr.entries is None
+        for name in "HGB":
+            assert getattr(rom2, f"{name}_") is None
 
         # Load ROM with operators with entries.
-        rom = self.Dummy(_get_operators("AG", r, m), Vr)
+        rom = self.Dummy(_get_operators("AG", r, m))
         rom.save(target, overwrite=True)
         rom2 = rom.load(target)
         assert rom2 is not rom
-        assert rom2.basis == rom.basis
         for attr in [
-            "n",
             "m",
             "r",
             "_indices_of_operators_to_infer",

@@ -8,9 +8,10 @@ import warnings
 import numpy as np
 
 from .. import errors
-from .. import basis as _basis
 from .. import operators_new as _operators
 
+
+_is_inputop = _operators._base._is_input_operator
 
 _OPERATOR_SHORTCUTS = {
     "c": _operators.ConstantOperator,
@@ -30,52 +31,19 @@ class _MonolithicROM(abc.ABC):
     _STATE_LABEL = None  # String representation of state, e.g., "q(t)".
     _INPUT_LABEL = None  # String representation of input, e.g., "u(t)".
 
-    def __init__(self, operators, basis=None):
-        """Set the basis and define the model structure.
+    def __init__(self, operators):
+        """Define the model structure.
 
         Parameters
         ----------
         operators : list of :mod:`opinf.operators` objects
             Operators comprising the terms of the reduced-order model.
-        basis : :mod:`opinf.basis` object or (n, r) ndarray
-            Basis for the reduced space (e.g., POD).
         """
         self.__r = None
         self.__m = None
         self.__operators = None
-        self.__basis = None
 
-        self.basis = basis
         self.operators = operators
-
-    # Properties: basis -------------------------------------------------------
-    @property
-    def basis(self):
-        """Basis for the reduced space (e.g., POD), of shape `(n, r)`."""
-        return self.__basis
-
-    @basis.setter
-    def basis(self, basis):
-        """Set the ``basis``, thereby fixing the dimensions ``n`` and ``r``.
-
-        Parameters
-        ----------
-        basis : :mod:`opinf.basis` object or (n, r) ndarray
-            Instantiated basis object or the entries of a linear basis to be
-            wrapped in a :class:`opinf.basis.LinearBasis` object.
-        """
-        if basis is not None:
-            if not isinstance(basis, _basis._base._BaseBasis):
-                basis = _basis.LinearBasis().fit(basis)
-            if basis.shape[0] < basis.shape[1]:
-                raise ValueError("basis must be n x r with n > r")
-            self.__r = basis.shape[1]
-        self.__basis = basis
-
-    @basis.deleter
-    def basis(self):
-        """Delete the basis (but not operator / dimension attributes)."""
-        self.__basis = None
 
     # Properties: operators ---------------------------------------------------
     @property
@@ -86,7 +54,7 @@ class _MonolithicROM(abc.ABC):
     @operators.setter
     def operators(self, ops):
         """Set the operators."""
-        if isinstance(ops, _operators._base._BaseNonparametricOperator):
+        if isinstance(ops, _operators._base._NonparametricOperator):
             ops = [ops]
         if len(ops) == 0 or ops is None:
             raise ValueError("at least one operator required")
@@ -99,7 +67,7 @@ class _MonolithicROM(abc.ABC):
             op = ops[i]
             if isinstance(op, str) and op in _OPERATOR_SHORTCUTS:
                 op = ops[i] = _OPERATOR_SHORTCUTS[op]()
-            if not isinstance(op, _operators._base._BaseNonparametricOperator):
+            if not isinstance(op, _operators._base._NonparametricOperator):
                 raise TypeError("expected list of nonparametric operators")
             if op.entries is None:
                 toinfer.append(i)
@@ -108,49 +76,21 @@ class _MonolithicROM(abc.ABC):
             if _operators._base._is_input_operator(op):
                 self._has_inputs = True
 
-        # Validate shapes of operators with known entries.
-        if len(known) > 0:
-            if self.basis is None:
-                # No basis, so assume all operators must have same shape[0].
-                rs = {ops[i].shape[0] for i in known}
-                if len(rs) > 1:
-                    raise errors.DimensionalityError(
-                        "operators not aligned (shape[0] must be the same)"
-                    )
-                self.r = rs.pop()
-            else:
-                for i in known:
-                    if (dim := ops[i].shape[0]) not in (self.r, self.n):
-                        raise errors.DimensionalityError(
-                            "operators not aligned with basis "
-                            f"(operators[{i}].shape[0] = {dim} must be "
-                            f"r = {self.r} or n = {self.n})"
-                        )
-            if self._has_inputs:
-                # Input operators must have same input dimension.
-                ms = {
-                    ops[i].m
-                    for i in known
-                    if _operators._base._is_input_operator(ops[i])
-                }
-                if len(ms) > 1:
-                    raise errors.DimensionalityError(
-                        "input operators not aligned "
-                        "(input dimension 'm' must be the same)"
-                    )
-                self.m = ms.pop()
-        if not self._has_inputs:
-            self.m = 0
-
         # Store attributes.
+        self.__r = self._check_state_dimension_consistency(ops)
+        self.__m = self._check_input_dimension_consistency(ops)
         self.__operators = ops
         self._indices_of_operators_to_infer = toinfer
         self._indices_of_known_operators = known
 
     def _clear(self):
-        """Reset the entries of the non-intrusive ROM operators."""
+        """Reset the entries of the non-intrusive ROM operators and the
+        state and input dimensions.
+        """
         for i in self._indices_of_operators_to_infer:
             self.operators[i]._clear()
+        self.__r = self._check_state_dimension_consistency(self.operators)
+        self.__m = self._check_input_dimension_consistency(self.operators)
 
     def __iter__(self):
         """Iterate through the ROM operators."""
@@ -194,15 +134,52 @@ class _MonolithicROM(abc.ABC):
         return self._get_operator_of_type(_operators.StateInputOperator)
 
     # Properties: dimensions --------------------------------------------------
-    @property
-    def n(self):
-        """Dimension of the full-order model."""
-        return self.basis.shape[0] if self.basis is not None else None
+    @staticmethod
+    def _check_state_dimension_consistency(ops):
+        """Ensure all operators with initialized entries have the same
+        state dimension (``shape[0]``).
+        """
+        rs = {op.shape[0] for op in ops if op.entries is not None}
+        if len(rs) > 1:
+            raise errors.DimensionalityError(
+                "operators not aligned "
+                "(state dimension must be the same for all operators)"
+            )
+        return rs.pop() if len(rs) == 1 else None
 
-    @n.setter
-    def n(self, n):
-        """Setting this dimension is not allowed."""
-        raise AttributeError("can't set attribute (n = basis.shape[0])")
+    @property
+    def r(self):
+        """Dimension of the reduced-order state."""
+        return self.__r
+
+    @r.setter
+    def r(self, r):
+        """Set the reduced-order state dimension.
+        Not allowed if any existing operators have ``shape[0] != r``.
+        """
+        if self.__operators is not None:
+            for op in self.operators:
+                if op.entries is not None and op.shape[0] != r:
+                    raise AttributeError(
+                        "can't set attribute "
+                        f"(existing operators have r = {self.__r})"
+                    )
+        self.__r = r
+
+    @staticmethod
+    def _check_input_dimension_consistency(ops):
+        """Ensure all *input* operators with initialized entries have the same
+        input dimension (``m``).
+        """
+        if len(inputops := [op for op in ops if _is_inputop(op)]) == 0:
+            return 0
+        ms = {op.m for op in inputops if op.entries is not None}
+        if len(ms) > 1:
+            raise errors.DimensionalityError(
+                "input operators not aligned "
+                "(input dimension must be the same for all input operators)"
+            )
+        return ms.pop() if len(ms) == 1 else None
 
     @property
     def m(self):
@@ -211,24 +188,20 @@ class _MonolithicROM(abc.ABC):
 
     @m.setter
     def m(self, m):
-        """Set input dimension; only allowed if an input-using operator is
-        present in the model.
+        """Set input dimension.
+        Only allowed if an input-using operator is present in the model
+        and the ``m`` attribute of every existing input operator agrees.
         """
         if not self._has_inputs and m != 0:
             raise AttributeError("can't set attribute (no input operators)")
+        if self.__operators is not None:
+            for op in self.operators:
+                if _is_inputop(op) and op.entries is not None and op.m != m:
+                    raise AttributeError(
+                        "can't set attribute "
+                        f"(existing input operators have m = {self.__m})"
+                    )
         self.__m = m
-
-    @property
-    def r(self):
-        """Dimension of the reduced-order model."""
-        return self.__r
-
-    @r.setter
-    def r(self, r):
-        """Set ROM dimension; only allowed if the basis is None."""
-        if self.basis is not None:
-            raise AttributeError("can't set attribute (r = basis.shape[1])")
-        self.__r = r
 
     # String representation ---------------------------------------------------
     def __str__(self):
@@ -241,12 +214,10 @@ class _MonolithicROM(abc.ABC):
         out.append(f"Model structure: {self._LHS_LABEL} = {structure}")
 
         # Report dimensions.
-        if self.n:
-            out.append(f"Full-order dimension    n = {self.n:d}")
-        if self.m:
-            out.append(f"Input/control dimension m = {self.m:d}")
         if self.r:
-            out.append(f"Reduced-order dimension r = {self.r:d}")
+            out.append(f"State dimension r = {self.r:d}")
+        if self.m:
+            out.append(f"Input dimension m = {self.m:d}")
 
         return "\n".join(out)
 
@@ -256,6 +227,7 @@ class _MonolithicROM(abc.ABC):
         return f"{uniqueID}\n{str(self)}"
 
     # Validation methods ------------------------------------------------------
+
     def _check_inputargs(self, u, argname):
         """Check that the model structure agrees with input arguments."""
         if self._has_inputs and u is None:
@@ -280,65 +252,18 @@ class _MonolithicROM(abc.ABC):
                 raise AttributeError("model not trained (call fit())")
 
     # Dimensionality reduction ------------------------------------------------
-    def compress(self, state, label="argument"):
-        """Map high-dimensional states to low-dimensional latent coordinates.
-
-        Parameters
-        ----------
-        state : (n, ...) or (r, ...) ndarray
-            High- or low-dimensional state vector or a collection of these.
-            If ``state.shape[0]`` is `r` (already low-dimensional), do nothing.
-        label : str
-            Name for state (used only in error reporting).
-
-        Returns
-        -------
-        state_ : (r, ...) ndarray
-            Low-dimensional compression of ``state``.
+    def galerkin(self, Vr, Wr=None):
+        """Construct a new ROM by taking the Galerkin projection of each
+        full-order operator.
         """
-        if self.r is None:
-            raise AttributeError("reduced dimension 'r' not set")
-        if state.shape[0] == self.r:
-            return state
-        if self.basis is None:
-            raise AttributeError("basis not set")
-        if state.shape[0] != self.n:
-            raise errors.DimensionalityError(f"{label} not aligned with basis")
-        return self.basis.compress(state)
-
-    def decompress(self, state_, label="argument"):
-        """Map low-dimensional latent coordinates to high-dimensional states.
-
-        Parameters
-        ----------
-        state_ : (r, ...) ndarray
-            Low-dimensional latent coordinate vector or a collection of these.
-        label : str
-            Name for ``state_`` (used only in error reporting).
-
-        Returns
-        -------
-        state : (n, ...) ndarray
-            High-dimensional decompression of ``state_``.
-        """
-        if self.basis is None:
-            raise AttributeError("basis not set")
-        if state_.shape[0] != self.r:
-            raise errors.DimensionalityError(f"{label} not aligned with basis")
-        return self.basis.decompress(state_)
-
-    def galerkin(self):
-        """
-        Replace known full-order operators with their Galerkin projections.
-        """
-        for i in self._indices_of_known_operators:
-            op = self.operators[i]
-            if op.shape[0] != self.r:
-                if self.basis is None:
-                    raise RuntimeError(
-                        "basis required for Galerkin projection"
-                    )
-                self.operators[i] = op.galerkin(self.basis.entries)
+        return self.__class__(
+            [
+                old_op.galerkin(Vr, Wr)
+                if i in self._indices_of_known_operators
+                else old_op.__class__()
+                for i, old_op in enumerate(self.operators)
+            ]
+        )
 
     # ROM evaluation ----------------------------------------------------------
     def evaluate(self, state_, input_=None):
@@ -428,3 +353,6 @@ class _MonolithicROM(abc.ABC):
     def load(*args, **kwargs):
         """Load a previously saved reduced-order model from an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")
+
+
+# TODO: class _ParametricMonolithicROM(_MonolithicROM)?

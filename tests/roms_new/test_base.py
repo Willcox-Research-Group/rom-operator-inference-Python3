@@ -6,7 +6,7 @@ import numpy as np
 
 import opinf
 
-from . import _get_data, _get_operators
+from . import _get_operators
 
 
 opinf_operators = opinf.operators_new  # TEMP
@@ -28,50 +28,12 @@ class TestMonolithicROM:
         def predict(*args, **kwargs):
             return 100
 
-    # Properties: basis -------------------------------------------------------
-    def test_basis(self, r=3):
-        """Test _MonolithicROM.basis getter, setter, and deleter."""
-        # Empty basis.
-        rom = self.Dummy([opinf_operators.ConstantOperator()])
-        assert rom.basis is None
-        assert rom.r is None
-        assert rom.n is None
-        assert rom.m == 0
-
-        # Set basis with a NumPy array.
-        n = 3 * r
-        Vr = np.random.random((n, r))
-        rom.basis = Vr
-        assert rom.basis is not None
-        assert isinstance(rom.basis, opinf.basis.LinearBasis)
-        assert rom.basis.shape == Vr.shape
-        assert np.all(rom.basis.entries == Vr)
-        assert rom.n == n
-        assert rom.r == r
-        assert rom.m == 0
-
-        # Try to set (n, r) basis with n < r.
-        with pytest.raises(ValueError) as ex:
-            rom.basis = Vr.T
-        assert ex.value.args[0] == "basis must be n x r with n > r"
-
-        # Set basis with basis object.
-        basis = opinf.basis.LinearBasis().fit(Vr)
-        rom.basis = basis
-        assert rom.basis is basis
-
-        # Test basis.deleter.
-        del rom.basis
-        assert rom.basis is None
-
     # Properties: operators ---------------------------------------------------
     def test_operators(self, m=4, r=7):
         """Test _MonolithicROM.__init__(), operators, _clear(),
         and __iter__().
         """
         operators = _get_operators("cAHGBN", r, m)
-        n = 3 * r
-        Vr = np.random.random((n, r))
 
         # Try to instantiate without any operators.
         with pytest.raises(ValueError) as ex:
@@ -92,15 +54,7 @@ class TestMonolithicROM:
             self.Dummy(bad_ops)
         assert (
             ex.value.args[0] == "operators not aligned "
-            "(shape[0] must be the same)"
-        )
-
-        # Try to instantiate with operators not aligned with the basis.
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            self.Dummy(bad_ops, Vr)
-        assert (
-            ex.value.args[0] == "operators not aligned with basis "
-            f"(operators[1].shape[0] = {r+1} must be r = {r} or n = {n})"
+            "(state dimension must be the same for all operators)"
         )
 
         # Try to instantiate with input operators not aligned.
@@ -112,7 +66,7 @@ class TestMonolithicROM:
             self.Dummy(bad_ops)
         assert (
             ex.value.args[0] == "input operators not aligned "
-            "(input dimension 'm' must be the same)"
+            "(input dimension must be the same for all input operators)"
         )
 
         # Test operators.setter().
@@ -217,45 +171,58 @@ class TestMonolithicROM:
         assert rom.G_ is None
 
     # Properties: dimensions --------------------------------------------------
-    def test_dimension_properties(self, n=20, m=3, r=7):
-        """Test the properties roms._base._MonolithicROM.(n|r|basis)."""
+    def test_dimension_properties(self, m=3, r=7):
+        """Test the dimension properties _MonolithicROM.(r|m)."""
+        # Case 1: no inputs.
         rom = self.Dummy("cH")
-        assert rom.n is None
-        assert rom.m == 0
         assert rom.r is None
-        assert rom.basis is None
-
-        # Case 1: basis != None
-        basis = np.random.random((n, r))
-        rom.basis = basis
-        assert rom.n == n
         assert rom.m == 0
-        assert rom.r == r
-        assert isinstance(rom.basis, opinf.basis.LinearBasis)
 
-        # Try setting n.
-        with pytest.raises(AttributeError) as ex:
-            rom.n = n + 1
-        assert ex.value.args[0] == "can't set attribute (n = basis.shape[0])"
+        # Check that we can set the reduced dimension.
+        rom.r = 10
+        rom.r = 11
+        rom._clear()
+        assert rom.r is None
+        assert rom.m == 0
 
         # Try setting m with no inputs.
         with pytest.raises(AttributeError) as ex:
             rom.m = 1
         assert ex.value.args[0] == "can't set attribute (no input operators)"
 
-        # Try setting r with basis already set.
+        # Try setting r when there is an operator with a different shape.
+        rom = self.Dummy(_get_operators("A", r))
         with pytest.raises(AttributeError) as ex:
             rom.r = r + 1
-        assert ex.value.args[0] == "can't set attribute (r = basis.shape[1])"
+        assert ex.value.args[0] == (
+            f"can't set attribute (existing operators have r = {r})"
+        )
+        rom._clear()
+        assert rom.r == r
+        assert rom.m == 0
 
-        # Case 2: basis = None
-        del rom.basis
-        assert rom.basis is None
-        assert rom.n is None
+        # Case 2: has inputs.
         rom = self.Dummy("AB")
         assert rom.m is None
         rom.r = r
+
+        # Check that we can set the input dimension.
         rom.m = m
+        rom._clear()
+        assert rom.m is None
+
+        # Try setting m when there is an input operator with a different m.
+        rom = self.Dummy(_get_operators("AB", r, m))
+        assert rom.r == r
+        assert rom.m == m
+        with pytest.raises(AttributeError) as ex:
+            rom.m = m + 1
+        assert ex.value.args[0] == (
+            f"can't set attribute (existing input operators have m = {m})"
+        )
+        rom._clear()
+        assert rom.r == r
+        assert rom.m == m
 
     # String representation ---------------------------------------------------
     def test_str(self):
@@ -274,21 +241,21 @@ class TestMonolithicROM:
         assert str(rom) == "Model structure: dq / dt = c + H[q(t) ⊗ q(t)]"
 
         # Dimension reporting.
-        rom = self.Dummy("A", np.empty((100, 20)))
+        rom = self.Dummy("A")
+        rom.r = 20
         romstr = str(rom).split("\n")
-        assert len(romstr) == 3
+        assert len(romstr) == 2
         assert romstr[0] == "Model structure: dq / dt = Aq(t)"
-        assert romstr[1] == "Full-order dimension    n = 100"
-        assert romstr[2] == "Reduced-order dimension r = 20"
+        assert romstr[1] == "State dimension r = 20"
 
-        rom = self.Dummy("cB", np.empty((80, 10)))
+        rom = self.Dummy("cB")
+        rom.r = 10
         rom.m = 3
         romstr = str(rom).split("\n")
-        assert len(romstr) == 4
+        assert len(romstr) == 3
         assert romstr[0] == "Model structure: dq / dt = c + Bu(t)"
-        assert romstr[1] == "Full-order dimension    n = 80"
-        assert romstr[2] == "Input/control dimension m = 3"
-        assert romstr[3] == "Reduced-order dimension r = 10"
+        assert romstr[1] == "State dimension r = 10"
+        assert romstr[2] == "Input dimension m = 3"
 
     def test_repr(self):
         """Test _MonolithicROM.__repr__() (string representation)."""
@@ -341,79 +308,16 @@ class TestMonolithicROM:
         rom._check_is_trained()
 
     # Dimensionality reduction ------------------------------------------------
-    def test_compress(self, n=60, k=50, r=10):
-        """Test _MonolithicROM.compress()."""
-        Q, Qdot, _ = _get_data(n, k, 2)
-        rom = self.Dummy("c")
-
-        # Try to compress without reduced dimension r set.
-        with pytest.raises(AttributeError) as ex:
-            rom.compress(Q, "things")
-        assert ex.value.args[0] == "reduced dimension 'r' not set"
-
-        # Try to compress with r set but without a basis.
-        rom.r = r
-        with pytest.raises(AttributeError) as ex:
-            rom.compress(Q, "arg")
-        assert ex.value.args[0] == "basis not set"
-
-        # Try to compress with basis set but with wrong shape.
-        Vr = np.random.random((n, r))
-        rom.basis = Vr
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            rom.compress(Q[:-1, :], "state")
-        assert ex.value.args[0] == "state not aligned with basis"
-
-        # Correct usage.
-        for S in (Q, Qdot):
-            S_ = rom.compress(S)
-            assert S_.shape == (r, k)
-            assert np.allclose(S_, Vr.T @ S)
-            assert np.allclose(S_, rom.basis.compress(S))
-            S_ = rom.compress(S[:r, :])
-            assert S_.shape == (r, k)
-            assert np.all(S_ == S[:r, :])
-
-    def test_decompress(self, n=60, k=20, r=8):
-        """Test _MonolithicROM.decompress()."""
-        Q_, Qdot_, _ = _get_data(r, k, 2)
-        rom = self.Dummy("c")
-
-        # Try to decompress without basis.
-        rom.r = r
-        with pytest.raises(AttributeError) as ex:
-            rom.decompress(Q_, "arg")
-        assert ex.value.args[0] == "basis not set"
-
-        # Try to compress with basis set but with wrong shape.
-        Vr = np.random.random((n, r))
-        rom.basis = Vr
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            rom.decompress(Q_[:-1, :], "state")
-        assert ex.value.args[0] == "state not aligned with basis"
-
-        # Correct usage.
-        for S_ in (Q_, Qdot_):
-            S = rom.decompress(S_)
-            assert S.shape == (n, k)
-            assert np.allclose(S, Vr @ S_)
-            assert np.allclose(S, rom.basis.decompress(S_))
-
     def test_galerkin(self, n=20, r=6):
         """Test _MonolithicROM.galerkin()."""
         A = _get_operators("A", n)[0]
         Vr = np.random.random((20, 6))
 
-        # Galerkin projection without a basis.
-        rom = self.Dummy(["c", A, "H"])
-        rom.r = n // 2
-        with pytest.raises(RuntimeError) as ex:
-            rom.galerkin()
-        assert ex.value.args[0] == "basis required for Galerkin projection"
+        fom = self.Dummy(["c", A, "H"])
+        assert fom.r == n
 
-        # Galerkin projection with a basis.
-        rom.basis = Vr
-        rom.galerkin()
+        rom = fom.galerkin(Vr)
+        assert rom.r == r
         newA = rom.operators[1]
         assert isinstance(newA, opinf_operators.LinearOperator)
         assert newA.entries.shape == (r, r)

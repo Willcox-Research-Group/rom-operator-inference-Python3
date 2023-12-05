@@ -53,9 +53,6 @@ def _get_operators(operatorkeys, r=8, m=1):
     return ops
 
 
-def _trainedmodel(ModelClass, operatorkeys, basis, m=20):
+def _trainedmodel(ModelClass, operatorkeys, r, m=20):
     """Construct a base class with model operators already constructed."""
-    return ModelClass(
-        _get_operators(operatorkeys, basis.shape[1], m),
-        basis=basis,
-    )
+    return ModelClass(_get_operators(operatorkeys, r, m))

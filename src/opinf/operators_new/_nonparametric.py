@@ -867,7 +867,7 @@ class InputOperator(_NonparametricOperator, _InputMixin):
     @staticmethod
     def datablock(states_, inputs):
         r"""Return the data matrix block corresponding to the operator,
-        the ``input_``.
+        the ``inputs``.
 
         .. math::
             \min_{\Bhat}\sum_{j=0}^{k-1}\left\|
@@ -887,15 +887,15 @@ class InputOperator(_NonparametricOperator, _InputMixin):
 
         Parameters
         ----------
-        state_ : (r, k) or (k,) ndarray
+        states_ : (r, k) or (k,) ndarray
             State vectors (not used).
-        input_ : (m, k) or (k,) ndarray
+        inputs : (m, k) or (k,) ndarray
             Input vectors. Each column is a single input vector.
             If one dimensional, it is assumed that :math:`m = 1`.
 
         Returns
         -------
-        input_ : (m, k) ndarray
+        inputs : (m, k) ndarray
             Input vectors. Each column is a single input vector.
         """
         return np.atleast_2d(inputs)
@@ -914,9 +914,10 @@ class InputOperator(_NonparametricOperator, _InputMixin):
         return m
 
     @property
-    @_requires_entries
     def m(self):
         """Input dimension."""
+        if self.entries is None:
+            return None
         return self.entries.shape[1]
 
 
@@ -1148,7 +1149,8 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
         return r * m
 
     @property
-    @_requires_entries
     def m(self):
         """Input dimension."""
+        if self.entries is None:
+            return None
         return self.entries.shape[1] // self.entries.shape[0]

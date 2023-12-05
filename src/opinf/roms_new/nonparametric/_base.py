@@ -8,7 +8,6 @@ import numpy as np
 from .._base import _MonolithicROM
 from ... import lstsq
 from ... import errors
-from ... import basis as _basis
 from ... import operators_new as _operators
 from ...utils import hdf5_savehandle, hdf5_loadhandle
 
@@ -67,8 +66,7 @@ class _NonparametricROM(_MonolithicROM):
     # Fitting -----------------------------------------------------------------
     def _process_fit_arguments(self, states, lhs, inputs, solver=None):
         """Prepare training data for Operator Inference by extracting
-        dimensions, projecting known operators, validating data sizes,
-        and compressing training data.
+        dimensions, projecting known operators, and validating data sizes.
         """
         # Clear non-intrusive operator data.
         self._clear()
@@ -92,26 +90,22 @@ class _NonparametricROM(_MonolithicROM):
             if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
                 raise TypeError(f"solver must have a '{mtd}()' method")
 
-        # Validate / project any known operators.
-        self.galerkin()
+        # Fully intrusive case, no least-squares problem to solve.
         if len(self._indices_of_operators_to_infer) == 0:
-            # Fully intrusive case, no least-squares problem to solve.
             return None, None, None, None
 
         def _check_valid_dimension0(dataset, label):
-            """Dimension 0 must be n or r (state dimensions)."""
-            if (dim := dataset.shape[0]) not in (self.n, self.r):
+            """Dimension 0 must be r (state dimensions)."""
+            if (dim := dataset.shape[0]) != self.r:
                 raise errors.DimensionalityError(
-                    f"{label}.shape[0] = {dim} "
-                    f"!= n or r (n = {self.n}, r = {self.r})"
+                    f"{label}.shape[0] = {dim} != r = {self.r}"
                 )
 
         # Process states, extract ROM dimension if needed.
         states = np.atleast_2d(states)
-        if self.basis is None:
+        if self.r is None:
             self.r = states.shape[0]
         _check_valid_dimension0(states, "states")
-        states_ = self.compress(states, "states")
 
         def _check_valid_dimension1(dataset, label):
             """Dimension 1 must be k (number of snapshots)."""
@@ -124,7 +118,6 @@ class _NonparametricROM(_MonolithicROM):
         lhs = np.atleast_2d(lhs)
         _check_valid_dimension0(lhs, self._LHS_ARGNAME)
         _check_valid_dimension1(lhs, self._LHS_ARGNAME)
-        lhs_ = self.compress(lhs, self._LHS_ARGNAME)
 
         # Process inputs, extract input dimension if needed.
         self._check_inputargs(inputs, "inputs")
@@ -140,21 +133,18 @@ class _NonparametricROM(_MonolithicROM):
 
         # Subtract known operator evaluations from the LHS.
         for i in self._indices_of_known_operators:
-            lhs_ = lhs_ - self.operators[i].apply(states_, inputs)
+            lhs = lhs - self.operators[i].apply(states, inputs)
 
-        return states_, lhs_, inputs, solver
+        return states, lhs, inputs, solver
 
     def _assemble_data_matrix(self, states_, inputs):
-        r"""Construct the Operator Inference data matrix D from compressed
-        state snapshots and/or input data.
+        r"""Construct the Operator Inference data matrix :math:`\D`
+        from compressed state snapshots and/or input data.
 
         If the reduced-order model has the structure
         .. math::
             \ddt\qhat(t)
-            = \chat
-            + \Ahat\qhat(t)
-            + \Hhat[
-            \qhat(t)\otimes\qhat(t)]
+            = \chat + \Ahat\qhat(t) + \Hhat[\qhat(t)\otimes\qhat(t)]
             + \Bhat\u(t),
 
         then the data matrix is
@@ -206,7 +196,7 @@ class _NonparametricROM(_MonolithicROM):
         """Construct a solver object mapping the regularizer to solutions
         of the Operator Inference least-squares problem.
         """
-        states_, lhs_, inputs, solver = self._process_fit_arguments(
+        states_, lhs_, inputs_, solver = self._process_fit_arguments(
             states, lhs, inputs, solver=solver
         )
 
@@ -216,7 +206,7 @@ class _NonparametricROM(_MonolithicROM):
             return
 
         # Set up non-intrusive learning.
-        D = self._assemble_data_matrix(states_, inputs)
+        D = self._assemble_data_matrix(states_, inputs_)
         self.solver_ = solver.fit(D, lhs_.T)
 
     def _evaluate_solver(self):
@@ -234,27 +224,26 @@ class _NonparametricROM(_MonolithicROM):
 
         Parameters
         ----------
-        states : (n, k) or (r, k) ndarray
+        states : (r, k) ndarray
             Column-wise snapshot training data. Each column is one snapshot,
-            either full order (`n` rows) or compressed to reduced order
-            (`r` rows).
+            compressed to the reduced-order state space.
         lhs : (n, k) or (r, k) ndarray
             Left-hand side data for ROM training. Each column corresponds to
-            one snapshot, either full order (`n` rows) or compressed to reduced
-            order (`r` rows). The interpretation of the data depends on the
-            setting: forcing data for steady-state problems, next iteration
-            for discrete-time problems, and time derivatives of the state for
+            one snapshot, compressed to the reduced-order state space.
+            The interpretation of the data depends on the setting:
+            forcing data for steady-state problems, next iteration for
+            discrete-time problems, and time derivatives of the state for
             continuous-time problems.
         inputs : (m, k) or (k,) ndarray or None
-            Column-wise inputs corresponding to the snapshots. May be a
-            one-dimensional array if m=1 (scalar input).
-        solver : lstsq Solver object or float > 0 or None
+            Column-wise inputs corresponding to the snapshots.
+            May be a one-dimensional array if ``m=1`` (scalar input).
+        solver : :mod:`opinf.lstsq` object or float > 0 or None
             Solver for the least-squares regression. Defaults:
 
-            - ``None``: ``lstsq.PlainSolver()``, SVD-based solve without
-                regularization.
-            - float > 0: ``lstsq.L2Solver()``, SVD-based solve with scalar
-                Tikhonov regularization.
+            * ``None``: :class:`opinf.lstsq.PlainSolver()`, SVD-based solve
+              without regularization.
+            * float > 0: :class:`opinf.lstsq.L2Solver()`, SVD-based solve with
+              scalar Tikhonov regularization.
 
         Returns
         -------
@@ -265,17 +254,14 @@ class _NonparametricROM(_MonolithicROM):
         return self
 
     # Model persistence -------------------------------------------------------
-    def save(self, savefile, save_basis=True, overwrite=False):
+    def save(self, savefile, overwrite=False):
         """Serialize the ROM, saving it in HDF5 format.
-        The model can later be loaded with the ``load()`` class method.
+        The model can be recovered with the :meth:`load()` class method.
 
         Parameters
         ----------
         savefile : str
             File to save to, with extension ``.h5`` (HDF5).
-        savebasis : bool
-            If ``True``, save the ``basis`` as well as the model operators.
-            If ``False``, only save model operators.
         overwrite : bool
             If ``True`` and the specified ``savefile`` already exists,
             overwrite the file. If ``False`` (default) and the specified
@@ -287,11 +273,6 @@ class _NonparametricROM(_MonolithicROM):
             meta.attrs["num_operators"] = len(self.operators)
             meta.attrs["r"] = int(self.r) if self.r else 0
             meta.attrs["m"] = int(self.m) if self.m else 0
-
-            # Store basis (optionally) if it exists.
-            if (self.basis is not None) and save_basis:
-                meta.attrs["BasisClass"] = self.basis.__class__.__name__
-                self.basis.save(hf.create_group("basis"))
 
             # Store operator data.
             hf.create_dataset(
@@ -306,7 +287,7 @@ class _NonparametricROM(_MonolithicROM):
     @classmethod
     def load(cls, loadfile):
         """Load a serialized ROM from an HDF5 file, created previously from
-        a ROM object's ``save()`` method.
+        the :meth:`save()` method.
 
         Parameters
         ----------
@@ -324,14 +305,6 @@ class _NonparametricROM(_MonolithicROM):
             indices_infer = [int(i) for i in hf["indices_infer"][:]]
             indices_known = [int(i) for i in hf["indices_known"][:]]
 
-            # Load basis if present.
-            basis = None
-            if "basis" in hf:
-                gp = hf["basis"]
-                # BasisClassName = gp["meta"].attrs["class"]
-                BasisClassName = hf["meta"].attrs["BasisClass"]
-                basis = getattr(_basis, BasisClassName).load(gp)
-
             # Load operators.
             ops = []
             for i in range(num_operators):
@@ -340,10 +313,10 @@ class _NonparametricROM(_MonolithicROM):
                 ops.append(getattr(_operators, OpClassName).load(gp))
 
             # Construct the model.
-            rom = cls(ops, basis)
+            rom = cls(ops)
             rom._indices_of_operators_to_infer = indices_infer
             rom._indices_of_known_operators = indices_known
-            if (r := hf["meta"].attrs["r"]) and rom.basis is None:
+            if r := hf["meta"].attrs["r"]:
                 rom.r = int(r)
             if (m := hf["meta"].attrs["m"]) and rom._has_inputs:
                 rom.m = int(m)
