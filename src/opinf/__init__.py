@@ -14,4 +14,4 @@ from .operators import *
 from . import basis, errors, lstsq, operators, pre, post, roms, utils
 
 # Development
-from . import operators_new, roms_new
+from . import operators_new, models

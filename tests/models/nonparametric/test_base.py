@@ -117,14 +117,16 @@ class TestNonparametricModel:
 
         # Try with bad solver option.
         model = self.Dummy("AB")
-        with pytest.raises(TypeError) as ex:
-            model._process_fit_arguments(
-                None, None, None, solver=opinf.lstsq.PlainSolver
-            )
-        assert ex.value.args[0] == "solver must be an instance, not a class"
+        with pytest.raises(ValueError) as ex:
+            model._process_fit_arguments(None, None, None, solver=-1)
+        assert ex.value.args[0] == "if a scalar, `solver` must be nonnegative"
 
         class _DummySolver:
             pass
+
+        with pytest.raises(TypeError) as ex:
+            model._process_fit_arguments(None, None, None, solver=_DummySolver)
+        assert ex.value.args[0] == "solver must be an instance, not a class"
 
         with pytest.raises(TypeError) as ex:
             model._process_fit_arguments(
@@ -385,8 +387,8 @@ class TestNonparametricModel:
         model2 = model.load(target)
         assert model2 is not model
         for attr in [
-            "m",
-            "r",
+            "input_dimension",
+            "state_dimension",
             "_indices_of_operators_to_infer",
             "_indices_of_known_operators",
             "__class__",
@@ -405,8 +407,8 @@ class TestNonparametricModel:
         model2 = model.load(target)
         assert model2 is not model
         for attr in [
-            "m",
-            "r",
+            "input_dimension",
+            "state_dimension",
             "_indices_of_operators_to_infer",
             "_indices_of_known_operators",
             "__class__",

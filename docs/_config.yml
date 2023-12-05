@@ -101,7 +101,7 @@ sphinx:
           "bfPsi": "\\boldsymbol{\\Psi}"      # right singular vectors
           "trp": "{^{\\mathsf{T}}}"           # transpose
           "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"    # time derivative
-          "ddqhat": "\\frac{\\textrm{d}}{\\textrm{d}\\qhat}"  # d/dqhat
+          "ddqhat": "\\frac{\\partial}{\\partial\\qhat}"    # d/dqhat
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     numfig_secnum_depth: 1              # Eq (1.1) instead of (1).
     numpydoc_class_members_toctree: false

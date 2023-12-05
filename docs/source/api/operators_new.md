@@ -53,7 +53,7 @@ we use the following operator classes from {mod}`opinf.operators_new`.
 | {class}`LinearOperator` | $\Ophat_{1}(\qhat,\u) = \Ahat\q$ | $\Ohat_{1} = \Ahat \in \RR^{r\times r}$ | $\d_{1}(\qhat,\u) = \qhat\in\RR^{r}$ |
 | {class}`InputOperator` | $\Ophat_{2}(\qhat,\u) = \Bhat\u$ | $\Ohat_{2} = \Bhat \in \RR^{r\times m}$ | $\d_{2}(\qhat,\u) = \u\in\RR^{m}$ |
 
-An {class}`opinf.roms_new.ContinuousROM` object can be instantiated with a list of operators objects to represent {eq}`eq:operators:ltiexample` as
+An {class}`opinf.models.ContinuousModel` object can be instantiated with a list of operators objects to represent {eq}`eq:operators:ltiexample` as
 
 $$
 \begin{align*}
@@ -66,7 +66,7 @@ $$
 ```python
 import opinf
 
-LTI_ROM = opinf.Continuous_ROM(
+LTI_ROM = opinf.models.ContinuousModel(
     operators=[
         opinf.operators_new.LinearOperator(),
         opinf.operators_new.InputOperator(),
@@ -96,7 +96,7 @@ of the operator or its derivatives.
 
 #### Calibrating Operator Entries
 
-Given a list of operators, the ROM classes defined in {mod}`opinf.roms_new` set up a regression problem to learn the entries of each operator from data.
+Given a list of operators, the classes defined in {mod}`opinf.models` set up a regression problem to learn the entries of each operator from data.
 To facilitate this, each nonparametric operator class has a static method `datablock()` that, given state-input data pairs $\{(\qhat_j,\u_j)\}_{j=0}^{k-1}$, forms the matrix
 
 $$
@@ -109,7 +109,7 @@ $$
 $$
 
 where $\Ophat(\qhat,\u) = \Ohat\d(\qhat,\u)$.
-The ROM classes call this method, solve the regression problem, and set the entries of the operators based on the regression solution.
+The model classes call this method, solve the regression problem, and set the entries of the operators based on the regression solution.
 
 #### Galerkin Projection
 
@@ -154,8 +154,8 @@ where $\Nhat = \Wr\trp\N(\I_m\otimes\Vr) \in \RR^{r\times rm}$.
 
 :::{important}
 The goal of Operator Inference is to learn operator entries _without_ using a direct projection because full-order operators are unknown or computationally inaccessible.
-However, in some scenarios a subset of the ROM operators are known, in which case only the remaining operators need to be inferred from data.
-When a ROM object is instantiated with an operator that already has its entries set, the `galerkin()` method is called to project the operator to the appropriate dimension and that operator is not included in the operator inference.
+However, in some scenarios a subset of the model operators are known, in which case only the remaining operators need to be inferred from data.
+When a Model object is instantiated with an operator that already has its entries set, the `galerkin()` method is called to project the operator to the appropriate dimension and that operator is not included in the operator inference.
 :::
 
 #### Model Persistence
@@ -165,7 +165,7 @@ Every operator has a class method `load()` for loading an operator from the HDF5
 
 ### Nonparametric Monolithic Operators
 
-These operator classes are used in ROMs where the low-dimensional state approximation is monolithic, meaning $\q \approx \Vr\qhat$ where $\Vr$ does not have a block-diagonal sparsity structure.
+These operator classes are used in models where the state is monolithic, meaning the operators do not enjoy a block sparsity structure.
 
 ```{eval-rst}
 .. currentmodule:: opinf.operators_new

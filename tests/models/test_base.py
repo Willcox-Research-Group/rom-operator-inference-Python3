@@ -73,8 +73,8 @@ class TestMonolithicModel:
         model = self.Dummy(opinf_operators.ConstantOperator())
         for attr in (
             "operators",
-            "m",
-            "r",
+            "input_dimension",
+            "state_dimension",
             "_has_inputs",
             "_indices_of_operators_to_infer",
             "_indices_of_known_operators",
@@ -322,37 +322,35 @@ class TestMonolithicModel:
         Vr = np.random.random((20, 6))
 
         fom = self.Dummy(["c", A, "H"])
-        assert fom.r == n
+        assert fom.state_dimension == n
 
-        model = fom.galerkin(Vr)
-        assert model.state_dimension == r
-        newA = model.operators[1]
+        rom = fom.galerkin(Vr)
+        assert rom.state_dimension == r
+        newA = rom.operators[1]
         assert isinstance(newA, opinf_operators.LinearOperator)
         assert newA.entries.shape == (r, r)
         assert np.allclose(newA.entries, Vr.T @ A.entries @ Vr)
-        assert isinstance(model.operators[0], opinf_operators.ConstantOperator)
-        assert isinstance(
-            model.operators[2], opinf_operators.QuadraticOperator
-        )
+        assert isinstance(rom.operators[0], opinf_operators.ConstantOperator)
+        assert isinstance(rom.operators[2], opinf_operators.QuadraticOperator)
         for i in [0, 2]:
-            assert model.operators[i].entries is None
+            assert rom.operators[i].entries is None
 
     # Model evaluation --------------------------------------------------------
-    def test_evaluate(self, m=2, k=10, r=5, ntrials=10):
-        """Test _MonolithicModel.evaluate()."""
+    def test_rhs(self, m=2, k=10, r=5, ntrials=10):
+        """Test _MonolithicModel.rhs()."""
         c_, A_, H_, B_ = _get_operators("cAHB", r, m)
 
         model = self.Dummy([c_, A_])
         for _ in range(ntrials):
             q_ = np.random.random(r)
             y_ = c_.entries + A_.entries @ q_
-            out = model.evaluate(q_)
+            out = model.rhs(q_)
             assert out.shape == y_.shape
             assert np.allclose(out, y_)
 
             Q_ = np.random.random((r, k))
             Y_ = c_.entries.reshape((r, 1)) + A_.entries @ Q_
-            out = model.evaluate(Q_)
+            out = model.rhs(Q_)
             assert out.shape == Y_.shape
             assert np.allclose(out, Y_)
 
@@ -362,14 +360,14 @@ class TestMonolithicModel:
             u = np.random.random(m)
             q_ = np.random.random(r)
             y_ = H_.entries @ kron2c(q_) + B_.entries @ u
-            out = model.evaluate(q_, u)
+            out = model.rhs(q_, u)
             assert out.shape == y_.shape
             assert np.allclose(out, y_)
 
             Q_ = np.random.random((r, k))
             U = np.random.random((m, k))
             Y_ = H_.entries @ kron2c(Q_) + B_.entries @ U
-            out = model.evaluate(Q_, U)
+            out = model.rhs(Q_, U)
             assert out.shape == Y_.shape
             assert np.allclose(out, Y_)
 
@@ -380,13 +378,13 @@ class TestMonolithicModel:
         for _ in range(ntrials):
             q_ = np.random.random()
             y_ = a * q_
-            out = model.evaluate(q_)
+            out = model.rhs(q_)
             assert out.shape == y_.shape
             assert np.allclose(out, y_)
 
             Q_ = np.random.random(k)
             Y_ = a[0] * Q_
-            out = model.evaluate(Q_, U)
+            out = model.rhs(Q_, U)
             assert out.shape == Y_.shape
             assert np.allclose(out, Y_)
 

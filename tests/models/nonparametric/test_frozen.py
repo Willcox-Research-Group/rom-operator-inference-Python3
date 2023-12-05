@@ -22,18 +22,26 @@ class TestFrozenMixin:
         """Test models.nonparametric._frozen._FrozenMixin.fit()."""
         if ModelClass is None:
             ModelClass = self.Dummy
-        rom = ModelClass("A")
+        model = ModelClass("A")
 
         # Test disabled data_matrix_ property.
-        assert rom.data_matrix_ is None
-        rom.solver_ = "A"
-        assert rom.data_matrix_ is None
-        assert rom.operator_matrix_dimension is None
+        assert model.data_matrix_ is None
+        model.solver_ = "A"
+        assert model.data_matrix_ is None
+        assert model.operator_matrix_dimension is None
 
         # Test disabled fit().
         with pytest.raises(NotImplementedError) as ex:
-            rom.fit(None, None, known_operators=None)
+            model.fit(None, None, known_operators=None)
         assert ex.value.args[0] == (
             "fit() is disabled for this class, call fit() "
+            "on the parametric model object"
+        )
+
+        # Test disabled _clear().
+        with pytest.raises(NotImplementedError) as ex:
+            model._clear()
+        assert ex.value.args[0] == (
+            "_clear() is disabled for this class, call fit() "
             "on the parametric model object"
         )

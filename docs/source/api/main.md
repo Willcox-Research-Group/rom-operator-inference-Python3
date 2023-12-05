@@ -30,7 +30,7 @@ The above classes are also defined in the {mod}`opinf.roms` submodule.
     opinf.pre
     opinf.basis
     opinf.operators_new
-    opinf.roms_new
+    opinf.models
     opinf.lstsq
     opinf.post
     opinf.utils

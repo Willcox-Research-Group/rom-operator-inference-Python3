@@ -85,7 +85,7 @@ class _NonparametricModel(_MonolithicModel):
                 # Scalar Tikhonov (L2) regularization.
                 solver = lstsq.L2Solver(solver)
             else:
-                raise ValueError("if a scalar, ``solver`` must be nonnegative")
+                raise ValueError("if a scalar, `solver` must be nonnegative")
 
         # Lightly validate the solver: must be instance w/ fit(), predict().
         if isinstance(solver, type):
