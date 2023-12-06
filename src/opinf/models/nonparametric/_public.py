@@ -2,7 +2,7 @@
 """Public nonparametric model classes."""
 
 __all__ = [
-    # "SteadyModel",
+    "SteadyModel",
     "DiscreteModel",
     "ContinuousModel",
 ]
@@ -17,17 +17,23 @@ from ... import errors
 
 
 class SteadyModel(_NonparametricModel):  # pragma: no cover
-    r"""Nonparametric steady state model.
+    r"""Nonparametric steady state model :math:`\zhat = \fhat(\qhat)`.
 
-    .. math:: \widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat).
+    Here,
+
+    * :math:`\qhat(t)\in\RR^{r}` is the model state, and
+    * :math:`\u(t)\in\RR^{m}` is the (optional) input.
+
+    The structure of :math:`\fhat` is specified through the
+    ``operators`` argument.
 
     Parameters
     ----------
-    operators : list of :mod:`opinf.operators` objects
+    operators : list of :mod:`opinf.operators_new` objects
         Operators comprising the terms of the model.
     """
     _LHS_ARGNAME = "forcing"
-    _LHS_LABEL = "g"
+    _LHS_LABEL = "z"
     _STATE_LABEL = "q"
     _INPUT_LABEL = None
     # TODO: disallow input terms?
@@ -36,9 +42,8 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
         r"""Evaluate the right-hand side of the model by applying each operator
         and summing the results.
 
-        This is the function :math:`\widehat{\mathbf{F}}(\qhat)`
-        where the model can be written as
-        :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat)`.
+        This is the function :math:`\fhat(\qhat)` where the model is given by
+        :math:`\zhat = \fhat(\qhat)`.
 
         Parameters
         ----------
@@ -56,10 +61,8 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
         r"""Sum the state Jacobian of each model operator.
 
         This the derivative of the right-hand side of the model with respect
-        to the state, i.e., the function
-        :math:`\ddqhat\widehat{\mathbf{F}}}(\qhat)`
-        where the model can be written as
-        :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat)`.
+        to the state, i.e., the function :math:`\ddqhat\fhat(\qhat)`
+        where the model is given by :math:`\zhat = \fhat(\qhat)`.
 
         Parameters
         ----------
@@ -74,7 +77,33 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
         return _NonparametricModel.jacobian(self, state, input_=None)
 
     def fit(self, states, forcing=None, *, solver=None, regularizer=None):
-        """Learn the model operators from data.
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
+           \fhat(\qhat_j) - \zhat_{j}
+           \right\|_2^2
+           = \min_{\Ohat}\left\|\D\Ohat\trp - \Zhat\trp\right\|_F^2
+
+        where :math:`\zhat = \fhat(\qhat)` is the model and
+
+        * :math:`\qhat_j\in\RR^r` is a measurement of the state, and
+        * :math:`\zhat_j\in\RR^r` is a measurement of the forcing term
+          corresponding to :math:`\qhat_j`.
+
+        The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r)}` is such that
+        :math:`\fhat(\q) = \Ohat\d(\qhat)` for some data vector
+        :math:`\d(\qhat)\in\RR^{d(r)}`; the *data matrix*
+        :math:`\D\in\RR^{k\times d(r)}` is given by
+        :math:`[~\d(\qhat_0)~~\cdots~~\d(\qhat_{k-1}~]\trp`.
+        Finally,
+        :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
+        See the :mod:`opinf.operators_new` module for more explanation.
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
 
         Parameters
         ----------
@@ -84,12 +113,12 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
             Forcing training data. Each column ``forcing[:, j]``
             corresponds to the snapshot ``states[:, j]``.
             If ``None``, set ``forcing = 0``.
-        solver : lstsq Solver object or float > 0 or None
+        solver : :mod:`opinf.lstsq` object or float > 0 or None
             Solver for the least-squares regression. Defaults:
 
-            * None: :class:`opinf.lstsq.PlainSolver()`,
+            * None: :class:`opinf.lstsq.PlainSolver`,
               SVD-based solve without regularization
-            * **float > 0**: :class:`opinf.lstsq.L2Solver()`,
+            * **float > 0**: :class:`opinf.lstsq.L2Solver`,
               SVD-based solve with scalar Tikhonov regularization
 
         Returns
@@ -108,20 +137,21 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
 
 
 class DiscreteModel(_NonparametricModel):
-    r"""Nonparametric discrete dynamical system model.
+    r"""Nonparametric discrete dynamical system model
+    :math:`\qhat_{j+1} = \fhat(\qhat_{j}, \u_{j})`.
 
-    .. math::
-        \qhat_{j+1}
-        = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j}).
+    Here,
 
-    Here, :math:`\qhat\in\RR^{r}` is the reduced state
-    and :math:`\u\in\RR^{m}` is the (optional) input.
-    The structure of :math:`\widehat{\mathbf{F}}` is specified through the
+    * :math:`\qhat_j\in\RR^{r}` is the :math:`j`-th iteration
+      of the model state, and
+    * :math:`\u_j\in\RR^{m}` is the (optional) corresponding input.
+
+    The structure of :math:`\fhat` is specified through the
     ``operators`` attribute.
 
     Parameters
     ----------
-    operators : list of :mod:`opinf.operators` objects
+    operators : list of :mod:`opinf.operators_new` objects
         Operators comprising the terms of the model.
     """
     _LHS_ARGNAME = "nextstates"
@@ -169,9 +199,9 @@ class DiscreteModel(_NonparametricModel):
         r"""Evaluate the right-hand side of the model by applying each operator
         and summing the results.
 
-        This is the function :math:`\widehat{\mathbf{F}}(\qhat, \u)`
-        where the model can be written as
-        :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`.
+        This is the function :math:`\fhat(\qhat, \u)`
+        where the model is given by
+        :math:`\qhat_{j+1} = \fhat(\qhat_{j}, \u_{j})`.
 
         Parameters
         ----------
@@ -191,17 +221,16 @@ class DiscreteModel(_NonparametricModel):
         r"""Sum the state Jacobian of each model operator.
 
         This the derivative of the right-hand side of the model with respect
-        to the state, i.e., the function
-        :math:`\ddqhat\widehat{\mathbf{F}}}(\qhat, \u)`
-        where the model can be written as
-        :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`.
+        to the state, i.e., the function :math:`\ddqhat\fhat(\qhat, \u)`
+        where the model is given by
+        :math:`\qhat_{j+1} = \fhat(\qhat_{j}, \u_{j})`.
 
         Parameters
         ----------
         state : (r,) ndarray
             State vector :math:`\qhat`.
         input_ : (m,) ndarray or None
-            Input vector :math`\u`.
+            Input vector :math:`\u`.
 
         Returns
         -------
@@ -219,7 +248,35 @@ class DiscreteModel(_NonparametricModel):
         *,
         regularizer=None,
     ):
-        """Learn the model operators from data.
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
+           \fhat(\qhat_j, \u_j) - \zhat_{j}
+           \right\|_2^2
+           = \min_{\Ohat}\left\|\D\Ohat\trp - \Zhat\trp\right\|_F^2
+
+        where
+        :math:`\zhat_j = \fhat(\qhat_j, \u_j)` is the model and
+
+        * :math:`\qhat_j\in\RR^r` is a measurement of the state,
+        * :math:`\u_j\in\RR^m` is a measurement of the input, and
+        * :math:`\zhat_j\in\RR^r` is a measurement of the next state iteration
+          after :math:`\qhat_j`.
+
+        The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r,m)}` is such that
+        :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
+        :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`; the *data matrix*
+        :math:`\D\in\RR^{k\times d(r,m)}` is given by
+        :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
+        Finally,
+        :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
+        See the :mod:`opinf.operators_new` module for more explanation.
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
 
         Parameters
         ----------
@@ -236,9 +293,9 @@ class DiscreteModel(_NonparametricModel):
         solver : lstsq Solver object or float > 0 or None
             Solver for the least-squares regression. Defaults:
 
-            * ``None``: :class:`opinf.lstsq.PlainSolver()`,
+            * ``None``: :class:`opinf.lstsq.PlainSolver`,
               SVD-based solve without regularization.
-            * **float > 0**: :class:`opinf.lstsq.L2Solver()`,
+            * **float > 0**: :class:`opinf.lstsq.L2Solver`,
               SVD-based solve with scalar Tikhonov regularization.
 
         Returns
@@ -257,20 +314,20 @@ class DiscreteModel(_NonparametricModel):
         )
 
     def predict(self, state0, niters, inputs=None):
-        """Step forward the reduced-order discrete dynamical system
+        """Step forward the discrete dynamical system
         ``niters`` steps. Essentially, this amounts to the following.
 
         .. code-block:: python
 
            >>> states[:, 0] = state0
-           >>> states[:, 1] = rom.rhs(states[:, 0], inputs[:, 0])
-           >>> states[:, 2] = rom.rhs(states[:, 1], inputs[:, 1])
+           >>> states[:, 1] = model.rhs(states[:, 0], inputs[:, 0])
+           >>> states[:, 2] = model.rhs(states[:, 1], inputs[:, 1])
            ...                                     # Repeat `niters` times.
 
         Parameters
         ----------
         state0 : (r,) ndarray
-            Initial reduced-order state.
+            Initial state.
         niters : int
             Number of times to step the system forward.
         inputs : (m, niters-1) ndarray or None
@@ -327,18 +384,20 @@ class DiscreteModel(_NonparametricModel):
 
 
 class ContinuousModel(_NonparametricModel):
-    r"""Nonparametric system of ordinary differential equations.
+    r"""Nonparametric system of ordinary differential equations
+    :math:`\ddt\qhat(t) = \fhat(\qhat(t), \u(t))`.
 
-    .. math:: \ddt\qhat(t) = \Ophat(\qhat(t), \u(t)).
+    Here,
 
-    Here, :math:`\qhat(t)\in\RR^{r}` is the state
-    and :math:`\u(t)\in\RR^{m}` is the (optional) input.
-    The structure of :math:`\widehat{\mathbf{F}}` is specified through the
+    * :math:`\qhat(t)\in\RR^{r}` is the model state, and
+    * :math:`\u(t)\in\RR^{m}` is the (optional) input.
+
+    The structure of :math:`\fhat` is specified through the
     ``operators`` argument.
 
     Parameters
     ----------
-    operators : list of :mod:`opinf.operators` objects
+    operators : list of :mod:`opinf.operators_new` objects
         Operators comprising the terms of the model.
     """
     _LHS_ARGNAME = "ddts"
@@ -351,9 +410,8 @@ class ContinuousModel(_NonparametricModel):
         and summing the results.
 
         This is the right-hand side of the model, i.e., the function
-        :math:`\widehat{\mathbf{F}}(\qhat(t), \u(t))`
-        where the model can be written as
-        :math:`\ddt \qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`.
+        :math:`\fhat(\qhat(t), \u(t))` where the model is given by
+        :math:`\ddt \qhat(t) = \fhat(\qhat(t), \u(t))`.
 
         Parameters
         ----------
@@ -374,13 +432,12 @@ class ContinuousModel(_NonparametricModel):
         return _NonparametricModel.rhs(self, state, input_)
 
     def jacobian(self, t, state, input_func=None):
-        r"""Sum the state Jacobian each model operators.
+        r"""Sum the state Jacobian of each model operator.
 
         This the derivative of the right-hand side of the model with respect
-        to the state, i.e., the function
-        :math:`ddqhat\widehat{\mathbf{F}}(\qhat(t), \u(t))`
-        where the model can be written as
-        :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`.
+        to the state, i.e., the function :math:`\ddqhat\fhat(\qhat(t), \u(t))`
+        where the model is given by
+        :math:`\ddt\qhat(t) = \fhat(\qhat(t), \u(t))`.
 
         Parameters
         ----------
@@ -389,7 +446,8 @@ class ContinuousModel(_NonparametricModel):
         state : (r,) ndarray
             State vector :math:`\qhat(t)` corresponding to time ``t``.
         input_func : callable(float) -> (m,), or None
-            Input function that maps time ``t`` to an input vector.
+            Input function that maps time ``t`` to the input vector
+            :math:`\u(t)`.
 
         Returns
         -------
@@ -400,32 +458,60 @@ class ContinuousModel(_NonparametricModel):
         return _NonparametricModel.jacobian(self, state, input_)
 
     def fit(self, states, ddts, inputs=None, solver=None, *, regularizer=None):
-        """Learn the model operators from data.
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
+           \fhat(\qhat_j, \u_j) - \dot{\qhat}_j
+           \right\|_2^2
+           = \min_{\Ohat}\left\|\D\Ohat\trp - \dot{\Qhat}\trp\right\|_F^2
+
+        where
+        :math:`\ddt\qhat(t) = \fhat(\qhat(t), \u(t))` is the model and
+
+        * :math:`\qhat_j\in\RR^r` is the state at some time :math:`t_j`,
+        * :math:`\u_j\in\RR^m` is the input at time :math:`t_j`, and
+        * :math:`\dot{\qhat}_j\in\RR^r` is the time derivative of the state
+          at time :math:`t_j`, i.e.,
+          :math:`\dot{\qhat}_j = \ddt\qhat(t)\big|_{t=t_j}`.
+
+        The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r,m)}` is such that
+        :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
+        :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`; the *data matrix*
+        :math:`\D\in\RR^{k\times d(r,m)}` is given by
+        :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
+        Finally, :math:`\dot{\Qhat}
+        = [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\in\RR^{r\times k}`.
+        See the :mod:`opinf.operators_new` module for more explanation.
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
 
         Parameters
         ----------
         states : (r, k) ndarray
             Snapshot training data. Each column is a single snapshot.
         ddts : (r, k) ndarray
-            Snapshot time derivative training data. Each column
+            Snapshot time derivative data. Each column
             ``ddts[:, j]`` corresponds to the snapshot ``states[:, j]``.
         inputs : (m, k) or (k,) ndarray or None
             Input training data. Each column ``inputs[:, j]`` corresponds
             to the snapshot ``states[:, j]``.
             May be a one-dimensional array if ``m=1`` (scalar input).
-        solver : opinf.lstsq Solver object or float > 0 or None
+        solver : :mod:`opinf.lstsq` object or float > 0 or None
             Solver for the least-squares regression. Defaults:
 
-            * ``None``: ``opinf.lstsq.PlainSolver()``,
+            * ``None``: :class:`opinf.lstsq.PlainSolver`,
               SVD-based solve without regularization.
-            * **float > 0:** ``opinf.lstsq.L2Solver()``,
+            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
               SVD-based solve with scalar Tikhonov regularization.
 
         Returns
         -------
         self
         """
-
         if solver is None and regularizer is not None:
             solver = regularizer  # pragma: no cover
         return _NonparametricModel.fit(
@@ -433,7 +519,7 @@ class ContinuousModel(_NonparametricModel):
         )
 
     def predict(self, state0, t, input_func=None, **options):
-        """Solve the reduced-order system of ordinary differential equations.
+        """Solve the system of ordinary differential equations.
         This method wraps ``scipy.integrate.solve_ivp()``.
 
         Parameters
@@ -453,15 +539,16 @@ class ContinuousModel(_NonparametricModel):
 
             * **method : str** ODE solver for the model.
 
-              * `'RK45'` (default): Explicit Runge-Kutta method of order 5(4).
-              * `'RK23'`: Explicit Runge-Kutta method of order 3(2).
-              * `'Radau'`: Implicit Runge-Kutta method of the Radau IIA family
-                of order 5.
-              * `'BDF'`: Implicit multi-step variable-order (1 to 5) method
-                based on a backward differentiation formula for the
-                derivative.
-              * `'LSODA'`: Adams/BDF method with automatic stiffness detection
-                and switching. This wraps the Fortran solver from ODEPACK.
+              * ``'RK45'`` (default): Explicit Runge--Kutta method
+                of order 5(4).
+              * ``'RK23'``: Explicit Runge--Kutta method
+                of order 3(2).
+              * ``'Radau'``: Implicit Runge--Kutta method
+                of the Radau IIA family of order 5.
+              * ``'BDF'``: Implicit multi-step variable-order (1 to 5) method
+                based on a backward differentiation formula for the derivative.
+              * ``'LSODA'``: Adams/BDF method with automatic stiffness
+                detection and switching.
 
             * **max_step : float** Maximimum allowed integration step size.
 

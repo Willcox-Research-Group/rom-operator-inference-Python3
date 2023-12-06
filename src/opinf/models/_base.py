@@ -105,32 +105,32 @@ class _MonolithicModel(abc.ABC):
 
     @property
     def c_(self):
-        """:class:`ConstantOperator` (or ``None``)."""
+        """:class:`opinf.operators_new.ConstantOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.ConstantOperator)
 
     @property
     def A_(self):
-        """:class:`LinearOperator` (or ``None``)."""
+        """:class:`opinf.operators_new.LinearOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.LinearOperator)
 
     @property
     def H_(self):
-        """:class:`QuadraticOperator` (or ``None``)."""
+        """:class:`opinf.operators_new.QuadraticOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.QuadraticOperator)
 
     @property
     def G_(self):
-        """:class:`CubicOperator` (or ``None``)."""
+        """:class:`opinf.operators_new.CubicOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.CubicOperator)
 
     @property
     def B_(self):
-        """:class:`InputOperator` (or ``None``)."""
+        """:class:`opinf.operators_new.InputOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.InputOperator)
 
     @property
     def N_(self):
-        """:class:`StateInputOperator` (or ``None``)."""
+        """:class:`opinf.operators_new.StateInputOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.StateInputOperator)
 
     # Properties: dimensions --------------------------------------------------
@@ -257,15 +257,54 @@ class _MonolithicModel(abc.ABC):
 
     # Dimensionality reduction ------------------------------------------------
     def galerkin(self, Vr, Wr=None):
-        """Construct a new model by taking the Galerkin projection of each
-        full-order operator.
+        r"""Construct a reduced-order model by taking the (Petrov-)Galerkin
+        projection of each model operator.
+
+        Consider a model :math:`\z = \f(\q,\u)` where
+
+        * :math:`\q\in\RR^n` is the model state,
+        * :math:`\u\in\RR^m` is the input, and
+        * :math:`\z\in\RR^n` is the model left-hand side.
+
+        Given a *trial basis* :math:`\Vr\in\RR^{n\times r}` and a *test basis*
+        :math:`\Wr\in\RR^{n\times r}`, the corresponding
+        *intrusive reduced-order model* is the model
+        :math:`\zhat = \fhat(\qhat, \u)` where
+
+        .. math::
+           \zhat = \Wr\trp\z,
+           \qquad
+           \fhat(\qhat,\u) = \Wr\trp\f(\Vr\qhat,\u).
+
+        Here,
+
+        * :math:`\qhat\in\RR^r` is the reduced-order state,
+        * :math:`\u\in\RR^m` is the input (as before), and
+        * :math:`\zhat\in\RR^r` is the reduced-order left-hand side.
+
+        This approach uses the low-dimensional state approximation
+        :math:`\q = \Vr\qhat`.
+        If :math:`\Wr = \Vr`, the result is called a *Galerkin projection*.
+        If :math:`\Wr \neq \Vr`, it is called a *Petrov-Galerkin projection*.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        reduced_model : Model
+            Reduced-order model obtained from (Petrov-)Galerkin projection.
         """
         return self.__class__(
             [
                 old_op.galerkin(Vr, Wr)
-                if i in self._indices_of_known_operators
-                else old_op.__class__()
-                for i, old_op in enumerate(self.operators)
+                if old_op.entries is not None
+                else old_op.copy()
+                for old_op in self.operators
             ]
         )
 

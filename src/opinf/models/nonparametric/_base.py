@@ -18,7 +18,7 @@ class _NonparametricModel(_MonolithicModel):
     # Properties --------------------------------------------------------------
     @property
     def operator_matrix_(self):
-        r""":math:`r \times d(r, m)` Operator matrix, e.g.,
+        r""":math:`r \times d(r, m)` operator matrix, e.g.,
         :math:`\Ohat = [~\chat~~\Ahat~~\Hhat~~\Bhat~]`.
 
         This matrix **does not** includes the entries of any operators whose
@@ -34,7 +34,7 @@ class _NonparametricModel(_MonolithicModel):
 
     @property
     def data_matrix_(self):
-        r""":math:`k \times d(r, m)` Data matrix, e.g.,
+        r""":math:`k \times d(r, m)` data matrix, e.g.,
         :math:`\D = [~
         \mathbf{1}~~
         \widehat{\Q}\trp~~
@@ -226,7 +226,35 @@ class _NonparametricModel(_MonolithicModel):
         self._extract_operators(np.atleast_2d(OhatT.T))
 
     def fit(self, states, lhs, inputs=None, solver=None):
-        """Learn the model operators from data.
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
+           \fhat(\qhat_j, \u_j) - \zhat_j
+           \right\|_2^2
+           = \min_{\Ohat}\left\|\D\Ohat\trp - \dot{\Qhat}\trp\right\|_F^2
+
+        where
+        :math:`\zhat = \fhat(\qhat, \u)` is the model and
+
+        * :math:`\qhat_j\in\RR^r` is a measurement of the state,
+        * :math:`\u_j\in\RR^m` is a measurement of the input, and
+        * :math:`\zhat_j\in\RR^r` is a measurement of the left-hand side
+          of the model.
+
+        The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r,m)}` is such that
+        :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
+        :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`; the *data matrix*
+        :math:`\D\in\RR^{k\times d(r,m)}` is given by
+        :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
+        Finally,
+        :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
+        See the :mod:`opinf.operators_new` module for more explanation.
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
 
         Parameters
         ----------
@@ -246,9 +274,9 @@ class _NonparametricModel(_MonolithicModel):
         solver : :mod:`opinf.lstsq` object or float > 0 or None
             Solver for the least-squares regression. Defaults:
 
-            * ``None``: :class:`opinf.lstsq.PlainSolver()`, SVD-based solve
+            * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
               without regularization.
-            * float > 0: :class:`opinf.lstsq.L2Solver()`, SVD-based solve with
+            * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
               scalar Tikhonov regularization.
 
         Returns
@@ -302,12 +330,12 @@ class _NonparametricModel(_MonolithicModel):
         Parameters
         ----------
         loadfile : str
-            File to load from, which should end in ``.h5``.
+            File to load from, with extension ``.h5`` (HDF5).
 
         Returns
         -------
-        rom : _NonparametricModel
-            Trained model.
+        model : _NonparametricModel
+            Loaded model.
         """
         with hdf5_loadhandle(loadfile) as hf:
             # Load metadata.
@@ -323,12 +351,12 @@ class _NonparametricModel(_MonolithicModel):
                 ops.append(getattr(_operators, OpClassName).load(gp))
 
             # Construct the model.
-            rom = cls(ops)
-            rom._indices_of_operators_to_infer = indices_infer
-            rom._indices_of_known_operators = indices_known
+            model = cls(ops)
+            model._indices_of_operators_to_infer = indices_infer
+            model._indices_of_known_operators = indices_known
             if r := hf["meta"].attrs["r"]:
-                rom.state_dimension = int(r)
-            if (m := hf["meta"].attrs["m"]) and rom._has_inputs:
-                rom.input_dimension = int(m)
+                model.state_dimension = int(r)
+            if (m := hf["meta"].attrs["m"]) and model._has_inputs:
+                model.input_dimension = int(m)
 
-        return rom
+        return model
