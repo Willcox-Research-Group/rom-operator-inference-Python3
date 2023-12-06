@@ -6,7 +6,7 @@ This page discusses the different kinds of ROMs and how to build a ROM by specif
 :::{admonition} Overview
 :class: note
 Every ROM has two main components: a low-dimensional approximation of the full state (see [Dimensionality Reduction](sec-guide-dimensionality)), and a set equations describing the dynamics of the reduced state.
-The user specifies the structure of the reduced dynamics by providing a list of [operators](sec-operator-classes) to a ROM class.
+The user specifies the structure of the reduced dynamics by providing a list of [operators](../api/operators_new.md) to a ROM class.
 Operators are calibrated through a least-squares regression of available state and input data.
 
 ```python
@@ -40,7 +40,7 @@ For parametric problems, we use $\mu \in \RR^{p}$ to denote the free parameters.
 
 ## Types of Reduced-order Models
 
-ROM classes are included in the main [**opinf**](sec-main) namespace.
+ROM classes are included in the main [**opinf**](../api/main.md) namespace.
 The type of ROM class to use depends on three factors:
 
 1. **Continuous vs Discrete:** _Continuous-time_ ROMs are for systems of ordinary differential equations (or spatially discretized partial differential equations), and _discrete-time_ ROMs are for discrete dynamical systems.
@@ -85,7 +85,7 @@ and a set of ODEs is defined for each $\qhat_{\ell}(t)$, $\ell=0,\ldots,d-1$.
 
 | ROM Type | `opinf` Class | Reduced-order Dynamics |
 | :------- | :------------ | :--------------------- |
-| Monolithic Nonparametric  | [**`ContinuousROM`**](opinf.ContinuousROM) | $\frac{\text{d}}{\text{d}t}\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))$ |
+| Monolithic Nonparametric  | {class}`opinf.models.ContinuousModel` | $\frac{\text{d}}{\text{d}t}\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))$ |
 | Monolithic Parametric     | **`ContinuousPROM`** | $\frac{\text{d}}{\text{d}t}\qhat(t;\mu) = \widehat{\mathbf{F}}(\qhat(t;\mu), \u(t); \mu)$ |
 | Multilithic Nonparametric | **`ContinuousROMMulti`** | $\frac{\text{d}}{\text{d}t}\qhat_{\ell}(t) = \widehat{\mathbf{F}}_{\ell}(\qhat(t), \u(t)),\quad\ell=1,\ldots,d-1$ |
 | Multilithic Parametric | **`ContinuousPROMMulti`** | $\frac{\text{d}}{\text{d}t}\qhat_{\ell}(t;\mu) = \widehat{\mathbf{F}}_{\ell}(\qhat(t;\mu), \u(t); \mu),\quad\ell=1,\ldots,d-1$ |
@@ -153,22 +153,24 @@ $
 $ as before, but now with
 
 $$
-\Ahat
-= \left[\begin{array}{cc}
-\mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
-\end{array}\right]\trp
-\left[\begin{array}{cc}
-\mathbf{0} & \A_{0,1} \\ \A_{1,0} & \mathbf{0}
-\end{array}\right]
-\left[\begin{array}{cc}
-\mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
-\end{array}\right]
-=
-\left[\begin{array}{cc}
-\mathbf{0} & \mathbf{V}_{0}\trp\A_{0,1}\mathbf{V}_{1}
-\\
-\mathbf{V}_{1}\trp\A_{1,0}\mathbf{V}_{0} & \mathbf{0}
-\end{array}\right],
+\begin{align*}
+    \Ahat
+    = \left[\begin{array}{cc}
+    \mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
+    \end{array}\right]\trp
+    \left[\begin{array}{cc}
+    \mathbf{0} & \A_{0,1} \\ \A_{1,0} & \mathbf{0}
+    \end{array}\right]
+    \left[\begin{array}{cc}
+    \mathbf{V}_{0} & \mathbf{0} \\ \mathbf{0} & \mathbf{V}_{1}
+    \end{array}\right]
+    =
+    \left[\begin{array}{cc}
+    \mathbf{0} & \mathbf{V}_{0}\trp\A_{0,1}\mathbf{V}_{1}
+    \\
+    \mathbf{V}_{1}\trp\A_{1,0}\mathbf{V}_{0} & \mathbf{0}
+    \end{array}\right],
+\end{align*}
 $$
 
 which has the same block structure as $\A$.
@@ -200,26 +202,12 @@ In the multilithic case, the reduced state is decomposed as $\qhat = [~\qhat\trp
 
 | ROM Type | `opinf` Class | Reduced-order Dynamics |
 | :------- | :------------ | :--------------------- |
-| Monolithic Nonparametric | [**`DiscreteROM`**](opinf.DiscreteROM) | $\qhat^{(j+1)} = \widehat{\mathbf{F}}(\qhat^{(j)}, \u^{(j)})$ |
+| Monolithic Nonparametric | {class}`opinf.models.DiscreteModel` | $\qhat^{(j+1)} = \widehat{\mathbf{F}}(\qhat^{(j)}, \u^{(j)})$ |
 | Monolithic Parametric    | **`DiscretePROM`** | $\qhat^{(j+1)}(\mu) = \widehat{\mathbf{F}}(\qhat^{(j)}(\mu), \u^{(j)}; \mu)$ |
 | Multilithic Nonparametric | **`DiscreteROMMulti`** | $\qhat_{\ell}^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\qhat^{(j)}, \u^{(j)}),\quad\ell=1,\ldots,d-1$ |
 | Multilithic Parametric | **`DiscretePROMMulti`** | $\qhat_{\ell}(\mu)^{(j+1)} = \widehat{\mathbf{F}}_{\ell}(\qhat(\mu)^{(j)}, \u^{(j)}; \mu),\quad\ell=1,\ldots,d-1$ |
 
 <!-- TODO: Steady-state Problems -->
-
-(sec-operator-classes)=
-## Operator Classes
-
-All ROM classes are initialized with a list of `operators` that define the structure of the reduced-order model dynamics, i.e., the function $\widehat{\mathbf{F}}$.
-These are defined in the {class}`opinf.operators` submodule.
-
-### Nonparametric Monolithic Operators
-
-:::{warning}
-This page is under construction.
-:::
-
-- `datablock()` and `column_dimension()` methods
 
 ## ROM Classes
 
@@ -229,23 +217,20 @@ The API for these classes adopts some principles from the [scikit-learn](https:/
 :::
 ::::
 
-- `basis`, `operators`
-- Dimensions: `n`, `m`
-- `compress()` and `decompress()`
+- `operators`
+- Dimensions: `r`, `m`
 - `fit()`
 - `predict()`
 - `save()` and `load()`
 
 ### Nonparametric Monolithic ROMs
 
-- `basis` can be any basis object, ndarray (`LinearBasis`), or `None`
 - `operators` is a single list of nonparametric monolithic operators (or strings for shorthand)
 - Dimension attribute: `r`
 - Shortcut properties for accessing operators: `c_`, `A_`, `H_`, `G_`, `B_`, `N_`.
 
 ### Nonparametric Multilithic ROMs
 
-- `basis` **must** be multilithic
 - `operators` is a list of lists of nonparametric multilithic operators
 - Dimension attribute: `rs` and `r = sum(rs)`
 
@@ -318,7 +303,7 @@ See the [Dimensionality Reduction](sec-guide-dimensionality) guide for details.
 ### Operators
 
 These attributes are the operators corresponding to the learned parts of the reduced-order model.
-The classes are defined in the [**operators**](opinf.operators) submodule.
+The classes are defined in the {mod}`opinf.operators_new` submodule.
 
 <!-- TODO: Operator Class with links to API docs -->
 
@@ -572,8 +557,8 @@ $$
 
 The following ROM classes target the continuous-time setting.
 
-- [**ContinuousROM**](opinf.ContinuousROM) (nonparametric)
-- [**InterpolatedContinuousROM**](opinf.InterpolatedContinuousROM) (parametric via interpolation)
+- {class}`opinf.models.ContinuousModel` (nonparametric)
+- `opinf.InterpolatedContinuousROM` (parametric via interpolation)
 
 ### Time Derivative Data
 
@@ -655,8 +640,8 @@ $$
 
 The following ROM classes target the discrete setting.
 
-- [**DiscreteROM**](opinf.DiscreteROM) (nonparametric)
-- [**InterpolatedDiscreteROM**](opinf.InterpolatedDiscreteROM) (parametric via interpolation)
+- {class}`opinf.models.DiscreteModel` (nonparametric)
+- `opinf.InterpolatedDiscreteROM` (parametric via interpolation)
 
 ### Iterated Training Data
 

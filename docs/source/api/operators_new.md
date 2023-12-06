@@ -14,7 +14,7 @@ There are a few different types of operators:
 :::
 -->
 
-## Introduction
+## Overview
 
 Reduced-order models based on Operator Inference are systems of [ordinary differential equations](opinf.models.ContinuousModel) (or [discrete-time difference equations](opinf.models.DiscreteModel)) that can be written as
 
@@ -27,7 +27,7 @@ $$
 $$
 
 where each $\Ophat_{\ell}:\RR^{r}\times\RR^{m}\to\RR^{r}$ is a vector-valued function that is polynomial with respect to the reduced state $\qhat\in\RR^{n}$ and the input $\u\in\RR^{m}$.
-Such functions can be represented by a matrix-vector product
+Such functions, which we call *operators*, can be represented by a matrix-vector product
 
 $$
 \begin{align*}
@@ -36,7 +36,7 @@ $$
 $$
 
 for some data-dependent vector $\d_{\ell}:\RR^{r}\times\RR^{m}\to\RR^{d}$ and constant matrix $\Ohat_{\ell}\in\RR^{r\times d}$.
-The goal of Operator Inference is to learn---using only data---the _operator entries_ $\Ohat_\ell$ for each operator in the reduced-order model.
+The goal of Operator Inference is to learn---using only data---the *operator entries* $\Ohat_\ell$ for each operator in the reduced-order model.
 
 The classes in this module represent different types of operators that can used in defining the structure of an Operator Inference reduced-order model.
 
@@ -89,7 +89,7 @@ LTI_ROM = opinf.models.ContinuousModel(
 (sec-operators-nonparametric)=
 ## Nonparametric Operators
 
-A _nonparametric_ operator is one where the entries matrix $\Ohat_\ell$ is constant (as opposed to [parametric operators](sec-operators-parametric)).
+A _nonparametric_ operator is one where the entries matrix $\Ohat_\ell$ is constant (see [parametric operators](sec-operators-parametric)).
 
 ### API Summary
 
@@ -137,9 +137,9 @@ $$
 \begin{align*}
     \min_{\Ohat_1,\ldots,\Ohat_{n_\textrm{terms}}}\sum_{j=0}^{k-1}\left\|
         \sum_{\ell=1}^{n_\textrm{terms}}\Ohat_\ell\d_\ell(\qhat_j,\u_j) - \dot{\qhat}_j
-    \right\|_2^2
-    = \min_{\Ohat}\left\|
-        \D\Ohat\trp - [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\trp
+    \right\|*2^2
+    = \min*{\Ohat}\left\|
+        \D\Ohat\trp - [~\dot{\qhat}*0~~\cdots~~\dot{\qhat}*{k-1}~]\trp
     \right\|_F^2,
 \end{align*}
 $$
