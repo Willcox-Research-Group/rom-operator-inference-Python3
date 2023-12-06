@@ -60,7 +60,7 @@ we use the following operator classes from {mod}`opinf.operators_new`.
 
 | Class | Definition | Operator entries | data vector |
 | :---- | :--------- | :--------------- | :---------- |
-| {class}`LinearOperator` | $\Ophat_{1}(\qhat,\u) = \Ahat\q$ | $\Ohat_{1} = \Ahat \in \RR^{r\times r}$ | $\d_{1}(\qhat,\u) = \qhat\in\RR^{r}$ |
+| {class}`LinearOperator` | $\Ophat_{1}(\qhat,\u) = \Ahat\qhat$ | $\Ohat_{1} = \Ahat \in \RR^{r\times r}$ | $\d_{1}(\qhat,\u) = \qhat\in\RR^{r}$ |
 | {class}`InputOperator` | $\Ophat_{2}(\qhat,\u) = \Bhat\u$ | $\Ohat_{2} = \Bhat \in \RR^{r\times m}$ | $\d_{2}(\qhat,\u) = \u\in\RR^{m}$ |
 
 An {class}`opinf.models.ContinuousModel` object can be instantiated with a list of operators objects to represent {eq}`eq:operators:ltiexample` as
@@ -105,6 +105,7 @@ of the operator or its derivatives.
 - `apply()`: compute the operator action $\Ophat_\ell(\qhat, \u)$.
 - `jacobian()`: construct the state Jacobian $\ddqhat\Ophat_\ell(\qhat, \u)$.
 
+(sec-operators-calibration)=
 #### Calibrating Operator Entries
 
 Nonparametric operator classes have a static `datablock()` method that, given state-input data pairs $\{(\qhat_j,\u_j)\}_{j=0}^{k-1}$, forms the matrix
@@ -218,7 +219,7 @@ Every operator has a class method `load()` for loading an operator from the HDF5
 
 ### Nonparametric Operator Classes
 
-<!-- These operator classes are used in models where the state is monolithic, meaning the operators do not enjoy a block sparsity structure. -->
+<!-- These operator classes are used in models where the state is monolithic, meaning the system does not exhibit a block sparsity structure. -->
 
 ```{eval-rst}
 .. currentmodule:: opinf.operators_new
