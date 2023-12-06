@@ -9,8 +9,13 @@ from scipy import linalg as la
 
 import opinf
 
-from .. import (MODELFORM_KEYS, MODEL_FORMS,
-                _get_data, _get_operators, _trainedmodel)
+from .. import (
+    MODELFORM_KEYS,
+    MODEL_FORMS,
+    _get_data,
+    _get_operators,
+    _trainedmodel,
+)
 
 
 class TestNonparametricOpInfROM:
@@ -18,6 +23,7 @@ class TestNonparametricOpInfROM:
 
     class Dummy(opinf.roms.nonparametric._base._NonparametricOpInfROM):
         """Instantiable version of _NonparametricOpInfROM."""
+
         _LHS_ARGNAME = "ddts"
 
         def predict(*args, **kwargs):
@@ -65,10 +71,9 @@ class TestNonparametricOpInfROM:
         assert np.all(rom.data_matrix_ == U.T)
         assert rom.d == rom.data_matrix_.shape[1]
 
-        rom .modelform = "HG"
+        rom.modelform = "HG"
         rom._fit_solver(None, Q, Qdot, inputs=None)
-        D = np.column_stack([opinf.utils.kron2c(Q).T,
-                             opinf.utils.kron3c(Q).T])
+        D = np.column_stack([opinf.utils.kron2c(Q).T, opinf.utils.kron3c(Q).T])
         assert np.allclose(rom.data_matrix_, D)
         assert rom.d == rom.data_matrix_.shape[1]
 
@@ -153,16 +158,18 @@ class TestNonparametricOpInfROM:
         rom = self.Dummy("AB")
 
         with pytest.raises(TypeError) as ex:
-            rom._process_fit_arguments(None, None, None, None,
-                                       solver=opinf.lstsq.PlainSolver)
+            rom._process_fit_arguments(
+                None, None, None, None, solver=opinf.lstsq.PlainSolver
+            )
         assert ex.value.args[0] == "solver must be an instance, not a class"
 
         class _DummySolver:
             pass
 
         with pytest.raises(TypeError) as ex:
-            rom._process_fit_arguments(None, None, None, None,
-                                       solver=_DummySolver())
+            rom._process_fit_arguments(
+                None, None, None, None, solver=_DummySolver()
+            )
         assert ex.value.args[0] == "solver must have a 'fit()' method"
 
         # With basis and input.
@@ -178,8 +185,9 @@ class TestNonparametricOpInfROM:
 
         # Without basis and with a one-dimensional input.
         rom.modelform = "cHB"
-        Q_, lhs_, solver = rom._process_fit_arguments(None,
-                                                      Q, lhs, U1d, solver=0)
+        Q_, lhs_, solver = rom._process_fit_arguments(
+            None, Q, lhs, U1d, solver=0
+        )
         assert rom.n is None
         assert rom.r == n
         assert rom.basis is None
@@ -190,8 +198,9 @@ class TestNonparametricOpInfROM:
 
         # With basis and no input.
         rom.modelform = "cA"
-        Q_, lhs_, solver = rom._process_fit_arguments(Vr, Q, lhs, None,
-                                                      solver=1)
+        Q_, lhs_, solver = rom._process_fit_arguments(
+            Vr, Q, lhs, None, solver=1
+        )
         assert rom._projected_operators_ == ""
         assert rom.n == n
         assert rom.r == r
@@ -205,16 +214,18 @@ class TestNonparametricOpInfROM:
         # With known operators for A.
         c, A, _, _, B = _get_operators(n, m, expanded=True)
         rom.modelform = "AHB"
-        Q_, lhs_, _ = rom._process_fit_arguments(Vr, Q, lhs, U,
-                                                 known_operators={"A": A})
+        Q_, lhs_, _ = rom._process_fit_arguments(
+            Vr, Q, lhs, U, known_operators={"A": A}
+        )
         assert rom._projected_operators_ == "A"
         assert np.allclose(lhs_, Vr.T @ (lhs - (A @ Vr @ Q_)))
 
         # With known operators for c and B.
         rom.modelform = "cAHB"
         ops = {"B": B, "c": c}
-        Q_, lhs_, _ = rom._process_fit_arguments(Vr, Q, lhs, U,
-                                                 known_operators=ops)
+        Q_, lhs_, _ = rom._process_fit_arguments(
+            Vr, Q, lhs, U, known_operators=ops
+        )
         assert sorted(rom._projected_operators_) == sorted("Bc")
         lhstrue = Vr.T @ (lhs - B @ U - np.outer(c, ones))
         assert np.allclose(lhs_, lhstrue)
@@ -222,8 +233,9 @@ class TestNonparametricOpInfROM:
         # Special case: m = inputs.ndim = 1
         U1d = U[0]
         B1d = B[:, 0]
-        Q_, lhs_, _ = rom._process_fit_arguments(Vr, Q, lhs, U1d,
-                                                 known_operators={"B": B1d})
+        Q_, lhs_, _ = rom._process_fit_arguments(
+            Vr, Q, lhs, U1d, known_operators={"B": B1d}
+        )
         assert rom.m == 1
         assert rom._projected_operators_ == "B"
         assert np.allclose(lhs_, Vr.T @ (lhs - np.outer(B1d, ones)))
@@ -231,8 +243,9 @@ class TestNonparametricOpInfROM:
         # Fully intrusive.
         rom.modelform = "cA"
         ops = {"c": c, "A": A}
-        Q_, lhs_, _ = rom._process_fit_arguments(Vr, Q, lhs, None,
-                                                 known_operators=ops)
+        Q_, lhs_, _ = rom._process_fit_arguments(
+            Vr, Q, lhs, None, known_operators=ops
+        )
         assert sorted(rom._projected_operators_) == sorted("cA")
         assert Q_ is None
         assert lhs_ is None
@@ -246,10 +259,10 @@ class TestNonparametricOpInfROM:
         for form in MODEL_FORMS:
             rom.modelform = form
             rom.r = r
-            if 'B' in form:
+            if "B" in form:
                 rom.m = m
             D = rom._assemble_data_matrix(Q_, U)
-            d = opinf.lstsq.lstsq_size(form, r, m if 'B' in form else 0)
+            d = opinf.lstsq.lstsq_size(form, r, m if "B" in form else 0)
             assert D.shape == (k, d)
 
             # Spot check.
@@ -273,25 +286,25 @@ class TestNonparametricOpInfROM:
     def test_extract_operators(self, m=2, r=10):
         """Test _extract_operators()."""
         shapes = {
-                    "c_": (r,),
-                    "A_": (r, r),
-                    "H_": (r, r*(r+1)//2),
-                    "G_": (r, r*(r+1)*(r+2)//6),
-                    "B_": (r, m),
-                 }
+            "c_": (r,),
+            "A_": (r, r),
+            "H_": (r, r * (r + 1) // 2),
+            "G_": (r, r * (r + 1) * (r + 2) // 6),
+            "B_": (r, m),
+        }
 
         rom = self.Dummy("")
 
         for form in MODEL_FORMS:
             rom.modelform = form
             rom.r = r
-            if 'B' in form:
+            if "B" in form:
                 rom.m = m
             d = opinf.lstsq.lstsq_size(form, r, rom.m)
             Ohat = np.random.random((r, d))
             rom._extract_operators(Ohat)
             for prefix in MODELFORM_KEYS:
-                attr = prefix+'_'
+                attr = prefix + "_"
                 assert hasattr(rom, attr)
                 value = getattr(rom, attr)
                 if prefix in form:
@@ -315,15 +328,15 @@ class TestNonparametricOpInfROM:
             rom.modelform = form
             if "B" in form:
                 # Two-dimensional inputs.
-                rom.fit(Vr, *args_n, inputs=U)          # With basis.
-                rom.fit(None, *args_r, inputs=U)        # Without basis.
+                rom.fit(Vr, *args_n, inputs=U)  # With basis.
+                rom.fit(None, *args_r, inputs=U)  # Without basis.
                 # One-dimensional inputs.
-                rom.fit(Vr, *args_n, inputs=U1d)        # With basis.
-                rom.fit(None, *args_r, inputs=U1d)      # Without basis.
+                rom.fit(Vr, *args_n, inputs=U1d)  # With basis.
+                rom.fit(None, *args_r, inputs=U1d)  # Without basis.
             else:
                 # No inputs.
-                rom.fit(Vr, *args_n, inputs=None)       # With basis.
-                rom.fit(None, *args_r, inputs=None)     # Without basis.
+                rom.fit(Vr, *args_n, inputs=None)  # With basis.
+                rom.fit(None, *args_r, inputs=None)  # Without basis.
 
         # Special case: fully intrusive.
         rom.modelform = "BA"
@@ -339,7 +352,7 @@ class TestNonparametricOpInfROM:
     def test_save(self, n=15, m=2, r=3, target="_savemodeltest.h5"):
         """Test save()."""
         # Clean up after old tests.
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         # Get a test model.
@@ -348,7 +361,7 @@ class TestNonparametricOpInfROM:
 
         def _checkfile(filename, rom, hasbasis):
             assert os.path.isfile(filename)
-            with h5py.File(filename, 'r') as data:
+            with h5py.File(filename, "r") as data:
                 # Check metadata.
                 assert "meta" in data
                 assert len(data["meta"]) == 0
@@ -443,38 +456,47 @@ class TestNonparametricOpInfROM:
         c_, A_, H_, G_, B_ = _get_operators(n=r, m=m)
 
         # Clean up after old tests if needed.
-        if os.path.isfile(target):                  # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         # Make an empty HDF5 file to start with.
-        with h5py.File(target, 'w'):
+        with h5py.File(target, "w"):
             pass
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             rom = self.Dummy.load(target)
         assert ex.value.args[0] == "invalid save format (meta/ not found)"
 
         # Make a partially compatible HDF5 file to start with.
-        with h5py.File(target, 'a') as hf:
+        with h5py.File(target, "a") as hf:
             # Store metadata.
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["modelform"] = "cAB"
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             rom = self.Dummy.load(target)
         assert ex.value.args[0] == "invalid save format (operators/ not found)"
 
         # Store the arrays.
-        with h5py.File(target, 'a') as hf:
+        with h5py.File(target, "a") as hf:
             hf.create_dataset("operators/c_", data=c_)
             hf.create_dataset("operators/A_", data=A_)
             hf.create_dataset("operators/B_", data=B_)
 
         def _check_model(rom):
             assert isinstance(rom, self.Dummy)
-            for attr in ["modelform",
-                         "n", "r", "m",
-                         "c_", "A_", "H_", "G_", "B_", "basis"]:
+            for attr in [
+                "modelform",
+                "n",
+                "r",
+                "m",
+                "c_",
+                "A_",
+                "H_",
+                "G_",
+                "B_",
+                "basis",
+            ]:
                 assert hasattr(rom, attr)
             assert rom.modelform == "cAB"
             assert rom.r == r
@@ -495,7 +517,7 @@ class TestNonparametricOpInfROM:
 
         # Add the basis and then load the file correctly.
         basis = opinf.basis.LinearBasis().fit(Vr)
-        with h5py.File(target, 'a') as hf:
+        with h5py.File(target, "a") as hf:
             hf["meta"].attrs["BasisClass"] = "LinearBasis"
             basis.save(hf.create_group("basis"))
         rom = self.Dummy.load(target)
@@ -505,16 +527,25 @@ class TestNonparametricOpInfROM:
         assert rom.n == n
 
         # One additional test to cover other cases.
-        with h5py.File(target, 'a') as f:
+        with h5py.File(target, "a") as f:
             f["meta"].attrs["modelform"] = "HG"
             f.create_dataset("operators/H_", data=H_)
             f.create_dataset("operators/G_", data=G_)
 
         rom = self.Dummy.load(target)
         assert isinstance(rom, self.Dummy)
-        for attr in ["modelform",
-                     "n", "r", "m",
-                     "c_", "A_", "H_", "G_", "B_", "basis"]:
+        for attr in [
+            "modelform",
+            "n",
+            "r",
+            "m",
+            "c_",
+            "A_",
+            "H_",
+            "G_",
+            "B_",
+            "basis",
+        ]:
             assert hasattr(rom, attr)
         assert rom.modelform == "HG"
         assert rom.r == r

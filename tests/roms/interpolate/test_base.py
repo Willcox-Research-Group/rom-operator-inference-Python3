@@ -22,6 +22,7 @@ class TestInterpolatedOpInfROM:
 
     class Dummy(opinf.roms.interpolate._base._InterpolatedOpInfROM):
         """Instantiable version of _InterpolatedOpInfROM."""
+
         _LHS_ARGNAME = "ddts"
         _ModelClass = BaseDummy
         _ModelFitClass = BaseDummy
@@ -57,8 +58,10 @@ class TestInterpolatedOpInfROM:
         badparams = [[1, 2, 3], [4, 5]]
         with pytest.raises(ValueError) as ex:
             rom._check_parameters(badparams)
-        assert ex.value.args[0] == \
-            "parameter dimension inconsistent across samples"
+        assert (
+            ex.value.args[0]
+            == "parameter dimension inconsistent across samples"
+        )
 
         rom._check_parameters(list(range(10)))
         assert rom.s == len(rom) == 10
@@ -89,21 +92,25 @@ class TestInterpolatedOpInfROM:
         # Bad dictionary values.
         with pytest.raises(TypeError) as ex:
             rom._split_operator_dict({"A": [1, 2, 3], "B": "B"})
-        assert ex.value.args[0] == \
-            ("known_operators must be a dictionary mapping a string to a "
-             "list of ndarrays")
+        assert ex.value.args[0] == (
+            "known_operators must be a dictionary mapping a string to a "
+            "list of ndarrays"
+        )
 
         # Inconsistent value lengths.
         with pytest.raises(ValueError) as ex:
-            rom._split_operator_dict({"A": [1]*s, "B": [2]*(s+1)})
-        assert ex.value.args[0] == \
-            ("known_operators dictionary must map a modelform key to a list "
-             f"of s = {s:d} ndarrays")
+            rom._split_operator_dict({"A": [1] * s, "B": [2] * (s + 1)})
+        assert ex.value.args[0] == (
+            "known_operators dictionary must map a modelform key to a list "
+            f"of s = {s:d} ndarrays"
+        )
 
         # Proper usage.
         A = np.empty((3, 3))
         B = np.empty((3, 2))
-        oplist = rom._split_operator_dict({"A": [None] + [A]*(s - 1), "B": B})
+        oplist = rom._split_operator_dict(
+            {"A": [None] + [A] * (s - 1), "B": B}
+        )
         assert len(oplist) == s
         for j, opdict in enumerate(oplist):
             assert isinstance(opdict, dict)
@@ -120,10 +127,13 @@ class TestInterpolatedOpInfROM:
         rom._check_parameters(list(range(s)))
 
         with pytest.raises(ValueError) as ex:
-            rom._check_number_of_training_datasets([(list(range(s + 1)),
-                                                     "dummy")])
-        assert ex.value.args[0] == \
-            f"len(dummy) = {s+1:d} != {s:d} = len(parameters)"
+            rom._check_number_of_training_datasets(
+                [(list(range(s + 1)), "dummy")]
+            )
+        assert (
+            ex.value.args[0]
+            == f"len(dummy) = {s+1:d} != {s:d} = len(parameters)"
+        )
 
         rom._check_number_of_training_datasets([(list(range(s)), "dummy2")])
 
@@ -140,8 +150,9 @@ class TestInterpolatedOpInfROM:
 
         Vr = np.empty((10, 4))
         oplist = [{"A": 1, "B": 2}] * s
-        outs = rom._process_fit_arguments(Vr, params, None, None, None,
-                                          known_operators=oplist, solvers=1)
+        outs = rom._process_fit_arguments(
+            Vr, params, None, None, None, known_operators=oplist, solvers=1
+        )
         assert outs[-2] is oplist
         regs = outs[-1]
         assert isinstance(regs, list)
@@ -165,7 +176,7 @@ class TestInterpolatedOpInfROM:
             nonparametricrom.m = m
             if i == 0:
                 nonparametricrom.r = r - 1
-                nonparametricrom.A_ = np.random.random((r-1, r-1))
+                nonparametricrom.A_ = np.random.random((r - 1, r - 1))
                 nonparametricrom.B_ = B[1:, :]
             else:
                 nonparametricrom.r = r
@@ -175,13 +186,16 @@ class TestInterpolatedOpInfROM:
 
         with pytest.raises(ValueError) as ex:
             self.Dummy("cA")._interpolate_roms(params, roms)
-        assert ex.value.args[0] == \
-            "ROMs to interpolate must have modelform='cA'"
+        assert (
+            ex.value.args[0] == "ROMs to interpolate must have modelform='cA'"
+        )
 
         with pytest.raises(ValueError) as ex:
             self.Dummy("AB")._interpolate_roms(params, roms)
-        assert ex.value.args[0] == \
-            "ROMs to interpolate must have equal dimensions (inconsistent r)"
+        assert (
+            ex.value.args[0] == "ROMs to interpolate must have "
+            "equal dimensions (inconsistent r)"
+        )
 
         # Inconsistent input/control dimensions.
         nonparametricrom = BaseDummy("AB")
@@ -193,8 +207,10 @@ class TestInterpolatedOpInfROM:
 
         with pytest.raises(ValueError) as ex:
             self.Dummy("AB")._interpolate_roms(params, roms)
-        assert ex.value.args[0] == \
-            "ROMs to interpolate must have equal dimensions (inconsistent m)"
+        assert (
+            ex.value.args[0] == "ROMs to interpolate must have "
+            "equal dimensions (inconsistent m)"
+        )
 
         nonparametricrom = BaseDummy("AB")
         nonparametricrom.r = r
@@ -209,8 +225,7 @@ class TestInterpolatedOpInfROM:
         assert rom.r == r
         assert rom.m == m
         assert rom.c_ is None
-        assert isinstance(rom.A_,
-                          opinf.operators.InterpolatedLinearOperator)
+        assert isinstance(rom.A_, opinf.operators.InterpolatedLinearOperator)
         assert isinstance(rom.A_.interpolator, rom.InterpolatorClass)
         assert len(rom.A_.matrices) == s
         for i, nonparametricrom in enumerate(roms):
@@ -233,26 +248,27 @@ class TestInterpolatedOpInfROM:
 
         # Get non-parametric OpInf ROMs for each parameter sample.
         nproms = [
-            opinf.ContinuousOpInfROM("cAB").fit(Vr, Qs[i], Qdots[i], Us[i],
-                                                known_operators=known,
-                                                solver=reg)
+            opinf.ContinuousOpInfROM("cAB").fit(
+                Vr, Qs[i], Qdots[i], Us[i], known_operators=known, solver=reg
+            )
             for i in range(s)
         ]
 
         # Do the parametric OpInf ROM fit with all parameters.
         rom = self.Dummy("cAB")
-        rom.fit(Vr, params, Qs, Qdots, Us,
-                known_operators=known, solvers=reg)
+        rom.fit(Vr, params, Qs, Qdots, Us, known_operators=known, solvers=reg)
 
         # Check consistency with the non-parametric ROMs at training points.
         for i in range(s):
             assert isinstance(rom.c_, opinf.operators.ConstantOperator)
             assert np.all(rom.c_.entries == c_)
-            assert isinstance(rom.A_,
-                              opinf.operators.InterpolatedLinearOperator)
+            assert isinstance(
+                rom.A_, opinf.operators.InterpolatedLinearOperator
+            )
             assert np.all(rom.A_.matrices[i] == nproms[i].A_.entries)
-            assert isinstance(rom.B_,
-                              opinf.operators.InterpolatedLinearOperator)
+            assert isinstance(
+                rom.B_, opinf.operators.InterpolatedLinearOperator
+            )
             assert np.all(rom.B_.matrices[i] == nproms[i].B_.entries)
 
     def test_set_interpolator(self, m=2, s=5, r=8):
@@ -274,8 +290,7 @@ class TestInterpolatedOpInfROM:
         rom._interpolate_roms(params, roms)
 
         # Verify initial interpolation.
-        assert isinstance(rom.A_,
-                          opinf.operators.InterpolatedLinearOperator)
+        assert isinstance(rom.A_, opinf.operators.InterpolatedLinearOperator)
         assert isinstance(rom.A_.interpolator, scipy.interpolate.CubicSpline)
         assert len(rom.A_.matrices) == s
         for i, nonparametricrom in enumerate(roms):
@@ -287,8 +302,9 @@ class TestInterpolatedOpInfROM:
 
         # Change the interpolator and verify.
         rom.set_interpolator(scipy.interpolate.Akima1DInterpolator)
-        assert isinstance(rom.A_.interpolator,
-                          scipy.interpolate.Akima1DInterpolator)
+        assert isinstance(
+            rom.A_.interpolator, scipy.interpolate.Akima1DInterpolator
+        )
         assert len(rom.A_.matrices) == s
         for i, nonparametricrom in enumerate(roms):
             assert np.all(rom.A_.matrices[i] == nonparametricrom.A_.entries)
@@ -296,11 +312,10 @@ class TestInterpolatedOpInfROM:
         assert np.all(rom.B_.entries == B)
 
     # Model persistence -------------------------------------------------------
-    def test_save(self, s=5, n=15, m=2, r=3,
-                  target="_interpsavemodeltest.h5"):
+    def test_save(self, s=5, n=15, m=2, r=3, target="_interpsavemodeltest.h5"):
         """Test save()."""
         # Clean up after old tests.
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         # Get a test model.
@@ -309,20 +324,21 @@ class TestInterpolatedOpInfROM:
         ops = {
             "c": list(np.random.random((s, r))),
             "A": list(np.random.random((s, r, r))),
-            "H": list(np.random.random((s, r, r*(r + 1)//2))),
-            "G": list(np.random.random((s, r, r*(r + 1)*(r + 2)//6))),
+            "H": list(np.random.random((s, r, r * (r + 1) // 2))),
+            "G": list(np.random.random((s, r, r * (r + 1) * (r + 2) // 6))),
             "B": list(np.random.random((s, r, m))),
         }
 
         def _trainedinterpmodel(modelform):
             """Get test model."""
             subops = {key: val for key, val in ops.items() if key in modelform}
-            return self.Dummy(modelform).fit(Vr, params, None, None,
-                                             known_operators=subops)
+            return self.Dummy(modelform).fit(
+                Vr, params, None, None, known_operators=subops
+            )
 
         def _checkfile(filename, rom, hasbasis):
             assert os.path.isfile(filename)
-            with h5py.File(filename, 'r') as data:
+            with h5py.File(filename, "r") as data:
                 # Check metadata.
                 assert "meta" in data
                 assert len(data["meta"]) == 0
@@ -417,11 +433,10 @@ class TestInterpolatedOpInfROM:
 
         os.remove(target)
 
-    def test_load(self, s=6, n=14, m=3, r=2,
-                  target="_interploadmodeltest.h5"):
+    def test_load(self, s=6, n=14, m=3, r=2, target="_interploadmodeltest.h5"):
         """Test load()."""
         # Clean up after old tests if needed.
-        if os.path.isfile(target):                  # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         # Get a test model.
@@ -430,56 +445,65 @@ class TestInterpolatedOpInfROM:
         ops = {
             "c": list(np.random.random((s, r))),
             "A": np.random.random((r, r)),
-            "H": list(np.random.random((s, r, r*(r + 1)//2))),
-            "G": list(np.random.random((s, r, r*(r + 1)*(r + 2)//6))),
+            "H": list(np.random.random((s, r, r * (r + 1) // 2))),
+            "G": list(np.random.random((s, r, r * (r + 1) * (r + 2) // 6))),
             "B": list(np.random.random((s, r, m))),
         }
         InterpolatorClass = scipy.interpolate.CubicSpline
 
         # Make an empty HDF5 file to start with.
-        with h5py.File(target, 'w'):
+        with h5py.File(target, "w"):
             pass
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             self.Dummy.load(target, None)
         assert ex.value.args[0] == "invalid save format (meta/ not found)"
 
         # Make a partially compatible HDF5 file to start with.
-        with h5py.File(target, 'a') as hf:
+        with h5py.File(target, "a") as hf:
             # Store metadata.
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["modelform"] = "cAB"
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             self.Dummy.load(target, None)
         assert ex.value.args[0] == "invalid save format (operators/ not found)"
 
         # Store the arrays.
-        with h5py.File(target, 'a') as hf:
+        with h5py.File(target, "a") as hf:
             hf.create_dataset("operators/c_", data=ops["c"])
             hf.create_dataset("operators/A_", data=ops["A"])
             hf.create_dataset("operators/B_", data=ops["B"])
 
         # Store the parameters.
-        with h5py.File(target, 'a') as hf:
+        with h5py.File(target, "a") as hf:
             hf.create_dataset("parameters", data=params)
 
         def _check_model(rom):
             assert isinstance(rom, self.Dummy)
-            for attr in ["modelform",
-                         "n", "r", "m",
-                         "c_", "A_", "H_", "G_", "B_", "basis"]:
+            for attr in [
+                "modelform",
+                "n",
+                "r",
+                "m",
+                "c_",
+                "A_",
+                "H_",
+                "G_",
+                "B_",
+                "basis",
+            ]:
                 assert hasattr(rom, attr)
             assert rom.modelform == "cAB"
             assert rom.r == r
             assert rom.m == m
             for attr in ["c_", "A_", "B_"]:
                 assert opinf.operators.is_operator(getattr(rom, attr))
-            assert np.allclose(rom.c_.matrices, ops['c'])
-            assert np.all(rom.A_.entries == ops['A'])
+            assert np.allclose(rom.c_.matrices, ops["c"])
+            assert np.all(rom.A_.entries == ops["A"])
             assert rom.H_ is None
             assert rom.G_ is None
-            assert np.allclose(rom.B_.matrices, ops['B'])
+            assert np.allclose(rom.B_.matrices, ops["B"])
 
         # Load the file correctly.
         rom = self.Dummy.load(target, InterpolatorClass)
@@ -488,7 +512,7 @@ class TestInterpolatedOpInfROM:
 
         # Add the basis and then load the file correctly.
         basis = opinf.basis.LinearBasis().fit(Vr)
-        with h5py.File(target, 'a') as hf:
+        with h5py.File(target, "a") as hf:
             hf["meta"].attrs["BasisClass"] = "LinearBasis"
             basis.save(hf.create_group("basis"))
         rom = self.Dummy.load(target, InterpolatorClass)
@@ -497,16 +521,25 @@ class TestInterpolatedOpInfROM:
         assert np.all(rom.basis.entries == Vr)
 
         # One additional test to cover other cases.
-        with h5py.File(target, 'a') as f:
+        with h5py.File(target, "a") as f:
             f["meta"].attrs["modelform"] = "HG"
             f.create_dataset("operators/H_", data=ops["H"])
             f.create_dataset("operators/G_", data=ops["G"])
 
         rom = self.Dummy.load(target, InterpolatorClass)
         assert isinstance(rom, self.Dummy)
-        for attr in ["modelform",
-                     "n", "r", "m",
-                     "c_", "A_", "H_", "G_", "B_", "basis"]:
+        for attr in [
+            "modelform",
+            "n",
+            "r",
+            "m",
+            "c_",
+            "A_",
+            "H_",
+            "G_",
+            "B_",
+            "basis",
+        ]:
             assert hasattr(rom, attr)
         assert rom.modelform == "HG"
         assert rom.r == r
