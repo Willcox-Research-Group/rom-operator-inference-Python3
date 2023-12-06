@@ -1,25 +1,6 @@
 # `opinf`
 
-The root `opinf` namespace defines the following classes and submodules.
-
-## Classes
-
-:::{eval-rst}
-.. currentmodule:: opinf
-
-.. autosummary::
-    :toctree: _autosummaries
-    :nosignatures:
-
-    ContinuousOpInfROM
-    DiscreteOpInfROM
-    InterpolatedContinuousOpInfROM
-    InterpolatedDiscreteOpInfROM
-:::
-
-The above classes are also defined in the {mod}`opinf.roms` submodule.
-
-## Submodules
+The `opinf` namespace is divided into the following submodules.
 
 :::{eval-rst}
 

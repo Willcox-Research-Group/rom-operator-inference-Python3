@@ -118,7 +118,7 @@ These classes inherit from `operators._base._BaseNonparametricOperator` and must
     :toctree: ../api/_autosummaries
     :nosignatures:
 
-    _base._BaseNonparametricOperator
+    _base._NonparametricOperator
 :::
 
 #### Abstract Methods to Implement

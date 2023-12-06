@@ -449,7 +449,7 @@ where $\mathbf{y}_{i},\ldots,\mathbf{y}_{r}$ are the rows of $\mathbf{Y}$.
 ---
 
 (subsec-rom-evaluation)=
-## Evaluate the Reduced-order Model
+## Solve the Reduced-order Model
 
 Once the reduced-order operators have been determined, the corresponding reduced-order model {eq}`eq:opinf-example-rom` can be solved rapidly to make predictions.
 The computational cost of solving the reduced-order model scales with $r$, the number of degrees of freedom in the low-dimensional representation of the state.
@@ -497,23 +497,29 @@ import opinf
 # Compute a rank-10 basis (POD) from the state data.
 >>> basis = opinf.pre.PODBasis(Q, r=10)
 
-# Estimate time derivatives of the state with finite differences.
->>> Qdot = opinf.pre.ddt(Q, t)
+# Compress the state data to a low-dimensional subspace.
+>>> Q_compressed = basis.compress(Q)
 
-# Define a reduced-order model with the structure indicated above.
->>> rom = opinf.ContinuousOpInfROM(modelform="AHB")
+# Estimate time derivatives of the compressed states with finite differences.
+>>> Qdot_compressed = opinf.pre.ddt(Q_compressed, t)
+
+# Define an ODE model with the structure indicated above.
+>>> rom = opinf.models.ContinuousModel("AHB")
 
 # Select a least-squares solver with a small amount of regularization.
 >>> solver = opinf.lstsq.L2Solver(regularizer=1e-6)
 
 # Fit the model, i.e., construct and solve a linear regression.
->>> rom.fit(basis=basis, states=Q, ddts=Qdot, inputs=U, solver=solver)
+>>> rom.fit(states=Q_compressed, ddts=Qdot_compressed, inputs=U, solver=solver)
 
 # Simulate the learned model over the time domain.
->>> Q_ROM = rom.predict(Q[:, 0], t)
+>>> Q_rom_compressed = rom.predict(Q_compressed[:, 0], t)
+
+# Map the reduced-order solutions back to the full state space.
+>>> Q_rom = basis.decompress(Q_rom_compressed)
 
 # Compute the error of the ROM prediction.
 >>> absolute_error, relative_error = opinf.post.Lp_error(Q, Q_rom)
 ```
 
-See [**Getting Started**](sec-tutorial) for a tutorial.
+See [**Getting Started**](../tutorials/basics.ipynb) for an introductory tutorial.

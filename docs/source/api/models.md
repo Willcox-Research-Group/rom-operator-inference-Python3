@@ -17,4 +17,5 @@ Describe types of ROM classes.
 
     ContinuousModel
     DiscreteModel
+    SteadyModel
 ```

@@ -1,4 +1,3 @@
-(sec-utilities)=
 # `opinf.utils`
 
 :::{eval-rst}
