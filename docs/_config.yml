@@ -67,11 +67,12 @@ sphinx:
           "u": "\\mathbf{u}"                  # input vector
           "z": "\\mathbf{z}"                  # rhs vector
           "d": "\\mathbf{d}"                  # data vector
+          "f": "\\mathbf{f}"                  # model rhs function
           "Q": "\\mathbf{Q}"                  # state data
           "U": "\\mathbf{U}"                  # input data
           "Z": "\\mathbf{Z}"                  # rhs data
-          "Op": "\\mathcal{F}"                # generic operator
-          "Ophat": "\\widehat{\\mathcal{F}}"  # generic reduced operator
+          "Op": "\\mathbf{f}"                 # generic operator
+          "Ophat": "\\hat{\\mathbf{f}}"       # generic reduced operator
           "c": "\\mathbf{c}"                  # constant operator
           "A": "\\mathbf{A}"                  # linear operator
           "H": "\\mathbf{H}"                  # quadratic operator
@@ -79,21 +80,23 @@ sphinx:
           "B": "\\mathbf{B}"                  # input operator
           "N": "\\mathbf{N}"                  # bilinear operator
           "v": "\\mathbf{v}"                  # basis vector
-          "Vr": "\\mathbf{V}_{r}"             # trial basis matrix
-          "Wr": "\\mathbf{W}_{r}"             # test basis matrix
-          "qhat": "\\widehat{\\mathbf{q}}"    # reduced state vector
-          "zhat": "\\widehat{\\mathbf{z}}"    # reduced rhs vector
-          "Qhat": "\\widehat{\\mathbf{Q}}"    # reduced state data
-          "Zhat": "\\widehat{\\mathbf{Z}}"    # reduced rhs data
-          "chat": "\\widehat{\\mathbf{c}}"    # reduced constant operator
-          "Ahat": "\\widehat{\\mathbf{A}}"    # reduced linear operator
-          "Hhat": "\\widehat{\\mathbf{H}}"    # reduced quadratic operator
-          "Ghat": "\\widehat{\\mathbf{G}}"    # reduced cubic operator
-          "Bhat": "\\widehat{\\mathbf{B}}"    # reduced input operator
-          "Nhat": "\\widehat{\\mathbf{N}}"    # reduced bilinear operator
+          "V": "\\mathbf{V}"                  # generic basis matrix.
+          "Vr": "\\mathbf{V}_{\\!r}"          # trial basis matrix
+          "Wr": "\\mathbf{W}_{\\!r}"          # test basis matrix
+          "qhat": "\\hat{\\mathbf{q}}"        # reduced state vector
+          "zhat": "\\hat{\\mathbf{z}}"        # reduced rhs vector
+          "fhat": "\\hat{\\mathbf{f}}"        # reduced model rhs function
+          "Qhat": "\\hat{\\mathbf{Q}}"        # reduced state data
+          "Zhat": "\\hat{\\mathbf{Z}}"        # reduced rhs data
+          "chat": "\\hat{\\mathbf{c}}"        # reduced constant operator
+          "Ahat": "\\hat{\\mathbf{A}}"        # reduced linear operator
+          "Hhat": "\\hat{\\mathbf{H}}"        # reduced quadratic operator
+          "Ghat": "\\hat{\\mathbf{G}}"        # reduced cubic operator
+          "Bhat": "\\hat{\\mathbf{B}}"        # reduced input operator
+          "Nhat": "\\hat{\\mathbf{N}}"        # reduced bilinear operator
           "D": "\\mathbf{D}"                  # data matrix
-          "ohat": "\\widehat{\\mathbf{o}}"    # operator vector
-          "Ohat": "\\widehat{\\mathbf{O}}"    # operator matrix
+          "ohat": "\\hat{\\mathbf{o}}"        # operator vector
+          "Ohat": "\\hat{\\mathbf{O}}"        # operator matrix
           "bfmu": "\\boldsymbol{\\mu}"        # parameter vector
           "bfGamma": "\\boldsymbol{\\Gamma}"  # regularization matrix
           "bfPhi": "\\boldsymbol{\\Phi}"      # left singular vectors

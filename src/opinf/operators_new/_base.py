@@ -110,6 +110,11 @@ class _NonparametricOperator(abc.ABC):
             return False
         return np.all(self.entries == other.entries)
 
+    def copy(self):
+        """Return a copy of the operator."""
+        entries = self.entries.copy() if self.entries is not None else None
+        return self.__class__(entries)
+
     # Abstract methods --------------------------------------------------------
     @abc.abstractmethod
     def _str(self, statestr, inputstr):  # pragma: no cover
@@ -206,33 +211,35 @@ class _NonparametricOperator(abc.ABC):
     def galerkin(self, Vr, Wr, func):
         r"""Project the operator to a low-dimensional linear space.
 
-        For a full-order operator
-        :math:`\mathcal{F}:\RR^{n}\times\RR^{m}\to\RR^{n}`,
-        the projection is the operator
-        :math:`\Ophat:\RR^{r}\times\RR^{m}\to\RR^{r}`
-        defined by
+        Consider an operator :math:`\f(\q,\u)` where
+
+        * :math:`\q\in\RR^n` is the model state, and
+        * :math:`\u\in\RR^m` is the input.
+
+        Given a *trial basis* :math:`\Vr\in\RR^{n\times r}` and a *test basis*
+        :math:`\Wr\in\RR^{n\times r}`, the corresponding *intrusive projection*
+        of :math:`\f` is the operator
 
         .. math::
-           \Ophat(\qhat, \u) = \Wr\trp\mathcal{F}(\Vr\qhat, u)
+           \fhat(\qhat,\u) = \Wr\trp\f(\Vr\qhat,\u).
 
-        where
-        :math:`\qhat\in\RR^{r}` is the reduced-order state,
-        :math:`\u\in\RR^{m}` is the input, and
-        :math:`\q\approx\Vr\qhat_{r}\in\RR^{n}` is the reduced-order
-        approximation of the full-order state, with trial basis
-        :math:`\Vr\in\RR^{n \times r}` (``Vr``)
-        and test basis :math:`\Wr\in\RR^{n \times r}` (``Wr``).
+        Here,
+
+        * :math:`\qhat\in\RR^r` is the reduced-order state, and
+        * :math:`\u\in\RR^m` is the input (as before).
+
+        This approach uses the low-dimensional state approximation
+        :math:`\q = \Vr\qhat`.
         If :math:`\Wr = \Vr`, the result is called a *Galerkin projection*.
         If :math:`\Wr \neq \Vr`, it is called a *Petrov-Galerkin projection*.
 
         For example, consider the bilinear full-order operator
-        :math:`\mathcal{N}(\q,\u) = \N[\u\otimes\q]` where
+        :math:`\f(\q,\u) = \N[\u\otimes\q]` where
         :math:`\N\in\RR^{n \times nm}`.
-        The Galerkin projection of this operator is the bilinear operator
-        :math:`\widehat{\mathcal{N}}(\qhat,\u) = \Wr\trp\N[\u\otimes\Vr\qhat]`,
-        which can also be written as
-        :math:`\widehat{\mathcal{N}}(\qhat,\u) = \Nhat[\u\otimes\qhat]`
-        where :math:`\Nhat = \Wr\trp\N(\I_m\otimes\Vr) \in \RR^{r\times rm}`.
+        The Galerkin projection of :math:`\f` is the bilinear operator
+        :math:`\fhat(\qhat,\u) = \Wr\trp\N[\u\otimes\Vr\qhat]
+        = \Nhat[\u\otimes\qhat]` where
+        :math:`\Nhat = \Wr\trp\N(\I_m\otimes\Vr) \in \RR^{r\times rm}`.
 
         Subclasses may implement this function as follows:
 

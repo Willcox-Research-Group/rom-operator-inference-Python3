@@ -434,10 +434,8 @@ class QuadraticOperator(_NonparametricOperator):
 
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
-        r"""Return the Galerkin projection of the operator,
-        :math:`\Hhat =
-        \Wr\trp\H
-        (\Vr\otimes\Vr)`.
+        r"""Return the (Petrov-)Galerkin projection of the operator,
+        :math:`\Hhat = \Wr\trp\H(\Vr\otimes\Vr)`.
 
         Parameters
         ----------
@@ -448,8 +446,8 @@ class QuadraticOperator(_NonparametricOperator):
 
         Returns
         -------
-        op : operator
-            ``self`` or new ``QuadraticOperator`` object.
+        op : :class:`QuadraticOperator`
+            Galerkin projection of this operator.
         """
 
         def _project(H, V, W):

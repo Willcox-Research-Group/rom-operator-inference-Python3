@@ -4,9 +4,19 @@
 .. automodule:: opinf.operators_new
 ```
 
+<!--
+:::{admonition} Summary
+Operators defined in {mod}`opinf.operators` are the building blocks for the dynamical systems models defined in {mod}`opinf.models`.
+There are a few different types of operators:
+
+- [Nonparametric operators](sec-operators-nonparametric) do not depend on external parameters, while [parametric operators](sec-operators-parametric) have a dependence on
+- Monolithic operators are designed for dense systems; multilithic operators are designed for systems with sparse block structure.
+:::
+-->
+
 ## Introduction
 
-Reduced-order models based on Operator Inference are systems of ordinary differential equations (or discrete-time difference equations) that can be written as
+Reduced-order models based on Operator Inference are systems of [ordinary differential equations](opinf.models.ContinuousModel) (or [discrete-time difference equations](opinf.models.DiscreteModel)) that can be written as
 
 $$
 \begin{align*}
@@ -76,9 +86,10 @@ LTI_ROM = opinf.models.ContinuousModel(
 
 :::
 
+(sec-operators-nonparametric)=
 ## Nonparametric Operators
 
-A _nonparametric_ operator is one where the entries matrix $\Ohat$ is constant (as opposed to [parametric operators](sec-operators-parametric)).
+A _nonparametric_ operator is one where the entries matrix $\Ohat_\ell$ is constant (as opposed to [parametric operators](sec-operators-parametric)).
 
 ### API Summary
 
@@ -91,55 +102,98 @@ The entries are stored as the `entries` attribute and can be accessed with slici
 Once the entries are set, the following methods are used to compute the action
 of the operator or its derivatives.
 
-- `apply()`: compute the operator action $\Ophat(\qhat, \u)$.
-- `jacobian()`: construct the state Jacobian $\frac{\textrm{d}}{\textrm{d}\qhat}\Ophat(\qhat, \u)$.
+- `apply()`: compute the operator action $\Ophat_\ell(\qhat, \u)$.
+- `jacobian()`: construct the state Jacobian $\ddqhat\Ophat_\ell(\qhat, \u)$.
 
 #### Calibrating Operator Entries
 
-Given a list of operators, the classes defined in {mod}`opinf.models` set up a regression problem to learn the entries of each operator from data.
-To facilitate this, each nonparametric operator class has a static method `datablock()` that, given state-input data pairs $\{(\qhat_j,\u_j)\}_{j=0}^{k-1}$, forms the matrix
+Nonparametric operator classes have a static `datablock()` method that, given state-input data pairs $\{(\qhat_j,\u_j)\}_{j=0}^{k-1}$, forms the matrix
 
 $$
-    \D = \left[\begin{array}{c|c|c|c}
+    \D_{\ell}\trp = \left[\begin{array}{c|c|c|c}
         & & & \\
-        \mathbf{d}(\qhat_0,\u_0) & \mathbf{d}(\qhat_1,\u_1) & \cdots & \mathbf{d}(\qhat_{k-1},\u_{k-1})
+        \d_{\ell}(\qhat_0,\u_0) & \d_{\ell}(\qhat_1,\u_1) & \cdots & \d_{\ell}(\qhat_{k-1},\u_{k-1})
         \\ & & &
     \end{array}\right]
     \in \RR^{d \times k}
 $$
 
-where $\Ophat(\qhat,\u) = \Ohat\d(\qhat,\u)$.
-The model classes call this method, solve the regression problem, and set the entries of the operators based on the regression solution.
-
-#### Galerkin Projection
-
-For a full-order operator $\Op:\RR^{n}\times\RR^{m}\to\RR^{n}$, the _projection_ of $\Op$ is the operator $\Ophat:\RR^{r}\times\RR^{m}\to\RR^{r}$ defined by
+where the operator is given by $\Ophat_{\ell}(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)$.
+For a model consisting of multiple operators, e.g.,
 
 $$
 \begin{align*}
-    \Ophat(\qhat, \u) = \Wr\trp\Op(\Vr\qhat, u)
+   \ddt\qhat(t)
+   = \sum_{\ell=1}^{n_\textrm{terms}}
+   \Ophat_{\ell}(\qhat(t),\u(t))
+   = \sum_{\ell=1}^{n_\textrm{terms}}
+   \Ohat_{\ell}\d_{\ell}(\qhat(t),\u(t)),
+\end{align*}
+$$
+
+the Operator Inference regression to learn the operator entries from data is given by
+
+$$
+\begin{align*}
+    \min_{\Ohat_1,\ldots,\Ohat_{n_\textrm{terms}}}\sum_{j=0}^{k-1}\left\|
+        \sum_{\ell=1}^{n_\textrm{terms}}\Ohat_\ell\d_\ell(\qhat_j,\u_j) - \dot{\qhat}_j
+    \right\|_2^2
+    = \min_{\Ohat}\left\|
+        \D\Ohat\trp - [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\trp
+    \right\|_F^2,
+\end{align*}
+$$
+
+where the complete operator matrix $\Ohat$ and data matrix $\D$ are concatenations of the operator and data matrices from each operator:
+
+$$
+\begin{align*}
+    \Ohat = \left[\begin{array}{ccc}
+        & & \\
+        \Ohat_1 & \cdots & \Ohat_{n_\textrm{terms}}
+        \\ & &
+    \end{array}\right],
+    \qquad
+    \D = \left[\begin{array}{ccc}
+        & & \\
+        \D_1 & \cdots & \D_{n_\textrm{terms}}
+        \\ & &
+    \end{array}\right].
+\end{align*}
+$$
+
+The `fit()` method in an {mod}`opinf.models` class calls the `datablock()` method of each operator to assemble the full data matrix $\D$, solves the regression problem for the full data matrix $\Ohat$, and sets the entries of the $\ell$-th operator to $\Ohat_{\ell}$.
+
+#### Galerkin Projection
+
+Every operator class has a `galerkin()` method that performs intrusive projection.
+Consider an operator $\Op:\RR^{n}\times\RR^{m}\to\RR^{n}$, written $\Op(\q,\u)$, where
+
+- $\q\in\RR^n$ is the full-order state, and
+- $\u\in\RR^m$ is the input.
+
+Given a *trial basis* $\Vr\in\RR^{n\times r}$ and a *test basis* $\Wr\in\RR^{n\times r}$, the corresponding *intrusive projection* of $\Op$ is the operator $\Ophat:\RR^{r}\times\RR^{m}\to\RR^{r}$ defined by
+
+$$
+\begin{align*}
+    \Ophat(\qhat, \u) = \Wr\trp\Op(\Vr\qhat, \u)
 \end{align*}
 $$
 
 where
-$\qhat\in\RR^{r}$ is the reduced-order state,
-$\u\in\RR^{m}$ is the input, and
-$\Vr\qhat_{r}\in\RR^{n}$ is the reduced-order
-approximation of the full-order state,
-with trial basis $\Vr\in\RR^{n \times r}$
-and test basis $\Wr\in\RR^{n \times r}$.
-If $\Wr = \Vr$, the result is called a _Galerkin projection_.
-If $\Wr \neq \Vr$, it is called a _Petrov-Galerkin projection_.
+- $\qhat\in\RR^{r}$ is the reduced-order state, and
+- $\u\in\RR^{m}$ is the input (as before).
 
-Every operator class has a `galerkin()` method that receives trial and
-test bases and returns a new object representing the projected operator.
+This approach uses the low-dimensional state approximation $\q = \Vr\qhat$.
+If $\Wr = \Vr$, the result is called a *Galerkin projection*.
+If $\Wr \neq \Vr$, it is called a *Petrov-Galerkin projection*.
 
 :::{admonition} Example
 :class: tip
 
-Consider the bilinear full-order operator
+Consider the bilinear operator
 $\Op(\q,\u) = \N[\u\otimes\q]$ where $\N\in\RR^{n \times nm}$.
-The Galerkin projection of this operator is the bilinear operator
+The intrusive Galerkin projection of $\Op$ is the bilinear operator
 
 $$
 \begin{align*}
@@ -153,19 +207,18 @@ where $\Nhat = \Wr\trp\N(\I_m\otimes\Vr) \in \RR^{r\times rm}$.
 :::
 
 :::{important}
-The goal of Operator Inference is to learn operator entries _without_ using a direct projection because full-order operators are unknown or computationally inaccessible.
+The goal of Operator Inference is to learn operator entries *without* using intrusive projection because full-order operators are unknown or computationally inaccessible.
 However, in some scenarios a subset of the model operators are known, in which case only the remaining operators need to be inferred from data.
-When a Model object is instantiated with an operator that already has its entries set, the `galerkin()` method is called to project the operator to the appropriate dimension and that operator is not included in the operator inference.
 :::
 
 #### Model Persistence
 
-Operators can be saved to disk in HDF5 format via the `save()` method.
+Operators can be saved to disk in [HDF5 format](https://www.h5py.org/) via the `save()` method.
 Every operator has a class method `load()` for loading an operator from the HDF5 file previously produced by `save()`.
 
-### Nonparametric Monolithic Operators
+### Nonparametric Operator Classes
 
-These operator classes are used in models where the state is monolithic, meaning the operators do not enjoy a block sparsity structure.
+<!-- These operator classes are used in models where the state is monolithic, meaning the operators do not enjoy a block sparsity structure. -->
 
 ```{eval-rst}
 .. currentmodule:: opinf.operators_new
@@ -182,16 +235,16 @@ These operator classes are used in models where the state is monolithic, meaning
     StateInputOperator
 ```
 
-### Nonparametric Multilithic Operators
+<!-- ### Nonparametric Multilithic Operators
 
 :::{admonition} TODO
 Multilithic classes
-:::
+::: -->
 
 (sec-operators-parametric)=
 ## Parametric Operators
 
-Operators are called _parametric_ if the operator entries depend on an independent vector
+Operators are called _parametric_ if the operator entries depend on an independent parameter vector
 $\bfmu\in\RR^{p}$, i.e., $\Ophat(\qhat,\u;\bfmu) = \Ohat(\bfmu)\d(\qhat,\u)$ where now $\Ohat:\RR^{p}\to\RR^{r\times d}$.
 
 :::{admonition} Example

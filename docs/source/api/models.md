@@ -4,9 +4,11 @@
 .. automodule:: opinf.models
 :::
 
-:::{admonition} TODO
-Describe types of ROM classes.
-:::
+## Nonparametric Models
+
+TODO: explain constructor, attributes, fit, predict, save, load, etc.
+
+### Nonparametric Model Classes
 
 ```{eval-rst}
 .. currentmodule:: opinf.models
@@ -19,3 +21,5 @@ Describe types of ROM classes.
     DiscreteModel
     SteadyModel
 ```
+
+## Parametric Models
