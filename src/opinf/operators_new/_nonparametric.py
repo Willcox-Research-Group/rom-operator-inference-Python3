@@ -10,7 +10,6 @@ __all__ = [
     "StateInputOperator",
 ]
 
-import functools
 import numpy as np
 import scipy.linalg as la
 
@@ -35,6 +34,11 @@ class ConstantOperator(_NonparametricOperator):
     >>> np.allclose(out, entries)
     True
     """
+
+    @property
+    def input_dimension(self):
+        """Input dimension (always zero for this operator)."""
+        return 0
 
     @staticmethod
     def _str(statestr=None, inputstr=None):
@@ -64,13 +68,13 @@ class ConstantOperator(_NonparametricOperator):
         _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
-    def __call__(self, state_=None, input_=None):
+    def apply(self, state=None, input_=None):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat(\qhat,\u) = \chat`.
 
         Parameters
         ----------
-        state_ : (r,) ndarray or None
+        state : (r,) ndarray or None
             State vector.
         input_ : (m,) ndarray or None
             Input vector (not used).
@@ -81,19 +85,14 @@ class ConstantOperator(_NonparametricOperator):
             :math:`\chat`.
         """
         if self.entries.shape[0] == 1:
-            if state_ is None or np.isscalar(state_):  # r = k = 1.
+            if state is None or np.isscalar(state):  # r = k = 1.
                 return self.entries[0]
-            return np.full_like(state_, self.entries[0])  # r = 1, k > 1.
-        # if state_ is None or np.ndim(state_) == 1:
+            return np.full_like(state, self.entries[0])  # r = 1, k > 1.
+        # if state is None or np.ndim(state) == 1:
         #     return self.entries
-        if np.ndim(state_) == 2:  # r, k > 1.
-            return np.outer(self.entries, np.ones(state_.shape[-1]))
+        if np.ndim(state) == 2:  # r, k > 1.
+            return np.outer(self.entries, np.ones(state.shape[-1]))
         return self.entries  # r > 1, k = 1.
-
-    @functools.wraps(__call__)
-    def apply(self, state_=None, input_=None):  # pragma: no cover
-        """Mirror of __call__()."""
-        return self(state_, input_)
 
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
@@ -117,7 +116,7 @@ class ConstantOperator(_NonparametricOperator):
         )
 
     @staticmethod
-    def datablock(states_, inputs=None):
+    def datablock(states, inputs=None):
         r"""Return the data matrix block corresponding to the operator.
 
         Since
@@ -131,10 +130,10 @@ class ConstantOperator(_NonparametricOperator):
 
         Parameters
         ----------
-        state_ : (r, k) or (k,) ndarray
+        states : (r, k) or (k,) ndarray
             State vectors. Each column is a single state vector.
             If one dimensional, it is assumed that :math:`r = 1`.
-        input_ : (m, k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Input vectors (not used).
 
         Returns
@@ -142,10 +141,10 @@ class ConstantOperator(_NonparametricOperator):
         block : (1, k) ndarray
             Vector of ones.
         """
-        return np.ones((1, np.atleast_1d(states_).shape[-1]))
+        return np.ones((1, np.atleast_1d(states).shape[-1]))
 
     @staticmethod
-    def column_dimension(r=None, m=None):
+    def operator_dimension(r=None, m=None):
         r"""Column dimension of the operator entries (always 1).
 
         Parameters
@@ -178,6 +177,11 @@ class LinearOperator(_NonparametricOperator):
     True
     """
 
+    @property
+    def input_dimension(self):
+        """Input dimension (always zero for this operator)."""
+        return 0
+
     @staticmethod
     def _str(statestr, inputstr=None):
         return f"A{statestr}"
@@ -203,13 +207,13 @@ class LinearOperator(_NonparametricOperator):
         _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
-    def __call__(self, state_, input_=None):
+    def apply(self, state, input_=None):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat(\qhat,\u) = \Ahat\qhat`.
 
         Parameters
         ----------
-        state_ : (r,) ndarray
+        state : (r,) ndarray
             State vector.
         input_ : (m,) ndarray or None
             Input vector (not used).
@@ -220,22 +224,17 @@ class LinearOperator(_NonparametricOperator):
             Application :math:`\Ahat\qhat`.
         """
         if self.entries.shape[0] == 1:
-            return self.entries[0, 0] * state_  # r = 1.
-        return self.entries @ state_  # r > 1.
-
-    @functools.wraps(__call__)
-    def apply(self, state_, input_=None):  # pragma: no cover
-        """Mirror of __call__()."""
-        return self(state_, input_)
+            return self.entries[0, 0] * state  # r = 1.
+        return self.entries @ state  # r > 1.
 
     @_requires_entries
-    def jacobian(self, state_=None, input_=None):
+    def jacobian(self, state=None, input_=None):
         r"""Construct the state Jacobian of the operator:
         :math:`\ddqhat\Ophat(\qhat,\u)=\Ahat`.
 
         Parameters
         ----------
-        state_ : (r,) ndarray or None
+        state : (r,) ndarray or None
             State vector.
         input_ : (m,) ndarray or None
             Input vector (not used).
@@ -270,43 +269,41 @@ class LinearOperator(_NonparametricOperator):
         )
 
     @staticmethod
-    def datablock(states_, inputs=None):
+    def datablock(states, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
-        the ``state_``.
+        the ``state``.
 
         .. math::
             \min_{\Ahat}\sum_{j=0}^{k-1}\left\|
             \Ahat\qhat_{j}
-            - \widehat{\mathbf{y}}_{j}
+            - \zhat_j
             \right\|_{2}^{2}
             = \min_{\Ahat}\left\|
-            \Ahat\widehat{\Q} - \widehat{\mathbf{Y}}
+            \Ahat\widehat{\Q} - \Zhat
             \right\|_{F}^{2}.
 
-        Here, :math:`\widehat{\Q} = [~
-        \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
-        ~] \in \RR^{r\times k}` is the ``state_``
-        and :math:`\widehat{\mathbf{Y}} = [~
-        \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
-        ~]\in\RR^{r \times k}`.
+        Here,
+        :math:`\widehat{\Q} = [~\qhat_{0} ~~ \cdots ~~ \qhat_{k-1}~]
+        \in \RR^{r\times k}` is the ``state`` and
+        :math:`\Zhat = [~\zhat_{0}~~\cdots~~\zhat_{k-1}~]\in\RR^{r \times k}`.
 
         Parameters
         ----------
-        state_ : (r, k) or (k,) ndarray
+        states : (r, k) or (k,) ndarray
             State vectors. Each column is a single state vector.
             If one dimensional, it is assumed that :math:`r = 1`.
-        input_ : (m, k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Input vectors (not used).
 
         Returns
         -------
-        state_ : (r, k) ndarray
+        state : (r, k) ndarray
             State vectors. Each column is a single state vector.
         """
-        return np.atleast_2d(states_)
+        return np.atleast_2d(states)
 
     @staticmethod
-    def column_dimension(r, m=None):
+    def operator_dimension(r, m=None):
         """Column dimension :math:`r` of the operator entries.
 
         Parameters
@@ -342,6 +339,11 @@ class QuadraticOperator(_NonparametricOperator):
     True
     """
 
+    @property
+    def input_dimension(self):
+        """Input dimension (always zero for this operator)."""
+        return 0
+
     @staticmethod
     def _str(statestr, inputstr=None):
         return f"H[{statestr} ⊗ {statestr}]"
@@ -375,7 +377,7 @@ class QuadraticOperator(_NonparametricOperator):
         r, r2 = entries.shape
         if r2 == r**2:
             entries = utils.compress_quadratic(entries)
-        elif r2 != self.column_dimension(r):
+        elif r2 != self.operator_dimension(r):
             raise ValueError("invalid QuadraticOperator entries dimensions")
 
         # Precompute compressed Kronecker product mask and Jacobian matrix.
@@ -386,13 +388,13 @@ class QuadraticOperator(_NonparametricOperator):
         _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
-    def __call__(self, state_, input_=None):
+    def apply(self, state, input_=None):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat(\q,\u) = \Hhat[\qhat\otimes\qhat]`
 
         Parameters
         ----------
-        state_ : (r,) ndarray
+        state : (r,) ndarray
             State vector.
         input_ : (m,) ndarray or None
             Input vector (not used).
@@ -403,23 +405,18 @@ class QuadraticOperator(_NonparametricOperator):
             Application :math:`\Hhat[\qhat\otimes\qhat]`.
         """
         if self.entries.shape[0] == 1:
-            return self.entries[0, 0] * state_**2  # r = 1
-        return self.entries @ np.prod(state_[self._mask], axis=1)
-
-    @functools.wraps(__call__)
-    def apply(self, state_, input_=None):  # pragma: no cover
-        """Mirror of __call__()."""
-        return self(state_, input_)
+            return self.entries[0, 0] * state**2  # r = 1
+        return self.entries @ np.prod(state[self._mask], axis=1)
 
     @_requires_entries
-    def jacobian(self, state_, input_=None):
+    def jacobian(self, state, input_=None):
         r"""Construct the state Jacobian of the operator:
         :math:`\ddqhat\Ophat(\qhat,\u)
         = \Hhat[(\I_r\otimes\qhat) + (\qhat\otimes\I_r)]`.
 
         Parameters
         ----------
-        state_ : (r,) ndarray or None
+        state : (r,) ndarray or None
             State vector.
         input_ : (m,) ndarray or None
             Input vector (not used).
@@ -430,7 +427,7 @@ class QuadraticOperator(_NonparametricOperator):
             State Jacobian
             :math:`\Hhat[(\I_r\otimes\qhat) + (\qhat\otimes\I_r)]`.
         """
-        return self._prejac @ np.atleast_1d(state_)
+        return self._prejac @ np.atleast_1d(state)
 
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
@@ -456,29 +453,29 @@ class QuadraticOperator(_NonparametricOperator):
         return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
 
     @staticmethod
-    def datablock(states_, inputs=None):
+    def datablock(states, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
         the Khatri-Rao product of the state with itself:
         :math:`\widehat{\Q}\odot\widehat{\Q}` where
-        :math:`\widehat{\Q}` is the ``state_``.
+        :math:`\widehat{\Q}` is the ``state``.
 
         .. math::
             \min_{\Hhat}\sum_{j=0}^{k-1}\left\|
             \Hhat[
             \qhat_{j}\otimes\qhat_{j}]
-            - \widehat{\mathbf{y}}_{j}
+            - \zhat_j
             \right\|_{2}^{2}
             = \min_{\Hhat}\left\|
             \Hhat[
             \widehat{\Q} \odot \widehat{\Q}]
-            - \widehat{\mathbf{Y}}
+            - \Zhat
             \right\|_{F}^{2}.
 
         Here, :math:`\widehat{\Q} = [~
         \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
-        ~] \in \RR^{r\times k}` is the ``state_``
-        and :math:`\widehat{\mathbf{Y}} = [~
-        \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
+        ~] \in \RR^{r\times k}` is the ``state``
+        and :math:`\Zhat = [~
+        \zhat_{0}~~\cdots~~\zhat_{k-1}
         ~]\in\RR^{r \times k}`.
         The Khatri-Rao product :math:`\odot` is the Kronecker product applied
         columnwise:
@@ -509,21 +506,21 @@ class QuadraticOperator(_NonparametricOperator):
 
         Parameters
         ----------
-        state_ : (r, k) or (k,) ndarray
+        states : (r, k) or (k,) ndarray
             State vectors. Each column is a single state vector.
             If one dimensional, it is assumed that :math:`r = 1`.
-        input_ : (m, k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Input vectors (not used).
 
         Returns
         -------
-        product_ : (r(r+1)/2, k) ndarray
-            Compressed Khatri-Rao product of the ``state_`` with itself.
+        product : (r(r+1)/2, k) ndarray
+            Compressed Khatri-Rao product of ``states`` with itself.
         """
-        return utils.kron2c(np.atleast_2d(states_))
+        return utils.kron2c(np.atleast_2d(states))
 
     @staticmethod
-    def column_dimension(r, m=None):
+    def operator_dimension(r, m=None):
         """Column dimension :math:`r(r+1)/2` of the operator entries.
 
         Parameters
@@ -561,6 +558,11 @@ class CubicOperator(_NonparametricOperator):
     True
     """
 
+    @property
+    def input_dimension(self):
+        """Input dimension (always zero for this operator)."""
+        return 0
+
     @staticmethod
     def _str(statestr, inputstr=None):
         return f"G[{statestr} ⊗ {statestr} ⊗ {statestr}]"
@@ -592,7 +594,7 @@ class CubicOperator(_NonparametricOperator):
         r, r3 = entries.shape
         if r3 == r**3:
             entries = utils.compress_cubic(entries)
-        elif r3 != self.column_dimension(r):
+        elif r3 != self.operator_dimension(r):
             raise ValueError("invalid CubicOperator entries dimensions")
 
         # Precompute compressed Kronecker product mask and Jacobian tensor.
@@ -603,14 +605,14 @@ class CubicOperator(_NonparametricOperator):
         _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
-    def __call__(self, state_, input_=None):
+    def apply(self, state, input_=None):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat(\qhat,\u)
         = \Ghat[\qhat\otimes\qhat\otimes\qhat]`.
 
         Parameters
         ----------
-        state_ : (r,) ndarray
+        state : (r,) ndarray
             State vector.
         input_ : (m,) ndarray or None
             Input vector (not used).
@@ -621,16 +623,11 @@ class CubicOperator(_NonparametricOperator):
             The evaluation :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat]`.
         """
         if self.entries.shape[0] == 1:
-            return self.entries[0, 0] * state_**3  # r = 1.
-        return self.entries @ np.prod(state_[self._mask], axis=1)
-
-    @functools.wraps(__call__)
-    def apply(self, state_, input_=None):  # pragma: no cover
-        """Mirror of __call__()."""
-        return self(state_, input_)
+            return self.entries[0, 0] * state**3  # r = 1.
+        return self.entries @ np.prod(state[self._mask], axis=1)
 
     @_requires_entries
-    def jacobian(self, state_, input_=None):
+    def jacobian(self, state, input_=None):
         r"""Construct the state Jacobian of the operator:
         :math:`\ddqhat\Ophat(\qhat,\u)
         = \Ghat[(\I_r\otimes\qhat\otimes\qhat)
@@ -639,7 +636,7 @@ class CubicOperator(_NonparametricOperator):
 
         Parameters
         ----------
-        state_ : (r,) ndarray or None
+        state : (r,) ndarray or None
             State vector.
         input_ : (m,) ndarray or None
             Input vector (not used).
@@ -652,7 +649,7 @@ class CubicOperator(_NonparametricOperator):
             + (\qhat\otimes\I_r\otimes\qhat)
             + (\qhat\otimes\qhat\otimes\I_r)]`.
         """
-        q_ = np.atleast_1d(state_)
+        q_ = np.atleast_1d(state)
         return (self._prejac @ q_) @ q_
 
     @_requires_entries
@@ -681,32 +678,32 @@ class CubicOperator(_NonparametricOperator):
         return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
 
     @staticmethod
-    def datablock(states_, inputs=None):
+    def datablock(states, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
         the Khatri-Rao product of the state with itself three times:
         :math:`\widehat{\Q}\odot\widehat{\Q}
         \odot\widehat{\Q}`
-        where :math:`\widehat{\Q}` is the ``state_``.
+        where :math:`\widehat{\Q}` is the ``state``.
 
         .. math::
             \min_{\widehat{\mathbf{G}}}\sum_{j=0}^{k-1}\left\|
             \widehat{\mathbf{G}}[
             \qhat_{j}\otimes\qhat_{j}]
-            - \widehat{\mathbf{y}}_{j}
+            - \zhat_j
             \right\|_{2}^{2}
             = \min_{\widehat{\mathbf{G}}}\left\|
             \widehat{\mathbf{G}}[
             \widehat{\Q}
             \odot \widehat{\Q}
             \odot \widehat{\Q}]
-            - \widehat{\mathbf{Y}}
+            - \Zhat
             \right\|_{F}^{2}.
 
         Here, :math:`\widehat{\Q} = [~
         \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
-        ~] \in \RR^{r\times k}` is the ``state_``
-        and :math:`\widehat{\mathbf{Y}} = [~
-        \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
+        ~] \in \RR^{r\times k}` is the ``state``
+        and :math:`\Zhat = [~
+        \zhat_{0}~~\cdots~~\zhat_{k-1}
         ~]\in\RR^{r \times k}`.
         The Khatri-Rao product :math:`\odot` is the Kronecker product applied
         columnwise:
@@ -737,21 +734,21 @@ class CubicOperator(_NonparametricOperator):
 
         Parameters
         ----------
-        state_ : (r, k) or (k,) ndarray
+        states : (r, k) or (k,) ndarray
             State vectors. Each column is a single state vector.
             If one dimensional, it is assumed that :math:`r = 1`.
-        input_ : (m, k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Input vectors (not used).
 
         Returns
         -------
         product_ : (r(r+1)(r+2)/6, k) ndarray
-            Compressed triple Khatri-Rao product of the ``state_`` with itself.
+            Compressed triple Khatri-Rao product of the ``state`` with itself.
         """
-        return utils.kron3c(np.atleast_2d(states_))
+        return utils.kron3c(np.atleast_2d(states))
 
     @staticmethod
-    def column_dimension(r, m=None):
+    def operator_dimension(r, m=None):
         """Column dimension :math:`r(r+1)(r+2)/6` of the operator entries.
 
         Parameters
@@ -783,7 +780,11 @@ class InputOperator(_NonparametricOperator, _InputMixin):
     >>> np.allclose(out, entries @ u)
     True
     """
-    _has_inputs = True
+
+    @property
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        return None if self.entries is None else self.entries.shape[1]
 
     @staticmethod
     def _str(statestr, inputstr):
@@ -811,13 +812,13 @@ class InputOperator(_NonparametricOperator, _InputMixin):
         _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
-    def __call__(self, state_, input_):
+    def apply(self, state, input_):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat(\qhat,\u) = \Bhat\u`.
 
         Parameters
         ----------
-        state_ : (r,) ndarray
+        state : (r,) ndarray
             State vector (not used).
         input_ : (m,) ndarray
             Input vector.
@@ -834,11 +835,6 @@ class InputOperator(_NonparametricOperator, _InputMixin):
                 return np.outer(self.entries[:, 0], input_)
             return self.entries[:, 0] * input_  # r > 1, m = k = 1.
         return self.entries @ input_  # m > 1.
-
-    @functools.wraps(__call__)
-    def apply(self, state_, input_):  # pragma: no cover
-        """Mirror of __call__()."""
-        return self(state_, input_)
 
     @_requires_entries
     def galerkin(self, Vr, Wr=None):
@@ -863,29 +859,29 @@ class InputOperator(_NonparametricOperator, _InputMixin):
         )
 
     @staticmethod
-    def datablock(states_, inputs):
+    def datablock(states, inputs):
         r"""Return the data matrix block corresponding to the operator,
         the ``inputs``.
 
         .. math::
             \min_{\Bhat}\sum_{j=0}^{k-1}\left\|
             \Bhat\u_{j}
-            - \widehat{\mathbf{y}}_{j}
+            - \zhat_j
             \right\|_{2}^{2}
             = \min_{\Bhat}\left\|
-            \Bhat\U - \widehat{\mathbf{Y}}
+            \Bhat\U - \Zhat
             \right\|_{F}^{2}.
 
         Here, :math:`\U = [~
         \u_{0} ~~ \cdots ~~ \u_{k-1}
         ~] \in \RR^{m\times k}` is the ``input_``
-        and :math:`\widehat{\mathbf{Y}} = [~
-        \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
+        and :math:`\Zhat = [~
+        \zhat_{0}~~\cdots~~\zhat_{k-1}
         ~]\in\RR^{r \times k}`.
 
         Parameters
         ----------
-        states_ : (r, k) or (k,) ndarray
+        states : (r, k) or (k,) ndarray
             State vectors (not used).
         inputs : (m, k) or (k,) ndarray
             Input vectors. Each column is a single input vector.
@@ -899,7 +895,7 @@ class InputOperator(_NonparametricOperator, _InputMixin):
         return np.atleast_2d(inputs)
 
     @staticmethod
-    def column_dimension(r, m):
+    def operator_dimension(r, m):
         """Column dimension :math:`m` of the operator entries.
 
         Parameters
@@ -911,13 +907,8 @@ class InputOperator(_NonparametricOperator, _InputMixin):
         """
         return m
 
-    @property
-    def input_dimension(self):
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
-        return None if self.entries is None else self.entries.shape[1]
 
-
-# Dependent on state and input ================================================
+# Dependent on both state and input ===========================================
 class StateInputOperator(_NonparametricOperator, _InputMixin):
     r"""Linear state / input interaction operator
     :math:`\Ophat(\qhat,\u) = \Nhat[\u\otimes\qhat]`
@@ -937,7 +928,13 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
     >>> np.allclose(out, entries @ np.kron(u, q))
     True
     """
-    _has_inputs = True
+
+    @property
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        if self.entries is None:
+            return None
+        return self.entries.shape[1] // self.entries.shape[0]
 
     @staticmethod
     def _str(statestr, inputstr):
@@ -968,13 +965,13 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
         _NonparametricOperator.set_entries(self, entries)
 
     @_requires_entries
-    def __call__(self, state_, input_):
+    def apply(self, state, input_):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat(\qhat,\u) = \Nhat[\u\otimes\qhat]`.
 
         Parameters
         ----------
-        state_ : (r,) ndarray
+        state : (r,) ndarray
             State vector.
         input_ : (m,) ndarray
             Input vector.
@@ -985,27 +982,22 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
             The evaluation :math:`\Nhat[\u\otimes\qhat]`.
         """
         # Determine if arguments represent one snapshot or several.
-        multi = (sdim := np.ndim(state_)) > 1
+        multi = (sdim := np.ndim(state)) > 1
         multi |= (idim := np.ndim(input_)) > 1
-        multi |= self.shape[0] == 1 and sdim == 1 and state_.shape[0] > 1
+        multi |= self.shape[0] == 1 and sdim == 1 and state.shape[0] > 1
         multi |= self.shape[1] == 1 and idim == 1 and input_.shape[0] > 1
         single = not multi
 
         if self.shape[1] == 1:
-            return self.entries[0, 0] * input_ * state_  # r = m = 1.
+            return self.entries[0, 0] * input_ * state  # r = m = 1.
         if single:
-            return self.entries @ np.kron(input_, state_)  # k = 1, rm > 1.
-        Q_ = np.atleast_2d(state_)
+            return self.entries @ np.kron(input_, state)  # k = 1, rm > 1.
+        Q_ = np.atleast_2d(state)
         U = np.atleast_2d(input_)
         return self.entries @ la.khatri_rao(U, Q_)  # k > 1, rm > 1.
 
-    @functools.wraps(__call__)
-    def apply(self, state_, input_):  # pragma: no cover
-        """Mirror of __call__()."""
-        return self(state_, input_)
-
     @_requires_entries
-    def jacobian(self, state_, input_):
+    def jacobian(self, state, input_):
         r"""Construct the state Jacobian of the operator:
         :math:`\ddqhat\Ophat(\qhat,\u) = \sum_{i=1}^{m}u_{i}\Nhat_{i}`
         where :math:`\Nhat=[~\Nhat_{1}~~\cdots~~\Nhat_{m}~]`
@@ -1013,7 +1005,7 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
 
         Parameters
         ----------
-        state_ : (r,) ndarray or None
+        state : (r,) ndarray or None
             State vector.
         input_ : (m,) ndarray or None
             Input vector (not used).
@@ -1062,34 +1054,34 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
         return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
 
     @staticmethod
-    def datablock(states_, inputs):
+    def datablock(states, inputs):
         r"""Return the data matrix block corresponding to the operator,
         the Khatri-Rao product of the inputs and the states:
 
         :math:`\U\odot\widehat{\Q}` where
-        :math:`\widehat{\Q}` is the ``state_`` and
+        :math:`\widehat{\Q}` is the ``state`` and
         :math:`\U` is the ``input_``.
 
         .. math::
             \min_{\widehat{\mathbf{N}}}\sum_{j=0}^{k-1}\left\|
             \widehat{\mathbf{N}}[
             \u_{j}\otimes\qhat_{j}]
-            - \widehat{\mathbf{y}}_{j}
+            - \zhat_j
             \right\|_{2}^{2}
             = \min_{\widehat{\mathbf{N}}}\left\|
             \widehat{\mathbf{N}}[
             \U \odot \widehat{\Q}]
-            - \widehat{\mathbf{Y}}
+            - \Zhat
             \right\|_{F}^{2}.
 
         Here, :math:`\widehat{\Q} = [~
         \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
-        ~] \in \RR^{r\times k}` is the ``state_``,
+        ~] \in \RR^{r\times k}` is the ``state``,
         :math:`\U = [~
         \u_{0} ~~ \cdots ~~ \u_{k-1}
         ~] \in \RR^{m\times k}` is the ``input_``,
-        and :math:`\widehat{\mathbf{Y}} = [~
-        \widehat{\mathbf{y}}_{0}~~\cdots~~\widehat{\mathbf{y}}_{k-1}
+        and :math:`\Zhat = [~
+        \zhat_{0}~~\cdots~~\zhat_{k-1}
         ~]\in\RR^{r \times k}`.
         The Khatri-Rao product :math:`\odot` is the Kronecker product applied
         columnwise:
@@ -1117,22 +1109,22 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
 
         Parameters
         ----------
-        state_ : (r, k) or (k,) ndarray
+        states : (r, k) or (k,) ndarray
             State vectors (not used).
             If one dimensional, it is assumed that :math:`r = 1`.
-        input_ : (m, k) or (k,) ndarray or None
+        inputs : (m, k) or (k,) ndarray or None
             Input vectors. Each column is a single input vector.
             If one dimensional, it is assumed that :math:`m = 1`.
 
         Returns
         -------
         product_ : (m, k) ndarray or None
-            Compressed Khatri-Rao product of the ``input_`` and the ``state_``.
+            Compressed Khatri-Rao product of the ``input_`` and the ``state``.
         """
-        return la.khatri_rao(np.atleast_2d(inputs), np.atleast_2d(states_))
+        return la.khatri_rao(np.atleast_2d(inputs), np.atleast_2d(states))
 
     @staticmethod
-    def column_dimension(r, m):
+    def operator_dimension(r, m):
         """Column dimension :math:`rm` of the operator entries.
 
         Parameters
@@ -1143,10 +1135,3 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
             Input dimension.
         """
         return r * m
-
-    @property
-    def input_dimension(self):
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
-        if self.entries is None:
-            return None
-        return self.entries.shape[1] // self.entries.shape[0]
