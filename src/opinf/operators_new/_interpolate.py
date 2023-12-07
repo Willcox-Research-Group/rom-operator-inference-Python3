@@ -14,9 +14,11 @@ __all__ = [
     "InterpolatedStateInputOperator",
 ]
 
+import warnings
 import numpy as np
 import scipy.linalg as la
 
+from ..utils import hdf5_savehandle, hdf5_loadhandle
 from ._base import _ParametricOperator, _requires_entries
 from ._nonparametric import (
     ConstantOperator,
@@ -43,7 +45,7 @@ class _InterpolatedOperator(_ParametricOperator):
        \Ohat_{\ell}(\bfmu)
         = \textrm{interpolate}(
        (\bfmu_1,\ldots,\bfmu_s),
-       (\Ophat_{\ell}^{(1)},\ldots,\Ophat_{\ell}^{(s)});
+       (\Ohat_{\ell}^{(1)},\ldots,\Ohat_{\ell}^{(s)});
        \bfmu),
 
     where :math:`\Ophat_\ell^{(i)} = \Ophat_\ell(\bfmu_i)` for each
@@ -219,7 +221,57 @@ class _InterpolatedOperator(_ParametricOperator):
 
     # Dimensionality reduction ------------------------------------------------
     def galerkin(self, Vr, Wr=None):
-        r"""TODO"""
+        r"""Project this operator to a low-dimensional linear space.
+
+        Consider an interpolatory operator
+
+        .. math::
+           \f_\ell(\q,\u;\bfmu)
+           = \textrm{interpolate}(
+           (\bfmu_1,\ldots,\bfmu_s),
+           (\f_{\ell}^{(1)}(\q,\u),\ldots,\f_{\ell}^{(s)}(\q,\u));
+           \bfmu),
+
+        where
+
+        * :math:`\q\in\RR^n` is the full-order state,
+        * :math:`\u\in\RR^m` is the input,
+        * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+          are the (fixed) training parameter values,
+        * :math:`\f_{\ell}^{(i)}(\q,\u) = \f(\q,\u;\bfmu_i)`
+          are the operators evaluated at the training parameter values, and
+        * :math:`\bfmu\in\RR^p` is a new parameter value
+          at which to evaluate the operator.
+
+        Given a *trial basis* :math:`\Vr\in\RR^{n\times r}` and a *test basis*
+        :math:`\Wr\in\RR^{n\times r}`, the corresponding *intrusive projection*
+        of :math:`\f` is the interpolatory operator
+
+        .. math::
+           \fhat_{\ell}(\qhat,\u;\bfmu)
+           = \textrm{interpolate}(
+           (\bfmu_1,\ldots,\bfmu_s),
+           (\Wr\trp\f_{\ell}^{(1)}(\Vr\qhat,\u),\ldots,
+           \Wr\trp\f_{\ell}^{(s)}(\Vr\qhat,\u));
+           \bfmu),
+
+        Here, :math:`\qhat\in\RR^r` is the reduced-order state, which enables
+        the low-dimensional state approximation :math:`\q = \Vr\qhat`.
+        If :math:`\Wr = \Vr`, the result is called a *Galerkin projection*.
+        If :math:`\Wr \neq \Vr`, it is called a *Petrov-Galerkin projection*.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        op : operator
+            New object of the same class as ``self``.
+        """
         return self.__class__(
             self.training_parameters,
             self.__InterpolatorClass,
@@ -267,69 +319,213 @@ class _InterpolatedOperator(_ParametricOperator):
         """
         return len(self) * self.OperatorClass.operator_dimension(r, m)
 
+    # Model persistence -------------------------------------------------------
+    def copy(self):  # pragma: no cover
+        """Return a copy of the operator."""
+        return self.__class__(
+            training_parameters=self.training_parameters.copy(),
+            InterpolatorClass=self.__InterpolatorClass,
+            entries=self.entries.copy(),
+        )
+
+    def save(self, savefile: str, overwrite: bool = False) -> None:
+        """Save the operator to an HDF5 file.
+
+        Parameters
+        ----------
+        savefile : str
+            Path of the file to save the basis in.
+        overwrite : bool
+            If ``True``, overwrite the file if it already exists. If ``False``
+            (default), raise a ``FileExistsError`` if the file already exists.
+        """
+        with hdf5_savehandle(savefile, overwrite) as hf:
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["class"] = self.__class__.__name__
+            meta.attrs["InterpolatorClass"] = self.__InterpolatorClass.__name__
+            hf.create_dataset(
+                "training_parameters", data=self.training_parameters
+            )
+            if self.entries is not None:
+                hf.create_dataset("entries", data=self.entries)
+
+    @classmethod
+    def load(cls, loadfile: str, InterpolatorClass):
+        """Load a parametric operator from an HDF5 file.
+
+        Some classes may require more arguments for operator attributes that
+        cannot be serialized. Child classes should implement this method as a
+        ``@classmethod``.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the operator was stored via :meth:`save()`.
+        InterpolatorClass : type
+            Class for the elementwise interpolation. Must obey the syntax
+
+               >>> interpolator = InterpolatorClass(data_points, data_values)
+               >>> interpolator_evaluation = interpolator(new_data_point)
+
+            This can be, e.g., a class from ``scipy.interpolate``.
+            If this class does not match the loadfile, a warning is raised.
+
+        Returns
+        -------
+        op : _Operator
+            Initialized operator object.
+        """
+        with hdf5_loadhandle(loadfile) as hf:
+            ClassName = hf["meta"].attrs["class"]
+            if ClassName != cls.__name__:
+                raise TypeError(
+                    f"file '{loadfile}' contains '{ClassName}' "
+                    f"object, use '{ClassName}.load()"
+                )
+
+            if (SavedClassName := hf["meta"].attrs["InterpolatorClass"]) != (
+                InterpolatorClassName := InterpolatorClass.__name__
+            ):
+                warnings.warn(
+                    f"InterpolatorClass={InterpolatorClassName} does not "
+                    f"match loadfile InterpolatorClass '{SavedClassName}'",
+                    UserWarning,
+                )
+            return cls(
+                hf["training_parameters"][:],
+                InterpolatorClass,
+                hf["entries"][:] if "entries" in hf else None,
+            )
+
 
 # Public interpolated operator classes ========================================
 class InterpolatedConstantOperator(_InterpolatedOperator):
-    """Constant operator with elementwise interpolation, i.e.,
+    r"""Parametric constant operator
+    :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \chat(\bfmu) \in \RR^r`
+    where the parametric dependence is handled with elementwise interpolation.
 
-        c(µ) = Interpolator([µ1, µ2, ...], [c1[i,j], c2[i,j], ...])(µ),
+    .. math::
+       \chat(\bfmu) = \textrm{interpolate}(
+       (\bfmu_1,\ldots,\bfmu_s), (\chat^{(1)},\ldots,\chat^{(s)}); \bfmu)
 
-    where c1 is the operator vector corresponding to the parameter µ1, etc.
+    Here,
+
+    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+      are the (fixed) training parameter values, and
+    * :math:`\chat^{(i)} = \chat(\bfmu_i) \in \RR^r`
+      are the operator entries evaluated at the training parameter values.
+
+    See :class:`opinf.operators_new.ConstantOperator`.
     """
-
     _OperatorClass = ConstantOperator
 
 
 class InterpolatedLinearOperator(_InterpolatedOperator):
-    """Linear operator with elementwise interpolation, i.e.,
+    r"""Parametric linear operator
+    :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Ahat(\bfmu)\qhat`
+    where :math:`\Ahat(\bfmu) \in \RR^{r \times r}` and
+    the parametric dependence is handled with elementwise interpolation.
 
-        A(µ) = Interpolator([µ1, µ2, ...], [A1[i,j], A2[i,j], ...])(µ),
+    .. math::
+       \Ahat(\bfmu) = \textrm{interpolate}(
+       (\bfmu_1,\ldots,\bfmu_s), (\Ahat^{(1)},\ldots,\Ahat^{(s)}); \bfmu)
 
-    where A1 is the operator matrix corresponding to the parameter µ1, etc.
+    Here,
+
+    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+      are the (fixed) training parameter values, and
+    * :math:`\Ahat^{(i)} = \Ahat(\bfmu_i) \in \RR^{r \times r}`
+      are the operator entries evaluated at the training parameter values.
+
+    See :class:`LinearOperator`.
     """
-
     _OperatorClass = LinearOperator
 
 
 class InterpolatedQuadraticOperator(_InterpolatedOperator):
-    """Quadratic operator with elementwise interpolation, i.e.,
+    r"""Parametric quadratic operator
+    :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Hhat(\bfmu)[\qhat\otimes\qhat]`
+    where :math:`\Ahat(\bfmu) \in \RR^{r \times r^2}` and
+    the parametric dependence is handled with elementwise interpolation.
 
-        H(µ) = Interpolator([µ1, µ2, ...], [H1[i,j], H2[i,j], ...])(µ),
+    .. math::
+       \Ahat(\bfmu) = \textrm{interpolate}(
+       (\bfmu_1,\ldots,\bfmu_s), (\Hhat^{(1)},\ldots,\Hhat^{(s)}); \bfmu)
 
-    where H1 is the operator matrix corresponding to the parameter µ1, etc.
+    Here,
+
+    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+      are the (fixed) training parameter values, and
+    * :math:`\Hhat^{(i)} = \Hhat(\bfmu_i) \in \RR^{r \times r^2}`
+      are the operator entries evaluated at the training parameter values.
+
+    See :class:`QuadraticOperator`.
     """
-
     _OperatorClass = QuadraticOperator
 
 
 class InterpolatedCubicOperator(_InterpolatedOperator):
-    """Cubic operator with elementwise interpolation, i.e.,
+    r"""Parametric cubic operator
+    :math:`\Ophat_{\ell}(\qhat,\u;\bfmu)
+    = \Ghat(\bfmu)[\qhat\otimes\qhat\otimes\qhat]`
+    where :math:`\Ghat(\bfmu) \in \RR^{r \times r^3}` and
+    the parametric dependence is handled with elementwise interpolation.
 
-        G(µ) = Interpolator([µ1, µ2, ...], [G1[i,j], G2[i,j], ...])(µ),
+    .. math::
+       \Ghat(\bfmu) = \textrm{interpolate}(
+       (\bfmu_1,\ldots,\bfmu_s), (\Ghat^{(1)},\ldots,\Ghat^{(s)}); \bfmu)
 
-    where G1 is the operator matrix corresponding to the parameter µ1, etc.
+    Here,
+
+    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+      are the (fixed) training parameter values, and
+    * :math:`\Ghat^{(i)} = \Ghat(\bfmu_i) \in \RR^{r \times r^3}`
+      are the operator entries evaluated at the training parameter values.
+
+    See :class:`CubicOperator`.
     """
-
     _OperatorClass = CubicOperator
 
 
 class InterpolatedInputOperator(_InterpolatedOperator):
-    """Cubic operator with elementwise interpolation, i.e.,
+    r"""Parametric input operator
+    :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Bhat(\bfmu)\u`
+    where :math:`\Bhat(\bfmu) \in \RR^{r \times m}` and
+    the parametric dependence is handled with elementwise interpolation.
 
-        G(µ) = Interpolator([µ1, µ2, ...], [G1[i,j], G2[i,j], ...])(µ),
+    .. math::
+       \Bhat(\bfmu) = \textrm{interpolate}(
+       (\bfmu_1,\ldots,\bfmu_s), (\Bhat^{(1)},\ldots,\Bhat^{(s)}); \bfmu)
 
-    where G1 is the operator matrix corresponding to the parameter µ1, etc.
+    Here,
+
+    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+      are the (fixed) training parameter values, and
+    * :math:`\Bhat^{(i)} = \Bhat(\bfmu_i) \in \RR^{r \times m}`
+      are the operator entries evaluated at the training parameter values.
+
+    See :class:`InputOperator`.
     """
-
     _OperatorClass = InputOperator
 
 
 class InterpolatedStateInputOperator(_InterpolatedOperator):
-    """Cubic operator with elementwise interpolation, i.e.,
+    r"""Parametric state-input operator
+    :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Nhat(\bfmu)[\u\otimes\qhat]`
+    where :math:`\Nhat(\bfmu) \in \RR^{r \times rm}` and
+    the parametric dependence is handled with elementwise interpolation.
 
-        G(µ) = Interpolator([µ1, µ2, ...], [G1[i,j], G2[i,j], ...])(µ),
+    .. math::
+       \Nhat(\bfmu) = \textrm{interpolate}(
+       (\bfmu_1,\ldots,\bfmu_s), (\Nhat^{(1)},\ldots,\Nhat^{(s)}); \bfmu)
 
-    where G1 is the operator matrix corresponding to the parameter µ1, etc.
+    Here,
+
+    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+      are the (fixed) training parameter values, and
+    * :math:`\Nhat^{(i)} = \Nhat(\bfmu_i) \in \RR^{r \times rm}`
+      are the operator entries evaluated at the training parameter values.
+
+    See :class:`StateInputOperator`.
     """
-
     _OperatorClass = StateInputOperator

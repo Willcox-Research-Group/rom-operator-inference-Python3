@@ -13,7 +13,11 @@ TODO
 * _NonparametricOperatorMulti: base for multilithic nonparametric operators.
 """
 
-__all__ = []
+__all__ = [
+    "is_nonparametric",
+    "has_inputs",
+    "is_parametric",
+]
 
 import abc
 import functools
@@ -199,8 +203,7 @@ class _NonparametricOperator(abc.ABC):
     # Dimensionality reduction ------------------------------------------------
     @abc.abstractmethod
     def galerkin(self, Vr, Wr, func):
-        r"""Project the operator to a low-dimensional linear space.
-        See _Operator.galerkin().
+        r"""Get the (Petrov-)Galerkin projection of this operator.
 
         Subclasses may implement this function as follows:
 
@@ -333,17 +336,12 @@ class _NonparametricOperator(abc.ABC):
             Path to the file where the operator was stored via :meth:`save()`.
         """
         with hdf5_loadhandle(loadfile) as hf:
-            ClassName = hf["meta"].attrs["class"]
-            if ClassName != cls.__name__:
+            if (ClassName := hf["meta"].attrs["class"]) != cls.__name__:
                 raise TypeError(
                     f"file '{loadfile}' contains '{ClassName}' "
                     f"object, use '{ClassName}.load()"
                 )
             return cls(hf["entries"][:] if "entries" in hf else None)
-
-
-def _is_nonparametric(obj):
-    return isinstance(obj, _NonparametricOperator)
 
 
 # Mixin for operators acting on inputs ----------------------------------------
@@ -353,14 +351,6 @@ class _InputMixin:
     """
 
     pass
-
-
-def _has_inputs(obj):
-    """Return ``True`` if ``obj`` is an operator object whose ``apply()``
-    method uses the ``input_`` argument (by checking that it is derived from
-    ``operators._base._InputMixin``).
-    """
-    return isinstance(obj, _InputMixin)
 
 
 # Parametric operators ========================================================
@@ -537,29 +527,7 @@ class _ParametricOperator(abc.ABC):
     # Dimensionality reduction ------------------------------------------------
     @abc.abstractmethod
     def galerkin(self, Vr, Wr=None):
-        r"""Project the parametric operator to a low-dimensional linear space.
-
-        Consider an operator :math:`\f(\q,\u;\bfmu)` where
-
-        * :math:`\q\in\RR^n` is the full-order state,
-        * :math:`\u\in\RR^m` is the input, and
-        * :math:`\bfmu\in\RR^p` is the parameter.
-
-        Given a *trial basis* :math:`\Vr\in\RR^{n\times r}` and a *test basis*
-        :math:`\Wr\in\RR^{n\times r}`, the corresponding *intrusive projection*
-        of :math:`\f` is the parametric operator
-
-        .. math:: \fhat(\qhat,\u;\bfmu) = \Wr\trp\f(\Vr\qhat,\u;\bfmu).
-
-        Here,
-
-        * :math:`\qhat\in\RR^r` is the reduced-order state, and
-        * :math:`\u\in\RR^m` is the input (as before).
-
-        This approach uses the low-dimensional state approximation
-        :math:`\q = \Vr\qhat`.
-        If :math:`\Wr = \Vr`, the result is called a *Galerkin projection*.
-        If :math:`\Wr \neq \Vr`, it is called a *Petrov-Galerkin projection*.
+        r"""Get the (Petrov-)Galerkin projection of this operator.
 
         Parameters
         ----------
@@ -645,6 +613,20 @@ class _ParametricOperator(abc.ABC):
         raise NotImplementedError
 
 
-def _is_parametric(obj):
+# Utilities ===================================================================
+def is_nonparametric(obj):
+    """Return ``True`` if ``obj`` is a nonparametric operator object."""
+    return isinstance(obj, _NonparametricOperator)
+
+
+def has_inputs(obj):
+    r"""Return ``True`` if ``obj`` is an operator object whose ``apply()``
+    method acts on the ``input_`` argument, i.e.,
+    :math:`\Ophat_{\ell}(\qhat,\u)` depends on :math:`\u`.
+    """
+    return isinstance(obj, _InputMixin)
+
+
+def is_parametric(obj):
     """Return ``True`` if ``obj`` is a parametric operator object."""
     return isinstance(obj, _ParametricOperator)
