@@ -11,8 +11,6 @@ from .. import errors
 from .. import operators_new as _operators
 
 
-_is_inputop = _operators._base._is_input_operator
-
 _OPERATOR_SHORTCUTS = {
     "c": _operators.ConstantOperator,
     "A": _operators.LinearOperator,
@@ -54,7 +52,7 @@ class _MonolithicModel(abc.ABC):
     @operators.setter
     def operators(self, ops):
         """Set the operators."""
-        if isinstance(ops, _operators._base._NonparametricOperator):
+        if _operators.is_nonparametric(ops):
             ops = [ops]
         if len(ops) == 0 or ops is None:
             raise ValueError("at least one operator required")
@@ -67,13 +65,13 @@ class _MonolithicModel(abc.ABC):
             op = ops[i]
             if isinstance(op, str) and op in _OPERATOR_SHORTCUTS:
                 op = ops[i] = _OPERATOR_SHORTCUTS[op]()
-            if not isinstance(op, _operators._base._NonparametricOperator):
+            if not _operators.is_nonparametric(op):
                 raise TypeError("expected list of nonparametric operators")
             if op.entries is None:
                 toinfer.append(i)
             else:
                 known.append(i)
-            if _operators._base._is_input_operator(op):
+            if _operators.has_inputs(op):
                 self._has_inputs = True
 
         # Store attributes.
@@ -171,7 +169,8 @@ class _MonolithicModel(abc.ABC):
         """Ensure all *input* operators with initialized entries have the same
         ``input dimension``.
         """
-        if len(inputops := [op for op in ops if _is_inputop(op)]) == 0:
+        inputops = [op for op in ops if _operators.has_inputs(op)]
+        if len(inputops) == 0:
             return 0
         ms = {op.input_dimension for op in inputops if op.entries is not None}
         if len(ms) > 1:
@@ -197,7 +196,7 @@ class _MonolithicModel(abc.ABC):
         if self.__operators is not None:
             for op in self.operators:
                 if (
-                    _is_inputop(op)
+                    _operators.has_inputs(op)
                     and op.entries is not None
                     and op.input_dimension != m
                 ):

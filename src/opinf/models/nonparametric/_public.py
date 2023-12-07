@@ -1,5 +1,5 @@
 # models/nonparametric/_public.py
-"""Public nonparametric model classes."""
+"""Public nonparametric monolithic model classes."""
 
 __all__ = [
     "SteadyModel",
