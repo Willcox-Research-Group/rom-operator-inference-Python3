@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from ..errors import LoadfileFormatError
 from ..utils import hdf5_savehandle, hdf5_loadhandle
-from .._multivar import _MultivarMixin
+from ..pre._base import _MultivarMixin
 from ._base import _BaseBasis
 
 
@@ -20,25 +20,11 @@ class LinearBasis(_BaseBasis):
     r"""Linear basis for representing the low-dimensional state approximation
 
     .. math::
-        \q
-        \approx \Vr\qhat
-        = \sum_{i=1}^{r}\hat{q}_{i}\v_{i},
-    where :math:`\q\in\RR^{n}`,
-    :math:`\Vr
-    = [\v_{1}, \ldots, \v_{r}]\in \RR^{n\times r}`, and
-    :math:`\qhat
-    = [\hat{q}_{1},\ldots,\hat{q}_{r}]\in\RR^{r}`.
+       \q \approx \Vr\qhat = \sum_{i=1}^r \hat{q}_i \v_i,
 
-    Attributes
-    ----------
-    n : int
-        Dimension of the state space (size of each basis vector).
-    r : int
-        Dimension of the basis (number of basis vectors in the representation).
-    shape : tulpe
-        Dimensions (n, r).
-    entries : (n, r) ndarray
-        Entries of the basis matrix :math:`\Vr`.
+    where :math:`\q\in\RR^n`,
+    :math:`\Vr = [\v_1, \ldots, \v_r]\in \RR^{n \times r}`, and
+    :math:`\qhat = [\hat{q}_1,\ldots,\hat{q}_r]\trp\in\RR^r`.
     """
 
     def __init__(self):
@@ -48,22 +34,22 @@ class LinearBasis(_BaseBasis):
     # Properties --------------------------------------------------------------
     @property
     def entries(self):
-        """Entries of the basis."""
+        r"""Entries of the basis matrix :math:`\Vr`."""
         return self.__entries
 
     @property
     def n(self):
-        """Dimension of the state, i.e., the size of each basis vector."""
+        """Dimension :math:`n` of the state (the size of each basis vector)."""
         return None if self.entries is None else self.entries.shape[0]
 
     @property
     def r(self):
-        """Dimension of the basis, i.e., the number of basis vectors."""
+        """Dimension :math:`r` of the basis (the number of basis vectors)."""
         return None if self.entries is None else self.entries.shape[1]
 
     @property
     def shape(self):
-        """Dimensions of the basis (state_dimension, reduced_dimension)."""
+        """Dimensions of the basis (full_dimension, reduced_dimension)."""
         return None if self.entries is None else self.entries.shape
 
     def __getitem__(self, key):
@@ -230,11 +216,16 @@ class LinearBasis(_BaseBasis):
 class LinearBasisMulti(LinearBasis, _MultivarMixin):
     r"""Block-diagonal basis grouping individual bases for each state variable.
 
-                                                  [ Vr1         ]
-        qi = Vri @ qi_      -->     LinearBasis = [     Vr2     ].
-        i = 1, ..., num_variables                 [          \  ]
+    .. math::
+       \q_i = \V_i\qhat_i
+       \quad\Longrightarrow\quad
+       \V = \left[\begin{array}{ccc}
+       \V_1 & &
+       \\ & \ddots & \\
+       & & \V_{n_i}
+       \end{array}\right].
 
-    The low-dimensional approximation is linear (see LinearBasis).
+    The low-dimensional approximation is linear (see :class:`LinearBasis`).
 
     Parameters
     ----------
