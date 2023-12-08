@@ -44,9 +44,7 @@ class _InterpolatedOperator(_ParametricOperator):
     .. math::
        \Ohat_{\ell}(\bfmu)
         = \textrm{interpolate}(
-       (\bfmu_1,\ldots,\bfmu_s),
-       (\Ohat_{\ell}^{(1)},\ldots,\Ohat_{\ell}^{(s)});
-       \bfmu),
+       (\bfmu_1,\Ohat_{\ell}^{(1)}),\ldots,(\Ohat_{\ell}^{(s)}\bfmu_s);\bfmu),
 
     where :math:`\Ophat_\ell^{(i)} = \Ophat_\ell(\bfmu_i)` for each
     :math:`i=1,\ldots,s`.
@@ -58,7 +56,7 @@ class _InterpolatedOperator(_ParametricOperator):
 
         Parameters
         ----------
-        training_parameters : list of ``nterms`` scalars or 1D ndarrays
+        training_parameters : list of `s` scalars or 1D ndarrays
             Parameter values for which the operators entries are known
             or will be inferred from data.
         InterpolatorClass : type
@@ -68,7 +66,7 @@ class _InterpolatedOperator(_ParametricOperator):
                >>> interpolator_evaluation = interpolator(new_data_point)
 
             This can be, e.g., a class from ``scipy.interpolate``.
-        entries : list of ``nterms`` ndarray, or None
+        entries : list of `s` ndarray, or None
             Operator entries corresponding to the ``training_parameters``.
         """
         _ParametricOperator.__init__(self)
@@ -172,7 +170,9 @@ class _InterpolatedOperator(_ParametricOperator):
 
     @property
     def shape(self) -> tuple:
-        """Shape: shape of the operator entries to interpolate."""
+        """Shape of the operator entries matrix when evaluated
+        at a parameter value.
+        """
         return None if self.entries is None else self.entries[0].shape
 
     @property
@@ -215,7 +215,19 @@ class _InterpolatedOperator(_ParametricOperator):
     # Evaluation --------------------------------------------------------------
     @_requires_entries
     def evaluate(self, parameter):
-        """Return the nonparametric operator corresponding to the parameter."""
+        r"""Evaluate the operator at the given parameter value,
+        :math:`\Ophat_{\ell}(\cdot,\cdot;\bfmu)`.
+
+        Parameters
+        ----------
+        parameter : (p,) ndarray or float
+            Parameter value :math:`\bfmu` at which to evalute the operator.
+
+        Returns
+        -------
+        op : {mod}`opinf.operators` operator of type ``OperatorClass``.
+            Nonparametric operator corresponding to the parameter value.
+        """
         self._check_parameter_dimension(parameter)
         return self.OperatorClass(self.interpolator(parameter))
 
@@ -228,9 +240,8 @@ class _InterpolatedOperator(_ParametricOperator):
         .. math::
            \f_\ell(\q,\u;\bfmu)
            = \textrm{interpolate}(
-           (\bfmu_1,\ldots,\bfmu_s),
-           (\f_{\ell}^{(1)}(\q,\u),\ldots,\f_{\ell}^{(s)}(\q,\u));
-           \bfmu),
+           (\bfmu_1,\f_{\ell}^{(1)}(\q,\u)),\ldots,
+           (\bfmu_s,\f_{\ell}^{(s)}(\q,\u)); \bfmu),
 
         where
 
@@ -250,10 +261,8 @@ class _InterpolatedOperator(_ParametricOperator):
         .. math::
            \fhat_{\ell}(\qhat,\u;\bfmu)
            = \textrm{interpolate}(
-           (\bfmu_1,\ldots,\bfmu_s),
-           (\Wr\trp\f_{\ell}^{(1)}(\Vr\qhat,\u),\ldots,
-           \Wr\trp\f_{\ell}^{(s)}(\Vr\qhat,\u));
-           \bfmu),
+           (\bfmu_1,\Wr\trp\f_{\ell}^{(1)}(\Vr\qhat,\u)),\ldots,
+           (\bfmu_s,\Wr\trp\f_{\ell}^{(s)}(\Vr\qhat,\u)); \bfmu),
 
         Here, :math:`\qhat\in\RR^r` is the reduced-order state, which enables
         the low-dimensional state approximation :math:`\q = \Vr\qhat`.
@@ -315,7 +324,7 @@ class _InterpolatedOperator(_ParametricOperator):
 
     def operator_dimension(self, r, m):
         r"""Number of columns `sd` in the concatenated operator matrix
-        :math:`[~\Ophat_{\ell}^{(1)}~~\cdots~~\Ophat_{\ell}^{(s)}~]`.
+        :math:`[~\Ohat_{\ell}^{(1)}~~\cdots~~\Ohat_{\ell}^{(s)}~]`.
         """
         return len(self) * self.OperatorClass.operator_dimension(r, m)
 
@@ -353,10 +362,6 @@ class _InterpolatedOperator(_ParametricOperator):
     def load(cls, loadfile: str, InterpolatorClass):
         """Load a parametric operator from an HDF5 file.
 
-        Some classes may require more arguments for operator attributes that
-        cannot be serialized. Child classes should implement this method as a
-        ``@classmethod``.
-
         Parameters
         ----------
         loadfile : str
@@ -368,7 +373,8 @@ class _InterpolatedOperator(_ParametricOperator):
                >>> interpolator_evaluation = interpolator(new_data_point)
 
             This can be, e.g., a class from ``scipy.interpolate``.
-            If this class does not match the loadfile, a warning is raised.
+            A ``UserWarning`` is thrown if this class does not match the
+            metadata in the ``loadfile``.
 
         Returns
         -------
@@ -406,7 +412,7 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
 
     .. math::
        \chat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\ldots,\bfmu_s), (\chat^{(1)},\ldots,\chat^{(s)}); \bfmu)
+       (\bfmu_1,\chat^{(1)}),\ldots,(\bfmu_s,\chat^{(s)}); \bfmu)
 
     Here,
 
@@ -416,6 +422,22 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
       are the operator entries evaluated at the training parameter values.
 
     See :class:`opinf.operators_new.ConstantOperator`.
+
+    Parameters
+    ----------
+    training_parameters : list of `s` scalars or 1D ndarrays
+        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
+        the operators entries are known or will be inferred from data.
+    InterpolatorClass : type
+        Class for the elementwise interpolation. Must obey the syntax
+
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+
+        This can be, e.g., a class from ``scipy.interpolate``.
+    entries : list of `s` ndarrays, or None
+        Operator entries :math:`\chat^{(1)},\ldots,\chat^{(s)}`
+        corresponding to the ``training_parameters``.
     """
     _OperatorClass = ConstantOperator
 
@@ -428,7 +450,7 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
 
     .. math::
        \Ahat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\ldots,\bfmu_s), (\Ahat^{(1)},\ldots,\Ahat^{(s)}); \bfmu)
+       (\bfmu_1,\Ahat^{(1)}),\ldots,(\bfmu_s,\Ahat^{(s)}); \bfmu)
 
     Here,
 
@@ -437,7 +459,27 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
     * :math:`\Ahat^{(i)} = \Ahat(\bfmu_i) \in \RR^{r \times r}`
       are the operator entries evaluated at the training parameter values.
 
-    See :class:`LinearOperator`.
+    Parameters
+    ----------
+    training_parameters : list of `s` scalars or 1D ndarrays
+        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
+        the operators entries are known or will be inferred from data.
+    InterpolatorClass : type
+        Class for the elementwise interpolation. Must obey the syntax
+
+        .. code-block:: pycon
+
+           >>> interpolator = InterpolatorClass(data_points, data_values)
+           >>> interpolator_evaluation = interpolator(new_data_point)
+
+        This can be, e.g., a class from ``scipy.interpolate``.
+    entries : list of `s` ndarrays, or None
+        Operator entries :math:`\Ahat^{(1)},\ldots,\Ahat^{(s)}`
+        corresponding to the ``training_parameters``.
+
+    See Also
+    --------
+    :class:`LinearOperator`
     """
     _OperatorClass = LinearOperator
 
@@ -449,8 +491,8 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
     the parametric dependence is handled with elementwise interpolation.
 
     .. math::
-       \Ahat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\ldots,\bfmu_s), (\Hhat^{(1)},\ldots,\Hhat^{(s)}); \bfmu)
+       \Hhat(\bfmu) = \textrm{interpolate}(
+       (\bfmu_1,\Hhat^{(1)}),\ldots,(\bfmu_s,\Hhat^{(s)}); \bfmu)
 
     Here,
 
@@ -460,6 +502,22 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
       are the operator entries evaluated at the training parameter values.
 
     See :class:`QuadraticOperator`.
+
+    Parameters
+    ----------
+    training_parameters : list of `s` scalars or 1D ndarrays
+        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
+        the operators entries are known or will be inferred from data.
+    InterpolatorClass : type
+        Class for the elementwise interpolation. Must obey the syntax
+
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+
+        This can be, e.g., a class from ``scipy.interpolate``.
+    entries : list of `s` ndarrays, or None
+        Operator entries :math:`\Hhat^{(1)},\ldots,\Hhat^{(s)}`
+        corresponding to the ``training_parameters``.
     """
     _OperatorClass = QuadraticOperator
 
@@ -473,7 +531,7 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
 
     .. math::
        \Ghat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\ldots,\bfmu_s), (\Ghat^{(1)},\ldots,\Ghat^{(s)}); \bfmu)
+       (\bfmu_1,\Ghat^{(1)}),\ldots,(\bfmu_s,\Ghat^{(s)}); \bfmu)
 
     Here,
 
@@ -483,6 +541,22 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
       are the operator entries evaluated at the training parameter values.
 
     See :class:`CubicOperator`.
+
+    Parameters
+    ----------
+    training_parameters : list of `s` scalars or 1D ndarrays
+        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
+        the operators entries are known or will be inferred from data.
+    InterpolatorClass : type
+        Class for the elementwise interpolation. Must obey the syntax
+
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+
+        This can be, e.g., a class from ``scipy.interpolate``.
+    entries : list of `s` ndarrays, or None
+        Operator entries :math:`\Ghat^{(1)},\ldots,\Ghat^{(s)}`
+        corresponding to the ``training_parameters``.
     """
     _OperatorClass = CubicOperator
 
@@ -495,7 +569,7 @@ class InterpolatedInputOperator(_InterpolatedOperator):
 
     .. math::
        \Bhat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\ldots,\bfmu_s), (\Bhat^{(1)},\ldots,\Bhat^{(s)}); \bfmu)
+       (\bfmu_1,\Bhat^{(1)}),\ldots,(\bfmu_s,\Bhat^{(s)}); \bfmu)
 
     Here,
 
@@ -504,7 +578,24 @@ class InterpolatedInputOperator(_InterpolatedOperator):
     * :math:`\Bhat^{(i)} = \Bhat(\bfmu_i) \in \RR^{r \times m}`
       are the operator entries evaluated at the training parameter values.
 
+
     See :class:`InputOperator`.
+
+    Parameters
+    ----------
+    training_parameters : list of `s` scalars or 1D ndarrays
+        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
+        the operators entries are known or will be inferred from data.
+    InterpolatorClass : type
+        Class for the elementwise interpolation. Must obey the syntax
+
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+
+        This can be, e.g., a class from ``scipy.interpolate``.
+    entries : list of `s` ndarrays, or None
+        Operator entries :math:`\Bhat^{(1)},\ldots,\Bhat^{(s)}`
+        corresponding to the ``training_parameters``.
     """
     _OperatorClass = InputOperator
 
@@ -517,7 +608,7 @@ class InterpolatedStateInputOperator(_InterpolatedOperator):
 
     .. math::
        \Nhat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\ldots,\bfmu_s), (\Nhat^{(1)},\ldots,\Nhat^{(s)}); \bfmu)
+       (\bfmu_1,\Nhat^{(1)}),\ldots,(\bfmu_s,\Nhat^{(s)}); \bfmu)
 
     Here,
 
@@ -527,5 +618,21 @@ class InterpolatedStateInputOperator(_InterpolatedOperator):
       are the operator entries evaluated at the training parameter values.
 
     See :class:`StateInputOperator`.
+
+    Parameters
+    ----------
+    training_parameters : list of `s` scalars or 1D ndarrays
+        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
+        the operators entries are known or will be inferred from data.
+    InterpolatorClass : type
+        Class for the elementwise interpolation. Must obey the syntax
+
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+
+        This can be, e.g., a class from ``scipy.interpolate``.
+    entries : list of `s` ndarrays, or None
+        Operator entries :math:`\Nhat^{(1)},\ldots,\Nhat^{(s)}`
+        corresponding to the ``training_parameters``.
     """
     _OperatorClass = StateInputOperator

@@ -19,8 +19,12 @@ from ._base import _requires_entries, _NonparametricOperator, _InputMixin
 
 # No dependence on state or input =============================================
 class ConstantOperator(_NonparametricOperator):
-    r"""Constant operator
-    :math:`\Ophat(\qhat,\u) = \chat \in \RR^{r}`.
+    r"""Constant operator :math:`\Ophat_{\ell}(\qhat,\u) = \chat \in \RR^{r}`.
+
+    Parameters
+    ----------
+    entries : (r,) ndarray or None
+        Operator entries :math:`\chat`.
 
     Examples
     --------
@@ -45,12 +49,12 @@ class ConstantOperator(_NonparametricOperator):
         return "c"
 
     def set_entries(self, entries):
-        """Set the ``entries`` attribute.
+        r"""Set the ``entries`` attribute.
 
         Parameters
         ----------
         entries : (r,) ndarray
-            Discrete representation of the operator.
+            Operator entries :math:`\chat`.
         """
         if np.isscalar(entries):
             entries = np.atleast_1d(entries)
@@ -70,7 +74,7 @@ class ConstantOperator(_NonparametricOperator):
     @_requires_entries
     def apply(self, state=None, input_=None):
         r"""Apply the operator to the given state / input:
-        :math:`\Ophat(\qhat,\u) = \chat`.
+        :math:`\Ophat_{\ell}(\qhat,\u) = \chat`.
 
         Parameters
         ----------
@@ -159,9 +163,13 @@ class ConstantOperator(_NonparametricOperator):
 
 # Dependent on state but not on input =========================================
 class LinearOperator(_NonparametricOperator):
-    r"""Linear state operator
-    :math:`\Ophat(\qhat,\u) = \Ahat\qhat`
+    r"""Linear state operator :math:`\Ophat_{\ell}(\qhat,\u) = \Ahat\qhat`
     where :math:`\Ahat \in \RR^{r \times r}`.
+
+    Parameters
+    ----------
+    entries : (r, r) ndarray or None
+        Operator entries :math:`\Ahat`.
 
     Examples
     --------
@@ -187,12 +195,12 @@ class LinearOperator(_NonparametricOperator):
         return f"A{statestr}"
 
     def set_entries(self, entries):
-        """Set the ``entries`` attribute.
+        r"""Set the ``entries`` attribute.
 
         Parameters
         ----------
         entries : (r, r) ndarray
-            Discrete representation of the operator.
+            Operator entries :math:`\Ahat`.
         """
         if np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
@@ -209,7 +217,7 @@ class LinearOperator(_NonparametricOperator):
     @_requires_entries
     def apply(self, state, input_=None):
         r"""Apply the operator to the given state / input:
-        :math:`\Ophat(\qhat,\u) = \Ahat\qhat`.
+        :math:`\Ophat_{\ell}(\qhat,\u) = \Ahat\qhat`.
 
         Parameters
         ----------
@@ -230,7 +238,7 @@ class LinearOperator(_NonparametricOperator):
     @_requires_entries
     def jacobian(self, state=None, input_=None):
         r"""Construct the state Jacobian of the operator:
-        :math:`\ddqhat\Ophat(\qhat,\u)=\Ahat`.
+        :math:`\ddqhat\Ophat_{\ell}(\qhat,\u)=\Ahat`.
 
         Parameters
         ----------
@@ -318,12 +326,17 @@ class LinearOperator(_NonparametricOperator):
 
 class QuadraticOperator(_NonparametricOperator):
     r"""Quadratic state operator
-    :math:`\Ophat(\q,\u) = \Hhat[\qhat\otimes\qhat]`
+    :math:`\Ophat_{\ell}(\qhat,\u) = \Hhat[\qhat\otimes\qhat]`
     where :math:`\Hhat\in\RR^{r \times r^{2}}`.
 
     Internally, the action of the operator is computed as the product of a
     :math:`r \times r(r+1)/2` matrix and a compressed version of the Kronecker
     product :math:`\qhat \otimes \qhat`.
+
+    Parameters
+    ----------
+    entries : (r, r^2) or (r, r(r+1)/2) or (r, r, r) ndarray or None
+        Operator entries :math:`\Hhat`.
 
     Examples
     --------
@@ -355,12 +368,12 @@ class QuadraticOperator(_NonparametricOperator):
         _NonparametricOperator._clear(self)
 
     def set_entries(self, entries):
-        """Set the ``entries`` attribute.
+        r"""Set the ``entries`` attribute.
 
         Parameters
         ----------
-        entries : (r, r**2) or (r, r(r+1)/2) or (r, r, r) ndarray
-            Discrete representation of the operator.
+        entries : (r, r^2) or (r, r(r+1)/2) or (r, r, r) ndarray
+            Operator entries :math:`\Hhat`.
         """
         if np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
@@ -390,7 +403,7 @@ class QuadraticOperator(_NonparametricOperator):
     @_requires_entries
     def apply(self, state, input_=None):
         r"""Apply the operator to the given state / input:
-        :math:`\Ophat(\q,\u) = \Hhat[\qhat\otimes\qhat]`
+        :math:`\Ophat_{\ell}(\qhat,\u) = \Hhat[\qhat\otimes\qhat]`
 
         Parameters
         ----------
@@ -411,7 +424,7 @@ class QuadraticOperator(_NonparametricOperator):
     @_requires_entries
     def jacobian(self, state, input_=None):
         r"""Construct the state Jacobian of the operator:
-        :math:`\ddqhat\Ophat(\qhat,\u)
+        :math:`\ddqhat\Ophat_{\ell}(\qhat,\u)
         = \Hhat[(\I_r\otimes\qhat) + (\qhat\otimes\I_r)]`.
 
         Parameters
@@ -535,14 +548,17 @@ class QuadraticOperator(_NonparametricOperator):
 
 class CubicOperator(_NonparametricOperator):
     r"""Cubic state operator
-    :math:`\Ophat(\qhat,\u)
-    = \Ghat[\qhat\otimes\qhat\otimes\qhat]`
-    where
-    :math:`\Ghat\in\RR^{r \times r^{3}}`.
+    :math:`\Ophat_{\ell}(\qhat,\u) = \Ghat[\qhat\otimes\qhat\otimes\qhat]`
+    where :math:`\Ghat\in\RR^{r \times r^{3}}`.
 
     Internally, the action of the operator is computed as the product of a
     :math:`r \times r(r+1)(r+2)/6` matrix and a compressed version of the
     triple Kronecker product :math:`\qhat \otimes \qhat \otimes \qhat`.
+
+    Parameters
+    ----------
+    entries : (r, r^3) or (r, r(r+1)(r+2)/6) or (r, r, r, r) ndarray or None
+        Operator entries :math:`\Ghat`.
 
     Examples
     --------
@@ -574,12 +590,12 @@ class CubicOperator(_NonparametricOperator):
         _NonparametricOperator._clear(self)
 
     def set_entries(self, entries):
-        """Set the ``entries`` attribute.
+        r"""Set the ``entries`` attribute.
 
         Parameters
         ----------
-        entries : (r, r**3) or (r, r(r+1)(r+2)/6) or (r, r, r, r) ndarray
-            Discrete representation of the operator.
+        entries : (r, r^3) or (r, r(r+1)(r+2)/6) or (r, r, r, r) ndarray
+            Operator entries :math:`\Ghat`.
         """
         if np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
@@ -607,8 +623,7 @@ class CubicOperator(_NonparametricOperator):
     @_requires_entries
     def apply(self, state, input_=None):
         r"""Apply the operator to the given state / input:
-        :math:`\Ophat(\qhat,\u)
-        = \Ghat[\qhat\otimes\qhat\otimes\qhat]`.
+        :math:`\Ophat_{\ell}(\qhat,\u) = \Ghat[\qhat\otimes\qhat\otimes\qhat]`.
 
         Parameters
         ----------
@@ -629,7 +644,7 @@ class CubicOperator(_NonparametricOperator):
     @_requires_entries
     def jacobian(self, state, input_=None):
         r"""Construct the state Jacobian of the operator:
-        :math:`\ddqhat\Ophat(\qhat,\u)
+        :math:`\ddqhat\Ophat_{\ell}(\qhat,\u)
         = \Ghat[(\I_r\otimes\qhat\otimes\qhat)
         + (\qhat\otimes\I_r\otimes\qhat)
         + (\qhat\otimes\qhat\otimes\I_r)]`.
@@ -763,9 +778,13 @@ class CubicOperator(_NonparametricOperator):
 
 # Dependent on input but not on state =========================================
 class InputOperator(_NonparametricOperator, _InputMixin):
-    r"""Linear input operator
-    :math:`\Ophat(\qhat,\u) = \Bhat\u`
+    r"""Linear input operator :math:`\Ophat_{\ell}(\qhat,\u) = \Bhat\u`
     where :math:`\Bhat \in \RR^{r \times m}`.
+
+    Parameters
+    ----------
+    entries : (r, m) ndarray or None
+        Operator entries :math:`\Bhat`.
 
     Examples
     --------
@@ -791,12 +810,12 @@ class InputOperator(_NonparametricOperator, _InputMixin):
         return f"B{inputstr}"
 
     def set_entries(self, entries):
-        """Set the ``entries`` attribute.
+        r"""Set the ``entries`` attribute.
 
         Parameters
         ----------
         entries : (r, m) ndarray
-            Discrete representation of the operator.
+            Operator entries :math:`\Bhat`.
         """
         if np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
@@ -814,7 +833,7 @@ class InputOperator(_NonparametricOperator, _InputMixin):
     @_requires_entries
     def apply(self, state, input_):
         r"""Apply the operator to the given state / input:
-        :math:`\Ophat(\qhat,\u) = \Bhat\u`.
+        :math:`\Ophat_{\ell}(\qhat,\u) = \Bhat\u`.
 
         Parameters
         ----------
@@ -911,8 +930,13 @@ class InputOperator(_NonparametricOperator, _InputMixin):
 # Dependent on both state and input ===========================================
 class StateInputOperator(_NonparametricOperator, _InputMixin):
     r"""Linear state / input interaction operator
-    :math:`\Ophat(\qhat,\u) = \Nhat[\u\otimes\qhat]`
+    :math:`\Ophat_{\ell}(\qhat,\u) = \Nhat[\u\otimes\qhat]`
     where :math:`\Nhat \in \RR^{r \times rm}`.
+
+    Parameters
+    ----------
+    entries : (r, rm) ndarray or None
+        Operator entries :math:`\Nhat`.
 
     Examples
     --------
@@ -941,12 +965,12 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
         return f"N[{inputstr} ⊗ {statestr}]"
 
     def set_entries(self, entries):
-        """Set the ``entries`` attribute.
+        r"""Set the ``entries`` attribute.
 
         Parameters
         ----------
         entries : (r, rm) ndarray
-            Discrete representation of the operator.
+            Operator entries :math:`\Nhat`.
         """
         if np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
@@ -967,7 +991,7 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
     @_requires_entries
     def apply(self, state, input_):
         r"""Apply the operator to the given state / input:
-        :math:`\Ophat(\qhat,\u) = \Nhat[\u\otimes\qhat]`.
+        :math:`\Ophat_{\ell}(\qhat,\u) = \Nhat[\u\otimes\qhat]`.
 
         Parameters
         ----------
@@ -999,7 +1023,7 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
     @_requires_entries
     def jacobian(self, state, input_):
         r"""Construct the state Jacobian of the operator:
-        :math:`\ddqhat\Ophat(\qhat,\u) = \sum_{i=1}^{m}u_{i}\Nhat_{i}`
+        :math:`\ddqhat\Ophat_{\ell}(\qhat,\u) = \sum_{i=1}^{m}u_{i}\Nhat_{i}`
         where :math:`\Nhat=[~\Nhat_{1}~~\cdots~~\Nhat_{m}~]`
         and each :math:`\Nhat_i\in\RR^{r\times r},~i=1,\ldots,m`.
 

@@ -447,7 +447,9 @@ class _ParametricOperator(abc.ABC):
     @property
     @abc.abstractmethod
     def shape(self) -> tuple:
-        """Shape of the operator when evaluated at a parameter value."""
+        """Shape of the operator entries matrix when evaluated
+        at a parameter value.
+        """
         raise NotImplementedError
 
     # Evaluation --------------------------------------------------------------
@@ -477,7 +479,8 @@ class _ParametricOperator(abc.ABC):
 
     def apply(self, parameter, state, input_):
         r"""Apply the operator to the given state and input
-        at the specified parameter value.
+        at the specified parameter value,
+        :math:`\Ophat_\ell(\qhat,\u;\bfmu)`.
 
         Parameters
         ----------
@@ -495,18 +498,16 @@ class _ParametricOperator(abc.ABC):
         return self.evaluate(parameter)(state, input_)
 
     def jacobian(self, parameter, state, input_=None):
-        r"""Construct the state Jacobian of the operator.
+        r"""Construct the state Jacobian of the operator,
+        :math:`\ddqhat\Ophat_\ell(\qhat,\u;\bfmu)`.
 
         If :math:`[\![\q]\!]_{i}` denotes the entry :math:`i` of a vector
         :math:`\q`, then the entries of the state Jacobian are given by
 
         .. math::
-           [\![\ddqhat\Ophat(\qhat,\u)]\!]_{i,j}
+           [\![\ddqhat\Ophat_\ell(\qhat,\u;\bfmu)]\!]_{i,j}
            = \frac{\partial}{\partial[\![\qhat]\!]_j}
-           [\![\Ophat(\qhat,\u)]\!]_i.
-
-        If a child class does not implement this method, it is assumed that
-        the Jacobian is zero (i.e., the operator does not act on the state).
+           [\![\Ophat_\ell(\qhat,\u;\bfmu)]\!]_i.
 
         Parameters
         ----------
