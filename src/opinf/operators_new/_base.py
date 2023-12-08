@@ -47,7 +47,17 @@ def _requires_entries(func):
 
 
 class _NonparametricOperator(abc.ABC):
-    """Base class for operators that do not depend on external parameters."""
+    """Base class for operators that do not depend on external parameters.
+
+    Child classes:
+
+    * :class:`ConstantOperator`
+    * :class:`LinearOperator`
+    * :class:`QuadraticOperator`
+    * :class:`CubicOperator`
+    * :class:`InputOperator`
+    * :class:`StateInputOperator`
+    """
 
     # Initialization ----------------------------------------------------------
     def __init__(self, entries=None):
@@ -348,6 +358,11 @@ class _NonparametricOperator(abc.ABC):
 class _InputMixin:
     """Mixin for operator classes whose ``apply()`` method acts on
     the ``input_`` argument.
+
+    Child classes:
+
+    * :class:`InputOperator`
+    * :class:`StateInputOperator`
     """
 
     pass
@@ -366,6 +381,11 @@ class _ParametricOperator(abc.ABC):
     >>> nonparametric_operator = parametric_operator.evaluate(parameter_value)
     >>> isinstance(nonparametric_operator, _NonparametricOperator)
     True
+
+    Child classes:
+
+    * :class:`_InterpolatedOperator`
+    * ``_AffineOperator` (TODO)
     """
 
     # Meta properties ---------------------------------------------------------

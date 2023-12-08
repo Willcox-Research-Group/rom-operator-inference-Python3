@@ -121,16 +121,24 @@ class ConstantOperator(_NonparametricOperator):
 
     @staticmethod
     def datablock(states, inputs=None):
-        r"""Return the data matrix block corresponding to the operator.
+        r"""Return the data matrix block corresponding to the operator,
+        a row vector of ones.
 
-        Since
+        Since :math:`\Ophat_\ell(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)`
+        with :math:`\Ohat_{\ell} = \chat` and :math:`\d_{\ell}(\qhat,\u) = 1`,
+        the data block is
 
         .. math::
-           \sum_{j=0}^{k-1}\left\| \chat - \zhat_{j} \right\|_{2}^{2}
-           = \left\| \chat\1\trp
-           - [~\zhat_0~~\cdots~~\zhat_{k-1}~] \right\|_{F}^{2},
-
-        the data block is :math:`\1\trp\in\RR^{1\times k}`.
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \d_{\ell}(\qhat_0,\u_0)
+           & \cdots &
+           \d_{\ell}(\qhat_{k-1},\u_{k-1})
+           \end{array}\right]
+           = \left[\begin{array}{ccc}
+           1 & \cdots & 1
+           \end{array}\right]
+           \in \RR^{1 \times k}.
 
         Parameters
         ----------
@@ -143,7 +151,7 @@ class ConstantOperator(_NonparametricOperator):
         Returns
         -------
         block : (1, k) ndarray
-            Vector of ones.
+            Row vector of ones.
         """
         return np.ones((1, np.atleast_1d(states).shape[-1]))
 
@@ -279,21 +287,23 @@ class LinearOperator(_NonparametricOperator):
     @staticmethod
     def datablock(states, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
-        the ``state``.
+        the ``states``.
+
+        Since :math:`\Ophat_\ell(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)`
+        with :math:`\Ohat_{\ell} = \Ahat` and
+        :math:`\d_{\ell}(\qhat,\u) = \qhat`, the data block is
 
         .. math::
-            \min_{\Ahat}\sum_{j=0}^{k-1}\left\|
-            \Ahat\qhat_{j}
-            - \zhat_j
-            \right\|_{2}^{2}
-            = \min_{\Ahat}\left\|
-            \Ahat\widehat{\Q} - \Zhat
-            \right\|_{F}^{2}.
-
-        Here,
-        :math:`\widehat{\Q} = [~\qhat_{0} ~~ \cdots ~~ \qhat_{k-1}~]
-        \in \RR^{r\times k}` is the ``state`` and
-        :math:`\Zhat = [~\zhat_{0}~~\cdots~~\zhat_{k-1}~]\in\RR^{r \times k}`.
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \d_{\ell}(\qhat_0,\u_0)
+           & \cdots &
+           \d_{\ell}(\qhat_{k-1},\u_{k-1})
+           \end{array}\right]
+           = \left[\begin{array}{ccc}
+           \qhat_0 & \cdots & \qhat_{k-1}
+           \end{array}\right]
+           \in \RR^{r \times k}.
 
         Parameters
         ----------
@@ -468,54 +478,38 @@ class QuadraticOperator(_NonparametricOperator):
     @staticmethod
     def datablock(states, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
-        the Khatri-Rao product of the state with itself:
-        :math:`\widehat{\Q}\odot\widehat{\Q}` where
-        :math:`\widehat{\Q}` is the ``state``.
+        the Khatri--Rao product of the state with itself:
+        :math:`\Qhat\odot\Qhat` where :math:`\Qhat` is ``states``.
+
+        Since :math:`\Ophat_\ell(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)`
+        with :math:`\Ohat_{\ell} = \Hhat` and
+        :math:`\d_{\ell}(\qhat,\u) = \qhat\times\qhat`,
+        the data block should be
 
         .. math::
-            \min_{\Hhat}\sum_{j=0}^{k-1}\left\|
-            \Hhat[
-            \qhat_{j}\otimes\qhat_{j}]
-            - \zhat_j
-            \right\|_{2}^{2}
-            = \min_{\Hhat}\left\|
-            \Hhat[
-            \widehat{\Q} \odot \widehat{\Q}]
-            - \Zhat
-            \right\|_{F}^{2}.
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \d_{\ell}(\qhat_0,\u_0)
+           & \cdots &
+           \d_{\ell}(\qhat_{k-1},\u_{k-1})
+           \end{array}\right]
+           = \left[\begin{array}{ccc}
+           \qhat_0\otimes\qhat_0 & \cdots & \qhat_{k-1}\otimes\qhat_{k-1}
+           \end{array}\right]
+           \RR^{r^2 \times k}.
 
-        Here, :math:`\widehat{\Q} = [~
-        \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
-        ~] \in \RR^{r\times k}` is the ``state``
-        and :math:`\Zhat = [~
-        \zhat_{0}~~\cdots~~\zhat_{k-1}
-        ~]\in\RR^{r \times k}`.
-        The Khatri-Rao product :math:`\odot` is the Kronecker product applied
-        columnwise:
+        Internally, a compressed Kronecker product :math:`\tilde{\otimes}` with
+        :math:`r(r+1)/2 < r^{2}` degrees of freedom is used for efficiency,
+        hence the data block is actually
 
         .. math::
-            \left[\begin{array}{ccc}
-            && \\
-            \qhat_{0} & \cdots & \qhat_{k-1}
-            \\ &&
-            \end{array}\right]
-            \odot
-            \left[\begin{array}{ccc}
-            && \\
-            \widehat{\mathbf{p}}_{0} & \cdots & \widehat{\mathbf{p}}_{k-1}
-            \\ &&
-            \end{array}\right]
-            =
-            \left[\begin{array}{ccc}
-            && \\
-            \qhat_{0} \otimes \widehat{\mathbf{p}}_{0}
-            & \cdots &
-            \qhat_{k-1} \otimes \widehat{\mathbf{p}}_{k-1}
-            \\ &&
-            \end{array}\right].
-
-        Internally, a compressed Khatri-Rao product with
-        :math:`r(r+1)/2 < r^{2}` degrees of freedom is used for efficiency.
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \qhat_0\tilde{\otimes}\qhat_0
+           & \cdots &
+           \qhat_{k-1}\tilde{\otimes}\qhat_{k-1}
+           \end{array}\right]
+           \in\RR^{r(r+1)/2 \times k}.
 
         Parameters
         ----------
@@ -528,7 +522,7 @@ class QuadraticOperator(_NonparametricOperator):
         Returns
         -------
         product : (r(r+1)/2, k) ndarray
-            Compressed Khatri-Rao product of ``states`` with itself.
+            Compressed Khatri--Rao product of ``states`` with itself.
         """
         return utils.kron2c(np.atleast_2d(states))
 
@@ -695,57 +689,40 @@ class CubicOperator(_NonparametricOperator):
     @staticmethod
     def datablock(states, inputs=None):
         r"""Return the data matrix block corresponding to the operator,
-        the Khatri-Rao product of the state with itself three times:
-        :math:`\widehat{\Q}\odot\widehat{\Q}
-        \odot\widehat{\Q}`
-        where :math:`\widehat{\Q}` is the ``state``.
+        the Khatri--Rao product of the state with itself three times:
+        :math:`\Qhat\odot\Qhat\odot\Qhat` where :math:`\Qhat` is ``states``.
+
+        Since :math:`\Ophat_\ell(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)`
+        with :math:`\Ohat_{\ell} = \Ghat` and
+        :math:`\d_{\ell}(\qhat,\u) = \qhat\times\qhat\times\qhat`,
+        the data block should be
 
         .. math::
-            \min_{\widehat{\mathbf{G}}}\sum_{j=0}^{k-1}\left\|
-            \widehat{\mathbf{G}}[
-            \qhat_{j}\otimes\qhat_{j}]
-            - \zhat_j
-            \right\|_{2}^{2}
-            = \min_{\widehat{\mathbf{G}}}\left\|
-            \widehat{\mathbf{G}}[
-            \widehat{\Q}
-            \odot \widehat{\Q}
-            \odot \widehat{\Q}]
-            - \Zhat
-            \right\|_{F}^{2}.
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \d_{\ell}(\qhat_0,\u_0)
+           & \cdots &
+           \d_{\ell}(\qhat_{k-1},\u_{k-1})
+           \end{array}\right]
+           = \left[\begin{array}{ccc}
+           \qhat_0\otimes\qhat_0\otimes\qhat_0
+           & \cdots &
+           \qhat_{k-1}\otimes\qhat_{k-1}\otimes\qhat_{k-1}
+           \end{array}\right]
+           = \Qhat\odot\Qhat \in \RR^{r^2 \times k}.
 
-        Here, :math:`\widehat{\Q} = [~
-        \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
-        ~] \in \RR^{r\times k}` is the ``state``
-        and :math:`\Zhat = [~
-        \zhat_{0}~~\cdots~~\zhat_{k-1}
-        ~]\in\RR^{r \times k}`.
-        The Khatri-Rao product :math:`\odot` is the Kronecker product applied
-        columnwise:
+        Internally, a compressed triple Kronecker product with
+        :math:`r(r+1)(r+2)/2 < r^{2}` degrees of freedom is used for
+        efficiency, hence the data block is actually
 
         .. math::
-            \left[\begin{array}{ccc}
-            && \\
-            \qhat_{0} & \cdots & \qhat_{k-1}
-            \\ &&
-            \end{array}\right]
-            \odot
-            \left[\begin{array}{ccc}
-            && \\
-            \widehat{\mathbf{p}}_{0} & \cdots & \widehat{\mathbf{p}}_{k-1}
-            \\ &&
-            \end{array}\right]
-            =
-            \left[\begin{array}{ccc}
-            && \\
-            \qhat_{0} \otimes \widehat{\mathbf{p}}_{0}
-            & \cdots &
-            \qhat_{k-1} \otimes \widehat{\mathbf{p}}_{k-1}
-            \\ &&
-            \end{array}\right].
-
-        Internally, a compressed triple Khatri-Rao product with
-        :math:`r(r+1)(r+2)/6<r^{3}` degrees of freedom is used for efficiency.
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \qhat_0\tilde{\otimes}\qhat_0\tilde{\otimes}\qhat_0
+           & \cdots &
+           \qhat_{k-1}\tilde{\otimes}\qhat_{k-1}\tilde{\otimes}\qhat_{k-1}
+           \end{array}\right]
+           \in\RR^{r(r+1)(r+2)/6 \times k}.
 
         Parameters
         ----------
@@ -758,7 +735,7 @@ class CubicOperator(_NonparametricOperator):
         Returns
         -------
         product_ : (r(r+1)(r+2)/6, k) ndarray
-            Compressed triple Khatri-Rao product of the ``state`` with itself.
+            Compressed triple Khatri--Rao product of ``states`` with itself.
         """
         return utils.kron3c(np.atleast_2d(states))
 
@@ -882,21 +859,21 @@ class InputOperator(_NonparametricOperator, _InputMixin):
         r"""Return the data matrix block corresponding to the operator,
         the ``inputs``.
 
-        .. math::
-            \min_{\Bhat}\sum_{j=0}^{k-1}\left\|
-            \Bhat\u_{j}
-            - \zhat_j
-            \right\|_{2}^{2}
-            = \min_{\Bhat}\left\|
-            \Bhat\U - \Zhat
-            \right\|_{F}^{2}.
+        Since :math:`\Ophat_\ell(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)`
+        with :math:`\Ohat_{\ell} = \Bhat` and
+        :math:`\d_{\ell}(\qhat,\u) = \u`, the data block is
 
-        Here, :math:`\U = [~
-        \u_{0} ~~ \cdots ~~ \u_{k-1}
-        ~] \in \RR^{m\times k}` is the ``input_``
-        and :math:`\Zhat = [~
-        \zhat_{0}~~\cdots~~\zhat_{k-1}
-        ~]\in\RR^{r \times k}`.
+        .. math::
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \d_{\ell}(\qhat_0,\u_0)
+           & \cdots &
+           \d_{\ell}(\qhat_{k-1},\u_{k-1})
+           \end{array}\right]
+           = \left[\begin{array}{ccc}
+           \u_0 & \cdots & \u_{k-1}
+           \end{array}\right]
+           \in \RR^{r \times k}.
 
         Parameters
         ----------
@@ -1080,56 +1057,24 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
     @staticmethod
     def datablock(states, inputs):
         r"""Return the data matrix block corresponding to the operator,
-        the Khatri-Rao product of the inputs and the states:
+        the Khatri--Rao product :math:`\U\odot\Qhat` where
+        :math:`\Qhat` is ``states`` and :math:`\U` is ``inputs``.
 
-        :math:`\U\odot\widehat{\Q}` where
-        :math:`\widehat{\Q}` is the ``state`` and
-        :math:`\U` is the ``input_``.
-
-        .. math::
-            \min_{\widehat{\mathbf{N}}}\sum_{j=0}^{k-1}\left\|
-            \widehat{\mathbf{N}}[
-            \u_{j}\otimes\qhat_{j}]
-            - \zhat_j
-            \right\|_{2}^{2}
-            = \min_{\widehat{\mathbf{N}}}\left\|
-            \widehat{\mathbf{N}}[
-            \U \odot \widehat{\Q}]
-            - \Zhat
-            \right\|_{F}^{2}.
-
-        Here, :math:`\widehat{\Q} = [~
-        \qhat_{0} ~~ \cdots ~~ \qhat_{k-1}
-        ~] \in \RR^{r\times k}` is the ``state``,
-        :math:`\U = [~
-        \u_{0} ~~ \cdots ~~ \u_{k-1}
-        ~] \in \RR^{m\times k}` is the ``input_``,
-        and :math:`\Zhat = [~
-        \zhat_{0}~~\cdots~~\zhat_{k-1}
-        ~]\in\RR^{r \times k}`.
-        The Khatri-Rao product :math:`\odot` is the Kronecker product applied
-        columnwise:
+        Since :math:`\Ophat_\ell(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)`
+        with :math:`\Ohat_{\ell} = \Nhat` and
+        :math:`\d_{\ell}(\qhat,\u) = \u\otimes\qhat`, the data block is
 
         .. math::
-            \left[\begin{array}{ccc}
-            && \\
-            \u_{0} & \cdots & \u_{k-1}
-            \\ &&
-            \end{array}\right]
-            \odot
-            \left[\begin{array}{ccc}
-            && \\
-            \qhat_{0} & \cdots & \qhat_{k-1}
-            \\ &&
-            \end{array}\right]
-            =
-            \left[\begin{array}{ccc}
-            && \\
-            \u_{0} \otimes \qhat_{0}
-            & \cdots &
-            \u_{k-1} \otimes \qhat_{k-1}
-            \\ &&
-            \end{array}\right].
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \d_{\ell}(\qhat_0,\u_0)
+           & \cdots &
+           \d_{\ell}(\qhat_{k-1},\u_{k-1})
+           \end{array}\right]
+           = \left[\begin{array}{ccc}
+           \u_0 \otimes \qhat_0 & \cdots & \u_{k-1} \otimes \qhat_{k-1}
+           \end{array}\right]
+           \in \RR^{rm \times k}.
 
         Parameters
         ----------
@@ -1143,7 +1088,7 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
         Returns
         -------
         product_ : (m, k) ndarray or None
-            Compressed Khatri-Rao product of the ``input_`` and the ``state``.
+            Compressed Khatri-Rao product of the ``input_`` and the ``states``.
         """
         return la.khatri_rao(np.atleast_2d(inputs), np.atleast_2d(states))
 

@@ -48,6 +48,17 @@ class _InterpolatedOperator(_ParametricOperator):
 
     where :math:`\Ophat_\ell^{(i)} = \Ophat_\ell(\bfmu_i)` for each
     :math:`i=1,\ldots,s`.
+
+    Parent class: :class:`_ParametricOperator:
+
+    Child classes:
+
+    * :class:`InterpolatedConstantOperator`
+    * :class:`InterpolatedLinearOperator`
+    * :class:`InterpolatedQuadraticOperator`
+    * :class:`InterpolatedCubicOperator`
+    * :class:`InterpolatedInputOperator`
+    * :class:`InterpolatedStateInputOperator`
     """
 
     # Initialization ----------------------------------------------------------
