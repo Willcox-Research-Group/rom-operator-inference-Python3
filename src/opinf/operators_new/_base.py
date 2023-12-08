@@ -51,12 +51,12 @@ class _NonparametricOperator(abc.ABC):
 
     Child classes:
 
-    * :class:`ConstantOperator`
-    * :class:`LinearOperator`
-    * :class:`QuadraticOperator`
-    * :class:`CubicOperator`
-    * :class:`InputOperator`
-    * :class:`StateInputOperator`
+    * :class:`opinf.operators_new.ConstantOperator`
+    * :class:`opinf.operators_new.LinearOperator`
+    * :class:`opinf.operators_new.QuadraticOperator`
+    * :class:`opinf.operators_new.CubicOperator`
+    * :class:`opinf.operators_new.InputOperator`
+    * :class:`opinf.operators_new.StateInputOperator`
     """
 
     # Initialization ----------------------------------------------------------
@@ -361,8 +361,8 @@ class _InputMixin:
 
     Child classes:
 
-    * :class:`InputOperator`
-    * :class:`StateInputOperator`
+    * :class:`opinf.operators_new.InputOperator`
+    * :class:`opinf.operators_new.StateInputOperator`
     """
 
     pass
@@ -384,7 +384,7 @@ class _ParametricOperator(abc.ABC):
 
     Child classes:
 
-    * :class:`_InterpolatedOperator`
+    * :class:`opinf.operators_new._interpolate._InterpolatedOperator`
     * ``_AffineOperator` (TODO)
     """
 

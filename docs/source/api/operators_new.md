@@ -138,9 +138,9 @@ $$
 \begin{align*}
     \min_{\Ohat_1,\ldots,\Ohat_{n_\textrm{terms}}}\sum_{j=0}^{k-1}\left\|
         \sum_{\ell=1}^{n_\textrm{terms}}\Ohat_\ell\d_\ell(\qhat_j,\u_j) - \dot{\qhat}_j
-    \right\|*2^2
-    = \min*{\Ohat}\left\|
-        \D\Ohat\trp - [~\dot{\qhat}*0~~\cdots~~\dot{\qhat}*{k-1}~]\trp
+    \right\|_2^2
+    = \min_{\Ohat}\left\|
+        \D\Ohat\trp - [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\trp
     \right\|_F^2,
 \end{align*}
 $$
@@ -280,6 +280,21 @@ $$
 Constructor takes in `s` (the number of parameter samples) and an interpolator class.
 :::
 
+```{eval-rst}
+.. currentmodule:: opinf.operators_new
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    InterpolatedConstantOperator
+    InterpolatedLinearOperator
+    InterpolatedQuadraticOperator
+    InterpolatedCubicOperator
+    InterpolatedInputOperator
+    InterpolatedStateInputOperator
+```
+
 ### Affine Operators
 
 $$
@@ -292,3 +307,17 @@ $$
 :::{admonition} TODO
 Constructor takes in list of the affine coefficient functions.
 :::
+
+## Utilities
+
+```{eval-rst}
+.. currentmodule:: opinf.operators_new
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    is_nonparametric
+    is_parametric
+    has_inputs
+```

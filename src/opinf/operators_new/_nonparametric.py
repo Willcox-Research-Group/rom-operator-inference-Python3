@@ -112,7 +112,7 @@ class ConstantOperator(_NonparametricOperator):
 
         Returns
         -------
-        projected : ConstantOperator
+        projected : :class:`opinf.operators_new.ConstantOperator`
             Projected operator.
         """
         return _NonparametricOperator.galerkin(
@@ -277,8 +277,8 @@ class LinearOperator(_NonparametricOperator):
 
         Returns
         -------
-        op : operator
-            ``self`` or new ``LinearOperator`` object.
+        projected : :class:`opinf.operators_new.LinearOperator`
+            Projected operator.
         """
         return _NonparametricOperator.galerkin(
             self, Vr, Wr, lambda A, V, W: W.T @ A @ V
@@ -466,8 +466,8 @@ class QuadraticOperator(_NonparametricOperator):
 
         Returns
         -------
-        op : :class:`QuadraticOperator`
-            Galerkin projection of this operator.
+        projected : :class:`opinf.operators_new.QuadraticOperator`
+            Projected operator.
         """
 
         def _project(H, V, W):
@@ -483,7 +483,7 @@ class QuadraticOperator(_NonparametricOperator):
 
         Since :math:`\Ophat_\ell(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)`
         with :math:`\Ohat_{\ell} = \Hhat` and
-        :math:`\d_{\ell}(\qhat,\u) = \qhat\times\qhat`,
+        :math:`\d_{\ell}(\qhat,\u) = \qhat\otimes\qhat`,
         the data block should be
 
         .. math::
@@ -496,7 +496,7 @@ class QuadraticOperator(_NonparametricOperator):
            = \left[\begin{array}{ccc}
            \qhat_0\otimes\qhat_0 & \cdots & \qhat_{k-1}\otimes\qhat_{k-1}
            \end{array}\right]
-           \RR^{r^2 \times k}.
+           \in\RR^{r^2 \times k}.
 
         Internally, a compressed Kronecker product :math:`\tilde{\otimes}` with
         :math:`r(r+1)/2 < r^{2}` degrees of freedom is used for efficiency,
@@ -677,8 +677,8 @@ class CubicOperator(_NonparametricOperator):
 
         Returns
         -------
-        op : operator
-            ``self`` or new ``CubicOperator`` object.
+        projected : :class:`opinf.operators_new.CubicOperator`
+            Projected operator.
         """
 
         def _project(G, V, W):
@@ -694,7 +694,7 @@ class CubicOperator(_NonparametricOperator):
 
         Since :math:`\Ophat_\ell(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)`
         with :math:`\Ohat_{\ell} = \Ghat` and
-        :math:`\d_{\ell}(\qhat,\u) = \qhat\times\qhat\times\qhat`,
+        :math:`\d_{\ell}(\qhat,\u) = \qhat\otimes\qhat\otimes\qhat`,
         the data block should be
 
         .. math::
@@ -709,7 +709,7 @@ class CubicOperator(_NonparametricOperator):
            & \cdots &
            \qhat_{k-1}\otimes\qhat_{k-1}\otimes\qhat_{k-1}
            \end{array}\right]
-           = \Qhat\odot\Qhat \in \RR^{r^2 \times k}.
+           \in \RR^{r^3 \times k}.
 
         Internally, a compressed triple Kronecker product with
         :math:`r(r+1)(r+2)/2 < r^{2}` degrees of freedom is used for
@@ -847,8 +847,8 @@ class InputOperator(_NonparametricOperator, _InputMixin):
 
         Returns
         -------
-        op : operator
-            ``self`` or new ``InputOperator`` object.
+        projected : :class:`opinf.operators_new.InputOperator`
+            Projected operator.
         """
         return _NonparametricOperator.galerkin(
             self, Vr, Wr, lambda B, V, W: W.T @ B
@@ -1042,8 +1042,8 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
 
         Returns
         -------
-        op : operator
-            ``self`` or new ``CubicOperator`` object.
+        projected : :class:`opinf.operators_new.StateInputOperator`
+            Projected operator.
         """
 
         def _project(N, V, W):

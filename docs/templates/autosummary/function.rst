@@ -5,4 +5,4 @@
 
 .. currentmodule:: {{ module }}
 
-.. autofunction:: {{ objname }}
+.. autofunction:: {{ fullname }}
