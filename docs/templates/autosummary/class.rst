@@ -1,4 +1,4 @@
-{{ fullname | escape | underline}}
+{{ objname | escape | underline}}
 
 .. currentmodule:: {{ module }}
 
@@ -30,7 +30,7 @@
       :toctree:
       :nosignatures:
    {% for item in all_methods %}
-      {%- if not item.startswith('_') or item in ['__call__'] %}
+      {%- if not item.startswith('_') %}
       ~{{ name }}.{{ item }}
       {%- endif -%}
    {%- endfor %}
