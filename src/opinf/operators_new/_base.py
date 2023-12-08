@@ -375,8 +375,8 @@ class _ParametricOperator(abc.ABC):
     Evaluating the a parametric operator at a specific parameter value
     results in a nonparametric operator.
 
-    Example
-    -------
+    Examples
+    --------
     >>> parametric_operator = MyParametricOperator(init_args)
     >>> nonparametric_operator = parametric_operator.evaluate(parameter_value)
     >>> isinstance(nonparametric_operator, _NonparametricOperator)
@@ -397,8 +397,8 @@ class _ParametricOperator(abc.ABC):
         """Nonparametric :mod:`opinf.operators_new` class that represents
         this parametric operator evaluated at a particular parameter value.
 
-        Example
-        -------
+        Examples
+        --------
         >>> Op = MyParametricOperator(init_args).evaluate(parameter_value)
         >>> isinstance(Op, MyParametricOperator.OperatorClass)
         True

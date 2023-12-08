@@ -12,6 +12,9 @@ and examples.
 Raw dynamical systems data often need to be lightly preprocessed before use in Operator Inference.
 The following tools enable centering/shifting and scaling/nondimensionalization of snapshot data.
 
+```{eval-rst}
+.. currentmodule:: opinf.pre
+
 .. autosummary::
     :toctree: _autosummaries
     :nosignatures:
@@ -20,3 +23,4 @@ The following tools enable centering/shifting and scaling/nondimensionalization 
     SnapshotTransformerMulti
     scale
     shift
+```

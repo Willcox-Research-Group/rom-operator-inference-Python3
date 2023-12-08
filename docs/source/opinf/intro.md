@@ -501,7 +501,7 @@ import opinf
 >>> Q_compressed = basis.compress(Q)
 
 # Estimate time derivatives of the compressed states with finite differences.
->>> Qdot_compressed = opinf.pre.ddt(Q_compressed, t)
+>>> Qdot_compressed = opinf.ddt.ddt(Q_compressed, t)
 
 # Define an ODE model with the structure indicated above.
 >>> rom = opinf.models.ContinuousModel("AHB")
