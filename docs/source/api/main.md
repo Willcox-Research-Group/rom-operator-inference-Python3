@@ -2,7 +2,7 @@
 
 The `opinf` namespace is divided into the following submodules.
 
-:::{eval-rst}
+```{eval-rst}
 
 .. currentmodule:: opinf
 
@@ -15,4 +15,4 @@ The `opinf` namespace is divided into the following submodules.
     opinf.lstsq
     opinf.post
     opinf.utils
-:::
+```

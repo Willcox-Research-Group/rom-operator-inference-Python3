@@ -1,8 +1,8 @@
 # `opinf.models`
 
-:::{eval-rst}
+```{eval-rst}
 .. automodule:: opinf.models
-:::
+```
 
 :::{admonition} Overview
 :class: note

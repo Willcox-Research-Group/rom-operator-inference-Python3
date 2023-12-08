@@ -1,4 +1,3 @@
-(sec-basis)=
 # `opinf.basis`
 
 :::{eval-rst}

@@ -6,11 +6,18 @@ This page lists major changes made between package versions.
 
 - Overhauled the `operators` module so that each operator class is responsible for its portion of the Operator Inference data matrix.
   - New `StateInputOperator` for state-input bilinear interactions, $\Nhat[\u\otimes\qhat]$.
-- Renamed ROM classes:
-  - `ContinuousOpInfROM` to `ContinuousROM`
-  - `DiscreteOpInfROM` to `DiscreteROM`
-  - `SteadyOpInfROM` to `SteadyROM`
-- ROM classes now take a list of operators and (optionally) the basis in the constructor. String shortcuts such as `"cAH"` are still valid. The `basis` argument has been removed from `fit()`.
+  - Operator classes now have `state_dimension` and `input_dimension` properties.
+  - Operator classes must implement `datablock()` and `operator_dimension()` methods to facilitate operator inference.
+- Renamed `roms` to `models` and updated class names:
+  - `ContinuousOpInfROM` to `ContinuousModel`
+  - `DiscreteOpInfROM` to `DiscreteModel`
+  - `SteadyOpInfROM` to `SteadyModel`
+- Model classes now take a list of operators in the constructor. String shortcuts such as `"cAH"` are still valid, similar to the previous `modelform` argument.
+- Model classes no longer have a `basis` attribute.
+  - The `basis` argument has been removed from the `fit()` method.
+  - The `compress()` and `decompress()` methods have been removed from model classes.
+  - The dimensions `n` and `r` have been replaced with `state_dimension`; `m` is now `input_dimension`.
+- Moved time derivative estimation tools to the new `ddt` submodule.
 :::
 
 :::{versionchanged} 0.4.5

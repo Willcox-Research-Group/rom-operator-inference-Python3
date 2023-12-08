@@ -1,15 +1,14 @@
 # `opinf.post`
 
-:::{eval-rst}
+```{eval-rst}
 .. automodule:: opinf.post
-:::
+```
 
 <!-- :::{important}
 Undo preprocessing before you do postprocessing.
 Reduced-order model outputs need to be translated back to the state space of the original system of interest.
 Raw -> Shifted -> Scaled -> Projected -> Solve
 ::: -->
-
 
 <!--The functions listed below compute the absolute and relative errors in different norms.
 

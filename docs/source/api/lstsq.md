@@ -1,10 +1,8 @@
-(sec-lstsq)=
 # `opinf.lstsq`
 
-:::{eval-rst}
+```{eval-rst}
 .. automodule:: opinf.lstsq
-:::
-
+```
 
 <!-- The following [least-squares regression problem](subsec-opinf-regression) is at the heart of Operator Inference:
 
@@ -87,7 +85,6 @@ $$
 
 Pass a positive scalar ($\lambda$) as the `regularizer` argument in `fit()` to use this regularization.
 :::
-
 
 :::{eval-rst}
 .. currentmodule:: opinf.lstsq

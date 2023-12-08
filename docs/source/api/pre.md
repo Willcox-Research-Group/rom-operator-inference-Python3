@@ -1,6 +1,5 @@
-(sec-preprocessing)=
 # `opinf.pre`
 
-:::{eval-rst}
+```{eval-rst}
 .. automodule:: opinf.pre
-:::
+```

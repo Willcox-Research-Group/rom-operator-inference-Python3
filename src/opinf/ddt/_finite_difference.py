@@ -2,10 +2,10 @@
 """Finite-difference schemes for estimating snapshot time derivatives."""
 
 __all__ = [
-            "ddt_uniform",
-            "ddt_nonuniform",
-            "ddt",
-          ]
+    "ddt_uniform",
+    "ddt_nonuniform",
+    "ddt",
+]
 
 import numpy as np
 
@@ -27,7 +27,9 @@ def _fwd4(y, dt):
     dy0 : float or (...) ndarray
         Approximate derivative of y at the first entry, i.e., dy[0] / dt.
     """
-    return (-25*y[0] + 48*y[1] - 36*y[2] + 16*y[3] - 3*y[4]) / (12*dt)
+    return (-25 * y[0] + 48 * y[1] - 36 * y[2] + 16 * y[3] - 3 * y[4]) / (
+        12 * dt
+    )
 
 
 def _fwd6(y, dt):
@@ -46,8 +48,15 @@ def _fwd6(y, dt):
     dy0 : float or (...) ndarray
         Approximate derivative of y at the first entry, i.e., dy[0] / dt.
     """
-    return (- 147*y[0] + 360*y[1] - 450*y[2]
-            + 400*y[3] - 225*y[4] + 72*y[5] - 10*y[6]) / (60*dt)
+    return (
+        -147 * y[0]
+        + 360 * y[1]
+        - 450 * y[2]
+        + 400 * y[3]
+        - 225 * y[4]
+        + 72 * y[5]
+        - 10 * y[6]
+    ) / (60 * dt)
 
 
 # Main routines ===============================================================
@@ -86,31 +95,41 @@ def ddt_uniform(states, dt, order=2):
     n, k = states.shape
     if order == 4:
         # Central difference on interior.
-        ddts[:, 2:-2] = (Q[:, :-4]
-                         - 8*Q[:, 1:-3] + 8*Q[:, 3:-1]
-                         - Q[:, 4:])/(12*dt)
+        ddts[:, 2:-2] = (
+            Q[:, :-4] - 8 * Q[:, 1:-3] + 8 * Q[:, 3:-1] - Q[:, 4:]
+        ) / (12 * dt)
 
         # Forward / backward differences on the front / end.
         # TODO: don't use fully forward / fully backward for interior points.
         for j in range(2):
-            ddts[:, j] = _fwd4(Q[:, j:j+5].T, dt)                 # Forward
-            ddts[:, -j-1] = -_fwd4(Q[:, -j-5:k-j].T[::-1], dt)    # Backward
+            ddts[:, j] = _fwd4(Q[:, j : j + 5].T, dt)  # Forward
+            ddts[:, -j - 1] = -_fwd4(
+                Q[:, -j - 5 : k - j].T[::-1], dt
+            )  # Backward
 
     elif order == 6:
         # Central difference on interior.
-        ddts[:, 3:-3] = (- Q[:, :-6] + 9*Q[:, 1:-5]
-                         - 45*Q[:, 2:-4] + 45*Q[:, 4:-2]
-                         - 9*Q[:, 5:-1] + Q[:, 6:]) / (60*dt)
+        ddts[:, 3:-3] = (
+            -Q[:, :-6]
+            + 9 * Q[:, 1:-5]
+            - 45 * Q[:, 2:-4]
+            + 45 * Q[:, 4:-2]
+            - 9 * Q[:, 5:-1]
+            + Q[:, 6:]
+        ) / (60 * dt)
 
         # TODO: don't use fully forward / fully backward for interior points.
         # Forward / backward differences on the front / end.
         for j in range(3):
-            ddts[:, j] = _fwd6(Q[:, j:j+7].T, dt)                 # Forward
-            ddts[:, -j-1] = -_fwd6(Q[:, -j-7:k-j].T[::-1], dt)    # Backward
+            ddts[:, j] = _fwd6(Q[:, j : j + 7].T, dt)  # Forward
+            ddts[:, -j - 1] = -_fwd6(
+                Q[:, -j - 7 : k - j].T[::-1], dt
+            )  # Backward
 
     else:
-        raise NotImplementedError(f"invalid order '{order}'; "
-                                  "valid options: {2, 4, 6}")
+        raise NotImplementedError(
+            f"invalid order '{order}'; " "valid options: {2, 4, 6}"
+        )
 
     return ddts
 
@@ -172,37 +191,41 @@ def ddt(states, *args, **kwargs):
         Approximate time derivative of the snapshot data. The jth column is
         the derivative dx / dt corresponding to the jth snapshot, states[:, j].
     """
-    n_args = len(args)              # Number of other positional args.
-    n_kwargs = len(kwargs)          # Number of keyword args.
-    n_total = n_args + n_kwargs     # Total number of other args.
+    n_args = len(args)  # Number of other positional args.
+    n_kwargs = len(kwargs)  # Number of keyword args.
+    n_total = n_args + n_kwargs  # Total number of other args.
 
     if n_total == 0:
         raise TypeError("at least one other argument required (dt or t)")
-    elif n_total == 1:                  # There is only one other argument.
-        if n_kwargs == 1:               # It is a keyword argument.
+    elif n_total == 1:  # There is only one other argument.
+        if n_kwargs == 1:  # It is a keyword argument.
             arg_name = list(kwargs.keys())[0]
             if arg_name == "dt":
                 func = ddt_uniform
             elif arg_name == "t":
                 func = ddt_nonuniform
             elif arg_name == "order":
-                raise TypeError("keyword argument 'order' requires float "
-                                "argument dt")
+                raise TypeError(
+                    "keyword argument 'order' requires float " "argument dt"
+                )
             else:
-                raise TypeError("ddt() got unexpected keyword argument "
-                                f"'{arg_name}'")
-        elif n_args == 1:               # It is a positional argument.
+                raise TypeError(
+                    "ddt() got unexpected keyword argument " f"'{arg_name}'"
+                )
+        elif n_args == 1:  # It is a positional argument.
             arg = args[0]
-            if isinstance(arg, float):          # arg = dt.
+            if isinstance(arg, float):  # arg = dt.
                 func = ddt_uniform
-            elif isinstance(arg, np.ndarray):   # arg = t; do uniformity test.
+            elif isinstance(arg, np.ndarray):  # arg = t; do uniformity test.
                 func = ddt_nonuniform
             else:
                 raise TypeError(f"invalid argument type '{type(arg)}'")
-    elif n_total == 2:              # There are two other argumetns: dt, order.
+    elif n_total == 2:  # There are two other argumetns: dt, order.
         func = ddt_uniform
     else:
-        raise TypeError("ddt() takes 2 or 3 positional arguments "
-                        f"but {n_total+1} were given")
+        raise TypeError(
+            "ddt() takes 2 or 3 positional arguments "
+            f"but {n_total+1} were given"
+        )
 
     return func(states, *args, **kwargs)
