@@ -24,7 +24,7 @@ def test_requires_entries():
             return self.entries + 1
 
     dummy = Dummy()
-    with pytest.raises(RuntimeError) as ex:
+    with pytest.raises(AttributeError) as ex:
         dummy.required()
     assert (
         ex.value.args[0] == "operator entries have not been set, "
@@ -42,18 +42,17 @@ class TestNonparametricOperator:
     class Dummy(_module._NonparametricOperator):
         """Instantiable version of _NonparametricOperator."""
 
-        def _str(*args, **kwargs):
-            pass
-
         def set_entries(*args, **kwargs):
             _module._NonparametricOperator.set_entries(*args, **kwargs)
 
-        @_module._requires_entries
-        def __call__(*args, **kwargs):
+        def input_dimension(*args, **kwargs):
             pass
 
-        def apply(self, *args, **kwargs):
-            return self(*args, **kwargs)
+        def _str(*args, **kwargs):
+            pass
+
+        def apply(*args, **kwargs):
+            pass
 
         def galerkin(*args, **kwargs):
             return _module._NonparametricOperator.galerkin(*args, **kwargs)
@@ -61,7 +60,7 @@ class TestNonparametricOperator:
         def datablock(*args, **kwargs):
             pass
 
-        def column_dimension(*args, **kwargs):
+        def operator_dimension(*args, **kwargs):
             pass
 
     class Dummy2(Dummy):
@@ -69,27 +68,13 @@ class TestNonparametricOperator:
 
         pass
 
+    # Initialization ----------------------------------------------------------
     def test_init(self):
         """Test _NonparametricOperator.__init__()."""
         op = self.Dummy()
         assert op.entries is None
 
-        # Check _requires_entries decorator working within these classes.
-        with pytest.raises(RuntimeError) as ex:
-            op.apply(5)
-        assert (
-            ex.value.args[0] == "operator entries have not been set, "
-            "call set_entries() first"
-        )
-
-        with pytest.raises(RuntimeError) as ex:
-            op(5)
-        assert (
-            ex.value.args[0] == "operator entries have not been set, "
-            "call set_entries() first"
-        )
-
-        with pytest.raises(RuntimeError) as ex:
+        with pytest.raises(AttributeError) as ex:
             op.jacobian(5)
         assert (
             ex.value.args[0] == "operator entries have not been set, "
@@ -100,10 +85,8 @@ class TestNonparametricOperator:
         op = self.Dummy(A)
         assert op.entries is A
 
-        # These should be callable now.
-        op()
-        op.apply()
-        assert op.jacobian(None) == 0
+        # This should be callable now.
+        assert op.jacobian(None, None) == 0
 
     def test_validate_entries(self):
         """Test _NonparametricOperator._validate_entries()."""
@@ -150,6 +133,7 @@ class TestNonparametricOperator:
         op._clear()
         assert op.entries is None
 
+    # Magic methods -----------------------------------------------------------
     def test_getitem(self):
         """Test _NonparametricOperator.__getitem__()."""
         op = self.Dummy()
@@ -162,19 +146,26 @@ class TestNonparametricOperator:
 
     def test_eq(self):
         """Test _NonparametricOperator.__eq__()."""
+        op1 = self.Dummy()
+        op2 = self.Dummy2()
+        assert op1 != op2
+
+        op2 = self.Dummy()
+        assert op1 == op2
+
         A = np.arange(12).reshape((4, 3))
-        opA = self.Dummy(A)
-        opA2 = self.Dummy2(A)
-        assert opA != opA2
+        op1.entries = A
+        assert op1 != op2
+        assert op2 != op1
 
-        opAT = self.Dummy(A.T)
-        assert opA != opAT
+        op2.entries = A.T
+        assert op1 != op2
 
-        opB = self.Dummy(A + 1)
-        assert opA != opB
+        op2.entries = A + 1
+        assert op1 != op2
 
-        opC = self.Dummy(A + 0)
-        assert opA == opC
+        op2.entries = A
+        assert op1 == op2
 
     # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=10, r=3):
@@ -187,6 +178,7 @@ class TestNonparametricOperator:
         assert isinstance(op_, op.__class__)
         assert op_.shape == B.shape
         assert np.all(op_.entries == B)
+        assert op is not op_
 
         A = np.random.random((n - 1, r + 1))
         op = self.Dummy(A)
@@ -195,6 +187,15 @@ class TestNonparametricOperator:
         assert ex.value.args[0] == "basis and operator not aligned"
 
     # Model persistence -------------------------------------------------------
+    def test_copy(self):
+        """Test _NonparametricOperator.copy()."""
+        op1 = self.Dummy()
+        op1.set_entries(np.random.random((4, 4)))
+        op2 = op1.copy()
+        assert op2 is not op1
+        assert op2.entries is not op1.entries
+        assert op2 == op1
+
     def test_save(self, target="_baseoperatorsavetest.h5"):
         """Test _NonparametricOperator.save()."""
         if os.path.isfile(target):  # pragma: no cover
@@ -255,16 +256,23 @@ class TestNonparametricOperator:
 # TODO
 
 
-# Mixin for operators acting on inputs ========================================
-def test_is_input_operator():
-    """Test operators._base._is_input_operator."""
+# Utilities ===================================================================
+def test_is_nonparametric():
+    """Test operators._base.is_nonparametric()."""
 
-    class Dummy(_module._InputMixin):
-        """Instantiable verison of _InputMixin."""
+    op = TestNonparametricOperator.Dummy()
+    assert _module.is_nonparametric(op)
+    assert not _module.is_nonparametric(10)
 
-        def input_dimension(self):
-            pass
 
-    op = Dummy()
-    assert _module._is_input_operator(op)
-    assert not _module._is_input_operator(5)
+def test_has_inputs():
+    """Test operators._base.has_inputs()."""
+
+    op = _module._InputMixin()
+    assert _module.has_inputs(op)
+    assert not _module.has_inputs(5)
+
+
+# def test_is_parametric():
+#     """Test operators._base.is_parametric()."""
+#     raise NotImplementedError

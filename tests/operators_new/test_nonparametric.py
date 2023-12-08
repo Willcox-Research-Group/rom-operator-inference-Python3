@@ -17,6 +17,10 @@ class TestConstantOperator:
 
     _OpClass = _module.ConstantOperator
 
+    def test_input_dimension(self):
+        """Test ConstantOperator.input_dimension."""
+        assert self._OpClass().input_dimension == 0
+
     def test_str(self):
         """Test ConstantOperator._str()."""
         op = self._OpClass()
@@ -125,11 +129,11 @@ class TestConstantOperator:
         _test_single(op.datablock(np.random.random((3, k))))
         _test_single(op.datablock(np.random.random(k)))
 
-    def test_column_dimension(self):
-        """Test ConstantOperator.column_dimension()."""
-        assert self._OpClass.column_dimension() == 1
-        assert self._OpClass.column_dimension(4) == 1
-        assert self._OpClass.column_dimension(1, 6) == 1
+    def test_operator_dimension(self):
+        """Test ConstantOperator.operator_dimension()."""
+        assert self._OpClass.operator_dimension() == 1
+        assert self._OpClass.operator_dimension(4) == 1
+        assert self._OpClass.operator_dimension(1, 6) == 1
 
 
 # Dependent on state but not on input =========================================
@@ -137,6 +141,10 @@ class TestLinearOperator:
     """Test operators._nonparametric.LinearOperator."""
 
     _OpClass = _module.LinearOperator
+
+    def test_input_dimension(self):
+        """Test LinearOperator.input_dimension."""
+        assert self._OpClass().input_dimension == 0
 
     def test_str(self):
         """Test LinearOperator._str()."""
@@ -201,12 +209,12 @@ class TestLinearOperator:
         op.set_entries(A)
         # Evaluation for a single vector.
         q = np.random.random()
-        out = op(q)
+        out = op.apply(q)
         assert np.isscalar(out)
         assert np.allclose(out, A * q)
         # Vectorized evaluation.
         Q = np.random.random(k)
-        out = op(Q)
+        out = op.apply(Q)
         assert out.shape == (k,)
         assert np.allclose(out, A * Q)
 
@@ -249,16 +257,20 @@ class TestLinearOperator:
         assert block.shape == (1, k)
         assert np.all(block[0] == state_)
 
-    def test_column_dimension(self):
-        """Test LinearOperator.column_dimension()."""
-        assert self._OpClass.column_dimension(2) == 2
-        assert self._OpClass.column_dimension(4, 6) == 4
+    def test_operator_dimension(self):
+        """Test LinearOperator.operator_dimension()."""
+        assert self._OpClass.operator_dimension(2) == 2
+        assert self._OpClass.operator_dimension(4, 6) == 4
 
 
 class TestQuadraticOperator:
     """Test operators._nonparametric.QuadraticOperator."""
 
     _OpClass = _module.QuadraticOperator
+
+    def test_input_dimension(self):
+        """Test QuadraticOperator.input_dimension."""
+        assert self._OpClass().input_dimension == 0
 
     def test_str(self):
         """Test QuadraticOperator._str()."""
@@ -417,7 +429,7 @@ class TestQuadraticOperator:
         assert block.shape == (r2_, k)
         op.entries = np.random.random((r, r2_))
         mult = op.entries @ block
-        evald = op(state_)
+        evald = op.apply(state_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
 
@@ -427,21 +439,25 @@ class TestQuadraticOperator:
         assert block.shape == (1, k)
         op.entries = np.random.random()
         mult = op.entries[0, 0] * block[0]
-        evald = op(state_)
+        evald = op.apply(state_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
 
-    def test_column_dimension(self):
-        """Test QuadraticOperator.column_dimension()."""
-        assert self._OpClass.column_dimension(1) == 1
-        assert self._OpClass.column_dimension(3) == 6
-        assert self._OpClass.column_dimension(5, 7) == 15
+    def test_operator_dimension(self):
+        """Test QuadraticOperator.operator_dimension()."""
+        assert self._OpClass.operator_dimension(1) == 1
+        assert self._OpClass.operator_dimension(3) == 6
+        assert self._OpClass.operator_dimension(5, 7) == 15
 
 
 class TestCubicOperator:
     """Test operators._nonparametric.CubicOperator."""
 
     _OpClass = _module.CubicOperator
+
+    def test_input_dimension(self):
+        """Test CubicOperator.input_dimension."""
+        assert self._OpClass().input_dimension == 0
 
     def test_str(self):
         """Test CubicOperator._str()."""
@@ -594,7 +610,7 @@ class TestCubicOperator:
         assert block.shape == (r3_, k)
         op.entries = np.random.random((r, r3_))
         mult = op.entries @ block
-        evald = op(state_)
+        evald = op.apply(state_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
 
@@ -604,15 +620,15 @@ class TestCubicOperator:
         assert block.shape == (1, k)
         op.entries = np.random.random()
         mult = op.entries[0, 0] * block[0]
-        evald = op(state_)
+        evald = op.apply(state_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
 
-    def test_column_dimension(self):
-        """Test CubicOperator.column_dimension()."""
-        assert self._OpClass.column_dimension(1) == 1
-        assert self._OpClass.column_dimension(3) == 10
-        assert self._OpClass.column_dimension(5, 2) == 35
+    def test_operator_dimension(self):
+        """Test CubicOperator.operator_dimension()."""
+        assert self._OpClass.operator_dimension(1) == 1
+        assert self._OpClass.operator_dimension(3) == 10
+        assert self._OpClass.operator_dimension(5, 2) == 35
 
 
 # Dependent on input but not on state =========================================
@@ -620,6 +636,14 @@ class TestInputOperator:
     """Test operators._nonparametric.InputOperator."""
 
     _OpClass = _module.InputOperator
+
+    def test_input_dimension(self):
+        """Test InputOperator.input_dimension()."""
+        op = self._OpClass()
+        assert op.input_dimension is None
+        for m in np.random.randint(1, 10, 5):
+            op = self._OpClass(np.random.random((3, m)))
+            assert op.input_dimension == m
 
     def test_str(self):
         """Test InputOperator._str()."""
@@ -698,12 +722,12 @@ class TestInputOperator:
         # Evaluation for a single vector.
         q = np.random.random()
         u = np.random.random()
-        out = op(q, u)
+        out = op.apply(q, u)
         assert np.isscalar(out)
         assert np.allclose(out, B * u)
         # Vectorized evaluation.
         U = np.random.random(k)
-        out = op(None, U)
+        out = op.apply(None, U)
         assert out.shape == (k,)
         assert np.allclose(out, B * U)
 
@@ -714,12 +738,12 @@ class TestInputOperator:
         # Evaluation for a single vector.
         q = np.random.random(r)
         u = np.random.random()
-        out = op(q, u)
+        out = op.apply(q, u)
         assert out.shape == (r,)
         assert np.allclose(out, B * u)
         # Vectorized evaluation.
         U = np.random.random(k)
-        out = op(None, U)
+        out = op.apply(None, U)
         assert out.shape == (r, k)
         assert np.allclose(out, np.column_stack([B * u for u in U]))
 
@@ -755,19 +779,11 @@ class TestInputOperator:
         assert block.shape == (1, k)
         assert np.all(block[0] == input_)
 
-    def test_column_dimension(self):
-        """Test InputOperator.column_dimension()."""
-        assert self._OpClass.column_dimension(1, 3) == 3
-        assert self._OpClass.column_dimension(3, 8) == 8
-        assert self._OpClass.column_dimension(5, 2) == 2
-
-    def test_input_dimension(self):
-        """Test InputOperator.input_dimension()."""
-        op = self._OpClass()
-        assert op.input_dimension is None
-        for m in np.random.randint(1, 10, 5):
-            op = self._OpClass(np.random.random((3, m)))
-            assert op.input_dimension == m
+    def test_operator_dimension(self):
+        """Test InputOperator.operator_dimension()."""
+        assert self._OpClass.operator_dimension(1, 3) == 3
+        assert self._OpClass.operator_dimension(3, 8) == 8
+        assert self._OpClass.operator_dimension(5, 2) == 2
 
 
 # Dependent on state and input ================================================
@@ -775,6 +791,14 @@ class TestStateInputOperator:
     """Test operators._nonparametric.StateInputOperator."""
 
     _OpClass = _module.StateInputOperator
+
+    def test_input_dimension(self):
+        """Test StateInputOperator.input_dimension()."""
+        op = self._OpClass()
+        assert op.input_dimension is None
+        for m in np.random.randint(1, 10, 5):
+            op = self._OpClass(np.random.random((3, 3 * m)))
+            assert op.input_dimension == m
 
     def test_str(self):
         """Test StateInputOperator._str()."""
@@ -852,13 +876,13 @@ class TestStateInputOperator:
         # Evaluation for a single vector.
         q = np.random.random()
         u = np.random.random()
-        out = op(q, u)
+        out = op.apply(q, u)
         assert np.isscalar(out)
         assert np.allclose(out, N * u * q)
         # Vectorized evaluation.
         Q = np.random.random(k)
         U = np.random.random(k)
-        out = op(Q, U)
+        out = op.apply(Q, U)
         assert out.shape == (k,)
         assert np.allclose(out, N * U * Q)
 
@@ -869,13 +893,13 @@ class TestStateInputOperator:
         # Evaluation for a single vector.
         q = np.random.random(r)
         u = np.random.random()
-        out = op(q, u)
+        out = op.apply(q, u)
         assert out.shape == (r,)
         assert np.allclose(out, (N @ q) * u)
         # Vectorized evaluation.
         Q = np.random.random((r, k))
         U = np.random.random(k)
-        out = op(Q, U)
+        out = op.apply(Q, U)
         assert out.shape == (r, k)
         assert np.allclose(
             out, np.column_stack([N @ q * u for q, u in zip(Q.T, U)])
@@ -960,7 +984,7 @@ class TestStateInputOperator:
         assert block.shape == (rm, k)
         op.entries = np.random.random((r, rm))
         mult = op.entries @ block
-        evald = op(state_, input_)
+        evald = op.apply(state_, input_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
 
@@ -970,7 +994,7 @@ class TestStateInputOperator:
         assert block.shape == (m, k)
         op.entries = np.random.random((1, m))
         mult = op.entries @ block
-        evald = op(state_, input_)
+        evald = op.apply(state_, input_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
 
@@ -981,7 +1005,7 @@ class TestStateInputOperator:
         assert block.shape == (r, k)
         op.entries = np.random.random((r, r))
         mult = op.entries @ block
-        evald = op(state_, input_)
+        evald = op.apply(state_, input_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
 
@@ -991,20 +1015,12 @@ class TestStateInputOperator:
         assert block.shape == (1, k)
         op.entries = np.random.random()
         mult = op.entries[0, 0] * block[0]
-        evald = op(state_, input_)
+        evald = op.apply(state_, input_)
         assert mult.shape == evald.shape
         assert np.allclose(mult, evald)
 
-    def test_column_dimension(self):
-        """Test StateInputOperator.column_dimension()."""
-        assert self._OpClass.column_dimension(1, 2) == 2
-        assert self._OpClass.column_dimension(3, 6) == 18
-        assert self._OpClass.column_dimension(5, 2) == 10
-
-    def test_input_dimension(self):
-        """Test StateInputOperator.input_dimension()."""
-        op = self._OpClass()
-        assert op.input_dimension is None
-        for m in np.random.randint(1, 10, 5):
-            op = self._OpClass(np.random.random((3, 3 * m)))
-            assert op.input_dimension == m
+    def test_operator_dimension(self):
+        """Test StateInputOperator.operator_dimension()."""
+        assert self._OpClass.operator_dimension(1, 2) == 2
+        assert self._OpClass.operator_dimension(3, 6) == 18
+        assert self._OpClass.operator_dimension(5, 2) == 10

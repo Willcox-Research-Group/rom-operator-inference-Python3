@@ -37,7 +37,7 @@ def _requires_entries(func):
     @functools.wraps(func)
     def _decorator(self, *args, **kwargs):
         if self.entries is None:
-            raise RuntimeError(
+            raise AttributeError(
                 "operator entries have not been set, "
                 "call set_entries() first"
             )
