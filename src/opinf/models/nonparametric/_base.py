@@ -59,7 +59,7 @@ class _NonparametricModel(_MonolithicModel):
         ):
             return None
         return sum(
-            self.operators[i].column_dimension(
+            self.operators[i].operator_dimension(
                 self.state_dimension, self.input_dimension
             )
             for i in self._indices_of_operators_to_infer
@@ -192,7 +192,7 @@ class _NonparametricModel(_MonolithicModel):
         """
         index = 0
         for i in self._indices_of_operators_to_infer:
-            endex = index + self.operators[i].column_dimension(
+            endex = index + self.operators[i].operator_dimension(
                 self.state_dimension, self.input_dimension
             )
             self.operators[i].set_entries(Ohat[:, index:endex])
