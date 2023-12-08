@@ -37,7 +37,7 @@ def test_requires_entries():
 
 # Nonparametric operators =====================================================
 class TestNonparametricOperator:
-    """Test operators._nonparametric._NonparametricOperator."""
+    """Test operators_new._base._NonparametricOperator."""
 
     class Dummy(_module._NonparametricOperator):
         """Instantiable version of _NonparametricOperator."""
@@ -52,7 +52,7 @@ class TestNonparametricOperator:
             pass
 
         def apply(*args, **kwargs):
-            pass
+            return -1
 
         def galerkin(*args, **kwargs):
             return _module._NonparametricOperator.galerkin(*args, **kwargs)
@@ -253,7 +253,120 @@ class TestNonparametricOperator:
 
 
 # Parametric operators ========================================================
-# TODO
+class TestParametricOperator:
+    """Test operators_new._base._ParametricOperator."""
+
+    class Dummy(_module._ParametricOperator):
+        """Instantiable versino of _ParametricOperator."""
+
+        _OperatorClass = TestNonparametricOperator.Dummy
+
+        def __init__(self):
+            _module._ParametricOperator.__init__(self)
+
+        def _clear(self):
+            pass
+
+        def state_dimension(self):
+            pass
+
+        def input_dimension(self):
+            pass
+
+        def shape(self):
+            pass
+
+        def evaluate(self, parameter):
+            op = self._OperatorClass()
+            op.set_entries(np.random.random((2, 2)))
+            return op
+
+        def galerkin(self, *args, **kwargs):
+            pass
+
+        def datablock(self, *args, **kwargs):
+            pass
+
+        def operator_dimension(self, *args, **kwargs):
+            pass
+
+        def copy(self, *args, **kwargs):
+            pass
+
+        def save(self, *args, **kwargs):
+            pass
+
+        def load(self, *args, **kwargs):
+            pass
+
+    def test_init(self):
+        """Test _ParametricOperator.__init__()"""
+        temp = self.Dummy._OperatorClass
+        self.Dummy._OperatorClass = int
+
+        with pytest.raises(RuntimeError) as ex:
+            self.Dummy()
+        assert ex.value.args[0] == "invalid OperatorClass 'int'"
+
+        self.Dummy._OperatorClass = temp
+        op = self.Dummy()
+        assert op.parameter_dimension is None
+
+    def test_set_parameter_dimension(self):
+        """Test _ParametricOperator._set_parameter_dimension()."""
+        op = self.Dummy()
+
+        # One-dimensional parameters.
+        op._set_parameter_dimension(np.arange(10))
+        assert op.parameter_dimension == 1
+        op._set_parameter_dimension(np.arange(5).reshape((-1, 1)))
+        assert op.parameter_dimension == 1
+
+        # n-dimensional parameters.
+        n = np.random.randint(2, 20)
+        op._set_parameter_dimension(np.random.random((5, n)))
+        assert op.parameter_dimension == n
+
+        with pytest.raises(ValueError) as ex:
+            op._set_parameter_dimension(np.random.random((2, 2, 2)))
+        assert (
+            ex.value.args[0] == "parameter values must be scalars or 1D arrays"
+        )
+
+    def test_check_shape_consistency(self):
+        """Test _ParametricOperator._check_shape_consistency()."""
+        arrays = [np.random.random((2, 3)), np.random.random((3, 2))]
+        with pytest.raises(ValueError) as ex:
+            self.Dummy._check_shape_consistency(arrays, "array")
+        assert ex.value.args[0] == "array shapes inconsistent"
+
+        arrays[1] = arrays[1].T
+        self.Dummy._check_shape_consistency(arrays, "array")
+
+    def test_check_parametervalue_dimension(self, p=3):
+        """Test _ParametricOperator._check_parametervalue_dimension()."""
+        op = self.Dummy()
+
+        with pytest.raises(RuntimeError) as ex:
+            op._check_parametervalue_dimension(10)
+        assert ex.value.args[0] == "parameter_dimension not set"
+
+        op._set_parameter_dimension(np.empty((5, p)))
+
+        val = np.empty(p - 1)
+        with pytest.raises(ValueError) as ex:
+            op._check_parametervalue_dimension(val)
+        assert ex.value.args[0] == f"expected parameter of shape ({p:d},)"
+
+        op._check_parametervalue_dimension(np.empty(p))
+
+    def test_apply(self):
+        """Test _ParametricOperator.apply()."""
+        assert self.Dummy().apply(None, None, None) == -1
+
+    def test_jacobian(self):
+        """Test _ParametricOperator.jacobian()."""
+        assert self.Dummy().jacobian(None, None, None) == 0
 
 
 # Utilities ===================================================================
@@ -273,6 +386,8 @@ def test_has_inputs():
     assert not _module.has_inputs(5)
 
 
-# def test_is_parametric():
-#     """Test operators._base.is_parametric()."""
-#     raise NotImplementedError
+def test_is_parametric():
+    """Test operators._base.is_parametric()."""
+    op = TestParametricOperator.Dummy()
+    assert _module.is_parametric(op)
+    assert not _module.is_nonparametric(-1)

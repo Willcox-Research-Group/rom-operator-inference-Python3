@@ -423,7 +423,7 @@ class _ParametricOperator(abc.ABC):
             )
 
     @abc.abstractmethod
-    def _clear(self) -> None:
+    def _clear(self) -> None:  # pragma: no cover
         """Reset the operator to its post-constructor state."""
         raise NotImplementedError
 
@@ -466,7 +466,7 @@ class _ParametricOperator(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def shape(self) -> tuple:
+    def shape(self) -> tuple:  # pragma: no cover
         """Shape of the operator entries matrix when evaluated
         at a parameter value.
         """
@@ -475,10 +475,10 @@ class _ParametricOperator(abc.ABC):
     # Evaluation --------------------------------------------------------------
     def _check_parametervalue_dimension(self, parameter):
         """Ensure a new parameter value has the expected shape."""
-        if self.p is None:
-            raise RuntimeError("parameter dimension p not set")
-        if np.atleast_1d(parameter).shape[0] != self.p:
-            raise ValueError(f"expected parameter of shape ({self.p:d},)")
+        if (pdim := self.parameter_dimension) is None:
+            raise RuntimeError("parameter_dimension not set")
+        if np.atleast_1d(parameter).shape[0] != pdim:
+            raise ValueError(f"expected parameter of shape ({pdim:d},)")
 
     @abc.abstractmethod
     def evaluate(self, parameter):  # pragma: no cover
@@ -515,7 +515,7 @@ class _ParametricOperator(abc.ABC):
         -------
         (r,) ndarray
         """
-        return self.evaluate(parameter)(state, input_)
+        return self.evaluate(parameter).apply(state, input_)
 
     def jacobian(self, parameter, state, input_=None):
         r"""Construct the state Jacobian of the operator,
@@ -547,7 +547,7 @@ class _ParametricOperator(abc.ABC):
 
     # Dimensionality reduction ------------------------------------------------
     @abc.abstractmethod
-    def galerkin(self, Vr, Wr=None):
+    def galerkin(self, Vr, Wr=None):  # pragma: no cover
         r"""Get the (Petrov-)Galerkin projection of this operator.
 
         Parameters
