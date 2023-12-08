@@ -370,10 +370,11 @@ class _InputMixin:
 
 # Parametric operators ========================================================
 class _ParametricOperator(abc.ABC):
-    """Base class for operators that depend on external parameters.
+    r"""Base class for operators that depend on external parameters, i.e.,
+    :math:`\Ophat_\ell(\qhat,\u;\bfmu) = \Ohat_\ell(\bfmu)\d_\ell(\qhat,\u)`.
 
-    Evaluating the a parametric operator at a specific parameter value
-    results in a nonparametric operator.
+    Evaluating a ``_ParametricOpertor`` at a specific parameter value
+    results in a :class:`opinf.operators_new._base._NonparametricOperator`.
 
     Examples
     --------
@@ -385,7 +386,7 @@ class _ParametricOperator(abc.ABC):
     Child classes:
 
     * :class:`opinf.operators_new._interpolate._InterpolatedOperator`
-    * ``_AffineOperator` (TODO)
+    * ``_AffineOperator`` (TODO)
     """
 
     # Meta properties ---------------------------------------------------------

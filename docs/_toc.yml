@@ -42,6 +42,7 @@ parts:
 
   # Instructions for developers.
   - caption: Developer Guide
+    maxdepth: 1
     chapters:
     - file: source/contributing/how_to_contribute.md
     - file: source/contributing/code_anatomy.md
