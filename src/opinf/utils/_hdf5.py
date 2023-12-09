@@ -30,6 +30,7 @@ class _hdf5_filehandle:
         raise a FileExistsError if the file already exists.
         Only applies when ``mode = "save"``.
     """
+
     def __init__(self, filename, mode, overwrite=False):
         """Open the file handle."""
         if isinstance(filename, h5py.HLObject):
@@ -43,14 +44,14 @@ class _hdf5_filehandle:
                 warnings.warn("expected file with extension '.h5'")
             if os.path.isfile(filename) and not overwrite:
                 raise FileExistsError(f"{filename} (overwrite=True to ignore)")
-            self.file_handle = h5py.File(filename, 'w')
+            self.file_handle = h5py.File(filename, "w")
             self.close_when_done = True
 
         elif mode == "load":
             # `filename` is the name of an existing file to read from.
             if not os.path.isfile(filename):
                 raise FileNotFoundError(filename)
-            self.file_handle = h5py.File(filename, 'r')
+            self.file_handle = h5py.File(filename, "r")
             self.close_when_done = True
 
         else:
@@ -86,6 +87,7 @@ class hdf5_savehandle(_hdf5_filehandle):
     >>> with hdf5_savehandle("file_to_save_to.h5") as hf:
     ...     hf.create_dataset(...)
     """
+
     def __init__(self, savefile, overwrite):
         return _hdf5_filehandle.__init__(self, savefile, "save", overwrite)
 
@@ -105,6 +107,7 @@ class hdf5_loadhandle(_hdf5_filehandle):
     >>> with hdf5_loadhandle("file_to_read_from.h5") as hf:
     ...    data = hf[...]
     """
+
     def __init__(self, loadfile):
         return _hdf5_filehandle.__init__(self, loadfile, "load")
 
@@ -112,6 +115,8 @@ class hdf5_loadhandle(_hdf5_filehandle):
         """Close the file if needed. Raise a LoadfileFormatError if needed."""
         try:
             _hdf5_filehandle.__exit__(self, exc_type, exc_value, exc_traceback)
+        except UserWarning as wn:
+            warnings.warn(wn.message, type(wn))
         except errors.LoadfileFormatError:
             raise
         except Exception as ex:

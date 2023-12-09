@@ -19,7 +19,7 @@ import numpy as np
 import scipy.linalg as la
 
 from ..utils import hdf5_savehandle, hdf5_loadhandle
-from ._base import _ParametricOperator, _requires_entries
+from ._base import _ParametricOperator, _InputMixin, _requires_entries
 from ._nonparametric import (
     ConstantOperator,
     LinearOperator,
@@ -115,24 +115,28 @@ class _InterpolatedOperator(_ParametricOperator):
             concatenatation of the list of matrices.
         """
         n_params = len(self.training_parameters)
+        # TODO: Handle special cases
+        # r = 1: (sd,) ndarray or list of s (d,) ndarrays
+        # d = 1: (r, s) ndarray or list of s (r,) ndarrays
+        # r = d = 1: (s,) ndarray or list of s floats
         if np.ndim(entries) == 2:
             entries = np.split(entries, n_params, axis=1)
 
         self._check_shape_consistency(entries, "operator entries")
         if (n_matrices := len(entries)) != n_params:
             raise ValueError(
-                f"{n_params} = len(parameters) "
+                f"{n_params} = len(training_parameters) "
                 f"!= len(entries) = {n_matrices}"
             )
 
         self.__entries = np.array(
             [self.OperatorClass(A).entries for A in entries]
         )
-        self.set_interpolator(self.__InterpolatorClass)
+        self.set_InterpolatorClass(self.__InterpolatorClass)
 
-    @_requires_entries
-    def set_interpolator(self, InterpolatorClass):
-        """Construct the interpolator for the operator entries.
+    def set_InterpolatorClass(self, InterpolatorClass):
+        """Set ``InterpolatorClass`` and, if ``entries`` exists, construct the
+        interpolator for the operator entries.
 
         Parameters
         ----------
@@ -144,10 +148,11 @@ class _InterpolatedOperator(_ParametricOperator):
 
             This can be, e.g., a class from ``scipy.interpolate``.
         """
-        self.__interpolator = InterpolatorClass(
-            self.training_parameters,
-            self.entries,
-        )
+        if self.entries is not None:
+            self.__interpolator = InterpolatorClass(
+                self.training_parameters,
+                self.entries,
+            )
         self.__InterpolatorClass = InterpolatorClass
 
     # Properties --------------------------------------------------------------
@@ -187,6 +192,18 @@ class _InterpolatedOperator(_ParametricOperator):
         return None if self.entries is None else self.entries[0].shape
 
     @property
+    def InterpolatorClass(self):
+        """Class for the elementwise interpolation,
+        e.g., a class from ``scipy.interpolate``.
+        """
+        return self.__InterpolatorClass
+
+    @InterpolatorClass.setter
+    def InterpolatorClass(self, IC):
+        """Set the InterpolatorClass."""
+        self.set_InterpolatorClass(IC)
+
+    @property
     def interpolator(self):
         """Interpolator object for evaluating the operator at specified
         parameter values.
@@ -204,11 +221,11 @@ class _InterpolatedOperator(_ParametricOperator):
         """
         if not isinstance(other, self.__class__):
             return False
-        if len(self) != len(other):
-            return False
         if self.training_parameters.shape != other.training_parameters.shape:
             return False
         if not np.all(self.training_parameters == other.training_parameters):
+            return False
+        if self.__InterpolatorClass != other.__InterpolatorClass:
             return False
         if (self.entries is None and other.entries is not None) or (
             self.entries is not None and other.entries is None
@@ -239,7 +256,7 @@ class _InterpolatedOperator(_ParametricOperator):
         op : {mod}`opinf.operators` operator of type ``OperatorClass``.
             Nonparametric operator corresponding to the parameter value.
         """
-        self._check_parameter_dimension(parameter)
+        self._check_parametervalue_dimension(parameter)
         return self.OperatorClass(self.interpolator(parameter))
 
     # Dimensionality reduction ------------------------------------------------
@@ -327,7 +344,7 @@ class _InterpolatedOperator(_ParametricOperator):
             parameter value.
         """
         return la.block_diag(
-            [
+            *[
                 self.OperatorClass.datablock(Q, U)
                 for Q, U in zip(states, inputs)
             ]
@@ -345,7 +362,7 @@ class _InterpolatedOperator(_ParametricOperator):
         return self.__class__(
             training_parameters=self.training_parameters.copy(),
             InterpolatorClass=self.__InterpolatorClass,
-            entries=self.entries.copy(),
+            entries=self.entries.copy() if self.entries is not None else None,
         )
 
     def save(self, savefile: str, overwrite: bool = False) -> None:
@@ -397,7 +414,7 @@ class _InterpolatedOperator(_ParametricOperator):
             if ClassName != cls.__name__:
                 raise TypeError(
                     f"file '{loadfile}' contains '{ClassName}' "
-                    f"object, use '{ClassName}.load()"
+                    f"object, use '{ClassName}.load()'"
                 )
 
             if (SavedClassName := hf["meta"].attrs["InterpolatorClass"]) != (
@@ -411,7 +428,7 @@ class _InterpolatedOperator(_ParametricOperator):
             return cls(
                 hf["training_parameters"][:],
                 InterpolatorClass,
-                hf["entries"][:] if "entries" in hf else None,
+                (hf["entries"][:] if "entries" in hf else None),
             )
 
 
@@ -451,6 +468,11 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
         corresponding to the ``training_parameters``.
     """
     _OperatorClass = ConstantOperator
+
+    @property
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        return 0
 
 
 class InterpolatedLinearOperator(_InterpolatedOperator):
@@ -492,6 +514,11 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
     """
     _OperatorClass = LinearOperator
 
+    @property
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        return 0
+
 
 class InterpolatedQuadraticOperator(_InterpolatedOperator):
     r"""Parametric quadratic operator
@@ -529,6 +556,11 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
         corresponding to the ``training_parameters``.
     """
     _OperatorClass = QuadraticOperator
+
+    @property
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        return 0
 
 
 class InterpolatedCubicOperator(_InterpolatedOperator):
@@ -569,8 +601,13 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
     """
     _OperatorClass = CubicOperator
 
+    @property
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        return 0
 
-class InterpolatedInputOperator(_InterpolatedOperator):
+
+class InterpolatedInputOperator(_InterpolatedOperator, _InputMixin):
     r"""Parametric input operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Bhat(\bfmu)\u`
     where :math:`\Bhat(\bfmu) \in \RR^{r \times m}` and
@@ -608,8 +645,13 @@ class InterpolatedInputOperator(_InterpolatedOperator):
     """
     _OperatorClass = InputOperator
 
+    @property
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        return None if self.entries is None else self.shape[1]
 
-class InterpolatedStateInputOperator(_InterpolatedOperator):
+
+class InterpolatedStateInputOperator(_InterpolatedOperator, _InputMixin):
     r"""Parametric state-input operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Nhat(\bfmu)[\u\otimes\qhat]`
     where :math:`\Nhat(\bfmu) \in \RR^{r \times rm}` and
@@ -645,3 +687,11 @@ class InterpolatedStateInputOperator(_InterpolatedOperator):
         corresponding to the ``training_parameters``.
     """
     _OperatorClass = StateInputOperator
+
+    @property
+    def input_dimension(self):
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        if self.entries is None:
+            return None
+        r, rm = self.shape
+        return rm // r
