@@ -8,7 +8,12 @@ import numpy as np
 from .._base import _BaseROM
 from ... import lstsq
 from ... import basis as _basis
-from ...utils import kron2c, kron3c, hdf5_savehandle, hdf5_loadhandle
+from ...utils import hdf5_savehandle, hdf5_loadhandle
+from ... import operators_new as _operators
+
+# TEMPORARY
+kron2c = _operators._nonparametric.QuadraticOperator.ckron
+kron3c = _operators._nonparametric.CubicOperator.ckron
 
 
 class _NonparametricOpInfROM(_BaseROM):
@@ -48,31 +53,40 @@ class _NonparametricOpInfROM(_BaseROM):
         data0, label0 = datasets[0]
         for data, label in datasets:
             if label == "inputs":
-                if self.m != 1:     # inputs.shape = (m, k)
+                if self.m != 1:  # inputs.shape = (m, k)
                     if data.ndim != 2:
-                        raise ValueError("inputs must be two-dimensional "
-                                         "(m > 1)")
+                        raise ValueError(
+                            "inputs must be two-dimensional " "(m > 1)"
+                        )
                     if data.shape[0] != self.m:
-                        raise ValueError(f"inputs.shape[0] = {data.shape[0]} "
-                                         f"!= {self.m} = m")
-                else:               # inputs.shape = (1, k) or (k,)
+                        raise ValueError(
+                            f"inputs.shape[0] = {data.shape[0]} "
+                            f"!= {self.m} = m"
+                        )
+                else:  # inputs.shape = (1, k) or (k,)
                     if data.ndim not in (1, 2):
-                        raise ValueError("inputs must be one- or "
-                                         "two-dimensional (m = 1)")
+                        raise ValueError(
+                            "inputs must be one- or " "two-dimensional (m = 1)"
+                        )
                     if data.ndim == 2 and data.shape[0] != 1:
                         raise ValueError("inputs.shape != (1, k) (m = 1)")
             else:
                 if data.ndim != 2:
                     raise ValueError(f"{label} must be two-dimensional")
                 if data.shape[0] not in (self.n, self.r):
-                    raise ValueError(f"{label}.shape[0] != n or r "
-                                     f"(n={self.n}, r={self.r})")
+                    raise ValueError(
+                        f"{label}.shape[0] != n or r "
+                        f"(n={self.n}, r={self.r})"
+                    )
             if data.shape[-1] != data0.shape[-1]:
-                raise ValueError(f"{label}.shape[-1] = {data.shape[-1]} "
-                                 f"!= {data0.shape[-1]} = {label0}.shape[-1]")
+                raise ValueError(
+                    f"{label}.shape[-1] = {data.shape[-1]} "
+                    f"!= {data0.shape[-1]} = {label0}.shape[-1]"
+                )
 
-    def _process_fit_arguments(self, basis, states, lhs, inputs, *,
-                               known_operators=None, solver=None):
+    def _process_fit_arguments(
+        self, basis, states, lhs, inputs, *, known_operators=None, solver=None
+    ):
         """Prepare training data for Operator Inference by clearing old data,
         storing the basis, extracting dimensions, projecting known operators,
         validating data sizes, and projecting training data.
@@ -146,7 +160,7 @@ class _NonparametricOpInfROM(_BaseROM):
             self.r = states.shape[0]
         self._check_inputargs(inputs, "inputs")
         to_check = [(states, "states"), (lhs, self._LHS_ARGNAME)]
-        if 'B' in self.modelform:
+        if "B" in self.modelform:
             if self.m is None:
                 self.m = 1 if inputs.ndim == 1 else inputs.shape[0]
             to_check.append((inputs, "inputs"))
@@ -160,11 +174,11 @@ class _NonparametricOpInfROM(_BaseROM):
 
         # Subtract known data from the lhs data.
         for key in self._projected_operators_:
-            if key == 'c':              # Known constant term.
+            if key == "c":  # Known constant term.
                 lhs_ = lhs_ - np.outer(self.c_(), np.ones(states_.shape[1]))
-            elif key == 'B':            # Known input term.
+            elif key == "B":  # Known input term.
                 lhs_ = lhs_ - self.B_(np.atleast_2d(inputs))
-            else:                       # Known linear/quadratic/cubic term.
+            else:  # Known linear/quadratic/cubic term.
                 lhs_ = lhs_ - getattr(self, f"{key}_")(states_)
 
         return states_, lhs_, solver
@@ -189,22 +203,25 @@ class _NonparametricOpInfROM(_BaseROM):
         D : (k, d(r, m)) ndarray
             Operator Inference data matrix (no regularization).
         """
-        to_infer = {key for key in self.modelform
-                    if key not in self._projected_operators_}
+        to_infer = {
+            key
+            for key in self.modelform
+            if key not in self._projected_operators_
+        }
         D = []
-        if 'c' in to_infer:             # Constant term.
+        if "c" in to_infer:  # Constant term.
             D.append(np.ones((states_.shape[1], 1)))
 
-        if 'A' in to_infer:             # Linear state term.
+        if "A" in to_infer:  # Linear state term.
             D.append(states_.T)
 
-        if 'H' in to_infer:             # (compact) Quadratic state term.
+        if "H" in to_infer:  # (compact) Quadratic state term.
             D.append(kron2c(states_).T)
 
-        if 'G' in to_infer:             # (compact) Cubic state term.
+        if "G" in to_infer:  # (compact) Cubic state term.
             D.append(kron3c(states_).T)
 
-        if 'B' in to_infer:             # Linear input term.
+        if "B" in to_infer:  # Linear input term.
             D.append(np.atleast_2d(inputs).T)
 
         return np.hstack(D)
@@ -219,36 +236,47 @@ class _NonparametricOpInfROM(_BaseROM):
             Block matrix of ROM operator coefficients, the transpose of the
             solution to the Operator Inference linear least-squares problem.
         """
-        to_infer = {key for key in self.modelform
-                    if key not in self._projected_operators_}
+        to_infer = {
+            key
+            for key in self.modelform
+            if key not in self._projected_operators_
+        }
         i = 0
 
-        if 'c' in to_infer:             # Constant term (one-dimensional).
-            self.c_ = Ohat[:, i:i+1][:, 0]
+        if "c" in to_infer:  # Constant term (one-dimensional).
+            self.c_ = Ohat[:, i : i + 1][:, 0]
             i += 1
 
-        if 'A' in to_infer:             # Linear state matrix.
-            self.A_ = Ohat[:, i:i+self.r]
+        if "A" in to_infer:  # Linear state matrix.
+            self.A_ = Ohat[:, i : i + self.r]
             i += self.r
 
-        if 'H' in to_infer:             # (compact) Quadratic state matrix.
+        if "H" in to_infer:  # (compact) Quadratic state matrix.
             _r2 = self._r2
-            self.H_ = Ohat[:, i:i+_r2]
+            self.H_ = Ohat[:, i : i + _r2]
             i += _r2
 
-        if 'G' in to_infer:             # (compact) Cubic state matrix.
+        if "G" in to_infer:  # (compact) Cubic state matrix.
             _r3 = self._r3
-            self.G_ = Ohat[:, i:i+_r3]
+            self.G_ = Ohat[:, i : i + _r3]
             i += _r3
 
-        if 'B' in to_infer:             # Linear input matrix.
-            self.B_ = Ohat[:, i:i+self.m]
+        if "B" in to_infer:  # Linear input matrix.
+            self.B_ = Ohat[:, i : i + self.m]
             i += self.m
 
         return
 
-    def _fit_solver(self, basis, states, lhs, inputs=None,
-                    *, known_operators=None, solver=None):
+    def _fit_solver(
+        self,
+        basis,
+        states,
+        lhs,
+        inputs=None,
+        *,
+        known_operators=None,
+        solver=None,
+    ):
         """Construct a solver object mapping the regularizer to solutions
         of the Operator Inference least-squares problem.
 
@@ -287,8 +315,12 @@ class _NonparametricOpInfROM(_BaseROM):
                 regularization
         """
         states_, lhs_, solver = self._process_fit_arguments(
-            basis, states, lhs, inputs,
-            known_operators=known_operators, solver=solver
+            basis,
+            states,
+            lhs,
+            inputs,
+            known_operators=known_operators,
+            solver=solver,
         )
         # Fully intrusive case (nothing to learn).
         if states_ is lhs_ is None:
@@ -315,8 +347,16 @@ class _NonparametricOpInfROM(_BaseROM):
         OhatT = self.solver_.predict()
         self._extract_operators(np.atleast_2d(OhatT.T))
 
-    def fit(self, basis, states, lhs, inputs=None, *,
-            known_operators=None, solver=None):
+    def fit(
+        self,
+        basis,
+        states,
+        lhs,
+        inputs=None,
+        *,
+        known_operators=None,
+        solver=None,
+    ):
         """Learn the reduced-order model operators from data.
 
         Parameters
@@ -358,8 +398,12 @@ class _NonparametricOpInfROM(_BaseROM):
         self
         """
         self._fit_solver(
-            basis, states, lhs, inputs,
-            known_operators=known_operators, solver=solver,
+            basis,
+            states,
+            lhs,
+            inputs,
+            known_operators=known_operators,
+            solver=solver,
         )
         self._evaluate_solver()
         return self
@@ -383,7 +427,6 @@ class _NonparametricOpInfROM(_BaseROM):
         self._check_is_trained()
 
         with hdf5_savehandle(savefile, overwrite=overwrite) as hf:
-
             # Store ROM modelform.
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["modelform"] = self.modelform
@@ -428,8 +471,9 @@ class _NonparametricOpInfROM(_BaseROM):
                 basis = getattr(_basis, BasisClassName).load(hf["basis"])
 
             # Load operators.
-            operators = {f"{key}_": hf[f"operators/{key}_"][:]
-                         for key in modelform}
+            operators = {
+                f"{key}_": hf[f"operators/{key}_"][:] for key in modelform
+            }
 
         # Construct the model.
         return cls(modelform)._set_operators(basis, **operators)

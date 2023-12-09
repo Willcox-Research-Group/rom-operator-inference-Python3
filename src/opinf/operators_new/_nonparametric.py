@@ -10,10 +10,11 @@ __all__ = [
     "StateInputOperator",
 ]
 
+import itertools
 import numpy as np
 import scipy.linalg as la
+import scipy.special as special
 
-from .. import utils
 from ._base import _requires_entries, _NonparametricOperator, _InputMixin
 
 
@@ -399,13 +400,13 @@ class QuadraticOperator(_NonparametricOperator):
             )
         r, r2 = entries.shape
         if r2 == r**2:
-            entries = utils.compress_quadratic(entries)
+            entries = self.compress_entries(entries)
         elif r2 != self.operator_dimension(r):
             raise ValueError("invalid QuadraticOperator entries dimensions")
 
         # Precompute compressed Kronecker product mask and Jacobian matrix.
-        self._mask = utils.kron2c_indices(r)
-        Ht = utils.expand_quadratic(entries).reshape((r, r, r))
+        self._mask = self.ckron_indices(r)
+        Ht = self.expand_entries(entries).reshape((r, r, r))
         self._prejac = Ht + Ht.transpose(0, 2, 1)
 
         _NonparametricOperator.set_entries(self, entries)
@@ -471,7 +472,7 @@ class QuadraticOperator(_NonparametricOperator):
         """
 
         def _project(H, V, W):
-            return W.T @ utils.expand_quadratic(H) @ np.kron(V, V)
+            return W.T @ self.expand_entries(H) @ np.kron(V, V)
 
         return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
 
@@ -524,7 +525,7 @@ class QuadraticOperator(_NonparametricOperator):
         product : (r(r+1)/2, k) ndarray
             Compressed Khatri--Rao product of ``states`` with itself.
         """
-        return utils.kron2c(np.atleast_2d(states))
+        return QuadraticOperator.ckron(np.atleast_2d(states))
 
     @staticmethod
     def operator_dimension(r, m=None):
@@ -538,6 +539,252 @@ class QuadraticOperator(_NonparametricOperator):
             Input dimension.
         """
         return r * (r + 1) // 2
+
+    # Utilities ---------------------------------------------------------------
+    @staticmethod
+    def ckron(state, checkdim=False):
+        r"""Calculate the compressed Kronecker product of a vector with itself.
+
+        For a vector :math:`\qhat = [~\hat{q}_{1}~~\cdots~~\hat{q}_{r}~]\trp`,
+        the Kronecker product of :math:`\qhat` with itself is given by
+
+        .. math::
+           \qhat \otimes \qhat
+           = \left[\begin{array}{c}
+               \hat{q}_{1}\qhat
+               \\ \vdots \\
+               \hat{q}_{r}\qhat
+           \end{array}\right]
+           =
+           \left[\begin{array}{c}
+               \hat{q}_{1}^{2} \\
+               \hat{q}_{1}\hat{q}_{2} \\
+               \vdots \\
+               \hat{q}_{1}\hat{q}_{r} \\
+               \hat{q}_{1}\hat{q}_{2} \\
+               \hat{q}_{2}^{2} \\
+               \vdots \\
+               \hat{q}_{2}\hat{q}_{r} \\
+               \vdots
+               \hat{q}_{r}^{2}
+           \end{array}\right] \in\RR^{r^2}.
+
+        Cross terms :math:`\hat{q}_i \hat{q}_j` for :math:`i \neq j` appear
+        twice in :math:`\qhat\otimes\qhat`.
+        The *compressed Kronecker product* :math:`\qhat\hat{\otimes}\qhat`
+        consists of the unique terms of :math:`\qhat\otimes\qhat`:
+
+        .. math::
+           \qhat\hat{\otimes}\qhat
+           = \left[\begin{array}{c}
+               \hat{q}_{1}^2
+               \\
+               \hat{q}_{2}\qhat_{1:2}
+               \\ \vdots \\
+               \hat{q}_{r}\qhat_{1:r}
+           \end{array}\right]
+           = \left[\begin{array}{c}
+               \hat{q}_{1}^2 \\
+               \hat{q}_{1}\hat{q}_{2} \\ \hat{q}_{2}^{2} \\
+               \\ \vdots \\ \hline
+               \hat{q}_{1}\hat{q}_{r} \\ \hat{q}_{2}\hat{q}_{r}
+               \\ \vdots \\ \hat{q}_{r}^{2}
+           \end{array}\right]
+           \in \RR^{r(r+1)/2},
+           \qquad
+           \qhat_{1:i}
+           = \left[\begin{array}{c}
+               \hat{q}_{1} \\ \vdots \\ \hat{q}_{i}
+           \end{array}\right]
+           \in\RR^{i}.
+
+        For matrices, the product is computed columnwise:
+
+        .. math::
+           \left[\begin{array}{c|c|c}
+               & & \\
+               \qhat_0 & \cdots & \qhat_{k-1}
+               \\ & &
+           \end{array}\right]
+           \hat{\otimes}
+           \left[\begin{array}{ccc}
+               & & \\
+               \qhat_0 & \cdots & \qhat_{k-1}
+               \\ & &
+           \end{array}\right]
+           = \left[\begin{array}{ccc}
+               & & \\
+               \qhat_0\hat{\otimes}\qhat_0
+               & \cdots &
+               \qhat_{k-1}\hat{\otimes}\qhat_{k-1}
+               \\ & &
+           \end{array}\right]
+           \in \RR^{r(r+1)/2 \times k}.
+
+        Parameters
+        ----------
+        state : (r,) or (r, k) numpy.ndarray
+            State vector or matrix where each column is a state vector.
+
+        Returns
+        -------
+        product : (r(r+1)/2,) or (r(r+1)/2, k) ndarray
+            The compact Kronecker product of ``state`` with itself.
+        """
+        return np.concatenate(
+            [state[i] * state[: i + 1] for i in range(state.shape[0])],
+            axis=0,
+        )
+
+    @staticmethod
+    def ckron_indices(r):
+        """Construct a mask for efficiently computing the compact Kronecker
+        product.
+
+        This method provides a faster way to evaluate :meth:`ckron`
+        when the state dimension ``r`` is known *a priori*.
+
+        Parameters
+        ----------
+        r : int
+            State dimension.
+
+        Returns
+        -------
+        mask : ndarray
+            Compact Kronecker product mask.
+
+        Examples
+        --------
+        >>> from opinf.operators import QuadraticOperator
+        >>> r = 20
+        >>> mask = QuadraticOperator.ckron_indices(r)
+        >>> q = np.random.random(r)
+        >>> np.allclose(QuadraticOperator.ckron(q), np.prod(q[mask], axis=1))
+        True
+        """
+        mask = np.zeros((r * (r + 1) // 2, 2), dtype=int)
+        count = 0
+        for i in range(r):
+            for j in range(i + 1):
+                mask[count, :] = (i, j)
+                count += 1
+        return mask
+
+    @staticmethod
+    def compress_entries(H):
+        r"""Given :math:`\Hhat\in\RR^{a\times r^2}`, construct the matrix
+        :math:`\tilde{\H}\in\RR^{a \times r(r+1)/2}` such that
+        :math:`\Hhat[\qhat\otimes\qhat] = \tilde{\H}[\qhat\hat{\otimes}\qhat]`
+        for all :math:`\qhat\in\RR^{r}` where :math:`\hat{\otimes}` is the
+        compressed Kronecker product (see :meth:`ckron`).
+
+        Parameters
+        ----------
+        H : (a, r^2) ndarray
+            Matrix that acts on the full Kronecker product.
+
+        Returns
+        -------
+        Hc : (a, r(r+1)/2) ndarray
+            Matrix that acts on the compact Kronecker product.
+
+        Examples
+        --------
+        >>> from opinf.operators import QuadraticOperator
+        >>> r = 20
+        >>> H = np.random.random((r, r**2))
+        >>> H.shape
+        (20, 400)
+        >>> Htilde = QuadraticOperator.compress_entries(H)
+        >>> Htilde.shape
+        (20, 210)
+        >>> q = np.random.random(r)
+        >>> Hq2 = H @ np.kron(q, q)
+        >>> np.allclose(Hq2, Htilde @ QuadraticOperator.ckron(q))
+        True
+        """
+        if np.ndim(H) == 1:
+            H = np.atleast_2d(H)
+        r2 = H.shape[1]
+        if (r := int(round(r2 ** (1 / 2), 0))) ** 2 != r2:
+            raise ValueError(
+                f"invalid shape (a, r2) = {H.shape} "
+                "with r2 not a perfect square"
+            )
+        Hc = np.empty((H.shape[0], r * (r + 1) // 2))
+
+        fj = 0
+        for i in range(r):
+            for j in range(i + 1):
+                if i == j:  # Place column for unique term.
+                    Hc[:, fj] = H[:, (i * r) + j]
+                else:  # Combine columns for repeated terms.
+                    Hc[:, fj] = H[:, (i * r) + j] + H[:, (j * r) + i]
+                fj += 1
+
+        return Hc
+
+    @staticmethod
+    def expand_entries(Hc):
+        r"""Given :math:`\tilde{\H}\in\RR^{a \times r(r+1)/2}`, construct the
+        matrix :math:`\Hhat\in\RR^{a\times r^2}` such that
+        :math:`\Hhat[\qhat\otimes\qhat] = \tilde{\H}[\qhat\hat{\otimes}\qhat]`
+        for all :math:`\qhat\in\RR^{r}` where :math:`\hat{\otimes}` is the
+        compressed Kronecker product (see :meth:`ckron`).
+
+        Parameters
+        ----------
+        Hc : (a, r(r+1)/2) ndarray
+            Matrix that acts on the compact Kronecker product.
+
+        Returns
+        -------
+        H : (a, r^2) ndarray
+            Matrix that acts on the full Kronecker product.
+            This matrix is "symmetric" in the sense that
+            ``H.reshape((a, r, r))[i]`` is symmetric for `i = 0, ..., r`.
+
+        Examples
+        --------
+        >>> from opinf.operators import QuadraticOperator
+        >>> r = 20
+        >>> Htilde = np.random.random((r, r * (r + 1) / 2))
+        >>> Htilde.shape
+        (20, 210)
+        >>> H = QuadraticOperator.expand_entries(Htilde)
+        >>> H.shape
+        (20, 400)
+        >>> q = np.random.random(r)
+        >>> Hq2 = H @ np.kron(q, q)
+        >>> np.allclose(Hq2, Htilde @ QuadraticOperator.ckron(q))
+        True
+        >>> np.all(QuadraticOperator.compress_entries(G) == Gtilde)
+        True
+        """
+        if np.ndim(Hc) == 1:
+            Hc = np.atleast_2d(Hc)
+        b = Hc.shape[1]
+        r = int(round(np.sqrt(1 + 8 * b) / 2 - 0.5, 0))
+        if r * (r + 1) // 2 != b:
+            raise ValueError(
+                f"invalid shape (a, r2) = {Hc.shape} "
+                "with r2 != r(r+1)/2 for any integer r"
+            )
+
+        H = np.empty((Hc.shape[0], r**2))
+        fj = 0
+        for i in range(r):
+            for j in range(i + 1):
+                if i == j:  # Place column for unique term.
+                    H[:, (i * r) + j] = Hc[:, fj]
+                else:  # Distribute columns equally for repeated terms.
+                    fill = Hc[:, fj] / 2
+                    H[:, (i * r) + j] = fill
+                    H[:, (j * r) + i] = fill
+                fj += 1
+
+        return H
 
 
 class CubicOperator(_NonparametricOperator):
@@ -603,13 +850,13 @@ class CubicOperator(_NonparametricOperator):
             raise ValueError("CubicOperator entries must be two-dimensional")
         r, r3 = entries.shape
         if r3 == r**3:
-            entries = utils.compress_cubic(entries)
+            entries = self.compress_entries(entries)
         elif r3 != self.operator_dimension(r):
             raise ValueError("invalid CubicOperator entries dimensions")
 
         # Precompute compressed Kronecker product mask and Jacobian tensor.
-        self._mask = utils.kron3c_indices(r)
-        Gt = utils.expand_cubic(entries).reshape([r] * 4)
+        self._mask = self.ckron_indices(r)
+        Gt = self.expand_entries(entries).reshape([r] * 4)
         self._prejac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
 
         _NonparametricOperator.set_entries(self, entries)
@@ -682,7 +929,7 @@ class CubicOperator(_NonparametricOperator):
         """
 
         def _project(G, V, W):
-            return W.T @ utils.expand_cubic(G) @ np.kron(V, np.kron(V, V))
+            return W.T @ self.expand_entries(G) @ np.kron(V, np.kron(V, V))
 
         return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
 
@@ -737,7 +984,7 @@ class CubicOperator(_NonparametricOperator):
         product_ : (r(r+1)(r+2)/6, k) ndarray
             Compressed triple Khatri--Rao product of ``states`` with itself.
         """
-        return utils.kron3c(np.atleast_2d(states))
+        return CubicOperator.ckron(np.atleast_2d(states))
 
     @staticmethod
     def operator_dimension(r, m=None):
@@ -751,6 +998,231 @@ class CubicOperator(_NonparametricOperator):
             Input dimension.
         """
         return r * (r + 1) * (r + 2) // 6
+
+    # Utilities ---------------------------------------------------------------
+    @staticmethod
+    def ckron(state):
+        r"""Calculate the compressed cubic Kronecker product of a vector with
+        itself.
+
+        For a vector :math:`\qhat = [~\hat{q}_{1}~~\cdots~~\hat{q}_{r}~]\trp`,
+        the cubic Kronecker product of :math:`\qhat` with itself is given by
+
+        .. math::
+           \qhat \otimes \qhat \otimes \qhat
+           = \left[\begin{array}{c}
+               \hat{q}_{1}(\qhat \otimes \qhat)
+               \\ \vdots \\
+               \hat{q}_{r}(\qhat \otimes \qhat)
+           \end{array}\right]
+           \in\RR^{r^3}.
+
+        Cross terms :math:`\hat{q}_i \hat{q}_j \hat{q}_j` for :math:`i,j,k`
+        not all equal appear multiple times in
+        :math:`\qhat\otimes\qhat\otimes\qhat`.
+        The *compressed cubic Kronecker product*
+        :math:`\qhat\hat{\otimes}\qhat\hat{\otimes}\qhat`
+        consists of the unique terms of :math:`\qhat\otimes\qhat\otimes\qhat`:
+
+        .. math::
+           \qhat\hat{\otimes}\qhat\hat{\otimes}\qhat
+           = \left[\begin{array}{c}
+               \hat{q}_{1}^3
+               \\
+               \hat{q}_{2}[\![\qhat\hat{\otimes}\qhat]\!]_{1:2}
+               \\ \vdots \\
+               \hat{q}_{r}[\![\qhat\hat{\otimes}\qhat]\!]_{1:r}
+           \end{array}\right]
+           \in \RR^{r(r+1)(r+2)/6}.
+
+        See :meth:`opinf.operators_new.QuadraticOperator.ckron`.
+        For matrices, the product is computed columnwise.
+
+        Parameters
+        ----------
+        state : (r,) or (r, k) numpy.ndarray
+            State vector or matrix where each column is a state vector.
+
+        Returns
+        -------
+        product : (r(r+1)(r+2)/6,) or (r(r+1)(r+2)/6, k) ndarray
+            The compact triple Kronecker product of ``state`` with itself.
+        """
+        state2 = QuadraticOperator.ckron(state, False)
+        lens = special.binom(np.arange(2, len(state) + 2), 2).astype(int)
+        return np.concatenate(
+            [state[i] * state2[: lens[i]] for i in range(state.shape[0])],
+            axis=0,
+        )
+
+    @staticmethod
+    def ckron_indices(r):
+        """Construct a mask for efficiently computing the compact Kronecker
+        triple product.
+
+        This method provides a faster way to evaluate :meth:`ckron`
+        when the state dimension ``r`` is known *a priori*.
+
+        Parameters
+        ----------
+        r : int
+            State dimension.
+
+        Returns
+        -------
+        mask : ndarray
+            Compact Kronecker product mask.
+
+        Examples
+        --------
+        >>> from opinf.operators import CubicOperator
+        >>> r = 20
+        >>> mask = CubicOperator.kron_indices(r)
+        >>> q = np.random.random(r)
+        >>> np.allclose(CubicOperator.ckron(q), np.prod(q[mask], axis=1))
+        True
+        """
+        mask = np.zeros((r * (r + 1) * (r + 2) // 6, 3), dtype=int)
+        count = 0
+        for i in range(r):
+            for j in range(i + 1):
+                for k in range(j + 1):
+                    mask[count, :] = (i, j, k)
+                    count += 1
+        return mask
+
+    @staticmethod
+    def compress_entries(G):
+        r"""Given :math:`\Ghat\in\RR^{a\times r^2}`, construct the matrix
+        :math:`\tilde{\G}\in\RR^{a \times r(r+1)(r+2)/6}` such that
+        :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat]
+        = \tilde{\G}[\qhat\hat{\otimes}\qhat\hat{\otimes}\qhat]`
+        for all :math:`\qhat\in\RR^{r}`
+        where :math:`\cdot\hat{\otimes}\cdot\hat{\otimes}\cdot` is the
+        compressed cubic Kronecker product (see :meth:`ckron`).
+
+        Parameters
+        ----------
+        G : (a, r^3) ndarray
+            Matrix that acts on the full cubic Kronecker product.
+
+        Returns
+        -------
+        Gc : (a, r(r+1)(r+2)/6) ndarray
+            Matrix that acts on the compact cubic Kronecker product.
+
+        Examples
+        --------
+        >>> from opinf.operators import CubicOperator
+        >>> r = 20
+        >>> G = np.random.random((r, r**3))
+        >>> G.shape
+        (20, 8000)
+        >>> Gtilde = CubicOperator.compress_entries(G)
+        >>> Gtilde.shape
+        (20, 1540)
+        >>> q = np.random.random(r)
+        >>> Gq3 = G @ np.kron(q, np.kron(q, q))
+        >>> np.allclose(Gq3, Gtilde @ CubicOperator.ckron(q))
+        True
+        """
+        if np.ndim(G) == 1:
+            G = np.atleast_2d(G)
+        r3 = G.shape[1]
+        if (r := int(round(r3 ** (1 / 3), 0))) ** 3 != r3:
+            raise ValueError(
+                f"invalid shape (a, r3) = {G.shape} "
+                "with r3 not a perfect cube"
+            )
+        Gc = np.empty((G.shape[0], r * (r + 1) * (r + 2) // 6))
+
+        fj = 0
+        for i in range(r):
+            for j in range(i + 1):
+                for k in range(j + 1):
+                    idxs = set(itertools.permutations((i, j, k), 3))
+                    Gc[:, fj] = np.sum(
+                        [G[:, (a * r**2) + (b * r) + c] for a, b, c in idxs],
+                        axis=0,
+                    )
+                    fj += 1
+
+        return Gc
+
+    @staticmethod
+    def expand_entries(Gc):
+        r"""Given :math:`\tilde{\G}\in\RR^{a \times r(r+1)(r+2)/6}`,
+        construct the matrix :math:`\Ghat\in\RR^{a\times r^3}` such that
+        :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat]
+        = \tilde{\G}[\qhat\hat{\otimes}\qhat\hat{\otimes}\qhat]`
+        for all :math:`\qhat\in\RR^{r}`
+        where :math:`\cdot\hat{\otimes}\cdot\hat{\otimes}\cdot` is the
+        compressed cubic Kronecker product (see :meth:`ckron`).
+
+        Parameters
+        ----------
+        Gc : (a, r(r+1)(r+2)/2) ndarray
+            Matrix that acts on the compact cubic Kronecker product.
+
+        Returns
+        -------
+        G : (a, r^3) ndarray
+            Matrix that acts on the full cubic Kronecker product.
+
+        Examples
+        --------
+        >>> from opinf.operators import CubicOperator
+        >>> r = 20
+        >>> Gtilde = np.random.random((r, r * (r + 1) * (r + 2)/ 6))
+        >>> Gtilde.shape
+        (20, 1540)
+        >>> G = CubicOperator.expand_entries(Gtilde)
+        >>> G.shape
+        (20, 8000)
+        >>> q = np.random.random(r)
+        >>> Gq3 = G @ np.kron(q, np.kron(q, q))
+        >>> np.allclose(Gq2, Gtilde @ CubicOperator.ckron(q))
+        True
+        >>> np.all(CubicOperator.compress_entries(G) == Gtilde)
+        True
+        """
+        if np.ndim(Gc) == 1:
+            Gc = np.atleast_2d(Gc)
+        b = Gc.shape[1]
+        r = CubicOperator._rfromcompressed(b)
+        if r * (r + 1) * (r + 2) // 6 != b:
+            raise ValueError(
+                f"invalid shape (a, r3) = {Gc.shape} "
+                "with r3 != r(r+1)(r+2)/6 for any integer r"
+            )
+
+        G = np.empty((Gc.shape[0], r**3))
+        fj = 0
+        for i in range(r):
+            for j in range(i + 1):
+                for k in range(j + 1):
+                    idxs = set(itertools.permutations((i, j, k), 3))
+                    fill = Gc[:, fj] / len(idxs)
+                    for a, b, c in idxs:
+                        G[:, (a * r**2) + (b * r) + c] = fill
+                    fj += 1
+
+        return G
+
+    @staticmethod
+    def _rfromcompressed(b: int, maxiters: int = 10, tol: float = 0.25) -> int:
+        """Compute r such that r(r+1)(r+2)/6 = b via 1D Newton's method."""
+        r = int(b ** (1 / 3))
+        _6b = 6 * b
+        for _ in range(maxiters):
+            _3r2 = 3 * r**2
+            rnew = r - (r**3 + _3r2 + 2 * r - _6b) / (_3r2 + 6 * r + 2)
+            if abs(r - rnew) < tol:
+                return int(round(rnew, 0))
+            r = rnew
+        raise ValueError(  # pragma: no cover
+            f"Newton solve for r such that r(r+1)(r+2)/6 = {b} failed"
+        )
 
 
 # Dependent on input but not on state =========================================

@@ -307,9 +307,8 @@ class TestQuadraticOperator:
         assert op.entries[0, 0] == H
 
         # Full operator, compressed internally.
-        # More thorough tests elsewhere for _kronecker.compress_quadratic().
         H = np.random.random((r, r**2))
-        H_ = opinf.utils.compress_quadratic(H)
+        H_ = self._OpClass.compress_entries(H)
         op.set_entries(H)
         r2_ = r * (r + 1) // 2
         assert op.state_dimension == r
@@ -424,7 +423,6 @@ class TestQuadraticOperator:
         state_ = np.random.random((r, k))
         r2_ = r * (r + 1) // 2
 
-        # More thorough tests elsewhere for _kronecker.kron2c().
         block = op.datablock(state_)
         assert block.shape == (r2_, k)
         op.entries = np.random.random((r, r2_))
@@ -448,6 +446,142 @@ class TestQuadraticOperator:
         assert self._OpClass.operator_dimension(1) == 1
         assert self._OpClass.operator_dimension(3) == 6
         assert self._OpClass.operator_dimension(5, 7) == 15
+
+    def test_ckron(self, n_tests=20):
+        """Test QuadraticOperator.ckron()."""
+
+        def _check(q, q2):
+            for i in range(len(q)):
+                assert np.allclose(
+                    q2[i * (i + 1) // 2 : (i + 1) * (i + 2) // 2],
+                    q[i] * q[: i + 1],
+                )
+
+        for r in np.random.randint(2, 10, n_tests):
+            q = np.random.random(r)
+            q2 = self._OpClass.ckron(q)
+            r2 = r * (r + 1) // 2
+            assert q2.shape == (r2,)
+            _check(q, q2)
+
+            k = np.random.randint(1, 10)
+            Q = np.random.random((r, k))
+            Q2 = self._OpClass.ckron(Q)
+            assert Q2.shape == (r2, k)
+            _check(Q, Q2)
+
+    def test_ckron_indices(self, n_tests=20):
+        """Test QuadraticOperator.ckron_indices()."""
+        # Manufactured test.
+        mask = self._OpClass.ckron_indices(4)
+        assert np.all(
+            mask
+            == np.array(
+                [
+                    [0, 0],
+                    [1, 0],
+                    [1, 1],
+                    [2, 0],
+                    [2, 1],
+                    [2, 2],
+                    [3, 0],
+                    [3, 1],
+                    [3, 2],
+                    [3, 3],
+                ],
+                dtype=int,
+            )
+        )
+        submask = self._OpClass.ckron_indices(3)
+        assert np.allclose(submask, mask[: submask.shape[0]])
+
+        # Random test.
+        for _ in range(n_tests):
+            r = np.random.randint(2, 10)
+            _r2 = r * (r + 1) // 2
+            mask = self._OpClass.ckron_indices(r)
+            assert mask.shape == (_r2, 2)
+            assert mask.sum(axis=0)[0] == sum(i * (i + 1) for i in range(r))
+            q = np.random.random(r)
+            assert np.allclose(
+                np.prod(q[mask], axis=1), self._OpClass.ckron(q)
+            )
+
+    def test_compress_entries(self, n_tests=20):
+        """Test QuadraticOperator.compress_entries()."""
+        # Try with bad second dimension.
+        r = 5
+        r2bad = r**2 + 1
+        H = np.empty((r, r2bad))
+        with pytest.raises(ValueError) as exc:
+            self._OpClass.compress_entries(H)
+        assert (
+            exc.value.args[0] == f"invalid shape (a, r2) = {(r, r2bad)} "
+            "with r2 not a perfect square"
+        )
+
+        # One-dimensional H (r = 1).
+        Hc = self._OpClass.compress_entries([5])
+        assert Hc.shape == (1, 1)
+        assert Hc[0, 0] == 5
+
+        # Random tests.
+        for r in np.random.randint(2, 10, n_tests):
+            # Check dimensions.
+            a = np.random.randint(2, 10)
+            H = np.random.random((a, r**2))
+            r2 = r * (r + 1) // 2
+            Hc = self._OpClass.compress_entries(H)
+            assert Hc.shape == (a, r2)
+
+            # Check that Hc(q^2) == H(q ⊗ q).
+            for _ in range(5):
+                q = np.random.random(r)
+                Hq2 = H @ np.kron(q, q)
+                assert np.allclose(Hq2, Hc @ self._OpClass.ckron(q))
+
+            # Check that expand_entries() and compress_quadrati()
+            # are inverses up to symmetry.
+            H2 = self._OpClass.expand_entries(Hc)
+            Ht = H.reshape((a, r, r))
+            H2sym = np.reshape([(Hti + Hti.T) / 2 for Hti in Ht], H.shape)
+            assert np.allclose(H2, H2sym)
+
+    def test_expand_entries(self, n_tests=20):
+        """Test QuadraticOperator.expand_entries()."""
+        # Try with bad second dimension.
+        r = 5
+        r2bad = (r * (r + 1) // 2) + 1
+        Hc = np.empty((r, r2bad))
+        with pytest.raises(ValueError) as exc:
+            self._OpClass.expand_entries(Hc)
+        assert (
+            exc.value.args[0] == f"invalid shape (a, r2) = {(r, r2bad)} "
+            "with r2 != r(r+1)/2 for any integer r"
+        )
+
+        # One-dimensional H (r = 1).
+        H = self._OpClass.expand_entries([5])
+        assert H.shape == (1, 1)
+        assert H[0, 0] == 5
+
+        # Random tests.
+        for r in np.random.randint(2, 10, n_tests):
+            # Check dimensions.
+            a = np.random.randint(2, 10)
+            Hc = np.random.random((a, r * (r + 1) // 2))
+            H = self._OpClass.expand_entries(Hc)
+            assert H.shape == (a, r**2)
+
+            # Check that Hc(q^2) == H(q ⊗ q).
+            for _ in range(5):
+                q = np.random.random(r)
+                Hq2 = H @ np.kron(q, q)
+                assert np.allclose(Hq2, Hc @ self._OpClass.ckron(q))
+
+            # Check that expand_entries() and compress_entries() are inverses.
+            Hc2 = self._OpClass.compress_entries(H)
+            assert np.allclose(Hc2, Hc)
 
 
 class TestCubicOperator:
@@ -490,9 +624,8 @@ class TestCubicOperator:
         assert np.allclose(op.entries, G)
 
         # Full operator, compressed internally.
-        # More thorough tests elsewhere for _kronecker.compress_cubic().
         G = np.random.random((r, r**3))
-        G_ = opinf.utils.compress_cubic(G)
+        G_ = self._OpClass.compress_entries(G)
         op.set_entries(G)
         r3_ = r * (r + 1) * (r + 2) // 6
         assert op.shape == (r, r3_)
@@ -605,7 +738,7 @@ class TestCubicOperator:
         state_ = np.random.random((r, k))
         r3_ = r * (r + 1) * (r + 2) // 6
 
-        # More thorough tests elsewhere for _kronecker.kron2c().
+        # More thorough tests elsewhere for ckron().
         block = op.datablock(state_)
         assert block.shape == (r3_, k)
         op.entries = np.random.random((r, r3_))
@@ -629,6 +762,130 @@ class TestCubicOperator:
         assert self._OpClass.operator_dimension(1) == 1
         assert self._OpClass.operator_dimension(3) == 10
         assert self._OpClass.operator_dimension(5, 2) == 35
+
+    def test_ckron(self, n_tests=20):
+        """Test CubicOperator.ckron()."""
+
+        def _check(q, q3):
+            for i in range(len(q)):
+                assert np.allclose(
+                    q3[
+                        i
+                        * (i + 1)
+                        * (i + 2)
+                        // 6 : (i + 1)
+                        * (i + 2)
+                        * (i + 3)
+                        // 6
+                    ],
+                    q[i] * TestQuadraticOperator._OpClass.ckron(q[: i + 1]),
+                )
+
+        for r in np.random.randint(2, 10, n_tests):
+            q = np.random.random(r)
+            q3 = self._OpClass.ckron(q)
+            r3 = r * (r + 1) * (r + 2) // 6
+            assert q3.shape == (r3,)
+            _check(q, q3)
+
+            k = np.random.randint(1, 10)
+            Q = np.random.random((r, k))
+            Q3 = self._OpClass.ckron(Q)
+            assert Q3.shape == (r3, k)
+            _check(Q, Q3)
+
+    def test_ckron_indices(self, n_tests=20):
+        """Test CubicOperator.ckron_indices()."""
+        # Manufactured test.
+        mask = self._OpClass.ckron_indices(2)
+        assert np.all(
+            mask
+            == np.array(
+                [[0, 0, 0], [1, 0, 0], [1, 1, 0], [1, 1, 1]],
+                dtype=int,
+            )
+        )
+
+        # Random tests.
+        for _ in range(n_tests):
+            r = np.random.randint(2, 10)
+            mask = self._OpClass.ckron_indices(r)
+            _r3 = r * (r + 1) * (r + 2) // 6
+            mask = self._OpClass.ckron_indices(r)
+            assert mask.shape == (_r3, 3)
+            q = np.random.random(r)
+            assert np.allclose(
+                np.prod(q[mask], axis=1), self._OpClass.ckron(q)
+            )
+
+    def test_compress_entries(self, n_tests=20):
+        """Test QuadraticOperator.compress_entries()."""
+        # Try with bad second dimension.
+        r = 5
+        r3bad = r**3 + 1
+        G = np.empty((r, r3bad))
+        with pytest.raises(ValueError) as exc:
+            self._OpClass.compress_entries(G)
+        assert (
+            exc.value.args[0] == f"invalid shape (a, r3) = {(r, r3bad)} "
+            "with r3 not a perfect cube"
+        )
+
+        # One-dimensional G (r = 1).
+        Gc = self._OpClass.compress_entries([6])
+        assert Gc.shape == (1, 1)
+        assert Gc[0, 0] == 6
+
+        # Random tests.
+        for r in np.random.randint(2, 10, n_tests):
+            # Check dimensions.
+            a = np.random.randint(2, 10)
+            G = np.random.random((a, r**3))
+            r2 = r * (r + 1) * (r + 2) // 6
+            Gc = self._OpClass.compress_entries(G)
+            assert Gc.shape == (a, r2)
+
+            # Check that Gc(q^3) == G(q ⊗ q ⊗ q).
+            for _ in range(5):
+                q = np.random.random(r)
+                Gq3 = G @ np.kron(q, np.kron(q, q))
+                assert np.allclose(Gq3, Gc @ self._OpClass.ckron(q))
+
+    def test_expand_entries(self, n_tests=20):
+        """Test CubicOperator.expand_entries()."""
+        # Try with bad second dimension.
+        r = 5
+        r3bad = (r * (r + 1) * (r + 2) // 6) + 1
+        Gc = np.empty((r, r3bad))
+        with pytest.raises(ValueError) as exc:
+            self._OpClass.expand_entries(Gc)
+        assert (
+            exc.value.args[0] == f"invalid shape (a, r3) = {(r, r3bad)} "
+            "with r3 != r(r+1)(r+2)/6 for any integer r"
+        )
+
+        # One-dimensional G (r = 1).
+        G = self._OpClass.expand_entries([5])
+        assert G.shape == (1, 1)
+        assert G[0, 0] == 5
+
+        # Random tests.
+        for r in np.random.randint(2, 10, n_tests):
+            # Check dimensions.
+            a = np.random.randint(2, 10)
+            Gc = np.random.random((a, r * (r + 1) * (r + 2) // 6))
+            G = self._OpClass.expand_entries(Gc)
+            assert G.shape == (a, r**3)
+
+            # Check that Gc[q^3] == G[q ⊗ q ⊗ q].
+            for _ in range(5):
+                q = np.random.random(r)
+                Gq3 = G @ np.kron(q, np.kron(q, q))
+                assert np.allclose(Gq3, Gc @ self._OpClass.ckron(q))
+
+            # Check that expand_entries() and compress_entries() are inverses.
+            Gc2 = self._OpClass.compress_entries(G)
+            assert np.allclose(Gc2, Gc)
 
 
 # Dependent on input but not on state =========================================
