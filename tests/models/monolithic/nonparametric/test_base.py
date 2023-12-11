@@ -1,4 +1,4 @@
-# models/nonparametric/test_base.py
+# models/monolithic/nonparametric/test_base.py
 """Tests for models.nonparametric._base."""
 
 import os
@@ -13,22 +13,118 @@ from .. import MODEL_FORMS, _get_data, _get_operators
 
 
 opinf_operators = opinf.operators_new  # TEMP
+_module = opinf.models.monolithic.nonparametric._base
+kron2c = opinf.operators_new.QuadraticOperator.ckron
+kron3c = opinf.operators_new.CubicOperator.ckron
 
 
-class TestNonparametricModel:
-    """Test models.nonparametric._base._NonparametricModel."""
+class TestNonparametricMonolithicModel:
+    """Test models.nonparametric._base._NonparametricMonolithicModel."""
 
-    class Dummy(opinf.models.nonparametric._base._NonparametricModel):
-        """Instantiable version of _NonparametricModel."""
+    class Dummy(_module._NonparametricMonolithicModel):
+        """Instantiable version of _NonparametricMonolithicModel."""
 
         _LHS_ARGNAME = "mylhs"
+        _LHS_LABEL = "qdot"
+        _STATE_LABEL = "qq"
+        _INPUT_LABEL = "uu"
 
         def predict(*args, **kwargs):
             pass
 
-    # Properties --------------------------------------------------------------
+    # Properties: operators ---------------------------------------------------
+    def test_operators(self):
+        """Test _NonparametricMonolithicModel.operators
+        (_operator_abbreviations, _isvalidoperator(),
+        _check_operator_types_unique()).
+        """
+        # Try with duplicate (nonintrusive) operator types.
+
+        with pytest.raises(ValueError) as ex:
+            self.Dummy("AA")
+        assert (
+            ex.value.args[0] == "duplicate type in list of operators to infer"
+        )
+
+        # Test __init__() shortcuts.
+        model = self.Dummy("cHB")
+        assert len(model.operators) == 3
+        for i in range(3):
+            assert model.operators[i].entries is None
+        assert isinstance(model.operators[0], opinf_operators.ConstantOperator)
+        assert isinstance(
+            model.operators[1], opinf_operators.QuadraticOperator
+        )
+        assert isinstance(model.operators[2], opinf_operators.InputOperator)
+
+        model.operators = [opinf_operators.ConstantOperator(), "A", "N"]
+        assert len(model.operators) == 3
+        for i in range(3):
+            assert model.operators[i].entries is None
+        assert isinstance(model.operators[0], opinf_operators.ConstantOperator)
+        assert isinstance(model.operators[1], opinf_operators.LinearOperator)
+        assert isinstance(
+            model.operators[2], opinf_operators.StateInputOperator
+        )
+
+    def test_get_operator_of_type(self, m=4, r=7):
+        """Test _NonparametricMonolithicModel._get_operator_of_type()
+        and the [caHGBN]_ properties.
+        """
+        [c, A, H, B, N] = _get_operators("cAHBN", r, m)
+        model = self.Dummy([A, B, c, H, N])
+
+        assert model.A_ is model.operators[0]
+        assert model.B_ is model.operators[1]
+        assert model.c_ is model.operators[2]
+        assert model.H_ is model.operators[3]
+        assert model.N_ is model.operators[4]
+        assert model.G_ is None
+
+    # String representation ---------------------------------------------------
+    def test_str(self):
+        """Test _NonparametricMonolithicModel.__str__()."""
+
+        # Continuous Models
+        model = self.Dummy("A")
+        assert str(model) == "Model structure: qdot = Aqq"
+        model = self.Dummy("cA")
+        assert str(model) == "Model structure: qdot = c + Aqq"
+        model = self.Dummy("HB")
+        assert str(model) == "Model structure: qdot = H[qq ⊗ qq] + Buu"
+        model = self.Dummy("G")
+        assert str(model) == "Model structure: qdot = G[qq ⊗ qq ⊗ qq]"
+        model = self.Dummy("cH")
+        assert str(model) == "Model structure: qdot = c + H[qq ⊗ qq]"
+
+        # Dimension reporting.
+        model = self.Dummy("A")
+        model.state_dimension = 20
+        modelstr = str(model).split("\n")
+        assert len(modelstr) == 2
+        assert modelstr[0] == "Model structure: qdot = Aqq"
+        assert modelstr[1] == "State dimension r = 20"
+
+        model = self.Dummy("cB")
+        model.state_dimension = 10
+        model.input_dimension = 3
+        modelstr = str(model).split("\n")
+        assert len(modelstr) == 3
+        assert modelstr[0] == "Model structure: qdot = c + Buu"
+        assert modelstr[1] == "State dimension r = 10"
+        assert modelstr[2] == "Input dimension m = 3"
+
+    def test_repr(self):
+        """Test _NonparametricMonolithicModel.__repr__()."""
+
+        def firstline(obj):
+            return repr(obj).split("\n")[0]
+
+        assert firstline(self.Dummy("A")).startswith("<Dummy object at")
+
+    # Properties: operator inference ------------------------------------------
     def test_operator_matrix_(self, r=15, m=3):
-        """Test _NonparametricModel.operator_matrix_."""
+        """Test _NonparametricMonolithicModel.operator_matrix_."""
         c, A, H, G, B, N = _get_operators("cAHGBN", r, m)
 
         model = self.Dummy("cA")
@@ -48,8 +144,8 @@ class TestNonparametricModel:
         assert np.all(model.operator_matrix_ == D)
 
     def test_data_matrix_(self, k=500, m=20, r=10):
-        """Test _NonparametricModel.data_matrix_, i.e., spot check
-        _NonparametricModel._assemble_data_matrix().
+        """Test _NonparametricMonolithicModel.data_matrix_
+        (_assemble_data_matrix(), operator_matrix_dimension).
         """
         Q, Qdot, U = _get_data(r, k, m)
 
@@ -75,9 +171,7 @@ class TestNonparametricModel:
 
         model.operators = "HG"
         model._fit_solver(Q, Qdot, inputs=None)
-        Dtrue = np.column_stack(
-            [opinf.utils.kron2c(Q).T, opinf.utils.kron3c(Q).T]
-        )
+        Dtrue = np.column_stack([kron2c(Q).T, kron3c(Q).T])
         D = model.data_matrix_
         d = r * (r + 1) // 2 + r * (r + 1) * (r + 2) // 6
         assert D.shape == (k, d)
@@ -106,7 +200,7 @@ class TestNonparametricModel:
 
     # Fitting -----------------------------------------------------------------
     def test_process_fit_arguments(self, k=50, m=4, r=6):
-        """Test _NonparametricModel._process_fit_arguments()."""
+        """Test _NonparametricMonolithicModel._process_fit_arguments()."""
         # Get test data.
         Q, lhs, U = _get_data(r, k, m)
         A, B = _get_operators("AB", r, m)
@@ -231,7 +325,7 @@ class TestNonparametricModel:
         assert model.operators[1] is B
 
     def test_assemble_data_matrix(self, k=50, m=6, r=8):
-        """Test _NonparametricModel._assemble_data_matrix()."""
+        """Test _NonparametricMonolithicModel._assemble_data_matrix()."""
         # Get test data.
         Q_, _, U = _get_data(r, k, m)
 
@@ -258,13 +352,13 @@ class TestNonparametricModel:
         D = model._assemble_data_matrix(Q_, U)
         assert D.shape == (k, 1 + r * (r + 1) * (r + 2) // 6)
         assert np.allclose(D[:, :1], np.ones((k, 1)))
-        assert np.allclose(D[:, 1:], opinf.utils.kron3c(Q_).T)
+        assert np.allclose(D[:, 1:], kron3c(Q_).T)
 
         model.operators = "AH"
         D = model._assemble_data_matrix(Q_, U)
         assert D.shape == (k, r + r * (r + 1) // 2)
         assert np.allclose(D[:, :r], Q_.T)
-        assert np.allclose(D[:, r:], opinf.utils.kron2c(Q_).T)
+        assert np.allclose(D[:, r:], kron2c(Q_).T)
 
         model.operators = "BN"
         D = model._assemble_data_matrix(Q_, U)
@@ -280,7 +374,7 @@ class TestNonparametricModel:
         assert np.allclose(D, np.column_stack((np.ones(k), U[0])))
 
     def test_extract_operators(self, m=2, r=10):
-        """Test _NonparametricModel._extract_operators()."""
+        """Test _NonparametricMonolithicModel._extract_operators()."""
         model = self.Dummy("c")
         c, A, H, G, B, N = [
             op.entries for op in _get_operators("cAHGBN", r, m)
@@ -310,7 +404,7 @@ class TestNonparametricModel:
         assert np.allclose(model.B_.entries, B)
 
     def test_fit(self, k=50, m=4, r=6):
-        """Test _NonparametricModel.fit()."""
+        """Test _NonparametricMonolithicModel.fit()."""
         # Get test data.
         Q, F, U = _get_data(r, k, m)
         U1d = U[0, :]
@@ -340,9 +434,79 @@ class TestNonparametricModel:
         assert modelB_.shape == (r, m)
         assert np.allclose(modelB_.entries, B[:])
 
+    # Model evaluation --------------------------------------------------------
+    def test_rhs(self, m=2, k=10, r=5, ntrials=10):
+        """Test _NonparametricMonolithicModel.rhs()."""
+        c_, A_, H_, B_ = _get_operators("cAHB", r, m)
+
+        model = self.Dummy([c_, A_])
+        for _ in range(ntrials):
+            q_ = np.random.random(r)
+            y_ = c_.entries + A_.entries @ q_
+            out = model.rhs(q_)
+            assert out.shape == y_.shape
+            assert np.allclose(out, y_)
+
+            Q_ = np.random.random((r, k))
+            Y_ = c_.entries.reshape((r, 1)) + A_.entries @ Q_
+            out = model.rhs(Q_)
+            assert out.shape == Y_.shape
+            assert np.allclose(out, Y_)
+
+        model = self.Dummy([H_, B_])
+        for _ in range(ntrials):
+            u = np.random.random(m)
+            q_ = np.random.random(r)
+            y_ = H_.entries @ kron2c(q_) + B_.entries @ u
+            out = model.rhs(q_, u)
+            assert out.shape == y_.shape
+            assert np.allclose(out, y_)
+
+            Q_ = np.random.random((r, k))
+            U = np.random.random((m, k))
+            Y_ = H_.entries @ kron2c(Q_) + B_.entries @ U
+            out = model.rhs(Q_, U)
+            assert out.shape == Y_.shape
+            assert np.allclose(out, Y_)
+
+        # Special case: r = 1, q is a scalar.
+        model = self.Dummy(_get_operators("A", 1))
+        a = model.operators[0].entries[0]
+        assert model.state_dimension == 1
+        for _ in range(ntrials):
+            q_ = np.random.random()
+            y_ = a * q_
+            out = model.rhs(q_)
+            assert out.shape == y_.shape
+            assert np.allclose(out, y_)
+
+            Q_ = np.random.random(k)
+            Y_ = a[0] * Q_
+            out = model.rhs(Q_, U)
+            assert out.shape == Y_.shape
+            assert np.allclose(out, Y_)
+
+    def test_jacobian(self, r=5, m=2, ntrials=10):
+        """Test _NonparametricMonolithicModel.jacobian()."""
+        c_, A_, B_ = _get_operators("cAB", r, m)
+
+        for oplist in ([c_, A_], [c_, A_, B_]):
+            model = self.Dummy(oplist)
+            q_ = np.random.random(r)
+            out = model.jacobian(q_)
+            assert out.shape == (r, r)
+            assert np.allclose(out, A_.entries)
+
+        # Special case: r = 1, q a scalar.
+        model = self.Dummy(_get_operators("A", 1))
+        q_ = np.random.random()
+        out = model.jacobian(q_)
+        assert out.shape == (1, 1)
+        assert out[0, 0] == model.operators[0].entries[0, 0]
+
     # Model persistence -------------------------------------------------------
     def test_save(self, m=2, r=3, target="_savemodeltest.h5"):
-        """Test _NonparametricModel.save()."""
+        """Test _NonparametricMonolithicModel.save()."""
         # Clean up after old tests.
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
@@ -363,7 +527,7 @@ class TestNonparametricModel:
         os.remove(target)
 
     def test_load(self, n=20, m=2, r=5, target="_loadmodeltest.h5"):
-        """Test _NonparametricModel.load()."""
+        """Test _NonparametricMonolithicModel.load()."""
         # Clean up after old tests if needed.
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)

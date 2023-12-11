@@ -1,33 +1,23 @@
-# models/_base.py
-"""Abstract base classes for dynamical systems models."""
+# models/monolithic/_base.py
+"""Abstract base class for monolithic dynamical systems models."""
 
 __all__ = []
 
 import abc
 import warnings
-import numpy as np
 
-from .. import errors
-from .. import operators_new as _operators
-
-
-_OPERATOR_SHORTCUTS = {
-    "c": _operators.ConstantOperator,
-    "A": _operators.LinearOperator,
-    "H": _operators.QuadraticOperator,
-    "G": _operators.CubicOperator,
-    "B": _operators.InputOperator,
-    "N": _operators.StateInputOperator,
-}
+from ... import errors
+from ... import operators_new as _operators
 
 
 class _MonolithicModel(abc.ABC):
-    """Base class for all monolithic model classes."""
+    """Base class for all monolithic models.
 
-    _LHS_ARGNAME = "lhs"  # Name of LHS argument in fit(), e.g., "ddts".
-    _LHS_LABEL = None  # String representation of LHS, e.g., "dq / dt".
-    _STATE_LABEL = None  # String representation of state, e.g., "q(t)".
-    _INPUT_LABEL = None  # String representation of input, e.g., "u(t)".
+    Child classes:
+
+    * :class:`_NonparametricMonolithicModel`
+    * :class:`_ParametricMonolithicModel`
+    """
 
     def __init__(self, operators):
         """Define the model structure.
@@ -44,6 +34,29 @@ class _MonolithicModel(abc.ABC):
         self.operators = operators
 
     # Properties: operators ---------------------------------------------------
+    _operator_abbreviations = dict()  # Abbreviations for model operators.
+
+    @abc.abstractmethod
+    def _isvalidoperator(self, op):  # pragma: no cover
+        """Return True if and only if ``op`` is a valid operator object
+        for this class of model.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _check_operator_types_unique(self, ops):  # pragma: no cover
+        """Raise a ValueError if any two operators represent the same kind
+        of operation (e.g., two constant operators).
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_operator_of_type(self, OpClass):  # pragma: no cover
+        """Return the first operator in the model corresponding to the
+        operator class ``OpClass``.
+        """
+        raise NotImplementedError
+
     @property
     def operators(self):
         """Operators comprising the terms of the model."""
@@ -52,7 +65,7 @@ class _MonolithicModel(abc.ABC):
     @operators.setter
     def operators(self, ops):
         """Set the operators."""
-        if _operators.is_nonparametric(ops):
+        if self._isvalidoperator(ops):
             ops = [ops]
         if len(ops) == 0 or ops is None:
             raise ValueError("at least one operator required")
@@ -63,16 +76,24 @@ class _MonolithicModel(abc.ABC):
         ops = list(ops)
         for i in range(len(ops)):
             op = ops[i]
-            if isinstance(op, str) and op in _OPERATOR_SHORTCUTS:
-                op = ops[i] = _OPERATOR_SHORTCUTS[op]()
-            if not _operators.is_nonparametric(op):
-                raise TypeError("expected list of nonparametric operators")
+            if isinstance(op, str):
+                if op in (self._operator_abbreviations):
+                    op = ops[i] = self._operator_abbreviations[op]()
+                else:
+                    raise TypeError(
+                        f"operator abbreviation '{op}' not recognized"
+                    )
+            if not self._isvalidoperator(op):
+                raise TypeError(
+                    f"invalid operator of type '{op.__class__.__name__}'"
+                )
             if op.entries is None:
                 toinfer.append(i)
             else:
                 known.append(i)
             if _operators.has_inputs(op):
                 self._has_inputs = True
+        self._check_operator_types_unique([ops[i] for i in toinfer])
 
         # Store attributes.
         self.__r = self._check_state_dimension_consistency(ops)
@@ -94,12 +115,6 @@ class _MonolithicModel(abc.ABC):
         """Iterate through the model operators."""
         for op in self.operators:
             yield op
-
-    def _get_operator_of_type(self, OpClass):
-        """Return the first operator of type ``OpClass``."""
-        for op in self.operators:
-            if isinstance(op, OpClass):
-                return op
 
     @property
     def c_(self):
@@ -137,7 +152,7 @@ class _MonolithicModel(abc.ABC):
         """Ensure all operators with initialized entries have the same
         state dimension (``shape[0]``).
         """
-        rs = {op.shape[0] for op in ops if op.entries is not None}
+        rs = {op.state_dimension for op in ops if op.entries is not None}
         if len(rs) > 1:
             raise errors.DimensionalityError(
                 "operators not aligned "
@@ -206,54 +221,6 @@ class _MonolithicModel(abc.ABC):
                     )
         self.__m = m
 
-    # String representation ---------------------------------------------------
-    def __str__(self):
-        """String representation: structure of the model, dimensions, etc."""
-        # Build model structure.
-        out, terms = [], []
-        for op in self.operators:
-            terms.append(op._str(self._STATE_LABEL, self._INPUT_LABEL))
-        structure = " + ".join(terms)
-        out.append(f"Model structure: {self._LHS_LABEL} = {structure}")
-
-        # Report dimensions.
-        if self.state_dimension:
-            out.append(f"State dimension r = {self.state_dimension:d}")
-        if self.input_dimension:
-            out.append(f"Input dimension m = {self.input_dimension:d}")
-
-        return "\n".join(out)
-
-    def __repr__(self):
-        """Unique ID + string representation."""
-        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
-        return f"{uniqueID}\n{str(self)}"
-
-    # Validation methods ------------------------------------------------------
-
-    def _check_inputargs(self, u, argname):
-        """Check that the model structure agrees with input arguments."""
-        if self._has_inputs and u is None:
-            raise ValueError(f"argument '{argname}' required")
-
-        if not self._has_inputs and u is not None:
-            warnings.warn(
-                f"argument '{argname}' should be None, "
-                "argument will be ignored",
-                UserWarning,
-            )
-
-    def _check_is_trained(self):
-        """Ensure that the model is trained and ready for prediction."""
-        if self.state_dimension is None:
-            raise AttributeError("no reduced dimension 'r' (call fit())")
-        if self._has_inputs and (self.input_dimension is None):
-            raise AttributeError("no input dimension 'm' (call fit())")
-
-        for op in self.operators:
-            if op.entries is None:
-                raise AttributeError("model not trained (call fit())")
-
     # Dimensionality reduction ------------------------------------------------
     def galerkin(self, Vr, Wr=None):
         r"""Construct a reduced-order model by taking the (Petrov-)Galerkin
@@ -300,99 +267,35 @@ class _MonolithicModel(abc.ABC):
         """
         return self.__class__(
             [
-                old_op.galerkin(Vr, Wr)
-                if old_op.entries is not None
-                else old_op.copy()
+                (
+                    old_op.galerkin(Vr, Wr)
+                    if old_op.entries is not None
+                    else old_op.copy()
+                )
                 for old_op in self.operators
             ]
         )
 
-    # Model evaluation --------------------------------------------------------
-    def rhs(self, state, input_=None):
-        r"""Evaluate the right-hand side of the model by applying each operator
-        and summing the results.
+    # Validation methods ------------------------------------------------------
+    def _check_inputargs(self, u, argname):
+        """Check that the model structure agrees with input arguments."""
+        if self._has_inputs and u is None:
+            raise ValueError(f"argument '{argname}' required")
 
-        This is the function :math:`\widehat{\mathbf{F}}(\qhat, \u)`
-        where the model can be written as one of the following:
+        if not self._has_inputs and u is not None:
+            warnings.warn(
+                f"argument '{argname}' should be None, "
+                "argument will be ignored",
+                UserWarning,
+            )
 
-        * :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
-          (continuous time)
-        * :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_j, \u_j)`
-          (discrete time)
-        * :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat, \u)`
-          (steady state)
+    def _check_is_trained(self):
+        """Ensure that the model is trained and ready for prediction."""
+        if self.state_dimension is None:
+            raise AttributeError("no reduced dimension 'r' (call fit())")
+        if self._has_inputs and (self.input_dimension is None):
+            raise AttributeError("no input dimension 'm' (call fit())")
 
-        Parameters
-        ----------
-        state : (r,) ndarray
-            State vector.
-        input_ : (m,) ndarray or None
-            Input vector corresponding to the state.
-
-        Returns
-        -------
-        evaluation : (r,) ndarray
-            Evaluation of the right-hand side of the model.
-        """
-        state = np.atleast_1d(state)
-        out = np.zeros(state.shape, dtype=float)
         for op in self.operators:
-            out += op.apply(state, input_)
-        return out
-
-    def jacobian(self, state, input_=None):
-        r"""Construct and sum the state Jacobian of each model operator.
-
-        This the derivative of the right-hand side of the model with respect
-        to the state, i.e., the function
-        :math:`\ddqhat\widehat{\mathbf{F}}}(\qhat, \u)`
-        where the model can be written as one of the following:
-
-        - :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
-          (continuous time)
-        - :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`
-          (discrete time)
-        - :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat, \u)`
-          (steady state)
-
-        Parameters
-        ----------
-        state : (r,) ndarray
-            State vector :math:`\qhat`.
-        input_ : (m,) ndarray or None
-            Input vector :math:`\u`.
-
-        Returns
-        -------
-        jac : (r, r) ndarray
-            State Jacobian of the right-hand side of the model.
-        """
-        r = self.state_dimension
-        out = np.zeros((r, r), dtype=float)
-        for op in self.operators:
-            out += op.jacobian(state, input_)
-        return out
-
-    # Abstract public methods (must be implemented by child classes) ----------
-    @abc.abstractmethod
-    def fit(*args, **kwargs):
-        """Train the model with the specified data via operator inference."""
-        raise NotImplementedError  # pragma: no cover
-
-    @abc.abstractmethod
-    def predict(*args, **kwargs):
-        """Solve the model under specified conditions."""
-        raise NotImplementedError  # pragma: no cover
-
-    # Model persistence (not required but suggested) --------------------------
-    def save(*args, **kwargs):
-        """Save the model structure and operators in HDF5 format."""
-        raise NotImplementedError("use pickle/joblib")
-
-    @classmethod
-    def load(*args, **kwargs):
-        """Load a previously saved model from an HDF5 file."""
-        raise NotImplementedError("use pickle/joblib")
-
-
-# TODO: class _ParametricMonolithicModel(_MonolithicModel)?
+            if op.entries is None:
+                raise AttributeError("model not trained (call fit())")

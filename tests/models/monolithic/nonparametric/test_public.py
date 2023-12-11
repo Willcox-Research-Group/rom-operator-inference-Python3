@@ -1,5 +1,5 @@
-# models/nonparametric/test_public.py
-"""Tests for models.nonparametric._public."""
+# models/monolithic/nonparametric/test_public.py
+"""Tests for models.monolithic.nonparametric._public."""
 
 import pytest
 import numpy as np
@@ -9,10 +9,13 @@ import opinf
 from .. import MODEL_FORMS, _get_data, _get_operators, _trainedmodel
 
 
-class TestSteadyModel:
-    """Test models.nonparametric._public.SteadyModel."""
+_module = opinf.models.monolithic.nonparametric._public
 
-    ModelClass = opinf.models.nonparametric._public.SteadyModel
+
+class TestSteadyModel:
+    """Test models.monolithic.nonparametric._public.SteadyModel."""
+
+    ModelClass = _module.SteadyModel
 
     def test_rhs(self, r=10):
         """Lightly test SteadyModel.rhs().
@@ -42,9 +45,9 @@ class TestSteadyModel:
 
 
 class TestDiscreteModel:
-    """Test models.nonparametric._public.DiscreteModel."""
+    """Test models.monolithic.nonparametric._public.DiscreteModel."""
 
-    ModelClass = opinf.models.nonparametric._public.DiscreteModel
+    ModelClass = _module.DiscreteModel
 
     def test_stack_trajectories(self, r=10, k=20, m=5, num_trajectories=4):
         """Test DiscreteModel.stack_trajectories()."""
@@ -185,9 +188,9 @@ class TestDiscreteModel:
 
 
 class TestContinuousModel:
-    """Test models.nonparametric._public.ContinuousModel."""
+    """Test models.monolithic.nonparametric._public.ContinuousModel."""
 
-    ModelClass = opinf.models.nonparametric._public.ContinuousModel
+    ModelClass = _module.ContinuousModel
 
     def test_rhs(self, r=5, m=2):
         """Test ContinuousModel.rhs()."""

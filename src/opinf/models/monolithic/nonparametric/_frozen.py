@@ -1,5 +1,5 @@
-# models/nonparametric/_frozen.py
-"""Evaluations of parametric model classes with fit() disabled."""
+# models/monolithic/nonparametric/_frozen.py
+"""Evaluations of monolithic parametric model classes with fit() disabled."""
 
 __all__ = []
 

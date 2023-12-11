@@ -12,11 +12,11 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.integrate import solve_ivp, IntegrationWarning
 
-from ._base import _NonparametricModel
-from ... import errors
+from ._base import _NonparametricMonolithicModel
+from .... import errors
 
 
-class SteadyModel(_NonparametricModel):  # pragma: no cover
+class SteadyModel(_NonparametricMonolithicModel):  # pragma: no cover
     r"""Nonparametric steady state model :math:`\zhat = \fhat(\qhat)`.
 
     Here,
@@ -55,7 +55,7 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
         g: (r,) ndarray
             Evaluation of the right-hand-side of the model.
         """
-        return _NonparametricModel.rhs(self, state, None)
+        return _NonparametricMonolithicModel.rhs(self, state, None)
 
     def jacobian(self, state):
         r"""Sum the state Jacobian of each model operator.
@@ -74,7 +74,7 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
         jac : (r, r) ndarray
             State Jacobian of the right-hand side of the model.
         """
-        return _NonparametricModel.jacobian(self, state, input_=None)
+        return _NonparametricMonolithicModel.jacobian(self, state, input_=None)
 
     def fit(self, states, forcing=None, *, solver=None, regularizer=None):
         r"""Learn the model operators from data.
@@ -127,7 +127,7 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
         """
         if solver is None and regularizer is not None:
             solver = regularizer  # pragma: no cover
-        return _NonparametricModel.fit(
+        return _NonparametricMonolithicModel.fit(
             self, states, forcing, inputs=None, solver=solver
         )
 
@@ -136,7 +136,7 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
         raise NotImplementedError("TODO")
 
 
-class DiscreteModel(_NonparametricModel):
+class DiscreteModel(_NonparametricMonolithicModel):
     r"""Nonparametric discrete dynamical system model
     :math:`\qhat_{j+1} = \fhat(\qhat_{j}, \u_{j})`.
 
@@ -215,7 +215,7 @@ class DiscreteModel(_NonparametricModel):
         nextstate : (r,) ndarray
             Evaluation of the right-hand side of the model.
         """
-        return _NonparametricModel.rhs(self, state, input_)
+        return _NonparametricMonolithicModel.rhs(self, state, input_)
 
     def jacobian(self, state, input_=None):
         r"""Sum the state Jacobian of each model operator.
@@ -237,7 +237,7 @@ class DiscreteModel(_NonparametricModel):
         jac : (r, r) ndarray
             State Jacobian of the right-hand side of the model.
         """
-        return _NonparametricModel.jacobian(self, state, input_)
+        return _NonparametricMonolithicModel.jacobian(self, state, input_)
 
     def fit(
         self,
@@ -309,7 +309,7 @@ class DiscreteModel(_NonparametricModel):
             inputs = inputs[..., : states.shape[1]]
         if solver is None and regularizer is not None:
             solver = regularizer  # pragma: no cover
-        return _NonparametricModel.fit(
+        return _NonparametricMonolithicModel.fit(
             self, states, nextstates, inputs=inputs, solver=solver
         )
 
@@ -383,7 +383,7 @@ class DiscreteModel(_NonparametricModel):
         return states
 
 
-class ContinuousModel(_NonparametricModel):
+class ContinuousModel(_NonparametricMonolithicModel):
     r"""Nonparametric system of ordinary differential equations
     :math:`\ddt\qhat(t) = \fhat(\qhat(t), \u(t))`.
 
@@ -429,7 +429,7 @@ class ContinuousModel(_NonparametricModel):
             Evaluation of the right-hand side of the model.
         """
         input_ = None if not self._has_inputs else input_func(t)
-        return _NonparametricModel.rhs(self, state, input_)
+        return _NonparametricMonolithicModel.rhs(self, state, input_)
 
     def jacobian(self, t, state, input_func=None):
         r"""Sum the state Jacobian of each model operator.
@@ -455,7 +455,7 @@ class ContinuousModel(_NonparametricModel):
             State Jacobian of the right-hand side of the model.
         """
         input_ = None if not self._has_inputs else input_func(t)
-        return _NonparametricModel.jacobian(self, state, input_)
+        return _NonparametricMonolithicModel.jacobian(self, state, input_)
 
     def fit(self, states, ddts, inputs=None, solver=None, *, regularizer=None):
         r"""Learn the model operators from data.
@@ -514,7 +514,7 @@ class ContinuousModel(_NonparametricModel):
         """
         if solver is None and regularizer is not None:
             solver = regularizer  # pragma: no cover
-        return _NonparametricModel.fit(
+        return _NonparametricMonolithicModel.fit(
             self, states, ddts, inputs=inputs, solver=solver
         )
 

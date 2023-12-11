@@ -1,4 +1,4 @@
-# models/test_base.py
+# models/monolithic/test_base.py
 """Tests for models._base."""
 
 import pytest
@@ -10,23 +10,23 @@ from . import _get_operators
 
 
 opinf_operators = opinf.operators_new  # TEMP
+_module = opinf.models.monolithic._base
 
 
 class TestMonolithicModel:
     """Test models._base._MonolithicModel."""
 
-    class Dummy(opinf.models._base._MonolithicModel):
+    class Dummy(_module._MonolithicModel):
         """Instantiable version of _MonolithicModel."""
 
-        _LHS_LABEL = "dq / dt"
-        _STATE_LABEL = "q(t)"
-        _INPUT_LABEL = "u(t)"
+        def _isvalidoperator(self, op):
+            return hasattr(opinf_operators, op.__class__.__name__)
 
-        def fit(*args, **kwargs):
-            pass
+        def _check_operator_types_unique(*args, **kwargs):
+            return True
 
-        def predict(*args, **kwargs):
-            return 100
+        def _get_operator_of_type(*args, **kwargs):  # pragma: no cover
+            raise NotImplementedError
 
     # Properties: operators ---------------------------------------------------
     def test_operators(self, m=4, r=7):
@@ -43,7 +43,7 @@ class TestMonolithicModel:
         # Try to instantiate with non-operator.
         with pytest.raises(TypeError) as ex:
             self.Dummy([1])
-        assert ex.value.args[0] == "expected list of nonparametric operators"
+        assert ex.value.args[0] == "invalid operator of type 'int'"
 
         # Try to instantiate with operators of mismatched shape (no basis).
         bad_ops = [
@@ -68,6 +68,11 @@ class TestMonolithicModel:
             ex.value.args[0] == "input operators not aligned "
             "(input dimension must be the same for all input operators)"
         )
+
+        # Try with bad operator abbrevation.
+        with pytest.raises(TypeError) as ex:
+            self.Dummy("X")
+        assert ex.value.args[0] == "operator abbreviation 'X' not recognized"
 
         # Test operators.setter().
         model = self.Dummy(opinf_operators.ConstantOperator())
@@ -139,48 +144,18 @@ class TestMonolithicModel:
         assert model.state_dimension == r  # Dimensions not erased.
         assert model.input_dimension == m  # Dimensions not erased.
 
-        # Test __init__() shortcuts.
-        model = self.Dummy("cHB")
-        assert len(model.operators) == 3
-        for i in range(3):
-            assert model.operators[i].entries is None
-        assert isinstance(model.operators[0], opinf_operators.ConstantOperator)
-        assert isinstance(
-            model.operators[1], opinf_operators.QuadraticOperator
-        )
-        assert isinstance(model.operators[2], opinf_operators.InputOperator)
-
-        model.operators = [opinf_operators.ConstantOperator(), "A", "N"]
-        assert len(model.operators) == 3
-        for i in range(3):
-            assert model.operators[i].entries is None
-        assert isinstance(model.operators[0], opinf_operators.ConstantOperator)
-        assert isinstance(model.operators[1], opinf_operators.LinearOperator)
-        assert isinstance(
-            model.operators[2], opinf_operators.StateInputOperator
-        )
-
-    def test_operator_shortcuts(self, m=4, r=7):
-        """Test _MonolithicModel.[caHGBN]_ properties
-        (_get_operator_of_type()).
-        """
-        [c, A, H, B, N] = _get_operators("cAHBN", r, m)
-        model = self.Dummy([A, B, c, H, N])
-
-        assert model.A_ is model.operators[0]
-        assert model.B_ is model.operators[1]
-        assert model.c_ is model.operators[2]
-        assert model.H_ is model.operators[3]
-        assert model.N_ is model.operators[4]
-        assert model.G_ is None
-
     # Properties: dimensions --------------------------------------------------
     def test_dimension_properties(self, m=3, r=7):
         """Test the properties _MonolithicModel.state_dimension and
         _MonolithicModel.input_dimension.
         """
         # Case 1: no inputs.
-        model = self.Dummy("cH")
+        model = self.Dummy(
+            [
+                opinf_operators.ConstantOperator(),
+                opinf_operators.QuadraticOperator(),
+            ]
+        )
         assert model.state_dimension is None
         assert model.input_dimension == 0
 
@@ -208,7 +183,12 @@ class TestMonolithicModel:
         assert model.input_dimension == 0
 
         # Case 2: has inputs.
-        model = self.Dummy("AB")
+        model = self.Dummy(
+            [
+                opinf_operators.LinearOperator(),
+                opinf_operators.InputOperator(),
+            ]
+        )
         assert model.input_dimension is None
         model.state_dimension = r
 
@@ -230,61 +210,54 @@ class TestMonolithicModel:
         assert model.state_dimension == r
         assert model.input_dimension == m
 
-    # String representation ---------------------------------------------------
-    def test_str(self):
-        """Test _MonolithicModel.__str__() (string representation)."""
+    # Dimensionality reduction ------------------------------------------------
+    def test_galerkin(self, n=20, r=6):
+        """Test _MonolithicModel.galerkin()."""
+        A = _get_operators("A", n)[0]
+        Vr = np.random.random((20, 6))
 
-        # Continuous Models
-        model = self.Dummy("A")
-        assert str(model) == "Model structure: dq / dt = Aq(t)"
-        model = self.Dummy("cA")
-        assert str(model) == "Model structure: dq / dt = c + Aq(t)"
-        model = self.Dummy("HB")
-        assert (
-            str(model) == "Model structure: dq / dt = H[q(t) ⊗ q(t)] + Bu(t)"
+        fom = self.Dummy(
+            [
+                opinf_operators.ConstantOperator(),
+                A,
+                opinf_operators.QuadraticOperator(),
+            ]
         )
-        model = self.Dummy("G")
-        assert str(model) == "Model structure: dq / dt = G[q(t) ⊗ q(t) ⊗ q(t)]"
-        model = self.Dummy("cH")
-        assert str(model) == "Model structure: dq / dt = c + H[q(t) ⊗ q(t)]"
+        assert fom.state_dimension == n
 
-        # Dimension reporting.
-        model = self.Dummy("A")
-        model.state_dimension = 20
-        modelstr = str(model).split("\n")
-        assert len(modelstr) == 2
-        assert modelstr[0] == "Model structure: dq / dt = Aq(t)"
-        assert modelstr[1] == "State dimension r = 20"
-
-        model = self.Dummy("cB")
-        model.state_dimension = 10
-        model.input_dimension = 3
-        modelstr = str(model).split("\n")
-        assert len(modelstr) == 3
-        assert modelstr[0] == "Model structure: dq / dt = c + Bu(t)"
-        assert modelstr[1] == "State dimension r = 10"
-        assert modelstr[2] == "Input dimension m = 3"
-
-    def test_repr(self):
-        """Test _MonolithicModel.__repr__() (string representation)."""
-
-        def firstline(obj):
-            return repr(obj).split("\n")[0]
-
-        assert firstline(self.Dummy("A")).startswith("<Dummy object at")
+        rom = fom.galerkin(Vr)
+        assert rom.state_dimension == r
+        newA = rom.operators[1]
+        assert isinstance(newA, opinf_operators.LinearOperator)
+        assert newA.entries.shape == (r, r)
+        assert np.allclose(newA.entries, Vr.T @ A.entries @ Vr)
+        assert isinstance(rom.operators[0], opinf_operators.ConstantOperator)
+        assert isinstance(rom.operators[2], opinf_operators.QuadraticOperator)
+        for i in [0, 2]:
+            assert rom.operators[i].entries is None
 
     # Validation methods ------------------------------------------------------
     def test_check_inputargs(self):
         """Test _MonolithicModel._check_inputargs()."""
 
         # Try with input operator but without inputs.
-        model = self.Dummy("cB")
+        model = self.Dummy(
+            [
+                opinf_operators.ConstantOperator(),
+                opinf_operators.InputOperator(),
+            ]
+        )
         with pytest.raises(ValueError) as ex:
             model._check_inputargs(None, "U")
         assert ex.value.args[0] == "argument 'U' required"
 
         # Try without input operator but with inputs.
-        model = self.Dummy("cA")
+        model = self.Dummy(
+            [
+                opinf_operators.ConstantOperator(),
+                opinf_operators.LinearOperator(),
+            ]
+        )
         with pytest.warns(UserWarning) as wn:
             model._check_inputargs(1, "u")
         assert len(wn) == 1
@@ -295,7 +268,12 @@ class TestMonolithicModel:
 
     def test_is_trained(self, m=4, r=7):
         """Test _MonolithicModel._check_is_trained()."""
-        model = self.Dummy("cB")
+        model = self.Dummy(
+            [
+                opinf_operators.ConstantOperator(),
+                opinf_operators.InputOperator(),
+            ]
+        )
         with pytest.raises(AttributeError) as ex:
             model._check_is_trained()
         assert ex.value.args[0] == "no reduced dimension 'r' (call fit())"
@@ -314,107 +292,3 @@ class TestMonolithicModel:
         # Successful check.
         model.operators = _get_operators("cABH", r, m)
         model._check_is_trained()
-
-    # Dimensionality reduction ------------------------------------------------
-    def test_galerkin(self, n=20, r=6):
-        """Test _MonolithicModel.galerkin()."""
-        A = _get_operators("A", n)[0]
-        Vr = np.random.random((20, 6))
-
-        fom = self.Dummy(["c", A, "H"])
-        assert fom.state_dimension == n
-
-        rom = fom.galerkin(Vr)
-        assert rom.state_dimension == r
-        newA = rom.operators[1]
-        assert isinstance(newA, opinf_operators.LinearOperator)
-        assert newA.entries.shape == (r, r)
-        assert np.allclose(newA.entries, Vr.T @ A.entries @ Vr)
-        assert isinstance(rom.operators[0], opinf_operators.ConstantOperator)
-        assert isinstance(rom.operators[2], opinf_operators.QuadraticOperator)
-        for i in [0, 2]:
-            assert rom.operators[i].entries is None
-
-    # Model evaluation --------------------------------------------------------
-    def test_rhs(self, m=2, k=10, r=5, ntrials=10):
-        """Test _MonolithicModel.rhs()."""
-        c_, A_, H_, B_ = _get_operators("cAHB", r, m)
-
-        model = self.Dummy([c_, A_])
-        for _ in range(ntrials):
-            q_ = np.random.random(r)
-            y_ = c_.entries + A_.entries @ q_
-            out = model.rhs(q_)
-            assert out.shape == y_.shape
-            assert np.allclose(out, y_)
-
-            Q_ = np.random.random((r, k))
-            Y_ = c_.entries.reshape((r, 1)) + A_.entries @ Q_
-            out = model.rhs(Q_)
-            assert out.shape == Y_.shape
-            assert np.allclose(out, Y_)
-
-        kron2c = opinf.utils.kron2c
-        model = self.Dummy([H_, B_])
-        for _ in range(ntrials):
-            u = np.random.random(m)
-            q_ = np.random.random(r)
-            y_ = H_.entries @ kron2c(q_) + B_.entries @ u
-            out = model.rhs(q_, u)
-            assert out.shape == y_.shape
-            assert np.allclose(out, y_)
-
-            Q_ = np.random.random((r, k))
-            U = np.random.random((m, k))
-            Y_ = H_.entries @ kron2c(Q_) + B_.entries @ U
-            out = model.rhs(Q_, U)
-            assert out.shape == Y_.shape
-            assert np.allclose(out, Y_)
-
-        # Special case: r = 1, q is a scalar.
-        model = self.Dummy(_get_operators("A", 1))
-        a = model.operators[0].entries[0]
-        assert model.state_dimension == 1
-        for _ in range(ntrials):
-            q_ = np.random.random()
-            y_ = a * q_
-            out = model.rhs(q_)
-            assert out.shape == y_.shape
-            assert np.allclose(out, y_)
-
-            Q_ = np.random.random(k)
-            Y_ = a[0] * Q_
-            out = model.rhs(Q_, U)
-            assert out.shape == Y_.shape
-            assert np.allclose(out, Y_)
-
-    def test_jacobian(self, r=5, m=2, ntrials=10):
-        """Test _MonolithicModel.jacobian()."""
-        c_, A_, B_ = _get_operators("cAB", r, m)
-
-        for oplist in ([c_, A_], [c_, A_, B_]):
-            model = self.Dummy(oplist)
-            q_ = np.random.random(r)
-            out = model.jacobian(q_)
-            assert out.shape == (r, r)
-            assert np.allclose(out, A_.entries)
-
-        # Special case: r = 1, q a scalar.
-        model = self.Dummy(_get_operators("A", 1))
-        q_ = np.random.random()
-        out = model.jacobian(q_)
-        assert out.shape == (1, 1)
-        assert out[0, 0] == model.operators[0].entries[0, 0]
-
-    def test_save(self):
-        """Test _MonolithicModel.save()."""
-        model = self.Dummy("cA")
-        with pytest.raises(NotImplementedError) as ex:
-            model.save("nothing")
-        assert ex.value.args[0] == "use pickle/joblib"
-
-    def test_load(self):
-        """Test _MonolithicModel.load()."""
-        with pytest.raises(NotImplementedError) as ex:
-            self.Dummy.load("nothing")
-        assert ex.value.args[0] == "use pickle/joblib"

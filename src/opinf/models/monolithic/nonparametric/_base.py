@@ -1,21 +1,87 @@
-# models/nonparametric/_base.py
-"""Base class for nonparametric models."""
+# models/monolithic/nonparametric/_base.py
+"""Base class for monolithic nonparametric dynamical systems models."""
 
 __all__ = []
 
+import abc
 import numpy as np
 
 from .._base import _MonolithicModel
-from ... import lstsq
-from ... import errors
-from ... import operators_new as _operators
-from ...utils import hdf5_savehandle, hdf5_loadhandle
+from .... import errors, lstsq, utils
+from .... import operators_new as _operators
 
 
-class _NonparametricModel(_MonolithicModel):
-    """Base nonparametric monolithic operator inference model."""
+class _NonparametricMonolithicModel(_MonolithicModel):
+    """Base class for nonparametric monolithic models.
 
-    # Properties --------------------------------------------------------------
+    Parent class: :class:`_MonolithicModel`
+
+    Child classes:
+
+    * :class:`SteadyModel`
+    * :class:`DiscreteModel`
+    * :class:`ContinuousModel`
+    """
+
+    _LHS_ARGNAME = "lhs"  # Name of LHS argument in fit(), e.g., "ddts".
+    _LHS_LABEL = None  # String representation of LHS, e.g., "dq / dt".
+    _STATE_LABEL = None  # String representation of state, e.g., "q(t)".
+    _INPUT_LABEL = None  # String representation of input, e.g., "u(t)".
+
+    # Properties: operators ---------------------------------------------------
+    _operator_abbreviations = {
+        "c": _operators.ConstantOperator,
+        "A": _operators.LinearOperator,
+        "H": _operators.QuadraticOperator,
+        "G": _operators.CubicOperator,
+        "B": _operators.InputOperator,
+        "N": _operators.StateInputOperator,
+    }
+
+    @staticmethod
+    def _isvalidoperator(op):
+        """Return True if and only if ``op`` is a valid operator object
+        for this class of model.
+        """
+        return _operators.is_nonparametric(op)
+
+    def _check_operator_types_unique(self, ops):
+        """Raise a ValueError if any two operators represent the same kind
+        of operation (e.g., two constant operators).
+        """
+        if len({type(op) for op in ops}) != len(ops):
+            raise ValueError("duplicate type in list of operators to infer")
+
+    def _get_operator_of_type(self, OpClass):
+        """Return the first operator of type ``OpClass``."""
+        for op in self.operators:
+            if isinstance(op, OpClass):
+                return op
+
+    # String representation ---------------------------------------------------
+    def __str__(self):
+        """String representation: structure of the model, dimensions, etc."""
+        # Build model structure.
+        out, terms = [], []
+        for op in self.operators:
+            terms.append(op._str(self._STATE_LABEL, self._INPUT_LABEL))
+        structure = " + ".join(terms)
+        out.append(f"Model structure: {self._LHS_LABEL} = {structure}")
+
+        # Report dimensions.
+        if self.state_dimension:
+            out.append(f"State dimension r = {self.state_dimension:d}")
+        if self.input_dimension:
+            out.append(f"Input dimension m = {self.input_dimension:d}")
+
+        return "\n".join(out)
+
+    def __repr__(self):
+        """Unique ID + string representation."""
+        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
+        return f"{uniqueID}\n{str(self)}"
+
+    # Properties: operator inference ------------------------------------------
     @property
     def operator_matrix_(self):
         r""":math:`r \times d(r, m)` operator matrix, e.g.,
@@ -287,6 +353,77 @@ class _NonparametricModel(_MonolithicModel):
         self._evaluate_solver()
         return self
 
+    # Model evaluation --------------------------------------------------------
+    def rhs(self, state, input_=None):
+        r"""Evaluate the right-hand side of the model by applying each operator
+        and summing the results.
+
+        This is the function :math:`\widehat{\mathbf{F}}(\qhat, \u)`
+        where the model can be written as one of the following:
+
+        * :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
+          (continuous time)
+        * :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_j, \u_j)`
+          (discrete time)
+        * :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat, \u)`
+          (steady state)
+
+        Parameters
+        ----------
+        state : (r,) ndarray
+            State vector.
+        input_ : (m,) ndarray or None
+            Input vector corresponding to the state.
+
+        Returns
+        -------
+        evaluation : (r,) ndarray
+            Evaluation of the right-hand side of the model.
+        """
+        state = np.atleast_1d(state)
+        out = np.zeros(state.shape, dtype=float)
+        for op in self.operators:
+            out += op.apply(state, input_)
+        return out
+
+    def jacobian(self, state, input_=None):
+        r"""Construct and sum the state Jacobian of each model operator.
+
+        This the derivative of the right-hand side of the model with respect
+        to the state, i.e., the function
+        :math:`\ddqhat\widehat{\mathbf{F}}}(\qhat, \u)`
+        where the model can be written as one of the following:
+
+        - :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
+          (continuous time)
+        - :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`
+          (discrete time)
+        - :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat, \u)`
+          (steady state)
+
+        Parameters
+        ----------
+        state : (r,) ndarray
+            State vector :math:`\qhat`.
+        input_ : (m,) ndarray or None
+            Input vector :math:`\u`.
+
+        Returns
+        -------
+        jac : (r, r) ndarray
+            State Jacobian of the right-hand side of the model.
+        """
+        r = self.state_dimension
+        out = np.zeros((r, r), dtype=float)
+        for op in self.operators:
+            out += op.jacobian(state, input_)
+        return out
+
+    @abc.abstractmethod
+    def predict(*args, **kwargs):  # pragma: no cover
+        """Solve the model under specified conditions."""
+        raise NotImplementedError
+
     # Model persistence -------------------------------------------------------
     def save(self, savefile, overwrite=False):
         """Serialize the model, saving it in HDF5 format.
@@ -301,7 +438,7 @@ class _NonparametricModel(_MonolithicModel):
             overwrite the file. If ``False`` (default) and the specified
             ``savefile`` already exists, raise an error.
         """
-        with hdf5_savehandle(savefile, overwrite=overwrite) as hf:
+        with utils.hdf5_savehandle(savefile, overwrite=overwrite) as hf:
             # Metadata.
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_operators"] = len(self.operators)
@@ -337,7 +474,7 @@ class _NonparametricModel(_MonolithicModel):
         model : _NonparametricModel
             Loaded model.
         """
-        with hdf5_loadhandle(loadfile) as hf:
+        with utils.hdf5_loadhandle(loadfile) as hf:
             # Load metadata.
             num_operators = int(hf["meta"].attrs["num_operators"])
             indices_infer = [int(i) for i in hf["indices_infer"][:]]

@@ -5,13 +5,16 @@ import pytest
 
 import opinf
 
+_parent = opinf.models.monolithic.nonparametric
+_module = _parent._frozen
+
 
 class TestFrozenMixin:
-    """Test models.nonparametric._frozen._FrozenMixin."""
+    """Test models.monolithic.nonparametric._frozen._FrozenMixin."""
 
     class Dummy(
-        opinf.models.nonparametric._frozen._FrozenMixin,
-        opinf.models.nonparametric._base._NonparametricModel,
+        _module._FrozenMixin,
+        _parent._base._NonparametricMonolithicModel,
     ):
         """Instantiable version of _FrozenMixin."""
 
@@ -19,7 +22,7 @@ class TestFrozenMixin:
             pass
 
     def test_disabled(self, ModelClass=None):
-        """Test models.nonparametric._frozen._FrozenMixin.fit()."""
+        """Test _FrozenMixin.fit() and other disabled methods."""
         if ModelClass is None:
             ModelClass = self.Dummy
         model = ModelClass("A")
