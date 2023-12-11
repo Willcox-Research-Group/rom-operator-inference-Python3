@@ -18,6 +18,15 @@ This page lists major changes made between package versions.
   - The `compress()` and `decompress()` methods have been removed from model classes.
   - The dimensions `n` and `r` have been replaced with `state_dimension`; `m` is now `input_dimension`.
 - Moved time derivative estimation tools to the new `ddt` submodule.
+- Moved Kronecker product utilities to static methods of nonparametric operators.
+  - `utils.kron2c()` is now `QuadraticOperator.ckron()`
+  - `utils.kron2c_indices()` is now `QuadraticOperator.ckron_indices()`
+  - `utils.compress_quadratic()` is now `QuadraticOperator.compress_entries()`
+  - `utils.expand_quadratic()` is now `QuadraticOperator.expand_entries()`
+  - `utils.kron3c()` is now `CubicOperator.ckron()`
+  - `utils.kron3c_indices()` is now `CubicOperator.ckron_indices()`
+  - `utils.compress_cubic()` is now `CubicOperator.compress_entries()`
+  - `utils.expand_cubic()` is now `CubicOperator.expand_entries()`
 :::
 
 :::{versionchanged} 0.4.5

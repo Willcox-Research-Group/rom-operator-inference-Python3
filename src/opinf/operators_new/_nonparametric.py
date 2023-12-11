@@ -629,7 +629,7 @@ class QuadraticOperator(_NonparametricOperator):
         Returns
         -------
         product : (r(r+1)/2,) or (r(r+1)/2, k) ndarray
-            The compact Kronecker product of ``state`` with itself.
+            The compressed Kronecker product of ``state`` with itself.
         """
         return np.concatenate(
             [state[i] * state[: i + 1] for i in range(state.shape[0])],
@@ -638,7 +638,7 @@ class QuadraticOperator(_NonparametricOperator):
 
     @staticmethod
     def ckron_indices(r):
-        """Construct a mask for efficiently computing the compact Kronecker
+        """Construct a mask for efficiently computing the compressed Kronecker
         product.
 
         This method provides a faster way to evaluate :meth:`ckron`
@@ -652,7 +652,7 @@ class QuadraticOperator(_NonparametricOperator):
         Returns
         -------
         mask : ndarray
-            Compact Kronecker product mask.
+            Compressed Kronecker product mask.
 
         Examples
         --------
@@ -687,7 +687,7 @@ class QuadraticOperator(_NonparametricOperator):
         Returns
         -------
         Hc : (a, r(r+1)/2) ndarray
-            Matrix that acts on the compact Kronecker product.
+            Matrix that acts on the compressed Kronecker product.
 
         Examples
         --------
@@ -736,7 +736,7 @@ class QuadraticOperator(_NonparametricOperator):
         Parameters
         ----------
         Hc : (a, r(r+1)/2) ndarray
-            Matrix that acts on the compact Kronecker product.
+            Matrix that acts on the compressed Kronecker product.
 
         Returns
         -------
@@ -1046,7 +1046,7 @@ class CubicOperator(_NonparametricOperator):
         Returns
         -------
         product : (r(r+1)(r+2)/6,) or (r(r+1)(r+2)/6, k) ndarray
-            The compact triple Kronecker product of ``state`` with itself.
+            The compressed triple Kronecker product of ``state`` with itself.
         """
         state2 = QuadraticOperator.ckron(state, False)
         lens = special.binom(np.arange(2, len(state) + 2), 2).astype(int)
@@ -1057,7 +1057,7 @@ class CubicOperator(_NonparametricOperator):
 
     @staticmethod
     def ckron_indices(r):
-        """Construct a mask for efficiently computing the compact Kronecker
+        """Construct a mask for efficiently computing the compressed Kronecker
         triple product.
 
         This method provides a faster way to evaluate :meth:`ckron`
@@ -1071,7 +1071,7 @@ class CubicOperator(_NonparametricOperator):
         Returns
         -------
         mask : ndarray
-            Compact Kronecker product mask.
+            Compressed Kronecker product mask.
 
         Examples
         --------
@@ -1109,7 +1109,7 @@ class CubicOperator(_NonparametricOperator):
         Returns
         -------
         Gc : (a, r(r+1)(r+2)/6) ndarray
-            Matrix that acts on the compact cubic Kronecker product.
+            Matrix that acts on the compressed cubic Kronecker product.
 
         Examples
         --------
@@ -1162,7 +1162,7 @@ class CubicOperator(_NonparametricOperator):
         Parameters
         ----------
         Gc : (a, r(r+1)(r+2)/2) ndarray
-            Matrix that acts on the compact cubic Kronecker product.
+            Matrix that acts on the compressed cubic Kronecker product.
 
         Returns
         -------
