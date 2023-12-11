@@ -272,6 +272,9 @@ class TestInterpolatedOperator:
         op2 = self.Dummy.load(target, _DummyInterpolator)
         assert op2 == op1
 
+        # Clean up.
+        os.remove(target)
+
 
 def test_1Doperators(r=10, m=3, s=5):
     """Test InterpolatedOperator classes with using all 1D interpolators

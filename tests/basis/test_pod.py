@@ -14,6 +14,7 @@ import opinf
 
 class TestPODBasis:
     """Test basis._pod.PODBasis."""
+
     PODBasis = opinf.basis.PODBasis
 
     def test_init(self):
@@ -105,7 +106,11 @@ class TestPODBasis:
         assert basis.shape == (n, 1)
         assert basis.dual.shape == (n, 1)
         assert basis.svdvals.shape == (r,)
-        assert basis.compress(np.random.random(n,)).shape == (1,)
+        assert basis.compress(
+            np.random.random(
+                n,
+            )
+        ).shape == (1,)
         assert basis.compress(np.random.random((n, n))).shape == (1, n)
 
     def test_set_dimension(self, n=20):
@@ -114,11 +119,13 @@ class TestPODBasis:
 
         # Try setting dimension without singular values.
         with pytest.raises(AttributeError) as ex:
-            basis.set_dimension(r=None, cumulative_energy=.9985)
+            basis.set_dimension(r=None, cumulative_energy=0.9985)
         assert ex.value.args[0] == "no singular value data (call fit() first)"
 
         V, _, Wt = la.svd(np.random.standard_normal((n, n)))
-        svdvals = np.sqrt([.9, .09, .009, .0009, .00009, .000009, .0000009])
+        svdvals = np.sqrt(
+            [0.9, 0.09, 0.009, 0.0009, 0.00009, 0.000009, 0.0000009]
+        )
 
         # Default: use all basis vectors.
         basis._store_svd(V, svdvals, Wt)
@@ -132,9 +139,9 @@ class TestPODBasis:
 
         # Choose dimension based on an energy criteria.
         basis._store_svd(V, svdvals, Wt)
-        basis.set_dimension(cumulative_energy=.9999)
+        basis.set_dimension(cumulative_energy=0.9999)
         assert basis.r == 4
-        basis.set_dimension(residual_energy=.01)
+        basis.set_dimension(residual_energy=0.01)
         assert basis.r == 2
 
     def test_str(self):
@@ -149,8 +156,10 @@ class TestPODBasis:
         states = np.empty((n, n))
         with pytest.raises(ValueError) as ex:
             self.PODBasis._validate_rank(states, n + 1)
-        assert ex.value.args[0] == f"invalid POD rank r = {n + 1} " \
-                                   f"(need 1 ≤ r ≤ {n})"
+        assert (
+            ex.value.args[0] == f"invalid POD rank r = {n + 1} "
+            f"(need 1 ≤ r ≤ {n})"
+        )
 
         self.PODBasis._validate_rank(states, n // 2)
 
@@ -229,7 +238,7 @@ class TestPODBasis:
         assert isinstance(ax, plt.Axes)
         plt.close(ax.figure)
 
-        ax = basis.plot_cumulative_energy(threshold=.999)
+        ax = basis.plot_cumulative_energy(threshold=0.999)
         assert isinstance(ax, plt.Axes)
         plt.close(ax.figure)
 
@@ -244,11 +253,10 @@ class TestPODBasis:
         plt.interactive(_pltio)
 
     # Persistence -------------------------------------------------------------
-    def test_save(self, n=20, k=14, r=6):
+    def test_save(self, n=20, k=14, r=6, target="_podbasissavetest.h5"):
         """Lightly test save()."""
         # Clean up after old tests.
-        target = "_podbasissavetest.h5"
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         # Just save a basis to a temporary file, don't interrogate the file.
@@ -256,11 +264,13 @@ class TestPODBasis:
         basis.save(target)
         assert os.path.isfile(target)
 
+        os.path.remove(target)
+
     def test_load(self, n=20, k=14, r=6):
         """Test load()."""
         # Clean up after old tests.
         target = "_podbasisloadtest.h5"
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         # Try to load a bad file.
@@ -315,13 +325,21 @@ class TestPODBasis:
 
 class TestPODBasisMulti:
     """Test basis._pod.PODBasisMulti."""
+
     PODBasisMulti = opinf.basis.PODBasisMulti
 
     def test_init(self):
         """Test __init__()."""
         basis = self.PODBasisMulti(4, True, list("abcd"))
-        for attr in ["num_variables", "variable_names",
-                     "r", "rs", "entries", "economize", "bases"]:
+        for attr in [
+            "num_variables",
+            "variable_names",
+            "r",
+            "rs",
+            "entries",
+            "economize",
+            "bases",
+        ]:
             assert hasattr(basis, attr)
 
         assert basis.num_variables == 4
@@ -398,8 +416,10 @@ class TestPODBasisMulti:
         """Test fit()."""
         n = nvars * ni
         states = np.random.standard_normal((n, k))
-        Us = [la.svd(s, full_matrices=False)[0]
-              for s in np.split(states, nvars, axis=0)]
+        Us = [
+            la.svd(s, full_matrices=False)[0]
+            for s in np.split(states, nvars, axis=0)
+        ]
         maxrank = min(ni, k)
 
         # Test full rank basis.
@@ -430,16 +450,16 @@ class TestPODBasisMulti:
             assert isinstance(subbasis.entries, np.ndarray)
             assert subbasis.shape == (ni, r)
             assert np.allclose(subbasis.entries, Us[i][:, :r])
-        topleft = basis.entries.toarray()[:ni, :rs[0]]
+        topleft = basis.entries.toarray()[:ni, : rs[0]]
         assert np.all(topleft == basis.bases[0].entries)
-        assert np.all(basis.entries.toarray()[ni:, :rs[0]] == 0)
+        assert np.all(basis.entries.toarray()[ni:, : rs[0]] == 0)
         basis_prod = basis.entries.T @ basis.entries
         Id = np.eye(sum(rs))
         assert basis_prod.shape == Id.shape
         assert np.allclose(basis_prod.toarray(), Id)
 
         # Test with cumulative / residual energy criteria.
-        basis1 = self.PODBasisMulti(nvars).fit(states, cumulative_energy=.99)
+        basis1 = self.PODBasisMulti(nvars).fit(states, cumulative_energy=0.99)
         basis2 = self.PODBasisMulti(nvars).fit(states, residual_energy=1e-3)
         for basis in (basis1, basis2):
             assert isinstance(basis.entries, sparse.csc_matrix)
@@ -459,8 +479,10 @@ class TestPODBasisMulti:
         options = dict(n_oversamples=30, n_iter=10, random_state=42)
         n = nvars * ni
         states = np.random.standard_normal((n, k))
-        Us = [la.svd(s, full_matrices=False)[0]
-              for s in np.split(states, nvars, axis=0)]
+        Us = [
+            la.svd(s, full_matrices=False)[0]
+            for s in np.split(states, nvars, axis=0)
+        ]
 
         # Try fitting with bad dimension.
         basis = self.PODBasisMulti(nvars)
@@ -483,9 +505,9 @@ class TestPODBasisMulti:
                 if np.sign(Us[i][0, j]) != np.sign(subbasis.entries[0, j]):
                     Us[i][:, j] *= -1
             assert np.allclose(subbasis.entries, Us[i][:, :r], atol=tol)
-        topleft = basis.entries.toarray()[:ni, :rs[0]]
+        topleft = basis.entries.toarray()[:ni, : rs[0]]
         assert np.all(topleft == basis.bases[0].entries)
-        assert np.all(basis.entries.toarray()[ni:, :rs[0]] == 0)
+        assert np.all(basis.entries.toarray()[ni:, : rs[0]] == 0)
         basis_prod = basis.entries.T @ basis.entries
         Id = np.eye(sum(rs))
         assert basis_prod.shape == Id.shape
@@ -495,7 +517,7 @@ class TestPODBasisMulti:
         """Lightly test PODBasisMulti.save()."""
         # Clean up after old tests.
         target = "_podbasismultisavetest.h5"
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         # Save an empty basis.
@@ -516,7 +538,7 @@ class TestPODBasisMulti:
         """Test load()."""
         # Clean up after old tests.
         target = "_podbasismultiloadtest.h5"
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         # Try to load a bad file.
@@ -571,14 +593,17 @@ def test_pod_basis(set_up_basis_data):
     # Try with an invalid rank.
     rmax = min(n, k)
     with pytest.raises(ValueError) as exc:
-        opinf.basis.pod_basis(Q, rmax+1)
-    assert exc.value.args[0] == \
-        f"invalid POD rank r = {rmax+1} (need 1 ≤ r ≤ {rmax})"
+        opinf.basis.pod_basis(Q, rmax + 1)
+    assert (
+        exc.value.args[0]
+        == f"invalid POD rank r = {rmax+1} (need 1 ≤ r ≤ {rmax})"
+    )
 
     with pytest.raises(ValueError) as exc:
         opinf.basis.pod_basis(Q, -1)
-    assert exc.value.args[0] == \
-        f"invalid POD rank r = -1 (need 1 ≤ r ≤ {rmax})"
+    assert (
+        exc.value.args[0] == f"invalid POD rank r = -1 (need 1 ≤ r ≤ {rmax})"
+    )
 
     # Try with an invalid mode.
     with pytest.raises(NotImplementedError) as exc:
@@ -593,7 +618,6 @@ def test_pod_basis(set_up_basis_data):
         Id = np.eye(r)
 
         for mode in ("dense", "randomized"):
-
             print(r, mode)
             basis, svdvals = opinf.basis.pod_basis(Q, r, mode=mode)
             _, _, W = opinf.basis.pod_basis(Q, r, mode=mode, return_W=True)
@@ -640,7 +664,7 @@ def test_svdval_decay(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = opinf.basis.svdval_decay(svdvals, .0001, plot=True)
+    rs = opinf.basis.svdval_decay(svdvals, 0.0001, plot=True)
     assert len(plt.gcf().get_axes()) == 1
     rs = opinf.basis.svdval_decay(svdvals, [1e-4, 1e-8, 1e-12], plot=True)
     assert len(plt.gcf().get_axes()) == 1
@@ -648,15 +672,17 @@ def test_svdval_decay(set_up_basis_data):
     plt.close("all")
 
     # Specific test.
-    svdvals = [.9, .09, .009, .0009, .00009, .000009, .0000009]
-    rs = opinf.basis.svdval_decay(svdvals, [.8, .1, .0004],
-                                  normalize=False, plot=False)
+    svdvals = [0.9, 0.09, 0.009, 0.0009, 0.00009, 0.000009, 0.0000009]
+    rs = opinf.basis.svdval_decay(
+        svdvals, [0.8, 0.1, 0.0004], normalize=False, plot=False
+    )
     assert len(rs) == 3
     assert rs == [1, 1, 4]
 
     svdvals = np.array([1e1, 1e2, 1e3, 1e0, 1e-2]) - 1e-3
-    rs = opinf.basis.svdval_decay(svdvals, [9e-1, 9e-2, 5e-4, 0],
-                                  normalize=True, plot=False)
+    rs = opinf.basis.svdval_decay(
+        svdvals, [9e-1, 9e-2, 5e-4, 0], normalize=True, plot=False
+    )
     assert len(rs) == 4
     assert rs == [1, 2, 4, 5]
 
@@ -665,21 +691,21 @@ def test_cumulative_energy(set_up_basis_data):
     """Test basis._pod.cumulative_energy()."""
     Q = set_up_basis_data
     svdvals = la.svdvals(Q)
-    energy = np.cumsum(svdvals**2)/np.sum(svdvals**2)
+    energy = np.cumsum(svdvals**2) / np.sum(svdvals**2)
 
     def _test(r, thresh):
         assert isinstance(r, int)
         assert r >= 1
-        assert energy[r-1] >= thresh
-        assert np.all(energy[:r-2] < thresh)
+        assert energy[r - 1] >= thresh
+        assert np.all(energy[: r - 2] < thresh)
 
     # Single threshold.
-    thresh = .9
+    thresh = 0.9
     r = opinf.basis.cumulative_energy(svdvals, thresh, plot=False)
     _test(r, thresh)
 
     # Multiple thresholds.
-    thresh = [.9, .99, .999]
+    thresh = [0.9, 0.99, 0.999]
     rs = opinf.basis.cumulative_energy(svdvals, thresh, plot=False)
     assert isinstance(rs, list)
     for r, t in zip(rs, thresh):
@@ -689,16 +715,16 @@ def test_cumulative_energy(set_up_basis_data):
     # Plotting.
     status = plt.isinteractive()
     plt.ion()
-    rs = opinf.basis.cumulative_energy(svdvals, .999, plot=True)
+    rs = opinf.basis.cumulative_energy(svdvals, 0.999, plot=True)
     assert len(plt.gcf().get_axes()) == 1
-    rs = opinf.basis.cumulative_energy(svdvals, [.9, .99, .999], plot=True)
+    rs = opinf.basis.cumulative_energy(svdvals, [0.9, 0.99, 0.999], plot=True)
     assert len(plt.gcf().get_axes()) == 1
     plt.interactive(status)
     plt.close("all")
 
     # Specific test.
-    svdvals = np.sqrt([.9, .09, .009, .0009, .00009, .000009, .0000009])
-    rs = opinf.basis.cumulative_energy(svdvals, [.9, .99, .999], plot=False)
+    svdvals = np.sqrt([0.9, 0.09, 0.009, 0.0009, 0.00009, 0.000009, 0.0000009])
+    rs = opinf.basis.cumulative_energy(svdvals, [0.9, 0.99, 0.999], plot=False)
     assert len(rs) == 3
     assert rs == [1, 2, 3]
 
@@ -707,13 +733,13 @@ def test_residual_energy(set_up_basis_data):
     """Test basis._pod.residual_energy()."""
     Q = set_up_basis_data
     svdvals = la.svdvals(Q)
-    resid = 1 - np.cumsum(svdvals**2)/np.sum(svdvals**2)
+    resid = 1 - np.cumsum(svdvals**2) / np.sum(svdvals**2)
 
     def _test(r, tol):
         assert isinstance(r, int)
         assert r >= 1
-        assert resid[r-1] <= tol
-        assert np.all(resid[:r-2] > tol)
+        assert resid[r - 1] <= tol
+        assert np.all(resid[: r - 2] > tol)
 
     # Single tolerance.
     tol = 1e-2
@@ -742,7 +768,7 @@ def test_residual_energy(set_up_basis_data):
 def test_projection_error(set_up_basis_data):
     """Test basis._pod.projection_error()."""
     Q = set_up_basis_data
-    Vr = la.svd(Q, full_matrices=False)[0][:, :Q.shape[1]//3]
+    Vr = la.svd(Q, full_matrices=False)[0][:, : Q.shape[1] // 3]
 
     abserr, relerr = opinf.basis.projection_error(Q, Vr)
     assert np.isscalar(abserr)
