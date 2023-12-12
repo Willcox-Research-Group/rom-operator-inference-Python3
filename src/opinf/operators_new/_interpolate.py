@@ -265,13 +265,14 @@ class _InterpolatedOperator(_ParametricOperator):
 
         Returns
         -------
-        op : {mod}`opinf.operators` operator of type ``OperatorClass``.
+        op : :mod:`opinf.operators` operator of type ``OperatorClass``.
             Nonparametric operator corresponding to the parameter value.
         """
         self._check_parametervalue_dimension(parameter)
         return self.OperatorClass(self.interpolator(parameter))
 
     # Dimensionality reduction ------------------------------------------------
+    @_requires_entries
     def galerkin(self, Vr, Wr=None):
         r"""Project this operator to a low-dimensional linear space.
 
@@ -289,8 +290,9 @@ class _InterpolatedOperator(_ParametricOperator):
         * :math:`\u\in\RR^m` is the input,
         * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
           are the (fixed) training parameter values,
-        * :math:`\f_{\ell}^{(i)}(\q,\u) = \f(\q,\u;\bfmu_i)`
-          are the operators evaluated at the training parameter values, and
+        * :math:`\f_{\ell}^{(i)}(\q,\u) = \f_{\ell}(\q,\u;\bfmu_i)`
+          is the operators evaluated at the :math:`i`-th training parameter
+          values, :math:`i=1,\ldots,s`, and
         * :math:`\bfmu\in\RR^p` is a new parameter value
           at which to evaluate the operator.
 
@@ -331,7 +333,8 @@ class _InterpolatedOperator(_ParametricOperator):
         )
 
     # Operator inference ------------------------------------------------------
-    def datablock(self, states, inputs=None):
+    @classmethod
+    def datablock(cls, states, inputs=None):
         r"""Return the data matrix block corresponding to the operator.
 
         For interpolated operators, this is a block diagonal matrix where the
@@ -357,7 +360,7 @@ class _InterpolatedOperator(_ParametricOperator):
         """
         return la.block_diag(
             *[
-                self.OperatorClass.datablock(Q, U)
+                cls._OperatorClass.datablock(Q, U)
                 for Q, U in zip(states, inputs)
             ]
         )

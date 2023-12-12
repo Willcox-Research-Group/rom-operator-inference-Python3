@@ -12,21 +12,16 @@ from .... import operators_new as _operators
 
 
 class _ParametricMonolithicModel(_MonolithicModel):
-    """Base class for parametric monolithic models.
+    r"""Base class for parametric monolithic models.
 
     Parent class: :class:`_MonolithicModel`
 
-    Child classes: (**TODO**)
+    Child classes:
 
-    * ``ParametricSteadyModel``
-    * ``ParametricDiscreteModel``
-    * ``ParametricContinuousModel``
-
-    Notes
-    -----
-    Currently, all operators must be parametric/interpolated operators
-    (e.g., :class:`opinf.operators_new.InterpolatedLinearOperator`),
-    but this restriction will be relaxed in the future.
+    * ``_InterpolatedMonolithicModel``
+    * :class:`opinf.models.ParametricSteadyModel`
+    * :class:`opinf.models.ParametricDiscreteModel`
+    * :class:`opinf.models.ParametricContinuousModel`
     """
 
     _ModelClass = NotImplemented  # Must be specified by child classes.
@@ -88,16 +83,9 @@ class _ParametricMonolithicModel(_MonolithicModel):
     _operator_abbreviations = dict()
 
     def _isvalidoperator(self, op):
-        """Only interpolated operators are allowed CURRENTLY."""
+        """All monolithic operators are allowed."""
         # TODO: allow any monolithic operator.
-        return type(op) in [
-            _operators.InterpolatedConstantOperator,
-            _operators.InterpolatedLinearOperator,
-            _operators.InterpolatedQuadraticOperator,
-            _operators.InterpolatedCubicOperator,
-            _operators.InterpolatedInputOperator,
-            _operators.InterpolatedStateInputOperator,
-        ]
+        raise NotImplementedError
 
     @staticmethod
     def _check_operator_types_unique(ops):
@@ -131,6 +119,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
         state, input, and parameter dimensions.
         """
         _MonolithicModel._clear(self)
+        # TODO: raise a warning if none of the operators are parametric.
         self.__p = self._check_parameter_dimension_consistency(self.operators)
 
     # Properties: dimensions --------------------------------------------------
@@ -362,27 +351,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
             parameters, states, lhs, inputs, solver=solver
         )
 
-        # Fully interpolatory/decoupled case: distribute training data to
-        # individual OpInf problems.
-        num_models = len(parameters)
-        for op in self.operators:
-            if len(op) != num_models:
-                raise ValueError(
-                    "Interpolatory models require len(operator) == "
-                    "len(parameters) for each operator in the model"
-                )
-        nonparametric_models = [
-            self.ModelClass.__bases__[-1](
-                operators=[op.entries[i] for op in self.operators]
-            ).fit(states_[i], lhs_[i], inputs_[i], solver_)
-            for i in range(num_models)
-        ]
-        for ell in range(len(self.operators)):
-            self.operators[ell].set_entries(
-                [mdl.operators[ell] for mdl in nonparametric_models]
-            )
-
-        return self
+        raise NotImplementedError("future release")
 
     # Parametric evaluation ---------------------------------------------------
     def evaluate(self, parameter):
@@ -440,7 +409,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
            >>> values = [parametric_model.rhs(parameter, q, input_)
            ...           for q in list_of_states]
            # ...it is faster to do this.
-           >>> model_at_parameter = parametric_model.evaluate(model)
+           >>> model_at_parameter = parametric_model.evaluate(parameter)
            >>> values = [model_at_parameter.rhs(q, input_)
            ...           for q in list_of_states]
         """
@@ -481,7 +450,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
            >>> values = [parametric_model.rhs(parameter, q, input_)
            ...           for q in list_of_states]
            # ...it is faster to do this.
-           >>> model_at_parameter = parametric_model.evaluate(model)
+           >>> model_at_parameter = parametric_model.evaluate(parameter)
            >>> values = [model_at_parameter.rhs(q, input_)
            ...           for q in list_of_states]
 
@@ -493,3 +462,112 @@ class _ParametricMonolithicModel(_MonolithicModel):
     def predict(self, parameter, *args, **kwargs):
         """Solve the model at the given parameter value."""
         return self.evaluate(parameter).predict(*args, **kwargs)
+
+
+class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
+    """Base class for parametric monolithic models where all operators MUST be
+    interpolation-based parametric operators. In this special case, the
+    inference problems completely decouple by training parameter.
+    """
+
+    def _isvalidoperator(self, op):
+        """Only interpolated parametric operators are allowed."""
+        return type(op) in (
+            _operators.InterpolatedConstantOperator,
+            _operators.InterpolatedLinearOperator,
+            _operators.InterpolatedQuadraticOperator,
+            _operators.InterpolatedCubicOperator,
+            _operators.InterpolatedInputOperator,
+            _operators.InterpolatedStateInputOperator,
+        )
+
+    # def submodels(self):
+
+    def fit(self, parameters, states, lhs, inputs=None, solver=None):
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
+           \fhat(\qhat_j, \u_j) - \zhat_j
+           \right\|_2^2
+           = \min_{\Ohat}\left\|\D\Ohat\trp - \dot{\Qhat}\trp\right\|_F^2
+
+        where
+        :math:`\zhat = \fhat(\qhat, \u)` is the model and
+
+        * :math:`\qhat_j\in\RR^r` is a measurement of the state,
+        * :math:`\u_j\in\RR^m` is a measurement of the input, and
+        * :math:`\zhat_j\in\RR^r` is a measurement of the left-hand side
+          of the model.
+
+        The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r,m)}` is such that
+        :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
+        :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`; the *data matrix*
+        :math:`\D\in\RR^{k\times d(r,m)}` is given by
+        :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
+        Finally,
+        :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
+        See the :mod:`opinf.operators_new` module for more explanation.
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
+
+        Parameters
+        ----------
+        states : (r, k) ndarray
+            Snapshot training data. Each column is a single snapshot.
+        lhs : (r, k) ndarray
+            Left-hand side training data. Each column ``lhs[:, j]``
+            corresponds to the snapshot ``states[:, j]``.
+            The interpretation of this argument depends on the setting:
+            forcing data for steady-state problems, next iteration for
+            discrete-time problems, and time derivatives of the state for
+            continuous-time problems.
+        inputs : (m, k) or (k,) ndarray or None
+            Input training data. Each column ``inputs[:, j]`` corresponds
+            to the snapshot ``states[:, j]``.
+            May be a one-dimensional array if ``m=1`` (scalar input).
+        solver : :mod:`opinf.lstsq` object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+
+            * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
+              without regularization.
+            * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
+              scalar Tikhonov regularization.
+
+        Returns
+        -------
+        self
+        """
+        (
+            parameters_,
+            states_,
+            lhs_,
+            inputs_,
+            solver_,
+        ) = self._process_fit_arguments(
+            parameters, states, lhs, inputs, solver=solver
+        )
+
+        # Distribute training data to individual OpInf problems.
+        num_models = len(parameters)
+        for op in self.operators:
+            if len(op) != num_models:
+                raise ValueError(
+                    "Interpolatory models require len(operator) == "
+                    "len(parameters) for each operator in the model"
+                )
+        nonparametric_models = [
+            self.ModelClass.__bases__[-1](
+                operators=[op.entries[i] for op in self.operators]
+            ).fit(states_[i], lhs_[i], inputs_[i], solver_)
+            for i in range(num_models)
+        ]
+        for ell in range(len(self.operators)):
+            self.operators[ell].set_entries(
+                [mdl.operators[ell] for mdl in nonparametric_models]
+            )
+
+        return self

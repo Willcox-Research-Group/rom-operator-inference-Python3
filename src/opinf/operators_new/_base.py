@@ -522,6 +522,20 @@ class _ParametricOperator(abc.ABC):
         Returns
         -------
         (r,) ndarray
+
+        Notes
+        -----
+        For repeated ``apply()`` calls with the same parameter value, use
+        :meth:`evaluate` to first get the nonparametric operator
+        corresponding to the parameter value.
+
+           # Instead of this...
+           >>> values = [parametric_operator.apply(parameter, q, input_)
+           ...           for q in list_of_states]
+           # ...it is faster to do this.
+           >>> operator_at_parameter = parametric_operator.evaluate(parameter)
+           >>> values = [operator_at_parameter.apply(q, input_)
+           ...           for q in list_of_states]
         """
         return self.evaluate(parameter).apply(state, input_)
 
@@ -550,6 +564,20 @@ class _ParametricOperator(abc.ABC):
         -------
         jac : (r, r) ndarray
             State Jacobian.
+
+        Notes
+        -----
+        For repeated ``jacobian()`` calls with the same parameter value, use
+        :meth:`evaluate` to first get the nonparametric operator
+        corresponding to the parameter value.
+
+           # Instead of this...
+           >>> values = [parametric_operator.jacobian(parameter, q, input_)
+           ...           for q in list_of_states]
+           # ...it is faster to do this.
+           >>> operator_at_parameter = parametric_operator.evaluate(parameter)
+           >>> values = [operator_at_parameter.jacobian(q, input_)
+           ...           for q in list_of_states]
         """
         return self.evaluate(parameter).jacobian(state, input_)
 

@@ -91,9 +91,30 @@ LTI_ROM = opinf.models.ContinuousModel(
 
 A _nonparametric_ operator is one where the entries matrix $\Ohat_\ell$ is constant (see [parametric operators](sec-operators-parametric)).
 
-### API Summary
+```{eval-rst}
+.. currentmodule:: opinf.operators_new
 
-#### Initialization
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    ConstantOperator
+    LinearOperator
+    QuadraticOperator
+    CubicOperator
+    InputOperator
+    StateInputOperator
+```
+
+<!-- These operator classes are used in models where the state is monolithic, meaning the system does not exhibit a block sparsity structure. -->
+
+<!-- ### Nonparametric Multilithic Operators
+
+:::{admonition} TODO
+Multilithic classes
+::: -->
+
+### Initialization
 
 Every nonparametric operator class can be initialized without arguments.
 If the operator entries are known, they can be passed into the constructor or set later with the `set_entries()` method.
@@ -106,7 +127,7 @@ of the operator or its derivatives.
 - `jacobian()`: construct the state Jacobian $\ddqhat\Ophat_\ell(\qhat, \u)$.
 
 (sec-operators-calibration)=
-#### Calibrating Operator Entries
+### Calibrating Operator Entries
 
 Nonparametric operator classes have a static `datablock()` method that, given state-input data pairs $\{(\qhat_j,\u_j)\}_{j=0}^{k-1}$, forms the matrix
 
@@ -165,7 +186,7 @@ $$
 
 The `fit()` method in an {mod}`opinf.models` class calls the `datablock()` method of each operator to assemble the full data matrix $\D$, solves the regression problem for the full data matrix $\Ohat$, and sets the entries of the $\ell$-th operator to $\Ohat_{\ell}$.
 
-#### Galerkin Projection
+### Galerkin Projection
 
 Every operator class has a `galerkin()` method that performs intrusive projection.
 Consider an operator $\Op:\RR^{n}\times\RR^{m}\to\RR^{n}$, written $\Op(\q,\u)$, where
@@ -212,35 +233,10 @@ The goal of Operator Inference is to learn operator entries *without* using intr
 However, in some scenarios a subset of the model operators are known, in which case only the remaining operators need to be inferred from data.
 :::
 
-#### Model Persistence
+### Model Persistence
 
 Operators can be saved to disk in [HDF5 format](https://www.h5py.org/) via the `save()` method.
 Every operator has a class method `load()` for loading an operator from the HDF5 file previously produced by `save()`.
-
-### Nonparametric Operator Classes
-
-<!-- These operator classes are used in models where the state is monolithic, meaning the system does not exhibit a block sparsity structure. -->
-
-```{eval-rst}
-.. currentmodule:: opinf.operators_new
-
-.. autosummary::
-    :toctree: _autosummaries
-    :nosignatures:
-
-    ConstantOperator
-    LinearOperator
-    QuadraticOperator
-    CubicOperator
-    InputOperator
-    StateInputOperator
-```
-
-<!-- ### Nonparametric Multilithic Operators
-
-:::{admonition} TODO
-Multilithic classes
-::: -->
 
 (sec-operators-parametric)=
 ## Parametric Operators
@@ -256,29 +252,7 @@ $\Ophat(\qhat,\u;\bfmu) = (\mu_{1}\Ahat_{1} + \mu_{2}\Ahat_{2})\qhat$
 is a parametric operator with parameter-dependent entries $\Ohat(\bfmu) = \mu_{1}\Ahat_{1} + \mu_{2}\Ahat_{2}$.
 :::
 
-:::{warning}
-The rest of this page is under construction.
-:::
-
-:::{admonition} TODO
-
-- Constructor takes in parameter information (and anything needed by the underlying nonparametric class)
-- `__call__()` or `evaluate()` maps parameter values to a nonparametric operator
-:::
-
 ### Interpolated Operators
-
-$$
-\begin{align*}
-    \Ophat(\qhat,\u;\mu)
-    = \text{interpolate}(
-    (\bfmu_{1},\Ophat_{1}),\ldots,(\bfmu_{s},\Ophat_{s}); \bfmu)
-\end{align*}
-$$
-
-:::{admonition} TODO
-Constructor takes in `s` (the number of parameter samples) and an interpolator class.
-:::
 
 ```{eval-rst}
 .. currentmodule:: opinf.operators_new
@@ -294,6 +268,28 @@ Constructor takes in `s` (the number of parameter samples) and an interpolator c
     InterpolatedInputOperator
     InterpolatedStateInputOperator
 ```
+
+$$
+\begin{align*}
+    \Ophat(\qhat,\u;\mu)
+    = \text{interpolate}(
+    (\bfmu_{1},\Ophat_{1}),\ldots,(\bfmu_{s},\Ophat_{s}); \bfmu)
+\end{align*}
+$$
+
+:::{admonition} TODO
+Constructor takes in...
+:::
+
+:::{warning}
+The rest of this page is under construction.
+:::
+
+:::{admonition} TODO
+
+- Constructor takes in parameter information (and anything needed by the underlying nonparametric class)
+- `evaluate()` maps parameter values to a nonparametric operator
+:::
 
 ### Affine Operators
 
