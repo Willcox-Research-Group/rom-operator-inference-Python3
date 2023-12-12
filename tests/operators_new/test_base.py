@@ -312,23 +312,23 @@ class TestParametricOperator:
         op = self.Dummy()
         assert op.parameter_dimension is None
 
-    def test_set_parameter_dimension(self):
-        """Test _ParametricOperator._set_parameter_dimension()."""
+    def test_set_parameter_dimension_from_data(self):
+        """Test _ParametricOperator._set_parameter_dimension_from_data()."""
         op = self.Dummy()
 
         # One-dimensional parameters.
-        op._set_parameter_dimension(np.arange(10))
+        op._set_parameter_dimension_from_data(np.arange(10))
         assert op.parameter_dimension == 1
-        op._set_parameter_dimension(np.arange(5).reshape((-1, 1)))
+        op._set_parameter_dimension_from_data(np.arange(5).reshape((-1, 1)))
         assert op.parameter_dimension == 1
 
         # n-dimensional parameters.
         n = np.random.randint(2, 20)
-        op._set_parameter_dimension(np.random.random((5, n)))
+        op._set_parameter_dimension_from_data(np.random.random((5, n)))
         assert op.parameter_dimension == n
 
         with pytest.raises(ValueError) as ex:
-            op._set_parameter_dimension(np.random.random((2, 2, 2)))
+            op._set_parameter_dimension_from_data(np.random.random((2, 2, 2)))
         assert (
             ex.value.args[0] == "parameter values must be scalars or 1D arrays"
         )
@@ -351,7 +351,7 @@ class TestParametricOperator:
             op._check_parametervalue_dimension(10)
         assert ex.value.args[0] == "parameter_dimension not set"
 
-        op._set_parameter_dimension(np.empty((5, p)))
+        op._set_parameter_dimension_from_data(np.empty((5, p)))
 
         val = np.empty(p - 1)
         with pytest.raises(ValueError) as ex:

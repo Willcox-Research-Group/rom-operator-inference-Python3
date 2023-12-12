@@ -84,6 +84,10 @@ class TestInterpolatedOperator:
         self.Dummy(mu, _DummyInterpolator)
         entries = np.random.random((s, r, r))
         self.Dummy(mu, _DummyInterpolator, entries)
+        model = self.Dummy(mu)
+        assert model.InterpolatorClass is interp.LinearNDInterpolator
+        model = self.Dummy(mu[:, 0])
+        assert model.InterpolatorClass is interp.CubicSpline
 
     def test_properties(self, s=5, p=3, r=4):
         """Test _InterpolatedOperator.set_entries(),
@@ -221,22 +225,27 @@ class TestInterpolatedOperator:
         assert np.all(op2.entries == op1.entries)
         assert isinstance(op2.interpolator, _DummyInterpolator2)
 
-    def test_save(self, s=2, p=7, r=3, target="_interpolatedopsavetest.h5"):
+    def test_save(self, s=5, p=2, r=3, target="_interpolatedopsavetest.h5"):
         """Lightly test _InterpolatedOperator.save()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
         op = self.Dummy(np.random.random((s, p)), _DummyInterpolator)
 
-        op.save(target)
+        with pytest.warns(UserWarning) as wn:
+            op.save(target)
+        assert (
+            wn[0].message.args[0] == "cannot serialize InterpolatorClass "
+            "'_DummyInterpolator', must pass in the class when calling load()"
+        )
         assert os.path.isfile(target)
 
-        op.set_entries(np.random.random((s, r, r)))
+        op = self.Dummy(np.sort(np.random.random(s)))
         op.save(target, overwrite=True)
 
         os.remove(target)
 
-    def test_load(self, s=2, p=7, r=3, target="_interpolatedoploadtest.h5"):
+    def test_load(self, s=15, p=3, r=3, target="_interpolatedoploadtest.h5"):
         """Test _InterpolatedOperator.load()."""
         if os.path.isfile(target):
             os.remove(target)
@@ -255,21 +264,32 @@ class TestInterpolatedOperator:
             "use 'NotARealClass.load()'"
         )
 
-        op1 = self.Dummy(mu, _DummyInterpolator)
+        with pytest.warns(UserWarning) as wn:
+            self.Dummy(mu, _DummyInterpolator).save(target, overwrite=True)
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+            self.Dummy.load(target)
+        assert (
+            ex.value.args[0] == "unknown InterpolatorClass "
+            f"'_DummyInterpolator', "
+            f"call Dummy.load({target}, _DummyInterpolator)"
+        )
+        self.Dummy.load(target, _DummyInterpolator)
+
+        op1 = self.Dummy(mu)
         op1.save(target, overwrite=True)
 
         with pytest.warns(UserWarning) as wn:
             op2 = self.Dummy.load(target, _DummyInterpolator2)
         assert wn[0].message.args[0] == (
             "InterpolatorClass=_DummyInterpolator2 does not match loadfile "
-            "InterpolatorClass '_DummyInterpolator'"
+            "InterpolatorClass 'LinearNDInterpolator'"
         )
-        op2.set_InterpolatorClass(_DummyInterpolator)
+        op2.set_InterpolatorClass(op1.InterpolatorClass)
         assert op2 == op1
 
-        op1.set_entries(entries)
+        op1 = self.Dummy(np.sort(mu[:, 0]), entries=entries)
         op1.save(target, overwrite=True)
-        op2 = self.Dummy.load(target, _DummyInterpolator)
+        op2 = self.Dummy.load(target)
         assert op2 == op1
 
         # Clean up.

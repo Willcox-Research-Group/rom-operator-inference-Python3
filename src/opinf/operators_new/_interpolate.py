@@ -1,8 +1,6 @@
 # operators/_interpolate.py
 """Classes for parametric operators where the parametric dependence is handled
-with element-wise interpolation, i.e.,
-
-    A(µ)[i,j] = Interpolator([µ1, µ2, ...], [A1[i,j], A2[i,j], ...])(µ).
+with element-wise interpolation.
 """
 
 __all__ = [
@@ -17,6 +15,7 @@ __all__ = [
 import warnings
 import numpy as np
 import scipy.linalg as la
+import scipy.interpolate as spinterp
 
 from ..utils import hdf5_savehandle, hdf5_loadhandle
 from ._base import _ParametricOperator, _InputMixin, _requires_entries
@@ -62,22 +61,30 @@ class _InterpolatedOperator(_ParametricOperator):
     """
 
     # Initialization ----------------------------------------------------------
-    def __init__(self, training_parameters, InterpolatorClass, entries=None):
+    def __init__(
+        self,
+        training_parameters,
+        InterpolatorClass: type = None,
+        entries=None,
+    ):
         """Construct the elementwise operator interpolator.
 
         Parameters
         ----------
-        training_parameters : list of `s` scalars or 1D ndarrays
+        training_parameters : list of s scalars or (p,) 1D ndarrays
             Parameter values for which the operators entries are known
             or will be inferred from data.
-        InterpolatorClass : type
+        InterpolatorClass : type or None
             Class for the elementwise interpolation. Must obey the syntax
 
                >>> interpolator = InterpolatorClass(data_points, data_values)
                >>> interpolator_evaluation = interpolator(new_data_point)
 
             This can be, e.g., a class from ``scipy.interpolate``.
-        entries : list of `s` ndarray, or None
+            If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+            for one-dimensional parameters and
+            ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        entries : list of s ndarrays, or None
             Operator entries corresponding to the ``training_parameters``.
         """
         _ParametricOperator.__init__(self)
@@ -90,6 +97,11 @@ class _InterpolatedOperator(_ParametricOperator):
         self.__parameters = np.array(training_parameters)
         self._set_parameter_dimension_from_data(self.__parameters)
         self.__s = len(self.__parameters)
+        if InterpolatorClass is None:
+            if self.parameter_dimension == 1:
+                InterpolatorClass = spinterp.CubicSpline
+            else:
+                InterpolatorClass = spinterp.LinearNDInterpolator
         self.__InterpolatorClass = InterpolatorClass
 
         # Set the operator entries if provided.
@@ -357,7 +369,7 @@ class _InterpolatedOperator(_ParametricOperator):
         return len(self) * self.OperatorClass.operator_dimension(r, m)
 
     # Model persistence -------------------------------------------------------
-    def copy(self):  # pragma: no cover
+    def copy(self):
         """Return a copy of the operator."""
         return self.__class__(
             training_parameters=self.training_parameters.copy(),
@@ -379,7 +391,14 @@ class _InterpolatedOperator(_ParametricOperator):
         with hdf5_savehandle(savefile, overwrite) as hf:
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["class"] = self.__class__.__name__
-            meta.attrs["InterpolatorClass"] = self.__InterpolatorClass.__name__
+            InterpolatorClassName = self.InterpolatorClass.__name__
+            meta.attrs["InterpolatorClass"] = InterpolatorClassName
+            if not hasattr(spinterp, InterpolatorClassName):
+                warnings.warn(
+                    "cannot serialize InterpolatorClass "
+                    f"'{InterpolatorClassName}', must pass in the class "
+                    "when calling load()"
+                )
             hf.create_dataset(
                 "training_parameters", data=self.training_parameters
             )
@@ -387,7 +406,7 @@ class _InterpolatedOperator(_ParametricOperator):
                 hf.create_dataset("entries", data=self.entries)
 
     @classmethod
-    def load(cls, loadfile: str, InterpolatorClass):
+    def load(cls, loadfile: str, InterpolatorClass: type = None):
         """Load a parametric operator from an HDF5 file.
 
         Parameters
@@ -400,9 +419,8 @@ class _InterpolatedOperator(_ParametricOperator):
                >>> interpolator = InterpolatorClass(data_points, data_values)
                >>> interpolator_evaluation = interpolator(new_data_point)
 
-            This can be, e.g., a class from ``scipy.interpolate``.
-            A ``UserWarning`` is thrown if this class does not match the
-            metadata in the ``loadfile``.
+            Not required if the saved operator utilizes a class from
+            ``scipy.interpolate``.
 
         Returns
         -------
@@ -417,14 +435,26 @@ class _InterpolatedOperator(_ParametricOperator):
                     f"object, use '{ClassName}.load()'"
                 )
 
-            if (SavedClassName := hf["meta"].attrs["InterpolatorClass"]) != (
-                InterpolatorClassName := InterpolatorClass.__name__
-            ):
-                warnings.warn(
-                    f"InterpolatorClass={InterpolatorClassName} does not "
-                    f"match loadfile InterpolatorClass '{SavedClassName}'",
-                    UserWarning,
-                )
+            SavedClassName = hf["meta"].attrs["InterpolatorClass"]
+            if InterpolatorClass is None:
+                # Load from scipy.interpolate.
+                if hasattr(spinterp, SavedClassName):
+                    InterpolatorClass = getattr(spinterp, SavedClassName)
+                else:
+                    raise ValueError(
+                        f"unknown InterpolatorClass '{SavedClassName}', "
+                        f"call {ClassName}.load({loadfile}, {SavedClassName})"
+                    )
+            else:
+                # Warn the user if the InterpolatorClass does not match.
+                if SavedClassName != (
+                    InterpolatorClassName := InterpolatorClass.__name__
+                ):
+                    warnings.warn(
+                        f"InterpolatorClass={InterpolatorClassName} does not "
+                        f"match loadfile InterpolatorClass '{SavedClassName}'",
+                        UserWarning,
+                    )
             return cls(
                 hf["training_parameters"][:],
                 InterpolatorClass,
