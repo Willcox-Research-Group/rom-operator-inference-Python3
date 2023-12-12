@@ -195,7 +195,14 @@ class TestNonparametricMonolithicModel:
 
         # Fully intrusive case.
         model.operators = _get_operators("cHB", r, m)
-        model._fit_solver(Q, Qdot, inputs=U)
+
+        with pytest.warns(UserWarning) as wn:
+            model._fit_solver(Q, Qdot, inputs=U)
+        assert (
+            wn[0].message.args[0] == "all operators initialized "
+            "intrusively, nothing to learn"
+        )
+
         assert model.data_matrix_ is None
 
     # Fitting -----------------------------------------------------------------
@@ -208,25 +215,6 @@ class TestNonparametricMonolithicModel:
         ones = np.ones(k)
 
         # Exceptions #
-
-        # Try with bad solver option.
-        model = self.Dummy("AB")
-        with pytest.raises(ValueError) as ex:
-            model._process_fit_arguments(None, None, None, solver=-1)
-        assert ex.value.args[0] == "if a scalar, `solver` must be nonnegative"
-
-        class _DummySolver:
-            pass
-
-        with pytest.raises(TypeError) as ex:
-            model._process_fit_arguments(None, None, None, solver=_DummySolver)
-        assert ex.value.args[0] == "solver must be an instance, not a class"
-
-        with pytest.raises(TypeError) as ex:
-            model._process_fit_arguments(
-                None, None, None, solver=_DummySolver()
-            )
-        assert ex.value.args[0] == "solver must have a 'fit()' method"
 
         # States do not match dimensions 'r'.
         model = self.Dummy(["c", A])
@@ -318,7 +306,12 @@ class TestNonparametricMonolithicModel:
 
         # Fully intrusive.
         model = self.Dummy([A, B])
-        Q_, lhs_, _, _ = model._process_fit_arguments(Q, lhs, U)
+        with pytest.warns(UserWarning) as wn:
+            Q_, lhs_, _, _ = model._process_fit_arguments(Q, lhs, U)
+        assert (
+            wn[0].message.args[0] == "all operators initialized "
+            "intrusively, nothing to learn"
+        )
         assert Q_ is None
         assert lhs_ is None
         assert model.operators[0] is A
@@ -423,7 +416,14 @@ class TestNonparametricMonolithicModel:
         A, B = _get_operators("AB", r, m)
         model.operators = [A, B]
         model.input_dimension = m
-        model.fit(None, None, None)
+
+        with pytest.warns(UserWarning) as wn:
+            model.fit(None, None, None)
+        assert (
+            wn[0].message.args[0] == "all operators initialized "
+            "intrusively, nothing to learn"
+        )
+
         assert model.solver_ is None
         modelA_ = model.A_
         assert modelA_.entries is not None

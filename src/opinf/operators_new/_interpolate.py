@@ -87,9 +87,9 @@ class _InterpolatedOperator(_ParametricOperator):
             training_parameters,
             "training parameter",
         )
-        self._set_parameter_dimension(training_parameters)
         self.__parameters = np.array(training_parameters)
-        self.__s = len(training_parameters)
+        self._set_parameter_dimension_from_data(self.__parameters)
+        self.__s = len(self.__parameters)
         self.__InterpolatorClass = InterpolatorClass
 
         # Set the operator entries if provided.

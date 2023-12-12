@@ -4,10 +4,11 @@
 __all__ = []
 
 import abc
+import warnings
 import numpy as np
 
 from .._base import _MonolithicModel
-from .... import errors, lstsq, utils
+from .... import errors, utils
 from .... import operators_new as _operators
 
 
@@ -45,7 +46,8 @@ class _NonparametricMonolithicModel(_MonolithicModel):
         """
         return _operators.is_nonparametric(op)
 
-    def _check_operator_types_unique(self, ops):
+    @staticmethod
+    def _check_operator_types_unique(ops):
         """Raise a ValueError if any two operators represent the same kind
         of operation (e.g., two constant operators).
         """
@@ -139,30 +141,16 @@ class _NonparametricMonolithicModel(_MonolithicModel):
         # Clear non-intrusive operator data.
         self._clear()
 
-        # Solver defaults and shortcuts.
-        if solver is None:
-            # No regularization.
-            solver = lstsq.PlainSolver()
-        elif np.isscalar(solver):
-            if solver == 0:
-                # Also no regularization.
-                solver = lstsq.PlainSolver()
-            elif solver > 0:
-                # Scalar Tikhonov (L2) regularization.
-                solver = lstsq.L2Solver(solver)
-            else:
-                raise ValueError("if a scalar, `solver` must be nonnegative")
-
-        # Lightly validate the solver: must be instance w/ fit(), predict().
-        if isinstance(solver, type):
-            raise TypeError("solver must be an instance, not a class")
-        for mtd in "fit", "predict":
-            if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
-                raise TypeError(f"solver must have a '{mtd}()' method")
-
         # Fully intrusive case, no least-squares problem to solve.
         if len(self._indices_of_operators_to_infer) == 0:
+            warnings.warn(
+                "all operators initialized intrusively, nothing to learn",
+                UserWarning,
+            )
             return None, None, None, None
+
+        # Validate / process solver.
+        solver = self._check_solver(solver)
 
         def _check_valid_dimension0(dataset, label):
             """Dimension 0 must be r (state dimensions)."""
@@ -358,15 +346,12 @@ class _NonparametricMonolithicModel(_MonolithicModel):
         r"""Evaluate the right-hand side of the model by applying each operator
         and summing the results.
 
-        This is the function :math:`\widehat{\mathbf{F}}(\qhat, \u)`
+        This is the function :math:`\Ophat(\qhat, \u)`
         where the model can be written as one of the following:
 
-        * :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
-          (continuous time)
-        * :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_j, \u_j)`
-          (discrete time)
-        * :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat, \u)`
-          (steady state)
+        * :math:`\ddt\qhat(t) = \Ophat(\qhat(t), \u(t))` (continuous time)
+        * :math:`\qhat_{j+1} = \Ophat(\qhat_j, \u_j)` (discrete time)
+        * :math:`\widehat{\mathbf{g}} = \Ophat(\qhat, \u)` (steady state)
 
         Parameters
         ----------
@@ -390,16 +375,12 @@ class _NonparametricMonolithicModel(_MonolithicModel):
         r"""Construct and sum the state Jacobian of each model operator.
 
         This the derivative of the right-hand side of the model with respect
-        to the state, i.e., the function
-        :math:`\ddqhat\widehat{\mathbf{F}}}(\qhat, \u)`
+        to the state, i.e., the function :math:`\ddqhat\Ophat(\qhat, \u)`
         where the model can be written as one of the following:
 
-        - :math:`\ddt\qhat(t) = \widehat{\mathbf{F}}(\qhat(t), \u(t))`
-          (continuous time)
-        - :math:`\qhat_{j+1} = \widehat{\mathbf{F}}(\qhat_{j}, \u_{j})`
-          (discrete time)
-        - :math:`\widehat{\mathbf{g}} = \widehat{\mathbf{F}}(\qhat, \u)`
-          (steady state)
+        * :math:`\ddt\qhat(t) = \Ophat(\qhat(t), \u(t))` (continuous time)
+        * :math:`\qhat_{j+1} = \Ophat(\qhat_{j}, \u_{j})` (discrete time)
+        * :math:`\widehat{\mathbf{g}} = \Ophat(\qhat, \u)` (steady state)
 
         Parameters
         ----------

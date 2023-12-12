@@ -428,8 +428,15 @@ class _ParametricOperator(abc.ABC):
         """Reset the operator to its post-constructor state."""
         raise NotImplementedError
 
-    def _set_parameter_dimension(self, parameters):
-        """Extract and save the dimension of the parameter space."""
+    def _set_parameter_dimension_from_data(self, parameters):
+        """Extract and save the dimension of the parameter space from a set of
+        parameter values.
+
+        Parameters
+        ----------
+        parameters : (s, p) or (s,) ndarray
+            Parameter value(s).
+        """
         if (dim := len(shape := np.shape(parameters))) == 1:
             self.__p = 1
         elif dim == 2:

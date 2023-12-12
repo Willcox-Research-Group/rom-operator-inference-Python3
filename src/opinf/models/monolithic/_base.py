@@ -5,8 +5,9 @@ __all__ = []
 
 import abc
 import warnings
+import numpy as np
 
-from ... import errors
+from ... import errors, lstsq
 from ... import operators_new as _operators
 
 
@@ -36,15 +37,17 @@ class _MonolithicModel(abc.ABC):
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = dict()  # Abbreviations for model operators.
 
+    @staticmethod
     @abc.abstractmethod
-    def _isvalidoperator(self, op):  # pragma: no cover
+    def _isvalidoperator(op):  # pragma: no cover
         """Return True if and only if ``op`` is a valid operator object
         for this class of model.
         """
         raise NotImplementedError
 
+    @staticmethod
     @abc.abstractmethod
-    def _check_operator_types_unique(self, ops):  # pragma: no cover
+    def _check_operator_types_unique(ops):  # pragma: no cover
         """Raise a ValueError if any two operators represent the same kind
         of operation (e.g., two constant operators).
         """
@@ -277,6 +280,34 @@ class _MonolithicModel(abc.ABC):
         )
 
     # Validation methods ------------------------------------------------------
+    @staticmethod
+    def _check_solver(solver):
+        """Check that ``solver`` is a valid least-squares solver according to
+        the API.
+        """
+        # Defaults and shortcuts.
+        if solver is None:
+            # No regularization.
+            solver = lstsq.PlainSolver()
+        elif np.isscalar(solver):
+            if solver == 0:
+                # Also no regularization.
+                solver = lstsq.PlainSolver()
+            elif solver > 0:
+                # Scalar Tikhonov (L2) regularization.
+                solver = lstsq.L2Solver(solver)
+            else:
+                raise ValueError("if a scalar, `solver` must be nonnegative")
+
+        # Light validation: must be instance w/ fit(), predict().
+        if isinstance(solver, type):
+            raise TypeError("solver must be an instance, not a class")
+        for mtd in "fit", "predict":
+            if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
+                raise TypeError(f"solver must have a '{mtd}()' method")
+
+        return solver
+
     def _check_inputargs(self, u, argname):
         """Check that the model structure agrees with input arguments."""
         if self._has_inputs and u is None:
@@ -299,3 +330,8 @@ class _MonolithicModel(abc.ABC):
         for op in self.operators:
             if op.entries is None:
                 raise AttributeError("model not trained (call fit())")
+
+    # Model persistence -------------------------------------------------------
+    def copy(self):
+        """Make a copy of the model."""
+        return self.__class__([op.copy() for op in self.operators])

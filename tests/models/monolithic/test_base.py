@@ -237,6 +237,25 @@ class TestMonolithicModel:
             assert rom.operators[i].entries is None
 
     # Validation methods ------------------------------------------------------
+    def test_check_solver(self):
+        """Test _MonolithicModel._check_solver()."""
+
+        with pytest.raises(ValueError) as ex:
+            self.Dummy._check_solver(-1)
+        assert ex.value.args[0] == "if a scalar, `solver` must be nonnegative"
+
+        with pytest.raises(TypeError) as ex:
+            self.Dummy._check_solver(list)
+        assert ex.value.args[0] == "solver must be an instance, not a class"
+
+        with pytest.raises(TypeError) as ex:
+            self.Dummy._check_solver([])
+        assert ex.value.args[0] == "solver must have a 'fit()' method"
+
+        self.Dummy._check_solver(None)
+        self.Dummy._check_solver(0)
+        self.Dummy._check_solver(1)
+
     def test_check_inputargs(self):
         """Test _MonolithicModel._check_inputargs()."""
 
@@ -292,3 +311,22 @@ class TestMonolithicModel:
         # Successful check.
         model.operators = _get_operators("cABH", r, m)
         model._check_is_trained()
+
+    # Model persistence -------------------------------------------------------
+    def test_copy(self, r=4, m=3):
+        """Test _MonolithicModel.copy()."""
+        A, H = _get_operators("AH", r, m)
+        model = self.Dummy(
+            [
+                opinf_operators.ConstantOperator(),
+                A,
+                H,
+            ]
+        )
+        model2 = model.copy()
+        assert model2 is not model
+        assert isinstance(model2, model.__class__)
+        assert len(model2.operators) == len(model.operators)
+        for op2, op1 in zip(model2.operators, model.operators):
+            assert op2 is not op1
+            assert op2 == op1
