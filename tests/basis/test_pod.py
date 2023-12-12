@@ -264,7 +264,7 @@ class TestPODBasis:
         basis.save(target)
         assert os.path.isfile(target)
 
-        os.path.remove(target)
+        os.remove(target)
 
     def test_load(self, n=20, k=14, r=6):
         """Test load()."""
