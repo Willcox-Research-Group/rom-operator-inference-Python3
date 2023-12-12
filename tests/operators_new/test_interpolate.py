@@ -27,9 +27,6 @@ class _DummyOperator(opinf.operators_new._base._NonparametricOperator):
             *args, **kwargs
         )
 
-    def input_dimension(*args, **kwargs):
-        pass
-
     def _str(*args, **kwargs):
         pass
 
@@ -74,9 +71,6 @@ class TestInterpolatedOperator:
         """Instantiable version of _InterpolatedOperator."""
 
         _OperatorClass = _DummyOperator
-
-        def input_dimension(self):
-            return 0
 
     def test_init(self, s=5, p=3, r=4):
         """Test _InterpolatedOperator.__init__()."""
@@ -329,9 +323,7 @@ def test_1Doperators(r=10, m=3, s=5):
             interp.PchipInterpolator,
         ]:
             op = OpClass(params, InterpolatorClass)
-            if not opinf.operators_new.has_inputs(op):
-                assert op.input_dimension == 0
-            else:
+            if opinf.operators_new.has_inputs(op):
                 assert op.input_dimension is None
             op.set_entries(np.column_stack(entries))
             if opinf.operators_new.has_inputs(op):

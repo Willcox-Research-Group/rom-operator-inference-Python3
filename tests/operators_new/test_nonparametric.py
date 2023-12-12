@@ -17,10 +17,6 @@ class TestConstantOperator:
 
     _OpClass = _module.ConstantOperator
 
-    def test_input_dimension(self):
-        """Test ConstantOperator.input_dimension."""
-        assert self._OpClass().input_dimension == 0
-
     def test_str(self):
         """Test ConstantOperator._str()."""
         op = self._OpClass()
@@ -141,10 +137,6 @@ class TestLinearOperator:
     """Test operators._nonparametric.LinearOperator."""
 
     _OpClass = _module.LinearOperator
-
-    def test_input_dimension(self):
-        """Test LinearOperator.input_dimension."""
-        assert self._OpClass().input_dimension == 0
 
     def test_str(self):
         """Test LinearOperator._str()."""
@@ -267,10 +259,6 @@ class TestQuadraticOperator:
     """Test operators._nonparametric.QuadraticOperator."""
 
     _OpClass = _module.QuadraticOperator
-
-    def test_input_dimension(self):
-        """Test QuadraticOperator.input_dimension."""
-        assert self._OpClass().input_dimension == 0
 
     def test_str(self):
         """Test QuadraticOperator._str()."""
@@ -588,10 +576,6 @@ class TestCubicOperator:
     """Test operators._nonparametric.CubicOperator."""
 
     _OpClass = _module.CubicOperator
-
-    def test_input_dimension(self):
-        """Test CubicOperator.input_dimension."""
-        assert self._OpClass().input_dimension == 0
 
     def test_str(self):
         """Test CubicOperator._str()."""

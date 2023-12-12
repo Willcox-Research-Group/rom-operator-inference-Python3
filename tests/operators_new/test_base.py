@@ -45,9 +45,6 @@ class TestNonparametricOperator:
         def set_entries(*args, **kwargs):
             _module._NonparametricOperator.set_entries(*args, **kwargs)
 
-        def input_dimension(*args, **kwargs):
-            pass
-
         def _str(*args, **kwargs):
             pass
 
@@ -270,9 +267,6 @@ class TestParametricOperator:
         def state_dimension(self):
             pass
 
-        def input_dimension(self):
-            pass
-
         def shape(self):
             pass
 
@@ -381,7 +375,11 @@ def test_is_nonparametric():
 def test_has_inputs():
     """Test operators._base.has_inputs()."""
 
-    op = _module._InputMixin()
+    class Dummy(_module._InputMixin):
+        def input_dimension(self):
+            return -1
+
+    op = Dummy()
     assert _module.has_inputs(op)
     assert not _module.has_inputs(5)
 

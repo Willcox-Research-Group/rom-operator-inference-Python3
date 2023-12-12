@@ -502,11 +502,6 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
     """
     _OperatorClass = ConstantOperator
 
-    @property
-    def input_dimension(self):
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
-        return 0
-
 
 class InterpolatedLinearOperator(_InterpolatedOperator):
     r"""Parametric linear operator
@@ -547,11 +542,6 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
     """
     _OperatorClass = LinearOperator
 
-    @property
-    def input_dimension(self):
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
-        return 0
-
 
 class InterpolatedQuadraticOperator(_InterpolatedOperator):
     r"""Parametric quadratic operator
@@ -589,11 +579,6 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
         corresponding to the ``training_parameters``.
     """
     _OperatorClass = QuadraticOperator
-
-    @property
-    def input_dimension(self):
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
-        return 0
 
 
 class InterpolatedCubicOperator(_InterpolatedOperator):
@@ -633,11 +618,6 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
         corresponding to the ``training_parameters``.
     """
     _OperatorClass = CubicOperator
-
-    @property
-    def input_dimension(self):
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
-        return 0
 
 
 class InterpolatedInputOperator(_InterpolatedOperator, _InputMixin):

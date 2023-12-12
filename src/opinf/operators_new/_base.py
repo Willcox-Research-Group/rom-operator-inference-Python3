@@ -116,12 +116,6 @@ class _NonparametricOperator(abc.ABC):
         r"""Dimension of the state :math:`\qhat` that the operator acts on."""
         return None if self.entries is None else self.entries.shape[0]
 
-    @property
-    @abc.abstractmethod
-    def input_dimension(self):  # pragma: no cover
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
-        raise NotImplementedError
-
     # Magic methods -----------------------------------------------------------
     def __getitem__(self, key):
         """Slice into the entries of the operator."""
@@ -355,7 +349,7 @@ class _NonparametricOperator(abc.ABC):
 
 
 # Mixin for operators acting on inputs ----------------------------------------
-class _InputMixin:
+class _InputMixin(abc.ABC):
     """Mixin for operator classes whose ``apply()`` method acts on
     the ``input_`` argument.
 
@@ -363,9 +357,15 @@ class _InputMixin:
 
     * :class:`opinf.operators_new.InputOperator`
     * :class:`opinf.operators_new.StateInputOperator`
+    * :class:`opinf.operators_new.InterpolatedInputOperator`
+    * :class:`opinf.operators_new.InterpolatedStateInputOperator`
     """
 
-    pass
+    @property
+    @abc.abstractmethod
+    def input_dimension(self) -> int:  # pragma: no cover
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        raise NotImplementedError
 
 
 # Parametric operators ========================================================
@@ -457,12 +457,6 @@ class _ParametricOperator(abc.ABC):
     @abc.abstractmethod
     def state_dimension(self) -> int:  # pragma: no cover
         r"""Dimension of the state :math:`\qhat` that the operator acts on."""
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
-    def input_dimension(self) -> int:  # pragma: no cover
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
         raise NotImplementedError
 
     @property

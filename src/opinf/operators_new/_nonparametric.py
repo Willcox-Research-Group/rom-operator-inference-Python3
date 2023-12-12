@@ -40,11 +40,6 @@ class ConstantOperator(_NonparametricOperator):
     True
     """
 
-    @property
-    def input_dimension(self):
-        """Input dimension (always zero for this operator)."""
-        return 0
-
     @staticmethod
     def _str(statestr=None, inputstr=None):
         return "c"
@@ -193,11 +188,6 @@ class LinearOperator(_NonparametricOperator):
     >>> np.allclose(out, entries @ q)
     True
     """
-
-    @property
-    def input_dimension(self):
-        """Input dimension (always zero for this operator)."""
-        return 0
 
     @staticmethod
     def _str(statestr, inputstr=None):
@@ -362,11 +352,6 @@ class QuadraticOperator(_NonparametricOperator):
     >>> np.allclose(out, entries @ np.kron(q, q))
     True
     """
-
-    @property
-    def input_dimension(self):
-        """Input dimension (always zero for this operator)."""
-        return 0
 
     @staticmethod
     def _str(statestr, inputstr=None):
@@ -814,11 +799,6 @@ class CubicOperator(_NonparametricOperator):
     >>> np.allclose(out, entries @ np.kron(q, np.kron(q, q)))
     True
     """
-
-    @property
-    def input_dimension(self):
-        """Input dimension (always zero for this operator)."""
-        return 0
 
     @staticmethod
     def _str(statestr, inputstr=None):
