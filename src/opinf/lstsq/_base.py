@@ -48,19 +48,27 @@ def lstsq_size(modelform, r, m=0, affines=None):
     ncols : int
         The number of columns in the Operator Inference least-squares problem.
     """
-    if 'B' in modelform and m == 0:
+    if "B" in modelform and m == 0:
         raise ValueError("argument m > 0 required since 'B' in modelform")
-    if 'B' not in modelform and m != 0:
+    if "B" not in modelform and m != 0:
         raise ValueError(f"argument m={m} invalid since 'B' in modelform")
 
     if affines is None:
         affines = {}
 
-    qs = [(len(affines[op]) if (op in affines and op in modelform)
-           else 1 if op in modelform else 0) for op in "cAHGB"]
-    rs = [1, r, r*(r+1)//2, r*(r+1)*(r+2)//6, m]
+    qs = [
+        (
+            len(affines[op])
+            if (op in affines and op in modelform)
+            else 1
+            if op in modelform
+            else 0
+        )
+        for op in "cAHGB"
+    ]
+    rs = [1, r, r * (r + 1) // 2, r * (r + 1) * (r + 2) // 6, m]
 
-    return sum(qq*rr for qq, rr in zip(qs, rs))
+    return sum(qq * rr for qq, rr in zip(qs, rs))
 
 
 class _BaseSolver(abc.ABC):
@@ -68,6 +76,7 @@ class _BaseSolver(abc.ABC):
     Child classes should receive and store hyperparameters in the constructor
     (regularization scalars, truncation size, etc.).
     """
+
     _LSTSQ_LABEL = ""
 
     def __init__(self):
@@ -77,7 +86,7 @@ class _BaseSolver(abc.ABC):
     # Properties: matrices ----------------------------------------------------
     @property
     def A(self):
-        """(k, d) ndarray: "left-hand side" data matrix."""
+        """Left-hand side data matrix."""
         return self.__A
 
     @A.setter
@@ -86,7 +95,7 @@ class _BaseSolver(abc.ABC):
 
     @property
     def B(self):
-        """(k, r) ndarray: "right-hand side" matrix B = [ b_1 | ... | b_r ]."""
+        """ "Right-hand side matrix B = [ b_1 | ... | b_r ]."""
         return self.__B
 
     @B.setter
@@ -95,22 +104,22 @@ class _BaseSolver(abc.ABC):
 
     # Properties: matrix dimensions -------------------------------------------
     @property
-    def k(self):
-        """int > 0 : number of equations in the least-squares problem
+    def k(self) -> int:
+        """Number of equations in the least-squares problem
         (number of rows of A).
         """
         return self.A.shape[0] if self.A is not None else None
 
     @property
-    def d(self):
-        """int  > 0 : number of unknowns to learn in each problem
+    def d(self) -> int:
+        """Number of unknowns to learn in each problem
         (number of columns of A).
         """
         return self.A.shape[1] if self.A is not None else None
 
     @property
-    def r(self):
-        """int > 0: number of independent least-squares problems
+    def r(self) -> int:
+        """Number of independent least-squares problems
         (number of columns of B).
         """
         return self.B.shape[1] if self.B is not None else None
@@ -131,7 +140,7 @@ class _BaseSolver(abc.ABC):
             out.append(f"A: {self.A.shape}")
             out.append(f"X: {self.d, self.r}")
             out.append(f"B: {self.B.shape}")
-        return '\n'.join(out)
+        return "\n".join(out)
 
     def __repr__(self):
         """Unique ID + string representation."""
@@ -165,7 +174,7 @@ class _BaseSolver(abc.ABC):
         return self
 
     @abc.abstractmethod
-    def predict(*args, **kwargs):                           # pragma: no cover
+    def predict(*args, **kwargs):  # pragma: no cover
         """Solver the learning problem."""
         raise NotImplementedError
 
@@ -194,9 +203,10 @@ class _BaseSolver(abc.ABC):
         if self.r == 1 and X.ndim == 1:
             X = X.reshape((-1, 1))
         if X.shape != (self.d, self.r):
-            raise ValueError(f"X.shape = {X.shape} != "
-                             f"{(self.d, self.r)} = (d, r)")
-        resids = np.sum((self.A @ X - self.B)**2, axis=0)
+            raise ValueError(
+                f"X.shape = {X.shape} != " f"{(self.d, self.r)} = (d, r)"
+            )
+        resids = np.sum((self.A @ X - self.B) ** 2, axis=0)
         return resids[0] if self.r == 1 else resids
 
 
@@ -208,6 +218,7 @@ class PlainSolver(_BaseSolver):
 
     The solution is calculated using scipy.linalg.lstsq().
     """
+
     _LSTSQ_LABEL = "||AX - B||"
 
     def __init__(self, options=None):

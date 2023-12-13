@@ -21,11 +21,12 @@ from ._base import _BaseSolver
 class _BaseTikhonovSolver(_BaseSolver):
     """Base solver for regularized linear least-squares problems of the form
 
-        sum_{i} min_{x_i} ||Ax_i - b_i||^2 + ||P_i x_i||^2.
+    sum_{i} min_{x_i} ||Ax_i - b_i||^2 + ||P_i x_i||^2.
     """
+
     # Properties: regularization ----------------------------------------------
     @abc.abstractmethod
-    def regularizer(self):                                  # pragma: no cover
+    def regularizer(self):  # pragma: no cover
         """Regularization scalar, matrix, or list of these."""
         raise NotImplementedError
 
@@ -44,18 +45,19 @@ class _BaseTikhonovSolver(_BaseSolver):
         if self.k < self.d:
             warnings.warn(
                 "non-regularized least-squares system is underdetermined!",
-                la.LinAlgWarning, stacklevel=2
+                la.LinAlgWarning,
+                stacklevel=2,
             )
         return self
 
     # Post-processing ---------------------------------------------------------
     @abc.abstractmethod
-    def regcond(self):                                      # pragma: no cover
+    def regcond(self):  # pragma: no cover
         """Compute the condition number of the regularized data matrix."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def residual(self, X):                                  # pragma: no cover
+    def residual(self, X):  # pragma: no cover
         """Calculate the residual of the regularized regression problem."""
         raise NotImplementedError
 
@@ -73,6 +75,7 @@ class L2Solver(_BaseTikhonovSolver):
     If A = U Σ V^T, then X = V Σinv(λ) U^T B, where
     Σinv(λ)[i, i] = Σ[i, i] / (Σ[i, i]^2 + λ^2).
     """
+
     _LSTSQ_LABEL = r"min_{X} ||AX - B||_F^2 + ||λX||_F^2"
 
     def __init__(self, regularizer=0):
@@ -97,8 +100,9 @@ class L2Solver(_BaseTikhonovSolver):
         if not np.isscalar(reg):
             raise TypeError("regularization hyperparameter must be a scalar")
         if reg < 0:
-            raise ValueError("regularization hyperparameter must be "
-                             "non-negative")
+            raise ValueError(
+                "regularization hyperparameter must be " "non-negative"
+            )
         self.__reg = reg
 
     # Main methods ------------------------------------------------------------
@@ -177,7 +181,9 @@ class L2Solver(_BaseTikhonovSolver):
             Residuals ||Ax_i - b_i||_2^2 + ||λx_i||_2^2, i = 1, ..., r.
         """
         self._check_is_trained()
-        return self.misfit(X) + (self.regularizer**2)*np.sum(X**2, axis=0)
+        return self.misfit(X) + (self.regularizer**2) * np.sum(
+            X**2, axis=0
+        )
 
 
 class L2SolverDecoupled(L2Solver):
@@ -189,6 +195,7 @@ class L2SolverDecoupled(L2Solver):
 
     The solution is calculated using the singular value decomposition of A.
     """
+
     _LSTSQ_LABEL = r"min_{x_i} ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2"
 
     def __init__(self, regularizer):
@@ -208,8 +215,8 @@ class L2SolverDecoupled(L2Solver):
 
     @L2Solver.regularizer.setter
     def regularizer(self, regs):
-        """(r,) ndarray : Scalar regularization hyperparameters, one for each
-        column of X and B.
+        """Scalar regularization hyperparameters, one for each
+        column of X and B (an (r,) ndarray)
         """
         self._L2Solver__reg = np.array(regs)
         if self.r is not None:
@@ -241,7 +248,7 @@ class L2SolverDecoupled(L2Solver):
             singular values of the data matrix A.
         """
         self._check_is_trained("_svals")
-        svals2 = self._svals**2 + self.regularizer.reshape((-1, 1))**2
+        svals2 = self._svals**2 + self.regularizer.reshape((-1, 1)) ** 2
         return np.sqrt(svals2.max(axis=1) / svals2.min(axis=1))
 
     def residual(self, X):
@@ -282,6 +289,7 @@ class TikhonovSolver(_BaseTikhonovSolver):
 
         (A.T A + P.T P) X = A.T B.
     """
+
     _LSTSQ_LABEL = r"min_{X} ||AX - B||_F^2 + ||PX||_F^2"
 
     def __init__(self, regularizer, method="svd"):
@@ -323,8 +331,9 @@ class TikhonovSolver(_BaseTikhonovSolver):
 
         if P.ndim == 1:
             if np.any(P < 0):
-                raise ValueError("diagonal regularizer must be "
-                                 "positive semi-definite")
+                raise ValueError(
+                    "diagonal regularizer must be " "positive semi-definite"
+                )
             P = np.diag(P)
 
         self.__reg = P
@@ -409,7 +418,7 @@ class TikhonovSolver(_BaseTikhonovSolver):
             Residuals ||Ax_i - b_i||_2^2 + ||Px_i||_2^2, i = 1, ..., r.
         """
         self._check_is_trained()
-        return self.misfit(X) + np.sum((self.regularizer @ X)**2, axis=0)
+        return self.misfit(X) + np.sum((self.regularizer @ X) ** 2, axis=0)
 
 
 class TikhonovSolverDecoupled(TikhonovSolver):
@@ -418,6 +427,7 @@ class TikhonovSolverDecoupled(TikhonovSolver):
 
         min_{x_i} ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2,     i = 1, ..., r.
     """
+
     _LSTSQ_LABEL = r"sum_{i} min_{x_i} ||Ax_i - b_i||^2 + ||P_i x_i||^2"
 
     def __init__(self, regularizer, method="svd"):
@@ -446,8 +456,9 @@ class TikhonovSolverDecoupled(TikhonovSolver):
 
     @property
     def regularizer(self):
-        """r (d, d) ndarrays : symmetric semi-positive-definite regularization
-        matrices [P_1, ..., P_r], one for each column of X and B.
+        """Symmetric semi-positive-definite regularization
+        matrices [P_1, ..., P_r], one for each column of X and B
+        (r (d, d) ndarrays)
         """
         return self._TikhonovSolver__reg
 
@@ -462,8 +473,10 @@ class TikhonovSolverDecoupled(TikhonovSolver):
                 P = np.array(P)
             if P.ndim == 1:
                 if np.any(P < 0):
-                    raise ValueError("diagonal regularizer must be "
-                                     "positive semi-definite")
+                    raise ValueError(
+                        "diagonal regularizer must be "
+                        "positive semi-definite"
+                    )
                 P = np.diag(P)
             regs.append(P)
 
@@ -507,8 +520,9 @@ class TikhonovSolverDecoupled(TikhonovSolver):
             sqrt(cond(A.T A + P_i.T P_i)).
         """
         self._check_is_trained()
-        return np.array([np.linalg.cond(np.vstack((self.A, P)))
-                         for P in self.regularizer])
+        return np.array(
+            [np.linalg.cond(np.vstack((self.A, P))) for P in self.regularizer]
+        )
 
     def residual(self, X):
         """Calculate the residual of the regularized problem for each column of
@@ -527,6 +541,10 @@ class TikhonovSolverDecoupled(TikhonovSolver):
         """
         self._check_is_trained()
         misfit = self.misfit(X)
-        Pxs = np.array([np.sum((P @ X[:, j])**2)
-                        for j, P in enumerate(self.regularizer)])
+        Pxs = np.array(
+            [
+                np.sum((P @ X[:, j]) ** 2)
+                for j, P in enumerate(self.regularizer)
+            ]
+        )
         return misfit + Pxs
