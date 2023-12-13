@@ -63,7 +63,7 @@ class _InterpolatedOperator(_ParametricOperator):
     # Initialization ----------------------------------------------------------
     def __init__(
         self,
-        training_parameters,
+        training_parameters=None,
         InterpolatorClass: type = None,
         entries=None,
     ):
@@ -89,66 +89,147 @@ class _InterpolatedOperator(_ParametricOperator):
         """
         _ParametricOperator.__init__(self)
 
-        # Ensure parameter shapes are consistent and store parameters.
-        self._check_shape_consistency(
-            training_parameters,
-            "training parameter",
-        )
-        self.__parameters = np.array(training_parameters)
-        self._set_parameter_dimension_from_data(self.__parameters)
-        self.__s = len(self.__parameters)
-        if InterpolatorClass is None:
-            if self.parameter_dimension == 1:
-                InterpolatorClass = spinterp.CubicSpline
-            else:
-                InterpolatorClass = spinterp.LinearNDInterpolator
+        self.__parameters = None
+        self.__interpolator = None
         self.__InterpolatorClass = InterpolatorClass
+        self.__entries = None
 
-        # Set the operator entries if provided.
+        if training_parameters is not None:
+            self.set_training_parameters(training_parameters)
         if entries is not None:
             self.set_entries(entries)
-        else:
-            self.__entries = None
-            self.__interpolator = None
 
     def _clear(self) -> None:
         """Reset the operator to its post-constructor state without entries."""
         self.__entries = None
         self.__interpolator = None
 
-    def set_entries(self, entries):
+    # Properties --------------------------------------------------------------
+    @property
+    def training_parameters(self):
+        """Parameter values for which the operators entries are known."""
+        return self.__parameters
+
+    @training_parameters.setter
+    def training_parameters(self, params):
+        """Set the training parameter values."""
+        self.set_training_parameters(params)
+
+    def set_training_parameters(self, training_parameters):
+        """Set the training parameter values.
+
+        Parameters
+        ----------
+        training_parameters : list of s scalars or (p,) 1D ndarrays
+            Parameter values for which the operators entries are known
+            or will be inferred from data.
+        """
+        if self.__interpolator is not None:
+            raise AttributeError(
+                "can't set attribute (entries already set, call _clear())"
+            )
+
+        # Check argument dimensions.
+        self._check_shape_consistency(
+            training_parameters,
+            "training_parameters",
+        )
+        parameters = np.array(training_parameters)
+        if (dim := parameters.ndim) not in (1, 2):
+            raise ValueError("parameter values must be scalars or 1D arrays")
+        self._set_parameter_dimension_from_data(parameters)
+
+        # Default interpolator classes.
+        if self.__InterpolatorClass is None:
+            if dim == 1:
+                self.__InterpolatorClass = spinterp.CubicSpline
+            elif dim == 2:
+                self.__InterpolatorClass = spinterp.LinearNDInterpolator
+
+        self.__parameters = parameters
+
+    @property
+    def entries(self):
+        """Operator entries corresponding to the training parameters values,
+        i.e., ``entries[i]`` are the operator entries corresponding to the
+        parameter value ``training_parameters[i]``.
+        """
+        return self.__entries
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the operator entries."""
+        self.set_entries(entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        self._clear()
+
+    def set_entries(self, entries, fromblock=False):
         r"""Set the operator entries, the matrices
         :math:`\Ohat_{\ell}^{(1)},\ldots,\Ohat_{\ell}^{(s)}`.
 
         Parameters
         ----------
-        entries : (r, sd) ndarray or list of s (r, d) ndarrays
-            Operator entries, either as a list of matrices or the horizontal
-            concatenatation of the list of matrices.
+        entries : list of s (r, d) ndarrays, or (r, sd) ndarray
+            Operator entries, either as a list of arrays
+            (``fromblock=False``, default)
+            or as a horizontal concatenatation of arrays (``fromblock=True``).
+        fromblock : bool
+            If ``True``, interpret ``entries`` as a horizontal concatenation
+            of arrays; if ``False``, interpret ``entries`` as a list of arrays.
         """
-        n_params = len(self.training_parameters)
-        # TODO: Handle special cases
-        # r = 1: (sd,) ndarray or list of s (d,) ndarrays
-        # d = 1: (r, s) ndarray or list of s (r,) ndarrays
-        # r = d = 1: (s,) ndarray or list of s floats
-        if np.ndim(entries) == 2:
-            entries = np.split(entries, n_params, axis=1)
+        if self.training_parameters is None:
+            raise AttributeError(
+                "training_parameters have not been set, "
+                "call set_training_parameters() first"
+            )
 
-        self._check_shape_consistency(entries, "operator entries")
-        if (n_matrices := len(entries)) != n_params:
+        # Extract / verify the entries.
+        n_params = len(self.__parameters)
+        if fromblock:
+            if entries.ndim not in (1, 2):
+                raise ValueError(
+                    "entries must be a 1- or 2-dimensional ndarray "
+                    "when fromblock=True"
+                )
+            entries = np.split(entries, n_params, axis=-1)
+        if np.ndim(entries) > 1:
+            self._check_shape_consistency(entries, "entries")
+        if (n_arrays := len(entries)) != n_params:
             raise ValueError(
                 f"{n_params} = len(training_parameters) "
-                f"!= len(entries) = {n_matrices}"
+                f"!= len(entries) = {n_arrays}"
             )
 
         self.__entries = np.array(
             [self.OperatorClass(A).entries for A in entries]
         )
-        self.set_InterpolatorClass(self.__InterpolatorClass)
+        self.set_interpolator(self.__InterpolatorClass)
 
-    def set_InterpolatorClass(self, InterpolatorClass):
-        """Set ``InterpolatorClass`` and, if ``entries`` exists, construct the
-        interpolator for the operator entries.
+    @property
+    def state_dimension(self) -> int:
+        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
+        return None if self.entries is None else self.entries[0].shape[0]
+
+    @property
+    def shape(self) -> tuple:
+        """Shape of the operator entries matrix when evaluated
+        at a parameter value.
+        """
+        return None if self.entries is None else self.entries[0].shape
+
+    # Interpolation -----------------------------------------------------------
+    @property
+    def interpolator(self):
+        """Interpolator object for evaluating the operator at specified
+        parameter values.
+        """
+        return self.__interpolator
+
+    def set_interpolator(self, InterpolatorClass):
+        """Construct the interpolator for the operator entries.
 
         Parameters
         ----------
@@ -167,77 +248,38 @@ class _InterpolatedOperator(_ParametricOperator):
             )
         self.__InterpolatorClass = InterpolatorClass
 
-    # Properties --------------------------------------------------------------
-    @property
-    def state_dimension(self) -> int:
-        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
-        return None if self.entries is None else self.entries[0].shape[0]
-
-    @property
-    def training_parameters(self):
-        """Parameter values for which the operators entries are known."""
-        return self.__parameters
-
-    @property
-    def entries(self):
-        """(s, r, d) ndarray: Operator entries corresponding to the training
-        parameters values, i.e., ``entries[i]`` are the operator entries
-        corresponding to the parameter value ``training_parameters[i]``.
-        """
-        return self.__entries
-
-    @entries.setter
-    def entries(self, entries):
-        """Set the operator entries."""
-        self.set_entries(entries)
-
-    @entries.deleter
-    def entries(self):
-        """Reset the ``entries`` attribute."""
-        self._clear()
-
-    @property
-    def shape(self) -> tuple:
-        """Shape of the operator entries matrix when evaluated
-        at a parameter value.
-        """
-        return None if self.entries is None else self.entries[0].shape
-
-    @property
-    def InterpolatorClass(self):
-        """Class for the elementwise interpolation,
-        e.g., a class from ``scipy.interpolate``.
-        """
-        return self.__InterpolatorClass
-
-    @InterpolatorClass.setter
-    def InterpolatorClass(self, IC):
-        """Set the InterpolatorClass."""
-        self.set_InterpolatorClass(IC)
-
-    @property
-    def interpolator(self):
-        """Interpolator object for evaluating the operator at specified
-        parameter values.
-        """
-        return self.__interpolator
-
     # Magic methods -----------------------------------------------------------
-    def __len__(self):
+    def __len__(self) -> int:
         """Length: number of training data points for the interpolation."""
-        return self.__s
+        if self.training_parameters is None:
+            return 0
+        return len(self.training_parameters)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Test whether the training parameters and operator entries of two
         _InterpolatedOperator objects are the same.
         """
         if not isinstance(other, self.__class__):
             return False
-        if self.training_parameters.shape != other.training_parameters.shape:
+        if (
+            self.training_parameters is None
+            and other.training_parameters is not None
+        ) or (
+            self.training_parameters is not None
+            and other.training_parameters is None
+        ):
             return False
-        if not np.all(self.training_parameters == other.training_parameters):
-            return False
-        if self.__InterpolatorClass != other.__InterpolatorClass:
+        if self.training_parameters is not None:
+            if (
+                self.training_parameters.shape
+                != other.training_parameters.shape
+            ):
+                return False
+            if not np.all(
+                self.training_parameters == other.training_parameters
+            ):
+                return False
+        if self.__InterpolatorClass is not other.__InterpolatorClass:
             return False
         if (self.entries is None and other.entries is not None) or (
             self.entries is not None and other.entries is None
@@ -246,10 +288,7 @@ class _InterpolatedOperator(_ParametricOperator):
         if self.entries is not None:
             if self.shape != other.shape:
                 return False
-            return all(
-                np.all(left == right)
-                for left, right in zip(self.entries, other.entries)
-            )
+            return np.allclose(self.entries, other.entries)
         return True
 
     # Evaluation --------------------------------------------------------------
@@ -365,17 +404,28 @@ class _InterpolatedOperator(_ParametricOperator):
             ]
         )
 
-    def operator_dimension(self, r, m):
+    @classmethod
+    def operator_dimension(cls, s: int, r: int, m: int) -> int:
         r"""Number of columns `sd` in the concatenated operator matrix
         :math:`[~\Ohat_{\ell}^{(1)}~~\cdots~~\Ohat_{\ell}^{(s)}~]`.
+
+        Parameters
+        ----------
+        s : int
+            Number of training parameter values.
+        r : int
+            State dimension.
+        m : int or None
+            Input dimension.
         """
-        return len(self) * self.OperatorClass.operator_dimension(r, m)
+        return s * cls._OperatorClass.operator_dimension(r, m)
 
     # Model persistence -------------------------------------------------------
     def copy(self):
         """Return a copy of the operator."""
+        params = self.training_parameters
         return self.__class__(
-            training_parameters=self.training_parameters.copy(),
+            training_parameters=params.copy() if params is not None else None,
             InterpolatorClass=self.__InterpolatorClass,
             entries=self.entries.copy() if self.entries is not None else None,
         )
@@ -394,17 +444,22 @@ class _InterpolatedOperator(_ParametricOperator):
         with hdf5_savehandle(savefile, overwrite) as hf:
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["class"] = self.__class__.__name__
-            InterpolatorClassName = self.InterpolatorClass.__name__
+
+            InterpolatorClassName = self.__InterpolatorClass.__name__
             meta.attrs["InterpolatorClass"] = InterpolatorClassName
-            if not hasattr(spinterp, InterpolatorClassName):
+            if InterpolatorClassName != "NoneType" and not hasattr(
+                spinterp, InterpolatorClassName
+            ):
                 warnings.warn(
                     "cannot serialize InterpolatorClass "
                     f"'{InterpolatorClassName}', must pass in the class "
                     "when calling load()"
                 )
-            hf.create_dataset(
-                "training_parameters", data=self.training_parameters
-            )
+
+            if self.training_parameters is not None:
+                hf.create_dataset(
+                    "training_parameters", data=self.training_parameters
+                )
             if self.entries is not None:
                 hf.create_dataset("entries", data=self.entries)
 
@@ -438,12 +493,13 @@ class _InterpolatedOperator(_ParametricOperator):
                     f"object, use '{ClassName}.load()'"
                 )
 
+            # Get the InterpolatorClass.
             SavedClassName = hf["meta"].attrs["InterpolatorClass"]
             if InterpolatorClass is None:
                 # Load from scipy.interpolate.
                 if hasattr(spinterp, SavedClassName):
                     InterpolatorClass = getattr(spinterp, SavedClassName)
-                else:
+                elif SavedClassName != "NoneType":
                     raise ValueError(
                         f"unknown InterpolatorClass '{SavedClassName}', "
                         f"call {ClassName}.load({loadfile}, {SavedClassName})"
@@ -459,7 +515,11 @@ class _InterpolatedOperator(_ParametricOperator):
                         UserWarning,
                     )
             return cls(
-                hf["training_parameters"][:],
+                (
+                    hf["training_parameters"][:]
+                    if "training_parameters" in hf
+                    else None
+                ),
                 InterpolatorClass,
                 (hf["entries"][:] if "entries" in hf else None),
             )

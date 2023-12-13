@@ -293,22 +293,10 @@ class TestParametricOperator:
         def load(self, *args, **kwargs):
             pass
 
-    def test_init(self):
-        """Test _ParametricOperator.__init__()"""
-        temp = self.Dummy._OperatorClass
-        self.Dummy._OperatorClass = int
-
-        with pytest.raises(RuntimeError) as ex:
-            self.Dummy()
-        assert ex.value.args[0] == "invalid OperatorClass 'int'"
-
-        self.Dummy._OperatorClass = temp
-        op = self.Dummy()
-        assert op.parameter_dimension is None
-
     def test_set_parameter_dimension_from_data(self):
         """Test _ParametricOperator._set_parameter_dimension_from_data()."""
         op = self.Dummy()
+        assert op.parameter_dimension is None
 
         # One-dimensional parameters.
         op._set_parameter_dimension_from_data(np.arange(10))

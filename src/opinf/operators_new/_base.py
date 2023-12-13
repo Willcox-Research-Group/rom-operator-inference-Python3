@@ -1,17 +1,5 @@
 # operators/_base.py
-"""Abstract base classes for operators.
-
-Classes
--------
-
-* _NonparametricOperator: base for monolithic nonparametric operators.
-* _ParametricOperator: base for parametric operators.
-* _InputMixin: Mix-in for operators that act on the input.
-
-TODO
-----
-* _NonparametricOperatorMulti: base for multilithic nonparametric operators.
-"""
+"""Abstract base classes for operators."""
 
 __all__ = [
     "is_nonparametric",
@@ -407,21 +395,9 @@ class _ParametricOperator(abc.ABC):
         return self._OperatorClass
 
     # Initialization ----------------------------------------------------------
-    @abc.abstractmethod
     def __init__(self):
-        """Validate the OperatorClass.
-
-        Child classes must implement __init__() method, which should call this
-        method and set/validate attributes needed to construct the operator
-        without requiring operator entries.
-        """
+        """Initialize the parameter_dimension."""
         self.__p = None
-
-        # Validate the OperatorClass.
-        if not issubclass(self.OperatorClass, _NonparametricOperator):
-            raise RuntimeError(
-                f"invalid OperatorClass '{self._OperatorClass.__name__}'"
-            )
 
     @abc.abstractmethod
     def _clear(self) -> None:  # pragma: no cover
