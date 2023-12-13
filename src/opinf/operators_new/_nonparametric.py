@@ -363,6 +363,14 @@ class QuadraticOperator(_NonparametricOperator):
         self._prejac = None
         _NonparametricOperator._clear(self)
 
+    def _precompute_jacobian_jit(self):
+        """Compute (just in time) the pre-Jacobian tensor Jt such that
+        Jt @ q = jacobian(q).
+        """
+        r = self.entries.shape[0]
+        Ht = self.expand_entries(self.entries).reshape((r, r, r))
+        self._prejac = Ht + Ht.transpose(0, 2, 1)
+
     def set_entries(self, entries):
         r"""Set the ``entries`` attribute.
 
@@ -391,8 +399,7 @@ class QuadraticOperator(_NonparametricOperator):
 
         # Precompute compressed Kronecker product mask and Jacobian matrix.
         self._mask = self.ckron_indices(r)
-        Ht = self.expand_entries(entries).reshape((r, r, r))
-        self._prejac = Ht + Ht.transpose(0, 2, 1)
+        self._prejac = None
 
         _NonparametricOperator.set_entries(self, entries)
 
@@ -436,6 +443,8 @@ class QuadraticOperator(_NonparametricOperator):
             State Jacobian
             :math:`\Hhat[(\I_r\otimes\qhat) + (\qhat\otimes\I_r)]`.
         """
+        if self._prejac is None:
+            self._precompute_jacobian_jit()
         return self._prejac @ np.atleast_1d(state)
 
     @_requires_entries
@@ -810,6 +819,14 @@ class CubicOperator(_NonparametricOperator):
         self._prejac = None
         _NonparametricOperator._clear(self)
 
+    def _precompute_jacobian_jit(self):
+        """Compute (just in time) the pre-Jacobian tensor Jt such that
+        (Jt @ q) @ q = jacobian(q).
+        """
+        r = self.entries.shape[0]
+        Gt = self.expand_entries(self.entries).reshape((r, r, r, r))
+        self._prejac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
+
     def set_entries(self, entries):
         r"""Set the ``entries`` attribute.
 
@@ -836,8 +853,7 @@ class CubicOperator(_NonparametricOperator):
 
         # Precompute compressed Kronecker product mask and Jacobian tensor.
         self._mask = self.ckron_indices(r)
-        Gt = self.expand_entries(entries).reshape([r] * 4)
-        self._prejac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
+        self._prejac = None
 
         _NonparametricOperator.set_entries(self, entries)
 
@@ -885,6 +901,8 @@ class CubicOperator(_NonparametricOperator):
             + (\qhat\otimes\I_r\otimes\qhat)
             + (\qhat\otimes\qhat\otimes\I_r)]`.
         """
+        if self._prejac is None:
+            self._precompute_jacobian_jit()
         q_ = np.atleast_1d(state)
         return (self._prejac @ q_) @ q_
 

@@ -369,6 +369,7 @@ class TestQuadraticOperator:
         """Test QuadraticOperator.jacobian()."""
         H = np.random.random((r, r**2))
         op = self._OpClass(H)
+        assert op._prejac is None
 
         # r > 1
         Id = np.eye(r)
@@ -676,6 +677,7 @@ class TestCubicOperator:
         """Test CubicOperator.jacobian()."""
         G = np.random.random((r, r**3))
         op = self._OpClass(G)
+        assert op._prejac is None
 
         Id = np.eye(r)
         for _ in range(ntrials):
