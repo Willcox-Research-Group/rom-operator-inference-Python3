@@ -1,4 +1,4 @@
-# models/monolithic/_base.py
+# models/mono/_base.py
 """Abstract base class for monolithic dynamical systems models."""
 
 __all__ = []

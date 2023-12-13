@@ -1,7 +1,7 @@
 # models/__init__.py
 """Dynamical systems model classes."""
 
-from .monolithic import *
-from .multilithic import *
+from .mono import *
+from .multi import *
 
-__all__ = monolithic.__all__ + multilithic.__all__
+__all__ = mono.__all__ + multi.__all__

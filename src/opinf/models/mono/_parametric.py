@@ -1,16 +1,26 @@
-# models/monolithic/parametric/_base.py
-"""Base class for monolithic parametric dynamical systems models."""
+# models/mono/_parametric.py
+"""Parametric monolithic dynamical systems models."""
 
-__all__ = []
+__all__ = [
+    "ParametricSteadyModel",
+    "ParametricDiscreteModel",
+    "ParametricContinuousModel",
+]
 
 import warnings
 import numpy as np
 
-from .._base import _MonolithicModel
-from .... import errors
-from .... import operators_new as _operators
+from ._base import _MonolithicModel
+from ._nonparametric import (
+    _FrozenSteadyModel,
+    _FrozenDiscreteModel,
+    _FrozenContinuousModel,
+)
+from ... import errors
+from ... import operators_new as _operators
 
 
+# Base class ==================================================================
 class _ParametricMonolithicModel(_MonolithicModel):
     r"""Base class for parametric monolithic models.
 
@@ -464,6 +474,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
         return self.evaluate(parameter).predict(*args, **kwargs)
 
 
+# Special case: fully interpolation-based models ==============================
 class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
     """Base class for parametric monolithic models where all operators MUST be
     interpolation-based parametric operators. In this special case, the
@@ -571,3 +582,21 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
             )
 
         return self
+
+
+class ParametricSteadyModel(_ParametricMonolithicModel):
+    """Parametric steady models."""
+
+    _ModelClass = _FrozenSteadyModel
+
+
+class ParametricDiscreteModel(_ParametricMonolithicModel):
+    """Parametric time-discrete models."""
+
+    _ModelClass = _FrozenDiscreteModel
+
+
+class ParametricContinuousModel(_ParametricMonolithicModel):
+    """Parametric continuous models."""
+
+    _ModelClass = _FrozenContinuousModel

@@ -1,5 +1,5 @@
-# models/monolithic/test_base.py
-"""Tests for models._base."""
+# models/mono/test_base.py
+"""Tests for models.mono._base."""
 
 import pytest
 import numpy as np
@@ -10,7 +10,7 @@ from . import _get_operators
 
 
 opinf_operators = opinf.operators_new  # TEMP
-_module = opinf.models.monolithic._base
+_module = opinf.models.mono._base
 
 
 class TestMonolithicModel:
