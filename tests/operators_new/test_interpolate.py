@@ -72,6 +72,39 @@ class TestInterpolatedOperator:
 
         _OperatorClass = _DummyOperator
 
+    def test_from_operators(self, s=7, p=2, r=5):
+        """Test _InterpolatedOperator._from_operators()."""
+        mu = np.random.random((s, p))
+
+        with pytest.raises(TypeError) as ex:
+            self.Dummy._from_operators(mu, [10, "10"])
+        assert (
+            ex.value.args[0] == "can only interpolate operators "
+            "of type '_DummyOperator'"
+        )
+
+        operators = [_DummyOperator() for _ in range(s)]
+        with pytest.raises(ValueError) as ex:
+            self.Dummy._from_operators(mu, operators)
+        assert (
+            ex.value.args[0] == "operators must have entries set "
+            "in order to interpolate"
+        )
+
+        for op in operators:
+            op.set_entries(np.random.random((r, r)))
+
+        op = self.Dummy._from_operators(mu, operators)
+        assert isinstance(op, self.Dummy)
+        assert all(
+            np.all(op.entries[i] == operators[i].entries) for i in range(s)
+        )
+
+        op = self.Dummy._from_operators(
+            mu, operators, InterpolatorClass=_DummyInterpolator
+        )
+        assert isinstance(op.interpolator, _DummyInterpolator)
+
     def test_set_training_parameters(self, s=10, p=2, r=4):
         """Test _InterpolatedOperator.set_training_parameters(),
         the training_parameter property, and __len__().
@@ -373,7 +406,9 @@ def test_publics():
     """
     for OpClassName in _module.__all__:
         OpClass = getattr(_module, OpClassName)
-        if not issubclass(OpClass, _module._InterpolatedOperator):
+        if not isinstance(OpClass, type) or not issubclass(
+            OpClass, _module._InterpolatedOperator
+        ):
             continue
         op = OpClass()
         assert issubclass(
@@ -433,3 +468,25 @@ def test_1Doperators(r=10, m=3, s=5):
                 assert isinstance(op_evaluated, OpClass._OperatorClass)
                 assert op_evaluated.shape == op.shape
                 assert np.allclose(op_evaluated.entries, Ohat_i)
+
+
+def test_is_interpolated():
+    """Test operators._interpolate.is_interpolated()."""
+    op = TestInterpolatedOperator.Dummy()
+    assert opinf.operators_new.is_interpolated(op)
+    assert not opinf.operators_new.is_interpolated(-1)
+
+
+def test_nonparametric_to_interpolated():
+    """Test operators._interpolate._nonparametric_to_interpolated()."""
+
+    with pytest.raises(TypeError) as ex:
+        opinf.operators_new._nonparametric_to_interpolated(float)
+    assert (
+        ex.value.args[0] == "_InterpolatedOperator for class 'float' not found"
+    )
+
+    OpClass = opinf.operators_new._nonparametric_to_interpolated(
+        opinf.operators_new.QuadraticOperator
+    )
+    assert OpClass is opinf.operators_new.InterpolatedQuadraticOperator

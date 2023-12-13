@@ -641,12 +641,12 @@ class _ParametricOperator(abc.ABC):
 
 
 # Utilities ===================================================================
-def is_nonparametric(obj):
+def is_nonparametric(obj) -> bool:
     """Return ``True`` if ``obj`` is a nonparametric operator object."""
     return isinstance(obj, _NonparametricOperator)
 
 
-def has_inputs(obj):
+def has_inputs(obj) -> bool:
     r"""Return ``True`` if ``obj`` is an operator object whose ``apply()``
     method acts on the ``input_`` argument, i.e.,
     :math:`\Ophat_{\ell}(\qhat,\u)` depends on :math:`\u`.
@@ -654,6 +654,6 @@ def has_inputs(obj):
     return isinstance(obj, _InputMixin)
 
 
-def is_parametric(obj):
+def is_parametric(obj) -> bool:
     """Return ``True`` if ``obj`` is a parametric operator object."""
     return isinstance(obj, _ParametricOperator)

@@ -10,6 +10,8 @@ __all__ = [
     "InterpolatedCubicOperator",
     "InterpolatedInputOperator",
     "InterpolatedStateInputOperator",
+    "is_interpolated",
+    "_nonparametric_to_interpolated",
 ]
 
 import warnings
@@ -58,6 +60,28 @@ class _InterpolatedOperator(_ParametricOperator):
     * :class:`opinf.operators_new.InterpolatedCubicOperator`
     * :class:`opinf.operators_new.InterpolatedInputOperator`
     * :class:`opinf.operators_new.InterpolatedStateInputOperator`
+
+    Parameters
+    ----------
+    training_parameters : list of s scalars or (p,) 1D ndarrays
+        Parameter values for which the operator entries are known
+        or will be inferred from data.
+    InterpolatorClass : type or None
+        Class for the elementwise interpolation. Must obey the syntax
+
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+
+        This can be, e.g., a class from ``scipy.interpolate``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+    entries : list of s ndarrays, or None
+        Operator entries corresponding to the ``training_parameters``.
+    fromblock : bool
+        If ``True``, interpret ``entries`` as a horizontal concatenation
+        of arrays; if ``False`` (default), interpret ``entries`` as a list
+        of arrays.
     """
 
     # Initialization ----------------------------------------------------------
@@ -66,26 +90,10 @@ class _InterpolatedOperator(_ParametricOperator):
         training_parameters=None,
         InterpolatorClass: type = None,
         entries=None,
+        fromblock=False,
     ):
-        """Construct the elementwise operator interpolator.
-
-        Parameters
-        ----------
-        training_parameters : list of s scalars or (p,) 1D ndarrays
-            Parameter values for which the operators entries are known
-            or will be inferred from data.
-        InterpolatorClass : type or None
-            Class for the elementwise interpolation. Must obey the syntax
-
-               >>> interpolator = InterpolatorClass(data_points, data_values)
-               >>> interpolator_evaluation = interpolator(new_data_point)
-
-            This can be, e.g., a class from ``scipy.interpolate``.
-            If ``None`` (default), use ``scipy.interpolate.CubicSpline``
-            for one-dimensional parameters and
-            ``scipy.interpolate.LinearNDInterpolator`` otherwise.
-        entries : list of s ndarrays, or None
-            Operator entries corresponding to the ``training_parameters``.
+        """Set attributes and, if training parameters and entries are given,
+        construct the elementwise operator interpolator.
         """
         _ParametricOperator.__init__(self)
 
@@ -97,7 +105,43 @@ class _InterpolatedOperator(_ParametricOperator):
         if training_parameters is not None:
             self.set_training_parameters(training_parameters)
         if entries is not None:
-            self.set_entries(entries)
+            self.set_entries(entries, fromblock=fromblock)
+
+    @classmethod
+    def _from_operators(
+        cls,
+        training_parameters,
+        operators,
+        InterpolatorClass: type = None,
+    ):
+        """Interpolate an existing set of nonparametric operators with
+        populated entries.
+
+        Parameters
+        ----------
+        operators : list of :mod:`opinf.operators_new` objects
+            Operators to interpolate. Must be of class ``OperatorClass``
+            and have ``entries`` set.
+        """
+        # Check everything is initialized.
+        for op in operators:
+            if not isinstance(op, cls._OperatorClass):
+                raise TypeError(
+                    "can only interpolate operators of type "
+                    f"'{cls._OperatorClass.__name__}'"
+                )
+            if op.entries is None:
+                raise ValueError(
+                    "operators must have entries set in order to interpolate"
+                )
+
+        # Extract the entries.
+        return cls(
+            training_parameters,
+            InterpolatorClass=InterpolatorClass,
+            entries=[op.entries for op in operators],
+            fromblock=False,
+        )
 
     def _clear(self) -> None:
         """Reset the operator to its post-constructor state without entries."""
@@ -107,7 +151,7 @@ class _InterpolatedOperator(_ParametricOperator):
     # Properties --------------------------------------------------------------
     @property
     def training_parameters(self):
-        """Parameter values for which the operators entries are known."""
+        """Parameter values for which the operator entries are known."""
         return self.__parameters
 
     @training_parameters.setter
@@ -121,7 +165,7 @@ class _InterpolatedOperator(_ParametricOperator):
         Parameters
         ----------
         training_parameters : list of s scalars or (p,) 1D ndarrays
-            Parameter values for which the operators entries are known
+            Parameter values for which the operator entries are known
             or will be inferred from data.
         """
         if self.__interpolator is not None:
@@ -166,7 +210,7 @@ class _InterpolatedOperator(_ParametricOperator):
         """Reset the ``entries`` attribute."""
         self._clear()
 
-    def set_entries(self, entries, fromblock=False):
+    def set_entries(self, entries, fromblock: bool = False) -> None:
         r"""Set the operator entries, the matrices
         :math:`\Ohat_{\ell}^{(1)},\ldots,\Ohat_{\ell}^{(s)}`.
 
@@ -178,7 +222,8 @@ class _InterpolatedOperator(_ParametricOperator):
             or as a horizontal concatenatation of arrays (``fromblock=True``).
         fromblock : bool
             If ``True``, interpret ``entries`` as a horizontal concatenation
-            of arrays; if ``False``, interpret ``entries`` as a list of arrays.
+            of arrays; if ``False`` (default), interpret ``entries`` as a list
+            of arrays.
         """
         if self.training_parameters is None:
             raise AttributeError(
@@ -514,6 +559,7 @@ class _InterpolatedOperator(_ParametricOperator):
                         f"match loadfile InterpolatorClass '{SavedClassName}'",
                         UserWarning,
                     )
+
             return cls(
                 (
                     hf["training_parameters"][:]
@@ -768,3 +814,29 @@ class InterpolatedStateInputOperator(_InterpolatedOperator, _InputMixin):
             return None
         r, rm = self.shape
         return rm // r
+
+
+def is_interpolated(obj) -> bool:
+    """Return ``True`` if ``obj`` is a interpolated operator object."""
+    return isinstance(obj, _InterpolatedOperator)
+
+
+def _nonparametric_to_interpolated(OpClass: type) -> type:
+    """Get the interpolated operator class corresponding to a nonparametric
+    operator class.
+
+    """
+    print(OpClass)
+    for InterpolatedClassName in __all__:
+        InterpolatedClass = eval(InterpolatedClassName)
+        if not isinstance(InterpolatedClass, type) or not issubclass(
+            InterpolatedClass, _InterpolatedOperator
+        ):
+            print("skipping", InterpolatedClass)
+            continue
+        if InterpolatedClass._OperatorClass is OpClass:
+            return InterpolatedClass
+        print("didn't match", InterpolatedClass)
+    raise TypeError(
+        f"_InterpolatedOperator for class '{OpClass.__name__}' not found"
+    )

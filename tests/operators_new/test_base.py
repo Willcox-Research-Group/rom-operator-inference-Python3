@@ -356,8 +356,8 @@ def test_is_nonparametric():
     """Test operators._base.is_nonparametric()."""
 
     op = TestNonparametricOperator.Dummy()
-    assert _module.is_nonparametric(op)
-    assert not _module.is_nonparametric(10)
+    assert opinf.operators_new.is_nonparametric(op)
+    assert not opinf.operators_new.is_nonparametric(10)
 
 
 def test_has_inputs():
@@ -368,12 +368,12 @@ def test_has_inputs():
             return -1
 
     op = Dummy()
-    assert _module.has_inputs(op)
-    assert not _module.has_inputs(5)
+    assert opinf.operators_new.has_inputs(op)
+    assert not opinf.operators_new.has_inputs(5)
 
 
 def test_is_parametric():
     """Test operators._base.is_parametric()."""
     op = TestParametricOperator.Dummy()
-    assert _module.is_parametric(op)
-    assert not _module.is_nonparametric(-1)
+    assert opinf.operators_new.is_parametric(op)
+    assert not opinf.operators_new.is_nonparametric(-1)
