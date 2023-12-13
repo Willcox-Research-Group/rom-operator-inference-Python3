@@ -7,8 +7,10 @@ __all__ = [
     "ParametricContinuousModel",
 ]
 
+import copy
 import warnings
 import numpy as np
+import scipy.interpolate as spinterp
 
 from ._base import _MonolithicModel
 from ._nonparametric import (
@@ -16,7 +18,7 @@ from ._nonparametric import (
     _FrozenDiscreteModel,
     _FrozenContinuousModel,
 )
-from ... import errors
+from ... import errors, utils
 from ... import operators_new as _operators
 
 
@@ -24,7 +26,7 @@ from ... import operators_new as _operators
 class _ParametricMonolithicModel(_MonolithicModel):
     r"""Base class for parametric monolithic models.
 
-    Parent class: :class:`_MonolithicModel`
+    Parent class: :class:`opinf.mono._base._MonolithicModel`
 
     Child classes:
 
@@ -61,40 +63,22 @@ class _ParametricMonolithicModel(_MonolithicModel):
     def ModelClass(self):
         """Nonparametric model class that represents this parametric model
         when evaluated at a particular parameter value, a subclass of
-        :class:`_MonolithicModel`.
+        :class:`opinf.mono._base._MonolithicModel`.
 
         Examples
         --------
         >>> model = MyParametricModel(init_args).fit(fit_args)
-        >>> model_evaluated = model.evaluate(parameter_value).
+        >>> model_evaluated = model.evaluate(parameter_value)
         >>> type(model_evaluated) is MyParametricModel.ModelClass
         True
         """
         return self._ModelClass
-
-    # Constructor -------------------------------------------------------------
-    def __init__(self, modelform):
-        """Define the model structure.
-
-        Parameters
-        ----------
-        operators : list of :mod:`opinf.operators` objects
-            Operators comprising the terms of the model.
-        """
-        # Validate the ModelClass.
-        if not issubclass(self.ModelClass, _MonolithicModel):
-            raise RuntimeError(
-                "invalid ModelClass " f"'{self.ModelClass.__name__}'"
-            )
-
-        _MonolithicModel.__init__(self, modelform)
 
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = dict()
 
     def _isvalidoperator(self, op):
         """All monolithic operators are allowed."""
-        # TODO: allow any monolithic operator.
         raise NotImplementedError
 
     @staticmethod
@@ -102,7 +86,11 @@ class _ParametricMonolithicModel(_MonolithicModel):
         """Raise a ValueError if any two operators represent the same kind
         of operation (e.g., two constant operators).
         """
-        if len({op.OperatorClass for op in ops}) != len(ops):
+        OpClasses = {
+            (op.OperatorClass if _operators.is_parametric(op) else type(op))
+            for op in ops
+        }
+        if len(OpClasses) != len(ops):
             raise ValueError("duplicate type in list of operators to infer")
 
     def _get_operator_of_type(self, OpClass):
@@ -110,7 +98,9 @@ class _ParametricMonolithicModel(_MonolithicModel):
         operator class ``OpClass``.
         """
         for op in self.operators:
-            if op.OperatorClass is OpClass:
+            if (
+                _operators.is_parametric(op) and op.OperatorClass is OpClass
+            ) or (_operators.is_nonparametric(op) and isinstance(op, OpClass)):
                 return op
 
     @property
@@ -122,14 +112,23 @@ class _ParametricMonolithicModel(_MonolithicModel):
     def operators(self, ops):
         """Set the operators."""
         _MonolithicModel.operators.fset(ops)
-        self.__p = self._check_parameter_dimension_consistency(ops)
+        parametric_operators = [
+            op for op in self.operators if _operators.is_parametric(op)
+        ]
+        if len(parametric_operators) == 0:
+            warnings.warn(
+                "no parametric operators detected, "
+                "consider using a nonparametric model class"
+            )
+        # TODO: if all operators are interpolated, issue a warning to use
+        # interpolated model classes.
+        self.__p = self._check_parameter_dimension_consistency(self.operators)
 
     def _clear(self):
         """Reset the entries of the non-intrusive operators and the
         state, input, and parameter dimensions.
         """
         _MonolithicModel._clear(self)
-        # TODO: raise a warning if none of the operators are parametric.
         self.__p = self._check_parameter_dimension_consistency(self.operators)
 
     # Properties: dimensions --------------------------------------------------
@@ -139,7 +138,8 @@ class _ParametricMonolithicModel(_MonolithicModel):
         ps = {
             op.parameter_dimension
             for op in ops
-            if op.parameter_dimension is not None
+            if _operators.is_parametric(op)
+            and op.parameter_dimension is not None
         }
         if len(ps) > 1:
             raise errors.DimensionalityError(
@@ -160,6 +160,8 @@ class _ParametricMonolithicModel(_MonolithicModel):
         """
         if self.__operators is not None:
             for op in self.operators:
+                if _operators.is_nonparametric(op):
+                    continue
                 if (opp := op.parameter_dimension) is not None and opp != p:
                     raise AttributeError(
                         "can't set attribute "
@@ -185,10 +187,16 @@ class _ParametricMonolithicModel(_MonolithicModel):
 
     # Fitting -----------------------------------------------------------------
     def _process_fit_arguments(
-        self, parameters, states, lhs, inputs, solver=None
+        self,
+        parameters,
+        states,
+        lhs,
+        inputs,
+        solver=None,
     ):
         """Prepare training data for Operator Inference by extracting
-        dimensions, projecting known operators, and validating data sizes.
+        dimensions, validating data sizes, and modifying the left-hand side
+        data if there are any known operators.
         """
         # Clear non-intrusive operator data.
         self._clear()
@@ -266,12 +274,21 @@ class _ParametricMonolithicModel(_MonolithicModel):
 
         return parameters, states, lhs, inputs, solver
 
-    def _fit_solver(self, states, lhs, inputs=None, solver=None):
-        """Construct a solver object mapping the regularizer to solutions
-        of the Operator Inference least-squares problem.
-        """
-        states_, lhs_, inputs_, solver = self._process_fit_arguments(
-            states, lhs, inputs, solver=solver
+    def _assemble_data_matrix(self, states, inputs):
+        """Assemble the data matrix for operator inference."""
+        raise NotImplementedError("future release")
+
+    def _fit_solver(self, parameters, states, lhs, inputs=None, solver=None):
+        """Construct a solver for the operator inference least-squares
+        regression."""
+        (
+            parameters_,
+            states_,
+            lhs_,
+            inputs_,
+            solver_,
+        ) = self._process_fit_arguments(
+            parameters, states, lhs, inputs, solver=solver
         )
 
         # Fully intrusive case (nothing to learn).
@@ -281,7 +298,11 @@ class _ParametricMonolithicModel(_MonolithicModel):
 
         # Set up non-intrusive learning.
         D = self._assemble_data_matrix(states_, inputs_)
-        self.solver_ = solver.fit(D, lhs_.T)
+        self.solver_ = solver_.fit(D, np.hstack(lhs_).T)
+
+    def _extract_operators(self, Ohat):
+        """Unpack the operator matrix and populate operator entries."""
+        raise NotImplementedError("future release")
 
     def _evaluate_solver(self):
         """Evaluate the least-squares solver and process the results."""
@@ -351,17 +372,8 @@ class _ParametricMonolithicModel(_MonolithicModel):
         -------
         self
         """
-        (
-            parameters_,
-            states_,
-            lhs_,
-            inputs_,
-            solver_,
-        ) = self._process_fit_arguments(
-            parameters, states, lhs, inputs, solver=solver
-        )
-
-        raise NotImplementedError("future release")
+        self._fit_solver(parameters, states, lhs, inputs, solver=solver)
+        self._evaluate_solver()
 
     # Parametric evaluation ---------------------------------------------------
     def evaluate(self, parameter):
@@ -474,12 +486,144 @@ class _ParametricMonolithicModel(_MonolithicModel):
         return self.evaluate(parameter).predict(*args, **kwargs)
 
 
+# Public classes ==============================================================
+class ParametricSteadyModel(_ParametricMonolithicModel):
+    """Parametric steady models."""
+
+    _ModelClass = _FrozenSteadyModel
+
+
+class ParametricDiscreteModel(_ParametricMonolithicModel):
+    """Parametric time-discrete models."""
+
+    _ModelClass = _FrozenDiscreteModel
+
+
+class ParametricContinuousModel(_ParametricMonolithicModel):
+    """Parametric continuous models."""
+
+    _ModelClass = _FrozenContinuousModel
+
+
 # Special case: fully interpolation-based models ==============================
 class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
     """Base class for parametric monolithic models where all operators MUST be
     interpolation-based parametric operators. In this special case, the
     inference problems completely decouple by training parameter.
+
+    Parameters
+    ----------
+    operators : list of :mod:`opinf.operators` objects
+        Operators comprising the terms of the model.
+    InterpolatorClass : type or None
+        Class for the elementwise interpolation. Must obey the syntax
+
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
+
+        This can be, e.g., a class from ``scipy.interpolate``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
     """
+
+    @property
+    def _ModelFitClass(self):
+        """Parent of ModelClass that has a callable ``fit()`` method."""
+        return self.ModelClass.__bases__[-1]
+
+    def __init__(self, operators, InterpolatorClass=None):
+        """Define the model structure and set the interpolator class."""
+        _ParametricMonolithicModel.__init__(self, operators)
+        self.set_interpolator(InterpolatorClass)
+
+    @classmethod
+    def _from_models(cls, parameters, models, InterpolatorClass: type = None):
+        """Interpolate a collection of non-parametric models.
+
+        Parameters
+        ----------
+        parameters : list of s scalars or (p,) 1D ndarrays
+            Parameter values for which the operator entries are known.
+        models : list of s :mod:`opinf.models` objects
+            Nonparametric models with fully populated operator entries.
+        InterpolatorClass : type or None
+            Class for the elementwise interpolation. Must obey the syntax
+
+               >>> interpolator = InterpolatorClass(data_points, data_values)
+               >>> interpolator_evaluation = interpolator(new_data_point)
+
+            This can be, e.g., a class from ``scipy.interpolate``.
+            If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+            for one-dimensional parameters and
+            ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        """
+        # Check for consistency in the models.
+        opclasses = [type(op) for op in models[0].operators]
+        ModelFitClass = cls._ModelClass.__bases__[-1]
+        for mdl in models:
+            # Model class.
+            if not isinstance(mdl, ModelFitClass):
+                raise TypeError(
+                    "expected roms of type " f"{ModelFitClass.__name__}"
+                )
+            # Operator count and type.
+            if len(mdl.operators) != len(opclasses):
+                raise ValueError(
+                    "models not aligned (inconsistent number of operators)"
+                )
+            for ell, op in enumerate(mdl.operators):
+                if not isinstance(op, opclasses[ell]):
+                    raise ValueError(
+                        "models not aligned (inconsistent operator types)"
+                    )
+            # Entries are set.
+            mdl._check_is_trained()
+
+        # Extract the operators from the individual models.
+        return cls(
+            operators=[
+                _operators._nonparametric_to_interpolated(
+                    OpClass
+                )._from_operators(
+                    training_parameters=parameters,
+                    operators=[mdl.operators[ell] for mdl in models],
+                    InterpolatorClass=InterpolatorClass,
+                )
+                for ell, OpClass in enumerate(opclasses)
+            ],
+            InterpolatorClass=InterpolatorClass,
+        )
+
+    def set_interpolator(self, InterpolatorClass):
+        """Set the interpolator for the operator entries.
+
+        Parameters
+        ----------
+        InterpolatorClass : type or None
+            Class for the elementwise interpolation. Must obey the syntax
+
+                >>> interpolator = InterpolatorClass(data_points, data_values)
+                >>> interpolator_evaluation = interpolator(new_data_point)
+
+            This can be, e.g., a class from ``scipy.interpolate``.
+            If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+            for one-dimensional parameters and
+            ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        """
+        for op in self.operators:
+            op.set_interpolator(InterpolatorClass)
+        self.__InterpolatorClass = InterpolatorClass
+
+    # Properties: operators ---------------------------------------------------
+    _operator_abbreviations = {
+        "c": _operators.InterpolatedConstantOperator,
+        "A": _operators.InterpolatedLinearOperator,
+        "H": _operators.InterpolatedQuadraticOperator,
+        "G": _operators.InterpolatedCubicOperator,
+        "B": _operators.InterpolatedInputOperator,
+        "N": _operators.InterpolatedStateInputOperator,
+    }
 
     def _isvalidoperator(self, op):
         """Only interpolated parametric operators are allowed."""
@@ -492,41 +636,282 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
             _operators.InterpolatedStateInputOperator,
         )
 
-    # def submodels(self):
+    # Fitting -----------------------------------------------------------------
+    def _assemble_data_matrix(self, *args, **kwargs):
+        """Assemble the data matrix for operator inference."""
+        raise NotImplementedError(
+            "_assemble_data_matrix() not used by this class"
+        )
 
-    def fit(self, parameters, states, lhs, inputs=None, solver=None):
+    def _extract_operators(self, Ohat):
+        """Unpack the operator matrix and populate operator entries."""
+        raise NotImplementedError(
+            "_extract_operators() not used by this class"
+        )
+
+    def _fit_solver(self, parameters, states, lhs, inputs=None, solver=None):
+        """Construct a solver for the operator inference least-squares
+        regression.
+        """
+        (
+            parameters_,
+            states_,
+            lhs_,
+            inputs_,
+            solver_,
+        ) = self._process_fit_arguments(
+            parameters, states, lhs, inputs, solver=solver
+        )
+        n_datasets = len(parameters)
+        if not self._has_inputs:
+            inputs_ = [None] * n_datasets
+
+        # Distribute training data to individual OpInf problems.
+        nonparametric_models = []
+        for i in range(n_datasets):
+            model_i = self._ModelFitClass(
+                operators=[
+                    op.OperatorClass(
+                        op.entries[i] if op.entries is not None else None
+                    )
+                    for op in self.operators
+                ]
+            )
+            model_i._fit_solver(
+                states_[i],
+                lhs_[i],
+                inputs_[i],
+                copy.deepcopy(solver_),
+            )
+            nonparametric_models.append(model_i)
+
+        self.solvers_ = [mdl.solver_ for mdl in nonparametric_models]
+        self.__submodels = nonparametric_models
+        self.__training_parameters = parameters_
+
+    def _evaluate_solver(self):
+        """Evaluate the least-squares solver and process the results."""
+        # Solve each independent subproblem.
+        # TODO: parallelize?
+        for model_i in self.__submodels:
+            model_i.evaluate_solver()
+
+        # Interpolate the resulting operators.
+        for op, ell in enumerate(self.operators):
+            op._clear()
+            op.set_training_parameters(self.__training_parameters)
+            op.set_entries([mdl.operators[ell] for mdl in self.__submodels])
+
+        self.__InterpolatorClass = type(self.operators[0].interpolator)
+
+        return self
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile: str, overwrite: bool = False) -> None:
+        """Serialize the model, saving it in HDF5 format.
+        The model can be recovered with the :meth:`load()` class method.
+
+        Parameters
+        ----------
+        savefile : str
+            File to save to, with extension ``.h5`` (HDF5).
+        overwrite : bool
+            If ``True`` and the specified ``savefile`` already exists,
+            overwrite the file. If ``False`` (default) and the specified
+            ``savefile`` already exists, raise an error.
+        """
+        with utils.hdf5_savehandle(savefile, overwrite=overwrite) as hf:
+            # Metadata.
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["num_operators"] = len(self.operators)
+            meta.attrs["r"] = (
+                int(self.state_dimension) if self.state_dimension else 0
+            )
+            meta.attrs["m"] = (
+                int(self.input_dimension) if self.input_dimension else 0
+            )
+
+            # Interpolator class.
+            suppress_warnings = False
+            InterpolatorClassName = self.__InterpolatorClass.__name__
+            meta.attrs["InterpolatorClass"] = InterpolatorClassName
+            if InterpolatorClassName != "NoneType" and not hasattr(
+                spinterp, InterpolatorClassName
+            ):
+                warnings.warn(
+                    "cannot serialize InterpolatorClass "
+                    f"'{InterpolatorClassName}', must pass in the class "
+                    "when calling load()"
+                )
+                suppress_warnings = True
+
+            # Operator data.
+            hf.create_dataset(
+                "indices_infer", data=self._indices_of_operators_to_infer
+            )
+            hf.create_dataset(
+                "indices_known", data=self._indices_of_known_operators
+            )
+            with warnings.catch_warnings():
+                if suppress_warnings:
+                    warnings.simplefilter("ignore", UserWarning)
+                for i, op in enumerate(self.operators):
+                    op.save(hf.create_group(f"operator_{i}"))
+
+    @classmethod
+    def load(cls, loadfile: str, InterpolatorClass: type = None):
+        """Load a serialized model from an HDF5 file, created previously from
+        the :meth:`save()` method.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the operator was stored via :meth:`save()`.
+        InterpolatorClass : type
+            Class for the elementwise interpolation. Must obey the syntax
+
+               >>> interpolator = InterpolatorClass(data_points, data_values)
+               >>> interpolator_evaluation = interpolator(new_data_point)
+
+            Not required if the saved operator utilizes a class from
+            ``scipy.interpolate``.
+
+        Returns
+        -------
+        op : _Operator
+            Initialized operator object.
+        """
+        with utils.hdf5_loadhandle(loadfile) as hf:
+            # Load metadata.
+            num_operators = int(hf["meta"].attrs["num_operators"])
+            indices_infer = [int(i) for i in hf["indices_infer"][:]]
+            indices_known = [int(i) for i in hf["indices_known"][:]]
+
+            # Get the InterpolatorClass.
+            SavedClassName = hf["meta"].attrs["InterpolatorClass"]
+            if InterpolatorClass is None:
+                # Load from scipy.interpolate.
+                if hasattr(spinterp, SavedClassName):
+                    InterpolatorClass = getattr(spinterp, SavedClassName)
+                elif SavedClassName != "NoneType":
+                    raise ValueError(
+                        f"unknown InterpolatorClass '{SavedClassName}', "
+                        f"call load({loadfile}, {SavedClassName})"
+                    )
+            else:
+                # Warn the user if the InterpolatorClass does not match.
+                if SavedClassName != (
+                    InterpolatorClassName := InterpolatorClass.__name__
+                ):
+                    warnings.warn(
+                        f"InterpolatorClass={InterpolatorClassName} does not "
+                        f"match loadfile InterpolatorClass '{SavedClassName}'",
+                        UserWarning,
+                    )
+
+            # Load operators.
+            ops = []
+            for i in range(num_operators):
+                gp = hf[f"operator_{i}"]
+                OpClassName = gp["meta"].attrs["class"]
+                ops.append(
+                    getattr(_operators, OpClassName).load(
+                        gp, InterpolatorClass
+                    )
+                )
+
+            # Construct the model.
+            model = cls(ops)
+            model._indices_of_operators_to_infer = indices_infer
+            model._indices_of_known_operators = indices_known
+            if r := int(hf["meta"].attrs["r"]):
+                model.state_dimension = r
+            if (m := int(hf["meta"].attrs["m"])) and model._has_inputs:
+                model.input_dimension = m
+
+        return model
+
+    def copy(self):
+        """Make a copy of the model."""
+        return self.__class__(
+            operators=[op.copy() for op in self.operators],
+            InterpolatorClass=self.__InterpolatorClass,
+        )
+
+
+class InterpolatedSteadyModel(_InterpolatedMonolithicModel):
+    _ModelClass = _FrozenSteadyModel
+
+
+class InterpolatedDiscreteModel(_InterpolatedMonolithicModel):
+    _ModelClass = _FrozenDiscreteModel
+
+
+class InterpolatedContinuousModel(_InterpolatedMonolithicModel):
+    _ModelClass = _FrozenContinuousModel
+
+    def fit(self, parameters, states, ddts, inputs=None, solver=None):
+        """Construct a solver object mapping the regularizer to solutions
+        of the Operator Inference least-squares problem.
+        """
         r"""Learn the model operators from data.
 
         The operators are inferred by solving the regression problem
 
         .. math::
-           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
-           \fhat(\qhat_j, \u_j) - \zhat_j
+           \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
+           \sum_{i=1}^{s}\sum_{j=0}^{k_{i}-1}\left\|
+           \Ophat(\qhat_{i,j}, \u_{i,j}; \bfmu_i) - \zhat_{i,j}
            \right\|_2^2
-           = \min_{\Ohat}\left\|\D\Ohat\trp - \dot{\Qhat}\trp\right\|_F^2
+           = \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
+           \sum_{i=1}^{s}\left\|
+           \D^{(i)}(\Ohat^{(i)})\trp
+           - [~\zhat_{i,0}~~\cdots~~\zhat_{i,k_{i}-1}~]\trp
+           \right\|_F^2
 
         where
-        :math:`\zhat = \fhat(\qhat, \u)` is the model and
+        :math:`\zhat = \Ophat(\qhat, \u; \bfmu) = \Ohat(\bfmu)\d(\qhat, \u)`
+        is the model and
 
-        * :math:`\qhat_j\in\RR^r` is a measurement of the state,
-        * :math:`\u_j\in\RR^m` is a measurement of the input, and
-        * :math:`\zhat_j\in\RR^r` is a measurement of the left-hand side
-          of the model.
+        * :math:`\qhat_{i,j}\in\RR^r` is the :math:`j`-th measurement of the
+          state corresponding to training parameter value :math:`\bfmu_i`,
+        * :math:`\u_{i,j}\in\RR^m` is the :math:`j`-th measurement of the
+          input corresponding to training parameter value :math:`\bfmu_i`,
+        * :math:`\zhat_{i,j}\in\RR^r` is a measurement of the left-hand side
+          of the model corresponding to the state-input pair
+          :math:`(\qhat_{i,j},\u_{i,j})`,
+        * :math:`\D^{(i)}` is the data matrix for data corresponding to
+          training parameter value :math:`\bfmu_i`, given by
+          :math:`[~\d(\qhat_{i,0},\u_{i,0})~~\cdots~~
+          \d(\qhat_{i,k_i-1},\u_{i,k_i-1})~]\trp`.
+        * :math:`\Ohat^{(i)} = \Ohat(\bfmu)` is the operator matrix
+          evaluated at training parameter value :math:`\bfmu_i`.
 
-        The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r,m)}` is such that
-        :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
-        :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`; the *data matrix*
-        :math:`\D\in\RR^{k\times d(r,m)}` is given by
-        :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
-        Finally,
-        :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
-        See the :mod:`opinf.operators_new` module for more explanation.
+        Because all operators in this model are interpolatory, the
+        least-squares problem decouples into :math:`s` individual regressions.
+        That is, for :math:`i = 1, \ldots, s`, we solve (independently) the
+        regressions
+
+        .. math::
+           \min_{\Ohat^{(i)}}\left\|
+           \D^{(i)}(\Ohat^{(i)})\trp
+           - [~\zhat_{i,0}~~\cdots~~\zhat_{i,k_{i}-1}~]\trp
+           \right\|_F^2
+
+        and define the full operator matrix via elementwise interpolation,
+
+        .. math::
+           \Ohat(\bfmu) = \textrm{interpolate}(
+           (\bfmu_1, \Ohat^{(i)}), \ldots, (\bfmu_s, \Ohat^{(s)}); \bfmu).
 
         The strategy for solving the regression, as well as any additional
         regularization or constraints, are specified by the ``solver``.
 
         Parameters
         ----------
+        parameters : list of s scalars or (p,) 1D ndarrays
+            Parameter values for which the operator entries are known
+            or will be inferred from data.
         states : (r, k) ndarray
             Snapshot training data. Each column is a single snapshot.
         lhs : (r, k) ndarray
@@ -552,51 +937,6 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
         -------
         self
         """
-        (
-            parameters_,
-            states_,
-            lhs_,
-            inputs_,
-            solver_,
-        ) = self._process_fit_arguments(
-            parameters, states, lhs, inputs, solver=solver
+        return _InterpolatedMonolithicModel.fit(
+            self, parameters, states, ddts, inputs, solver
         )
-
-        # Distribute training data to individual OpInf problems.
-        num_models = len(parameters)
-        for op in self.operators:
-            if len(op) != num_models:
-                raise ValueError(
-                    "Interpolatory models require len(operator) == "
-                    "len(parameters) for each operator in the model"
-                )
-        nonparametric_models = [
-            self.ModelClass.__bases__[-1](
-                operators=[op.entries[i] for op in self.operators]
-            ).fit(states_[i], lhs_[i], inputs_[i], solver_)
-            for i in range(num_models)
-        ]
-        for ell in range(len(self.operators)):
-            self.operators[ell].set_entries(
-                [mdl.operators[ell] for mdl in nonparametric_models]
-            )
-
-        return self
-
-
-class ParametricSteadyModel(_ParametricMonolithicModel):
-    """Parametric steady models."""
-
-    _ModelClass = _FrozenSteadyModel
-
-
-class ParametricDiscreteModel(_ParametricMonolithicModel):
-    """Parametric time-discrete models."""
-
-    _ModelClass = _FrozenDiscreteModel
-
-
-class ParametricContinuousModel(_ParametricMonolithicModel):
-    """Parametric continuous models."""
-
-    _ModelClass = _FrozenContinuousModel

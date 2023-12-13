@@ -180,7 +180,7 @@ class _MonolithicModel(abc.ABC):
                         "can't set attribute "
                         f"(existing operators have r = {self.__r})"
                     )
-        self.__r = r
+        self.__r = int(r)
 
     @staticmethod
     def _check_input_dimension_consistency(ops):
@@ -222,7 +222,7 @@ class _MonolithicModel(abc.ABC):
                         "can't set attribute "
                         f"(existing input operators have m = {self.__m})"
                     )
-        self.__m = m
+        self.__m = int(m)
 
     # Dimensionality reduction ------------------------------------------------
     def galerkin(self, Vr, Wr=None):

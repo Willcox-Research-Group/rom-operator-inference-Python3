@@ -143,7 +143,8 @@ class _NonparametricMonolithicModel(_MonolithicModel):
     # Fitting -----------------------------------------------------------------
     def _process_fit_arguments(self, states, lhs, inputs, solver=None):
         """Prepare training data for Operator Inference by extracting
-        dimensions, projecting known operators, and validating data sizes.
+        dimensions, validating data sizes, and modifying the left-hand side
+        data if there are any known operators.
         """
         # Clear non-intrusive operator data.
         self._clear()
@@ -448,14 +449,14 @@ class _NonparametricMonolithicModel(_MonolithicModel):
                 op.save(hf.create_group(f"operator_{i}"))
 
     @classmethod
-    def load(cls, loadfile):
+    def load(cls, loadfile: str):
         """Load a serialized model from an HDF5 file, created previously from
         the :meth:`save()` method.
 
         Parameters
         ----------
         loadfile : str
-            File to load from, with extension ``.h5`` (HDF5).
+            Path to the file where the model was stored via :meth:`save()`.
 
         Returns
         -------
@@ -479,10 +480,10 @@ class _NonparametricMonolithicModel(_MonolithicModel):
             model = cls(ops)
             model._indices_of_operators_to_infer = indices_infer
             model._indices_of_known_operators = indices_known
-            if r := hf["meta"].attrs["r"]:
-                model.state_dimension = int(r)
-            if (m := hf["meta"].attrs["m"]) and model._has_inputs:
-                model.input_dimension = int(m)
+            if r := int(hf["meta"].attrs["r"]):
+                model.state_dimension = r
+            if (m := int(hf["meta"].attrs["m"])) and model._has_inputs:
+                model.input_dimension = m
 
         return model
 
