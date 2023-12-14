@@ -164,6 +164,22 @@ class TestNonparametricOperator:
         op2.entries = A
         assert op1 == op2
 
+    def test_add(self, r=3):
+        """Test _NonparametricOperator.__add__()."""
+        op1 = self.Dummy(np.random.random((r, r)))
+
+        # Try with invalid type.
+        with pytest.raises(TypeError) as ex:
+            op1 + 10
+        assert (
+            ex.value.args[0] == "can't add object of type 'int' "
+            "to object of type 'Dummy'"
+        )
+
+        op2 = self.Dummy(np.random.random((r, r)))
+        op = op1 + op2
+        assert np.all(op.entries == (op1.entries + op2.entries))
+
     # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=10, r=3):
         """Test _NonparametricOperator.galerkin()."""

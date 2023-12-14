@@ -125,6 +125,15 @@ class _NonparametricOperator(abc.ABC):
             return np.all(self.entries == other.entries)
         return True
 
+    def __add__(self, other):
+        """Nonparametric operators are linear in their entries."""
+        if not isinstance(other, self.__class__):
+            raise TypeError(
+                f"can't add object of type '{other.__class__.__name__}' "
+                f"to object of type '{self.__class__.__name__}'"
+            )
+        return self.__class__(self.entries + other.entries)
+
     @abc.abstractmethod
     def _str(self, statestr, inputstr):  # pragma: no cover
         """String representation of the operator, used when printing out the
