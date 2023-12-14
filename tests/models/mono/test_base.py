@@ -13,11 +13,11 @@ opinf_operators = opinf.operators_new  # TEMP
 _module = opinf.models.mono._base
 
 
-class TestMonolithicModel:
-    """Test models._base._MonolithicModel."""
+class TestModel:
+    """Test models._base._Model."""
 
-    class Dummy(_module._MonolithicModel):
-        """Instantiable version of _MonolithicModel."""
+    class Dummy(_module._Model):
+        """Instantiable version of _Model."""
 
         def _isvalidoperator(self, op):
             return hasattr(opinf_operators, op.__class__.__name__)
@@ -30,9 +30,7 @@ class TestMonolithicModel:
 
     # Properties: operators ---------------------------------------------------
     def test_operators(self, m=4, r=7):
-        """Test _MonolithicModel.__init__(), operators, _clear(),
-        and __iter__().
-        """
+        """Test _Model.__init__(), operators, _clear(), and __iter__()."""
         operators = _get_operators("cAHGBN", r, m)
 
         # Try to instantiate without any operators.
@@ -146,8 +144,8 @@ class TestMonolithicModel:
 
     # Properties: dimensions --------------------------------------------------
     def test_dimension_properties(self, m=3, r=7):
-        """Test the properties _MonolithicModel.state_dimension and
-        _MonolithicModel.input_dimension.
+        """Test the properties _Model.state_dimension and
+        _Model.input_dimension.
         """
         # Case 1: no inputs.
         model = self.Dummy(
@@ -212,7 +210,7 @@ class TestMonolithicModel:
 
     # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=20, r=6):
-        """Test _MonolithicModel.galerkin()."""
+        """Test _Model.galerkin()."""
         A = _get_operators("A", n)[0]
         Vr = np.random.random((20, 6))
 
@@ -238,7 +236,7 @@ class TestMonolithicModel:
 
     # Validation methods ------------------------------------------------------
     def test_check_solver(self):
-        """Test _MonolithicModel._check_solver()."""
+        """Test _Model._check_solver()."""
 
         with pytest.raises(ValueError) as ex:
             self.Dummy._check_solver(-1)
@@ -257,7 +255,7 @@ class TestMonolithicModel:
         self.Dummy._check_solver(1)
 
     def test_check_inputargs(self):
-        """Test _MonolithicModel._check_inputargs()."""
+        """Test _Model._check_inputargs()."""
 
         # Try with input operator but without inputs.
         model = self.Dummy(
@@ -286,7 +284,7 @@ class TestMonolithicModel:
         )
 
     def test_is_trained(self, m=4, r=7):
-        """Test _MonolithicModel._check_is_trained()."""
+        """Test _Model._check_is_trained()."""
         model = self.Dummy(
             [
                 opinf_operators.ConstantOperator(),
@@ -313,7 +311,7 @@ class TestMonolithicModel:
         model._check_is_trained()
 
     def test_eq(self):
-        """Test _MonolithicModel.__eq__()."""
+        """Test _Model.__eq__()."""
         model1 = self.Dummy(
             [
                 opinf_operators.ConstantOperator(),
@@ -356,7 +354,7 @@ class TestMonolithicModel:
 
     # Model persistence -------------------------------------------------------
     def test_copy(self, r=4, m=3):
-        """Test _MonolithicModel.copy()."""
+        """Test _Model.copy()."""
         A, H = _get_operators("AH", r, m)
         model = self.Dummy(
             [

@@ -12,7 +12,7 @@ import warnings
 import numpy as np
 import scipy.interpolate as spinterp
 
-from ._base import _MonolithicModel
+from ._base import _Model
 from ._nonparametric import (
     _FrozenSteadyModel,
     _FrozenDiscreteModel,
@@ -23,14 +23,14 @@ from ... import operators_new as _operators
 
 
 # Base class ==================================================================
-class _ParametricMonolithicModel(_MonolithicModel):
+class _ParametricModel(_Model):
     r"""Base class for parametric monolithic models.
 
-    Parent class: :class:`opinf.mono._base._MonolithicModel`
+    Parent class: :class:`opinf.mono._base._Model`
 
     Child classes:
 
-    * ``_InterpolatedMonolithicModel``
+    * ``_InterpolatedModel``
     * :class:`opinf.models.ParametricSteadyModel`
     * :class:`opinf.models.ParametricDiscreteModel`
     * :class:`opinf.models.ParametricContinuousModel`
@@ -63,7 +63,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
     def ModelClass(self):
         """Nonparametric model class that represents this parametric model
         when evaluated at a particular parameter value, a subclass of
-        :class:`opinf.mono._base._MonolithicModel`.
+        :class:`opinf.mono._base._Model`.
 
         Examples
         --------
@@ -112,12 +112,12 @@ class _ParametricMonolithicModel(_MonolithicModel):
     @property
     def operators(self):
         """Operators comprising the terms of the model."""
-        return _MonolithicModel.operators.fget(self)
+        return _Model.operators.fget(self)
 
     @operators.setter
     def operators(self, ops):
         """Set the operators."""
-        _MonolithicModel.operators.fset(self, ops)
+        _Model.operators.fset(self, ops)
 
         # Check at least one operator is parametric.
         parametric_operators = [
@@ -131,7 +131,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
             )
 
         # Check that not every operator is interpolated.
-        if not isinstance(self, _InterpolatedMonolithicModel):
+        if not isinstance(self, _InterpolatedModel):
             interpolated_operators = [
                 op
                 for op in self.operators
@@ -149,7 +149,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
         """Reset the entries of the non-intrusive operators and the
         state, input, and parameter dimensions.
         """
-        _MonolithicModel._clear(self)
+        _Model._clear(self)
         self.__p = self._check_parameter_dimension_consistency(self.operators)
 
     # Properties: dimensions --------------------------------------------------
@@ -415,7 +415,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
 
         Returns
         -------
-        model : _NonparametricMonolithicModel
+        model : _NonparametricModel
             Nonparametric model of type ``ModelClass``.
         """
         return self.ModelClass(
@@ -514,26 +514,26 @@ class _ParametricMonolithicModel(_MonolithicModel):
 
 
 # Public classes ==============================================================
-class ParametricSteadyModel(_ParametricMonolithicModel):
+class ParametricSteadyModel(_ParametricModel):
     """Parametric steady models."""
 
     _ModelClass = _FrozenSteadyModel
 
 
-class ParametricDiscreteModel(_ParametricMonolithicModel):
+class ParametricDiscreteModel(_ParametricModel):
     """Parametric time-discrete models."""
 
     _ModelClass = _FrozenDiscreteModel
 
 
-class ParametricContinuousModel(_ParametricMonolithicModel):
+class ParametricContinuousModel(_ParametricModel):
     """Parametric continuous models."""
 
     _ModelClass = _FrozenContinuousModel
 
 
 # Special case: fully interpolation-based models ==============================
-class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
+class _InterpolatedModel(_ParametricModel):
     """Base class for parametric monolithic models where all operators MUST be
     interpolation-based parametric operators. In this special case, the
     inference problems completely decouple by training parameter.
@@ -561,7 +561,7 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
 
     def __init__(self, operators, InterpolatorClass=None):
         """Define the model structure and set the interpolator class."""
-        _ParametricMonolithicModel.__init__(self, operators)
+        _ParametricModel.__init__(self, operators)
         self.set_interpolator(InterpolatorClass)
         self._submodels = None
         self._training_parameters = None
@@ -872,7 +872,7 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
         )
 
 
-class InterpolatedDiscreteModel(_InterpolatedMonolithicModel):
+class InterpolatedDiscreteModel(_InterpolatedModel):
     _ModelClass = _FrozenDiscreteModel
 
     def fit(self, parameters, states, ddts, inputs=None, solver=None):
@@ -959,12 +959,12 @@ class InterpolatedDiscreteModel(_InterpolatedMonolithicModel):
         -------
         self
         """
-        return _InterpolatedMonolithicModel.fit(
+        return _InterpolatedModel.fit(
             self, parameters, states, ddts, inputs, solver
         )
 
 
-class InterpolatedContinuousModel(_InterpolatedMonolithicModel):
+class InterpolatedContinuousModel(_InterpolatedModel):
     _ModelClass = _FrozenContinuousModel
 
     def fit(self, parameters, states, ddts, inputs=None, solver=None):
@@ -1052,6 +1052,6 @@ class InterpolatedContinuousModel(_InterpolatedMonolithicModel):
         -------
         self
         """
-        return _InterpolatedMonolithicModel.fit(
+        return _InterpolatedModel.fit(
             self, parameters, states, ddts, inputs, solver
         )

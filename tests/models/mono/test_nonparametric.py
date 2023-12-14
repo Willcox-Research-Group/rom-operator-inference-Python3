@@ -18,11 +18,11 @@ kron2c = opinf.operators_new.QuadraticOperator.ckron
 kron3c = opinf.operators_new.CubicOperator.ckron
 
 
-class TestNonparametricMonolithicModel:
-    """Test models.nonparametric._base._NonparametricMonolithicModel."""
+class TestNonparametricModel:
+    """Test models.nonparametric._base._NonparametricModel."""
 
-    class Dummy(_module._NonparametricMonolithicModel):
-        """Instantiable version of _NonparametricMonolithicModel."""
+    class Dummy(_module._NonparametricModel):
+        """Instantiable version of _NonparametricModel."""
 
         _LHS_ARGNAME = "mylhs"
         _LHS_LABEL = "qdot"
@@ -34,7 +34,7 @@ class TestNonparametricMonolithicModel:
 
     # Properties: operators ---------------------------------------------------
     def test_operators(self):
-        """Test _NonparametricMonolithicModel.operators
+        """Test _NonparametricModel.operators
         (_operator_abbreviations, _isvalidoperator(),
         _check_operator_types_unique()).
         """
@@ -68,7 +68,7 @@ class TestNonparametricMonolithicModel:
         )
 
     def test_get_operator_of_type(self, m=4, r=7):
-        """Test _NonparametricMonolithicModel._get_operator_of_type()
+        """Test _NonparametricModel._get_operator_of_type()
         and the [caHGBN]_ properties.
         """
         [c, A, H, B, N] = _get_operators("cAHBN", r, m)
@@ -83,7 +83,7 @@ class TestNonparametricMonolithicModel:
 
     # String representation ---------------------------------------------------
     def test_str(self):
-        """Test _NonparametricMonolithicModel.__str__()."""
+        """Test _NonparametricModel.__str__()."""
 
         # Continuous Models
         model = self.Dummy("A")
@@ -115,7 +115,7 @@ class TestNonparametricMonolithicModel:
         assert modelstr[2] == "Input dimension m = 3"
 
     def test_repr(self):
-        """Test _NonparametricMonolithicModel.__repr__()."""
+        """Test _NonparametricModel.__repr__()."""
 
         def firstline(obj):
             return repr(obj).split("\n")[0]
@@ -124,7 +124,7 @@ class TestNonparametricMonolithicModel:
 
     # Properties: operator inference ------------------------------------------
     def test_operator_matrix_(self, r=15, m=3):
-        """Test _NonparametricMonolithicModel.operator_matrix_."""
+        """Test _NonparametricModel.operator_matrix_."""
         c, A, H, G, B, N = _get_operators("cAHGBN", r, m)
 
         model = self.Dummy("cA")
@@ -144,7 +144,7 @@ class TestNonparametricMonolithicModel:
         assert np.all(model.operator_matrix_ == D)
 
     def test_data_matrix_(self, k=500, m=20, r=10):
-        """Test _NonparametricMonolithicModel.data_matrix_
+        """Test _NonparametricModel.data_matrix_
         (_assemble_data_matrix(), operator_matrix_dimension).
         """
         Q, Qdot, U = _get_data(r, k, m)
@@ -207,7 +207,7 @@ class TestNonparametricMonolithicModel:
 
     # Fitting -----------------------------------------------------------------
     def test_process_fit_arguments(self, k=50, m=4, r=6):
-        """Test _NonparametricMonolithicModel._process_fit_arguments()."""
+        """Test _NonparametricModel._process_fit_arguments()."""
         # Get test data.
         Q, lhs, U = _get_data(r, k, m)
         A, B = _get_operators("AB", r, m)
@@ -318,7 +318,7 @@ class TestNonparametricMonolithicModel:
         assert model.operators[1] is B
 
     def test_assemble_data_matrix(self, k=50, m=6, r=8):
-        """Test _NonparametricMonolithicModel._assemble_data_matrix()."""
+        """Test _NonparametricModel._assemble_data_matrix()."""
         # Get test data.
         Q_, _, U = _get_data(r, k, m)
 
@@ -367,7 +367,7 @@ class TestNonparametricMonolithicModel:
         assert np.allclose(D, np.column_stack((np.ones(k), U[0])))
 
     def test_extract_operators(self, m=2, r=10):
-        """Test _NonparametricMonolithicModel._extract_operators()."""
+        """Test _NonparametricModel._extract_operators()."""
         model = self.Dummy("c")
         c, A, H, G, B, N = [
             op.entries for op in _get_operators("cAHGBN", r, m)
@@ -397,7 +397,7 @@ class TestNonparametricMonolithicModel:
         assert np.allclose(model.B_.entries, B)
 
     def test_fit(self, k=50, m=4, r=6):
-        """Test _NonparametricMonolithicModel.fit()."""
+        """Test _NonparametricModel.fit()."""
         # Get test data.
         Q, F, U = _get_data(r, k, m)
         U1d = U[0, :]
@@ -436,7 +436,7 @@ class TestNonparametricMonolithicModel:
 
     # Model evaluation --------------------------------------------------------
     def test_rhs(self, m=2, k=10, r=5, ntrials=10):
-        """Test _NonparametricMonolithicModel.rhs()."""
+        """Test _NonparametricModel.rhs()."""
         c_, A_, H_, B_ = _get_operators("cAHB", r, m)
 
         model = self.Dummy([c_, A_])
@@ -487,7 +487,7 @@ class TestNonparametricMonolithicModel:
             assert np.allclose(out, Y_)
 
     def test_jacobian(self, r=5, m=2, ntrials=10):
-        """Test _NonparametricMonolithicModel.jacobian()."""
+        """Test _NonparametricModel.jacobian()."""
         c_, A_, B_ = _get_operators("cAB", r, m)
 
         for oplist in ([c_, A_], [c_, A_, B_]):
@@ -506,7 +506,7 @@ class TestNonparametricMonolithicModel:
 
     # Model persistence -------------------------------------------------------
     def test_save(self, m=2, r=3, target="_savemodeltest.h5"):
-        """Test _NonparametricMonolithicModel.save()."""
+        """Test _NonparametricModel.save()."""
         # Clean up after old tests.
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
@@ -527,7 +527,7 @@ class TestNonparametricMonolithicModel:
         os.remove(target)
 
     def test_load(self, n=20, m=2, r=5, target="_loadmodeltest.h5"):
-        """Test _NonparametricMonolithicModel.load()."""
+        """Test _NonparametricModel.load()."""
         # Clean up after old tests if needed.
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
@@ -940,7 +940,7 @@ class TestFrozenMixin:
 
     class Dummy(
         _module._FrozenMixin,
-        _module._NonparametricMonolithicModel,
+        _module._NonparametricModel,
     ):
         """Instantiable version of _FrozenMixin."""
 

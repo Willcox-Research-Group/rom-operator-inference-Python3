@@ -105,9 +105,9 @@ class DummyInterpolatedOperator(
 
 
 class DummyNonparametricModel(
-    opinf.models.mono._nonparametric._NonparametricMonolithicModel
+    opinf.models.mono._nonparametric._NonparametricModel
 ):
-    """Instantiable version of _NonparametricMonolithicModel."""
+    """Instantiable version of _NonparametricModel."""
 
     _LHS_ARGNAME = "mylhs"
 
@@ -120,14 +120,14 @@ class DummyNonparametricModel2(DummyNonparametricModel):
 
 
 # Tests =======================================================================
-class TestParametricMonolithicModel:
-    """Test models.mono._parametric._ParametricMonolithicModel."""
+class TestParametricModel:
+    """Test models.mono._parametric._ParametricModel."""
 
-    class Dummy(_module._ParametricMonolithicModel):
+    class Dummy(_module._ParametricModel):
         _ModelClass = DummyNonparametricModel
 
     def test_check_operator_types_unique(self):
-        """Test _ParametricMonolithicModel._check_operator_types_unique()."""
+        """Test _ParametricModel._check_operator_types_unique()."""
         operators = [DummyParametricOperator(), DummyNonparametricOperator()]
 
         with pytest.raises(ValueError) as ex:
@@ -148,7 +148,7 @@ class TestParametricMonolithicModel:
         self.Dummy._check_operator_types_unique(operators)
 
     def test_set_operators(self):
-        """Test _ParametricMonolithicModel.operators.fset()."""
+        """Test _ParametricModel.operators.fset()."""
         operators = [DummyNonparametricOperator()]
 
         with pytest.warns(opinf.errors.UsageWarning) as wn:
@@ -172,7 +172,7 @@ class TestParametricMonolithicModel:
         assert model.parameter_dimension is None
 
     def test_get_operator_of_type(self):
-        """Test _ParametricMonolithicModel._get_operator_of_type()."""
+        """Test _ParametricModel._get_operator_of_type()."""
         op1 = DummyParametricOperator()
         op2 = DummyParametricOperator2()
         model = self.Dummy([op1, op2])
@@ -208,7 +208,7 @@ class TestParametricMonolithicModel:
         )
 
     def test_parameter_dimension(self, s=3, p=4):
-        """Test _ParametricMonolithicModel.parameter_dimension."""
+        """Test _ParametricModel.parameter_dimension."""
         op = DummyParametricOperator()
         model = self.Dummy([op, DummyNonparametricOperator2()])
 
@@ -241,7 +241,7 @@ class TestParametricMonolithicModel:
         )
 
     def test_process_fit_arguments(self, s=5, p=2, m=4, r=3, k=10):
-        """Test _ParametricMonolithicModel._process_fit_arguments()."""
+        """Test _ParametricModel._process_fit_arguments()."""
         # Intrusive case.
         op = DummyParametricOperator(np.random.random((3, 3)))
         model = self.Dummy([op])
@@ -301,7 +301,7 @@ class TestParametricMonolithicModel:
         model._process_fit_arguments(params, states, lhs, inputs)
 
     def test_evaluate(self, r=4):
-        """Test _ParametricMonolithicModel.evaluate()."""
+        """Test _ParametricModel.evaluate()."""
         op1 = DummyParametricOperator(np.random.random((r, r)))
         op2 = DummyParametricOperator2(np.random.random((r, r)))
         model = self.Dummy([op1, op2])
@@ -317,7 +317,7 @@ class TestParametricMonolithicModel:
         assert model_evaluated.state_dimension == r
 
     def test_rhs(self, r=2):
-        """Test _ParametricMonolithicModel.rhs()."""
+        """Test _ParametricModel.rhs()."""
         op1 = DummyParametricOperator(np.random.random((r, r)))
         op2 = DummyParametricOperator2(np.random.random((r, r)))
         model = self.Dummy([op1, op2])
@@ -325,7 +325,7 @@ class TestParametricMonolithicModel:
         assert model.rhs(np.empty(r), None, None) == 2 * _applyvalue
 
     def test_jacobian(self, r=3):
-        """Test _ParametricMonolithicModel.jacobian()."""
+        """Test _ParametricModel.jacobian()."""
         op1 = DummyParametricOperator(np.random.random((r, r)))
         op2 = DummyParametricOperator2(np.random.random((r, r)))
         model = self.Dummy([op1, op2])
@@ -333,7 +333,7 @@ class TestParametricMonolithicModel:
         assert np.all(model.jacobian(np.empty(r), None, None) == 2 * _jacvalue)
 
     def test_predict(self, r=4):
-        """Test _ParametricMonolithicModel.predict()."""
+        """Test _ParametricModel.predict()."""
         op1 = DummyParametricOperator(np.random.random((r, r)))
         op2 = DummyParametricOperator2(np.random.random((r, r)))
         model = self.Dummy([op1, op2])
@@ -342,13 +342,13 @@ class TestParametricMonolithicModel:
 
 
 class TestInterpolatedModel:
-    """Test models.mono._parametric._InterpolatedMonolithicModel."""
+    """Test models.mono._parametric._InterpolatedModel."""
 
-    class Dummy(_module._InterpolatedMonolithicModel):
+    class Dummy(_module._InterpolatedModel):
         _ModelClass = DummyNonparametricModel2
 
     def test_from_models(self, r=4):
-        """Test _InterpolatedMonolithicModel._from_models()."""
+        """Test _InterpolatedModel._from_models()."""
         mu = np.sort(np.random.random(2))
         model1 = DummyNonparametricModel(
             [DummyNonparametricOperator2(np.random.random(r))]
@@ -398,7 +398,7 @@ class TestInterpolatedModel:
         )
 
     def test_set_interpolator(self, s=10, p=2, r=2):
-        """Test _InterpolatedMonolithicModel._set_interpolator()."""
+        """Test _InterpolatedModel._set_interpolator()."""
 
         mu = np.random.random((s, p))
         operators = [
@@ -434,7 +434,7 @@ class TestInterpolatedModel:
             assert isinstance(op.interpolator, interp.NearestNDInterpolator)
 
     def test_fit_solver(self, s=10, r=3, k=20):
-        """Test _InterpolatedMonolithicModel._fit_solver()."""
+        """Test _InterpolatedModel._fit_solver()."""
         operators = [
             opinf.operators_new.InterpolatedConstantOperator(),
             opinf.operators_new.InterpolatedLinearOperator(),
@@ -464,7 +464,7 @@ class TestInterpolatedModel:
         assert np.all(model._training_parameters == params)
 
     def test_evaluate_solver(self, s=10, r=3, k=15):
-        """Test _InterpolatedMonolithicModel._evaluate_solver()."""
+        """Test _InterpolatedModel._evaluate_solver()."""
         operators = [
             opinf.operators_new.InterpolatedConstantOperator(),
             opinf.operators_new.InterpolatedLinearOperator(),
@@ -494,7 +494,7 @@ class TestInterpolatedModel:
                 assert op.entries is not None
 
     def test_save(self, target="_interpmodelsavetest.h5"):
-        """Test _InterpolatedMonolithicModel._save()."""
+        """Test _InterpolatedModel._save()."""
         if os.path.isfile(target):
             os.remove(target)
 
@@ -525,7 +525,7 @@ class TestInterpolatedModel:
         os.remove(target)
 
     def test_load(self, target="_interpmodelloadtest.h5"):
-        """Test _InterpolatedMonolithicModel._load()."""
+        """Test _InterpolatedModel._load()."""
         if os.path.isfile(target):
             os.remove(target)
 
@@ -565,7 +565,7 @@ class TestInterpolatedModel:
         assert model2 == model1
 
     def test_copy(self, s=10, p=2, r=3):
-        """Test _InterpolatedMonolithicModel._copy()."""
+        """Test _InterpolatedModel._copy()."""
 
         model1 = self.Dummy(
             [

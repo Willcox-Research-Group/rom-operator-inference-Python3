@@ -11,13 +11,13 @@ from ... import errors, lstsq
 from ... import operators_new as _operators
 
 
-class _MonolithicModel(abc.ABC):
+class _Model(abc.ABC):
     """Base class for all monolithic models.
 
     Child classes:
 
-    * :class:`_NonparametricMonolithicModel`
-    * :class:`_ParametricMonolithicModel`
+    * :class:`_NonparametricModel`
+    * :class:`_ParametricModel`
     """
 
     def __init__(self, operators):
