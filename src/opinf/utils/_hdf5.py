@@ -41,7 +41,10 @@ class _hdf5_filehandle:
         elif mode == "save":
             # `filename` is the name of a file to create for writing.
             if not filename.endswith(".h5"):
-                warnings.warn("expected file with extension '.h5'")
+                warnings.warn(
+                    "expected file with extension '.h5'",
+                    errors.UsageWarning,
+                )
             if os.path.isfile(filename) and not overwrite:
                 raise FileExistsError(f"{filename} (overwrite=True to ignore)")
             self.file_handle = h5py.File(filename, "w")
@@ -115,8 +118,6 @@ class hdf5_loadhandle(_hdf5_filehandle):
         """Close the file if needed. Raise a LoadfileFormatError if needed."""
         try:
             _hdf5_filehandle.__exit__(self, exc_type, exc_value, exc_traceback)
-        except errors.UsageWarning as wn:
-            warnings.warn(wn.message, type(wn))
         except errors.LoadfileFormatError:
             raise
         except Exception as ex:
