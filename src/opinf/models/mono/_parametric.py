@@ -133,7 +133,9 @@ class _ParametricMonolithicModel(_MonolithicModel):
         # Check that not every operator is interpolated.
         if not isinstance(self, _InterpolatedMonolithicModel):
             interpolated_operators = [
-                op for op in self.operators if _operators.is_interpolated(op)
+                op
+                for op in self.operators
+                if _operators._interpolate.is_interpolated(op)
             ]
             if len(interpolated_operators) == len(self.operators):
                 warnings.warn(
@@ -610,7 +612,7 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
         # Extract the operators from the individual models.
         return cls(
             operators=[
-                _operators._nonparametric_to_interpolated(
+                _operators._interpolate.nonparametric_to_interpolated(
                     OpClass
                 )._from_operators(
                     training_parameters=parameters,
@@ -655,14 +657,7 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
 
     def _isvalidoperator(self, op):
         """Only interpolated parametric operators are allowed."""
-        return type(op) in (
-            _operators.InterpolatedConstantOperator,
-            _operators.InterpolatedLinearOperator,
-            _operators.InterpolatedQuadraticOperator,
-            _operators.InterpolatedCubicOperator,
-            _operators.InterpolatedInputOperator,
-            _operators.InterpolatedStateInputOperator,
-        )
+        return _operators._interpolate.is_interpolated(op)
 
     # Fitting -----------------------------------------------------------------
     def _assemble_data_matrix(self, *args, **kwargs):  # pragma: no cover

@@ -134,7 +134,7 @@ class TestInterpolatedOperator:
         assert len(op) == s
 
         entries = np.random.random((s, r, r))
-        op = self.Dummy(mu, entries=entries)
+        op = self.Dummy(mu, entries)
         assert len(op) == s
 
         with pytest.raises(AttributeError) as ex:
@@ -235,19 +235,19 @@ class TestInterpolatedOperator:
         op1.set_training_parameters(mu)
         assert op1 != op2
 
-        op1 = self.Dummy(mu, _DummyInterpolator)
+        op1 = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
         assert op1 != 0
 
-        op2 = self.Dummy(mu[1:, :-1], _DummyInterpolator)
+        op2 = self.Dummy(mu[1:, :-1], InterpolatorClass=_DummyInterpolator)
         assert op1 != op2
 
-        op2 = self.Dummy(mu + 1, _DummyInterpolator)
+        op2 = self.Dummy(mu + 1, InterpolatorClass=_DummyInterpolator)
         assert op1 != op2
 
-        op2 = self.Dummy(mu, int)
+        op2 = self.Dummy(mu, InterpolatorClass=int)
         assert op1 != op2
 
-        op2 = self.Dummy(mu, _DummyInterpolator)
+        op2 = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
         assert op1 == op2
 
         op1.set_entries(entries)
@@ -263,7 +263,7 @@ class TestInterpolatedOperator:
     def test_evaluate(self, s=3, p=5, r=4):
         """Test _InterpolatedOperator.evaluate()."""
         mu = np.random.random((s, p))
-        op = self.Dummy(mu, _DummyInterpolator)
+        op = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
 
         with pytest.raises(AttributeError):
             op.evaluate(mu[0])
@@ -280,7 +280,7 @@ class TestInterpolatedOperator:
         Vr = np.empty((n, r))
         mu = np.random.random((s, p))
         entries = np.random.random((s, n, n))
-        op = self.Dummy(mu, _DummyInterpolator, entries)
+        op = self.Dummy(mu, entries, _DummyInterpolator)
 
         op_reduced = op.galerkin(Vr)
         assert isinstance(op_reduced, self.Dummy)
@@ -290,7 +290,7 @@ class TestInterpolatedOperator:
         """Test _InterpolatedOperator.datablock()."""
         mu = np.random.random((s, p))
         states = np.random.random((s, r, k))
-        op = self.Dummy(mu, _DummyInterpolator)
+        op = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
         block = op.datablock(states, states)
         assert block.shape == (s * _Dblock.shape[0], s * _Dblock.shape[1])
         assert np.all(block == la.block_diag(*[_Dblock for _ in range(s)]))
@@ -311,7 +311,7 @@ class TestInterpolatedOperator:
 
         mu = np.random.random((s, p))
         entries = np.random.random((s, r, r))
-        op1 = self.Dummy(mu, _DummyInterpolator)
+        op1 = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
 
         op2 = op1.copy()
         assert op2.training_parameters.shape == op1.training_parameters.shape
@@ -333,9 +333,12 @@ class TestInterpolatedOperator:
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
-        op = self.Dummy(np.random.random((s, p)), _DummyInterpolator)
+        op = self.Dummy(
+            np.random.random((s, p)),
+            InterpolatorClass=_DummyInterpolator,
+        )
 
-        with pytest.warns(UserWarning) as wn:
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
             op.save(target)
         assert (
             wn[0].message.args[0] == "cannot serialize InterpolatorClass "
@@ -367,8 +370,10 @@ class TestInterpolatedOperator:
             "use 'NotARealClass.load()'"
         )
 
-        with pytest.warns(UserWarning) as wn:
-            self.Dummy(mu, _DummyInterpolator).save(target, overwrite=True)
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            self.Dummy(mu, InterpolatorClass=_DummyInterpolator).save(
+                target, overwrite=True
+            )
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             self.Dummy.load(target)
         assert (
@@ -378,11 +383,11 @@ class TestInterpolatedOperator:
         )
         self.Dummy.load(target, _DummyInterpolator)
 
-        op1 = self.Dummy(mu, _DummyInterpolator)
-        with pytest.warns(UserWarning):
+        op1 = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
+        with pytest.warns(opinf.errors.UsageWarning):
             op1.save(target, overwrite=True)
 
-        with pytest.warns(UserWarning) as wn:
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
             op2 = self.Dummy.load(target, _DummyInterpolator2)
         assert wn[0].message.args[0] == (
             "InterpolatorClass=_DummyInterpolator2 does not match loadfile "
@@ -391,7 +396,7 @@ class TestInterpolatedOperator:
         op2.set_interpolator(_DummyInterpolator)
         assert op2 == op1
 
-        op1 = self.Dummy(np.sort(mu[:, 0]), entries=entries)
+        op1 = self.Dummy(np.sort(mu[:, 0]), entries)
         op1.save(target, overwrite=True)
         op2 = self.Dummy.load(target)
         assert op2 == op1
@@ -449,7 +454,7 @@ def test_1Doperators(r=10, m=3, s=5):
             interp.KroghInterpolator,
             interp.PchipInterpolator,
         ]:
-            op = OpClass(params, InterpolatorClass)
+            op = OpClass(params, InterpolatorClass=InterpolatorClass)
             if opinf.operators_new.has_inputs(op):
                 assert op.input_dimension is None
             op.set_entries(entries)
@@ -473,20 +478,20 @@ def test_1Doperators(r=10, m=3, s=5):
 def test_is_interpolated():
     """Test operators._interpolate.is_interpolated()."""
     op = TestInterpolatedOperator.Dummy()
-    assert opinf.operators_new.is_interpolated(op)
-    assert not opinf.operators_new.is_interpolated(-1)
+    assert _module.is_interpolated(op)
+    assert not _module.is_interpolated(-1)
 
 
 def test_nonparametric_to_interpolated():
-    """Test operators._interpolate._nonparametric_to_interpolated()."""
+    """Test operators._interpolate.nonparametric_to_interpolated()."""
 
     with pytest.raises(TypeError) as ex:
-        opinf.operators_new._nonparametric_to_interpolated(float)
+        _module.nonparametric_to_interpolated(float)
     assert (
         ex.value.args[0] == "_InterpolatedOperator for class 'float' not found"
     )
 
-    OpClass = opinf.operators_new._nonparametric_to_interpolated(
+    OpClass = _module.nonparametric_to_interpolated(
         opinf.operators_new.QuadraticOperator
     )
     assert OpClass is opinf.operators_new.InterpolatedQuadraticOperator

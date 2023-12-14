@@ -403,14 +403,14 @@ class TestInterpolatedModel:
         mu = np.random.random((s, p))
         operators = [
             opinf.operators_new.InterpolatedConstantOperator(
-                mu,
-                interp.NearestNDInterpolator,
+                training_parameters=mu,
                 entries=np.random.random((s, r)),
+                InterpolatorClass=interp.NearestNDInterpolator,
             ),
             opinf.operators_new.InterpolatedLinearOperator(
-                mu,
-                interp.NearestNDInterpolator,
+                training_parameters=mu,
                 entries=np.random.random((s, r, r)),
+                InterpolatorClass=interp.NearestNDInterpolator,
             ),
         ]
 
@@ -419,7 +419,8 @@ class TestInterpolatedModel:
             assert isinstance(op.interpolator, interp.NearestNDInterpolator)
 
         model = self.Dummy(
-            operators, InterpolatorClass=interp.LinearNDInterpolator
+            operators,
+            InterpolatorClass=interp.LinearNDInterpolator,
         )
         for op in operators:
             assert isinstance(op.interpolator, interp.LinearNDInterpolator)

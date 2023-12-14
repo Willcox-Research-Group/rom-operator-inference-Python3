@@ -10,8 +10,6 @@ __all__ = [
     "InterpolatedCubicOperator",
     "InterpolatedInputOperator",
     "InterpolatedStateInputOperator",
-    "is_interpolated",
-    "_nonparametric_to_interpolated",
 ]
 
 import warnings
@@ -19,7 +17,7 @@ import numpy as np
 import scipy.linalg as la
 import scipy.interpolate as spinterp
 
-from ..utils import hdf5_savehandle, hdf5_loadhandle
+from .. import errors, utils
 from ._base import _ParametricOperator, _InputMixin, _requires_entries
 from ._nonparametric import (
     ConstantOperator,
@@ -47,7 +45,7 @@ class _InterpolatedOperator(_ParametricOperator):
         = \textrm{interpolate}(
        (\bfmu_1,\Ohat_{\ell}^{(1)}),\ldots,(\Ohat_{\ell}^{(s)}\bfmu_s);\bfmu),
 
-    where :math:`\Ophat_\ell^{(i)} = \Ophat_\ell(\bfmu_i)` for each
+    where :math:`\Ohat_\ell^{(i)} = \Ohat_\ell(\bfmu_i)` for each
     :math:`i=1,\ldots,s`.
 
     Parent class: :class:`opinf.operators_new._base._ParametricOperator`
@@ -65,7 +63,11 @@ class _InterpolatedOperator(_ParametricOperator):
     ----------
     training_parameters : list of s scalars or (p,) 1D ndarrays
         Parameter values for which the operator entries are known
-        or will be inferred from data.
+        or will be inferred from data. If not provided in the constructor,
+        use :meth:`set_training_parameters` later.
+    entries : list of s ndarrays, or None
+        Operator entries corresponding to the ``training_parameters``.
+        If not provided in the constructor, use :meth:`set_entries` later.
     InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
 
@@ -76,8 +78,7 @@ class _InterpolatedOperator(_ParametricOperator):
         If ``None`` (default), use ``scipy.interpolate.CubicSpline``
         for one-dimensional parameters and
         ``scipy.interpolate.LinearNDInterpolator`` otherwise.
-    entries : list of s ndarrays, or None
-        Operator entries corresponding to the ``training_parameters``.
+        If not provided in the constructor, use :meth:`set_interpolator` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
         of arrays; if ``False`` (default), interpret ``entries`` as a list
@@ -88,8 +89,8 @@ class _InterpolatedOperator(_ParametricOperator):
     def __init__(
         self,
         training_parameters=None,
-        InterpolatorClass: type = None,
         entries=None,
+        InterpolatorClass: type = None,
         fromblock=False,
     ):
         """Set attributes and, if training parameters and entries are given,
@@ -98,9 +99,9 @@ class _InterpolatedOperator(_ParametricOperator):
         _ParametricOperator.__init__(self)
 
         self.__parameters = None
+        self.__entries = None
         self.__interpolator = None
         self.__InterpolatorClass = InterpolatorClass
-        self.__entries = None
 
         if training_parameters is not None:
             self.set_training_parameters(training_parameters)
@@ -178,18 +179,11 @@ class _InterpolatedOperator(_ParametricOperator):
             training_parameters,
             "training_parameters",
         )
+
         parameters = np.array(training_parameters)
-        if (dim := parameters.ndim) not in (1, 2):
+        if parameters.ndim not in (1, 2):
             raise ValueError("parameter values must be scalars or 1D arrays")
         self._set_parameter_dimension_from_data(parameters)
-
-        # Default interpolator classes.
-        if self.__InterpolatorClass is None:
-            if dim == 1:
-                self.__InterpolatorClass = spinterp.CubicSpline
-            elif dim == 2:
-                self.__InterpolatorClass = spinterp.LinearNDInterpolator
-
         self.__parameters = parameters
 
     @property
@@ -287,10 +281,18 @@ class _InterpolatedOperator(_ParametricOperator):
             This can be, e.g., a class from ``scipy.interpolate``.
         """
         if self.entries is not None:
+            # Default interpolator classes.
+            if InterpolatorClass is None:
+                if (dim := self.training_parameters.ndim) == 1:
+                    InterpolatorClass = spinterp.CubicSpline
+                elif dim == 2:
+                    InterpolatorClass = spinterp.LinearNDInterpolator
+
             self.__interpolator = InterpolatorClass(
                 self.training_parameters,
                 self.entries,
             )
+
         self.__InterpolatorClass = InterpolatorClass
 
     # Magic methods -----------------------------------------------------------
@@ -408,12 +410,13 @@ class _InterpolatedOperator(_ParametricOperator):
             New object of the same class as ``self``.
         """
         return self.__class__(
-            self.training_parameters,
-            self.__InterpolatorClass,
+            training_parameters=self.training_parameters,
             entries=[
                 self.OperatorClass(A).galerkin(Vr, Wr).entries
                 for A in self.entries
             ],
+            InterpolatorClass=self.__InterpolatorClass,
+            fromblock=False,
         )
 
     # Operator inference ------------------------------------------------------
@@ -486,11 +489,15 @@ class _InterpolatedOperator(_ParametricOperator):
             If ``True``, overwrite the file if it already exists. If ``False``
             (default), raise a ``FileExistsError`` if the file already exists.
         """
-        with hdf5_savehandle(savefile, overwrite) as hf:
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["class"] = self.__class__.__name__
 
-            InterpolatorClassName = self.__InterpolatorClass.__name__
+            InterpolatorClassName = (
+                "NoneType"
+                if self.__InterpolatorClass is None
+                else self.__InterpolatorClass.__name__
+            )
             meta.attrs["InterpolatorClass"] = InterpolatorClassName
             if InterpolatorClassName != "NoneType" and not hasattr(
                 spinterp, InterpolatorClassName
@@ -498,7 +505,8 @@ class _InterpolatedOperator(_ParametricOperator):
                 warnings.warn(
                     "cannot serialize InterpolatorClass "
                     f"'{InterpolatorClassName}', must pass in the class "
-                    "when calling load()"
+                    "when calling load()",
+                    errors.UsageWarning,
                 )
 
             if self.training_parameters is not None:
@@ -530,7 +538,7 @@ class _InterpolatedOperator(_ParametricOperator):
         op : _Operator
             Initialized operator object.
         """
-        with hdf5_loadhandle(loadfile) as hf:
+        with utils.hdf5_loadhandle(loadfile) as hf:
             ClassName = hf["meta"].attrs["class"]
             if ClassName != cls.__name__:
                 raise TypeError(
@@ -557,17 +565,18 @@ class _InterpolatedOperator(_ParametricOperator):
                     warnings.warn(
                         f"InterpolatorClass={InterpolatorClassName} does not "
                         f"match loadfile InterpolatorClass '{SavedClassName}'",
-                        UserWarning,
+                        errors.UsageWarning,
                     )
 
             return cls(
-                (
+                training_parameters=(
                     hf["training_parameters"][:]
                     if "training_parameters" in hf
                     else None
                 ),
-                InterpolatorClass,
-                (hf["entries"][:] if "entries" in hf else None),
+                entries=(hf["entries"][:] if "entries" in hf else None),
+                InterpolatorClass=InterpolatorClass,
+                fromblock=False,
             )
 
 
@@ -592,19 +601,28 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
 
     Parameters
     ----------
-    training_parameters : list of `s` scalars or 1D ndarrays
-        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
-        the operators entries are known or will be inferred from data.
-    InterpolatorClass : type
+    training_parameters : list of s scalars or (p,) 1D ndarrays
+        Parameter values for which the operator entries are known
+        or will be inferred from data. If not provided in the constructor,
+        use :meth:`set_training_parameters` later.
+    entries : list of s ndarrays, or None
+        Operator entries corresponding to the ``training_parameters``.
+        If not provided in the constructor, use :meth:`set_entries` later.
+    InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
 
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
         This can be, e.g., a class from ``scipy.interpolate``.
-    entries : list of `s` ndarrays, or None
-        Operator entries :math:`\chat^{(1)},\ldots,\chat^{(s)}`
-        corresponding to the ``training_parameters``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        If not provided in the constructor, use :meth:`set_interpolator` later.
+    fromblock : bool
+        If ``True``, interpret ``entries`` as a horizontal concatenation
+        of arrays; if ``False`` (default), interpret ``entries`` as a list
+        of arrays.
     """
     _OperatorClass = ConstantOperator
 
@@ -630,21 +648,28 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
 
     Parameters
     ----------
-    training_parameters : list of `s` scalars or 1D ndarrays
-        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
-        the operators entries are known or will be inferred from data.
-    InterpolatorClass : type
+    training_parameters : list of s scalars or (p,) 1D ndarrays
+        Parameter values for which the operator entries are known
+        or will be inferred from data. If not provided in the constructor,
+        use :meth:`set_training_parameters` later.
+    entries : list of s ndarrays, or None
+        Operator entries corresponding to the ``training_parameters``.
+        If not provided in the constructor, use :meth:`set_entries` later.
+    InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
 
-        .. code-block:: pycon
-
-           >>> interpolator = InterpolatorClass(data_points, data_values)
-           >>> interpolator_evaluation = interpolator(new_data_point)
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
 
         This can be, e.g., a class from ``scipy.interpolate``.
-    entries : list of `s` ndarrays, or None
-        Operator entries :math:`\Ahat^{(1)},\ldots,\Ahat^{(s)}`
-        corresponding to the ``training_parameters``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        If not provided in the constructor, use :meth:`set_interpolator` later.
+    fromblock : bool
+        If ``True``, interpret ``entries`` as a horizontal concatenation
+        of arrays; if ``False`` (default), interpret ``entries`` as a list
+        of arrays.
     """
     _OperatorClass = LinearOperator
 
@@ -670,19 +695,28 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
 
     Parameters
     ----------
-    training_parameters : list of `s` scalars or 1D ndarrays
-        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
-        the operators entries are known or will be inferred from data.
-    InterpolatorClass : type
+    training_parameters : list of s scalars or (p,) 1D ndarrays
+        Parameter values for which the operator entries are known
+        or will be inferred from data. If not provided in the constructor,
+        use :meth:`set_training_parameters` later.
+    entries : list of s ndarrays, or None
+        Operator entries corresponding to the ``training_parameters``.
+        If not provided in the constructor, use :meth:`set_entries` later.
+    InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
 
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
         This can be, e.g., a class from ``scipy.interpolate``.
-    entries : list of `s` ndarrays, or None
-        Operator entries :math:`\Hhat^{(1)},\ldots,\Hhat^{(s)}`
-        corresponding to the ``training_parameters``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        If not provided in the constructor, use :meth:`set_interpolator` later.
+    fromblock : bool
+        If ``True``, interpret ``entries`` as a horizontal concatenation
+        of arrays; if ``False`` (default), interpret ``entries`` as a list
+        of arrays.
     """
     _OperatorClass = QuadraticOperator
 
@@ -709,19 +743,28 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
 
     Parameters
     ----------
-    training_parameters : list of `s` scalars or 1D ndarrays
-        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
-        the operators entries are known or will be inferred from data.
-    InterpolatorClass : type
+    training_parameters : list of s scalars or (p,) 1D ndarrays
+        Parameter values for which the operator entries are known
+        or will be inferred from data. If not provided in the constructor,
+        use :meth:`set_training_parameters` later.
+    entries : list of s ndarrays, or None
+        Operator entries corresponding to the ``training_parameters``.
+        If not provided in the constructor, use :meth:`set_entries` later.
+    InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
 
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
         This can be, e.g., a class from ``scipy.interpolate``.
-    entries : list of `s` ndarrays, or None
-        Operator entries :math:`\Ghat^{(1)},\ldots,\Ghat^{(s)}`
-        corresponding to the ``training_parameters``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        If not provided in the constructor, use :meth:`set_interpolator` later.
+    fromblock : bool
+        If ``True``, interpret ``entries`` as a horizontal concatenation
+        of arrays; if ``False`` (default), interpret ``entries`` as a list
+        of arrays.
     """
     _OperatorClass = CubicOperator
 
@@ -748,19 +791,28 @@ class InterpolatedInputOperator(_InterpolatedOperator, _InputMixin):
 
     Parameters
     ----------
-    training_parameters : list of `s` scalars or 1D ndarrays
-        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
-        the operators entries are known or will be inferred from data.
-    InterpolatorClass : type
+    training_parameters : list of s scalars or (p,) 1D ndarrays
+        Parameter values for which the operator entries are known
+        or will be inferred from data. If not provided in the constructor,
+        use :meth:`set_training_parameters` later.
+    entries : list of s ndarrays, or None
+        Operator entries corresponding to the ``training_parameters``.
+        If not provided in the constructor, use :meth:`set_entries` later.
+    InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
 
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
         This can be, e.g., a class from ``scipy.interpolate``.
-    entries : list of `s` ndarrays, or None
-        Operator entries :math:`\Bhat^{(1)},\ldots,\Bhat^{(s)}`
-        corresponding to the ``training_parameters``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        If not provided in the constructor, use :meth:`set_interpolator` later.
+    fromblock : bool
+        If ``True``, interpret ``entries`` as a horizontal concatenation
+        of arrays; if ``False`` (default), interpret ``entries`` as a list
+        of arrays.
     """
     _OperatorClass = InputOperator
 
@@ -791,19 +843,28 @@ class InterpolatedStateInputOperator(_InterpolatedOperator, _InputMixin):
 
     Parameters
     ----------
-    training_parameters : list of `s` scalars or 1D ndarrays
-        Parameter values :math:`\bfmu_1,\ldots,\bfmu_s` for which
-        the operators entries are known or will be inferred from data.
-    InterpolatorClass : type
+    training_parameters : list of s scalars or (p,) 1D ndarrays
+        Parameter values for which the operator entries are known
+        or will be inferred from data. If not provided in the constructor,
+        use :meth:`set_training_parameters` later.
+    entries : list of s ndarrays, or None
+        Operator entries corresponding to the ``training_parameters``.
+        If not provided in the constructor, use :meth:`set_entries` later.
+    InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
 
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
         This can be, e.g., a class from ``scipy.interpolate``.
-    entries : list of `s` ndarrays, or None
-        Operator entries :math:`\Nhat^{(1)},\ldots,\Nhat^{(s)}`
-        corresponding to the ``training_parameters``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        If not provided in the constructor, use :meth:`set_interpolator` later.
+    fromblock : bool
+        If ``True``, interpret ``entries`` as a horizontal concatenation
+        of arrays; if ``False`` (default), interpret ``entries`` as a list
+        of arrays.
     """
     _OperatorClass = StateInputOperator
 
@@ -816,27 +877,25 @@ class InterpolatedStateInputOperator(_InterpolatedOperator, _InputMixin):
         return rm // r
 
 
+# Utilities ===================================================================
 def is_interpolated(obj) -> bool:
     """Return ``True`` if ``obj`` is a interpolated operator object."""
     return isinstance(obj, _InterpolatedOperator)
 
 
-def _nonparametric_to_interpolated(OpClass: type) -> type:
+def nonparametric_to_interpolated(OpClass: type) -> type:
     """Get the interpolated operator class corresponding to a nonparametric
     operator class.
 
     """
-    print(OpClass)
     for InterpolatedClassName in __all__:
         InterpolatedClass = eval(InterpolatedClassName)
         if not isinstance(InterpolatedClass, type) or not issubclass(
             InterpolatedClass, _InterpolatedOperator
-        ):
-            print("skipping", InterpolatedClass)
+        ):  # pragma: no cover
             continue
         if InterpolatedClass._OperatorClass is OpClass:
             return InterpolatedClass
-        print("didn't match", InterpolatedClass)
     raise TypeError(
         f"_InterpolatedOperator for class '{OpClass.__name__}' not found"
     )

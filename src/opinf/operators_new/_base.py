@@ -52,7 +52,6 @@ class _NonparametricOperator(abc.ABC):
         """Initialize an empty operator."""
         self._clear()
         if entries is not None:
-            self._validate_entries(entries)
             self.set_entries(entries)
 
     def _clear(self):
