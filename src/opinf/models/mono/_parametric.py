@@ -79,7 +79,13 @@ class _ParametricMonolithicModel(_MonolithicModel):
 
     def _isvalidoperator(self, op):
         """All monolithic operators are allowed."""
-        raise NotImplementedError
+        return isinstance(
+            op,
+            (
+                _operators._base._NonparametricOperator,
+                _operators._base._ParametricOperator,
+            ),
+        )
 
     @staticmethod
     def _check_operator_types_unique(ops):
@@ -111,17 +117,30 @@ class _ParametricMonolithicModel(_MonolithicModel):
     @operators.setter
     def operators(self, ops):
         """Set the operators."""
-        _MonolithicModel.operators.fset(ops)
+        _MonolithicModel.operators.fset(self, ops)
+
+        # Check at least one operator is parametric.
         parametric_operators = [
             op for op in self.operators if _operators.is_parametric(op)
         ]
         if len(parametric_operators) == 0:
             warnings.warn(
                 "no parametric operators detected, "
-                "consider using a nonparametric model class"
+                "consider using a nonparametric model class",
+                UserWarning,
             )
-        # TODO: if all operators are interpolated, issue a warning to use
-        # interpolated model classes.
+
+        # Check that not every operator is interpolated.
+        if not isinstance(self, _InterpolatedMonolithicModel):
+            interpolated_operators = [
+                op for op in self.operators if _operators.is_interpolated(op)
+            ]
+            if len(interpolated_operators) == len(self.operators):
+                warnings.warn(
+                    "all operators interpolatory, "
+                    "consider using an InterpolatedModel class",
+                    UserWarning,
+                )
         self.__p = self._check_parameter_dimension_consistency(self.operators)
 
     def _clear(self):
@@ -144,7 +163,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
         if len(ps) > 1:
             raise errors.DimensionalityError(
                 "operators not aligned "
-                "(parameter dimension must be the same for all operators)"
+                "(parameter_dimension must be the same for all operators)"
             )
         return ps.pop() if len(ps) == 1 else None
 
@@ -158,7 +177,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
         """Set the parameter dimension. Not allowed if any
         existing operators have ``parameter_dimension != p``.
         """
-        if self.__operators is not None:
+        if self.operators is not None:
             for op in self.operators:
                 if _operators.is_nonparametric(op):
                     continue
@@ -205,72 +224,78 @@ class _ParametricMonolithicModel(_MonolithicModel):
         if len(self._indices_of_operators_to_infer) == 0:
             warnings.warn(
                 "all operators initialized intrusively, nothing to learn",
-                UserWarning,
+                errors.UsageWarning,
             )
             return None, None, None, None, None
 
         # Validate / process solver.
         solver = self._check_solver(solver)
 
-        # Check that the number of training sets is consistent.
+        # Process parameters.
+        parameters = np.array(parameters)
+        self._set_parameter_dimension_from_data(parameters)
         n_datasets = len(parameters)
-        for data, label in [
-            (states, "states"),
-            (lhs, self._LHS_ARGNAME),
-            (inputs, "inputs"),
-        ]:
-            if (datalen := len(data)) != n_datasets:
-                raise ValueError(
+
+        def _check_valid_dimension0(dataset, label):
+            """Dimension 0 must be s (number of training parameters)."""
+            if (datalen := len(dataset)) != n_datasets:
+                raise errors.DimensionalityError(
                     f"len({label}) = {datalen} "
                     f"!= {n_datasets} = len(parameters)"
                 )
 
-        # Process parameters.
-        parameters = np.array(parameters)
-        self._set_parameter_dimension_from_data(parameters)
-
         def _check_valid_dimension1(dataset, label):
             """Dimension 1 must be r (state dimensions)."""
-            if (dim := dataset.shape[1]) != self.state_dimension:
-                raise errors.DimensionalityError(
-                    f"{label}.shape[1] = {dim} != r = {self.state_dimension}"
-                )
+            for i, subset in enumerate(dataset):
+                if (dim := len(subset)) != (r := self.state_dimension):
+                    raise errors.DimensionalityError(
+                        f"len({label}[{i}]) = {dim} != {r} = r"
+                    )
 
         # Process states, extract model dimension if needed.
-        states = np.array([np.atleast_2d(Q) for Q in states])
+        states = [np.atleast_2d(Q) for Q in states]
         if self.state_dimension is None:
             self.state_dimension = states[0].shape[0]
+        _check_valid_dimension0(states, "states")
         _check_valid_dimension1(states, "states")
 
         def _check_valid_dimension2(dataset, label):
-            """Dimension 2 must be k (number of snapshots)."""
-            if (dim := dataset.shape[2]) != (k := states.shape[2]):
-                raise errors.DimensionalityError(
-                    f"{label}.shape[-1] = {dim} != {k} = states.shape[-1]"
-                )
+            """Dimension 2 must match across datasets (number of snapshots)."""
+            for i, subset in enumerate(dataset):
+                if (dim := subset.shape[-1]) != (k := states[i].shape[-1]):
+                    raise errors.DimensionalityError(
+                        f"{label}[{i}].shape[-1] = {dim} "
+                        f"!= {k} = states[{i}].shape[-1]"
+                    )
 
         # Process LHS.
-        lhs = np.array([np.atleast_2d(L) for L in lhs])
+        lhs = [np.atleast_2d(L) for L in lhs]
+        _check_valid_dimension0(lhs, self._LHS_ARGNAME)
         _check_valid_dimension1(lhs, self._LHS_ARGNAME)
         _check_valid_dimension2(lhs, self._LHS_ARGNAME)
 
         # Process inputs, extract input dimension if needed.
         self._check_inputargs(inputs, "inputs")
         if self._has_inputs:
-            inputs = np.array([np.atleast_2d(U) for U in inputs])
+            inputs = [np.atleast_2d(U) for U in inputs]
             if not self.input_dimension:
-                self.input_dimension = inputs.shape[1]
-            if inputs.shape[1] != self.input_dimension:
-                raise errors.DimensionalityError(
-                    f"inputs.shape[1] = {inputs.shape[0]} "
-                    f"!= {self.input_dimension} = m"
-                )
+                self.input_dimension = inputs[0].shape[0]
+            _check_valid_dimension0(lhs, self._LHS_ARGNAME)
+            for i, subset in enumerate(inputs):
+                if (dim := subset.shape[0]) != (m := self.input_dimension):
+                    raise errors.DimensionalityError(
+                        f"inputs[{i}].shape[0] = {dim} != {m} = m"
+                    )
             _check_valid_dimension2(inputs, "inputs")
+        elif inputs is None:
+            inputs = [None] * n_datasets
 
         # Subtract known operator evaluations from the LHS.
         for ell in self._indices_of_known_operators:
             for i, lhsi in enumerate(lhs):
-                lhs[i] = lhsi - self.operators[ell].apply(states[i], inputs[i])
+                lhs[i] = lhsi - self.operators[ell].apply(
+                    parameters[i], states[i], inputs[i]
+                )
 
         return parameters, states, lhs, inputs, solver
 
@@ -320,13 +345,13 @@ class _ParametricMonolithicModel(_MonolithicModel):
         The operators are inferred by solving the regression problem
 
         .. math::
-           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
-           \fhat(\qhat_j, \u_j) - \zhat_j
+           \min_{\Ophat}
+           \sum_{i=1}^{s}\sum_{j=0}^{k_{i}-1}\left\|
+           \Ophat(\qhat_{i,j}, \u_{i,j}; \bfmu_i) - \dot{\qhat}_{i,j}
            \right\|_2^2
-           = \min_{\Ohat}\left\|\D\Ohat\trp - \dot{\Qhat}\trp\right\|_F^2
 
         where
-        :math:`\zhat = \fhat(\qhat, \u)` is the model and
+        :math:`\zhat = \Ophat(\qhat, \u)` is the model and
 
         * :math:`\qhat_j\in\RR^r` is a measurement of the state,
         * :math:`\u_j\in\RR^m` is a measurement of the input, and
@@ -334,7 +359,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
           of the model.
 
         The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r,m)}` is such that
-        :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
+        :math:`\Ophat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
         :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`; the *data matrix*
         :math:`\D\in\RR^{k\times d(r,m)}` is given by
         :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
@@ -347,26 +372,28 @@ class _ParametricMonolithicModel(_MonolithicModel):
 
         Parameters
         ----------
-        states : (r, k) ndarray
-            Snapshot training data. Each column is a single snapshot.
-        lhs : (r, k) ndarray
-            Left-hand side training data. Each column ``lhs[:, j]``
-            corresponds to the snapshot ``states[:, j]``.
-            The interpretation of this argument depends on the setting:
-            forcing data for steady-state problems, next iteration for
-            discrete-time problems, and time derivatives of the state for
-            continuous-time problems.
-        inputs : (m, k) or (k,) ndarray or None
-            Input training data. Each column ``inputs[:, j]`` corresponds
-            to the snapshot ``states[:, j]``.
-            May be a one-dimensional array if ``m=1`` (scalar input).
+        parameters : list of s scalars or (p,) 1D ndarrays
+            Parameter values for which training data are available.
+        states : list of s (r, k) ndarrays
+            Snapshot training data. Each array ``states[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``states[i][:, j]`` is a single snapshot.
+        ddts : list of s (r, k) ndarrays
+            Snapshot time derivative data. Each array ``ddts[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``ddts[i][:, j]`` corresponds to the snapshot ``states[i, :, j]``.
+        inputs : list of s (m, k) or (k,) ndarrays, or None
+            Input training data. Each array ``inputs[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
+            May be a two-dimensional array if `m=1` (scalar input).
         solver : :mod:`opinf.lstsq` object or float > 0 or None
             Solver for the least-squares regression. Defaults:
 
-            * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
-              without regularization.
-            * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
-              scalar Tikhonov regularization.
+            * ``None``: :class:`opinf.lstsq.PlainSolver`,
+              SVD-based solve without regularization.
+            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
+              SVD-based solve with scalar Tikhonov regularization.
 
         Returns
         -------
@@ -637,13 +664,13 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
         )
 
     # Fitting -----------------------------------------------------------------
-    def _assemble_data_matrix(self, *args, **kwargs):
+    def _assemble_data_matrix(self, *args, **kwargs):  # pragma: no cover
         """Assemble the data matrix for operator inference."""
         raise NotImplementedError(
             "_assemble_data_matrix() not used by this class"
         )
 
-    def _extract_operators(self, Ohat):
+    def _extract_operators(self, *args, **kwargs):  # pragma: no cover
         """Unpack the operator matrix and populate operator entries."""
         raise NotImplementedError(
             "_extract_operators() not used by this class"
@@ -663,8 +690,6 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
             parameters, states, lhs, inputs, solver=solver
         )
         n_datasets = len(parameters)
-        if not self._has_inputs:
-            inputs_ = [None] * n_datasets
 
         # Distribute training data to individual OpInf problems.
         nonparametric_models = []
@@ -839,21 +864,10 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
         )
 
 
-class InterpolatedSteadyModel(_InterpolatedMonolithicModel):
-    _ModelClass = _FrozenSteadyModel
-
-
 class InterpolatedDiscreteModel(_InterpolatedMonolithicModel):
     _ModelClass = _FrozenDiscreteModel
 
-
-class InterpolatedContinuousModel(_InterpolatedMonolithicModel):
-    _ModelClass = _FrozenContinuousModel
-
     def fit(self, parameters, states, ddts, inputs=None, solver=None):
-        """Construct a solver object mapping the regularizer to solutions
-        of the Operator Inference least-squares problem.
-        """
         r"""Learn the model operators from data.
 
         The operators are inferred by solving the regression problem
@@ -861,24 +875,24 @@ class InterpolatedContinuousModel(_InterpolatedMonolithicModel):
         .. math::
            \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
            \sum_{i=1}^{s}\sum_{j=0}^{k_{i}-1}\left\|
-           \Ophat(\qhat_{i,j}, \u_{i,j}; \bfmu_i) - \zhat_{i,j}
+           \Ophat(\qhat_{i,j}, \u_{i,j}; \bfmu_i) - \dot{\qhat}_{i,j}
            \right\|_2^2
            = \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
            \sum_{i=1}^{s}\left\|
            \D^{(i)}(\Ohat^{(i)})\trp
-           - [~\zhat_{i,0}~~\cdots~~\zhat_{i,k_{i}-1}~]\trp
+           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
            \right\|_F^2
 
         where
-        :math:`\zhat = \Ophat(\qhat, \u; \bfmu) = \Ohat(\bfmu)\d(\qhat, \u)`
-        is the model and
+        :math:`\ddt\qhat(t) = \Ophat(\qhat(t), \u(t);
+        \bfmu) = \Ohat(\bfmu)\d(\qhat(t), \u(t))` is the model and
 
         * :math:`\qhat_{i,j}\in\RR^r` is the :math:`j`-th measurement of the
           state corresponding to training parameter value :math:`\bfmu_i`,
         * :math:`\u_{i,j}\in\RR^m` is the :math:`j`-th measurement of the
           input corresponding to training parameter value :math:`\bfmu_i`,
-        * :math:`\zhat_{i,j}\in\RR^r` is a measurement of the left-hand side
-          of the model corresponding to the state-input pair
+        * :math:`\dot{qhat}_{i,j}\in\RR^r` is a measurement of the time
+          derivative of the state corresponding to the state-input pair
           :math:`(\qhat_{i,j},\u_{i,j})`,
         * :math:`\D^{(i)}` is the data matrix for data corresponding to
           training parameter value :math:`\bfmu_i`, given by
@@ -895,7 +909,7 @@ class InterpolatedContinuousModel(_InterpolatedMonolithicModel):
         .. math::
            \min_{\Ohat^{(i)}}\left\|
            \D^{(i)}(\Ohat^{(i)})\trp
-           - [~\zhat_{i,0}~~\cdots~~\zhat_{i,k_{i}-1}~]\trp
+           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
            \right\|_F^2
 
         and define the full operator matrix via elementwise interpolation,
@@ -912,26 +926,119 @@ class InterpolatedContinuousModel(_InterpolatedMonolithicModel):
         parameters : list of s scalars or (p,) 1D ndarrays
             Parameter values for which the operator entries are known
             or will be inferred from data.
-        states : (r, k) ndarray
-            Snapshot training data. Each column is a single snapshot.
-        lhs : (r, k) ndarray
-            Left-hand side training data. Each column ``lhs[:, j]``
-            corresponds to the snapshot ``states[:, j]``.
-            The interpretation of this argument depends on the setting:
-            forcing data for steady-state problems, next iteration for
-            discrete-time problems, and time derivatives of the state for
-            continuous-time problems.
-        inputs : (m, k) or (k,) ndarray or None
-            Input training data. Each column ``inputs[:, j]`` corresponds
-            to the snapshot ``states[:, j]``.
-            May be a one-dimensional array if ``m=1`` (scalar input).
+        states : list of s (r, k) ndarrays
+            Snapshot training data. Each array ``states[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``states[i][:, j]`` is a single snapshot.
+        ddts : list of s (r, k) ndarrays
+            Snapshot time derivative data. Each array ``ddts[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``ddts[i][:, j]`` corresponds to the snapshot ``states[i, :, j]``.
+        inputs : list of s (m, k) or (k,) ndarrays, or None
+            Input training data. Each array ``inputs[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
+            May be a two-dimensional array if `m=1` (scalar input).
         solver : :mod:`opinf.lstsq` object or float > 0 or None
             Solver for the least-squares regression. Defaults:
 
-            * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
-              without regularization.
-            * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
-              scalar Tikhonov regularization.
+            * ``None``: :class:`opinf.lstsq.PlainSolver`,
+              SVD-based solve without regularization.
+            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
+              SVD-based solve with scalar Tikhonov regularization.
+
+        Returns
+        -------
+        self
+        """
+        return _InterpolatedMonolithicModel.fit(
+            self, parameters, states, ddts, inputs, solver
+        )
+
+
+class InterpolatedContinuousModel(_InterpolatedMonolithicModel):
+    _ModelClass = _FrozenContinuousModel
+
+    def fit(self, parameters, states, ddts, inputs=None, solver=None):
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
+           \sum_{i=1}^{s}\sum_{j=0}^{k_{i}-1}\left\|
+           \Ophat(\qhat_{i,j}, \u_{i,j}; \bfmu_i) - \dot{\qhat}_{i,j}
+           \right\|_2^2
+           = \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
+           \sum_{i=1}^{s}\left\|
+           \D^{(i)}(\Ohat^{(i)})\trp
+           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
+           \right\|_F^2
+
+        where
+        :math:`\ddt\qhat(t) = \Ophat(\qhat(t), \u(t);
+        \bfmu) = \Ohat(\bfmu)\d(\qhat(t), \u(t))` is the model and
+
+        * :math:`\qhat_{i,j}\in\RR^r` is the :math:`j`-th measurement of the
+          state corresponding to training parameter value :math:`\bfmu_i`,
+        * :math:`\u_{i,j}\in\RR^m` is the :math:`j`-th measurement of the
+          input corresponding to training parameter value :math:`\bfmu_i`,
+        * :math:`\dot{qhat}_{i,j}\in\RR^r` is a measurement of the time
+          derivative of the state corresponding to the state-input pair
+          :math:`(\qhat_{i,j},\u_{i,j})`,
+        * :math:`\D^{(i)}` is the data matrix for data corresponding to
+          training parameter value :math:`\bfmu_i`, given by
+          :math:`[~\d(\qhat_{i,0},\u_{i,0})~~\cdots~~
+          \d(\qhat_{i,k_i-1},\u_{i,k_i-1})~]\trp`.
+        * :math:`\Ohat^{(i)} = \Ohat(\bfmu)` is the operator matrix
+          evaluated at training parameter value :math:`\bfmu_i`.
+
+        Because all operators in this model are interpolatory, the
+        least-squares problem decouples into :math:`s` individual regressions.
+        That is, for :math:`i = 1, \ldots, s`, we solve (independently) the
+        regressions
+
+        .. math::
+           \min_{\Ohat^{(i)}}\left\|
+           \D^{(i)}(\Ohat^{(i)})\trp
+           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
+           \right\|_F^2
+
+        and define the full operator matrix via elementwise interpolation,
+
+        .. math::
+           \Ohat(\bfmu) = \textrm{interpolate}(
+           (\bfmu_1, \Ohat^{(i)}), \ldots, (\bfmu_s, \Ohat^{(s)}); \bfmu).
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
+
+        Parameters
+        ----------
+        parameters : list of s scalars or (p,) 1D ndarrays
+            Parameter values for which the operator entries are known
+            or will be inferred from data.
+        states : list of s (r, k) ndarrays
+            Snapshot training data. Each array ``states[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``states[i][:, j]`` is a single snapshot.
+        ddts : list of s (r, k) ndarrays
+            Snapshot time derivative data. Each array ``ddts[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``ddts[i][:, j]`` corresponds to the snapshot ``states[i][:, j]``.
+        inputs : list of s (m, k) or (k,) ndarrays, or None
+            Input training data. Each array ``inputs[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``inputs[i][:, j]`` corresponds to the snapshot
+            ``states[i][:, j]``.
+            May be a two-dimensional array if `m=1` (scalar input).
+        solver : :mod:`opinf.lstsq` object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+
+            * ``None``: :class:`opinf.lstsq.PlainSolver`,
+              SVD-based solve without regularization.
+            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
+              SVD-based solve with scalar Tikhonov regularization.
 
         Returns
         -------
