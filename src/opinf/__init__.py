@@ -9,9 +9,14 @@ GitHub:
 
 __version__ = "0.5.0"
 
-from .roms import *
-from .operators import *
-from . import basis, errors, lstsq, operators, pre, post, roms, utils
-
-# Development
-from . import operators_new, models, ddt
+from . import (
+    basis,
+    errors,
+    ddt,
+    lstsq,
+    models,
+    operators_new,
+    pre,
+    post,
+    utils,
+)
