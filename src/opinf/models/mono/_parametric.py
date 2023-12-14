@@ -462,9 +462,9 @@ class _ParametricMonolithicModel(_MonolithicModel):
            >>> values = [model_at_parameter.rhs(q, input_)
            ...           for q in list_of_states]
         """
-        return self.evaluate(parameter).rhs(state, input_)  # pragma: no cover
+        return self.evaluate(parameter).rhs(state, input_)
 
-    def jacobian(self, parameter, state, input_):
+    def jacobian(self, parameter, state, input_=None):
         r"""Construct and sum the state Jacobian of each model operator.
 
         This the derivative of the right-hand side of the model with respect
@@ -504,9 +504,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
            ...           for q in list_of_states]
 
         """
-        return self.evaluate(parameter).jacobian(
-            state, input_
-        )  # pragma: no cover
+        return self.evaluate(parameter).jacobian(state, input_)
 
     def predict(self, parameter, *args, **kwargs):
         """Solve the model at the given parameter value."""

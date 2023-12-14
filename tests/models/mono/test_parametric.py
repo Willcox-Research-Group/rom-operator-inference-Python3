@@ -6,7 +6,11 @@ import numpy as np
 
 import opinf
 
+
 _module = opinf.models.mono._parametric
+_applyvalue = 7
+_jacvalue = 11
+_predictvalue = 13
 
 
 # Dummy classes ===============================================================
@@ -19,7 +23,10 @@ class DummyNonparametricOperator(
         pass
 
     def apply(*args, **kwargs):  # pragma: no cover
-        return 0
+        return _applyvalue
+
+    def jacobian(*args, **kwargs):
+        return _jacvalue
 
     def datablock(*args, **kwargs):  # pragma: no cover
         pass
@@ -30,8 +37,10 @@ class DummyNonparametricOperator(
     def operator_dimension(*args, **kwargs):  # pragma: no cover
         pass
 
-    def set_entries(*args, **kwargs):  # pragma: no cover
-        pass
+    def set_entries(self, entries):  # pragma: no cover
+        opinf.operators_new._base._NonparametricOperator.set_entries(
+            self, entries
+        )
 
 
 class DummyNonparametricOperator2(DummyNonparametricOperator):
@@ -99,12 +108,12 @@ class DummyNonparametricModel(
     _LHS_ARGNAME = "mylhs"
 
     def predict(*args, **kwargs):
-        return 101
+        return _predictvalue
 
 
 # Tests =======================================================================
 class TestParametricMonolithicModel:
-    """Test opinf.models.mono._parametric._ParametricMonolithicModel."""
+    """Test models.mono._parametric._ParametricMonolithicModel."""
 
     class Dummy(_module._ParametricMonolithicModel):
         _ModelClass = DummyNonparametricModel
@@ -213,6 +222,16 @@ class TestParametricMonolithicModel:
         model.parameter_dimension = 20
         assert model.parameter_dimension == 20
 
+        model = self.Dummy(DummyParametricOperator())
+        model._set_parameter_dimension_from_data(np.empty(s))
+        assert model.parameter_dimension == 1
+
+        with pytest.raises(ValueError) as ex:
+            model._set_parameter_dimension_from_data(np.empty((s, s, s)))
+        assert (
+            ex.value.args[0] == "parameter values must be scalars or 1D arrays"
+        )
+
     def test_process_fit_arguments(self, s=5, p=2, m=4, r=3, k=10):
         """Test _ParametricMonolithicModel._process_fit_arguments()."""
         # Intrusive case.
@@ -269,25 +288,58 @@ class TestParametricMonolithicModel:
         model = self.Dummy([op, op2])
         model._process_fit_arguments(params, states, lhs, None)
 
+        model._has_inputs = True
+        inputs[1] = np.empty((m, k))
+        model._process_fit_arguments(params, states, lhs, inputs)
 
-#     def test_evaluate(self):
-#         """Test _ParametricMonolithicModel.evaluate()."""
-#         raise NotImplementedError
+    def test_evaluate(self, r=4):
+        """Test _ParametricMonolithicModel.evaluate()."""
+        op1 = DummyParametricOperator(np.random.random((r, r)))
+        op2 = DummyParametricOperator2(np.random.random((r, r)))
+        model = self.Dummy([op1, op2])
+        model_evaluated = model.evaluate(None)
+        assert isinstance(model_evaluated, DummyNonparametricModel)
+        assert len(model_evaluated.operators) == 2
+        assert isinstance(
+            model_evaluated.operators[0], DummyNonparametricOperator
+        )
+        assert isinstance(
+            model_evaluated.operators[1], DummyNonparametricOperator2
+        )
+        assert model_evaluated.state_dimension == r
 
-#     def test_rhs(self):
-#         """Test _ParametricMonolithicModel.rhs()."""
-#         raise NotImplementedError
+    def test_rhs(self, r=2):
+        """Test _ParametricMonolithicModel.rhs()."""
+        op1 = DummyParametricOperator(np.random.random((r, r)))
+        op2 = DummyParametricOperator2(np.random.random((r, r)))
+        model = self.Dummy([op1, op2])
+        assert model.state_dimension == r
+        assert model.rhs(np.empty(r), None, None) == 2 * _applyvalue
 
-#     def test_jacobian(self):
-#         """Test _ParametricMonolithicModel.jacobian()."""
-#         raise NotImplementedError
+    def test_jacobian(self, r=3):
+        """Test _ParametricMonolithicModel.jacobian()."""
+        op1 = DummyParametricOperator(np.random.random((r, r)))
+        op2 = DummyParametricOperator2(np.random.random((r, r)))
+        model = self.Dummy([op1, op2])
+        assert model.state_dimension == r
+        assert np.all(model.jacobian(np.empty(r), None, None) == 2 * _jacvalue)
 
-#     def test_predict(self):
-#         """Test _ParametricMonolithicModel.predict()."""
-#         raise NotImplementedError
+    def test_predict(self, r=4):
+        """Test _ParametricMonolithicModel.predict()."""
+        op1 = DummyParametricOperator(np.random.random((r, r)))
+        op2 = DummyParametricOperator2(np.random.random((r, r)))
+        model = self.Dummy([op1, op2])
+        assert model.state_dimension == r
+        assert model.predict(None) == _predictvalue
 
 
-# class TestInterpolatedModel:
+class TestInterpolatedModel:
+    """Test models.mono._parametric._InterpolatedMonolithicModel."""
+
+    class Dummy(_module._InterpolatedMonolithicModel):
+        _ModelClass = DummyNonparametricModel
+
+
 #     def test_from_models(self):
 #         """Test _InterpolatedMonolithicModel._from_models()."""
 #         raise NotImplementedError
