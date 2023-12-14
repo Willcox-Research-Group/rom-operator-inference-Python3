@@ -127,7 +127,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
             warnings.warn(
                 "no parametric operators detected, "
                 "consider using a nonparametric model class",
-                UserWarning,
+                errors.UsageWarning,
             )
 
         # Check that not every operator is interpolated.
@@ -139,7 +139,7 @@ class _ParametricMonolithicModel(_MonolithicModel):
                 warnings.warn(
                     "all operators interpolatory, "
                     "consider using an InterpolatedModel class",
-                    UserWarning,
+                    errors.UsageWarning,
                 )
         self.__p = self._check_parameter_dimension_consistency(self.operators)
 
@@ -561,6 +561,8 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
         """Define the model structure and set the interpolator class."""
         _ParametricMonolithicModel.__init__(self, operators)
         self.set_interpolator(InterpolatorClass)
+        self._submodels = None
+        self._training_parameters = None
 
     @classmethod
     def _from_models(cls, parameters, models, InterpolatorClass: type = None):
@@ -590,7 +592,7 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
             # Model class.
             if not isinstance(mdl, ModelFitClass):
                 raise TypeError(
-                    "expected roms of type " f"{ModelFitClass.__name__}"
+                    f"expected models of type '{ModelFitClass.__name__}'"
                 )
             # Operator count and type.
             if len(mdl.operators) != len(opclasses):
@@ -625,7 +627,7 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
 
         Parameters
         ----------
-        InterpolatorClass : type or None
+        InterpolatorClass : type
             Class for the elementwise interpolation. Must obey the syntax
 
                 >>> interpolator = InterpolatorClass(data_points, data_values)
@@ -636,8 +638,9 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
             for one-dimensional parameters and
             ``scipy.interpolate.LinearNDInterpolator`` otherwise.
         """
-        for op in self.operators:
-            op.set_interpolator(InterpolatorClass)
+        if InterpolatorClass is not None:
+            for op in self.operators:
+                op.set_interpolator(InterpolatorClass)
         self.__InterpolatorClass = InterpolatorClass
 
     # Properties: operators ---------------------------------------------------
@@ -709,23 +712,30 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
             nonparametric_models.append(model_i)
 
         self.solvers_ = [mdl.solver_ for mdl in nonparametric_models]
-        self.__submodels = nonparametric_models
-        self.__training_parameters = parameters_
+        self._submodels = nonparametric_models
+        self._training_parameters = parameters_
 
     def _evaluate_solver(self):
         """Evaluate the least-squares solver and process the results."""
+        if self._submodels is None:
+            raise RuntimeError(
+                "model solvers not set, call _fit_solver() first"
+            )
+
         # Solve each independent subproblem.
         # TODO: parallelize?
-        for model_i in self.__submodels:
-            model_i.evaluate_solver()
+        for model_i in self._submodels:
+            model_i._evaluate_solver()
 
         # Interpolate the resulting operators.
-        for op, ell in enumerate(self.operators):
+        for ell, op in enumerate(self.operators):
             op._clear()
-            op.set_training_parameters(self.__training_parameters)
-            op.set_entries([mdl.operators[ell] for mdl in self.__submodels])
+            op.set_training_parameters(self._training_parameters)
+            op.set_entries(
+                [mdl.operators[ell].entries for mdl in self._submodels]
+            )
 
-        self.__InterpolatorClass = type(self.operators[0].interpolator)
+        # self.__InterpolatorClass = type(self.operators[0].interpolator)
 
         return self
 
@@ -756,7 +766,11 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
 
             # Interpolator class.
             suppress_warnings = False
-            InterpolatorClassName = self.__InterpolatorClass.__name__
+            InterpolatorClassName = (
+                "NoneType"
+                if self.__InterpolatorClass is None
+                else self.__InterpolatorClass.__name__
+            )
             meta.attrs["InterpolatorClass"] = InterpolatorClassName
             if InterpolatorClassName != "NoneType" and not hasattr(
                 spinterp, InterpolatorClassName
@@ -764,7 +778,8 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
                 warnings.warn(
                     "cannot serialize InterpolatorClass "
                     f"'{InterpolatorClassName}', must pass in the class "
-                    "when calling load()"
+                    "when calling load()",
+                    errors.UsageWarning,
                 )
                 suppress_warnings = True
 
@@ -777,7 +792,7 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
             )
             with warnings.catch_warnings():
                 if suppress_warnings:
-                    warnings.simplefilter("ignore", UserWarning)
+                    warnings.simplefilter("ignore", errors.UsageWarning)
                 for i, op in enumerate(self.operators):
                     op.save(hf.create_group(f"operator_{i}"))
 
@@ -829,7 +844,7 @@ class _InterpolatedMonolithicModel(_ParametricMonolithicModel):
                     warnings.warn(
                         f"InterpolatorClass={InterpolatorClassName} does not "
                         f"match loadfile InterpolatorClass '{SavedClassName}'",
-                        UserWarning,
+                        errors.UsageWarning,
                     )
 
             # Load operators.

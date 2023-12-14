@@ -323,13 +323,28 @@ class _MonolithicModel(abc.ABC):
     def _check_is_trained(self):
         """Ensure that the model is trained and ready for prediction."""
         if self.state_dimension is None:
-            raise AttributeError("no reduced dimension 'r' (call fit())")
+            raise AttributeError("no state_dimension (call fit())")
         if self._has_inputs and (self.input_dimension is None):
-            raise AttributeError("no input dimension 'm' (call fit())")
+            raise AttributeError("no input_dimension (call fit())")
 
         for op in self.operators:
             if op.entries is None:
                 raise AttributeError("model not trained (call fit())")
+
+    def __eq__(self, other):
+        """Two models are equal if they have equivalent operators."""
+        if not isinstance(other, self.__class__):
+            return False
+        if len(self.operators) != len(other.operators):
+            return False
+        for selfop, otherop in zip(self.operators, other.operators):
+            if selfop != otherop:
+                return False
+        if self.state_dimension != other.state_dimension:
+            return False
+        if self.input_dimension != other.input_dimension:
+            return False
+        return True
 
     # Model persistence -------------------------------------------------------
     def copy(self):

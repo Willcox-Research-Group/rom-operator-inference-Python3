@@ -159,7 +159,7 @@ class TestMonolithicModel:
         assert model.state_dimension is None
         assert model.input_dimension == 0
 
-        # Check that we can set the reduced dimension.
+        # Check that we can set the state dimension.
         model.state_dimension = 10
         model.state_dimension = 11
         model._clear()
@@ -295,12 +295,12 @@ class TestMonolithicModel:
         )
         with pytest.raises(AttributeError) as ex:
             model._check_is_trained()
-        assert ex.value.args[0] == "no reduced dimension 'r' (call fit())"
+        assert ex.value.args[0] == "no state_dimension (call fit())"
 
         model.state_dimension = r
         with pytest.raises(AttributeError) as ex:
             model._check_is_trained()
-        assert ex.value.args[0] == "no input dimension 'm' (call fit())"
+        assert ex.value.args[0] == "no input_dimension (call fit())"
 
         # Try without dimensions / operators set.
         model.input_dimension = m
@@ -311,6 +311,48 @@ class TestMonolithicModel:
         # Successful check.
         model.operators = _get_operators("cABH", r, m)
         model._check_is_trained()
+
+    def test_eq(self):
+        """Test _MonolithicModel.__eq__()."""
+        model1 = self.Dummy(
+            [
+                opinf_operators.ConstantOperator(),
+                opinf_operators.InputOperator(),
+            ]
+        )
+        assert model1 != 10
+
+        model2 = self.Dummy([opinf_operators.ConstantOperator()])
+        assert model1 != model2
+
+        model2 = self.Dummy(
+            [
+                opinf_operators.ConstantOperator(),
+                opinf_operators.QuadraticOperator(),
+            ]
+        )
+        assert model1 != model2
+
+        model2 = self.Dummy(
+            [
+                opinf_operators.ConstantOperator(),
+                opinf_operators.InputOperator(),
+            ]
+        )
+        assert model1 == model2
+        model1.state_dimension = 5
+        assert model1 != model2
+        model2.state_dimension = model1.state_dimension + 2
+        assert model1 != model2
+        model2.state_dimension = model1.state_dimension
+        assert model1 == model2
+
+        model1.input_dimension = 4
+        assert model1 != model2
+        model2.input_dimension = model1.input_dimension + 2
+        assert model1 != model2
+        model2.input_dimension = model1.input_dimension
+        assert model1 == model2
 
     # Model persistence -------------------------------------------------------
     def test_copy(self, r=4, m=3):

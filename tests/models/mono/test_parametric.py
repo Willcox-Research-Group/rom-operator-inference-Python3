@@ -1,8 +1,12 @@
 # models/mono/test_parametric.py
 """Tests for models.mono._parametric."""
 
+import os
+
+# import h5py
 import pytest
 import numpy as np
+import scipy.interpolate as interp
 
 import opinf
 
@@ -111,6 +115,10 @@ class DummyNonparametricModel(
         return _predictvalue
 
 
+class DummyNonparametricModel2(DummyNonparametricModel):
+    pass
+
+
 # Tests =======================================================================
 class TestParametricMonolithicModel:
     """Test models.mono._parametric._ParametricMonolithicModel."""
@@ -143,7 +151,7 @@ class TestParametricMonolithicModel:
         """Test _ParametricMonolithicModel.operators.fset()."""
         operators = [DummyNonparametricOperator()]
 
-        with pytest.warns(UserWarning) as wn:
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
             self.Dummy(operators)
         assert (
             wn[0].message.args[0] == "no parametric operators detected, "
@@ -152,7 +160,7 @@ class TestParametricMonolithicModel:
 
         operators = [DummyInterpolatedOperator()]
 
-        with pytest.warns(UserWarning) as wn:
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
             self.Dummy(operators)
         assert (
             wn[0].message.args[0] == "all operators interpolatory, "
@@ -337,33 +345,249 @@ class TestInterpolatedModel:
     """Test models.mono._parametric._InterpolatedMonolithicModel."""
 
     class Dummy(_module._InterpolatedMonolithicModel):
-        _ModelClass = DummyNonparametricModel
+        _ModelClass = DummyNonparametricModel2
 
+    def test_from_models(self, r=4):
+        """Test _InterpolatedMonolithicModel._from_models()."""
+        mu = np.sort(np.random.random(2))
+        model1 = DummyNonparametricModel(
+            [DummyNonparametricOperator2(np.random.random(r))]
+        )
 
-#     def test_from_models(self):
-#         """Test _InterpolatedMonolithicModel._from_models()."""
-#         raise NotImplementedError
+        # Wrong type of model.
+        model2 = self.Dummy([opinf.operators_new.InterpolatedCubicOperator()])
+        with pytest.raises(TypeError) as ex:
+            self.Dummy._from_models(mu, [model2, model1])
+        assert (
+            ex.value.args[0] == "expected models of type "
+            "'DummyNonparametricModel'"
+        )
 
-#     def test_set_interpolator(self):
-#         """Test _InterpolatedMonolithicModel._set_interpolator()."""
-#         raise NotImplementedError
+        # Inconsistent number of operators.
+        model2 = DummyNonparametricModel(
+            [DummyNonparametricOperator(), DummyNonparametricOperator2()]
+        )
+        with pytest.raises(ValueError) as ex:
+            self.Dummy._from_models(mu, [model1, model2])
+        assert (
+            ex.value.args[0] == "models not aligned "
+            "(inconsistent number of operators)"
+        )
 
-#     def test_fit_solver(self):
-#         """Test _InterpolatedMonolithicModel._fit_solver()."""
-#         raise NotImplementedError
+        # Inconsistent operator types.
+        model2 = DummyNonparametricModel(
+            [DummyNonparametricOperator(np.random.random(r))]
+        )
+        with pytest.raises(ValueError) as ex:
+            self.Dummy._from_models(mu, [model1, model2])
+        assert (
+            ex.value.args[0] == "models not aligned "
+            "(inconsistent operator types)"
+        )
 
-#     def test_evaluate_solver(self):
-#         """Test _InterpolatedMonolithicModel._evaluate_solver()."""
-#         raise NotImplementedError
+        # Correct usage
+        OpClass = opinf.operators_new.ConstantOperator
+        model1 = DummyNonparametricModel([OpClass(np.random.random(r))])
+        model2 = DummyNonparametricModel([OpClass(np.random.random(r))])
+        model = self.Dummy._from_models(mu, [model1, model2])
+        assert isinstance(model, self.Dummy)
+        assert len(model.operators) == 1
+        assert isinstance(
+            model.operators[0],
+            opinf.operators_new.InterpolatedConstantOperator,
+        )
 
-#     def test_save(self):
-#         """Test _InterpolatedMonolithicModel._save()."""
-#         raise NotImplementedError
+    def test_set_interpolator(self, s=10, p=2, r=2):
+        """Test _InterpolatedMonolithicModel._set_interpolator()."""
 
-#     def test_load(self):
-#         """Test _InterpolatedMonolithicModel._load()."""
-#         raise NotImplementedError
+        mu = np.random.random((s, p))
+        operators = [
+            opinf.operators_new.InterpolatedConstantOperator(
+                mu,
+                interp.NearestNDInterpolator,
+                entries=np.random.random((s, r)),
+            ),
+            opinf.operators_new.InterpolatedLinearOperator(
+                mu,
+                interp.NearestNDInterpolator,
+                entries=np.random.random((s, r, r)),
+            ),
+        ]
 
-#     def test_copy(self):
-#         """Test _InterpolatedMonolithicModel._copy()."""
-#         raise NotImplementedError
+        model = self.Dummy(operators)
+        for op in operators:
+            assert isinstance(op.interpolator, interp.NearestNDInterpolator)
+
+        model = self.Dummy(
+            operators, InterpolatorClass=interp.LinearNDInterpolator
+        )
+        for op in operators:
+            assert isinstance(op.interpolator, interp.LinearNDInterpolator)
+
+        model.set_interpolator(None)
+        for op in operators:
+            assert isinstance(op.interpolator, interp.LinearNDInterpolator)
+
+        model.set_interpolator(interp.NearestNDInterpolator)
+        for op in operators:
+            assert isinstance(op.interpolator, interp.NearestNDInterpolator)
+
+    def test_fit_solver(self, s=10, r=3, k=20):
+        """Test _InterpolatedMonolithicModel._fit_solver()."""
+        operators = [
+            opinf.operators_new.InterpolatedConstantOperator(),
+            opinf.operators_new.InterpolatedLinearOperator(),
+        ]
+        params = np.sort(np.random.random(s))
+        states = np.random.random((s, r, k))
+        lhs = np.random.random((s, r, k))
+
+        model = self.Dummy(operators)
+        model._fit_solver(params, states, lhs)
+
+        assert hasattr(model, "solvers_")
+        assert len(model.solvers_) == s
+        for solver in model.solvers_:
+            assert isinstance(solver, opinf.lstsq.PlainSolver)
+
+        assert hasattr(model, "_submodels")
+        assert len(model._submodels) == s
+        for mdl in model._submodels:
+            assert isinstance(mdl, DummyNonparametricModel)
+            assert len(mdl.operators) == len(operators)
+            for op in mdl.operators:
+                assert op.entries is None
+
+        assert hasattr(model, "_training_parameters")
+        assert isinstance(model._training_parameters, np.ndarray)
+        assert np.all(model._training_parameters == params)
+
+    def test_evaluate_solver(self, s=10, r=3, k=15):
+        """Test _InterpolatedMonolithicModel._evaluate_solver()."""
+        operators = [
+            opinf.operators_new.InterpolatedConstantOperator(),
+            opinf.operators_new.InterpolatedLinearOperator(),
+        ]
+        params = np.sort(np.random.random(s))
+        states = np.random.random((s, r, k))
+        lhs = np.random.random((s, r, k))
+
+        model = self.Dummy(operators)
+
+        with pytest.raises(RuntimeError) as ex:
+            model._evaluate_solver()
+        assert (
+            ex.value.args[0] == "model solvers not set, "
+            "call _fit_solver() first"
+        )
+
+        model._fit_solver(params, states, lhs)
+        model._evaluate_solver()
+
+        assert hasattr(model, "_submodels")
+        assert len(model._submodels) == s
+        for mdl in model._submodels:
+            assert isinstance(mdl, DummyNonparametricModel)
+            assert len(mdl.operators) == len(operators)
+            for op in mdl.operators:
+                assert op.entries is not None
+
+    def test_save(self, target="_interpmodelsavetest.h5"):
+        """Test _InterpolatedMonolithicModel._save()."""
+        if os.path.isfile(target):
+            os.remove(target)
+
+        model = self.Dummy(
+            [
+                opinf.operators_new.InterpolatedConstantOperator(),
+                opinf.operators_new.InterpolatedLinearOperator(),
+            ]
+        )
+        model.save(target)
+        assert os.path.isfile(target)
+
+        model.set_interpolator(interp.CubicSpline)
+        model.save(target, overwrite=True)
+        assert os.path.isfile(target)
+
+        model.set_interpolator(float)
+        os.remove(target)
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            model.save(target, overwrite=True)
+        assert len(wn) == 1
+        assert (
+            wn[0].message.args[0] == "cannot serialize InterpolatorClass "
+            "'float', must pass in the class when calling load()"
+        )
+        assert os.path.isfile(target)
+
+        os.remove(target)
+
+    def test_load(self, target="_interpmodelloadtest.h5"):
+        """Test _InterpolatedMonolithicModel._load()."""
+        if os.path.isfile(target):
+            os.remove(target)
+
+        operators = [
+            opinf.operators_new.InterpolatedConstantOperator(),
+            opinf.operators_new.InterpolatedLinearOperator(),
+        ]
+        model = self.Dummy(operators, InterpolatorClass=float)
+
+        with pytest.warns(opinf.errors.UsageWarning):
+            model.save(target)
+
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+            self.Dummy.load(target)
+        assert (
+            ex.value.args[0] == "unknown InterpolatorClass "
+            f"'float', call load({target}, float)"
+        )
+        self.Dummy.load(target, float)
+
+        model1 = self.Dummy(
+            operators,
+            InterpolatorClass=interp.NearestNDInterpolator,
+        )
+        model1.save(target, overwrite=True)
+
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            model2 = self.Dummy.load(target, float)
+        assert wn[0].message.args[0] == (
+            "InterpolatorClass=float does not match loadfile "
+            "InterpolatorClass 'NearestNDInterpolator'"
+        )
+        model2.set_interpolator(interp.NearestNDInterpolator)
+        assert model2 == model1
+
+        model2 = self.Dummy.load(target)
+        assert model2 == model1
+
+    def test_copy(self, s=10, p=2, r=3):
+        """Test _InterpolatedMonolithicModel._copy()."""
+
+        model1 = self.Dummy(
+            [
+                opinf.operators_new.InterpolatedConstantOperator(),
+                opinf.operators_new.InterpolatedLinearOperator(),
+            ]
+        )
+
+        mu = np.random.random((s, p))
+        model2 = self.Dummy(
+            [
+                opinf.operators_new.InterpolatedConstantOperator(
+                    mu, entries=np.random.random((s, r))
+                ),
+                opinf.operators_new.InterpolatedLinearOperator(
+                    mu, entries=np.random.random((s, r, r))
+                ),
+            ],
+            InterpolatorClass=interp.NearestNDInterpolator,
+        )
+
+        for model in (model1, model2):
+            model_copied = model.copy()
+            assert isinstance(model_copied, self.Dummy)
+            assert model_copied is not model
+            assert model_copied == model

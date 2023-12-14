@@ -115,7 +115,7 @@ class hdf5_loadhandle(_hdf5_filehandle):
         """Close the file if needed. Raise a LoadfileFormatError if needed."""
         try:
             _hdf5_filehandle.__exit__(self, exc_type, exc_value, exc_traceback)
-        except UserWarning as wn:
+        except errors.UsageWarning as wn:
             warnings.warn(wn.message, type(wn))
         except errors.LoadfileFormatError:
             raise
