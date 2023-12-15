@@ -22,11 +22,10 @@ from ... import operators as _operators
 class _NonparametricModel(_Model):
     """Base class for nonparametric monolithic models.
 
-    Parent class: :class:`opinf.models.monolithic._base._Model`
+    Parent class: :class:`opinf.models.mono._base._Model`
 
     Child classes:
 
-    * :class:`opinf.models.SteadyModel`
     * :class:`opinf.models.DiscreteModel`
     * :class:`opinf.models.ContinuousModel`
     """

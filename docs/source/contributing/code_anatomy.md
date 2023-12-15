@@ -34,11 +34,8 @@ For example, the operator classes {class}`opinf.operators.LinearOperator` and {c
     :nosignatures:
 
     opinf.pre._base._BaseTransformer
+    opinf.pre._base._MultivarMixin
 ```
-
-:::{admonition} TODO
-Discuss multivariable transformers / bases
-:::
 
 Transformer classes are defined in {mod}`opinf.pre`.
 All transformer classes must
@@ -88,69 +85,19 @@ Before implementing a new basis class, take a close look at {class}`opinf.basis.
 Operator classes are defined in {mod}`opinf.operators`.
 The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that define the terms of the model, for example $\Ahat$ and $\Bhat$ of $\ddt\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$.
 
-All [nonparametric operator](sec-operators-nonparametric) classes must
-
-- Inherit from {class}`opinf.operators._base._NonparametricOperator`.
-- TODO
-
-All [parametric operator](sec-operators-parametric) classes must
-
-- Inherit from {class}`opinf.operators._base._ParametricOperator`.
-
-:::{tip}
-Usually a group of new parametric operator classes can be implemented by writing an intermediate class that does all of the work, then writing child classes for constant, linear, quadratic, and cubic terms which each set `_OperatorClass` appropriately.
-For example, here is a simplified version of `_AffineOperator`:
-
-```python
-class _AffineOperator(_BaseParametricOperator):
-    """Base class for parametric operators with affine structure."""
-
-    def __init__(self, coefficient_functions, matrices=entries):
-        """Save the affine coefficient functions."""
-        self.coefficient_functions = coefficient_functions
-        if entries is not None:
-            self.entries = entries
-
-    def evaluate(self, parameter):
-        """Evaluate the affine operator at the given parameter."""
-        entries = sum(
-            [
-                theta(parameter) * A
-                for theta, A in zip(self.coefficient_functions, self.entries)
-            ]
-        )
-        return self.OperatorClass(entries)
-```
-
-Note that `evaluate()` uses `self.OperatorClass` to wrap the entries of the evaluated operator.
-Now to define constant-affine and linear-affine classes, we simply inherit from `_AffineOperator` and set the `_OperatorClass` appropriately.
-
-```python
-class AffineConstantOperator(_AffineOperator):
-    """Constant operator with affine parametric structure."""
-    _OperatorClass = ConstantOperator
-
-
-class AffineLinearOperator(_AffineOperator):
-    """Linear operator with affine parametric structure."""
-    _OperatorClass = LinearOperator
-```
-
-This strategy reduces boilerplate and testing code by isolating the heavy lifting to the intermediate class (`_AffineOperator`).
-:::
-
 (subsec-contrib-modelclass)=
 ## Model Classes
 
-To write a new ROM class, start with an intermediate base class that inherits from `_BaseROM` and implements `fit()`, `save()`, and `load()`.
-See `roms.nonparametric._base._NonparametricROM`, for example.
-Then write classes that inherit from your intermediate base class for handling steady-state, discrete-time, and continuous-time problems by implementing `predict()`.
+```{eval-rst}
+.. autosummary::
+   :toctree: _autosummaries
+   :nosignatures:
 
-:::{tip}
-Similar to parametric operators, a group of new parametric ROM classes can usually be implemented by writing an intermediate class that does most of the work, then writing child classes for the discrete and continuous settings which each set `_ModelClass` appropriately.
-<!-- For instance, the intermediate class can often implement `fit()`, `save()`, and `load()`, and `_BaseParametricROM` implements `evaluate()`, `predict()`, and `jacobian()` already.
-However, it is important to have tailored signatures and detailed docstrings for `fit()` and `predict()`, so these should be carefully defined for every public-facing class. -->
-:::
+   opinf.models.mono._base._Model
+   opinf.models.mono._nonparametric._NonparametricModel
+   opinf.models.mono._parametric._ParametricModel
+   opinf.models.mono._parametric._InterpolatedModel
+```
 
 (subsec-contrib-lstsqsolvers)=
 ## Least-squares Solvers

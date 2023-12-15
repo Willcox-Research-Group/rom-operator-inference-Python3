@@ -242,17 +242,6 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
 
     Attributes
     ----------
-    n : int
-        Total dimension of the state space.
-    ni : int
-        Dimension of individual variables, i.e., ni = n / num_variables.
-    r : int
-        Total dimension of the basis (number of basis vectors).
-    rs : list(int)
-        Dimensions for each diagonal basis block, i.e., `r[i]` is the number
-        of basis vectors in the representation for state variable `i`.
-    entries : (n, r) ndarray or scipy.sparse.csc_matrix.
-        Entries of the basis matrix.
     bases : list(LinearBasis)
         Individual bases for each state variable.
     """

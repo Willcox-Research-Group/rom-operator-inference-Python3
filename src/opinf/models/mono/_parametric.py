@@ -26,14 +26,11 @@ from ... import operators as _operators
 class _ParametricModel(_Model):
     r"""Base class for parametric monolithic models.
 
-    Parent class: :class:`opinf.mono._base._Model`
+    Parent class: :class:`opinf.models.mono._base._Model`
 
     Child classes:
 
-    * ``_InterpolatedModel``
-    * :class:`opinf.models.ParametricSteadyModel`
-    * :class:`opinf.models.ParametricDiscreteModel`
-    * :class:`opinf.models.ParametricContinuousModel`
+    * :class:`opinf.models.mono._parametric._InterpolatedModel`
     """
 
     _ModelClass = NotImplemented  # Must be specified by child classes.
@@ -63,7 +60,7 @@ class _ParametricModel(_Model):
     def ModelClass(self):
         """Nonparametric model class that represents this parametric model
         when evaluated at a particular parameter value, a subclass of
-        :class:`opinf.mono._base._Model`.
+        :class:`opinf.models.mono._base._Model`.
 
         Examples
         --------

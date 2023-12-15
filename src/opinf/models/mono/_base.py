@@ -16,8 +16,8 @@ class _Model(abc.ABC):
 
     Child classes:
 
-    * :class:`_NonparametricModel`
-    * :class:`_ParametricModel`
+    * :class:`opinf.models.mono._nonparametric._NonparametricModel`
+    * :class:`opinf.models.mono._parametric._ParametricModel`
     """
 
     def __init__(self, operators):

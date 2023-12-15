@@ -8,7 +8,7 @@
 The goal of Operator Inference is to construct a low-dimensional, computationally inexpensive system whose solutions are close to those of some high-dimensional system for which we have 1) training data and 2) some knowledge about the system structure.
 The main steps are the following.
 
-1. [**Get Training Data**](subsec-training-data). Gather and [preprocess](../guides/preprocessing.ipynb) high-dimensional data to learn a low-dimensional model from. This package has a few common preprocessing tools, but the user must bring the data to the table.
+1. [**Get Training Data**](subsec-training-data). Gather and [preprocess](../tutorials/preprocessing.ipynb) high-dimensional data to learn a low-dimensional model from. This package has a few common preprocessing tools, but the user must bring the data to the table.
 2. [**Compute a Low-dimensional Representation**](subsec-basis-computation). Represent the high-dimensional data with only a few degrees of freedom. The simplest approach is to take the SVD of the high-dimensional training data, extract the first few left singular vectors, and use these vectors as a new coordinate basis.
 3. [**Set up and Solve a Low-dimensional Regression**](subsec-opinf-regression). Use the low-dimensional representation of the training data to determine a reduced-order model that best fits the data in a minimum-residual sense. This is the core objective of the package.
 4. [**Evaluate the Reduced-order Model**](subsec-rom-evaluation). Use the learned model to make computationally efficient predictions.
@@ -51,10 +51,11 @@ $$ (eq:opinf-example-rom)
 
 We call {eq}`eq:opinf-example-rom` a _reduced-order model_ for {eq}`eq:opinf-example-fom`.
 Our goal is to infer the _reduced-order operators_ $\chat \in \RR^{r}$, $\Ahat\in\RR^{r\times r}$, $\Hhat\in\RR^{r\times r^{2}}$, and/or $\Bhat\in\RR^{r\times m}$ using data from {eq}`eq:opinf-example-fom`.
-The user specifies [which terms to include in the model](subsec-romclass-constructor).
+The user specifies which terms to include in the model.
 
 ::::{important}
 :name: projection-preserves-structure
+
 The right-hand side of {eq}`eq:opinf-example-rom` is a polynomial with respect to the state $\qhat(t)$:
 $\chat$ are the constant terms, $\Ahat\qhat(t)$ are the linear terms, $\Hhat[\qhat(t)\otimes\qhat(t)]$ are the quadratic terms, with input terms $\Bhat\u(t)$.
 The user must choose which terms to include in the reduced-order model, and this choice should be motivated by the structure of the full-order model {eq}`eq:opinf-example-fom`.
@@ -459,7 +460,7 @@ For example, we may use the reduced-order model to obtain approximate solutions 
 + new initial conditions $\q_{0}$,
 + a different input function $\u(t)$,
 + a longer time horizon than the training data,
-+ different system parameters (see [Parametric ROMs](subsec-parametric-roms)).
++ different system parameters.
 
 :::{important}
 The accuracy of any data-driven model depends on how well the training data represents the full-order system.

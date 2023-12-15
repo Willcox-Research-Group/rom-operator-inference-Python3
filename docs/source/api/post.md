@@ -54,8 +54,7 @@ The following function computes this projection error, given a basis matrix $\Vr
     projection_error
 ```
 
-This function is also available as {func}`opinf.pre.projection_error`; basis classes such as {class}`opinf.basis.PODBasis` also have a `projection_error()`
-method.
+Basis classes such as {class}`opinf.basis.PODBasis` also have a `projection_error()` method.
 
 ## Reduced-order Model Error
 

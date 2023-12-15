@@ -23,36 +23,24 @@ from ._linear import LinearBasis, LinearBasisMulti
 
 
 class PODBasis(LinearBasis):
-    """Proper othogonal decomposition basis, derived from the principal left
-    singular vectors of a collection of states, Q:
+    r"""Proper othogonal decomposition basis, derived from the principal left
+    singular vectors of a collection of states :math:`\Q`:
 
-        svd(Q) = V S W^T    -->    POD basis = V[:, :r].
+    .. math::
+       \text{svd}(\Q) = \V\Sigma\W\trp
+       \qquad\Longrightarrow\qquad
+       \text{pod}(\Q, r) = \V_{:,:r}
 
     The low-dimensional approximation is linear:
 
-        q = Vr @ q_ := sum([Vr[:, j]*q_[j] for j in range(Vr.shape[1])])
-        (full_state = basis * reduced_state).
+    .. math::
+       \q \approx \Vr\qhat = \sum_{i=1}^r \hat{q}_i \v_i
 
     Parameters
     ----------
     economize : bool
-        If True, throw away basis vectors beyond the first `r` whenever
-        the `r` attribute is changed.
-
-    Attributes
-    ----------
-    n : int
-        Dimension of the state space (size of each basis vector).
-    r : int
-        Dimension of the basis (number of basis vectors in the representation).
-    shape : tulpe
-        Dimensions (n, r).
-    entries : (n, r) ndarray
-        Entries of the basis matrix Vr.
-    svdvals : (k,) or (r,) ndarray
-        Singular values of the training data.
-    dual : (n, r) ndarray
-        Right singular vectors of the data.
+        If ``True``, throw away basis vectors beyond the first ``r`` whenever
+        the ``r`` attribute is changed.
     """
 
     def __init__(self, economize=False):
@@ -576,15 +564,23 @@ class PODBasis(LinearBasis):
 class PODBasisMulti(LinearBasisMulti):
     r"""Block-diagonal proper othogonal decomposition basis, derived from the
     principal left singular vectors of a collection of states grouped into
-    blocks:
+    blocks.
 
-             [ Q1 ]                         [ Vr1         ]
-        Q1 = [ Q2 ]     -->     POD basis = [     Vr2     ],    where
-             [ |  ]                         [          \  ]
+    .. math::
+       \Q = \left[\begin{array}{c}
+       \Q_1 \\ \vdots \\ \Q_{n_\text{vars}}
+       \end{array}\right]
+       \qquad\Longrightarrow\qquad
+       \text{pod\_multi}(\Q; r_1,\ldots,r_{n_\text{vars}})
+       = \left[\begin{array}{ccc}
+       \V_1 & & \\
+       & \ddots & \\
+       & & \V_{n_\text{vars}}
+       \end{array}\right]
 
-        svd(Qi) = Vi Si Wi^T  -->  Vri = Vi[:, :ri].
+    where :math:`\V_i = \text{pod}(\Q_i;r_i), i=1,\ldots,n_\text{vars}`.
 
-    The low-dimensional approximation is linear (see PODBasis).
+    The low-dimensional approximation is linear (see :class:`PODBasis`).
 
     Parameters
     ----------
@@ -601,24 +597,6 @@ class PODBasisMulti(LinearBasisMulti):
     variable_names : list of num_variables strings, optional
         Names for each of the `num_variables` variables.
         Defaults to "variable 1", "variable 2", ....
-
-    Attributes
-    ----------
-    n : int
-        Total dimension of the state space.
-    ni : int
-        Dimension of individual variables, i.e., ni = n / num_variables.
-    r : int
-        Total dimension of the basis (number of basis vectors).
-    rs : list(int)
-        Dimensions for each diagonal basis block, i.e., `r[i]` is the number
-        of basis vectors in the representation for state variable `i`.
-    entries : (n, r) ndarray or scipy.sparse.csc_matrix.
-        Entries of the basis matrix.
-    svdvals : (k,) or (r,) ndarray
-        Singular values of the training data.
-    dual : (n, r) ndarray
-        Right singular vectors of the data.
     """
     _BasisClass = PODBasis
 
@@ -794,15 +772,18 @@ def pod_basis(
         If None (default), compute the full SVD.
     mode : str
         Strategy to use for computing the truncated SVD of the states. Options:
+
         * "dense" (default): Use scipy.linalg.svd() to compute the SVD.
             May be inefficient for very large matrices.
         * "randomized": Compute an approximate SVD with a randomized approach
             using sklearn.utils.extmath.randomized_svd(). This gives faster
             results at the cost of some accuracy.
+
     return_W : bool
         If True, also return the first r *right* singular vectors.
     options
         Additional parameters for the SVD solver, which depends on `mode`:
+
         * "dense": scipy.linalg.svd()
         * "randomized": sklearn.utils.extmath.randomized_svd()
 
