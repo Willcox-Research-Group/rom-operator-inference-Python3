@@ -10,8 +10,8 @@ __all__ = [
 import abc
 import warnings
 import numpy as np
-from scipy.interpolate import CubicSpline
-from scipy.integrate import solve_ivp, IntegrationWarning
+import scipy.integrate as spintegrate
+import scipy.interpolate as spinterpolate
 
 from ._base import _Model
 from ... import errors, utils
@@ -511,6 +511,61 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
     _INPUT_LABEL = None
     # TODO: disallow input terms?
 
+    def fit(self, states, forcing=None, *, solver=None, regularizer=None):
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
+           \fhat(\qhat_j) - \zhat_{j}
+           \right\|_2^2
+           = \min_{\Ohat}\left\|
+           \D\Ohat\trp - [~\zhat_0~~\cdots~~\zhat_{k-1}~]\trp
+           \right\|_F^2
+
+        where :math:`\zhat = \fhat(\qhat)` is the model and
+
+        * :math:`\qhat_j\in\RR^r` is a measurement of the state,
+        * :math:`\zhat_j\in\RR^r` is a measurement of the forcing term
+          corresponding to :math:`\qhat_j`,
+        * :math:`\Ohat\in\RR^{r\times d(r,m)}` is the *operator matrix* such
+          that :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
+          :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`, and
+        * :math:`\D\in\RR^{k\times d(r,m)}` is the *data matrix* given by
+          :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
+
+        See the :mod:`opinf.operators` module for further explanation.
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
+
+        Parameters
+        ----------
+        states : (r, k) ndarray
+            Snapshot training data. Each column is a single snapshot.
+        forcing : (r, k) ndarray or None
+            Forcing training data. Each column ``forcing[:, j]``
+            corresponds to the snapshot ``states[:, j]``.
+            If ``None``, set ``forcing = 0``.
+        solver : :mod:`opinf.lstsq` object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+
+            * None: :class:`opinf.lstsq.PlainSolver`,
+              SVD-based solve without regularization
+            * **float > 0**: :class:`opinf.lstsq.L2Solver`,
+              SVD-based solve with scalar Tikhonov regularization
+
+        Returns
+        -------
+        self
+        """
+        if solver is None and regularizer is not None:
+            solver = regularizer  # pragma: no cover
+        return _NonparametricModel.fit(
+            self, states, forcing, inputs=None, solver=solver
+        )
+
     def rhs(self, state):
         r"""Evaluate the right-hand side of the model by applying each operator
         and summing the results.
@@ -548,61 +603,6 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
             State Jacobian of the right-hand side of the model.
         """
         return _NonparametricModel.jacobian(self, state, input_=None)
-
-    def fit(self, states, forcing=None, *, solver=None, regularizer=None):
-        r"""Learn the model operators from data.
-
-        The operators are inferred by solving the regression problem
-
-        .. math::
-           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
-           \fhat(\qhat_j) - \zhat_{j}
-           \right\|_2^2
-           = \min_{\Ohat}\left\|\D\Ohat\trp - \Zhat\trp\right\|_F^2
-
-        where :math:`\zhat = \fhat(\qhat)` is the model and
-
-        * :math:`\qhat_j\in\RR^r` is a measurement of the state, and
-        * :math:`\zhat_j\in\RR^r` is a measurement of the forcing term
-          corresponding to :math:`\qhat_j`.
-
-        The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r)}` is such that
-        :math:`\fhat(\q) = \Ohat\d(\qhat)` for some data vector
-        :math:`\d(\qhat)\in\RR^{d(r)}`; the *data matrix*
-        :math:`\D\in\RR^{k\times d(r)}` is given by
-        :math:`[~\d(\qhat_0)~~\cdots~~\d(\qhat_{k-1}~]\trp`.
-        Finally,
-        :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
-        See the :mod:`opinf.operators` module for more explanation.
-
-        The strategy for solving the regression, as well as any additional
-        regularization or constraints, are specified by the ``solver``.
-
-        Parameters
-        ----------
-        states : (r, k) ndarray
-            Snapshot training data. Each column is a single snapshot.
-        forcing : (r, k) ndarray or None
-            Forcing training data. Each column ``forcing[:, j]``
-            corresponds to the snapshot ``states[:, j]``.
-            If ``None``, set ``forcing = 0``.
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * None: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization
-            * **float > 0**: :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization
-
-        Returns
-        -------
-        self
-        """
-        if solver is None and regularizer is not None:
-            solver = regularizer  # pragma: no cover
-        return _NonparametricModel.fit(
-            self, states, forcing, inputs=None, solver=solver
-        )
 
     def predict(self, forcing, guess=None):
         """Solve the model with the given forcing and initial guess."""
@@ -668,6 +668,80 @@ class DiscreteModel(_NonparametricModel):
             return states, nextstates, inputs
         return states, nextstates
 
+    def fit(
+        self,
+        states,
+        nextstates=None,
+        inputs=None,
+        solver=None,
+        *,
+        regularizer=None,
+    ):
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
+           \fhat(\qhat_j, \u_j) - \zhat_{j}
+           \right\|_2^2
+           = \min_{\Ohat}\left\|
+           \D\Ohat\trp - [~\zhat_0~~\cdots~~\zhat_{k-1}~]\trp
+           \right\|_F^2
+
+        where
+        :math:`\zhat_j = \fhat(\qhat_j, \u_j)` is the model and
+
+        * :math:`\qhat_j\in\RR^r` is a measurement of the state,
+        * :math:`\u_j\in\RR^m` is a measurement of the input, and
+        * :math:`\zhat_j\in\RR^r` is a measurement of the next state iteration
+          after :math:`\qhat_j`,
+        * :math:`\Ohat\in\RR^{r\times d(r,m)}` is the *operator matrix* such
+          that :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
+          :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`, and
+        * :math:`\D\in\RR^{k\times d(r,m)}` is the *data matrix* given by
+          :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`,
+
+        See the :mod:`opinf.operators` module for further explanation.
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
+
+        Parameters
+        ----------
+        states : (r, k) ndarray
+            Snapshot training data. Each column is a single snapshot.
+        nextstates : (r, k) ndarray or None
+            Next iteration training data. Each column ``nextstates[:, j]``
+            is the iteration following ``states[:, j]``.
+            If ``None``, use ``nextstates[:, j] = states[:, j+1]``.
+        inputs : (m, k) or (k,) ndarray or None
+            Input training data. Each column ``inputs[:, j]`` corresponds
+            to the snapshot ``states[:, j]``.
+            May be a one-dimensional array if ``m=1`` (scalar input).
+        solver : lstsq Solver object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+
+            * ``None``: :class:`opinf.lstsq.PlainSolver`,
+              SVD-based solve without regularization.
+            * **float > 0**: :class:`opinf.lstsq.L2Solver`,
+              SVD-based solve with scalar Tikhonov regularization.
+
+        Returns
+        -------
+        self
+        """
+        if nextstates is None:
+            nextstates = states[:, 1:]
+            states = states[:, :-1]
+        if inputs is not None:
+            inputs = inputs[..., : states.shape[1]]
+        if solver is None and regularizer is not None:
+            solver = regularizer  # pragma: no cover
+        return _NonparametricModel.fit(
+            self, states, nextstates, inputs=inputs, solver=solver
+        )
+
     def rhs(self, state, input_=None):
         r"""Evaluate the right-hand side of the model by applying each operator
         and summing the results.
@@ -711,80 +785,6 @@ class DiscreteModel(_NonparametricModel):
             State Jacobian of the right-hand side of the model.
         """
         return _NonparametricModel.jacobian(self, state, input_)
-
-    def fit(
-        self,
-        states,
-        nextstates=None,
-        inputs=None,
-        solver=None,
-        *,
-        regularizer=None,
-    ):
-        r"""Learn the model operators from data.
-
-        The operators are inferred by solving the regression problem
-
-        .. math::
-           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
-           \fhat(\qhat_j, \u_j) - \zhat_{j}
-           \right\|_2^2
-           = \min_{\Ohat}\left\|\D\Ohat\trp - \Zhat\trp\right\|_F^2
-
-        where
-        :math:`\zhat_j = \fhat(\qhat_j, \u_j)` is the model and
-
-        * :math:`\qhat_j\in\RR^r` is a measurement of the state,
-        * :math:`\u_j\in\RR^m` is a measurement of the input, and
-        * :math:`\zhat_j\in\RR^r` is a measurement of the next state iteration
-          after :math:`\qhat_j`.
-
-        The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r,m)}` is such that
-        :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
-        :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`; the *data matrix*
-        :math:`\D\in\RR^{k\times d(r,m)}` is given by
-        :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
-        Finally,
-        :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
-        See the :mod:`opinf.operators` module for more explanation.
-
-        The strategy for solving the regression, as well as any additional
-        regularization or constraints, are specified by the ``solver``.
-
-        Parameters
-        ----------
-        states : (r, k) ndarray
-            Snapshot training data. Each column is a single snapshot.
-        nextstates : (r, k) ndarray or None
-            Next iteration training data. Each column ``nextstates[:, j]``
-            is the iteration following ``states[:, j]``.
-            If ``None``, set ``nextstates[:, j] = states[:, j+1]``.
-        inputs : (m, k) or (k,) ndarray or None
-            Input training data. Each column ``inputs[:, j]`` corresponds
-            to the snapshot ``states[:, j]``.
-            May be a one-dimensional array if ``m=1`` (scalar input).
-        solver : lstsq Solver object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization.
-            * **float > 0**: :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization.
-
-        Returns
-        -------
-        self
-        """
-        if nextstates is None and states is not None:
-            nextstates = states[:, 1:]
-            states = states[:, :-1]
-        if inputs is not None:
-            inputs = inputs[..., : states.shape[1]]
-        if solver is None and regularizer is not None:
-            solver = regularizer  # pragma: no cover
-        return _NonparametricModel.fit(
-            self, states, nextstates, inputs=inputs, solver=solver
-        )
 
     def predict(self, state0, niters, inputs=None):
         """Step forward the discrete dynamical system
@@ -878,6 +878,67 @@ class ContinuousModel(_NonparametricModel):
     _STATE_LABEL = "q(t)"
     _INPUT_LABEL = "u(t)"
 
+    def fit(self, states, ddts, inputs=None, solver=None, *, regularizer=None):
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
+           \fhat(\qhat_j, \u_j) - \dot{\qhat}_j
+           \right\|_2^2
+           = \min_{\Ohat}\left\|
+           \D\Ohat\trp - [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\trp
+           \right\|_F^2
+
+        where
+        :math:`\ddt\qhat(t) = \fhat(\qhat(t), \u(t))` is the model and
+
+        * :math:`\qhat_j\in\RR^r` is the state at some time :math:`t_j`,
+        * :math:`\u_j\in\RR^m` is the input at time :math:`t_j`,
+        * :math:`\dot{\qhat}_j\in\RR^r` is the time derivative of the state
+          at time :math:`t_j`, i.e.,
+          :math:`\dot{\qhat}_j = \ddt\qhat(t)\big|_{t=t_j}`,
+        * :math:`\Ohat\in\RR^{r\times d(r,m)}` is the *operator matrix* such
+          that :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
+          :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`, and
+        * :math:`\D\in\RR^{k\times d(r,m)}` is the *data matrix* given by
+          :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
+
+        See the :mod:`opinf.operators` module for further explanation.
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
+
+        Parameters
+        ----------
+        states : (r, k) ndarray
+            Snapshot training data. Each column is a single snapshot.
+        ddts : (r, k) ndarray
+            Snapshot time derivative data. Each column
+            ``ddts[:, j]`` corresponds to the snapshot ``states[:, j]``.
+        inputs : (m, k) or (k,) ndarray or None
+            Input training data. Each column ``inputs[:, j]`` corresponds
+            to the snapshot ``states[:, j]``.
+            May be a one-dimensional array if ``m=1`` (scalar input).
+        solver : :mod:`opinf.lstsq` object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+
+            * ``None``: :class:`opinf.lstsq.PlainSolver`,
+              SVD-based solve without regularization.
+            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
+              SVD-based solve with scalar Tikhonov regularization.
+
+        Returns
+        -------
+        self
+        """
+        if solver is None and regularizer is not None:
+            solver = regularizer  # pragma: no cover
+        return _NonparametricModel.fit(
+            self, states, ddts, inputs=inputs, solver=solver
+        )
+
     def rhs(self, t, state, input_func=None):
         r"""Evaluate the right-hand side of the model by applying each operator
         and summing the results.
@@ -929,67 +990,6 @@ class ContinuousModel(_NonparametricModel):
         """
         input_ = None if not self._has_inputs else input_func(t)
         return _NonparametricModel.jacobian(self, state, input_)
-
-    def fit(self, states, ddts, inputs=None, solver=None, *, regularizer=None):
-        r"""Learn the model operators from data.
-
-        The operators are inferred by solving the regression problem
-
-        .. math::
-           \min_{\Ohat}\sum_{j=0}^{k-1}\left\|
-           \fhat(\qhat_j, \u_j) - \dot{\qhat}_j
-           \right\|_2^2
-           = \min_{\Ohat}\left\|\D\Ohat\trp - \dot{\Qhat}\trp\right\|_F^2
-
-        where
-        :math:`\ddt\qhat(t) = \fhat(\qhat(t), \u(t))` is the model and
-
-        * :math:`\qhat_j\in\RR^r` is the state at some time :math:`t_j`,
-        * :math:`\u_j\in\RR^m` is the input at time :math:`t_j`, and
-        * :math:`\dot{\qhat}_j\in\RR^r` is the time derivative of the state
-          at time :math:`t_j`, i.e.,
-          :math:`\dot{\qhat}_j = \ddt\qhat(t)\big|_{t=t_j}`.
-
-        The *operator matrix* :math:`\Ohat\in\RR^{r\times d(r,m)}` is such that
-        :math:`\fhat(\q,\u) = \Ohat\d(\qhat,\u)` for some data vector
-        :math:`\d(\qhat,\u)\in\RR^{d(r,m)}`; the *data matrix*
-        :math:`\D\in\RR^{k\times d(r,m)}` is given by
-        :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
-        Finally, :math:`\dot{\Qhat}
-        = [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\in\RR^{r\times k}`.
-        See the :mod:`opinf.operators` module for more explanation.
-
-        The strategy for solving the regression, as well as any additional
-        regularization or constraints, are specified by the ``solver``.
-
-        Parameters
-        ----------
-        states : (r, k) ndarray
-            Snapshot training data. Each column is a single snapshot.
-        ddts : (r, k) ndarray
-            Snapshot time derivative data. Each column
-            ``ddts[:, j]`` corresponds to the snapshot ``states[:, j]``.
-        inputs : (m, k) or (k,) ndarray or None
-            Input training data. Each column ``inputs[:, j]`` corresponds
-            to the snapshot ``states[:, j]``.
-            May be a one-dimensional array if ``m=1`` (scalar input).
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization.
-            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization.
-
-        Returns
-        -------
-        self
-        """
-        if solver is None and regularizer is not None:
-            solver = regularizer  # pragma: no cover
-        return _NonparametricModel.fit(
-            self, states, ddts, inputs=inputs, solver=solver
-        )
 
     def predict(self, state0, t, input_func=None, **options):
         """Solve the system of ordinary differential equations.
@@ -1058,7 +1058,7 @@ class ContinuousModel(_NonparametricModel):
                         f"input_func.shape = {U.shape} "
                         f"!= {(self.input_dimension, nt)} = (m, len(t))"
                     )
-                input_func = CubicSpline(t, U, axis=1)
+                input_func = spinterpolate.CubicSpline(t, U, axis=1)
 
             # Check dimension of input_func() outputs.
             _tmp = input_func(t[0])
@@ -1084,7 +1084,7 @@ class ContinuousModel(_NonparametricModel):
             options["jac"] = self.jacobian
 
         # Integrate the model.
-        out = solve_ivp(
+        out = spintegrate.solve_ivp(
             self.rhs,  # Integrate this function
             [t[0], t[-1]],  # over this time interval
             state0,  # from this initial condition
@@ -1095,7 +1095,7 @@ class ContinuousModel(_NonparametricModel):
 
         # Warn if the integration failed.
         if not out.success:  # pragma: no cover
-            warnings.warn(out.message, IntegrationWarning)
+            warnings.warn(out.message, spintegrate.IntegrationWarning)
 
         # Return state results.
         self.predict_result_ = out

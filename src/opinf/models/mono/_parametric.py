@@ -2,19 +2,19 @@
 """Parametric monolithic dynamical systems models."""
 
 __all__ = [
-    "ParametricSteadyModel",
-    "ParametricDiscreteModel",
-    "ParametricContinuousModel",
+    # "ParametricDiscreteModel",
+    # "ParametricContinuousModel",
+    "InterpolatedDiscreteModel",
+    "InterpolatedContinuousModel",
 ]
 
 import copy
 import warnings
 import numpy as np
-import scipy.interpolate as spinterp
+import scipy.interpolate as spinterpolate
 
 from ._base import _Model
 from ._nonparametric import (
-    _FrozenSteadyModel,
     _FrozenDiscreteModel,
     _FrozenContinuousModel,
 )
@@ -22,7 +22,7 @@ from ... import errors, utils
 from ... import operators as _operators
 
 
-# Base class ==================================================================
+# Base classes ================================================================
 class _ParametricModel(_Model):
     r"""Base class for parametric monolithic models.
 
@@ -380,10 +380,14 @@ class _ParametricModel(_Model):
             Snapshot training data. Each array ``states[i]`` is the data
             corresponding to parameter value ``parameters[i]``; each column
             ``states[i][:, j]`` is a single snapshot.
-        ddts : list of s (r, k) ndarrays
-            Snapshot time derivative data. Each array ``ddts[i]`` is the data
+        lhs : list of s (r, k) ndarrays
+            Left-hand side training data. Each array ``lhs[i]`` is the data
             corresponding to parameter value ``parameters[i]``; each column
-            ``ddts[i][:, j]`` corresponds to the snapshot ``states[i, :, j]``.
+            ``lhs[i][:, j]`` corresponds to the snapshot ``states[i][:, j]``.
+            The interpretation of this argument depends on the setting:
+            forcing data for steady-state problems, next iteration for
+            discrete-time problems, and time derivatives of the state for
+            continuous-time problems.
         inputs : list of s (m, k) or (k,) ndarrays, or None
             Input training data. Each array ``inputs[i]`` is the data
             corresponding to parameter value ``parameters[i]``; each column
@@ -406,7 +410,7 @@ class _ParametricModel(_Model):
 
     # Parametric evaluation ---------------------------------------------------
     def evaluate(self, parameter):
-        """Construct the nonparametric model for the given parameter value.
+        """Construct a nonparametric model by fixing the parameter value.
 
         Parameters
         ----------
@@ -422,19 +426,215 @@ class _ParametricModel(_Model):
             [op.evaluate(parameter) for op in self.operators]
         )
 
+    def rhs(self, parameter, *args, **kwargs):
+        r"""Evaluate the right-hand side of the model by applying each operator
+        and summing the results.
+
+        This is the function :math:`\Ophat(\qhat, \u; \bfmu)`
+        where the model can be written as one of the following:
+
+        * :math:`\ddt\qhat(t; \bfmu) = \Ophat(\qhat(t; \bfmu), \u(t); \bfmu)`
+          (continuous time)
+        * :math:`\qhat_{j+1}(\bfmu) = \Ophat(\qhat_j(\bfmu), \u_j; \bfmu)`
+          (discrete time)
+        * :math:`\hat{\mathbf{g}} = \Ophat(\qhat(\bmfu), \u; \bfmu)`
+          (steady state)
+
+        Parameters
+        ----------
+        parameter : (p,) ndarray
+            Parameter value :math:`\bfmu`.
+        args
+            Positional arguments to ``ModelClass.rhs()``.
+        kwargs
+            Keyword arguments to ``ModelClass.rhs()``.
+
+        Returns
+        -------
+        evaluation : (r,) ndarray
+            Evaluation of the right-hand side of the model.
+
+        Notes
+        -----
+        For repeated ``rhs()`` calls with the same parameter value, use
+        :meth:`evaluate` to first get the nonparametric model corresponding
+        to the parameter value.
+        """
+        return self.evaluate(parameter).rhs(*args, **kwargs)
+
+    def jacobian(self, parameter, *args, **kwargs):
+        r"""Construct and sum the state Jacobian of each model operator.
+
+        This the derivative of the right-hand side of the model with respect
+        to the state, i.e., the function
+        :math:`\ddqhat\Ophat(\qhat, \u; \bmfu)`
+        where the model can be written as one of the following:
+
+        * :math:`\ddt\qhat(t; \bfmu) = \Ophat(\qhat(t; \bfmu), \u(t); \bfmu)`
+          (continuous time)
+        * :math:`\qhat(\bfmu)_{j+1} = \Ophat(\qhat(\bfmu)_{j}, \u_{j}; \bfmu)`
+          (discrete time)
+        * :math:`\hat{\mathbf{g}} = \Ophat(\qhat(\bfmu), \u; \bfmu)`
+          (steady state)
+
+        Parameters
+        ----------
+        parameter : (p,) ndarray
+            Parameter value :math:`\bfmu`.
+        args
+            Positional arguments to ``ModelClass.jacobian()``.
+        kwargs
+            Keyword arguments to ``ModelClass.jacobian()``.
+
+        Returns
+        -------
+        jac : (r, r) ndarray
+            State Jacobian of the right-hand side of the model.
+
+        Notes
+        -----
+        For repeated ``jacobian()`` calls with the same parameter value, use
+        :meth:`evaluate` to first get the nonparametric model corresponding
+        to the parameter value.
+        """
+        return self.evaluate(parameter).jacobian(*args, **kwargs)
+
+    def predict(self, parameter, *args, **kwargs):
+        r"""Solve the model at the given parameter value.
+
+        Parameters
+        ----------
+        parameter : (p,) ndarray
+            Parameter value :math:`\bfmu`.
+        args
+            Positional arguments to ``ModelClass.predict()``.
+        kwargs
+            Keyword arguments to ``ModelClass.predict()``.
+
+        Notes
+        -----
+        For repeated ``predict()`` calls with the same parameter value, use
+        :meth:`evaluate` to first get the nonparametric model corresponding
+        to the parameter value.
+        """
+        return self.evaluate(parameter).predict(*args, **kwargs)
+
+
+class _ParametricDiscreteMixin:
+    """Mixin class for parametric models of discrete dynamical system."""
+
+    _ModelClass = _FrozenDiscreteModel
+
+    def fit(
+        self,
+        parameters,
+        states,
+        nextstates=None,
+        inputs=None,
+        solver=None,
+        *,
+        regularizer: float = None,
+    ):
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
+           \sum_{i=1}^{s}\sum_{j=0}^{k_{i}-1}\left\|
+           \Ophat(\qhat_{i,j}, \u_{i,j}; \bfmu_i) - \zhat_{i,j}
+           \right\|_2^2
+           = \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
+           \sum_{i=1}^{s}\left\|
+           \D^{(i)}(\Ohat^{(i)})\trp
+           - [~\zhat_{i,0}~~\cdots~~\zhat_{i,k_{i}-1}~]\trp
+           \right\|_F^2
+
+        where
+        :math:`\zhat(\bfmu)_{j} = \Ophat(\qhat(\bfmu)_{j}, \u_{j}; \bfmu)
+        = \Ohat(\bfmu)\d(\qhat(\bfmu)_{j}, \u_{j})` is the model and
+
+        * :math:`\qhat_{i,j}\in\RR^r` is the :math:`j`-th measurement of the
+          state corresponding to training parameter value :math:`\bfmu_i`,
+        * :math:`\u_{i,j}\in\RR^m` is the :math:`j`-th measurement of the
+          input corresponding to training parameter value :math:`\bfmu_i`,
+        * :math:`\dot{qhat}_{i,j}\in\RR^r` is a measurement of the time
+          derivative of the state corresponding to the state-input pair
+          :math:`(\qhat_{i,j},\u_{i,j})`,
+        * :math:`\Ohat^{(i)} = \Ohat(\bfmu)` is the operator matrix
+          evaluated at training parameter value :math:`\bfmu_i`, and
+        * :math:`\D^{(i)}` is the data matrix for data corresponding to
+          training parameter value :math:`\bfmu_i`, given by
+          :math:`[~\d(\qhat_{i,0},\u_{i,0})~~\cdots~~
+          \d(\qhat_{i,k_i-1},\u_{i,k_i-1})~]\trp`.
+
+        Because all operators in this model are interpolatory, the
+        least-squares problem decouples into :math:`s` individual regressions.
+        That is, for :math:`i = 1, \ldots, s`, we solve (independently) the
+        regressions
+
+        .. math::
+           \min_{\Ohat^{(i)}}\left\|
+           \D^{(i)}(\Ohat^{(i)})\trp
+           - [~\zhat_{i,0}~~\cdots~~\zhat_{i,k_{i}-1}~]\trp
+           \right\|_F^2
+
+        and define the full operator matrix via elementwise interpolation,
+
+        .. math::
+           \Ohat(\bfmu) = \textrm{interpolate}(
+           (\bfmu_1, \Ohat^{(i)}), \ldots, (\bfmu_s, \Ohat^{(s)}); \bfmu).
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
+
+        Parameters
+        ----------
+        parameters : list of s scalars or (p,) 1D ndarrays
+            Parameter values for which the operator entries are known
+            or will be inferred from data.
+        states : list of s (r, k_i) ndarrays
+            Snapshot training data. Each array ``states[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``states[i][:, j]`` is a single snapshot.
+        nextstates : list of s (r, k_i) ndarrays
+            Next iteration training data. Each array ``nextstates[i]`` is the
+            data corresponding to parameter value ``parameters[i]``; each
+            column ``nextstates[i][:, j]`` is the iteration following
+            ``states[i][:, j]``.
+        inputs : list of s (m, k_i) or (k_i,) ndarrays, or None
+            Input training data. Each array ``inputs[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
+            May be a two-dimensional array if `m=1` (scalar input).
+        solver : :mod:`opinf.lstsq` object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+
+            * ``None``: :class:`opinf.lstsq.PlainSolver`,
+              SVD-based solve without regularization.
+            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
+              SVD-based solve with scalar Tikhonov regularization.
+
+        Returns
+        -------
+        self
+        """
+        if nextstates is None:
+            nextstates = [Q[:, 1:] for Q in states]
+            states = [Q[:, :-1] for Q in states]
+        if inputs is not None:
+            inputs = [U[..., : Q.shape[1]] for U, Q in zip(inputs, states)]
+        if solver is None and regularizer is not None:
+            solver = regularizer  # pragma: no cover
+        return super().fit(parameters, states, nextstates, inputs, solver)
+
     def rhs(self, parameter, state, input_=None):
         r"""Evaluate the right-hand side of the model by applying each operator
         and summing the results.
 
-        This is the function :math:`\widehat{\mathbf{F}}(\qhat, \u)`
-        where the model can be written as one of the following:
-
-        * :math:`\ddt\qhat(t; \bfmu) = \Ophat(\qhat(t), \u(t); \bfmu)`
-          (continuous time)
-        * :math:`\qhat_{j+1}(\bfmu) = \Ophat(\qhat_j, \u_j; \bfmu)`
-          (discrete time)
-        * :math:`\widehat{\mathbf{g}}(\bfmu) = \Ophat(\qhat, \u; \bfmu)`
-          (steady state)
+        This is the function :math:`\fhat(\qhat, \u; \bfmu)`
+        where the model is given by
+        :math:`\qhat(\bfmu)_{j+1} = \fhat(\qhat(\bfmu)_{j}, \u_{j}; \bfmu)`.
 
         Parameters
         ----------
@@ -447,7 +647,7 @@ class _ParametricModel(_Model):
 
         Returns
         -------
-        evaluation : (r,) ndarray
+        nextstate : (r,) ndarray
             Evaluation of the right-hand side of the model.
 
         Notes
@@ -461,21 +661,18 @@ class _ParametricModel(_Model):
            ...           for q in list_of_states]
            # ...it is faster to do this.
            >>> model_at_parameter = parametric_model.evaluate(parameter)
-           >>> values = [model_at_parameter.rhs(q, input_)
+           >>> values = [model_at_parameter.rhs(parameter, q, input_)
            ...           for q in list_of_states]
         """
-        return self.evaluate(parameter).rhs(state, input_)
+        return super().rhs(parameter, state, input_)
 
     def jacobian(self, parameter, state, input_=None):
-        r"""Construct and sum the state Jacobian of each model operator.
+        r"""Sum the state Jacobian of each model operator.
 
         This the derivative of the right-hand side of the model with respect
-        to the state, i.e., the function :math:`\ddqhat\Ophat(\qhat, \u)`
-        where the model can be written as one of the following:
-
-        * :math:`\ddt\qhat(t) = \Ophat(\qhat(t), \u(t))` (continuous time)
-        * :math:`\qhat_{j+1} = \Ophat(\qhat_{j}, \u_{j})` (discrete time)
-        * :math:`\widehat{\mathbf{g}} = \Ophat(\qhat, \u)` (steady state)
+        to the state, i.e., the function :math:`\ddqhat\fhat(\qhat, \u; \bfmu)`
+        where the model is given by
+        :math:`\qhat(\bfmu)_{j+1} = \fhat(\qhat(\bfmu)_{j}, \u_{j}; \bfmu)`.
 
         Parameters
         ----------
@@ -493,43 +690,343 @@ class _ParametricModel(_Model):
 
         Notes
         -----
+        For repeated ``jacobian()`` calls with the same parameter value, use
+        :meth:`evaluate` to first get the nonparametric model corresponding
+        to the parameter value.
+
+           # Instead of this...
+           >>> jacs = [parametric_model.jacobian(parameter, q, input_)
+           ...         for q in list_of_states]
+           # ...it is faster to do this.
+           >>> model_at_parameter = parametric_model.evaluate(parameter)
+           >>> jacs = [model_at_parameter.jacobian(q, input_)
+           ...         for q in list_of_states]
+        """
+        return super().jacobian(parameter, state, input_)
+
+    def predict(self, parameter, state0, niters, inputs=None):
+        r"""Step forward the discrete dynamical system
+        ``niters`` steps. Essentially, this amounts to the following.
+
+        .. code-block:: python
+
+           >>> states[:, 0] = state0
+           >>> states[:, 1] = model.rhs(parameter, states[:, 0], inputs[:, 0])
+           >>> states[:, 2] = model.rhs(parameter, states[:, 1], inputs[:, 1])
+           ...                                     # Repeat `niters` times.
+
+        Parameters
+        ----------
+        parameter : (p,) ndarray
+            Parameter value :math:`\bfmu`.
+        state0 : (r,) ndarray
+            Initial state.
+        niters : int
+            Number of times to step the system forward.
+        inputs : (m, niters-1) ndarray or None
+            Inputs for the next ``niters - 1`` time steps.
+
+        Returns
+        -------
+        states : (r, niters) ndarray
+            Solution to the system, including the initial condition ``state0``.
+
+        Notes
+        -----
+        For repeated ``predict()`` calls with the same parameter value, use
+        :meth:`evaluate` to first get the nonparametric model corresponding
+        to the parameter value.
+        """
+        return super().predict(parameter, state0, niters, inputs=inputs)
+
+
+class _ParametricContinuousMixin:
+    """Mixin class for parametric models of system of ODEs."""
+
+    _ModelClass = _FrozenContinuousModel
+
+    def fit(
+        self,
+        parameters,
+        states,
+        ddts,
+        inputs=None,
+        solver=None,
+        *,
+        regularizer: float = None,
+    ):
+        r"""Learn the model operators from data.
+
+        The operators are inferred by solving the regression problem
+
+        .. math::
+           \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
+           \sum_{i=1}^{s}\sum_{j=0}^{k_{i}-1}\left\|
+           \Ophat(\qhat_{i,j}, \u_{i,j}; \bfmu_i) - \dot{\qhat}_{i,j}
+           \right\|_2^2
+           = \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
+           \sum_{i=1}^{s}\left\|
+           \D^{(i)}(\Ohat^{(i)})\trp
+           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
+           \right\|_F^2
+
+        where
+        :math:`\ddt\qhat(t; \bfmu) = \Ophat(\qhat(t; \bfmu), \u(t); \bfmu)
+        = \Ohat(\bfmu)\d(\qhat(t; \bfmu), \u(t))` is the model and
+
+        * :math:`\qhat_{i,j}\in\RR^r` is the :math:`j`-th measurement of the
+          state corresponding to training parameter value :math:`\bfmu_i`,
+        * :math:`\u_{i,j}\in\RR^m` is the :math:`j`-th measurement of the
+          input corresponding to training parameter value :math:`\bfmu_i`,
+        * :math:`\dot{qhat}_{i,j}\in\RR^r` is a measurement of the time
+          derivative of the state :math:`\qhat_{i,j}`, i.e.,
+          :math:`\dot{\qhat}_{i,j} = \ddt\qhat(t; \bfmu_i)\big|_{t=t_{i,j}}`
+          where `\qhat_{i,j} = \qhat(t_{i,j};\bfmu_i)`,
+        * :math:`\Ohat^{(i)} = \Ohat(\bfmu_i)` is the operator matrix
+          evaluated at training parameter value :math:`\bfmu_i`, and
+        * :math:`\D^{(i)}` is the data matrix for data corresponding to
+          training parameter value :math:`\bfmu_i`, given by
+          :math:`[~\d(\qhat_{i,0},\u_{i,0})~~\cdots~~
+          \d(\qhat_{i,k_i-1},\u_{i,k_i-1})~]\trp`.
+
+        Because all operators in this model are interpolatory, the
+        least-squares problem decouples into :math:`s` individual regressions.
+        That is, for :math:`i = 1, \ldots, s`, we solve (independently) the
+        regressions
+
+        .. math::
+           \min_{\Ohat^{(i)}}\left\|
+           \D^{(i)}(\Ohat^{(i)})\trp
+           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
+           \right\|_F^2
+
+        and define the full operator matrix via elementwise interpolation,
+
+        .. math::
+           \Ohat(\bfmu) = \textrm{interpolate}(
+           (\bfmu_1, \Ohat^{(i)}), \ldots, (\bfmu_s, \Ohat^{(s)}); \bfmu).
+
+        The strategy for solving the regression, as well as any additional
+        regularization or constraints, are specified by the ``solver``.
+
+        Parameters
+        ----------
+        parameters : list of s scalars or (p,) 1D ndarrays
+            Parameter values for which the operator entries are known
+            or will be inferred from data.
+        states : list of s (r, k_i) ndarrays
+            Snapshot training data. Each array ``states[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``states[i][:, j]`` is a single snapshot.
+        ddts : list of s (r, k_i) ndarrays
+            Snapshot time derivative data. Each array ``ddts[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``ddts[i][:, j]`` corresponds to the snapshot ``states[i][:, j]``.
+        inputs : list of s (m, k_i) or (k_i,) ndarrays, or None
+            Input training data. Each array ``inputs[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``inputs[i][:, j]`` corresponds to the snapshot
+            ``states[i][:, j]``.
+            May be a two-dimensional array if `m=1` (scalar input).
+        solver : :mod:`opinf.lstsq` object or float > 0 or None
+            Solver for the least-squares regression. Defaults:
+
+            * ``None``: :class:`opinf.lstsq.PlainSolver`,
+              SVD-based solve without regularization.
+            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
+              SVD-based solve with scalar Tikhonov regularization.
+
+        Returns
+        -------
+        self
+        """
+        if solver is None and regularizer is not None:
+            solver = regularizer  # pragma: no cover
+        return super().fit(
+            parameters=parameters,
+            states=states,
+            lhs=ddts,
+            inputs=inputs,
+            solver=solver,
+        )
+
+    def rhs(self, t, parameter, state, input_func=None):
+        r"""Evaluate the right-hand side of the model by applying each operator
+        and summing the results.
+
+        This is the right-hand side of the model, i.e., the function
+        :math:`\fhat(\qhat(t), \u(t); \bfmu)` where the model is given by
+        :math:`\ddt \qhat(t; \bfmu) = \fhat(\qhat(t), \u(t); \bfmu)`.
+
+        Parameters
+        ----------
+        t : float
+            Time :math:`t`, a scalar.
+        parameter : (p,) ndarray
+            Parameter value :math:`\bfmu`.
+        state : (r,) ndarray
+            State vector :math:`\qhat(t)` corresponding to time ``t``.
+        input_func : callable(float) -> (m,), or None
+            Input function that maps time ``t`` to the input vector
+            :math:`\u(t)`.
+
+        Returns
+        -------
+        dqdt : (r,) ndarray
+            Evaluation of the right-hand side of the model.
+
+        Notes
+        -----
         For repeated ``rhs()`` calls with the same parameter value, use
         :meth:`evaluate` to first get the nonparametric model corresponding
         to the parameter value.
 
            # Instead of this...
-           >>> values = [parametric_model.rhs(parameter, q, input_)
-           ...           for q in list_of_states]
+           >>> values = [parametric_model.rhs(t, parameter, q, input_func)
+           ...           for t, q in zip(times, states)]
            # ...it is faster to do this.
            >>> model_at_parameter = parametric_model.evaluate(parameter)
-           >>> values = [model_at_parameter.rhs(q, input_)
-           ...           for q in list_of_states]
-
+           >>> values = [model_at_parameter.rhs(t, parameter, q, input_func)
+           ...           for t, q in zip(times, states)]
         """
-        return self.evaluate(parameter).jacobian(state, input_)
+        return super().rhs(parameter, t, state, input_func)
 
-    def predict(self, parameter, *args, **kwargs):
-        """Solve the model at the given parameter value."""
-        return self.evaluate(parameter).predict(*args, **kwargs)
+    def jacobian(self, t, parameter, state, input_func=None):
+        r"""Sum the state Jacobian of each model operator.
+
+        This the derivative of the right-hand side of the model with respect
+        to the state, i.e., the function
+        :math:`\ddqhat\fhat(\qhat(t), \u(t); \bfmu)` where the model is given
+        by :math:`\ddt\qhat(t; \bfmu) = \fhat(\qhat(t), \u(t); \bfmu)`.
+
+        Parameters
+        ----------
+        t : float
+            Time :math:`t`, a scalar.
+        parameter : (p,) ndarray
+            Parameter value :math:`\bfmu`.
+        state : (r,) ndarray
+            State vector :math:`\qhat(t)` corresponding to time ``t``.
+        input_func : callable(float) -> (m,), or None
+            Input function that maps time ``t`` to the input vector
+            :math:`\u(t)`.
+
+        Returns
+        -------
+        jac : (r, r) ndarray
+            State Jacobian of the right-hand side of the model.
+
+        Notes
+        -----
+        For repeated ``jacobian()`` calls with the same parameter value, use
+        :meth:`evaluate` to first get the nonparametric model corresponding
+        to the parameter value.
+
+           # Instead of this...
+           >>> jacs = [parametric_model.jacobian(t, parameter, q, input_func)
+           ...         for t, q in zip(times, states)]
+           # ...it is faster to do this.
+           >>> model_at_parameter = parametric_model.evaluate(parameter)
+           >>> jacs = [model_at_parameter.jacobian(t, parameter, q, input_func)
+           ...         for t, q in zip(times, states)]
+        """
+        return super().jacobian(parameter, t, state, input_func)
+
+    def predict(self, parameter, state0, t, input_func=None, **options):
+        r"""Solve the system of ordinary differential equations.
+        This method wraps ``scipy.integrate.solve_ivp()``.
+
+        Parameters
+        ----------
+        parameter : (p,) ndarray
+            Parameter value :math:`\bfmu`.
+        state0 : (r,) ndarray
+            Initial state vector.
+        t : (nt,) ndarray
+            Time domain over which to integrate the model.
+        input_func : callable or (m, nt) ndarray
+            Input as a function of time (preferred) or the input values at the
+            times ``t``. If given as an array, cubic spline interpolation on
+            the known data points is used as needed.
+        options
+            Arguments for ``scipy.integrate.solve_ivp()``,
+            See https://docs.scipy.org/doc/scipy/reference/integrate.html.
+            Common options:
+
+            * **method : str** ODE solver for the model.
+
+              * ``'RK45'`` (default): Explicit Runge--Kutta method
+                of order 5(4).
+              * ``'RK23'``: Explicit Runge--Kutta method
+                of order 3(2).
+              * ``'Radau'``: Implicit Runge--Kutta method
+                of the Radau IIA family of order 5.
+              * ``'BDF'``: Implicit multi-step variable-order (1 to 5) method
+                based on a backward differentiation formula for the derivative.
+              * ``'LSODA'``: Adams/BDF method with automatic stiffness
+                detection and switching.
+
+            * **max_step : float** Maximimum allowed integration step size.
+
+        Returns
+        -------
+        states : (r, nt) ndarray
+            Computed solution to the system over the time domain ``t``.
+
+        Notes
+        -----
+        For repeated ``predict()`` calls with the same parameter value, use
+        :meth:`evaluate` to first get the nonparametric model corresponding
+        to the parameter value.
+        """
+        return super().predict(
+            parameter, state0, t, input_func=input_func, **options
+        )
 
 
 # Public classes ==============================================================
-class ParametricSteadyModel(_ParametricModel):
-    """Parametric steady models."""
+class ParametricDiscreteModel(_ParametricDiscreteMixin, _ParametricModel):
+    r"""Parametric discrete dynamical system model
+    :math:`\qhat(\bfmu)_{j+1} = \Ophat(\qhat(\bfmu)_{j}, \u_{j}; \bfmu)`.
 
-    _ModelClass = _FrozenSteadyModel
+    Here,
+
+    * :math:`\qhat(\bfmu)_j\in\RR^{r}` is the :math:`j`-th iteration
+      of the model state,
+    * :math:`\u_j\in\RR^{m}` is the (optional) corresponding input, and
+    * :math:`\bfmu\in\RR^{p}\in\RR^{p}` is the parameter vector.
 
 
-class ParametricDiscreteModel(_ParametricModel):
-    """Parametric time-discrete models."""
+    The structure of :math:`\Ophat` is specified through the
+    ``operators`` attribute.
 
-    _ModelClass = _FrozenDiscreteModel
+    Parameters
+    ----------
+    operators : list of :mod:`opinf.operators` objects
+        Operators comprising the terms of the model.
+    """
+    pass
 
 
-class ParametricContinuousModel(_ParametricModel):
-    """Parametric continuous models."""
+class ParametricContinuousModel(_ParametricContinuousMixin, _ParametricModel):
+    r"""Parametric system of ordinary differential equations
+    :math:`\ddt\qhat(t; \bfmu) = \fhat(\qhat(t; \bfmu), \u(t); \bfmu)`.
 
-    _ModelClass = _FrozenContinuousModel
+    Here,
+
+    * :math:`\qhat(t;\bfmu)\in\RR^{r}` is the model state,
+    * :math:`\u(t)\in\RR^{m}` is the (optional) input, and
+    * :math:`\bfmu\in\RR^{p}\in\RR^{p}` is the parameter vector.
+
+    The structure of :math:`\fhat` is specified through the
+    ``operators`` argument.
+
+    Parameters
+    ----------
+    operators : list of :mod:`opinf.operators` objects
+        Operators comprising the terms of the model.
+    """
+    pass
 
 
 # Special case: fully interpolation-based models ==============================
@@ -768,7 +1265,7 @@ class _InterpolatedModel(_ParametricModel):
             )
             meta.attrs["InterpolatorClass"] = InterpolatorClassName
             if InterpolatorClassName != "NoneType" and not hasattr(
-                spinterp, InterpolatorClassName
+                spinterpolate, InterpolatorClassName
             ):
                 warnings.warn(
                     "cannot serialize InterpolatorClass "
@@ -824,8 +1321,8 @@ class _InterpolatedModel(_ParametricModel):
             SavedClassName = hf["meta"].attrs["InterpolatorClass"]
             if InterpolatorClass is None:
                 # Load from scipy.interpolate.
-                if hasattr(spinterp, SavedClassName):
-                    InterpolatorClass = getattr(spinterp, SavedClassName)
+                if hasattr(spinterpolate, SavedClassName):
+                    InterpolatorClass = getattr(spinterpolate, SavedClassName)
                 elif SavedClassName != "NoneType":
                     raise ValueError(
                         f"unknown InterpolatorClass '{SavedClassName}', "
@@ -872,186 +1369,71 @@ class _InterpolatedModel(_ParametricModel):
         )
 
 
-class InterpolatedDiscreteModel(_InterpolatedModel):
-    _ModelClass = _FrozenDiscreteModel
+class InterpolatedDiscreteModel(_ParametricDiscreteMixin, _InterpolatedModel):
+    r"""Parametric discrete dynamical system model
+    :math:`\qhat(\bfmu)_{j+1} = \fhat(\qhat(\bfmu)_{j}, \u_{j}; \bfmu)`
+    where the parametric dependence is handled by elementwise interpolation.
 
-    def fit(self, parameters, states, ddts, inputs=None, solver=None):
-        r"""Learn the model operators from data.
+    Here,
 
-        The operators are inferred by solving the regression problem
-
-        .. math::
-           \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
-           \sum_{i=1}^{s}\sum_{j=0}^{k_{i}-1}\left\|
-           \Ophat(\qhat_{i,j}, \u_{i,j}; \bfmu_i) - \dot{\qhat}_{i,j}
-           \right\|_2^2
-           = \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
-           \sum_{i=1}^{s}\left\|
-           \D^{(i)}(\Ohat^{(i)})\trp
-           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
-           \right\|_F^2
-
-        where
-        :math:`\ddt\qhat(t) = \Ophat(\qhat(t), \u(t);
-        \bfmu) = \Ohat(\bfmu)\d(\qhat(t), \u(t))` is the model and
-
-        * :math:`\qhat_{i,j}\in\RR^r` is the :math:`j`-th measurement of the
-          state corresponding to training parameter value :math:`\bfmu_i`,
-        * :math:`\u_{i,j}\in\RR^m` is the :math:`j`-th measurement of the
-          input corresponding to training parameter value :math:`\bfmu_i`,
-        * :math:`\dot{qhat}_{i,j}\in\RR^r` is a measurement of the time
-          derivative of the state corresponding to the state-input pair
-          :math:`(\qhat_{i,j},\u_{i,j})`,
-        * :math:`\D^{(i)}` is the data matrix for data corresponding to
-          training parameter value :math:`\bfmu_i`, given by
-          :math:`[~\d(\qhat_{i,0},\u_{i,0})~~\cdots~~
-          \d(\qhat_{i,k_i-1},\u_{i,k_i-1})~]\trp`.
-        * :math:`\Ohat^{(i)} = \Ohat(\bfmu)` is the operator matrix
-          evaluated at training parameter value :math:`\bfmu_i`.
-
-        Because all operators in this model are interpolatory, the
-        least-squares problem decouples into :math:`s` individual regressions.
-        That is, for :math:`i = 1, \ldots, s`, we solve (independently) the
-        regressions
-
-        .. math::
-           \min_{\Ohat^{(i)}}\left\|
-           \D^{(i)}(\Ohat^{(i)})\trp
-           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
-           \right\|_F^2
-
-        and define the full operator matrix via elementwise interpolation,
-
-        .. math::
-           \Ohat(\bfmu) = \textrm{interpolate}(
-           (\bfmu_1, \Ohat^{(i)}), \ldots, (\bfmu_s, \Ohat^{(s)}); \bfmu).
-
-        The strategy for solving the regression, as well as any additional
-        regularization or constraints, are specified by the ``solver``.
-
-        Parameters
-        ----------
-        parameters : list of s scalars or (p,) 1D ndarrays
-            Parameter values for which the operator entries are known
-            or will be inferred from data.
-        states : list of s (r, k) ndarrays
-            Snapshot training data. Each array ``states[i]`` is the data
-            corresponding to parameter value ``parameters[i]``; each column
-            ``states[i][:, j]`` is a single snapshot.
-        ddts : list of s (r, k) ndarrays
-            Snapshot time derivative data. Each array ``ddts[i]`` is the data
-            corresponding to parameter value ``parameters[i]``; each column
-            ``ddts[i][:, j]`` corresponds to the snapshot ``states[i, :, j]``.
-        inputs : list of s (m, k) or (k,) ndarrays, or None
-            Input training data. Each array ``inputs[i]`` is the data
-            corresponding to parameter value ``parameters[i]``; each column
-            ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
-            May be a two-dimensional array if `m=1` (scalar input).
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization.
-            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization.
-
-        Returns
-        -------
-        self
-        """
-        return _InterpolatedModel.fit(
-            self, parameters, states, ddts, inputs, solver
-        )
+    * :math:`\qhat_j\in\RR^{r}` is the :math:`j`-th iteration
+      of the model state,
+    * :math:`\u_j\in\RR^{m}` is the (optional) corresponding input, and
+    * :math:`\bfmu\in\RR^{p}\in\RR^{p}` is the parameter vector.
 
 
-class InterpolatedContinuousModel(_InterpolatedModel):
-    _ModelClass = _FrozenContinuousModel
+    The structure of :math:`\fhat` is specified through the
+    ``operators`` attribute.
 
-    def fit(self, parameters, states, ddts, inputs=None, solver=None):
-        r"""Learn the model operators from data.
+    Parameters
+    ----------
+    operators : list of :mod:`opinf.operators` objects
+        Operators comprising the terms of the model.
+        For this class, these must be interpolated parametric operators.
+    InterpolatorClass : type or None
+        Class for the elementwise interpolation. Must obey the syntax
 
-        The operators are inferred by solving the regression problem
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
 
-        .. math::
-           \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
-           \sum_{i=1}^{s}\sum_{j=0}^{k_{i}-1}\left\|
-           \Ophat(\qhat_{i,j}, \u_{i,j}; \bfmu_i) - \dot{\qhat}_{i,j}
-           \right\|_2^2
-           = \min_{\Ohat^{(1)},\ldots,\Ohat^{(s)}}
-           \sum_{i=1}^{s}\left\|
-           \D^{(i)}(\Ohat^{(i)})\trp
-           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
-           \right\|_F^2
+        This can be, e.g., a class from ``scipy.interpolate``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+    """
+    pass
 
-        where
-        :math:`\ddt\qhat(t) = \Ophat(\qhat(t), \u(t);
-        \bfmu) = \Ohat(\bfmu)\d(\qhat(t), \u(t))` is the model and
 
-        * :math:`\qhat_{i,j}\in\RR^r` is the :math:`j`-th measurement of the
-          state corresponding to training parameter value :math:`\bfmu_i`,
-        * :math:`\u_{i,j}\in\RR^m` is the :math:`j`-th measurement of the
-          input corresponding to training parameter value :math:`\bfmu_i`,
-        * :math:`\dot{qhat}_{i,j}\in\RR^r` is a measurement of the time
-          derivative of the state corresponding to the state-input pair
-          :math:`(\qhat_{i,j},\u_{i,j})`,
-        * :math:`\D^{(i)}` is the data matrix for data corresponding to
-          training parameter value :math:`\bfmu_i`, given by
-          :math:`[~\d(\qhat_{i,0},\u_{i,0})~~\cdots~~
-          \d(\qhat_{i,k_i-1},\u_{i,k_i-1})~]\trp`.
-        * :math:`\Ohat^{(i)} = \Ohat(\bfmu)` is the operator matrix
-          evaluated at training parameter value :math:`\bfmu_i`.
+class InterpolatedContinuousModel(
+    _ParametricContinuousMixin, _InterpolatedModel
+):
+    r"""Parametric system of ordinary differential equations
+    :math:`\ddt\qhat(t; \bfmu) = \fhat(\qhat(t; \bfmu), \u(t); \bfmu)` where
+    the parametric dependence is handled by elementwise interpolation.
 
-        Because all operators in this model are interpolatory, the
-        least-squares problem decouples into :math:`s` individual regressions.
-        That is, for :math:`i = 1, \ldots, s`, we solve (independently) the
-        regressions
+    Here,
 
-        .. math::
-           \min_{\Ohat^{(i)}}\left\|
-           \D^{(i)}(\Ohat^{(i)})\trp
-           - [~\dot{\qhat}_{i,0}~~\cdots~~\dot{\qhat}_{i,k_{i}-1}~]\trp
-           \right\|_F^2
+    * :math:`\qhat(t;\bfmu)\in\RR^{r}` is the model state,
+    * :math:`\u(t)\in\RR^{m}` is the (optional) input, and
+    * :math:`\bfmu\in\RR^{p}\in\RR^{p}` is the parameter vector.
 
-        and define the full operator matrix via elementwise interpolation,
+    The structure of :math:`\fhat` is specified through the
+    ``operators`` argument.
 
-        .. math::
-           \Ohat(\bfmu) = \textrm{interpolate}(
-           (\bfmu_1, \Ohat^{(i)}), \ldots, (\bfmu_s, \Ohat^{(s)}); \bfmu).
+    Parameters
+    ----------
+    operators : list of :mod:`opinf.operators` objects
+        Operators comprising the terms of the model.
+        For this class, these must be interpolated parametric operators.
+    InterpolatorClass : type or None
+        Class for the elementwise interpolation. Must obey the syntax
 
-        The strategy for solving the regression, as well as any additional
-        regularization or constraints, are specified by the ``solver``.
+            >>> interpolator = InterpolatorClass(data_points, data_values)
+            >>> interpolator_evaluation = interpolator(new_data_point)
 
-        Parameters
-        ----------
-        parameters : list of s scalars or (p,) 1D ndarrays
-            Parameter values for which the operator entries are known
-            or will be inferred from data.
-        states : list of s (r, k) ndarrays
-            Snapshot training data. Each array ``states[i]`` is the data
-            corresponding to parameter value ``parameters[i]``; each column
-            ``states[i][:, j]`` is a single snapshot.
-        ddts : list of s (r, k) ndarrays
-            Snapshot time derivative data. Each array ``ddts[i]`` is the data
-            corresponding to parameter value ``parameters[i]``; each column
-            ``ddts[i][:, j]`` corresponds to the snapshot ``states[i][:, j]``.
-        inputs : list of s (m, k) or (k,) ndarrays, or None
-            Input training data. Each array ``inputs[i]`` is the data
-            corresponding to parameter value ``parameters[i]``; each column
-            ``inputs[i][:, j]`` corresponds to the snapshot
-            ``states[i][:, j]``.
-            May be a two-dimensional array if `m=1` (scalar input).
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization.
-            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization.
-
-        Returns
-        -------
-        self
-        """
-        return _InterpolatedModel.fit(
-            self, parameters, states, ddts, inputs, solver
-        )
+        This can be, e.g., a class from ``scipy.interpolate``.
+        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        for one-dimensional parameters and
+        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+    """
+    pass

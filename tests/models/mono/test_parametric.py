@@ -560,6 +560,17 @@ class TestInterpolatedModel:
         model2 = self.Dummy.load(target)
         assert model2 == model1
 
+        model1 = self.Dummy(
+            "AB",
+            InterpolatorClass=interp.NearestNDInterpolator,
+        )
+        model1.state_dimension = 10
+        model1.input_dimension = 4
+        model1.save(target, overwrite=True)
+
+        model2 = self.Dummy.load(target)
+        assert model2 == model1
+
         os.remove(target)
 
     def test_copy(self, s=10, p=2, r=3):
@@ -590,3 +601,210 @@ class TestInterpolatedModel:
             assert isinstance(model_copied, self.Dummy)
             assert model_copied is not model
             assert model_copied == model
+
+
+class TestInterpolatedDiscreteModel:
+    """Test models.mono._parametric.InterpolatedDiscreteModel."""
+
+    ModelClass = _module.InterpolatedDiscreteModel
+
+    def test_fit(self, s=10, p=2, r=3, m=2, k=20):
+        """Lightly test InterpolatedDiscreteModel.fit()."""
+        params = np.random.random((s, p))
+        states = np.random.random((s, r, k))
+        nextstates = np.random.random((s, r, k))
+        inputs = np.random.random((s, m, k))
+
+        model = self.ModelClass("A")
+        model.fit(params, states, regularizer=1)
+
+        model = self.ModelClass("AB")
+        model.fit(params, states, nextstates, inputs, solver=1)
+
+    def test_rhs(self, s=10, r=3, m=2):
+        """Lightly test InterpolatedDiscreteModel.rhs()."""
+        params = np.sort(np.random.random(s))
+        state = np.random.random(r)
+        model = self.ModelClass(
+            opinf.operators.InterpolatedLinearOperator(
+                params, np.random.random((s, r, r))
+            )
+        )
+        out = model.rhs(params[2], state)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,)
+
+        input_ = np.random.random(m)
+        model = self.ModelClass(
+            opinf.operators.InterpolatedInputOperator(
+                params, np.random.random((s, r, m))
+            )
+        )
+        out = model.rhs(params[-2], state, input_)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,)
+
+    def test_jacobian(self, s=9, r=2, m=3):
+        """Lightly test InterpolatedDiscreteModel.jacobian()."""
+        params = np.sort(np.random.random(s))
+        state = np.random.random(r)
+        model = self.ModelClass(
+            opinf.operators.InterpolatedLinearOperator(
+                params, np.random.random((s, r, r))
+            )
+        )
+        out = model.jacobian(params[2], state)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, r)
+
+        input_ = np.random.random(m)
+        model = self.ModelClass(
+            opinf.operators.InterpolatedInputOperator(
+                params, np.random.random((s, r, m))
+            )
+        )
+        out = model.jacobian(params[-2], state, input_)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, r)
+
+    def test_predict(self, s=11, r=4, m=2, niters=10):
+        """Lightly test InterpolatedDiscreteModel.predict()."""
+        params = np.sort(np.random.random(s))
+        state0 = np.random.random(r)
+        model = self.ModelClass(
+            opinf.operators.InterpolatedLinearOperator(
+                params, np.zeros((s, r, r))
+            )
+        )
+        out = model.predict(params[2], state0, niters)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, niters)
+        assert np.all(out[:, 0] == state0)
+        assert np.all(out[:, 1:] == 0)
+
+        inputs = np.random.random((m, niters))
+        model = self.ModelClass(
+            opinf.operators.InterpolatedInputOperator(
+                params, np.zeros((s, r, m))
+            )
+        )
+        out = model.predict(params[-2], state0, niters, inputs)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, niters)
+        assert np.all(out[:, 0] == state0)
+        assert np.all(out[:, 1:] == 0)
+
+
+class TestInterpolatedContinuousModel:
+    """Test models.mono._parametric.InterpolatedContinuousModel."""
+
+    ModelClass = _module.InterpolatedContinuousModel
+
+    def test_fit(self, s=10, p=2, r=3, m=2, k=20):
+        """Test InterpolatedContinuousModel.fit()."""
+        params = np.random.random((s, p))
+        states = np.random.random((s, r, k))
+        ddts = np.random.random((s, r, k))
+        inputs = np.random.random((s, m, k))
+
+        model = self.ModelClass("A")
+        model.fit(params, states, ddts, regularizer=1)
+
+        model = self.ModelClass("AB")
+        model.fit(params, states, ddts, inputs, solver=1)
+
+    def test_rhs(self, s=10, r=3, m=2):
+        """Lightly test InterpolatedContinuousModel.rhs()."""
+        params = np.sort(np.random.random(s))
+        state = np.random.random(r)
+        model = self.ModelClass(
+            opinf.operators.InterpolatedLinearOperator(
+                params, np.random.random((s, r, r))
+            )
+        )
+        out = model.rhs(None, params[2], state)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,)
+
+        def input_func(t):
+            return np.random.random(m)
+
+        model = self.ModelClass(
+            opinf.operators.InterpolatedInputOperator(
+                params, np.random.random((s, r, m))
+            )
+        )
+        out = model.rhs(np.pi, params[-2], state, input_func)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,)
+
+    def test_jacobian(self, s=9, r=2, m=3):
+        """Lightly test InterpolatedContinuousModel.jacobian()."""
+        params = np.sort(np.random.random(s))
+        state = np.random.random(r)
+        model = self.ModelClass(
+            opinf.operators.InterpolatedLinearOperator(
+                params, np.random.random((s, r, r))
+            )
+        )
+        out = model.jacobian(None, params[2], state)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, r)
+
+        def input_func(t):
+            return np.random.random(m)
+
+        model = self.ModelClass(
+            opinf.operators.InterpolatedInputOperator(
+                params, np.random.random((s, r, m))
+            )
+        )
+        out = model.jacobian(np.pi, params[-2], state, input_func)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, r)
+
+    def test_predict(self, s=11, r=4, m=2, k=40):
+        """Lightly test InterpolatedContinuousModel.predict()."""
+        params = np.sort(np.random.random(s))
+        state0 = np.random.random(r)
+        t = np.linspace(0, 1, k)
+        model = self.ModelClass(
+            opinf.operators.InterpolatedLinearOperator(
+                params, np.zeros((s, r, r))
+            )
+        )
+        out = model.predict(params[2], state0, t)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, k)
+        for j in range(k):
+            assert np.allclose(out[:, j], state0)
+
+        def input_func(t):
+            return np.random.random(m)
+
+        model = self.ModelClass(
+            opinf.operators.InterpolatedInputOperator(
+                params, np.zeros((s, r, m))
+            )
+        )
+        out = model.predict(params[-2], state0, t, input_func)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, k)
+        for j in range(k):
+            assert np.allclose(out[:, j], state0)
+
+
+def test_publics():
+    """Ensure all public ParametricModel classes can be instantiated."""
+    operators = [opinf.operators.InterpolatedConstantOperator()]
+    for ModelClassName in _module.__all__:
+        ModelClass = getattr(_module, ModelClassName)
+        if not isinstance(ModelClass, type) or not issubclass(
+            ModelClass, _module._ParametricModel
+        ):  # pragma: no cover
+            continue
+        model = ModelClass(operators)
+        assert issubclass(
+            model.ModelClass,
+            opinf.models.mono._nonparametric._NonparametricModel,
+        )
