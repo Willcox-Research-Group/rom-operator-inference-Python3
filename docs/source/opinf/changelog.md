@@ -1,6 +1,9 @@
 # What's New
 
-This page lists major changes made between package versions.
+:::{attention}
+`opinf` is a research code that is still in rapid development.
+New versions may introduce substantial new features or API adjustments.
+:::
 
 :::{versionchanged} 0.5.0
 
