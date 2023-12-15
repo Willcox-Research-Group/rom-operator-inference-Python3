@@ -13,17 +13,17 @@ import opinf
 from . import _get_operator_entries
 
 
-_module = opinf.operators_new._interpolate
+_module = opinf.operators._interpolate
 
 _d = 8
 _Dblock = np.random.random((4, _d))
 
 
-class _DummyOperator(opinf.operators_new._base._NonparametricOperator):
+class _DummyOperator(opinf.operators._base._NonparametricOperator):
     """Instantiable version of _NonparametricOperator."""
 
     def set_entries(*args, **kwargs):
-        opinf.operators_new._base._NonparametricOperator.set_entries(
+        opinf.operators._base._NonparametricOperator.set_entries(
             *args, **kwargs
         )
 
@@ -418,7 +418,7 @@ def test_publics():
         op = OpClass()
         assert issubclass(
             op.OperatorClass,
-            opinf.operators_new._base._NonparametricOperator,
+            opinf.operators._base._NonparametricOperator,
         )
 
 
@@ -455,10 +455,10 @@ def test_1Doperators(r=10, m=3, s=5):
             interp.PchipInterpolator,
         ]:
             op = OpClass(params, InterpolatorClass=InterpolatorClass)
-            if opinf.operators_new.has_inputs(op):
+            if opinf.operators.has_inputs(op):
                 assert op.input_dimension is None
             op.set_entries(entries)
-            if opinf.operators_new.has_inputs(op):
+            if opinf.operators.has_inputs(op):
                 assert op.input_dimension == m
             op_evaluated = op.evaluate(mu_new)
             assert isinstance(op_evaluated, OpClass._OperatorClass)
@@ -492,6 +492,6 @@ def test_nonparametric_to_interpolated():
     )
 
     OpClass = _module.nonparametric_to_interpolated(
-        opinf.operators_new.QuadraticOperator
+        opinf.operators.QuadraticOperator
     )
-    assert OpClass is opinf.operators_new.InterpolatedQuadraticOperator
+    assert OpClass is opinf.operators.InterpolatedQuadraticOperator

@@ -18,9 +18,7 @@ _predictvalue = 13
 
 
 # Dummy classes ===============================================================
-class DummyNonparametricOperator(
-    opinf.operators_new._base._NonparametricOperator
-):
+class DummyNonparametricOperator(opinf.operators._base._NonparametricOperator):
     """Instantiable version of _NonparametricOperator"""
 
     def _str(*args, **kwargs):  # pragma: no cover
@@ -42,22 +40,20 @@ class DummyNonparametricOperator(
         pass
 
     def set_entries(self, entries):  # pragma: no cover
-        opinf.operators_new._base._NonparametricOperator.set_entries(
-            self, entries
-        )
+        opinf.operators._base._NonparametricOperator.set_entries(self, entries)
 
 
 class DummyNonparametricOperator2(DummyNonparametricOperator):
     """Another NonparametricOperator (since duplicates not allowed)."""
 
 
-class DummyParametricOperator(opinf.operators_new._base._ParametricOperator):
+class DummyParametricOperator(opinf.operators._base._ParametricOperator):
     """Instantiable version of ParametricOperator."""
 
     _OperatorClass = DummyNonparametricOperator
 
     def __init__(self, entries=None):
-        opinf.operators_new._base._ParametricOperator.__init__(self)
+        opinf.operators._base._ParametricOperator.__init__(self)
         self.entries = entries
 
     def _clear(*args, **kwargs):  # pragma: no cover
@@ -99,7 +95,7 @@ class DummyParametricOperator2(DummyParametricOperator):
 
 
 class DummyInterpolatedOperator(
-    opinf.operators_new._interpolate._InterpolatedOperator
+    opinf.operators._interpolate._InterpolatedOperator
 ):
     pass
 
@@ -355,7 +351,7 @@ class TestInterpolatedModel:
         )
 
         # Wrong type of model.
-        model2 = self.Dummy([opinf.operators_new.InterpolatedCubicOperator()])
+        model2 = self.Dummy([opinf.operators.InterpolatedCubicOperator()])
         with pytest.raises(TypeError) as ex:
             self.Dummy._from_models(mu, [model2, model1])
         assert (
@@ -386,7 +382,7 @@ class TestInterpolatedModel:
         )
 
         # Correct usage
-        OpClass = opinf.operators_new.ConstantOperator
+        OpClass = opinf.operators.ConstantOperator
         model1 = DummyNonparametricModel([OpClass(np.random.random(r))])
         model2 = DummyNonparametricModel([OpClass(np.random.random(r))])
         model = self.Dummy._from_models(mu, [model1, model2])
@@ -394,7 +390,7 @@ class TestInterpolatedModel:
         assert len(model.operators) == 1
         assert isinstance(
             model.operators[0],
-            opinf.operators_new.InterpolatedConstantOperator,
+            opinf.operators.InterpolatedConstantOperator,
         )
 
     def test_set_interpolator(self, s=10, p=2, r=2):
@@ -402,12 +398,12 @@ class TestInterpolatedModel:
 
         mu = np.random.random((s, p))
         operators = [
-            opinf.operators_new.InterpolatedConstantOperator(
+            opinf.operators.InterpolatedConstantOperator(
                 training_parameters=mu,
                 entries=np.random.random((s, r)),
                 InterpolatorClass=interp.NearestNDInterpolator,
             ),
-            opinf.operators_new.InterpolatedLinearOperator(
+            opinf.operators.InterpolatedLinearOperator(
                 training_parameters=mu,
                 entries=np.random.random((s, r, r)),
                 InterpolatorClass=interp.NearestNDInterpolator,
@@ -436,8 +432,8 @@ class TestInterpolatedModel:
     def test_fit_solver(self, s=10, r=3, k=20):
         """Test _InterpolatedModel._fit_solver()."""
         operators = [
-            opinf.operators_new.InterpolatedConstantOperator(),
-            opinf.operators_new.InterpolatedLinearOperator(),
+            opinf.operators.InterpolatedConstantOperator(),
+            opinf.operators.InterpolatedLinearOperator(),
         ]
         params = np.sort(np.random.random(s))
         states = np.random.random((s, r, k))
@@ -466,8 +462,8 @@ class TestInterpolatedModel:
     def test_evaluate_solver(self, s=10, r=3, k=15):
         """Test _InterpolatedModel._evaluate_solver()."""
         operators = [
-            opinf.operators_new.InterpolatedConstantOperator(),
-            opinf.operators_new.InterpolatedLinearOperator(),
+            opinf.operators.InterpolatedConstantOperator(),
+            opinf.operators.InterpolatedLinearOperator(),
         ]
         params = np.sort(np.random.random(s))
         states = np.random.random((s, r, k))
@@ -500,8 +496,8 @@ class TestInterpolatedModel:
 
         model = self.Dummy(
             [
-                opinf.operators_new.InterpolatedConstantOperator(),
-                opinf.operators_new.InterpolatedLinearOperator(),
+                opinf.operators.InterpolatedConstantOperator(),
+                opinf.operators.InterpolatedLinearOperator(),
             ]
         )
         model.save(target)
@@ -530,8 +526,8 @@ class TestInterpolatedModel:
             os.remove(target)
 
         operators = [
-            opinf.operators_new.InterpolatedConstantOperator(),
-            opinf.operators_new.InterpolatedLinearOperator(),
+            opinf.operators.InterpolatedConstantOperator(),
+            opinf.operators.InterpolatedLinearOperator(),
         ]
         model = self.Dummy(operators, InterpolatorClass=float)
 
@@ -569,18 +565,18 @@ class TestInterpolatedModel:
 
         model1 = self.Dummy(
             [
-                opinf.operators_new.InterpolatedConstantOperator(),
-                opinf.operators_new.InterpolatedLinearOperator(),
+                opinf.operators.InterpolatedConstantOperator(),
+                opinf.operators.InterpolatedLinearOperator(),
             ]
         )
 
         mu = np.random.random((s, p))
         model2 = self.Dummy(
             [
-                opinf.operators_new.InterpolatedConstantOperator(
+                opinf.operators.InterpolatedConstantOperator(
                     mu, entries=np.random.random((s, r))
                 ),
-                opinf.operators_new.InterpolatedLinearOperator(
+                opinf.operators.InterpolatedLinearOperator(
                     mu, entries=np.random.random((s, r, r))
                 ),
             ],

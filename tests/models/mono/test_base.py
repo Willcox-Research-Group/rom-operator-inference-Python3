@@ -9,7 +9,6 @@ import opinf
 from . import _get_operators
 
 
-opinf_operators = opinf.operators_new  # TEMP
 _module = opinf.models.mono._base
 
 
@@ -20,7 +19,7 @@ class TestModel:
         """Instantiable version of _Model."""
 
         def _isvalidoperator(self, op):
-            return hasattr(opinf_operators, op.__class__.__name__)
+            return hasattr(opinf.operators, op.__class__.__name__)
 
         def _check_operator_types_unique(*args, **kwargs):
             return True
@@ -45,8 +44,8 @@ class TestModel:
 
         # Try to instantiate with operators of mismatched shape (no basis).
         bad_ops = [
-            opinf_operators.LinearOperator(np.random.random((r, r))),
-            opinf_operators.ConstantOperator(np.random.random(r + 1)),
+            opinf.operators.LinearOperator(np.random.random((r, r))),
+            opinf.operators.ConstantOperator(np.random.random(r + 1)),
         ]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             self.Dummy(bad_ops)
@@ -57,8 +56,8 @@ class TestModel:
 
         # Try to instantiate with input operators not aligned.
         bad_ops = [
-            opinf_operators.InputOperator(np.random.random((r, m - 1))),
-            opinf_operators.StateInputOperator(np.random.random((r, r * m))),
+            opinf.operators.InputOperator(np.random.random((r, m - 1))),
+            opinf.operators.StateInputOperator(np.random.random((r, r * m))),
         ]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             self.Dummy(bad_ops)
@@ -73,7 +72,7 @@ class TestModel:
         assert ex.value.args[0] == "operator abbreviation 'X' not recognized"
 
         # Test operators.setter().
-        model = self.Dummy(opinf_operators.ConstantOperator())
+        model = self.Dummy(opinf.operators.ConstantOperator())
         for attr in (
             "operators",
             "input_dimension",
@@ -85,7 +84,7 @@ class TestModel:
             assert hasattr(model, attr)
         # Operators with no entries, no inputs.
         assert len(model.operators) == 1
-        assert isinstance(model.operators[0], opinf_operators.ConstantOperator)
+        assert isinstance(model.operators[0], opinf.operators.ConstantOperator)
         assert len(model._indices_of_operators_to_infer) == 1
         assert model._indices_of_operators_to_infer == [0]
         assert len(model._indices_of_known_operators) == 0
@@ -150,8 +149,8 @@ class TestModel:
         # Case 1: no inputs.
         model = self.Dummy(
             [
-                opinf_operators.ConstantOperator(),
-                opinf_operators.QuadraticOperator(),
+                opinf.operators.ConstantOperator(),
+                opinf.operators.QuadraticOperator(),
             ]
         )
         assert model.state_dimension is None
@@ -183,8 +182,8 @@ class TestModel:
         # Case 2: has inputs.
         model = self.Dummy(
             [
-                opinf_operators.LinearOperator(),
-                opinf_operators.InputOperator(),
+                opinf.operators.LinearOperator(),
+                opinf.operators.InputOperator(),
             ]
         )
         assert model.input_dimension is None
@@ -216,9 +215,9 @@ class TestModel:
 
         fom = self.Dummy(
             [
-                opinf_operators.ConstantOperator(),
+                opinf.operators.ConstantOperator(),
                 A,
-                opinf_operators.QuadraticOperator(),
+                opinf.operators.QuadraticOperator(),
             ]
         )
         assert fom.state_dimension == n
@@ -226,11 +225,11 @@ class TestModel:
         rom = fom.galerkin(Vr)
         assert rom.state_dimension == r
         newA = rom.operators[1]
-        assert isinstance(newA, opinf_operators.LinearOperator)
+        assert isinstance(newA, opinf.operators.LinearOperator)
         assert newA.entries.shape == (r, r)
         assert np.allclose(newA.entries, Vr.T @ A.entries @ Vr)
-        assert isinstance(rom.operators[0], opinf_operators.ConstantOperator)
-        assert isinstance(rom.operators[2], opinf_operators.QuadraticOperator)
+        assert isinstance(rom.operators[0], opinf.operators.ConstantOperator)
+        assert isinstance(rom.operators[2], opinf.operators.QuadraticOperator)
         for i in [0, 2]:
             assert rom.operators[i].entries is None
 
@@ -260,8 +259,8 @@ class TestModel:
         # Try with input operator but without inputs.
         model = self.Dummy(
             [
-                opinf_operators.ConstantOperator(),
-                opinf_operators.InputOperator(),
+                opinf.operators.ConstantOperator(),
+                opinf.operators.InputOperator(),
             ]
         )
         with pytest.raises(ValueError) as ex:
@@ -271,8 +270,8 @@ class TestModel:
         # Try without input operator but with inputs.
         model = self.Dummy(
             [
-                opinf_operators.ConstantOperator(),
-                opinf_operators.LinearOperator(),
+                opinf.operators.ConstantOperator(),
+                opinf.operators.LinearOperator(),
             ]
         )
         with pytest.warns(UserWarning) as wn:
@@ -287,8 +286,8 @@ class TestModel:
         """Test _Model._check_is_trained()."""
         model = self.Dummy(
             [
-                opinf_operators.ConstantOperator(),
-                opinf_operators.InputOperator(),
+                opinf.operators.ConstantOperator(),
+                opinf.operators.InputOperator(),
             ]
         )
         with pytest.raises(AttributeError) as ex:
@@ -314,27 +313,27 @@ class TestModel:
         """Test _Model.__eq__()."""
         model1 = self.Dummy(
             [
-                opinf_operators.ConstantOperator(),
-                opinf_operators.InputOperator(),
+                opinf.operators.ConstantOperator(),
+                opinf.operators.InputOperator(),
             ]
         )
         assert model1 != 10
 
-        model2 = self.Dummy([opinf_operators.ConstantOperator()])
+        model2 = self.Dummy([opinf.operators.ConstantOperator()])
         assert model1 != model2
 
         model2 = self.Dummy(
             [
-                opinf_operators.ConstantOperator(),
-                opinf_operators.QuadraticOperator(),
+                opinf.operators.ConstantOperator(),
+                opinf.operators.QuadraticOperator(),
             ]
         )
         assert model1 != model2
 
         model2 = self.Dummy(
             [
-                opinf_operators.ConstantOperator(),
-                opinf_operators.InputOperator(),
+                opinf.operators.ConstantOperator(),
+                opinf.operators.InputOperator(),
             ]
         )
         assert model1 == model2
@@ -358,7 +357,7 @@ class TestModel:
         A, H = _get_operators("AH", r, m)
         model = self.Dummy(
             [
-                opinf_operators.ConstantOperator(),
+                opinf.operators.ConstantOperator(),
                 A,
                 H,
             ]

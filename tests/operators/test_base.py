@@ -9,7 +9,7 @@ import numpy as np
 import opinf
 
 
-_module = opinf.operators_new._base
+_module = opinf.operators._base
 
 
 def test_requires_entries():
@@ -37,7 +37,7 @@ def test_requires_entries():
 
 # Nonparametric operators =====================================================
 class TestNonparametricOperator:
-    """Test operators_new._base._NonparametricOperator."""
+    """Test operators._base._NonparametricOperator."""
 
     class Dummy(_module._NonparametricOperator):
         """Instantiable version of _NonparametricOperator."""
@@ -267,7 +267,7 @@ class TestNonparametricOperator:
 
 # Parametric operators ========================================================
 class TestParametricOperator:
-    """Test operators_new._base._ParametricOperator."""
+    """Test operators._base._ParametricOperator."""
 
     class Dummy(_module._ParametricOperator):
         """Instantiable versino of _ParametricOperator."""
@@ -372,8 +372,8 @@ def test_is_nonparametric():
     """Test operators._base.is_nonparametric()."""
 
     op = TestNonparametricOperator.Dummy()
-    assert opinf.operators_new.is_nonparametric(op)
-    assert not opinf.operators_new.is_nonparametric(10)
+    assert opinf.operators.is_nonparametric(op)
+    assert not opinf.operators.is_nonparametric(10)
 
 
 def test_has_inputs():
@@ -384,12 +384,12 @@ def test_has_inputs():
             return -1
 
     op = Dummy()
-    assert opinf.operators_new.has_inputs(op)
-    assert not opinf.operators_new.has_inputs(5)
+    assert opinf.operators.has_inputs(op)
+    assert not opinf.operators.has_inputs(5)
 
 
 def test_is_parametric():
     """Test operators._base.is_parametric()."""
     op = TestParametricOperator.Dummy()
-    assert opinf.operators_new.is_parametric(op)
-    assert not opinf.operators_new.is_nonparametric(-1)
+    assert opinf.operators.is_parametric(op)
+    assert not opinf.operators.is_nonparametric(-1)

@@ -108,7 +108,7 @@ class ConstantOperator(_NonparametricOperator):
 
         Returns
         -------
-        projected : :class:`opinf.operators_new.ConstantOperator`
+        projected : :class:`opinf.operators.ConstantOperator`
             Projected operator.
         """
         return _NonparametricOperator.galerkin(
@@ -268,7 +268,7 @@ class LinearOperator(_NonparametricOperator):
 
         Returns
         -------
-        projected : :class:`opinf.operators_new.LinearOperator`
+        projected : :class:`opinf.operators.LinearOperator`
             Projected operator.
         """
         return _NonparametricOperator.galerkin(
@@ -461,7 +461,7 @@ class QuadraticOperator(_NonparametricOperator):
 
         Returns
         -------
-        projected : :class:`opinf.operators_new.QuadraticOperator`
+        projected : :class:`opinf.operators.QuadraticOperator`
             Projected operator.
         """
 
@@ -922,7 +922,7 @@ class CubicOperator(_NonparametricOperator):
 
         Returns
         -------
-        projected : :class:`opinf.operators_new.CubicOperator`
+        projected : :class:`opinf.operators.CubicOperator`
             Projected operator.
         """
 
@@ -1033,7 +1033,7 @@ class CubicOperator(_NonparametricOperator):
            \end{array}\right]
            \in \RR^{r(r+1)(r+2)/6}.
 
-        See :meth:`opinf.operators_new.QuadraticOperator.ckron`.
+        See :meth:`opinf.operators.QuadraticOperator.ckron`.
         For matrices, the product is computed columnwise.
 
         Parameters
@@ -1317,7 +1317,7 @@ class InputOperator(_NonparametricOperator, _InputMixin):
 
         Returns
         -------
-        projected : :class:`opinf.operators_new.InputOperator`
+        projected : :class:`opinf.operators.InputOperator`
             Projected operator.
         """
         return _NonparametricOperator.galerkin(
@@ -1512,7 +1512,7 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
 
         Returns
         -------
-        projected : :class:`opinf.operators_new.StateInputOperator`
+        projected : :class:`opinf.operators.StateInputOperator`
             Projected operator.
         """
 

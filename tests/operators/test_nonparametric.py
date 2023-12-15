@@ -8,7 +8,7 @@ import scipy.linalg as la
 import opinf
 
 
-_module = opinf.operators_new._nonparametric
+_module = opinf.operators._nonparametric
 
 
 # No dependence on state or input =============================================

@@ -10,7 +10,7 @@ The `opinf` namespace is divided into the following submodules.
 
     opinf.pre
     opinf.basis
-    opinf.operators_new
+    opinf.operators
     opinf.models
     opinf.lstsq
     opinf.post

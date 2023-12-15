@@ -12,10 +12,9 @@ import opinf
 from . import MODEL_FORMS, _get_data, _get_operators, _trainedmodel
 
 
-opinf_operators = opinf.operators_new  # TEMP
 _module = opinf.models.mono._nonparametric
-kron2c = opinf.operators_new.QuadraticOperator.ckron
-kron3c = opinf.operators_new.CubicOperator.ckron
+kron2c = opinf.operators.QuadraticOperator.ckron
+kron3c = opinf.operators.CubicOperator.ckron
 
 
 class TestNonparametricModel:
@@ -51,20 +50,20 @@ class TestNonparametricModel:
         assert len(model.operators) == 3
         for i in range(3):
             assert model.operators[i].entries is None
-        assert isinstance(model.operators[0], opinf_operators.ConstantOperator)
+        assert isinstance(model.operators[0], opinf.operators.ConstantOperator)
         assert isinstance(
-            model.operators[1], opinf_operators.QuadraticOperator
+            model.operators[1], opinf.operators.QuadraticOperator
         )
-        assert isinstance(model.operators[2], opinf_operators.InputOperator)
+        assert isinstance(model.operators[2], opinf.operators.InputOperator)
 
-        model.operators = [opinf_operators.ConstantOperator(), "A", "N"]
+        model.operators = [opinf.operators.ConstantOperator(), "A", "N"]
         assert len(model.operators) == 3
         for i in range(3):
             assert model.operators[i].entries is None
-        assert isinstance(model.operators[0], opinf_operators.ConstantOperator)
-        assert isinstance(model.operators[1], opinf_operators.LinearOperator)
+        assert isinstance(model.operators[0], opinf.operators.ConstantOperator)
+        assert isinstance(model.operators[1], opinf.operators.LinearOperator)
         assert isinstance(
-            model.operators[2], opinf_operators.StateInputOperator
+            model.operators[2], opinf.operators.StateInputOperator
         )
 
     def test_get_operator_of_type(self, m=4, r=7):
@@ -186,7 +185,7 @@ class TestNonparametricModel:
         assert model.operator_matrix_dimension == 1
 
         # Partially intrusive case.
-        c = opinf_operators.ConstantOperator(np.ones(r))
+        c = opinf.operators.ConstantOperator(np.ones(r))
         model.operators = ["A", c]
         model._fit_solver(Q, Qdot, inputs=None)
         D = model.data_matrix_
@@ -297,7 +296,7 @@ class TestNonparametricModel:
         # Special case: m = inputs.ndim = 1
         U1d = U[0]
         assert U1d.shape == (k,)
-        B1d = opinf_operators.InputOperator(B_.entries[:, 0])
+        B1d = opinf.operators.InputOperator(B_.entries[:, 0])
         assert B1d.shape == (r, 1)
         model.operators = ["A", B1d]
         assert model.input_dimension == 1

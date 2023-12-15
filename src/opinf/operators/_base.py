@@ -39,12 +39,12 @@ class _NonparametricOperator(abc.ABC):
 
     Child classes:
 
-    * :class:`opinf.operators_new.ConstantOperator`
-    * :class:`opinf.operators_new.LinearOperator`
-    * :class:`opinf.operators_new.QuadraticOperator`
-    * :class:`opinf.operators_new.CubicOperator`
-    * :class:`opinf.operators_new.InputOperator`
-    * :class:`opinf.operators_new.StateInputOperator`
+    * :class:`opinf.operators.ConstantOperator`
+    * :class:`opinf.operators.LinearOperator`
+    * :class:`opinf.operators.QuadraticOperator`
+    * :class:`opinf.operators.CubicOperator`
+    * :class:`opinf.operators.InputOperator`
+    * :class:`opinf.operators.StateInputOperator`
     """
 
     # Initialization ----------------------------------------------------------
@@ -351,10 +351,10 @@ class _InputMixin(abc.ABC):
 
     Child classes:
 
-    * :class:`opinf.operators_new.InputOperator`
-    * :class:`opinf.operators_new.StateInputOperator`
-    * :class:`opinf.operators_new.InterpolatedInputOperator`
-    * :class:`opinf.operators_new.InterpolatedStateInputOperator`
+    * :class:`opinf.operators.InputOperator`
+    * :class:`opinf.operators.StateInputOperator`
+    * :class:`opinf.operators.InterpolatedInputOperator`
+    * :class:`opinf.operators.InterpolatedStateInputOperator`
     """
 
     @property
@@ -370,7 +370,7 @@ class _ParametricOperator(abc.ABC):
     :math:`\Ophat_\ell(\qhat,\u;\bfmu) = \Ohat_\ell(\bfmu)\d_\ell(\qhat,\u)`.
 
     Evaluating a ``_ParametricOpertor`` at a specific parameter value
-    results in a :class:`opinf.operators_new._base._NonparametricOperator`.
+    results in a :class:`opinf.operators._base._NonparametricOperator`.
 
     Examples
     --------
@@ -381,7 +381,7 @@ class _ParametricOperator(abc.ABC):
 
     Child classes:
 
-    * :class:`opinf.operators_new._interpolate._InterpolatedOperator`
+    * :class:`opinf.operators._interpolate._InterpolatedOperator`
     * ``_AffineOperator`` (TODO)
     """
 
@@ -391,7 +391,7 @@ class _ParametricOperator(abc.ABC):
 
     @property
     def OperatorClass(self):
-        """Nonparametric :mod:`opinf.operators_new` class that represents
+        """Nonparametric :mod:`opinf.operators` class that represents
         this parametric operator evaluated at a particular parameter value.
 
         Examples

@@ -19,7 +19,7 @@ from ._nonparametric import (
     _FrozenContinuousModel,
 )
 from ... import errors, utils
-from ... import operators_new as _operators
+from ... import operators as _operators
 
 
 # Base class ==================================================================
@@ -367,7 +367,7 @@ class _ParametricModel(_Model):
         :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
         Finally,
         :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
-        See the :mod:`opinf.operators_new` module for more explanation.
+        See the :mod:`opinf.operators` module for more explanation.
 
         The strategy for solving the regression, as well as any additional
         regularization or constraints, are specified by the ``solver``.

@@ -7,7 +7,7 @@
 :::{admonition} Overview
 :class: note
 Model classes represent a set equations describing the dynamics of the model state.
-The user specifies the structure of the dynamics by providing a list of [operators](opinf.operators_new) to the constructor.
+The user specifies the structure of the dynamics by providing a list of [operators](opinf.operators) to the constructor.
 Model dynamics are calibrated through a least-squares regression of available state and input data.
 
 ```python
@@ -44,6 +44,113 @@ The models defined in this module can be classified in a few ways.
 2. **Parametric vs Nonparametric:** In a _parametric_ model, the dynamics depend on one or more external parameters; a _nonparametric_ model has no external parameter dependence.
 
 <!-- 2. **Monolithic vs Multilithic:** A _monolithic_ model defines a single set of equations for the state variable, while a _multilithic_ model defines specific equations for individual parts of the state variable. -->
+
+## Nonparametric Models
+
+A _nonparametric_ model is comprised exclusively of [nonparametric operators](sec-operators-nonparametric) (see [parametric models](sec-models-parametric)).
+
+```{eval-rst}
+.. currentmodule:: opinf.models
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    ContinuousModel
+    DiscreteModel
+    SteadyModel
+```
+
+### Initialization and Model Structure
+
+Nonparametric model classes are initialized with a single argument, `operators`, that must be a list of nonparametric {mod}`opinf.operators` objects.
+The right-hand side of the model is defined to be the sum of the action of the operators on the model state and the (optional) input.
+For example, a {class}`ContinuousModel` represents a system of ODEs
+
+$$
+\begin{align*}
+   \ddt\qhat(t)
+   = \fhat(\qhat,\u)
+   = \sum_{\ell=1}^{n_\textrm{terms}}
+   \Ophat_{\ell}(\qhat(t),\u(t))
+\end{align*}
+$$
+
+where each $\Ophat_{\ell}$ is a nonparametric operator.
+
+:::{tip}
+The `operators` constructor argument for these classes can also be a string that indicates which type of operator to use.
+
+| Character | {mod}`opinf.operators` class |
+| :-------- | :------------------------------- |
+| `'c'` | {class}`opinf.operators.ConstantOperator` |
+| `'A'` | {class}`opinf.operators.LinearOperator` |
+| `'H'` | {class}`opinf.operators.QuadraticOperator` |
+| `'G'` | {class}`opinf.operators.CubicOperator` |
+| `'B'` | {class}`opinf.operators.InputOperator` |
+| `'N'` | {class}`opinf.operators.StateInputOperator` |
+
+```python
+import opinf
+
+# Initialize the model with a list of operator objects.
+model = opinf.models.DiscreteModel(
+    operators=[
+        opinf.operators.QuadraticOperator(),
+        opinf.operators.InputOperator(),
+    ]
+)
+
+# Equivalently, initialize the model with a string.
+model = opinf.models.DiscreteModel(operators="HB")
+```
+
+:::
+
+### Model Calibration
+
+The individual operators given to the constructor may or may not have their entries set.
+The `fit()` method uses Operator Inference to calibrate the operators without entries through a regression problem, see [Calibrating Operator Entries](sec-operators-calibration).
+
+### Model Evaluation
+
+Once the model operators are calibrated, nonparametric models may use the following methods.
+
+- `rhs()`: Compute the right-hand side of the model, i.e., $\Ophat(\qhat, \u)$.
+- `jacobian()`: Construct the state Jacobian of the right-hand side of the model, i.e, $\ddqhat\Ophat(\qhat,\u)$.
+- `predict()`: Solve the model with given initial conditions and/or inputs.
+
+### Object Persistence
+
+Models can be saved to disk in [HDF5 format](https://www.h5py.org/) via the `save()` method.
+Every model has a class method `load()` for loading an operator from the HDF5 file previously produced by `save()`.
+
+(sec-models-parametric)=
+## Parametric Models
+
+A _parametric model_ is a model with at least one [parametric operator](sec-operators-parametric).
+
+:::{admonition} TODO
+
+- `__call__()`/`evaluate()` maps parameter values to a nonparametric model object.
+- `operators` can be nonparametric or parametric operators.
+- `fit()` takes in parameter values, lists of snapshots, lists of LHS, and lists of inputs.
+- `predict()` takes in a parameter value, then whatever else.
+
+:::
+
+<!--
+These classes represent models without a block sparsity structure.
+Use [multilithic models](sec-models-multilithic) to encode more specific system structure.
+-->
+
+<!--
+(sec-models-multilithic)=
+## Nonparametric Multilithic Models
+
+- `operators` is a list of lists of nonparametric multilithic operators
+- Dimension attribute: `rs` and `r = sum(rs)`
+-->
 
 <!--
 :::{dropdown} Multilithic System Example: Linear Hamiltonian System
@@ -139,114 +246,3 @@ $$
 which has the same block structure as $\A$.
 :::
 -->
-
-## Nonparametric Models
-
-A _nonparametric_ model is comprised exclusively of [nonparametric operators](sec-operators-nonparametric) (see [parametric models](sec-models-parametric)).
-
-### API Summary
-
-#### Initialization and Model Structure
-
-Nonparametric model classes are initialized with a single argument, `operators`, that must be a list of nonparametric {mod}`opinf.operators_new` objects.
-The right-hand side of the model is defined to be the sum of the action of the operators on the model state and the (optional) input.
-For example, a {class}`ContinuousModel` represents a system of ODEs
-
-$$
-\begin{align*}
-   \ddt\qhat(t)
-   = \fhat(\qhat,\u)
-   = \sum_{\ell=1}^{n_\textrm{terms}}
-   \Ophat_{\ell}(\qhat(t),\u(t))
-\end{align*}
-$$
-
-where each $\Ophat_{\ell}$ is a nonparametric operator.
-
-#### Model Calibration
-
-The individual operators given to the constructor may or may not have their entries set.
-The `fit()` method uses Operator Inference to calibrate the operators without entries through a regression problem, see [Calibrating Operator Entries](sec-operators-calibration).
-
-#### Model Evaluation
-
-Once the model operators are calibrated, nonparametric models may use the following methods.
-
-- `rhs()`: Compute the right-hand side of the model, i.e., $\Ophat(\qhat, \u)$.
-- `jacobian()`: Construct the state Jacobian of the right-hand side of the model, i.e, $\ddqhat\Ophat(\qhat,\u)$.
-- `predict()`: Solve the model with given initial conditions and/or inputs.
-
-#### Object Persistence
-
-Models can be saved to disk in [HDF5 format](https://www.h5py.org/) via the `save()` method.
-Every model has a class method `load()` for loading an operator from the HDF5 file previously produced by `save()`.
-
-### Nonparametric Model Classes
-
-<!--
-These classes represent models without a block sparsity structure.
-Use [multilithic models](sec-models-multilithic) to encode more specific system structure.
--->
-
-```{eval-rst}
-.. currentmodule:: opinf.models
-
-.. autosummary::
-    :toctree: _autosummaries
-    :nosignatures:
-
-    ContinuousModel
-    DiscreteModel
-    SteadyModel
-```
-
-:::{tip}
-The `operators` constructor argument for these classes can also be a string that indicates which type of operator to use.
-
-| Character | {mod}`opinf.operators_new` class |
-| :-------- | :------------------------------- |
-| `'c'` | {class}`opinf.operators_new.ConstantOperator` |
-| `'A'` | {class}`opinf.operators_new.LinearOperator` |
-| `'H'` | {class}`opinf.operators_new.QuadraticOperator` |
-| `'G'` | {class}`opinf.operators_new.CubicOperator` |
-| `'B'` | {class}`opinf.operators_new.InputOperator` |
-| `'N'` | {class}`opinf.operators_new.StateInputOperator` |
-
-```python
-import opinf
-
-# Initialize the model with a list of operator objects.
-model = opinf.models.DiscreteModel(
-    operators=[
-        opinf.operators.QuadraticOperator(),
-        opinf.operators.InputOperator(),
-    ]
-)
-
-# Equivalently, initialize the model with a string.
-model = opinf.models.DiscreteModel(operators="HB")
-```
-
-:::
-
-<!--
-(sec-models-multilithic)=
-## Nonparametric Multilithic Models
-
-- `operators` is a list of lists of nonparametric multilithic operators
-- Dimension attribute: `rs` and `r = sum(rs)`
--->
-
-(sec-models-parametric)=
-## Parametric Models
-
-A _parametric model_ is a model with at least one [parametric operator](sec-operators-parametric).
-
-:::{admonition} TODO
-
-- `__call__()`/`evaluate()` maps parameter values to a nonparametric model object.
-- `operators` can be nonparametric or parametric operators.
-- `fit()` takes in parameter values, lists of snapshots, lists of LHS, and lists of inputs.
-- `predict()` takes in a parameter value, then whatever else.
-
-:::

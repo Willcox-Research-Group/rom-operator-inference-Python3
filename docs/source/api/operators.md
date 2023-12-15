@@ -1,7 +1,7 @@
-# `opinf.operators` (new)
+# `opinf.operators`
 
 ```{eval-rst}
-.. automodule:: opinf.operators_new
+.. automodule:: opinf.operators
 ```
 
 <!--
@@ -56,7 +56,7 @@ $$
 \end{align}
 $$ (eq:operators:ltiexample)
 
-we use the following operator classes from {mod}`opinf.operators_new`.
+we use the following operator classes from {mod}`opinf.operators`.
 
 | Class | Definition | Operator entries | data vector |
 | :---- | :--------- | :--------------- | :---------- |
@@ -78,8 +78,8 @@ import opinf
 
 LTI_ROM = opinf.models.ContinuousModel(
     operators=[
-        opinf.operators_new.LinearOperator(),
-        opinf.operators_new.InputOperator(),
+        opinf.operators.LinearOperator(),
+        opinf.operators.InputOperator(),
     ]
 )
 ```
@@ -92,7 +92,7 @@ LTI_ROM = opinf.models.ContinuousModel(
 A _nonparametric_ operator is one where the entries matrix $\Ohat_\ell$ is constant (see [parametric operators](sec-operators-parametric)).
 
 ```{eval-rst}
-.. currentmodule:: opinf.operators_new
+.. currentmodule:: opinf.operators
 
 .. autosummary::
     :toctree: _autosummaries
@@ -255,7 +255,7 @@ is a parametric operator with parameter-dependent entries $\Ohat(\bfmu) = \mu_{1
 ### Interpolated Operators
 
 ```{eval-rst}
-.. currentmodule:: opinf.operators_new
+.. currentmodule:: opinf.operators
 
 .. autosummary::
     :toctree: _autosummaries
@@ -307,7 +307,7 @@ Constructor takes in list of the affine coefficient functions.
 ## Utilities
 
 ```{eval-rst}
-.. currentmodule:: opinf.operators_new
+.. currentmodule:: opinf.operators
 
 .. autosummary::
     :toctree: _autosummaries

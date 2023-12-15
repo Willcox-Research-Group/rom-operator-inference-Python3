@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 
 from ... import errors, lstsq
-from ... import operators_new as _operators
+from ... import operators as _operators
 
 
 class _Model(abc.ABC):
@@ -121,32 +121,32 @@ class _Model(abc.ABC):
 
     @property
     def c_(self):
-        """:class:`opinf.operators_new.ConstantOperator` (or ``None``)."""
+        """:class:`opinf.operators.ConstantOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.ConstantOperator)
 
     @property
     def A_(self):
-        """:class:`opinf.operators_new.LinearOperator` (or ``None``)."""
+        """:class:`opinf.operators.LinearOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.LinearOperator)
 
     @property
     def H_(self):
-        """:class:`opinf.operators_new.QuadraticOperator` (or ``None``)."""
+        """:class:`opinf.operators.QuadraticOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.QuadraticOperator)
 
     @property
     def G_(self):
-        """:class:`opinf.operators_new.CubicOperator` (or ``None``)."""
+        """:class:`opinf.operators.CubicOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.CubicOperator)
 
     @property
     def B_(self):
-        """:class:`opinf.operators_new.InputOperator` (or ``None``)."""
+        """:class:`opinf.operators.InputOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.InputOperator)
 
     @property
     def N_(self):
-        """:class:`opinf.operators_new.StateInputOperator` (or ``None``)."""
+        """:class:`opinf.operators.StateInputOperator` (or ``None``)."""
         return self._get_operator_of_type(_operators.StateInputOperator)
 
     # Properties: dimensions --------------------------------------------------

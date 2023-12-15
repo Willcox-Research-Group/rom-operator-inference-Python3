@@ -15,7 +15,7 @@ from scipy.integrate import solve_ivp, IntegrationWarning
 
 from ._base import _Model
 from ... import errors, utils
-from ... import operators_new as _operators
+from ... import operators as _operators
 
 
 # Base class ==================================================================
@@ -313,7 +313,7 @@ class _NonparametricModel(_Model):
         :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
         Finally,
         :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
-        See the :mod:`opinf.operators_new` module for more explanation.
+        See the :mod:`opinf.operators` module for more explanation.
 
         The strategy for solving the regression, as well as any additional
         regularization or constraints, are specified by the ``solver``.
@@ -502,7 +502,7 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
 
     Parameters
     ----------
-    operators : list of :mod:`opinf.operators_new` objects
+    operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
     """
     _LHS_ARGNAME = "forcing"
@@ -573,7 +573,7 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
         :math:`[~\d(\qhat_0)~~\cdots~~\d(\qhat_{k-1}~]\trp`.
         Finally,
         :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
-        See the :mod:`opinf.operators_new` module for more explanation.
+        See the :mod:`opinf.operators` module for more explanation.
 
         The strategy for solving the regression, as well as any additional
         regularization or constraints, are specified by the ``solver``.
@@ -624,7 +624,7 @@ class DiscreteModel(_NonparametricModel):
 
     Parameters
     ----------
-    operators : list of :mod:`opinf.operators_new` objects
+    operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
     """
     _LHS_ARGNAME = "nextstates"
@@ -746,7 +746,7 @@ class DiscreteModel(_NonparametricModel):
         :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
         Finally,
         :math:`\Zhat = [~\zhat_0~~\cdots~~\zhat_{k-1}~]\in\RR^{r\times k}`.
-        See the :mod:`opinf.operators_new` module for more explanation.
+        See the :mod:`opinf.operators` module for more explanation.
 
         The strategy for solving the regression, as well as any additional
         regularization or constraints, are specified by the ``solver``.
@@ -870,7 +870,7 @@ class ContinuousModel(_NonparametricModel):
 
     Parameters
     ----------
-    operators : list of :mod:`opinf.operators_new` objects
+    operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
     """
     _LHS_ARGNAME = "ddts"
@@ -957,7 +957,7 @@ class ContinuousModel(_NonparametricModel):
         :math:`[~\d(\qhat_0,\u_0)~~\cdots~~\d(\qhat_{k-1},\u_{k-1})~]\trp`.
         Finally, :math:`\dot{\Qhat}
         = [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\in\RR^{r\times k}`.
-        See the :mod:`opinf.operators_new` module for more explanation.
+        See the :mod:`opinf.operators` module for more explanation.
 
         The strategy for solving the regression, as well as any additional
         regularization or constraints, are specified by the ``solver``.

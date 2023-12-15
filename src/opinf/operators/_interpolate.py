@@ -48,16 +48,16 @@ class _InterpolatedOperator(_ParametricOperator):
     where :math:`\Ohat_\ell^{(i)} = \Ohat_\ell(\bfmu_i)` for each
     :math:`i=1,\ldots,s`.
 
-    Parent class: :class:`opinf.operators_new._base._ParametricOperator`
+    Parent class: :class:`opinf.operators._base._ParametricOperator`
 
     Child classes:
 
-    * :class:`opinf.operators_new.InterpolatedConstantOperator`
-    * :class:`opinf.operators_new.InterpolatedLinearOperator`
-    * :class:`opinf.operators_new.InterpolatedQuadraticOperator`
-    * :class:`opinf.operators_new.InterpolatedCubicOperator`
-    * :class:`opinf.operators_new.InterpolatedInputOperator`
-    * :class:`opinf.operators_new.InterpolatedStateInputOperator`
+    * :class:`opinf.operators.InterpolatedConstantOperator`
+    * :class:`opinf.operators.InterpolatedLinearOperator`
+    * :class:`opinf.operators.InterpolatedQuadraticOperator`
+    * :class:`opinf.operators.InterpolatedCubicOperator`
+    * :class:`opinf.operators.InterpolatedInputOperator`
+    * :class:`opinf.operators.InterpolatedStateInputOperator`
 
     Parameters
     ----------
@@ -120,7 +120,7 @@ class _InterpolatedOperator(_ParametricOperator):
 
         Parameters
         ----------
-        operators : list of :mod:`opinf.operators_new` objects
+        operators : list of :mod:`opinf.operators` objects
             Operators to interpolate. Must be of class ``OperatorClass``
             and have ``entries`` set.
         """
@@ -597,7 +597,7 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
     * :math:`\chat^{(i)} = \chat(\bfmu_i) \in \RR^r`
       are the operator entries evaluated at the training parameter values.
 
-    See :class:`opinf.operators_new.ConstantOperator`.
+    See :class:`opinf.operators.ConstantOperator`.
 
     Parameters
     ----------
@@ -644,7 +644,7 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
     * :math:`\Ahat^{(i)} = \Ahat(\bfmu_i) \in \RR^{r \times r}`
       are the operator entries evaluated at the training parameter values.
 
-    See :class:`opinf.operators_new.LinearOperator`
+    See :class:`opinf.operators.LinearOperator`
 
     Parameters
     ----------
@@ -691,7 +691,7 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
     * :math:`\Hhat^{(i)} = \Hhat(\bfmu_i) \in \RR^{r \times r^2}`
       are the operator entries evaluated at the training parameter values.
 
-    See :class:`opinf.operators_new.QuadraticOperator`.
+    See :class:`opinf.operators.QuadraticOperator`.
 
     Parameters
     ----------
@@ -739,7 +739,7 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
     * :math:`\Ghat^{(i)} = \Ghat(\bfmu_i) \in \RR^{r \times r^3}`
       are the operator entries evaluated at the training parameter values.
 
-    See :class:`opinf.operators_new.CubicOperator`.
+    See :class:`opinf.operators.CubicOperator`.
 
     Parameters
     ----------
@@ -787,7 +787,7 @@ class InterpolatedInputOperator(_InterpolatedOperator, _InputMixin):
       are the operator entries evaluated at the training parameter values.
 
 
-    See :class:`opinf.operators_new.InputOperator`.
+    See :class:`opinf.operators.InputOperator`.
 
     Parameters
     ----------
@@ -839,7 +839,7 @@ class InterpolatedStateInputOperator(_InterpolatedOperator, _InputMixin):
     * :math:`\Nhat^{(i)} = \Nhat(\bfmu_i) \in \RR^{r \times rm}`
       are the operator entries evaluated at the training parameter values.
 
-    See :class:`opinf.operators_new.StateInputOperator`.
+    See :class:`opinf.operators.StateInputOperator`.
 
     Parameters
     ----------

@@ -7,8 +7,6 @@ import numpy as np
 import opinf
 
 
-opinf_operators = opinf.operators_new  # TEMP
-
 # Global variables for testsing ===============================================
 MODELFORM_KEYS = "cAHGBN"
 
@@ -34,20 +32,20 @@ def _get_operators(operatorkeys, r=8, m=1):
     ops = []
     for key in operatorkeys:
         if key == "c":
-            ops.append(opinf_operators.ConstantOperator(np.random.random(r)))
+            ops.append(opinf.operators.ConstantOperator(np.random.random(r)))
         elif key == "A":
-            ops.append(opinf_operators.LinearOperator(np.eye(r)))
+            ops.append(opinf.operators.LinearOperator(np.eye(r)))
         elif key == "H":
             entries = np.zeros((r, r * (r + 1) // 2))
-            ops.append(opinf_operators.QuadraticOperator(entries))
+            ops.append(opinf.operators.QuadraticOperator(entries))
         elif key == "G":
             entries = np.zeros((r, r * (r + 1) * (r + 2) // 6))
-            ops.append(opinf_operators.CubicOperator(entries))
+            ops.append(opinf.operators.CubicOperator(entries))
         elif key == "B":
-            ops.append(opinf_operators.InputOperator(np.random.random((r, m))))
+            ops.append(opinf.operators.InputOperator(np.random.random((r, m))))
         elif key == "N":
             entries = np.random.random((r, r * m))
-            ops.append(opinf_operators.StateInputOperator(entries))
+            ops.append(opinf.operators.StateInputOperator(entries))
         else:
             raise KeyError
     return ops

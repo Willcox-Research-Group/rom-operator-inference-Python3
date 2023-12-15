@@ -6,7 +6,7 @@ This page discusses the different kinds of ROMs and how to build a ROM by specif
 :::{admonition} Overview
 :class: note
 Every ROM has two main components: a low-dimensional approximation of the full state (see [Dimensionality Reduction](sec-guide-dimensionality)), and a set equations describing the dynamics of the reduced state.
-The user specifies the structure of the reduced dynamics by providing a list of [operators](../api/operators_new.md) to a ROM class.
+The user specifies the structure of the reduced dynamics by providing a list of [operators](../api/operators.md) to a ROM class.
 Operators are calibrated through a least-squares regression of available state and input data.
 
 ```python
@@ -303,7 +303,7 @@ See the [Dimensionality Reduction](sec-guide-dimensionality) guide for details.
 ### Operators
 
 These attributes are the operators corresponding to the learned parts of the reduced-order model.
-The classes are defined in the {mod}`opinf.operators_new` submodule.
+The classes are defined in the {mod}`opinf.operators` submodule.
 
 <!-- TODO: Operator Class with links to API docs -->
 

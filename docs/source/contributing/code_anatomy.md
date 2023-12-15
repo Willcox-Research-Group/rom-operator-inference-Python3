@@ -17,12 +17,12 @@ The `opinf` package defines the following main class hierarchies:
 - [_Transformer classes_](subsec-contrib-transformerclass) are used for normalizing snapshot data (see {mod}`opinf.pre`).
 - [_Basis classes_](subsec-contrib-basisclass) represent the mapping between the full-order state space in $\RR^{n}$ and the reduced-order state space in $\RR^{r}$ (see {mod}`opinf.basis`)
 - [_Model classes_](subsec-contrib-modelclass) encapsulate an entire reduced-order model, such as $\frac{\text{d}}{\text{d}t}\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$ or $\qhat_{j+1} = \Hhat[\qhat_{j} \otimes \qhat_{j}]$. These are the major objects that the user interacts with (see {mod}`opinf.models`).
-- [_Operator classes_](subsec-contrib-opclass) represent a single operator that forms part of a reduced-order model, e.g., $\Ahat\q$ or $\Hhat[\qhat\otimes\qhat]$. Every ROM object has an `operators` attribute that is a list of operator objects (see {mod}`opinf.operators_new`).
+- [_Operator classes_](subsec-contrib-opclass) represent a single operator that forms part of a reduced-order model, e.g., $\Ahat\q$ or $\Hhat[\qhat\otimes\qhat]$. Every ROM object has an `operators` attribute that is a list of operator objects (see {mod}`opinf.operators`).
 - [_Solver classes_](subsec-contrib-lstsqsolvers) handle the least-squares regression problem at the heart of Operator Inference (see {mod}`opinf.lstsq`).
 
 :::{tip}
 As you design new classes, take advantage of intermediate classes and inheritance to avoid duplicating code when appropriate.
-For example, the operator classes {class}`opinf.operators_new.LinearOperator` and {class}`opinf.operators_new.QuadraticOperator` both inherit from {class}`opinf.operators_new._base._NonparametricOperator`, which handles tasks that are common to all nonparametric operators.
+For example, the operator classes {class}`opinf.operators.LinearOperator` and {class}`opinf.operators.QuadraticOperator` both inherit from {class}`opinf.operators._base._NonparametricOperator`, which handles tasks that are common to all nonparametric operators.
 :::
 
 (subsec-contrib-transformerclass)=
@@ -80,22 +80,22 @@ Before implementing a new basis class, take a close look at {class}`opinf.basis.
     :toctree: _autosummaries
     :nosignatures:
 
-    opinf.operators_new._base._NonparametricOperator
-    opinf.operators_new._base._ParametricOperator
-    opinf.operators_new._interpolate._InterpolatedOperator
+    opinf.operators._base._NonparametricOperator
+    opinf.operators._base._ParametricOperator
+    opinf.operators._interpolate._InterpolatedOperator
 ```
 
-Operator classes are defined in {mod}`opinf.operators_new`.
+Operator classes are defined in {mod}`opinf.operators`.
 The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that define the terms of the model, for example $\Ahat$ and $\Bhat$ of $\ddt\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$.
 
 All [nonparametric operator](sec-operators-nonparametric) classes must
 
-- Inherit from {class}`opinf.operators_new._base._NonparametricOperator`.
+- Inherit from {class}`opinf.operators._base._NonparametricOperator`.
 - TODO
 
 All [parametric operator](sec-operators-parametric) classes must
 
-- Inherit from {class}`opinf.operators_new._base._ParametricOperator`.
+- Inherit from {class}`opinf.operators._base._ParametricOperator`.
 
 :::{tip}
 Usually a group of new parametric operator classes can be implemented by writing an intermediate class that does all of the work, then writing child classes for constant, linear, quadratic, and cubic terms which each set `_OperatorClass` appropriately.
