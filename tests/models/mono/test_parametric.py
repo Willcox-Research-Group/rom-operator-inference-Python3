@@ -560,6 +560,8 @@ class TestInterpolatedModel:
         model2 = self.Dummy.load(target)
         assert model2 == model1
 
+        os.remove(target)
+
     def test_copy(self, s=10, p=2, r=3):
         """Test _InterpolatedModel._copy()."""
 
