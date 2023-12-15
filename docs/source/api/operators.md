@@ -24,10 +24,10 @@ $$
    = \sum_{\ell=1}^{n_\textrm{terms}}
    \Ophat_{\ell}(\qhat(t),\u(t))
 \end{align*}
-$$
+$$ (eq:operators:model)
 
 where each $\Ophat_{\ell}:\RR^{r}\times\RR^{m}\to\RR^{r}$ is a vector-valued function that is polynomial with respect to the reduced state $\qhat\in\RR^{n}$ and the input $\u\in\RR^{m}$.
-Such functions, which we call *operators*, can be represented by a matrix-vector product
+Such functions, which we refer to as *operators*, can be represented by a matrix-vector product
 
 $$
 \begin{align*}
@@ -56,7 +56,7 @@ $$
 \end{align}
 $$ (eq:operators:ltiexample)
 
-we use the following operator classes from {mod}`opinf.operators`.
+we use the following operator classes.
 
 | Class | Definition | Operator entries | data vector |
 | :---- | :--------- | :--------------- | :---------- |
@@ -76,7 +76,7 @@ $$
 ```python
 import opinf
 
-LTI_ROM = opinf.models.ContinuousModel(
+LTI_model = opinf.models.ContinuousModel(
     operators=[
         opinf.operators.LinearOperator(),
         opinf.operators.InputOperator(),
@@ -89,7 +89,7 @@ LTI_ROM = opinf.models.ContinuousModel(
 (sec-operators-nonparametric)=
 ## Nonparametric Operators
 
-A _nonparametric_ operator is one where the entries matrix $\Ohat_\ell$ is constant (see [parametric operators](sec-operators-parametric)).
+A _nonparametric_ operator $\Ophat_{\ell}(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)$ is one where the entries matrix $\Ohat_\ell$ is constant.
 
 ```{eval-rst}
 .. currentmodule:: opinf.operators
@@ -114,11 +114,14 @@ A _nonparametric_ operator is one where the entries matrix $\Ohat_\ell$ is const
 Multilithic classes
 ::: -->
 
-### Initialization
-
-Every nonparametric operator class can be initialized without arguments.
+Nonparametric operators can be instantiated without arguments.
 If the operator entries are known, they can be passed into the constructor or set later with the `set_entries()` method.
 The entries are stored as the `entries` attribute and can be accessed with slicing operations `[:]`.
+
+In a reduced-order model, there are two ways to determine the operator entries:
+
+- Learn the entries from data (nonintrusive Operator Inference), or
+- Shrink an existing high-dimensional operator (intrusive Galerkin projection).
 
 Once the entries are set, the following methods are used to compute the action
 of the operator or its derivatives.
@@ -127,33 +130,43 @@ of the operator or its derivatives.
 - `jacobian()`: construct the state Jacobian $\ddqhat\Ophat_\ell(\qhat, \u)$.
 
 (sec-operators-calibration)=
-### Calibrating Operator Entries
+### Learning Operators from Data
 
-Nonparametric operator classes have a static `datablock()` method that, given state-input data pairs $\{(\qhat_j,\u_j)\}_{j=0}^{k-1}$, forms the matrix
+Suppose we have state-input-derivative data triples $\{(\qhat_j,\u_j,\dot{\qhat}_j)\}_{j=0}^{k-1}$ that approximately satisfy the model {eq}`eq:operators:model`, i.e.,
 
 $$
+\begin{align*}
+    \dot{\qhat}_j
+    \approx \Ophat(\qhat_j, \u_j)
+    = \sum_{\ell=1}^{n_\textrm{terms}} \Ophat_{\ell}(\qhat_j, \u_j)
+    = \sum_{\ell=1}^{n_\textrm{terms}} \Ohat_{\ell}\d_{\ell}(\qhat_j, \u_j).
+\end{align*}
+$$ (eq:operators:approx)
+
+Operator Inference determines the operator entries $\Ohat_1,\ldots,\Ohat_{n_\textrm{terms}}$ by minimizing the residual of {eq}`eq:operators:approx`:
+
+$$
+\begin{align*}
+    \min_{\Ohat_1,\ldots,\Ohat_{n_\textrm{terms}}}\sum_{j=0}^{k-1}\left\|
+        \sum_{\ell=1}^{n_\textrm{terms}}\Ohat_\ell\d_\ell(\qhat_j,\u_j) - \dot{\qhat}_j
+    \right\|_2^2.
+\end{align*}
+$$
+
+To facilitate this, nonparametric operator classes have a static `datablock()` method that, given the state-input data pairs $\{(\qhat_j,\u_j)\}_{j=0}^{k-1}$, forms the matrix
+
+$$
+\begin{align*}
     \D_{\ell}\trp = \left[\begin{array}{c|c|c|c}
         & & & \\
         \d_{\ell}(\qhat_0,\u_0) & \d_{\ell}(\qhat_1,\u_1) & \cdots & \d_{\ell}(\qhat_{k-1},\u_{k-1})
         \\ & & &
     \end{array}\right]
-    \in \RR^{d \times k}
-$$
-
-where the operator is given by $\Ophat_{\ell}(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)$.
-For a model consisting of multiple operators, e.g.,
-
-$$
-\begin{align*}
-   \ddt\qhat(t)
-   = \sum_{\ell=1}^{n_\textrm{terms}}
-   \Ophat_{\ell}(\qhat(t),\u(t))
-   = \sum_{\ell=1}^{n_\textrm{terms}}
-   \Ohat_{\ell}\d_{\ell}(\qhat(t),\u(t)),
+    \in \RR^{d \times k}.
 \end{align*}
 $$
 
-the Operator Inference regression to learn the operator entries from data is given by
+Then {eq}`eq:operators:approx` can be written in the linear least-squares form
 
 $$
 \begin{align*}
@@ -184,17 +197,72 @@ $$
 \end{align*}
 $$
 
-The `fit()` method in an {mod}`opinf.models` class calls the `datablock()` method of each operator to assemble the full data matrix $\D$, solves the regression problem for the full data matrix $\Ohat$, and sets the entries of the $\ell$-th operator to $\Ohat_{\ell}$.
+Model classes from {mod}`opinf.models` are instantiated with a list of operators.
+The model's `fit()` method calls the `datablock()` method of each operator to assemble the full data matrix $\D$, solves the regression problem for the full data matrix $\Ohat$ (see {mod}`opinf.lstsq`), and sets the entries of the $\ell$-th operator to $\Ohat_{\ell}$.
 
-### Galerkin Projection
+:::{admonition} Example
+:class: tip
 
-Every operator class has a `galerkin()` method that performs intrusive projection.
-Consider an operator $\Op:\RR^{n}\times\RR^{m}\to\RR^{n}$, written $\Op(\q,\u)$, where
+For the LTI system {eq}`eq:operators:ltiexample`, the operator inference problem is the following regression.
+
+$$
+\begin{align*}
+    \min_{\Ahat,\Bhat}\sum_{j=0}^{k-1}\left\|
+        \Ahat\qhat_j + \Bhat\u_j - \dot{\qhat}_j
+    \right\|_2^2
+    = \min_{\Ohat}\left\|
+        \D\Ohat\trp - [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\trp
+    \right\|_F^2,
+\end{align*}
+$$
+
+with operator matrix $\Ohat=[~\Ahat~~\Bhat~]$
+and data matrix $\D = [~\Qhat\trp~~\U\trp~]$
+where $\Qhat = [~\qhat_0~~\cdots~~\qhat_{k-1}~]$
+and $\U = [~\u_0~~\cdots~~\u_{k-1}~]$.
+:::
+
+:::{important}
+Only operators whose entries are _not initialized_ (set to `None`) when a model is constructed are learned with Operator Inference when `fit()` is called.
+For example, suppose for the LTI system {eq}`eq:operators:ltiexample` an appropriate input matrix $\Bhat$ is known and stored as the variable `B_`.
+
+```python
+import opinf
+
+LTI_model = opinf.models.ContinuousModel(
+    operators=[
+        opinf.operators.LinearOperator(),   # No entries specified.
+        opinf.operators.InputOperator(B_),  # Entries set to B_.
+    ]
+)
+```
+
+In this case, `LIT_model.fit()` only determines the entries of the {class}`LinearOperator` object using Operator Inference, with regression problem
+
+$$
+\begin{align*}
+    &\min_{\Ahat,}\sum_{j=0}^{k-1}\left\|
+        \Ahat\qhat_j - (\dot{\qhat}_j - \Bhat\u_j)
+    \right\|_2^2
+    \\
+    &= \min_{\Ohat}\left\|
+        \Qhat\trp\Ahat\trp - [~(\dot{\qhat}_0 - \Bhat\u_0)~~\cdots~~(\dot{\qhat}_{k-1} - \Bhat\u_{k-1})~]\trp
+    \right\|_F^2.
+\end{align*}
+$$
+
+:::
+
+### Learning Operators via Projection
+
+The goal of Operator Inference is to learn operator entries from data because full-order operators are unknown or computationally inaccessible.
+However, in some scenarios a subset of the full-order model operators are known, in which case the corresponding reduced-order model operators can be determined through *intrusive projection*.
+Consider a full-order operator $\Op:\RR^{n}\times\RR^{m}\to\RR^{n}$, written $\Op(\q,\u)$, where
 
 - $\q\in\RR^n$ is the full-order state, and
 - $\u\in\RR^m$ is the input.
 
-Given a *trial basis* $\Vr\in\RR^{n\times r}$ and a *test basis* $\Wr\in\RR^{n\times r}$, the corresponding *intrusive projection* of $\Op$ is the operator $\Ophat:\RR^{r}\times\RR^{m}\to\RR^{r}$ defined by
+Given a *trial basis* $\Vr\in\RR^{n\times r}$ and a *test basis* $\Wr\in\RR^{n\times r}$, the corresponding intrusive projection of $\Op$ is the operator $\Ophat:\RR^{r}\times\RR^{m}\to\RR^{r}$ defined by
 
 $$
 \begin{align*}
@@ -204,7 +272,7 @@ $$
 
 where
 - $\qhat\in\RR^{r}$ is the reduced-order state, and
-- $\u\in\RR^{m}$ is the input (as before).
+- $\u\in\RR^{m}$ is the input (the same as before).
 
 This approach uses the low-dimensional state approximation $\q = \Vr\qhat$.
 If $\Wr = \Vr$, the result is called a *Galerkin projection*.
@@ -228,31 +296,36 @@ $$
 where $\Nhat = \Wr\trp\N(\I_m\otimes\Vr) \in \RR^{r\times rm}$.
 :::
 
-:::{important}
-The goal of Operator Inference is to learn operator entries *without* using intrusive projection because full-order operators are unknown or computationally inaccessible.
-However, in some scenarios a subset of the model operators are known, in which case only the remaining operators need to be inferred from data.
-:::
-
-### Model Persistence
-
-Operators can be saved to disk in [HDF5 format](https://www.h5py.org/) via the `save()` method.
-Every operator has a class method `load()` for loading an operator from the HDF5 file previously produced by `save()`.
+Every operator class has a `galerkin()` method that performs intrusive projection.
 
 (sec-operators-parametric)=
 ## Parametric Operators
 
 Operators are called _parametric_ if the operator entries depend on an independent parameter vector
-$\bfmu\in\RR^{p}$, i.e., $\Ophat(\qhat,\u;\bfmu) = \Ohat(\bfmu)\d(\qhat,\u)$ where now $\Ohat:\RR^{p}\to\RR^{r\times d}$.
+$\bfmu\in\RR^{p}$, i.e., $\Ophat_{\ell}(\qhat,\u;\bfmu) = \Ohat_{\ell}(\bfmu)\d_{\ell}(\qhat,\u)$ where now $\Ohat:\RR^{p}\to\RR^{r\times d}$.
 
 :::{admonition} Example
 :class: tip
 Let $\bfmu = [~\mu_{1}~~\mu_{2}~]\trp$.
 The linear operator
-$\Ophat(\qhat,\u;\bfmu) = (\mu_{1}\Ahat_{1} + \mu_{2}\Ahat_{2})\qhat$
-is a parametric operator with parameter-dependent entries $\Ohat(\bfmu) = \mu_{1}\Ahat_{1} + \mu_{2}\Ahat_{2}$.
+$\Ophat_1(\qhat,\u;\bfmu) = (\mu_{1}\Ahat_{1} + \mu_{2}\Ahat_{2})\qhat$
+is a parametric operator with parameter-dependent entries $\Ohat_1(\bfmu) = \mu_{1}\Ahat_{1} + \mu_{2}\Ahat_{2}$.
 :::
 
+(sec-operators-interpolated)=
 ### Interpolated Operators
+
+These operators handle the parametric dependence on $\bfmu$ by using elementwise interpolation:
+
+$$
+\begin{align*}
+    \Ohat_{\ell}(\bfmu)
+    = \text{interpolate}(
+    (\bfmu_{1},\Ohat_{\ell}^{(1)}),\ldots,(\bfmu_{s},\Ohat_{\ell}^{(s)}); \bfmu),
+\end{align*}
+$$
+
+where $\bfmu_1,\ldots,\bfmu_s$ are training parameter values and $\Ohat_{\ell}^{(i)} = \Ohat_{\ell}(\bfmu_i)$ for $i=1,\ldots,s$.
 
 ```{eval-rst}
 .. currentmodule:: opinf.operators
@@ -269,29 +342,7 @@ is a parametric operator with parameter-dependent entries $\Ohat(\bfmu) = \mu_{1
     InterpolatedStateInputOperator
 ```
 
-$$
-\begin{align*}
-    \Ophat(\qhat,\u;\mu)
-    = \text{interpolate}(
-    (\bfmu_{1},\Ophat_{1}),\ldots,(\bfmu_{s},\Ophat_{s}); \bfmu)
-\end{align*}
-$$
-
-:::{admonition} TODO
-Constructor takes in...
-:::
-
-:::{warning}
-The rest of this page is under construction.
-:::
-
-:::{admonition} TODO
-
-- Constructor takes in parameter information (and anything needed by the underlying nonparametric class)
-- `evaluate()` maps parameter values to a nonparametric operator
-:::
-
-### Affine Operators
+<!-- ### Affine Operators
 
 $$
 \begin{align*}
@@ -302,7 +353,7 @@ $$
 
 :::{admonition} TODO
 Constructor takes in list of the affine coefficient functions.
-:::
+::: -->
 
 ## Utilities
 

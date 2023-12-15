@@ -15,7 +15,8 @@ New versions may introduce substantial new features or API adjustments.
   - `ContinuousOpInfROM` to `ContinuousModel`
   - `DiscreteOpInfROM` to `DiscreteModel`
   - `SteadyOpInfROM` to `SteadyModel`
-- Model classes now take a list of operators in the constructor. String shortcuts such as `"cAH"` are still valid, similar to the previous `modelform` argument.
+  - Same for interpolated models.
+- Model classes now take a list of operators in the constructor. String shortcuts such as `"cAH"` are still valid, similar to the previous `modelform` argument. The `known_operators` argument has been removed from the `fit()` method.
 - Model classes no longer have a `basis` attribute.
   - The `basis` argument has been removed from the `fit()` method.
   - The `compress()` and `decompress()` methods have been removed from model classes.

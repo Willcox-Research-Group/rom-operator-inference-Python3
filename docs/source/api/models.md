@@ -14,7 +14,7 @@ Model dynamics are calibrated through a least-squares regression of available st
 import opinf
 
 # Specify the model structure through a list of operators.
-rom = opinf.models.ContinuousModel(
+model = opinf.models.ContinuousModel(
     operators=[
         opinf.operators.LinearOperator(),
         opinf.operators.InputOperator(),
@@ -22,10 +22,10 @@ rom = opinf.models.ContinuousModel(
 )
 
 # Calibrate the model through Operator Inference.
-rom.fit(state_snapshots, state_time_derivatives, corresponding_inputs)
+model.fit(state_snapshots, state_time_derivatives, corresponding_inputs)
 
 # Solve the model.
-result = rom.predict(initial_condition, time_domain, input_function)
+result = model.predict(initial_condition, time_domain, input_function)
 ```
 
 :::
@@ -47,7 +47,7 @@ The models defined in this module can be classified in a few ways.
 
 ## Nonparametric Models
 
-A _nonparametric_ model is comprised exclusively of [nonparametric operators](sec-operators-nonparametric) (see [parametric models](sec-models-parametric)).
+A _nonparametric_ model is comprised exclusively of [nonparametric operators](sec-operators-nonparametric).
 
 ```{eval-rst}
 .. currentmodule:: opinf.models
@@ -58,13 +58,10 @@ A _nonparametric_ model is comprised exclusively of [nonparametric operators](se
 
     ContinuousModel
     DiscreteModel
-    SteadyModel
 ```
 
-### Initialization and Model Structure
-
 Nonparametric model classes are initialized with a single argument, `operators`, that must be a list of nonparametric {mod}`opinf.operators` objects.
-The right-hand side of the model is defined to be the sum of the action of the operators on the model state and the (optional) input.
+The right-hand side of the model is defined to be the sum of the action of the operators on the model state and the input (if present).
 For example, a {class}`ContinuousModel` represents a system of ODEs
 
 $$
@@ -107,35 +104,63 @@ model = opinf.models.DiscreteModel(operators="HB")
 
 :::
 
-### Model Calibration
-
 The individual operators given to the constructor may or may not have their entries set.
-The `fit()` method uses Operator Inference to calibrate the operators without entries through a regression problem, see [Calibrating Operator Entries](sec-operators-calibration).
-
-### Model Evaluation
-
+A model's `fit()` method uses Operator Inference to calibrate the operators without entries through a regression problem, see [Learning Operators from Data](sec-operators-calibration).
 Once the model operators are calibrated, nonparametric models may use the following methods.
 
 - `rhs()`: Compute the right-hand side of the model, i.e., $\Ophat(\qhat, \u)$.
 - `jacobian()`: Construct the state Jacobian of the right-hand side of the model, i.e, $\ddqhat\Ophat(\qhat,\u)$.
 - `predict()`: Solve the model with given initial conditions and/or inputs.
 
-### Object Persistence
-
-Models can be saved to disk in [HDF5 format](https://www.h5py.org/) via the `save()` method.
-Every model has a class method `load()` for loading an operator from the HDF5 file previously produced by `save()`.
-
 (sec-models-parametric)=
 ## Parametric Models
 
 A _parametric model_ is a model with at least one [parametric operator](sec-operators-parametric).
 
-:::{admonition} TODO
+Parametric models are similar to nonparametric models: they are initialized with a list of operators, use `fit()` to calibrate operator entries, and `predict()` to solve the model.
+In addition, parametric models have an `evaluate()` method that returns a nonparametric model at a fixed parameter value.
 
-- `__call__()`/`evaluate()` maps parameter values to a nonparametric model object.
-- `operators` can be nonparametric or parametric operators.
-- `fit()` takes in parameter values, lists of snapshots, lists of LHS, and lists of inputs.
-- `predict()` takes in a parameter value, then whatever else.
+### Interpolated Models
+
+Interpolated models consist exclusively of [interpolated operators](sec-operators-interpolated).
+
+```{eval-rst}
+.. currentmodule:: opinf.models
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    InterpolatedContinuousModel
+    InterpolatedDiscreteModel
+```
+
+:::{tip}
+The `operators` constructor argument for these classes can also be a string that indicates which type of operator to use.
+
+| Character | {mod}`opinf.operators` class |
+| :-------- | :------------------------------- |
+| `'c'` | {class}`opinf.operators.InterpolatedConstantOperator` |
+| `'A'` | {class}`opinf.operators.InterpolatedLinearOperator` |
+| `'H'` | {class}`opinf.operators.InterpolatedQuadraticOperator` |
+| `'G'` | {class}`opinf.operators.InterpolatedCubicOperator` |
+| `'B'` | {class}`opinf.operators.InterpolatedInputOperator` |
+| `'N'` | {class}`opinf.operators.InterpolatedStateInputOperator` |
+
+```python
+import opinf
+
+# Initialize the model with a list of operator objects.
+model = opinf.models.InterpolatedContinuousModel(
+    operators=[
+        opinf.operators.InterpolatedCubicOperator(),
+        opinf.operators.InterpolatedStateInputOperator(),
+    ]
+)
+
+# Equivalently, initialize the model with a string.
+model = opinf.models.InterpolatedContinuousModel(operators="GN")
+```
 
 :::
 
