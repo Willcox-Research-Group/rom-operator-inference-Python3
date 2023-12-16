@@ -616,10 +616,12 @@ class TestInterpolatedDiscreteModel:
         inputs = np.random.random((s, m, k))
 
         model = self.ModelClass("A")
-        model.fit(params, states, regularizer=1)
+        out = model.fit(params, states, regularizer=1)
+        assert out is model
 
         model = self.ModelClass("AB")
-        model.fit(params, states, nextstates, inputs, solver=1)
+        out = model.fit(params, states, nextstates, inputs, solver=1)
+        assert out is model
 
     def test_rhs(self, s=10, r=3, m=2):
         """Lightly test InterpolatedDiscreteModel.rhs()."""
@@ -708,10 +710,12 @@ class TestInterpolatedContinuousModel:
         inputs = np.random.random((s, m, k))
 
         model = self.ModelClass("A")
-        model.fit(params, states, ddts, regularizer=1)
+        out = model.fit(params, states, ddts, regularizer=1)
+        assert out is model
 
         model = self.ModelClass("AB")
-        model.fit(params, states, ddts, inputs, solver=1)
+        out = model.fit(params, states, ddts, inputs, solver=1)
+        assert out is model
 
     def test_rhs(self, s=10, r=3, m=2):
         """Lightly test InterpolatedContinuousModel.rhs()."""

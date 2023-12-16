@@ -404,6 +404,7 @@ class _ParametricModel(_Model):
         """
         self._fit_solver(parameters, states, lhs, inputs, solver=solver)
         self._evaluate_solver()
+        return self
 
     # Parametric evaluation ---------------------------------------------------
     def evaluate(self, parameter):
@@ -653,6 +654,8 @@ class _ParametricDiscreteMixin:
         :meth:`evaluate` to first get the nonparametric model corresponding
         to the parameter value.
 
+        .. code-block::
+
            # Instead of this...
            >>> values = [parametric_model.rhs(parameter, q, input_)
            ...           for q in list_of_states]
@@ -690,6 +693,8 @@ class _ParametricDiscreteMixin:
         For repeated ``jacobian()`` calls with the same parameter value, use
         :meth:`evaluate` to first get the nonparametric model corresponding
         to the parameter value.
+
+        .. code-block::
 
            # Instead of this...
            >>> jacs = [parametric_model.jacobian(parameter, q, input_)
@@ -878,6 +883,8 @@ class _ParametricContinuousMixin:
         :meth:`evaluate` to first get the nonparametric model corresponding
         to the parameter value.
 
+        .. code-block::
+
            # Instead of this...
            >>> values = [parametric_model.rhs(t, parameter, q, input_func)
            ...           for t, q in zip(times, states)]
@@ -918,6 +925,8 @@ class _ParametricContinuousMixin:
         For repeated ``jacobian()`` calls with the same parameter value, use
         :meth:`evaluate` to first get the nonparametric model corresponding
         to the parameter value.
+
+        .. code-block::
 
            # Instead of this...
            >>> jacs = [parametric_model.jacobian(t, parameter, q, input_func)

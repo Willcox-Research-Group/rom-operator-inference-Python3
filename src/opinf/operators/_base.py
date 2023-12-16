@@ -507,6 +507,8 @@ class _ParametricOperator(abc.ABC):
         :meth:`evaluate` to first get the nonparametric operator
         corresponding to the parameter value.
 
+        .. code-block::
+
            # Instead of this...
            >>> values = [parametric_operator.apply(parameter, q, input_)
            ...           for q in list_of_states]
@@ -548,6 +550,8 @@ class _ParametricOperator(abc.ABC):
         For repeated ``jacobian()`` calls with the same parameter value, use
         :meth:`evaluate` to first get the nonparametric operator
         corresponding to the parameter value.
+
+        .. code-block::
 
            # Instead of this...
            >>> values = [parametric_operator.jacobian(parameter, q, input_)
