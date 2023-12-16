@@ -9,13 +9,14 @@ PYTEST = pytest --cov opinf tests --cov-report html
 # About -----------------------------------------------------------------------
 help:
 	@echo "usage:"
-	@echo "  make clean: remove all build, test, and Python artifacts"
-	@echo "  make install: install the package locally from source"
-	@echo "  make lint: check style with flake8"
-	@echo "  make test: run unit tests via pytest"
+	@echo "  make clean:      remove build, test, and Python artifacts"
+	@echo "  make install:    install the package locally from source"
+	@echo "  make lint:       check style with flake8"
+	@echo "  make format:     (FUTURE FEATURE) run black formatter"
+	@echo "  make test:       run unit tests via pytest"
+	@echo "  make docs:       build jupyter-book documentation"
 	@echo "  make test_light: run unit tests without reinstalling package"
-	@echo "  make docs: build jupyter-book documentation"
-	@echo "  make docs_light: build documentation without cleaning files"
+	@echo "  make docs_light: build the docs without reinstalling package"
 
 
 # Cleanup ---------------------------------------------------------------------
@@ -28,8 +29,14 @@ clean:
 	find . -type d -name "__pycache__" | xargs $(REMOVE)
 	find . -type d -name ".ipynb_checkpoints" | xargs $(REMOVE)
 	find . -type d -name "htmlcov" | xargs $(REMOVE)
-	find docs -type d -name "_build" | xargs $(REMOVE)
+
+
+clean_docs:
+	$(REMOVE) "docs/_build"
 	find docs -type d -name "_autosummaries" | xargs $(REMOVE)
+
+
+clean_all: clean clean_docs
 
 
 # Installation ----------------------------------------------------------------
@@ -55,8 +62,13 @@ lint:
 	$(PYTHON) -m flake8 tests
 
 
+format:
+	# $(PYTHON) -m black src
+	# $(PYTHON) -m black tests
+
+
 # Run tests as is (no cleanup / installation).
-test_light: lint
+test_light: lint format
 	$(PYTHON) -m $(PYTEST)
 	# open htmlcov/index.html
 
@@ -70,12 +82,8 @@ test: clean install_tests test_light
 docs_light:
 	jupyter-book build --nitpick docs
 
-# Clean everything, re-install package, and build docs.
+# Re-install package and build docs.
 docs: clean install_docs docs_light
-
-# Clean everything, re-install package, and build docs with error detection.
-docs_all: clean install_docs
-	jupyter-book build --nitpick --warningiserror --all docs
 
 
 # Deployment (ADMINISTRATORS ONLY) --------------------------------------------
