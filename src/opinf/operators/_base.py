@@ -61,7 +61,7 @@ class _NonparametricOperator(abc.ABC):
     @staticmethod
     def _validate_entries(entries):
         """Ensure argument is a NumPy array and screen for NaN, Inf entries."""
-        if not isinstance(entries, (np.ndarray, sparse.sparray)):
+        if not (isinstance(entries, np.ndarray) or sparse.issparse(entries)):
             raise TypeError(
                 "operator entries must be NumPy or scipy.sparse array"
             )
