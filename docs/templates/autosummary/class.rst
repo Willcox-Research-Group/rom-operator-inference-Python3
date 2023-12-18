@@ -1,8 +1,8 @@
-{{ fullname | escape | underline}}
+{{ objname | escape | underline}}
 
 .. currentmodule:: {{ module }}
 
-.. autoclass:: {{ objname }}
+.. autoclass:: {{ fullname }}
    :no-members:
    :no-inherited-members:
    :no-special-members:

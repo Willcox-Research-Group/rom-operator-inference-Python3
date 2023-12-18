@@ -4,11 +4,12 @@
 import numpy as np
 
 
-def _get_operators(n=60, m=20, expanded=False):
+def _get_operator_entries(r=10, m=3, expanded=False):
     """Construct fake model operators."""
-    c = np.random.random(n)
-    A = np.eye(n)
-    H = np.zeros((n, n**2 if expanded else n*(n+1)//2))
-    G = np.zeros((n, n**3 if expanded else n*(n+1)*(n+2)//6))
-    B = np.random.random((n, m)) if m else None
-    return c, A, H, G, B
+    c = np.random.random(r)
+    A = np.eye(r)
+    H = np.zeros((r, r**2 if expanded else r * (r + 1) // 2))
+    G = np.zeros((r, r**3 if expanded else r * (r + 1) * (r + 2) // 6))
+    B = np.random.random((r, m)) if m else None
+    N = np.random.random((r, r * m)) if m else None
+    return c, A, H, G, B, N

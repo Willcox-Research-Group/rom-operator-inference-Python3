@@ -4,6 +4,7 @@
 import os
 import h5py
 import pytest
+import warnings
 
 import opinf
 
@@ -14,11 +15,11 @@ def test_hdf5_filehandle():
 
     # Clean up after old tests.
     target = "_hdf5handletest.h5"
-    if os.path.isfile(target):              # pragma: no cover
+    if os.path.isfile(target):  # pragma: no cover
         os.remove(target)
 
     # Input file is already an open h5py handle.
-    h5file = h5py.File(target, 'a')
+    h5file = h5py.File(target, "a")
     with subject(h5file, "load", False) as hf:
         assert hf is h5file
         assert bool(hf)
@@ -28,7 +29,7 @@ def test_hdf5_filehandle():
     os.remove(target)
 
     # Save mode without .h5 extension.
-    with pytest.warns(UserWarning) as wn:
+    with pytest.warns(opinf.errors.UsageWarning) as wn:
         with subject(target[:-3], "save", True):
             pass
     assert len(wn) == 1
@@ -93,11 +94,11 @@ def test_hdf5_savehandle():
 
     # Clean up after old tests.
     target = "_hdf5savehandletest.h5"
-    if os.path.isfile(target):              # pragma: no cover
+    if os.path.isfile(target):  # pragma: no cover
         os.remove(target)
 
     # Input file is already an open h5py handle.
-    h5file = h5py.File(target, 'a')
+    h5file = h5py.File(target, "a")
     with subject(h5file, False) as hf:
         assert hf is h5file
         assert bool(hf)
@@ -107,7 +108,7 @@ def test_hdf5_savehandle():
     os.remove(target)
 
     # Save mode without .h5 extension.
-    with pytest.warns(UserWarning) as wn:
+    with pytest.warns(opinf.errors.UsageWarning) as wn:
         with subject(target[:-3], True):
             pass
     assert len(wn) == 1
@@ -144,10 +145,10 @@ def test_hdf5_loadhandle():
 
     # Clean up after old tests.
     target = "_hdf5loadhandletest.h5"
-    if os.path.isfile(target):              # pragma: no cover
+    if os.path.isfile(target):  # pragma: no cover
         os.remove(target)
 
-    with h5py.File(target, 'w'):
+    with h5py.File(target, "w"):
         pass
 
     # Loading.
@@ -156,9 +157,29 @@ def test_hdf5_loadhandle():
         assert bool(hf)
         assert hf.mode == "r"
     assert not bool(hf)
-    os.remove(target)
+
+    # Exception within block is wrapped as LoadfileFormatError.
+    with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+        with subject(target) as hf:
+            raise RuntimeError("error within block")
+    assert ex.value.args[0] == "error within block"
+
+    with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+        with subject(target) as hf:
+            raise opinf.errors.LoadfileFormatError("error2")
+    assert ex.value.args[0] == "error2"
+
+    class DummyWarning(Warning):
+        pass
+
+    # Warning within block is passed on.
+    with pytest.warns(DummyWarning) as wn:
+        with subject(target) as hf:
+            warnings.warn("my dummy warning", DummyWarning)
+    assert wn[0].message.args[0] == "my dummy warning"
 
     # Try loading a nonexistent file.
+    os.remove(target)
     with pytest.raises(FileNotFoundError) as ex:
         with subject(target):
             pass

@@ -17,6 +17,7 @@ html:
   home_page_in_navbar: false
   use_edit_page_button: false
   use_issues_button: true
+  use_multitoc_numbering: false
   use_repository_button: true
   favicon: images/favicon.svg
 
@@ -53,6 +54,57 @@ sphinx:
     #   "numpy": ("https://numpy.org/devdocs", None),
     #   "matplotlib": ("https://matplotlib.org/stable", None),
     # }
+    mathjax3_config:
+      tex:
+        macros:
+          "RR": "\\mathbb{R}"                 # real numbers
+          "NN": "\\mathbb{N}"                 # natural numbers
+          "ZZ": "\\mathbb{Z}"                 # integers
+          "I": "\\mathbf{I}"                  # identity matrix
+          "0": "\\mathbf{0}"                  # zero vector or matrix
+          "1": "\\mathbf{1}"                  # vector of ones
+          "q": "\\mathbf{q}"                  # state vector
+          "u": "\\mathbf{u}"                  # input vector
+          "z": "\\mathbf{z}"                  # rhs vector
+          "d": "\\mathbf{d}"                  # data vector
+          "f": "\\mathbf{f}"                  # model rhs function
+          "Q": "\\mathbf{Q}"                  # state data
+          "U": "\\mathbf{U}"                  # input data
+          "Z": "\\mathbf{Z}"                  # rhs data
+          "Op": "\\mathbf{f}"                 # generic operator
+          "Ophat": "\\hat{\\mathbf{f}}"       # generic reduced operator
+          "c": "\\mathbf{c}"                  # constant operator
+          "A": "\\mathbf{A}"                  # linear operator
+          "H": "\\mathbf{H}"                  # quadratic operator
+          "G": "\\mathbf{G}"                  # cubic operator
+          "B": "\\mathbf{B}"                  # input operator
+          "N": "\\mathbf{N}"                  # bilinear operator
+          "v": "\\mathbf{v}"                  # basis vector
+          "V": "\\mathbf{V}"                  # generic basis matrix.
+          "Vr": "\\mathbf{V}_{\\!r}"          # trial basis matrix
+          "Wr": "\\mathbf{W}_{\\!r}"          # test basis matrix
+          "qhat": "\\hat{\\mathbf{q}}"        # reduced state vector
+          "zhat": "\\hat{\\mathbf{z}}"        # reduced rhs vector
+          "fhat": "\\hat{\\mathbf{f}}"        # reduced model rhs function
+          "Qhat": "\\hat{\\mathbf{Q}}"        # reduced state data
+          "Zhat": "\\hat{\\mathbf{Z}}"        # reduced rhs data
+          "chat": "\\hat{\\mathbf{c}}"        # reduced constant operator
+          "Ahat": "\\hat{\\mathbf{A}}"        # reduced linear operator
+          "Hhat": "\\hat{\\mathbf{H}}"        # reduced quadratic operator
+          "Ghat": "\\hat{\\mathbf{G}}"        # reduced cubic operator
+          "Bhat": "\\hat{\\mathbf{B}}"        # reduced input operator
+          "Nhat": "\\hat{\\mathbf{N}}"        # reduced bilinear operator
+          "D": "\\mathbf{D}"                  # data matrix
+          "ohat": "\\hat{\\mathbf{o}}"        # operator vector
+          "Ohat": "\\hat{\\mathbf{O}}"        # operator matrix
+          "bfmu": "\\boldsymbol{\\mu}"        # parameter vector
+          "bfGamma": "\\boldsymbol{\\Gamma}"  # regularization matrix
+          "bfPhi": "\\boldsymbol{\\Phi}"      # left singular vectors
+          "bfSigma": "\\boldsymbol{\\Sigma}"  # singular values
+          "bfPsi": "\\boldsymbol{\\Psi}"      # right singular vectors
+          "trp": "{^{\\mathsf{T}}}"           # transpose
+          "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"    # time derivative
+          "ddqhat": "\\frac{\\partial}{\\partial\\qhat}"    # d/dqhat
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     numfig_secnum_depth: 1              # Eq (1.1) instead of (1).
     numpydoc_class_members_toctree: false

@@ -1,28 +1,8 @@
-(sec-main)=
-# Main Namespace
+# `opinf`
 
-The main namespace of `opinf` defines the following classes and submodules.
+The `opinf` namespace is divided into the following submodules.
 
-**Classes**
-
-:::{eval-rst}
-.. currentmodule:: opinf
-
-.. autosummary::
-    :toctree: _autosummaries
-    :nosignatures:
-
-    ContinuousOpInfROM
-    DiscreteOpInfROM
-    InterpolatedContinuousOpInfROM
-    InterpolatedDiscreteOpInfROM
-:::
-
-The above classes are also defined in the [**roms**](opinf.roms) submodule.
-
-**Submodules**
-
-:::{eval-rst}
+```{eval-rst}
 
 .. currentmodule:: opinf
 
@@ -31,8 +11,8 @@ The above classes are also defined in the [**roms**](opinf.roms) submodule.
     opinf.pre
     opinf.basis
     opinf.operators
+    opinf.models
     opinf.lstsq
-    opinf.roms
     opinf.post
     opinf.utils
-:::
+```

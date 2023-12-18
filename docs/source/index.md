@@ -8,14 +8,14 @@
 [![PyPI](https://img.shields.io/pypi/wheel/opinf)](https://pypi.org/project/opinf/)
 
 :::{attention}
-This documentation is for `opinf` version `0.4.5`.
-See updates and notes for old versions [here](sec-whatsnew).
+This documentation is for `opinf` version `0.5.0`, which introduced major changes from the previous version `0.4.5`.
+See updates and notes for old versions [here](./opinf/changelog.md).
 :::
 
 This package is a Python implementation of Operator Inference (OpInf), a projection-based model reduction technique for learning polynomial reduced-order models of dynamical systems.
 The procedure is data-driven and non-intrusive, making it a viable candidate for model reduction of "glass-box" systems where the structure of the governing equations is known but intrusive code queries are unavailable.
 
-Get started with [**What is Operator Inference?**](sec-opinf-overview) or head straight to [**Installation**](sec-installation) and the first tutorial, [**Getting Started**](sec-tutorial).
+Get started with [**What is Operator Inference?**](./opinf/intro.md) or head straight to [**Installation**](./opinf/installation.md) and the first tutorial, [**Getting Started**](./tutorials/basics.ipynb).
 
 :::{image} ../images/summary.svg
 :align: center

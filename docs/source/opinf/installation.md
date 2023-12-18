@@ -1,4 +1,3 @@
-(sec-installation)=
 # Package Installation
 
 This page describes how to install `opinf` locally.
@@ -7,7 +6,7 @@ This page describes how to install `opinf` locally.
 To check if the package is installed, run the following in the command line.
 
 ```shell
-$ python3 -m pip freeze | grep opinf
+python3 -m pip freeze | grep opinf
 ```
 
 No output means the package was not found.
@@ -19,7 +18,7 @@ We recommend installing the package from [the Python Package Index](https://pypi
 This installs the [latest official release](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/releases).
 
 ```shell
-$ python3 -m pip install --user opinf
+python3 -m pip install --user opinf
 ```
 
 :::{note}
@@ -33,16 +32,16 @@ The following command installs the latest version from the `main` branch, which 
 This requires [`git`](https://git-scm.com/).
 
 ```shell
-$ python3 -m pip install git+https://github.com/Willcox-Research-Group/rom-operator-inference-Python3.git
+python3 -m pip install git+https://github.com/Willcox-Research-Group/rom-operator-inference-Python3.git
 ```
 
 ## Source Code
 
 The final option is to download the entire repository (including tests, etc.) and install it from source.
 This also requires [`git`](https://git-scm.com/) and is the first step for contributing.
-See the [Developer Guide](sec-contrib-start) if you are interested in contributing.
+See the [Developer Guide](../contributing/how_to_contribute.md) if you are interested in contributing.
 
 ```shell
-$ git clone https://github.com/Willcox-Research-Group/rom-operator-inference-Python3.git
-$ python3 -m pip install rom-operator-inference-Python3
+git clone https://github.com/Willcox-Research-Group/rom-operator-inference-Python3.git
+python3 -m pip install rom-operator-inference-Python3
 ```

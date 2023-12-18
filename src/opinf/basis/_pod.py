@@ -23,37 +23,26 @@ from ._linear import LinearBasis, LinearBasisMulti
 
 
 class PODBasis(LinearBasis):
-    """Proper othogonal decomposition basis, derived from the principal left
-    singular vectors of a collection of states, Q:
+    r"""Proper othogonal decomposition basis, derived from the principal left
+    singular vectors of a collection of states :math:`\Q`:
 
-        svd(Q) = V S W^T    -->    POD basis = V[:, :r].
+    .. math::
+       \text{svd}(\Q) = \V\Sigma\W\trp
+       \qquad\Longrightarrow\qquad
+       \text{pod}(\Q, r) = \V_{:,:r}
 
     The low-dimensional approximation is linear:
 
-        q = Vr @ q_ := sum([Vr[:, j]*q_[j] for j in range(Vr.shape[1])])
-        (full_state = basis * reduced_state).
+    .. math::
+       \q \approx \Vr\qhat = \sum_{i=1}^r \hat{q}_i \v_i
 
     Parameters
     ----------
     economize : bool
-        If True, throw away basis vectors beyond the first `r` whenever
-        the `r` attribute is changed.
-
-    Attributes
-    ----------
-    n : int
-        Dimension of the state space (size of each basis vector).
-    r : int
-        Dimension of the basis (number of basis vectors in the representation).
-    shape : tulpe
-        Dimensions (n, r).
-    entries : (n, r) ndarray
-        Entries of the basis matrix Vr.
-    svdvals : (k,) or (r,) ndarray
-        Singular values of the training data.
-    dual : (n, r) ndarray
-        Right singular vectors of the data.
+        If ``True``, throw away basis vectors beyond the first ``r`` whenever
+        the ``r`` attribute is changed.
     """
+
     def __init__(self, economize=False):
         """Initialize an empty basis."""
         self.__r = None
@@ -84,8 +73,9 @@ class PODBasis(LinearBasis):
         if self.entries is None:
             raise AttributeError("empty basis (call fit() first)")
         if self.__entries.shape[1] < r:
-            raise ValueError(f"only {self.__entries.shape[1]:d} "
-                             "basis vectors stored")
+            raise ValueError(
+                f"only {self.__entries.shape[1]:d} " "basis vectors stored"
+            )
         self.__r = r
 
         # Forget higher-order basis vectors.
@@ -105,8 +95,9 @@ class PODBasis(LinearBasis):
         if self.__economize:
             self.__shrink_stored_entries_to(self.r)
 
-    def set_dimension(self, r=None,
-                      cumulative_energy=None, residual_energy=None):
+    def set_dimension(
+        self, r=None, cumulative_energy=None, residual_energy=None
+    ):
         """Set the basis dimension, i.e., the number of basis vectors.
 
         Parameters
@@ -151,7 +142,7 @@ class PODBasis(LinearBasis):
     @property
     def entries(self):
         """Entries of the basis."""
-        return None if self.__entries is None else self.__entries[:, :self.r]
+        return None if self.__entries is None else self.__entries[:, : self.r]
 
     @property
     def shape(self):
@@ -166,7 +157,7 @@ class PODBasis(LinearBasis):
     @property
     def dual(self):
         """Leading *right* singular vectors."""
-        return None if self.__dual is None else self.__dual[:, :self.r]
+        return None if self.__dual is None else self.__dual[:, : self.r]
 
     # @property
     # def spatialweights(self):
@@ -230,8 +221,9 @@ class PODBasis(LinearBasis):
         self.__svdvals = np.sort(svals)[::-1] if svals is not None else None
         self.__dual = Wt.T if Wt is not None else None
 
-    def _fit(self, driver, states,
-             r, cumulative_energy, residual_energy, **options):
+    def _fit(
+        self, driver, states, r, cumulative_energy, residual_energy, **options
+    ):
         """Compute the POD basis of rank r corresponding to the states using
         `driver()` to compute the SVD.
 
@@ -297,8 +289,14 @@ class PODBasis(LinearBasis):
 
         return self
 
-    def fit(self, states,
-            r=None, cumulative_energy=None, residual_energy=None, **options):
+    def fit(
+        self,
+        states,
+        r=None,
+        cumulative_energy=None,
+        residual_energy=None,
+        **options,
+    ):
         """Compute the POD basis of rank r corresponding to the states
         via the compact/thin singular value decomposition (scipy.linalg.svd()).
 
@@ -330,9 +328,9 @@ class PODBasis(LinearBasis):
         # spatialweights=None, temporalweights=None, **options):
         options["full_matrices"] = False
 
-        return self._fit(la.svd,
-                         states, r, cumulative_energy, residual_energy,
-                         **options)
+        return self._fit(
+            la.svd, states, r, cumulative_energy, residual_energy, **options
+        )
 
     def fit_randomized(self, states, r, **options):
         """Compute the POD basis of rank r corresponding to the states
@@ -360,10 +358,15 @@ class PODBasis(LinearBasis):
             options["random_state"] = None
         options["n_components"] = r
 
-        return self._fit(sklmath.randomized_svd,
-                         states, r, None, None,
-                         # spatialweights, temporalweights,
-                         **options)
+        return self._fit(
+            sklmath.randomized_svd,
+            states,
+            r,
+            None,
+            None,
+            # spatialweights, temporalweights,
+            **options,
+        )
 
     # Visualization -----------------------------------------------------------
     def _check_svdvals_exist(self):
@@ -401,12 +404,12 @@ class PODBasis(LinearBasis):
 
         if threshold is not None:
             rank = np.count_nonzero(singular_values > threshold)
-            ax.axhline(threshold, color="gray", linewidth=.5)
-            ax.axvline(rank, color="gray", linewidth=.5)
+            ax.axhline(threshold, color="gray", linewidth=0.5)
+            ax.axvline(rank, color="gray", linewidth=0.5)
             # TODO: label lines with text.
 
         ax.set_xlabel("Singular value index")
-        ax.set_ylabel(("Normalized s" if normalize else '') + "ingular values")
+        ax.set_ylabel(("Normalized s" if normalize else "") + "ingular values")
 
         return ax
 
@@ -439,8 +442,8 @@ class PODBasis(LinearBasis):
 
         if threshold is not None:
             rank = np.count_nonzero(res_energy > threshold) + 1
-            ax.axhline(threshold, color="gray", linewidth=.5)
-            ax.axvline(rank, color="gray", linewidth=.5)
+            ax.axhline(threshold, color="gray", linewidth=0.5)
+            ax.axvline(rank, color="gray", linewidth=0.5)
             # TODO: label lines with text.
 
         ax.set_xlabel("Singular value index")
@@ -477,8 +480,8 @@ class PODBasis(LinearBasis):
 
         if threshold is not None:
             rank = int(np.searchsorted(cum_energy, threshold)) + 1
-            ax.axhline(threshold, color="gray", linewidth=.5)
-            ax.axvline(rank, color="gray", linewidth=.5)
+            ax.axhline(threshold, color="gray", linewidth=0.5)
+            ax.axvline(rank, color="gray", linewidth=0.5)
             # TODO: label lines with text.
 
         ax.set_xlabel(r"Singular value index")
@@ -510,7 +513,6 @@ class PODBasis(LinearBasis):
             (default), raise a FileExistsError if the file already exists.
         """
         with hdf5_savehandle(savefile, overwrite) as hf:
-
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["economize"] = int(self.economize)
             if self.r is not None:
@@ -538,10 +540,10 @@ class PODBasis(LinearBasis):
         """
         entries, svdvals, dualT, r = None, None, None, rmax
         with hdf5_loadhandle(loadfile) as hf:
-
             if "meta" not in hf:
-                raise LoadfileFormatError("invalid save format "
-                                          "(meta/ not found)")
+                raise LoadfileFormatError(
+                    "invalid save format " "(meta/ not found)"
+                )
             economize = bool(hf["meta"].attrs["economize"])
             if "r" in hf["meta"].attrs:
                 r = int(hf["meta"].attrs["r"])
@@ -562,15 +564,23 @@ class PODBasis(LinearBasis):
 class PODBasisMulti(LinearBasisMulti):
     r"""Block-diagonal proper othogonal decomposition basis, derived from the
     principal left singular vectors of a collection of states grouped into
-    blocks:
+    blocks.
 
-             [ Q1 ]                         [ Vr1         ]
-        Q1 = [ Q2 ]     -->     POD basis = [     Vr2     ],    where
-             [ |  ]                         [          \  ]
+    .. math::
+       \Q = \left[\begin{array}{c}
+       \Q_1 \\ \vdots \\ \Q_{n_\text{vars}}
+       \end{array}\right]
+       \qquad\Longrightarrow\qquad
+       \text{pod\_multi}(\Q; r_1,\ldots,r_{n_\text{vars}})
+       = \left[\begin{array}{ccc}
+       \V_1 & & \\
+       & \ddots & \\
+       & & \V_{n_\text{vars}}
+       \end{array}\right]
 
-        svd(Qi) = Vi Si Wi^T  -->  Vri = Vi[:, :ri].
+    where :math:`\V_i = \text{pod}(\Q_i;r_i), i=1,\ldots,n_\text{vars}`.
 
-    The low-dimensional approximation is linear (see PODBasis).
+    The low-dimensional approximation is linear (see :class:`PODBasis`).
 
     Parameters
     ----------
@@ -587,32 +597,15 @@ class PODBasisMulti(LinearBasisMulti):
     variable_names : list of num_variables strings, optional
         Names for each of the `num_variables` variables.
         Defaults to "variable 1", "variable 2", ....
-
-    Attributes
-    ----------
-    n : int
-        Total dimension of the state space.
-    ni : int
-        Dimension of individual variables, i.e., ni = n / num_variables.
-    r : int
-        Total dimension of the basis (number of basis vectors).
-    rs : list(int)
-        Dimensions for each diagonal basis block, i.e., `r[i]` is the number
-        of basis vectors in the representation for state variable `i`.
-    entries : (n, r) ndarray or scipy.sparse.csc_matrix.
-        Entries of the basis matrix.
-    svdvals : (k,) or (r,) ndarray
-        Singular values of the training data.
-    dual : (n, r) ndarray
-        Right singular vectors of the data.
     """
     _BasisClass = PODBasis
 
     def __init__(self, num_variables, economize=False, variable_names=None):
         """Initialize an empty basis."""
         # Store dimensions.
-        LinearBasisMulti.__init__(self, num_variables,
-                                  variable_names=variable_names)
+        LinearBasisMulti.__init__(
+            self, num_variables, variable_names=variable_names
+        )
         self.economize = bool(economize)
 
     # Properties -------------------------------------------------------------
@@ -632,7 +625,7 @@ class PODBasisMulti(LinearBasisMulti):
 
         # This will raise an AttributeError if the entries are not set.
         for basis, r in zip(self.bases, rs):
-            basis.r = r         # Economization is also taken care of here.
+            basis.r = r  # Economization is also taken care of here.
 
         self._set_entries()
 
@@ -651,9 +644,14 @@ class PODBasisMulti(LinearBasisMulti):
         self.__economize = econ
 
     # Main routines -----------------------------------------------------------
-    def fit(self, states,
-            rs=None, cumulative_energy=None, residual_energy=None,
-            **options):
+    def fit(
+        self,
+        states,
+        rs=None,
+        cumulative_energy=None,
+        residual_energy=None,
+        **options,
+    ):
         """Fit the basis to the data.
 
         Parameters
@@ -679,8 +677,9 @@ class PODBasisMulti(LinearBasisMulti):
         # Split the state and compute the basis for each variable.
         if rs is None:
             rs = [None] * self.num_variables
-        for basis, r, var in zip(self.bases, rs,
-                                 np.split(states, self.num_variables, axis=0)):
+        for basis, r, var in zip(
+            self.bases, rs, np.split(states, self.num_variables, axis=0)
+        ):
             basis.fit(var, r, cumulative_energy, residual_energy, **options)
 
         self._set_entries()
@@ -710,8 +709,9 @@ class PODBasisMulti(LinearBasisMulti):
         # Fit the individual bases.
         if not isinstance(rs, list) or len(rs) != self.num_variables:
             raise TypeError(f"rs must be list of length {self.num_variables}")
-        for basis, r, var in zip(self.bases, rs,
-                                 np.split(states, self.num_variables, axis=0)):
+        for basis, r, var in zip(
+            self.bases, rs, np.split(states, self.num_variables, axis=0)
+        ):
             basis.fit_randomized(var, r, **options)
 
         self._set_entries()
@@ -730,7 +730,7 @@ class PODBasisMulti(LinearBasisMulti):
             (default), raise a FileExistsError if the file already exists.
         """
         LinearBasisMulti.save(self, savefile, overwrite)
-        with h5py.File(savefile, 'a') as hf:
+        with h5py.File(savefile, "a") as hf:
             hf["meta"].attrs["economize"] = self.economize
 
     @classmethod
@@ -748,13 +748,19 @@ class PODBasisMulti(LinearBasisMulti):
         """
         # basis = LinearBasisMulti.load(cls, loadfile)
         basis = super(cls, cls).load(loadfile)
-        with h5py.File(loadfile, 'r') as hf:
+        with h5py.File(loadfile, "r") as hf:
             basis.economize = hf["meta"].attrs["economize"]
         return basis
 
 
 # Functional API ==============================================================
-def pod_basis(states, r=None, mode="dense", return_W=False, **options):
+def pod_basis(
+    states,
+    r: int = None,
+    mode: str = "dense",
+    return_W: bool = False,
+    **options,
+):
     """Compute the POD basis of rank r corresponding to the states.
 
     Parameters
@@ -766,15 +772,18 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
         If None (default), compute the full SVD.
     mode : str
         Strategy to use for computing the truncated SVD of the states. Options:
+
         * "dense" (default): Use scipy.linalg.svd() to compute the SVD.
             May be inefficient for very large matrices.
         * "randomized": Compute an approximate SVD with a randomized approach
             using sklearn.utils.extmath.randomized_svd(). This gives faster
             results at the cost of some accuracy.
+
     return_W : bool
         If True, also return the first r *right* singular vectors.
     options
         Additional parameters for the SVD solver, which depends on `mode`:
+
         * "dense": scipy.linalg.svd()
         * "randomized": sklearn.utils.extmath.randomized_svd()
 
@@ -815,8 +824,13 @@ def pod_basis(states, r=None, mode="dense", return_W=False, **options):
     return V[:, :r], svdvals
 
 
-def svdval_decay(singular_values, tol=1e-8, normalize=True,
-                 plot=True, ax=None):
+def svdval_decay(
+    singular_values,
+    tol: float = 1e-8,
+    normalize: bool = True,
+    plot: bool = True,
+    ax=None,
+) -> None:
     """Count the number of normalized singular values that are greater than
     the specified tolerance.
 
@@ -854,12 +868,12 @@ def svdval_decay(singular_values, tol=1e-8, normalize=True,
         if ax is None:
             ax = plt.figure().add_subplot(111)
         j = np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, singular_values, 'C0*', ms=10, mew=0, zorder=3)
+        ax.semilogy(j, singular_values, "C0*", ms=10, mew=0, zorder=3)
         ax.set_xlim((0, j.size))
         ylim = ax.get_ylim()
         for epsilon, r in zip(tol, ranks):
-            ax.axhline(epsilon, color="black", linewidth=.5, alpha=.75)
-            ax.axvline(r, color="black", linewidth=.5, alpha=.75)
+            ax.axhline(epsilon, color="black", linewidth=0.5, alpha=0.75)
+            ax.axvline(r, color="black", linewidth=0.5, alpha=0.75)
         ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index $j$")
         ax.set_ylabel(r"Singular value $\sigma_j$")
@@ -867,7 +881,7 @@ def svdval_decay(singular_values, tol=1e-8, normalize=True,
     return ranks[0] if one_tol else ranks
 
 
-def cumulative_energy(singular_values, thresh=.9999, plot=True, ax=None):
+def cumulative_energy(singular_values, thresh=0.9999, plot=True, ax=None):
     """Compute the number of singular values needed to surpass a given
     energy threshold. The energy of j singular values is defined by
 
@@ -893,7 +907,7 @@ def cumulative_energy(singular_values, thresh=.9999, plot=True, ax=None):
         energy capture threshold.
     """
     # Calculate the cumulative energy.
-    svdvals2 = np.sort(singular_values)[::-1]**2
+    svdvals2 = np.sort(singular_values)[::-1] ** 2
     cum_energy = np.cumsum(svdvals2) / np.sum(svdvals2)
 
     # Determine the points at which the cumulative energy passes the threshold.
@@ -907,11 +921,11 @@ def cumulative_energy(singular_values, thresh=.9999, plot=True, ax=None):
         if ax is None:
             ax = plt.figure().add_subplot(111)
         j = np.arange(1, singular_values.size + 1)
-        ax.plot(j, cum_energy, 'C2.-', ms=10, lw=1, zorder=3)
+        ax.plot(j, cum_energy, "C2.-", ms=10, lw=1, zorder=3)
         ax.set_xlim(0, j.size)
         for xi, r in zip(thresh, ranks):
-            ax.axhline(xi, color="black", linewidth=.5, alpha=.5)
-            ax.axvline(r, color="black", linewidth=.5, alpha=.5)
+            ax.axhline(xi, color="black", linewidth=0.5, alpha=0.5)
+            ax.axvline(r, color="black", linewidth=0.5, alpha=0.5)
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Cumulative energy")
 
@@ -945,7 +959,7 @@ def residual_energy(singular_values, tol=1e-6, plot=True, ax=None):
         beneath each tolerance.
     """
     # Calculate the residual energy.
-    svdvals2 = np.sort(singular_values)[::-1]**2
+    svdvals2 = np.sort(singular_values)[::-1] ** 2
     res_energy = 1 - (np.cumsum(svdvals2) / np.sum(svdvals2))
 
     # Determine the points when the residual energy dips under the tolerance.
@@ -959,11 +973,11 @@ def residual_energy(singular_values, tol=1e-6, plot=True, ax=None):
         if ax is None:
             ax = plt.figure().add_subplot(111)
         j = np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, res_energy, 'C1.-', ms=10, lw=1, zorder=3)
+        ax.semilogy(j, res_energy, "C1.-", ms=10, lw=1, zorder=3)
         ax.set_xlim(0, j.size)
         for epsilon, r in zip(tol, ranks):
-            ax.axhline(epsilon, color="black", linewidth=.5, alpha=.5)
-            ax.axvline(r, color="black", linewidth=.5, alpha=.5)
+            ax.axhline(epsilon, color="black", linewidth=0.5, alpha=0.5)
+            ax.axvline(r, color="black", linewidth=0.5, alpha=0.5)
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Residual energy")
 

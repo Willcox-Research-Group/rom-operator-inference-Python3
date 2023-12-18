@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from ..errors import LoadfileFormatError
 from ..utils import hdf5_savehandle, hdf5_loadhandle
-from .._multivar import _MultivarMixin
+from ..pre._base import _MultivarMixin
 from ._base import _BaseBasis
 
 
@@ -20,26 +20,13 @@ class LinearBasis(_BaseBasis):
     r"""Linear basis for representing the low-dimensional state approximation
 
     .. math::
-        \mathbf{q}
-        \approx \mathbf{V}_{r}\widehat{\mathbf{q}}
-        = \sum_{i=1}^{r}\hat{q}_{i}\mathbf{v}_{i},
-    where :math:`\mathbf{q}\in\mathbb{R}^{n}`,
-    :math:`\mathbf{V}_{r}
-    = [\mathbf{v}_{1}, \ldots, \mathbf{v}_{r}]\in \mathbb{R}^{n\times r}`, and
-    :math:`\widehat{\mathbf{q}}
-    = [\hat{q}_{1},\ldots,\hat{q}_{r}]\in\mathbb{R}^{r}`.
+       \q \approx \Vr\qhat = \sum_{i=1}^r \hat{q}_i \v_i,
 
-    Attributes
-    ----------
-    n : int
-        Dimension of the state space (size of each basis vector).
-    r : int
-        Dimension of the basis (number of basis vectors in the representation).
-    shape : tulpe
-        Dimensions (n, r).
-    entries : (n, r) ndarray
-        Entries of the basis matrix :math:`\mathbf{V}_{r}`.
+    where :math:`\q\in\RR^n`,
+    :math:`\Vr = [\v_1, \ldots, \v_r]\in \RR^{n \times r}`, and
+    :math:`\qhat = [\hat{q}_1,\ldots,\hat{q}_r]\trp\in\RR^r`.
     """
+
     def __init__(self):
         """Initialize an empty basis."""
         self.__entries = None
@@ -47,22 +34,22 @@ class LinearBasis(_BaseBasis):
     # Properties --------------------------------------------------------------
     @property
     def entries(self):
-        """Entries of the basis."""
+        r"""Entries of the basis matrix :math:`\Vr`."""
         return self.__entries
 
     @property
     def n(self):
-        """Dimension of the state, i.e., the size of each basis vector."""
+        """Dimension :math:`n` of the state (the size of each basis vector)."""
         return None if self.entries is None else self.entries.shape[0]
 
     @property
     def r(self):
-        """Dimension of the basis, i.e., the number of basis vectors."""
+        """Dimension :math:`r` of the basis (the number of basis vectors)."""
         return None if self.entries is None else self.entries.shape[1]
 
     @property
     def shape(self):
-        """Dimensions of the basis (state_dimension, reduced_dimension)."""
+        """Dimensions of the basis (full_dimension, reduced_dimension)."""
         return None if self.entries is None else self.entries.shape
 
     def __getitem__(self, key):
@@ -220,7 +207,6 @@ class LinearBasis(_BaseBasis):
         """
         entries = None
         with hdf5_loadhandle(loadfile) as hf:
-
             if "entries" in hf:
                 entries = hf["entries"][:]
 
@@ -230,11 +216,16 @@ class LinearBasis(_BaseBasis):
 class LinearBasisMulti(LinearBasis, _MultivarMixin):
     r"""Block-diagonal basis grouping individual bases for each state variable.
 
-                                                  [ Vr1         ]
-        qi = Vri @ qi_      -->     LinearBasis = [     Vr2     ].
-        i = 1, ..., num_variables                 [          \  ]
+    .. math::
+       \q_i = \V_i\qhat_i
+       \quad\Longrightarrow\quad
+       \V = \left[\begin{array}{ccc}
+       \V_1 & &
+       \\ & \ddots & \\
+       & & \V_{n_i}
+       \end{array}\right].
 
-    The low-dimensional approximation is linear (see LinearBasis).
+    The low-dimensional approximation is linear (see :class:`LinearBasis`).
 
     Parameters
     ----------
@@ -251,17 +242,6 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
 
     Attributes
     ----------
-    n : int
-        Total dimension of the state space.
-    ni : int
-        Dimension of individual variables, i.e., ni = n / num_variables.
-    r : int
-        Total dimension of the basis (number of basis vectors).
-    rs : list(int)
-        Dimensions for each diagonal basis block, i.e., `r[i]` is the number
-        of basis vectors in the representation for state variable `i`.
-    entries : (n, r) ndarray or scipy.sparse.csc_matrix.
-        Entries of the basis matrix.
     bases : list(LinearBasis)
         Individual bases for each state variable.
     """
@@ -294,7 +274,7 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         """Stack individual basis entries as a block diagonal sparse matrix."""
         blocks = []
         for basis in self.bases:
-            if basis.n is None:                 # Quit if any basis is empty.
+            if basis.n is None:  # Quit if any basis is empty.
                 return
             if basis.n != self.bases[0].n:
                 raise ValueError("all bases must have the same row dimension")
@@ -315,7 +295,7 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         namelength = max(len(name) for name in self.variable_names)
         sep = " " * (namelength + 5)
         for i, (name, st) in enumerate(zip(self.variable_names, self.bases)):
-            ststr = str(st).replace('\n', f"\n{sep}")
+            ststr = str(st).replace("\n", f"\n{sep}")
             ststr = ststr.replace("n =", f"n{i+1:d} =")
             ststr = ststr.replace("r =", f"r{i+1:d} =")
             out.append(f"* {{:>{namelength}}} : {ststr}".format(name))
@@ -324,7 +304,7 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         else:
             out.append(f"Total full-order dimension    n = {self.n:d}")
             out.append(f"Total reduced-order dimension r = {self.r:d}")
-        return '\n'.join(out)
+        return "\n".join(out)
 
     # Main routines -----------------------------------------------------------
     def fit(self, bases):
@@ -357,7 +337,6 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
             (default), raise a FileExistsError if the file already exists.
         """
         with hdf5_savehandle(savefile, overwrite) as hf:
-
             # metadata
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_variables"] = self.num_variables
@@ -382,8 +361,9 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
         with hdf5_loadhandle(loadfile) as hf:
             # Load metadata.
             if "meta" not in hf:
-                raise LoadfileFormatError("invalid save format "
-                                          "(meta/ not found)")
+                raise LoadfileFormatError(
+                    "invalid save format (meta/ not found)"
+                )
             num_variables = hf["meta"].attrs["num_variables"]
             variable_names = hf["meta"].attrs["variable_names"].tolist()
 
@@ -392,8 +372,9 @@ class LinearBasisMulti(LinearBasis, _MultivarMixin):
             for i in range(num_variables):
                 group = f"variable{i+1}"
                 if group not in hf:
-                    raise LoadfileFormatError("invalid save format "
-                                              f"({group}/ not found)")
+                    raise LoadfileFormatError(
+                        f"invalid save format ({group}/ not found)"
+                    )
                 bases.append(cls._BasisClass.load(hf[group]))
 
             # Initialize and return the basis object.
