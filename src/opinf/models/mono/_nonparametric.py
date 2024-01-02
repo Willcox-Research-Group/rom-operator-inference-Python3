@@ -373,7 +373,7 @@ class _NonparametricModel(_Model):
             Evaluation of the right-hand side of the model.
         """
         state = np.atleast_1d(state)
-        out = np.zeros(state.shape, dtype=float)
+        out = np.zeros(state.shape, dtype=state.dtype)
         for op in self.operators:
             out += op.apply(state, input_)
         return out
@@ -402,7 +402,7 @@ class _NonparametricModel(_Model):
             State Jacobian of the right-hand side of the model.
         """
         r = self.state_dimension
-        out = np.zeros((r, r), dtype=float)
+        out = np.zeros((r, r), dtype=state.dtype)
         for op in self.operators:
             out += op.jacobian(state, input_)
         return out
