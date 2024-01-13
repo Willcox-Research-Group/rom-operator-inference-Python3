@@ -38,7 +38,6 @@ class TestNonparametricModel:
         _check_operator_types_unique()).
         """
         # Try with duplicate (nonintrusive) operator types.
-
         with pytest.raises(ValueError) as ex:
             self.Dummy("AA")
         assert (

@@ -7,6 +7,17 @@ GitHub:
     https://github.com/Willcox-Research-Group/rom-operator-inference-Python3
 """
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
-from . import basis, errors, ddt, lstsq, models, operators, pre, post, utils
+from . import (
+    basis,
+    errors,
+    ddt,
+    lift,
+    lstsq,
+    models,
+    operators,
+    pre,
+    post,
+    utils,
+)
