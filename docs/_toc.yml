@@ -31,6 +31,7 @@ parts:
     maxdepth: 1
     chapters:
     - file: source/api/main.md
+    - file: source/api/lift.ipynb
     - file: source/api/pre.md
     - file: source/api/basis.md
     - file: source/api/ddt.md

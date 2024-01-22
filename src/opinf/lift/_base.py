@@ -62,7 +62,7 @@ class LifterTemplate(abc.ABC):
     @staticmethod
     @abc.abstractmethod
     def unlift(lifted_states):  # pragma: no cover
-        """Extract the native state variables from the learning variables.
+        """Recover the native state variables from the learning variables.
 
         Parameters
         ----------
@@ -81,13 +81,13 @@ class LifterTemplate(abc.ABC):
         r"""Verify that :meth:`lift` and :meth:`unlift` are consistent and that
         :meth:`lift_ddts`, if implemented, gives valid time derivatives.
 
-        * The :meth:`lift`/:meth:`unlift` consistency check verifies that
+        * The :meth:`lift` / :meth:`unlift` consistency check verifies that
           ``unlift(lift(states)) == states``.
         * The :meth:`lift_ddts` consistency check uses :meth:`opinf.ddt.ddt`
           to estimate the time derivatives of the states and the lifted
           states, then verfies that the relative difference between
           ``lift_ddts(states, opinf.ddt.ddt(states, t))`` and
-          ``opinf.ddt.ddt(lift(states), t)`` is less than ``tol`.
+          ``opinf.ddt.ddt(lift(states), t)`` is less than ``tol``.
           If this check fails, consider using a finer time mesh.
 
         Parameters
@@ -115,6 +115,7 @@ class LifterTemplate(abc.ABC):
             )
         if not np.allclose(unlifted_states, states):
             raise errors.VerificationError("unlift(lift(states)) != states")
+        print("lift() and unlift() are consistent")
 
         # Finite difference checks for lift_ddts().
         if self.lift_ddts(states, states) is NotImplemented:
@@ -138,3 +139,4 @@ class LifterTemplate(abc.ABC):
                 "|| lift_ddts(states, d/dt[states]) - d/dt[lift(states)] || "
                 f" / || d/dt[lift(states)] || = {diff} > {tol = }"
             )
+        print("lift() and lift_ddts() are consistent")
