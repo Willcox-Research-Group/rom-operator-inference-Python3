@@ -5,6 +5,10 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+:::{versionadded} 0.5.1
+New `lift` module that defines a template class for implementing lifting transformations.
+:::
+
 :::{versionchanged} 0.5.0
 
 - Overhauled the `operators` module so that each operator class is responsible for its portion of the Operator Inference data matrix.
