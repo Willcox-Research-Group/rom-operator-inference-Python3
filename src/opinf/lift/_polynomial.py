@@ -6,8 +6,11 @@ __all__ = [
     "PolynomialLifter",
 ]
 
+import numbers
+import warnings
 import numpy as np
 
+from .. import errors
 from ._base import LifterTemplate
 
 
@@ -32,8 +35,8 @@ class QuadraticLifter(LifterTemplate):
 
     @staticmethod
     def lift_ddts(states, ddts):
-        """Get the time derivatives of the lifted variables,
-        :math:`(q_t, 2qq_t)`.
+        r"""Get the time derivatives of the lifted variables,
+        :math:`\frac{\partial}{\partial t}(q, q^2) = (q_t, 2qq_t)`.
 
         Parameters
         ----------
@@ -94,12 +97,15 @@ class PolynomialLifter(LifterTemplate):
     @orders.setter
     def orders(self, ps: tuple[int]):
         """Set the polynomial orders."""
-        if np.isscalar(ps):
+        if isinstance(ps, numbers.Number):
             ps = (int(ps),)
         for p in ps:
-            if not np.isscalar(p):
-                raise ValueError("'orders' must be a sequence of scalars")
-        self.__orders = tuple(sorted(ps))
+            if not isinstance(p, numbers.Number):
+                raise TypeError("'orders' must be a sequence of numbers")
+            if p == 0:
+                warnings.warn("q -> 1 is not invertible", errors.UsageWarning)
+
+        self.__orders = tuple(ps)
         self.__nvars = len(self.__orders)
 
     @property
@@ -110,7 +116,7 @@ class PolynomialLifter(LifterTemplate):
     def __str__(self):
         """String representation: lifting map description"""
         variables = ", ".join(
-            [(f"q^{p:d}" if p > 1 else "q") for p in self.__orders]
+            [(f"q^{p}" if p != 1 else "q") for p in self.__orders]
         )
         if self.num_variables > 1:
             variables = "(" + variables + ")"

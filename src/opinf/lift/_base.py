@@ -1,8 +1,13 @@
 # lift/_base.py
 """Template class for lifting transformation managers."""
 
+__all__ = [
+    "LifterTemplate",
+]
+
 import abc
 import numpy as np
+import scipy.linalg as la
 
 from .. import errors, ddt
 
@@ -19,7 +24,7 @@ class LifterTemplate(abc.ABC):
 
     @staticmethod
     @abc.abstractmethod
-    def lift(states):
+    def lift(states):  # pragma: no cover
         """Lift the native state variables to the learning variables.
 
         Parameters
@@ -35,7 +40,7 @@ class LifterTemplate(abc.ABC):
         raise NotImplementedError
 
     @staticmethod
-    def lift_ddts(states, ddts):
+    def lift_ddts(states, ddts):  # pragma: no cover
         """Lift the native state time derivatives to the time derivatives
         of the learning variables.
 
@@ -56,7 +61,7 @@ class LifterTemplate(abc.ABC):
 
     @staticmethod
     @abc.abstractmethod
-    def unlift(lifted_states):
+    def unlift(lifted_states):  # pragma: no cover
         """Extract the native state variables from the learning variables.
 
         Parameters
@@ -72,11 +77,18 @@ class LifterTemplate(abc.ABC):
         raise NotImplementedError
 
     # Testing -----------------------------------------------------------------
-    def verify_consistency(self, states, t=None):
-        """Verify (1) that :meth:`lift` and :meth:`unlift` are consistent,
-        i.e., that ``unlift(lift(states)) == states``, and
-        (2) that :meth:`lift_ddts`, if implemented, gives valid derivatives.
+    def verify(self, states, t=None, tol: float = 1e-4):
+        r"""Verify that :meth:`lift` and :meth:`unlift` are consistent and that
+        :meth:`lift_ddts`, if implemented, gives valid time derivatives.
 
+        * The :meth:`lift`/:meth:`unlift` consistency check verifies that
+          ``unlift(lift(states)) == states``.
+        * The :meth:`lift_ddts` consistency check uses :meth:`opinf.ddt.ddt`
+          to estimate the time derivatives of the states and the lifted
+          states, then verfies that the relative difference between
+          ``lift_ddts(states, opinf.ddt.ddt(states, t))`` and
+          ``opinf.ddt.ddt(lift(states), t)`` is less than ``tol`.
+          If this check fails, consider using a finer time mesh.
 
         Parameters
         ----------
@@ -85,6 +97,9 @@ class LifterTemplate(abc.ABC):
         t : (k,) ndarray or None
             Time domain corresponding to the states.
             Only required if :meth:`lift_ddts` is implemented.
+        tol : float > 0
+            Tolerance for the finite difference check of :meth:`lift_ddts`.
+            Only used if :meth:`lift_ddts` is implemented.
         """
         # Verify lift() and unlift() are inverses.
         lifted_states = self.lift(states)
@@ -104,10 +119,22 @@ class LifterTemplate(abc.ABC):
         # Finite difference checks for lift_ddts().
         if self.lift_ddts(states, states) is NotImplemented:
             return
-        ddts = ddt.ddt_nonuniform(states, t)
-        ddts_lifted = self.lift_ddts(states, ddts)
-        ddts_lifted2 = ddt.ddt_nonuniform(lifted_states, t)
-        if not np.allclose(ddts_lifted, ddts_lifted2):
+        if t is None:
+            raise ValueError(
+                "time domain 't' required for finite difference check"
+            )
+        lifted_ddts = self.lift_ddts(states, ddt.ddt(states, t))
+        if (shape := lifted_ddts.shape) != (shape2 := lifted_states.shape):
             raise errors.VerificationError(
-                "ddts_lifted() failed finite difference check"
+                f"{shape} = lift_ddts(states, ddts).shape "
+                f"!= lift(states).shape = {shape2}"
+            )
+        lddts_est = ddt.ddt(lifted_states, t)
+        if (
+            diff := la.norm(lifted_ddts - lddts_est) / la.norm(lddts_est)
+        ) > tol:
+            raise errors.VerificationError(
+                "ddts_lifted() failed finite difference check,\n\t"
+                "|| lift_ddts(states, d/dt[states]) - d/dt[lift(states)] || "
+                f" / || d/dt[lift(states)] || = {diff} > {tol = }"
             )
