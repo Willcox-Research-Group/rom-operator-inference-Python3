@@ -77,10 +77,9 @@ class PolynomialLifter(LifterTemplate):
     ----------
     orders : tuple
         Polynomial orders in the learning variables. For example,
-        ``orders=(1, 2, 4)`` means the lifting transformation is
-        given by :math:`q \to (q, q^2, q^4)`. The orders need not
-        be positive integers, e.g., ``orders=(-1, .5)`` is valid and
-        indicates :math:`q \to (1/q, \sqrt{q})`.
+        ``orders=(1, 2, 4)`` means the lifting transformation is given by
+        :math:`q \to (q, q^2, q^4)`. The orders need not be positive integers,
+        e.g., ``orders=(-1, 0.5)`` indicates :math:`q \to (1/q, \sqrt{q})`.
     """
 
     def __init__(self, orders: tuple):
@@ -91,8 +90,9 @@ class PolynomialLifter(LifterTemplate):
     @property
     def orders(self) -> tuple:
         r"""Polynomial orders in the learning variables. For example,
-        ``orders=(1, 2, 4)`` means the lifting transformation is
-        given by :math:`q \to (q, q^2, q^4)`.
+        ``orders=(1, 2, 4)`` means the lifting transformation is given by
+        :math:`q \to (q, q^2, q^4)`. The orders need not be positive integers,
+        e.g., ``orders=(-1, 0.5)`` indicates :math:`q \to (1/q, \sqrt{q})`.
         """
         return self.__orders
 

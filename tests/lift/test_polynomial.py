@@ -65,8 +65,9 @@ class TestPolynomialLifter:
 
         # Non-invertible.
         with pytest.warns(opinf.errors.UsageWarning) as wn:
-            self.Lifter((0, 1, 2))
-        assert wn[0].message.args[0] == "q -> 1 is not invertible"
+            self.Lifter(0)
+        assert wn[0].message.args[0] == "q -> q^0 = 1 is not invertible"
+        self.Lifter((0, 3))
 
     def test_str(self):
         """Test PolynomialLifter.__str__()."""
@@ -87,8 +88,7 @@ class TestPolynomialLifter:
         assert np.all(Q_lifted[n:] == Q**2)
 
         # q --> (1, q^3, q^4)
-        with pytest.warns(opinf.errors.UsageWarning):
-            Q_lifted = self.Lifter((0, 3, 4)).lift(Q)
+        Q_lifted = self.Lifter((0, 3, 4)).lift(Q)
         assert Q_lifted.shape == (3 * n, k)
         assert np.all(Q_lifted[:n] == 1)
         assert np.all(Q_lifted[n : (2 * n)] == Q**3)
@@ -127,6 +127,13 @@ class TestPolynomialLifter:
         assert Q_unlifted.shape == Q.shape
         assert np.allclose(Q_unlifted, Q)
 
+        # Non-invertible.
+        with pytest.warns(opinf.errors.UsageWarning):
+            lifter = self.Lifter(0)
+        with pytest.raises(ZeroDivisionError) as ex:
+            lifter.unlift(Q_lifted)
+        assert ex.value.args[0] == "q -> q^0 = 1 is not invertible"
+
     def test_lift_ddts(self, n=11, k=19):
         """Test PolynomialLifter.lift_ddts()."""
         Q = np.random.random((n, k))
@@ -139,8 +146,7 @@ class TestPolynomialLifter:
         assert np.all(dQ_lifted[n:] == 2 * Q * dQ)
 
         # q --> (1, q^3, q^4)
-        with pytest.warns(opinf.errors.UsageWarning):
-            dQ_lifted = self.Lifter((0, 3, 4)).lift_ddts(Q, dQ)
+        dQ_lifted = self.Lifter((0, 3, 4)).lift_ddts(Q, dQ)
         assert dQ_lifted.shape == (3 * n, k)
         assert np.all(dQ_lifted[:n] == 0)
         assert np.all(dQ_lifted[n : (2 * n)] == 3 * Q**2 * dQ)
