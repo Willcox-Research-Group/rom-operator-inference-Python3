@@ -14,6 +14,12 @@ class LoadfileFormatError(Exception):  # pragma: no cover
     pass
 
 
+class VerificationError(Exception):  # pragma: no cover
+    """Implementation of a template fails to meet requriements."""
+
+    pass
+
+
 class UsageWarning(Warning):  # pragma: no cover
     """Generic warning for package usage."""
 
