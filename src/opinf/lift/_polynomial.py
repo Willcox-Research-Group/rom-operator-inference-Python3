@@ -75,19 +75,21 @@ class PolynomialLifter(LifterTemplate):
 
     Parameters
     ----------
-    orders : tuple(int)
+    orders : tuple
         Polynomial orders in the learning variables. For example,
         ``orders=(1, 2, 4)`` means the lifting transformation is
-        given by :math:`q \to (q, q^2, q^4)`.
+        given by :math:`q \to (q, q^2, q^4)`. The orders need not
+        be positive integers, e.g., ``orders=(-1, .5)`` is valid and
+        indicates :math:`q \to (1/q, \sqrt{q})`.
     """
 
-    def __init__(self, orders: tuple[int]):
+    def __init__(self, orders: tuple):
         """Set the polynomial orders."""
         self.orders = orders
 
     # Properties --------------------------------------------------------------
     @property
-    def orders(self):
+    def orders(self) -> tuple:
         r"""Polynomial orders in the learning variables. For example,
         ``orders=(1, 2, 4)`` means the lifting transformation is
         given by :math:`q \to (q, q^2, q^4)`.
@@ -95,15 +97,18 @@ class PolynomialLifter(LifterTemplate):
         return self.__orders
 
     @orders.setter
-    def orders(self, ps: tuple[int]):
+    def orders(self, ps: tuple):
         """Set the polynomial orders."""
         if isinstance(ps, numbers.Number):
             ps = (int(ps),)
         for p in ps:
             if not isinstance(p, numbers.Number):
                 raise TypeError("'orders' must be a sequence of numbers")
-            if p == 0:
-                warnings.warn("q -> 1 is not invertible", errors.UsageWarning)
+        if len(ps) == 1 and ps[0] == 0:
+            warnings.warn(
+                "q -> q^0 = 1 is not invertible",
+                errors.UsageWarning,
+            )
 
         self.__orders = tuple(ps)
         self.__nvars = len(self.__orders)
@@ -113,7 +118,7 @@ class PolynomialLifter(LifterTemplate):
         """Number of learning variables."""
         return self.__nvars
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation: lifting map description"""
         variables = ", ".join(
             [(f"q^{p}" if p != 1 else "q") for p in self.__orders]
@@ -175,4 +180,7 @@ class PolynomialLifter(LifterTemplate):
         variables = np.split(lifted_states, self.num_variables, axis=0)
         if 1 in self.__orders:
             return variables[self.__orders.index(1)]
-        return variables[0] ** (1 / self.__orders[0])
+        for var, p in zip(variables, self.__orders):
+            if p != 0:
+                return var ** (1 / p)
+        raise ZeroDivisionError("q -> q^0 = 1 is not invertible")
