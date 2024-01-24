@@ -1,0 +1,1441 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>plot_cumulative_energy()</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+<link href="../../../_static/styles/bootstrap.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+
+  
+  <link href="../../../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../../_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2">
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" href="../../../_static/styles/sphinx-book-theme.css?digest=4ec06e9971c5264fbd345897d5258098f11cc577" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-thebe.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=796348d33e8b1d947c94">
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=796348d33e8b1d947c94">
+
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/clipboard.min.js"></script>
+    <script src="../../../_static/copybutton.js"></script>
+    <script src="../../../_static/scripts/sphinx-book-theme.js?digest=8bf782fb4ee92b3d3646425e50f299c4e1fd152d"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../../../_static/design-tabs.js"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"
+const thebe_selector = ".thebe,.cell"
+const thebe_selector_input = "pre"
+const thebe_selector_output = ".output, .cell_output"
+</script>
+    <script async="async" src="../../../_static/sphinx-thebe.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'source/api/_autosummaries/opinf.basis.PODBasis.plot_cumulative_energy';</script>
+    <link rel="shortcut icon" href="../../../_static/favicon.svg"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="plot_energy()" href="opinf.basis.PODBasis.plot_energy.html" />
+    <link rel="prev" title="plot1D()" href="opinf.basis.PODBasis.plot1D.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="docsearch:language" content="en">
+  </head>
+  
+  
+  <body data-spy="scroll" data-target="#bd-toc-nav" data-offset="180" data-default-mode="">
+
+  
+  
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  
+  <input type="checkbox" class="sidebar-toggle" name="__primary" id="__primary">
+  <label class="overlay overlay-primary" for="__primary"></label>
+
+  
+  <input type="checkbox" class="sidebar-toggle" name="__secondary" id="__secondary">
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+      
+<form class="bd-search d-flex align-items-center" action="../../../search.html" method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search" class="form-control" name="q" id="search-input" placeholder="Search this book..." aria-label="Search this book..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+    </div>
+  </div>
+
+  
+  <nav class="bd-header navbar navbar-expand-lg bd-navbar" id="navbar-main"><div class="bd-header__inner bd-page-width">
+  <label class="sidebar-toggle primary-toggle" for="__primary">
+      <span class="fa-solid fa-bars"></span>
+  </label>
+  <div id="navbar-start">
+    
+    
+  
+
+
+<a class="navbar-brand logo" href="../../index.html">
+
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <img src="../../../_static/logo.svg" class="logo__image only-light" alt="Logo image">
+    <img src="../../../_static/logo.svg" class="logo__image only-dark" alt="Logo image">
+  
+  
+</a>
+    
+  </div>
+
+  
+  <div class="col-lg-9 navbar-header-items">
+    <div id="navbar-center" class="mr-auto">
+      
+      <div class="navbar-center-item">
+        <nav class="navbar-nav">
+    <p class="sidebar-header-items__title" role="heading" aria-level="1" aria-label="Site Navigation">
+        Site Navigation
+    </p>
+    <ul id="navbar-main-elements" class="navbar-nav">
+        
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../opinf/intro.html">
+                        What is Operator Inference?
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../opinf/installation.html">
+                        Package Installation
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../opinf/changelog.html">
+                        What’s New
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../opinf/bibliography.html">
+                        References
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorials/basics.html">
+                        Getting Started
+                      </a>
+                    </li>
+                
+            <div class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    More
+                </button>
+                <div class="dropdown-menu">
+                    
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorials/preprocessing.html">
+                        Preprocessing Data
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorials/reduction.html">
+                        Dimensionality Reduction
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorials/heat_equation.html">
+                        Heat Equation
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../main.html">
+                        opinf
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../lift.html">
+                        opinf.lift
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../pre.html">
+                        opinf.pre
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item current active">
+                      <a class="nav-link nav-internal" href="../basis.html">
+                        opinf.basis
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../ddt.html">
+                        opinf.ddt
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../operators.html">
+                        opinf.operators
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../models.html">
+                        opinf.models
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../lstsq.html">
+                        opinf.lstsq
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../post.html">
+                        opinf.post
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../utils.html">
+                        opinf.utils
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/how_to_contribute.html">
+                        How to Contribute
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/code_anatomy.html">
+                        Source Code Guide
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/testing.html">
+                        Testing Source Code
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/documentation.html">
+                        Writing Documentation
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/notation.html">
+                        Index of Notation
+                      </a>
+                    </li>
+                
+                </div>
+            </div>
+            
+    </ul>
+</nav>
+      </div>
+      
+    </div>
+
+    <div id="navbar-end">
+      
+        <div class="navbar-end-item navbar-persistent--container">
+          
+<button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-toggle="tooltip">
+  <i class="fa-solid fa-magnifying-glass"></i>
+</button>
+        </div>
+      
+      
+      <div class="navbar-end-item">
+        <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+</button>
+      </div>
+      
+      <div class="navbar-end-item">
+        <ul id="navbar-icon-links" class="navbar-nav" aria-label="Icon Links">
+      </ul>
+      </div>
+      
+    </div>
+  </div>
+
+
+  
+  
+    <div class="navbar-persistent--mobile">
+<button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-toggle="tooltip">
+  <i class="fa-solid fa-magnifying-glass"></i>
+</button>
+    </div>
+  
+
+  
+
+</div>
+  </nav>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+      
+      <div class="navbar-center-item">
+        <nav class="navbar-nav">
+    <p class="sidebar-header-items__title" role="heading" aria-level="1" aria-label="Site Navigation">
+        Site Navigation
+    </p>
+    <ul id="navbar-main-elements" class="navbar-nav">
+        
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../opinf/intro.html">
+                        What is Operator Inference?
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../opinf/installation.html">
+                        Package Installation
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../opinf/changelog.html">
+                        What’s New
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../opinf/bibliography.html">
+                        References
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorials/basics.html">
+                        Getting Started
+                      </a>
+                    </li>
+                
+            <div class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    More
+                </button>
+                <div class="dropdown-menu">
+                    
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorials/preprocessing.html">
+                        Preprocessing Data
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorials/reduction.html">
+                        Dimensionality Reduction
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorials/heat_equation.html">
+                        Heat Equation
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../main.html">
+                        opinf
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../lift.html">
+                        opinf.lift
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../pre.html">
+                        opinf.pre
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item current active">
+                      <a class="nav-link nav-internal" href="../basis.html">
+                        opinf.basis
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../ddt.html">
+                        opinf.ddt
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../operators.html">
+                        opinf.operators
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../models.html">
+                        opinf.models
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../lstsq.html">
+                        opinf.lstsq
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../post.html">
+                        opinf.post
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../utils.html">
+                        opinf.utils
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/how_to_contribute.html">
+                        How to Contribute
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/code_anatomy.html">
+                        Source Code Guide
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/testing.html">
+                        Testing Source Code
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/documentation.html">
+                        Writing Documentation
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing/notation.html">
+                        Index of Notation
+                      </a>
+                    </li>
+                
+                </div>
+            </div>
+            
+    </ul>
+</nav>
+      </div>
+      
+      </div>
+    
+
+    
+    
+    <div class="sidebar-header-items__end">
+      
+      <div class="navbar-end-item">
+        <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+</button>
+      </div>
+      
+      <div class="navbar-end-item">
+        <ul id="navbar-icon-links" class="navbar-nav" aria-label="Icon Links">
+      </ul>
+      </div>
+      
+    </div>
+    
+  </div>
+
+  
+  <div class="sidebar-start-items sidebar-primary__section">
+    <div class="sidebar-start-items__item">
+  
+
+
+<a class="navbar-brand logo" href="../../index.html">
+
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <img src="../../../_static/logo.svg" class="logo__image only-light" alt="Logo image">
+    <img src="../../../_static/logo.svg" class="logo__image only-dark" alt="Logo image">
+  
+  
+</a>
+    </div>
+    <div class="sidebar-start-items__item">
+<form class="bd-search d-flex align-items-center" action="../../../search.html" method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search" class="form-control" name="q" id="search-input" placeholder="Search this book..." aria-label="Search this book..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+    </div>
+    <div class="sidebar-start-items__item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Operator Inference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../opinf/intro.html">What is Operator Inference?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../opinf/installation.html">Package Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../opinf/changelog.html">What’s New</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../opinf/bibliography.html">References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/preprocessing.html">Preprocessing Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/reduction.html">Dimensionality Reduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/heat_equation.html">Heat Equation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../main.html"><code class="docutils literal notranslate"><span class="pre">opinf</span></code></a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../lift.html"><code class="docutils literal notranslate"><span class="pre">opinf.lift</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.lift.LifterTemplate.html">LifterTemplate</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.LifterTemplate.lift.html">lift()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.LifterTemplate.lift_ddts.html">lift_ddts()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.LifterTemplate.unlift.html">unlift()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.LifterTemplate.verify.html">verify()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.lift.QuadraticLifter.html">QuadraticLifter</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.QuadraticLifter.lift.html">lift()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.QuadraticLifter.lift_ddts.html">lift_ddts()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.QuadraticLifter.unlift.html">unlift()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.QuadraticLifter.verify.html">verify()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.lift.PolynomialLifter.html">PolynomialLifter</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.PolynomialLifter.lift.html">lift()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.PolynomialLifter.lift_ddts.html">lift_ddts()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.PolynomialLifter.unlift.html">unlift()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lift.PolynomialLifter.verify.html">verify()</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../pre.html"><code class="docutils literal notranslate"><span class="pre">opinf.pre</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.pre.SnapshotTransformer.html">SnapshotTransformer</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformer.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformer.fit_transform.html">fit_transform()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformer.inverse_transform.html">inverse_transform()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformer.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformer.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformer.transform.html">transform()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.pre.SnapshotTransformerMulti.html">SnapshotTransformerMulti</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformerMulti.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformerMulti.fit_transform.html">fit_transform()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformerMulti.get_var.html">get_var()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformerMulti.get_varslice.html">get_varslice()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformerMulti.inverse_transform.html">inverse_transform()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformerMulti.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformerMulti.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.pre.SnapshotTransformerMulti.transform.html">transform()</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.pre.scale.html">scale()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.pre.shift.html">shift()</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../basis.html"><code class="docutils literal notranslate"><span class="pre">opinf.basis</span></code></a><input checked="" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.basis.LinearBasis.html">LinearBasis</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasis.compress.html">compress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasis.decompress.html">decompress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasis.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasis.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasis.plot1D.html">plot1D()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasis.project.html">project()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasis.projection_error.html">projection_error()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasis.save.html">save()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.basis.LinearBasisMulti.html">LinearBasisMulti</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-10"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.compress.html">compress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.decompress.html">decompress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.get_var.html">get_var()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.get_varslice.html">get_varslice()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.plot1D.html">plot1D()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.project.html">project()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.projection_error.html">projection_error()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.LinearBasisMulti.save.html">save()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="opinf.basis.PODBasis.html">PODBasis</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-11"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.compress.html">compress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.decompress.html">decompress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.fit_randomized.html">fit_randomized()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.plot1D.html">plot1D()</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">plot_cumulative_energy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.plot_energy.html">plot_energy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.plot_residual_energy.html">plot_residual_energy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.plot_svdval_decay.html">plot_svdval_decay()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.project.html">project()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.projection_error.html">projection_error()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasis.set_dimension.html">set_dimension()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.basis.PODBasisMulti.html">PODBasisMulti</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-12"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.compress.html">compress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.decompress.html">decompress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.fit_randomized.html">fit_randomized()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.get_var.html">get_var()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.get_varslice.html">get_varslice()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.plot1D.html">plot1D()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.project.html">project()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.projection_error.html">projection_error()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.basis.PODBasisMulti.save.html">save()</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.basis.cumulative_energy.html">cumulative_energy()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.basis.pod_basis.html">pod_basis()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.basis.projection_error.html">projection_error()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.basis.residual_energy.html">residual_energy()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.basis.svdval_decay.html">svdval_decay()</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../ddt.html"><code class="docutils literal notranslate"><span class="pre">opinf.ddt</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-13"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="opinf.ddt.ddt.html">ddt()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.ddt.ddt_nonuniform.html">ddt_nonuniform()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.ddt.ddt_uniform.html">ddt_uniform()</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../operators.html"><code class="docutils literal notranslate"><span class="pre">opinf.operators</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-14"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.ConstantOperator.html">ConstantOperator</a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-15"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.ConstantOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.ConstantOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.ConstantOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.ConstantOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.ConstantOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.ConstantOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.ConstantOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.ConstantOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.ConstantOperator.set_entries.html">set_entries()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.LinearOperator.html">LinearOperator</a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-16"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.LinearOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.LinearOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.LinearOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.LinearOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.LinearOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.LinearOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.LinearOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.LinearOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.LinearOperator.set_entries.html">set_entries()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.QuadraticOperator.html">QuadraticOperator</a><input class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-17"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.ckron.html">ckron()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.ckron_indices.html">ckron_indices()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.compress_entries.html">compress_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.expand_entries.html">expand_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.QuadraticOperator.set_entries.html">set_entries()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.CubicOperator.html">CubicOperator</a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-18"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.ckron.html">ckron()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.ckron_indices.html">ckron_indices()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.compress_entries.html">compress_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.expand_entries.html">expand_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.CubicOperator.set_entries.html">set_entries()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.InputOperator.html">InputOperator</a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-19"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InputOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InputOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InputOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InputOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InputOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InputOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InputOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InputOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InputOperator.set_entries.html">set_entries()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.StateInputOperator.html">StateInputOperator</a><input class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-20"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.StateInputOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.StateInputOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.StateInputOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.StateInputOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.StateInputOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.StateInputOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.StateInputOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.StateInputOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.StateInputOperator.set_entries.html">set_entries()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.html">InterpolatedConstantOperator</a><input class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-21"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.set_entries.html">set_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.set_interpolator.html">set_interpolator()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedConstantOperator.set_training_parameters.html">set_training_parameters()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.html">InterpolatedLinearOperator</a><input class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-22"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.set_entries.html">set_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.set_interpolator.html">set_interpolator()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedLinearOperator.set_training_parameters.html">set_training_parameters()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.html">InterpolatedQuadraticOperator</a><input class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-23"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.set_entries.html">set_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.set_interpolator.html">set_interpolator()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedQuadraticOperator.set_training_parameters.html">set_training_parameters()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.html">InterpolatedCubicOperator</a><input class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-24"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.set_entries.html">set_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.set_interpolator.html">set_interpolator()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedCubicOperator.set_training_parameters.html">set_training_parameters()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.html">InterpolatedInputOperator</a><input class="toctree-checkbox" id="toctree-checkbox-25" name="toctree-checkbox-25" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-25"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.set_entries.html">set_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.set_interpolator.html">set_interpolator()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedInputOperator.set_training_parameters.html">set_training_parameters()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.html">InterpolatedStateInputOperator</a><input class="toctree-checkbox" id="toctree-checkbox-26" name="toctree-checkbox-26" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-26"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.set_entries.html">set_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.set_interpolator.html">set_interpolator()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.operators.InterpolatedStateInputOperator.set_training_parameters.html">set_training_parameters()</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.operators.is_nonparametric.html">is_nonparametric()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.operators.is_parametric.html">is_parametric()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.operators.has_inputs.html">has_inputs()</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../models.html"><code class="docutils literal notranslate"><span class="pre">opinf.models</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-27" name="toctree-checkbox-27" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-27"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.models.ContinuousModel.html">ContinuousModel</a><input class="toctree-checkbox" id="toctree-checkbox-28" name="toctree-checkbox-28" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-28"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.ContinuousModel.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.ContinuousModel.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.ContinuousModel.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.ContinuousModel.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.ContinuousModel.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.ContinuousModel.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.ContinuousModel.rhs.html">rhs()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.ContinuousModel.save.html">save()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.models.DiscreteModel.html">DiscreteModel</a><input class="toctree-checkbox" id="toctree-checkbox-29" name="toctree-checkbox-29" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-29"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.DiscreteModel.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.DiscreteModel.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.DiscreteModel.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.DiscreteModel.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.DiscreteModel.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.DiscreteModel.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.DiscreteModel.rhs.html">rhs()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.DiscreteModel.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.DiscreteModel.stack_trajectories.html">stack_trajectories()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.html">InterpolatedContinuousModel</a><input class="toctree-checkbox" id="toctree-checkbox-30" name="toctree-checkbox-30" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-30"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.rhs.html">rhs()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedContinuousModel.set_interpolator.html">set_interpolator()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.html">InterpolatedDiscreteModel</a><input class="toctree-checkbox" id="toctree-checkbox-31" name="toctree-checkbox-31" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-31"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.rhs.html">rhs()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.models.InterpolatedDiscreteModel.set_interpolator.html">set_interpolator()</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../lstsq.html"><code class="docutils literal notranslate"><span class="pre">opinf.lstsq</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-32" name="toctree-checkbox-32" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-32"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="opinf.lstsq.lstsq_size.html">lstsq_size()</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.lstsq.PlainSolver.html">PlainSolver</a><input class="toctree-checkbox" id="toctree-checkbox-33" name="toctree-checkbox-33" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-33"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.PlainSolver.cond.html">cond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.PlainSolver.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.PlainSolver.misfit.html">misfit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.PlainSolver.predict.html">predict()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.lstsq.L2Solver.html">L2Solver</a><input class="toctree-checkbox" id="toctree-checkbox-34" name="toctree-checkbox-34" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-34"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2Solver.cond.html">cond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2Solver.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2Solver.misfit.html">misfit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2Solver.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2Solver.regcond.html">regcond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2Solver.residual.html">residual()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.lstsq.L2SolverDecoupled.html">L2SolverDecoupled</a><input class="toctree-checkbox" id="toctree-checkbox-35" name="toctree-checkbox-35" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-35"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2SolverDecoupled.cond.html">cond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2SolverDecoupled.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2SolverDecoupled.misfit.html">misfit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2SolverDecoupled.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2SolverDecoupled.regcond.html">regcond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.L2SolverDecoupled.residual.html">residual()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.lstsq.TikhonovSolver.html">TikhonovSolver</a><input class="toctree-checkbox" id="toctree-checkbox-36" name="toctree-checkbox-36" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-36"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolver.cond.html">cond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolver.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolver.misfit.html">misfit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolver.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolver.regcond.html">regcond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolver.residual.html">residual()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.lstsq.TikhonovSolverDecoupled.html">TikhonovSolverDecoupled</a><input class="toctree-checkbox" id="toctree-checkbox-37" name="toctree-checkbox-37" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-37"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolverDecoupled.cond.html">cond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolverDecoupled.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolverDecoupled.misfit.html">misfit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolverDecoupled.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolverDecoupled.regcond.html">regcond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TikhonovSolverDecoupled.residual.html">residual()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="opinf.lstsq.TotalLeastSquaresSolver.html">TotalLeastSquaresSolver</a><input class="toctree-checkbox" id="toctree-checkbox-38" name="toctree-checkbox-38" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-38"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TotalLeastSquaresSolver.cond.html">cond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TotalLeastSquaresSolver.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TotalLeastSquaresSolver.misfit.html">misfit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="opinf.lstsq.TotalLeastSquaresSolver.predict.html">predict()</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../post.html"><code class="docutils literal notranslate"><span class="pre">opinf.post</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-39" name="toctree-checkbox-39" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-39"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="opinf.post.projection_error.html">projection_error()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.post.frobenius_error.html">frobenius_error()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.post.lp_error.html">lp_error()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bigLp-error.html">Lp_error()</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../utils.html"><code class="docutils literal notranslate"><span class="pre">opinf.utils</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-40" name="toctree-checkbox-40" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-40"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="opinf.utils.hdf5_loadhandle.html">hdf5_loadhandle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opinf.utils.hdf5_savehandle.html">hdf5_savehandle</a></li>
+</ul>
+</li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../contributing/how_to_contribute.html">How to Contribute</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../contributing/code_anatomy.html">Source Code Guide</a><input class="toctree-checkbox" id="toctree-checkbox-41" name="toctree-checkbox-41" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-41"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._BaseTransformer.html">_BaseTransformer</a><input class="toctree-checkbox" id="toctree-checkbox-42" name="toctree-checkbox-42" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-42"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._BaseTransformer.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._BaseTransformer.fit_transform.html">fit_transform()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._BaseTransformer.inverse_transform.html">inverse_transform()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._BaseTransformer.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._BaseTransformer.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._BaseTransformer.transform.html">transform()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._MultivarMixin.html">_MultivarMixin</a><input class="toctree-checkbox" id="toctree-checkbox-43" name="toctree-checkbox-43" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-43"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._MultivarMixin.get_var.html">get_var()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.pre._base._MultivarMixin.get_varslice.html">get_varslice()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.basis._base._BaseBasis.html">_BaseBasis</a><input class="toctree-checkbox" id="toctree-checkbox-44" name="toctree-checkbox-44" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-44"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.basis._base._BaseBasis.compress.html">compress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.basis._base._BaseBasis.decompress.html">decompress()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.basis._base._BaseBasis.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.basis._base._BaseBasis.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.basis._base._BaseBasis.project.html">project()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.basis._base._BaseBasis.projection_error.html">projection_error()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.basis._base._BaseBasis.save.html">save()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.html">_NonparametricOperator</a><input class="toctree-checkbox" id="toctree-checkbox-45" name="toctree-checkbox-45" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-45"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._NonparametricOperator.set_entries.html">set_entries()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.html">_ParametricOperator</a><input class="toctree-checkbox" id="toctree-checkbox-46" name="toctree-checkbox-46" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-46"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._base._ParametricOperator.save.html">save()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.html">_InterpolatedOperator</a><input class="toctree-checkbox" id="toctree-checkbox-47" name="toctree-checkbox-47" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-47"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.apply.html">apply()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.datablock.html">datablock()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.operator_dimension.html">operator_dimension()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.set_entries.html">set_entries()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.set_interpolator.html">set_interpolator()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.operators._interpolate._InterpolatedOperator.set_training_parameters.html">set_training_parameters()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._base._Model.html">_Model</a><input class="toctree-checkbox" id="toctree-checkbox-48" name="toctree-checkbox-48" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-48"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._base._Model.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._base._Model.galerkin.html">galerkin()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._nonparametric._NonparametricModel.html">_NonparametricModel</a><input class="toctree-checkbox" id="toctree-checkbox-49" name="toctree-checkbox-49" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-49"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._nonparametric._NonparametricModel.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._nonparametric._NonparametricModel.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._nonparametric._NonparametricModel.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._nonparametric._NonparametricModel.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._nonparametric._NonparametricModel.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._nonparametric._NonparametricModel.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._nonparametric._NonparametricModel.rhs.html">rhs()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._nonparametric._NonparametricModel.save.html">save()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._ParametricModel.html">_ParametricModel</a><input class="toctree-checkbox" id="toctree-checkbox-50" name="toctree-checkbox-50" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-50"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._ParametricModel.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._ParametricModel.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._ParametricModel.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._ParametricModel.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._ParametricModel.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._ParametricModel.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._ParametricModel.rhs.html">rhs()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.html">_InterpolatedModel</a><input class="toctree-checkbox" id="toctree-checkbox-51" name="toctree-checkbox-51" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-51"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.copy.html">copy()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.evaluate.html">evaluate()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.galerkin.html">galerkin()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.jacobian.html">jacobian()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.load.html">load()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.rhs.html">rhs()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.save.html">save()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.models.mono._parametric._InterpolatedModel.set_interpolator.html">set_interpolator()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._base._BaseSolver.html">_BaseSolver</a><input class="toctree-checkbox" id="toctree-checkbox-52" name="toctree-checkbox-52" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-52"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._base._BaseSolver.cond.html">cond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._base._BaseSolver.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._base._BaseSolver.misfit.html">misfit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._base._BaseSolver.predict.html">predict()</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._tikhonov._BaseTikhonovSolver.html">_BaseTikhonovSolver</a><input class="toctree-checkbox" id="toctree-checkbox-53" name="toctree-checkbox-53" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-53"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._tikhonov._BaseTikhonovSolver.cond.html">cond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._tikhonov._BaseTikhonovSolver.fit.html">fit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._tikhonov._BaseTikhonovSolver.misfit.html">misfit()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._tikhonov._BaseTikhonovSolver.predict.html">predict()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._tikhonov._BaseTikhonovSolver.regcond.html">regcond()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._tikhonov._BaseTikhonovSolver.regularizer.html">regularizer()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../contributing/_autosummaries/opinf.lstsq._tikhonov._BaseTikhonovSolver.residual.html">residual()</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing/testing.html">Testing Source Code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing/documentation.html">Writing Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing/notation.html">Index of Notation</a></li>
+</ul>
+
+    </div>
+</nav>
+    </div>
+  </div>
+  
+
+  
+  <div class="sidebar-end-items sidebar-primary__section">
+    <div class="sidebar-end-items__item">
+    </div>
+  </div>
+
+  
+  <div id="rtd-footer-container"></div>
+
+      </div>
+      <main id="main-content" class="bd-main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+        <div class="bd-content">
+          <div class="bd-article-container">
+            
+            <div class="bd-header-article">
+                
+
+
+
+<div class="col py-1 d-flex header-article-main">
+    <div class="header-article__left">
+        <label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" data-toggle="tooltip" data-placement="right" title="Toggle primary sidebar">
+            <span class="fa-solid fa-bars"></span>
+        </label>
+    </div>
+    <div class="header-article__right">
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm"
+  data-toggle="tooltip"
+data-placement="bottom"
+title="Fullscreen mode"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<div class="dropdown dropdown-repository-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      <li><a href="https://github.com/Willcox-Research-Group/rom-operator-inference-Python3" target="_blank"
+   class="btn btn-sm dropdown-item"
+   data-toggle="tooltip"
+data-placement="left"
+title="Source repository"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">repository</span>
+</a>
+</a>
+      
+      <li><a href="https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/issues/new?title=Issue%20on%20page%20%2Fsource/api/_autosummaries/opinf.basis.PODBasis.plot_cumulative_energy.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm dropdown-item"
+   data-toggle="tooltip"
+data-placement="left"
+title="Open an issue"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">open issue</span>
+</a>
+</a>
+      
+  </ul>
+</div>
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      <li><a href="../../../_sources/source/api/_autosummaries/opinf.basis.PODBasis.plot_cumulative_energy.rst" target="_blank"
+   class="btn btn-sm dropdown-item"
+   data-toggle="tooltip"
+data-placement="left"
+title="Download source file"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</a>
+      
+      <li>
+<button onclick="printPdf(this)"
+  class="btn btn-sm dropdown-item"
+  data-toggle="tooltip"
+data-placement="left"
+title="Print to PDF"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</a>
+      
+  </ul>
+</div>
+
+    </div>
+</div>
+            </div>
+            
+            
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>plot_cumulative_energy()</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+            <article class="bd-article" role="main">
+              
+  <section id="plot-cumulative-energy">
+<h1>plot_cumulative_energy()<a class="headerlink" href="#plot-cumulative-energy" title="Permalink to this heading">#</a></h1>
+<dl class="py method">
+<dt class="sig sig-object py" id="opinf.basis.PODBasis.plot_cumulative_energy">
+<span class="sig-prename descclassname"><span class="pre">PODBasis.</span></span><span class="sig-name descname"><span class="pre">plot_cumulative_energy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/opinf/basis/_pod.html#PODBasis.plot_cumulative_energy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opinf.basis.PODBasis.plot_cumulative_energy" title="Permalink to this definition">#</a></dt>
+<dd><p>Plot the cumulative singular value energy, defined by</p>
+<blockquote>
+<div><p>energy_j = sum(svdvals[:j]**2) / sum(svdvals**2).</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>threshold</strong><span class="classifier">0 ≤ float ≤ 1 or None</span></dt><dd><p>Cutoff value to mark on the plot.</p>
+</dd>
+<dt><strong>ax</strong><span class="classifier">plt.Axes or None</span></dt><dd><p>Matplotlib Axes to plot on. If None, a new figure is created.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt><strong>ax</strong><span class="classifier">plt.Axes</span></dt><dd><p>Matplotlib Axes for the plot.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./source/api/_autosummaries"
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+            </article>
+            
+
+            
+            
+            <footer class="bd-footer-article">
+                <!-- Previous / next buttons -->
+<div class='prev-next-area'>
+  <a class='left-prev' id="prev-link" href="opinf.basis.PODBasis.plot1D.html" title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+          <p class="prev-next-subtitle">previous</p>
+          <p class="prev-next-title">plot1D()</p>
+      </div>
+  </a>
+  <a class='right-next' id="next-link" href="opinf.basis.PODBasis.plot_energy.html" title="next page">
+  <div class="prev-next-info">
+      <p class="prev-next-subtitle">next</p>
+      <p class="prev-next-title">plot_energy()</p>
+  </div>
+  <i class="fa-solid fa-angle-right"></i>
+  </a>
+</div>
+            </footer>
+            
+          </div>
+          
+          
+          
+          
+        </div>
+        <footer class="bd-footer-content">
+          <div class="bd-footer-content__inner">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Willcox Research Group, Oden Institute for Computational Engineering and Sciences
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+<p class="copyright">
+
+    &copy; Copyright 2022.<br>
+
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+Last updated on None.<br>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </div>
+        </footer>
+        
+
+      </main>
+    </div>
+  </div>
+
+  
+    
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../../_static/scripts/bootstrap.js?digest=796348d33e8b1d947c94"></script>
+<script src="../../../_static/scripts/pydata-sphinx-theme.js?digest=796348d33e8b1d947c94"></script>
+
+  </body>
+</html>
