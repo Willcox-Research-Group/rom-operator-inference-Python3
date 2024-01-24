@@ -6,7 +6,7 @@ on:
   #   types: [published]
   workflow_dispatch:
 
-# Installs dependencies, builds the documentation, and push it to `gh-pages`
+# Installs dependencies, builds the documentation, and push it to `gh-pages`.
 jobs:
   deploy-docs:
     runs-on: ubuntu-latest
@@ -15,7 +15,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: 3.11
       - name: Install package
         run: |
           python -m pip install --upgrade pip
