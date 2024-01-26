@@ -1,12 +1,31 @@
 # pre/transform/_base.py
-"""Base transformer class."""
+"""Template class for transformers."""
+
+__all__ = [
+    "TransformerTemplate",
+]
 
 import abc
 import numpy as np
+import scipy.linalg as la
+
+from .. import errors, ddt
 
 
-class _BaseTransformer(abc.ABC):
-    """Abstract base class for all transformer classes."""
+class TransformerTemplate(abc.ABC):
+    """Template class for transformers.
+
+    Classes that inherit from this template must implement the methods
+    :meth:`fit_transform()`, :meth:`transform()`, and
+    :meth:`inverse_transform()`. The optional :meth:`transform_ddts()` method
+    is used by the ROM class when snapshot time derivative data are available
+    in the native state variables.
+
+    See :class:`SnapshotTransformer` for an example.
+
+    The default implementation of :meth:`fit()` simply calls
+    :meth:`fit_transform()`.
+    """
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):
@@ -38,10 +57,32 @@ class _BaseTransformer(abc.ABC):
 
         Returns
         -------
-        states_transformed: (n, k) ndarray
+        states_transformed : (n, k) ndarray
             Matrix of k transformed snapshots of dimension n.
         """
         raise NotImplementedError  # pragma: no cover
+
+    def transform_ddts(self, ddts, inplace=False):
+        r"""Apply the learned transformation to snapshot time derivatives.
+
+        If the transformation is denoted :math:`\mathcal{T} : q \mapsto q'`,
+        this function implements :math:`\mathcal{T}'` such that
+        :math:`\mathcal{T}'(\ddt q) = \ddt \mathcal{T}(q)`.
+
+        Parameters
+        ----------
+        ddts : (n, k) ndarray
+            Matrix of k snapshot time derivatives.
+        inplace : bool
+            If True, overwrite the input data during the transformation.
+            If False, create a copy of the data to transform.
+
+        Returns
+        -------
+        ddts_transforme : (n, k) ndarray
+            Matrix of k transformed snapshot time derivatives.
+        """
+        return NotImplemented  # pragma: no cover
 
     @abc.abstractmethod
     def fit_transform(self, states, inplace=False):
@@ -74,12 +115,13 @@ class _BaseTransformer(abc.ABC):
             If True, overwrite the input data during inverse transformation.
             If False, create a copy of the data to untransform.
         locs : slice or (p,) ndarray of integers or None
-            If given, return the untransformed variable at only the specified
-            locations (indices). In this case, `inplace` is ignored.
+            If given, assume ``states_transformed`` consists of the transformed
+            variables at only the specified locations (indices).
+            In this case, `inplace` is ignored.
 
         Returns
         -------
-        states: (n, k) ndarray
+        states: (n, k) or (p, k) ndarray
             Matrix of k untransformed snapshots of dimension n, or the p
             entries of such at the indices specified by `loc`.
         """
@@ -88,12 +130,101 @@ class _BaseTransformer(abc.ABC):
     # Model persistence -------------------------------------------------------
     def save(self, *args, **kwargs):
         """Save the transformer to an HDF5 file."""
-        raise NotImplementedError("use pickle/joblib")
+        raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
     @classmethod
     def load(cls, *args, **kwargs):
         """Load a transformer from an HDF5 file."""
-        raise NotImplementedError("use pickle/joblib")
+        raise NotImplementedError("use pickle/joblib")  # pragma: no cover
+
+    # Verification ------------------------------------------------------------
+    def verify(self, states, t=None, tol: float = 1e-4):
+        r"""Verify that :meth:`transform()` and :meth:`inverse_transform()`
+        are consistent and that :meth:`transform_ddts()`, if implemented,
+        is consistent with
+
+        * The :meth:`transform` / :meth:`inverse_transform` consistency check
+          verifies that ``inverse_transform(transform(states)) == states``.
+        * The :meth:`transform_ddts` consistency check uses
+          :meth:`opinf.ddt.ddt` to estimate the time derivatives of the states
+          and the transformed states, then verfies that the relative
+          difference between
+          ``transform_ddts(opinf.ddt.ddt(states, t))`` and
+          ``opinf.ddt.ddt(transform(states), t)`` is less than ``tol``.
+          If this check fails, consider using a finer time mesh.
+
+        Parameters
+        ----------
+        states : (n, k)
+            Matrix of k snapshots. Each column is a snapshot of dimension n.
+        t : (k,) ndarray or None
+            Time domain corresponding to the states.
+            Only required if :meth:`lift_ddts` is implemented.
+        tol : float > 0
+            Tolerance for the finite difference check of
+            :meth:`transform_ddts`.
+            Only used if :meth:`transform_ddts` is implemented.
+        """
+        # Verify transform().
+        states_transformed = self.transform(states)
+        if states_transformed.shape != states.shape:
+            raise errors.VerificationError(
+                "transform(states).shape != states.shape"
+            )
+
+        # Verify inverse_transform().
+        states_recovered = self.inverse_transform(states_transformed)
+        if states_recovered.shape != states_transformed.shape:
+            raise errors.VerificationError(
+                "inverse_transform(transform(states)).shape "
+                "!= transform(states).shape"
+            )
+
+        # Check locs argument of inverse_transform().
+        n = states.shape[0]
+        locs = np.sort(np.random.choice(n, size=n // 3, replace=False))
+        states_transformed_at_locs = states_transformed[locs]
+        states_recovered_at_locs = self.inverse_transform(
+            states_transformed_at_locs,
+            locs=locs,
+        )
+        states_at_locs = states[locs]
+        if states_recovered_at_locs.shape != states_at_locs.shape:
+            raise errors.VerificationError(
+                "inverse_transform(transform(states)[locs], locs).shape "
+                "!= states[locs].shape"
+            )
+
+        # Verify that transform() and inverse_transform() are inverses.
+        if not np.allclose(states_recovered, states):
+            raise errors.VerificationError(
+                "transform() and inverse_transform() are not inverses"
+            )
+        if not np.allclose(states_recovered_at_locs, states_at_locs):
+            raise errors.VerificationError(
+                "transform() and inverse_transform() are not inverses "
+                "(locs != None)"
+            )
+        print("transform() and inverse_transform() are consistent")
+
+        # Finite difference check for transform_ddts().
+        if self.transform_ddts(states) is NotImplemented:
+            return
+        if t is None:
+            raise ValueError(
+                "time domain 't' required for finite difference check"
+            )
+        ddts_transformed = self.transform_ddts(ddt.ddt(states, t))
+        ddts_est = ddt.ddt(states_transformed, t)
+        if (
+            diff := la.norm(ddts_transformed - ddts_est) / la.norm(ddts_est)
+        ) > tol:
+            raise errors.VerificationError(
+                "transform_ddts() failed finite difference check,\n\t"
+                "|| transform_ddts(d/dt[states]) - d/dt[transform(states)] || "
+                f" / || d/dt[transform(states)] || = {diff} > {tol = }"
+            )
+        print("transform() and transform_ddts() are consistent")
 
 
 class _MultivarMixin:

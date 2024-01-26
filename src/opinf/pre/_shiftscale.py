@@ -1,5 +1,5 @@
-# pre/transform/_public.py
-"""Tools for preprocessing state snapshot data."""
+# pre/_shiftscale.py
+"""Preprocessing transformations based on elementary shifts and scalings."""
 
 __all__ = [
     "shift",
@@ -12,12 +12,12 @@ import numpy as np
 
 from ..errors import LoadfileFormatError
 from ..utils import hdf5_savehandle, hdf5_loadhandle
-from ._base import _BaseTransformer, _MultivarMixin
+from ._base import TransformerTemplate, _MultivarMixin
 
 
 # Functional paradigm =========================================================
-def shift(states, shift_by=None):
-    """Shift the columns of `states` by a vector.
+def shift(states: np.ndarray, shift_by: np.ndarray = None):
+    """Shift the columns of a snapshot matrix by a vector.
 
     Parameters
     ----------
@@ -31,21 +31,24 @@ def shift(states, shift_by=None):
     -------
     states_shifted : (n, k) ndarray
         Shifted state matrix, i.e.,
-        states_shifted[:, j] = states[:, j] - shift_by for j = 0, ..., k-1.
+        ``states_shifted[:, j] = states[:, j] - shift_by``.
     shift_by : (n,) ndarray
-        Shift factor, returned only if shift_by=None.
+        Shift factor, returned only if ``shift_by=None``.
         Since this is a one-dimensional array, it must be reshaped to be
-        applied to a matrix (e.g., states_shifted + shift_by.reshape(-1, 1)).
+        applied to a matrix, for example,
+        ``states_shifted = states - shift_by.reshape(-1, 1)``.
 
     Examples
     --------
+    >>> import opinf
+
     # Shift Q by its mean, then shift Y by the same mean.
-    >>> Q_shifted, qbar = pre.shift(Q)
-    >>> Y_shifted = pre.shift(Y, qbar)
+    >>> Q_shifted, qbar = opinf.pre.shift(Q)
+    >>> Y_shifted = opinf.pre.shift(Y, qbar)
 
     # Shift Q by its mean, then undo the transformation by an inverse shift.
-    >>> Q_shifted, qbar = pre.shift(Q)
-    >>> Q_again = pre.shift(Q_shifted, -qbar)
+    >>> Q_shifted, qbar = opinf.pre.shift(Q)
+    >>> Q_again = opinf.pre.shift(Q_shifted, -qbar)
     """
     # Check dimensions.
     if states.ndim != 2:
@@ -64,18 +67,27 @@ def shift(states, shift_by=None):
     return (states_shifted, shift_by) if learning else states_shifted
 
 
-def scale(states, scale_to, scale_from=None):
-    """Scale the entries of the snapshot matrix `states` from the interval
-    [scale_from[0], scale_from[1]] to [scale_to[0], scale_to[1]].
-    Scaling algorithm follows sklearn.preprocessing.MinMaxScaler.
+def scale(states: np.ndarray, scale_to: tuple, scale_from: tuple = None):
+    r"""Scale the entries of a snapshot matrix to a specified interval
+    :math:`[a, b]`.
+
+    This scaling follows ``sklearn.preprocessing.MinMaxScaler``.
+    If the entries of the snapshot matrix are contained in the interval
+    :math:`[\bar{a}, \bar{b}]`, then the transformation is given by
+
+    .. math::
+       q' = \frac{q - \bar{a}}{\bar{b} - \bar{a}}(b - a) + a,
+
+    where :math:`q` is the original variable and :math:`q'` is the transformed
+    variable.
 
     Parameters
     ----------
     states : (n, k) ndarray
         Matrix of k snapshots to be scaled. Each column is a single snapshot.
-    scale_to : (2,) tuple
-        Desired minimum and maximum of the scaled data.
-    scale_from : (2,) tuple
+    scale_to : (float, float)
+        Desired minimum and maximum of the scaled data, i.e., :math:`[a, b]`.
+    scale_from : (float, float)
         Minimum and maximum of the snapshot data. If None, learn the scaling:
         scale_from[0] = min(states); scale_from[1] = max(states).
 
@@ -122,7 +134,7 @@ def scale(states, scale_to, scale_from=None):
 
 
 # Object-oriented paradigm ====================================================
-class SnapshotTransformer(_BaseTransformer):
+class SnapshotTransformer(TransformerTemplate):
     r"""Process snapshots by centering and/or scaling (in that order).
 
     Parameters
@@ -607,7 +619,7 @@ class SnapshotTransformer(_BaseTransformer):
             return transformer
 
 
-class SnapshotTransformerMulti(_BaseTransformer, _MultivarMixin):
+class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
     """Transformer for multivariate snapshots.
 
     Groups multiple SnapshotTransformers for the centering and/or scaling

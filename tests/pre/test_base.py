@@ -7,40 +7,107 @@ import numpy as np
 import opinf
 
 
-class TestBaseTransformer:
-    """Test pre._base._BaseTransformer."""
+class TestTransformerTemplate:
+    """Test pre._base.TransformerTemplate."""
 
-    class Dummy(opinf.pre._base._BaseTransformer):
+    class Dummy(opinf.pre.TransformerTemplate):
         def fit_transform(self, states):
-            self.n = states.shape[0]
             return states
 
         def transform(self, states):
             return states
 
-        def inverse_transform(self, states):
+        def inverse_transform(self, states, locs=None):
             return states
 
     def test_fit(self):
-        """Test pre._base._BaseTransformer.fit()."""
-        bt = self.Dummy()
-        states = np.random.random((10, 5))
-        out = bt.fit(states)
-        assert out is bt
-        assert hasattr(bt, "n")
-        assert bt.n == 10
+        """Test TransformerTemplate.fit()."""
+        tf = self.Dummy()
+        out = tf.fit(10)
+        assert out is tf
 
-    def test_save(self):
-        """Test pre._base._BaseTransformer.save()."""
-        with pytest.raises(NotImplementedError) as ex:
-            self.Dummy().save("test")
-        assert ex.value.args[0] == "use pickle/joblib"
+    def test_verify(self, n=30, k=16):
+        """Test TransformerTemplate.verify()."""
+        Q = np.random.random((n, k))
+        self.Dummy().verify(Q)
 
-    def test_load(self):
-        """Test pre._base._BaseTransformer.load()."""
-        with pytest.raises(NotImplementedError) as ex:
-            self.Dummy.load("test")
-        assert ex.value.args[0] == "use pickle/joblib"
+        class Dummy2(self.Dummy):
+            def transform(self, states):
+                return states[:-1]
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy2().verify(Q)
+        assert ex.value.args[0] == "transform(states).shape != states.shape"
+
+        class Dummy3(self.Dummy):
+            def inverse_transform(self, states_transformed):
+                return states_transformed[:-1]
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy3().verify(Q)
+        assert ex.value.args[0] == (
+            "inverse_transform(transform(states)).shape "
+            "!= transform(states).shape"
+        )
+
+        class Dummy4(self.Dummy):
+            def inverse_transform(self, states_transformed, locs=None):
+                if locs is None:
+                    return states_transformed
+                return states_transformed[:-1]
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy4().verify(Q)
+        assert ex.value.args[0] == (
+            "inverse_transform(transform(states)[locs], locs).shape "
+            "!= states[locs].shape"
+        )
+
+        class Dummy5(self.Dummy):
+            def inverse_transform(self, states_transformed, locs=None):
+                return states_transformed + 1
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy5().verify(Q)
+        assert ex.value.args[0] == (
+            "transform() and inverse_transform() are not inverses"
+        )
+
+        class Dummy6(self.Dummy):
+            def inverse_transform(self, states_transformed, locs=None):
+                if locs is not None:
+                    return states_transformed + 1
+                return states_transformed
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy6().verify(Q)
+        assert ex.value.args[0] == (
+            "transform() and inverse_transform() are not inverses "
+            "(locs != None)"
+        )
+
+        class Dummy7(self.Dummy):
+            def transform_ddts(self, ddts):
+                return ddts + 1
+
+        with pytest.raises(ValueError) as ex:
+            Dummy7().verify(Q)
+        assert ex.value.args[0] == (
+            "time domain 't' required for finite difference check"
+        )
+
+        t = np.linspace(0, 1, k)
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy7().verify(Q, t)
+        assert ex.value.args[0].startswith(
+            "transform_ddts() failed finite difference check"
+        )
+
+        class Dummy8(self.Dummy):
+            def transform_ddts(self, ddts):
+                return ddts
+
+        Dummy8().verify(Q, t)
 
 
 class TestMultivarMixin:
