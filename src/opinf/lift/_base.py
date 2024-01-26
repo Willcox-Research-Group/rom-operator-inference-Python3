@@ -1,5 +1,5 @@
 # lift/_base.py
-"""Template class for lifting transformation managers."""
+"""Template class for lifting transformations."""
 
 __all__ = [
     "LifterTemplate",
@@ -13,11 +13,12 @@ from .. import errors, ddt
 
 
 class LifterTemplate(abc.ABC):
-    """Template class for lifting transformation managers.
+    """Template class for lifting transformations.
 
     Classes that inherit from this template must implement the methods
-    :meth:`lift` and :meth:`unlift`, and may also choose to implement
-    :meth:`lift_ddts`.
+    :meth:`lift()` and :meth:`unlift()`. The optional :meth:`lift_ddts` method
+    is used by the ROM class when snapshot time derivative data are available
+    in the native state variables.
 
     See :class:`QuadraticLifter` for an example.
     """
@@ -135,7 +136,7 @@ class LifterTemplate(abc.ABC):
             diff := la.norm(lifted_ddts - lddts_est) / la.norm(lddts_est)
         ) > tol:
             raise errors.VerificationError(
-                "ddts_lifted() failed finite difference check,\n\t"
+                "lift_ddts() failed finite difference check,\n\t"
                 "|| lift_ddts(states, d/dt[states]) - d/dt[lift(states)] || "
                 f" / || d/dt[lift(states)] || = {diff} > {tol = }"
             )

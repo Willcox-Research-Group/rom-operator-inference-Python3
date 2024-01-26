@@ -96,5 +96,5 @@ class TestLifterTemplate:
         with pytest.raises(opinf.errors.VerificationError) as ex:
             Dummy6().verify(Q, t, tol=0)
         assert ex.value.args[0].startswith(
-            "ddts_lifted() failed finite difference check"
+            "lift_ddts() failed finite difference check"
         )
