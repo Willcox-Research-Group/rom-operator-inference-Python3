@@ -22,3 +22,19 @@ The following tools enable centering/shifting and scaling/nondimensionalization 
 
 See [Preprocessing Data](../tutorials/preprocessing.ipynb) for discussion
 and examples.
+
+## Custom Transformers
+
+```{eval-rst}
+.. currentmodule:: opinf.pre
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    TransformerTemplate
+```
+
+### Inheritance Template
+
+TODO

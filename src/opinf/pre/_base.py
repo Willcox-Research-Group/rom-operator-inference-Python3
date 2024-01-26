@@ -143,11 +143,12 @@ class TransformerTemplate(abc.ABC):
         are consistent and that :meth:`transform_ddts()`, if implemented,
         is consistent with
 
-        * The :meth:`transform` / :meth:`inverse_transform` consistency check
-          verifies that ``inverse_transform(transform(states)) == states``.
-        * The :meth:`transform_ddts` consistency check uses
-          :meth:`opinf.ddt.ddt` to estimate the time derivatives of the states
-          and the transformed states, then verfies that the relative
+        * The :meth:`transform()` / :meth:`inverse_transform()` consistency
+          check verifies that
+          ``inverse_transform(transform(states)) == states``.
+        * The :meth:`transform_ddts()` consistency check uses
+          :meth:`opinf.ddt.ddt()` to estimate the time derivatives of the
+          states and the transformed states, then verfies that the relative
           difference between
           ``transform_ddts(opinf.ddt.ddt(states, t))`` and
           ``opinf.ddt.ddt(transform(states), t)`` is less than ``tol``.
@@ -159,11 +160,11 @@ class TransformerTemplate(abc.ABC):
             Matrix of k snapshots. Each column is a snapshot of dimension n.
         t : (k,) ndarray or None
             Time domain corresponding to the states.
-            Only required if :meth:`lift_ddts` is implemented.
+            Only required if :meth:`transform_ddts()` is implemented.
         tol : float > 0
             Tolerance for the finite difference check of
-            :meth:`transform_ddts`.
-            Only used if :meth:`transform_ddts` is implemented.
+            :meth:`transform_ddts()`.
+            Only used if :meth:`transform_ddts()` is implemented.
         """
         # Verify transform().
         states_transformed = self.transform(states)

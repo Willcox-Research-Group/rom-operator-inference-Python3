@@ -23,9 +23,9 @@ def shift(states: np.ndarray, shift_by: np.ndarray = None):
     ----------
     states : (n, k) ndarray
         Matrix of k snapshots. Each column is a single snapshot.
-    shift_by : (n,) or (n, 1) ndarray
-        Vector that is the same size as a single snapshot. If None,
-        set to the mean of the columns of `states`.
+    shift_by : (n,) ndarray
+        Vector that is the same size as a single snapshot. If ``None``
+        (default), set to the mean of the columns of ``states``.
 
     Returns
     -------
@@ -41,25 +41,26 @@ def shift(states: np.ndarray, shift_by: np.ndarray = None):
     Examples
     --------
     >>> import opinf
-
     # Shift Q by its mean, then shift Y by the same mean.
     >>> Q_shifted, qbar = opinf.pre.shift(Q)
     >>> Y_shifted = opinf.pre.shift(Y, qbar)
-
     # Shift Q by its mean, then undo the transformation by an inverse shift.
     >>> Q_shifted, qbar = opinf.pre.shift(Q)
     >>> Q_again = opinf.pre.shift(Q_shifted, -qbar)
     """
     # Check dimensions.
     if states.ndim != 2:
-        raise ValueError("argument `states` must be two-dimensional")
+        raise ValueError("'states' must be two-dimensional")
 
     # If not shift_by factor is provided, compute the mean column.
     learning = shift_by is None
     if learning:
         shift_by = np.mean(states, axis=1)
-    elif shift_by.ndim != 1:
-        raise ValueError("argument `shift_by` must be one-dimensional")
+    if shift_by.ndim != 1:
+        if shift_by.ndim == 2 and shift_by.shape[1] == 1:
+            shift_by = shift_by[:, 0]
+        else:
+            raise ValueError("'shift_by' must be one-dimensional")
 
     # Shift the columns by the mean.
     states_shifted = states - shift_by.reshape((-1, 1))
@@ -95,23 +96,24 @@ def scale(states: np.ndarray, scale_to: tuple, scale_from: tuple = None):
     -------
     states_scaled : (n, k) ndarray
         Scaled snapshot matrix.
-    scaled_to : (2,) tuple
+    scaled_to : (float, float)
         Bounds that the snapshot matrix was scaled to, i.e.,
-        scaled_to[0] = min(states_scaled); scaled_to[1] = max(states_scaled).
-        Only returned if scale_from = None.
-    scaled_from : (2,) tuple
+        ``scaled_to[0] = min(states_scaled)``;
+        ``scaled_to[1] = max(states_scaled)``.
+        Only returned if ``scale_from = None``.
+    scaled_from : (float, float)
         Minimum and maximum of the snapshot data, i.e., the bounds that
-        the data was scaled from. Only returned if scale_from = None.
+        the data was scaled from. Only returned if ``scale_from = None``.
 
     Examples
     --------
+    >>> import opinf
     # Scale Q to [-1, 1] and then scale Y with the same transformation.
-    >>> Qscaled, scaled_to, scaled_from = pre.scale(Q, (-1, 1))
-    >>> Yscaled = pre.scale(Y, scaled_to, scaled_from)
-
+    >>> Qscaled, scaled_to, scaled_from = opinf.pre.scale(Q, (-1, 1))
+    >>> Yscaled = opinf.pre.scale(Y, scaled_to, scaled_from)
     # Scale Q to [0, 1], then undo the transformation by an inverse scaling.
-    >>> Qscaled, scaled_to, scaled_from = pre.scale(Q, (0, 1))
-    >>> Q_again = pre.scale(Qscaled, scaled_from, scaled_to)
+    >>> Qscaled, scaled_to, scaled_from = opinf.pre.scale(Q, (0, 1))
+    >>> Q_again = opinf.pre.scale(Qscaled, scaled_from, scaled_to)
     """
     # If no scale_from bounds are provided, learn them.
     learning = scale_from is None

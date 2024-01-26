@@ -33,16 +33,16 @@ For example, the operator classes {class}`opinf.operators.LinearOperator` and {c
     :toctree: _autosummaries
     :nosignatures:
 
-    opinf.pre._base._BaseTransformer
+    opinf.pre._base.TransformerTemplate
     opinf.pre._base._MultivarMixin
 ```
 
 Transformer classes are defined in {mod}`opinf.pre`.
 All transformer classes must
 
-- Inherit from {class}`opinf.pre._base._BaseTransformer`.
+- Inherit from {class}`opinf.pre._base.TransformerTemplate`.
 - Accept and store any hyperparameters (transformation settings) in the constructor.
-- Implement `transform()`, `fit_transform()`, and `inverse_transform()`. Note that `fit()` is already implemented in `_BaseTransformer` and should work as long as `fit_transform()` is implemented.
+- Implement `transform()`, `fit_transform()`, and `inverse_transform()`. Note that `fit()` is already implemented in `TransformerTemplate` and should work as long as `fit_transform()` is implemented.
 
 (subsec-contrib-basisclass)=
 ## Basis Classes
