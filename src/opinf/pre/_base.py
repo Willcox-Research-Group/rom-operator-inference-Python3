@@ -228,6 +228,24 @@ class TransformerTemplate(abc.ABC):
         print("transform() and transform_ddts() are consistent")
 
 
+class _UnivarMixin:
+    """Mixin for transformers and bases with single-variable states."""
+
+    def __init__(self):
+        """Initialize attributes."""
+        self.__n = None
+
+    @property
+    def state_dimension(self):
+        r"""Dimension :math:`n` of the state snapshots."""
+        return self.__n
+
+    @state_dimension.setter
+    def state_dimension(self, n):
+        """Set the state dimension."""
+        self.__n = int(n)
+
+
 class _MultivarMixin:
     """Private mixin class for transfomers and bases with multivariate states.
 
@@ -253,7 +271,7 @@ class _MultivarMixin:
 
     Notes
     -----
-    Child classes must set `n` in their fit() methods.
+    Child classes should set ``n`` in their ``fit()`` methods.
     """
 
     def __init__(self, num_variables, variable_names=None):

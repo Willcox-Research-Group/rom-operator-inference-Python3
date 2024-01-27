@@ -110,8 +110,23 @@ class TestTransformerTemplate:
         Dummy8().verify(Q, t)
 
 
+class TestUnivarMixin:
+    """Tests for pre._base._UnivarMixin."""
+
+    Mixin = opinf.pre._base._UnivarMixin
+
+    def test_state_dimension(self):
+        """Test _UnivarMixin.state_dimension."""
+        mixin = self.Mixin()
+        assert mixin.state_dimension is None
+        mixin.state_dimension = 10.0
+        n = mixin.state_dimension
+        assert isinstance(n, int)
+        assert mixin.state_dimension == n
+
+
 class TestMultivarMixin:
-    """Test for pre._base._MultivarMixin."""
+    """Tests for pre._base._MultivarMixin."""
 
     Mixin = opinf.pre._base._MultivarMixin
 
