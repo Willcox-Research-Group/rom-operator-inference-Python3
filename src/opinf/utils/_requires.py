@@ -21,7 +21,7 @@ def requires(attr: str) -> callable:
         @functools.wraps(func)
         def _decorator(self, *args, **kwargs):
             if not hasattr(self, attr) or getattr(self, attr) is None:
-                raise AttributeError(f"{attr} not set")
+                raise AttributeError(f"required '{attr}' attribute not set")
             return func(self, *args, **kwargs)
 
         return _decorator

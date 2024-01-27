@@ -15,7 +15,8 @@ import numpy as np
 import scipy.linalg as la
 import scipy.special as special
 
-from ._base import _requires_entries, _NonparametricOperator, _InputMixin
+from .. import utils
+from ._base import _NonparametricOperator, _InputMixin
 
 
 # No dependence on state or input =============================================
@@ -67,7 +68,7 @@ class ConstantOperator(_NonparametricOperator):
 
         _NonparametricOperator.set_entries(self, entries)
 
-    @_requires_entries
+    @utils.requires("entries")
     def apply(self, state=None, input_=None):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat_{\ell}(\qhat,\u) = \chat`.
@@ -94,7 +95,7 @@ class ConstantOperator(_NonparametricOperator):
             return np.outer(self.entries, np.ones(state.shape[-1]))
         return self.entries  # r > 1, k = 1.
 
-    @_requires_entries
+    @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\chat = \Wr\trp\c`.
@@ -213,7 +214,7 @@ class LinearOperator(_NonparametricOperator):
 
         _NonparametricOperator.set_entries(self, entries)
 
-    @_requires_entries
+    @utils.requires("entries")
     def apply(self, state, input_=None):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat_{\ell}(\qhat,\u) = \Ahat\qhat`.
@@ -234,7 +235,7 @@ class LinearOperator(_NonparametricOperator):
             return self.entries[0, 0] * state  # r = 1.
         return self.entries @ state  # r > 1.
 
-    @_requires_entries
+    @utils.requires("entries")
     def jacobian(self, state=None, input_=None):
         r"""Construct the state Jacobian of the operator:
         :math:`\ddqhat\Ophat_{\ell}(\qhat,\u)=\Ahat`.
@@ -253,7 +254,7 @@ class LinearOperator(_NonparametricOperator):
         """
         return self.entries
 
-    @_requires_entries
+    @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\Ahat =
@@ -403,7 +404,7 @@ class QuadraticOperator(_NonparametricOperator):
 
         _NonparametricOperator.set_entries(self, entries)
 
-    @_requires_entries
+    @utils.requires("entries")
     def apply(self, state, input_=None):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat_{\ell}(\qhat,\u) = \Hhat[\qhat\otimes\qhat]`
@@ -424,7 +425,7 @@ class QuadraticOperator(_NonparametricOperator):
             return self.entries[0, 0] * state**2  # r = 1
         return self.entries @ np.prod(state[self._mask], axis=1)
 
-    @_requires_entries
+    @utils.requires("entries")
     def jacobian(self, state, input_=None):
         r"""Construct the state Jacobian of the operator:
         :math:`\ddqhat\Ophat_{\ell}(\qhat,\u)
@@ -447,7 +448,7 @@ class QuadraticOperator(_NonparametricOperator):
             self._precompute_jacobian_jit()
         return self._prejac @ np.atleast_1d(state)
 
-    @_requires_entries
+    @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the (Petrov-)Galerkin projection of the operator,
         :math:`\Hhat = \Wr\trp\H(\Vr\otimes\Vr)`.
@@ -857,7 +858,7 @@ class CubicOperator(_NonparametricOperator):
 
         _NonparametricOperator.set_entries(self, entries)
 
-    @_requires_entries
+    @utils.requires("entries")
     def apply(self, state, input_=None):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat_{\ell}(\qhat,\u) = \Ghat[\qhat\otimes\qhat\otimes\qhat]`.
@@ -878,7 +879,7 @@ class CubicOperator(_NonparametricOperator):
             return self.entries[0, 0] * state**3  # r = 1.
         return self.entries @ np.prod(state[self._mask], axis=1)
 
-    @_requires_entries
+    @utils.requires("entries")
     def jacobian(self, state, input_=None):
         r"""Construct the state Jacobian of the operator:
         :math:`\ddqhat\Ophat_{\ell}(\qhat,\u)
@@ -906,7 +907,7 @@ class CubicOperator(_NonparametricOperator):
         q_ = np.atleast_1d(state)
         return (self._prejac @ q_) @ q_
 
-    @_requires_entries
+    @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\widehat{\mathbf{G}} =
@@ -1277,7 +1278,7 @@ class InputOperator(_NonparametricOperator, _InputMixin):
 
         _NonparametricOperator.set_entries(self, entries)
 
-    @_requires_entries
+    @utils.requires("entries")
     def apply(self, state, input_):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat_{\ell}(\qhat,\u) = \Bhat\u`.
@@ -1302,7 +1303,7 @@ class InputOperator(_NonparametricOperator, _InputMixin):
             return self.entries[:, 0] * input_  # r > 1, m = k = 1.
         return self.entries @ input_  # m > 1.
 
-    @_requires_entries
+    @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\Bhat =
@@ -1435,7 +1436,7 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
 
         _NonparametricOperator.set_entries(self, entries)
 
-    @_requires_entries
+    @utils.requires("entries")
     def apply(self, state, input_):
         r"""Apply the operator to the given state / input:
         :math:`\Ophat_{\ell}(\qhat,\u) = \Nhat[\u\otimes\qhat]`.
@@ -1467,7 +1468,7 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
         U = np.atleast_2d(input_)
         return self.entries @ la.khatri_rao(U, Q_)  # k > 1, rm > 1.
 
-    @_requires_entries
+    @utils.requires("entries")
     def jacobian(self, state, input_):
         r"""Construct the state Jacobian of the operator:
         :math:`\ddqhat\Ophat_{\ell}(\qhat,\u) = \sum_{i=1}^{m}u_{i}\Nhat_{i}`
@@ -1496,7 +1497,7 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
             axis=0,
         )
 
-    @_requires_entries
+    @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\widehat{\mathbf{N}} =

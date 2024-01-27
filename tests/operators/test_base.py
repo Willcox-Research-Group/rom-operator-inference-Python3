@@ -19,17 +19,14 @@ def test_requires_entries():
         def __init__(self):
             self.entries = None
 
-        @_module._requires_entries
+        @opinf.utils.requires("entries")
         def required(self):
             return self.entries + 1
 
     dummy = Dummy()
     with pytest.raises(AttributeError) as ex:
         dummy.required()
-    assert (
-        ex.value.args[0] == "operator entries have not been set, "
-        "call set_entries() first"
-    )
+    assert ex.value.args[0] == "required 'entries' attribute not set"
 
     dummy.entries = 0
     assert dummy.required() == 1
@@ -73,10 +70,7 @@ class TestNonparametricOperator:
 
         with pytest.raises(AttributeError) as ex:
             op.jacobian(5)
-        assert (
-            ex.value.args[0] == "operator entries have not been set, "
-            "call set_entries() first"
-        )
+        assert ex.value.args[0] == "required 'entries' attribute not set"
 
         A = np.random.random((10, 11))
         op = self.Dummy(A)

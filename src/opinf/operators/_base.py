@@ -8,32 +8,13 @@ __all__ = [
 ]
 
 import abc
-import functools
 import numpy as np
 import scipy.sparse as sparse
 
-from .. import errors
-from ..utils import hdf5_savehandle, hdf5_loadhandle
+from .. import errors, utils
 
 
 # Nonparametric operators =====================================================
-def _requires_entries(func):
-    """Wrapper for Operator methods that require the ``entries`` attribute
-    to be initialized first through ``set_entries()``.
-    """
-
-    @functools.wraps(func)
-    def _decorator(self, *args, **kwargs):
-        if self.entries is None:
-            raise AttributeError(
-                "operator entries have not been set, "
-                "call set_entries() first"
-            )
-        return func(self, *args, **kwargs)
-
-    return _decorator
-
-
 class _NonparametricOperator(abc.ABC):
     """Base class for operators that do not depend on external parameters.
 
@@ -171,7 +152,7 @@ class _NonparametricOperator(abc.ABC):
         """
         raise NotImplementedError
 
-    @_requires_entries
+    @utils.requires("entries")
     def jacobian(self, state, input_=None):  # pragma: no cover
         r"""Construct the state Jacobian of the operator.
 
@@ -209,7 +190,7 @@ class _NonparametricOperator(abc.ABC):
 
         .. code-block:: python
 
-           @_requires_entries
+           @utils.requires("entries")
            def galerkin(self, Vr, Wr=None):
                '''Docstring'''
                return _NonparametricOperator.galerkin(self, Vr, Wr,
@@ -320,7 +301,7 @@ class _NonparametricOperator(abc.ABC):
             If ``True``, overwrite the file if it already exists. If ``False``
             (default), raise a ``FileExistsError`` if the file already exists.
         """
-        with hdf5_savehandle(savefile, overwrite) as hf:
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["class"] = self.__class__.__name__
             if self.entries is not None:
@@ -335,7 +316,7 @@ class _NonparametricOperator(abc.ABC):
         loadfile : str
             Path to the file where the operator was stored via :meth:`save()`.
         """
-        with hdf5_loadhandle(loadfile) as hf:
+        with utils.hdf5_loadhandle(loadfile) as hf:
             if (ClassName := hf["meta"].attrs["class"]) != cls.__name__:
                 raise TypeError(
                     f"file '{loadfile}' contains '{ClassName}' "

@@ -20,7 +20,7 @@ def test_requires():
     d = Dummy()
     with pytest.raises(AttributeError) as ex:
         d.do_something()
-    assert ex.value.args[0] == "attr not set"
+    assert ex.value.args[0] == "required 'attr' attribute not set"
 
     d.attr = 10
     d.do_something()
