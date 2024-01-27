@@ -79,7 +79,7 @@ class TransformerTemplate(abc.ABC):
 
         Returns
         -------
-        ddts_transforme : (n, k) ndarray
+        ddts_transformed : (n, k) ndarray
             Matrix of k transformed snapshot time derivatives.
         """
         return NotImplemented  # pragma: no cover

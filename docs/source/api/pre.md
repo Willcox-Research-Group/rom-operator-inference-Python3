@@ -14,10 +14,10 @@ The following tools enable centering/shifting and scaling/nondimensionalization 
     :toctree: _autosummaries
     :nosignatures:
 
+    shift
+    scale
     SnapshotTransformer
     SnapshotTransformerMulti
-    scale
-    shift
 ```
 
 See [Preprocessing Data](../tutorials/preprocessing.ipynb) for discussion
