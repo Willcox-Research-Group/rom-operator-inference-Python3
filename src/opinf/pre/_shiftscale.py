@@ -12,7 +12,7 @@ import warnings
 import numpy as np
 
 from .. import errors, utils
-from ._base import TransformerTemplate, _MultivarMixin
+from ._base import TransformerTemplate, _UnivarMixin, _MultivarMixin
 
 
 # Functional paradigm =========================================================
@@ -136,7 +136,7 @@ def scale(states: np.ndarray, scale_to: tuple, scale_from: tuple = None):
 
 
 # Object-oriented paradigm ====================================================
-class SnapshotTransformer(TransformerTemplate):
+class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
     r"""Process snapshots by centering and/or scaling (in that order).
 
     Transformations with this class are notated below as
@@ -251,77 +251,50 @@ class SnapshotTransformer(TransformerTemplate):
         verbose: bool = False,
     ):
         """Set transformation hyperparameters."""
+        # Centering is always a boolean.
         self.__centering = bool(centering)
-        self.__scaling = None
+
+        # Verify scaling.
+        if scaling is not None:
+            if not isinstance(scaling, str):
+                raise TypeError("'scaling' must be None or of type 'str'")
+            if scaling not in self._VALID_SCALINGS:
+                opts = ", ".join([f"'{v}'" for v in self._VALID_SCALINGS])
+                raise ValueError(
+                    f"invalid scaling '{scaling}'; valid options are {opts}"
+                )
+        self.__scaling = scaling
+
+        # Set byrow, warn if not applied.
         self.__byrow = bool(byrow)
-        self.__verbose = bool(verbose)
-        self.__n = None
+        if self.__byrow and self.scaling is None:
+            warnings.warn(
+                "scaling=None --> byrow=True will have no effect",
+                errors.UsageWarning,
+            )
 
-        self._clear()
-        self.scaling = scaling
-
-    def _clear_scaling(self):
-        """Reset the numerical attributes that define the scaling."""
+        # Set other properties.
+        self.verbose = verbose
+        self.__qbar = None
         self.__alpha = None
         self.__beta = None
+        _UnivarMixin.__init__(self)
 
-    def _clear(self):
-        """Reset the numerical attributes that define the transformation."""
-        self.__qbar = None
-        self._clear_scaling()
-
-    # Properties --------------------------------------------------------------
+    # Properties: transformation directives -----------------------------------
     @property
     def centering(self) -> bool:
         """If ``True``, center the snapshots by the mean training snapshot."""
         return self.__centering
-
-    @centering.setter
-    def centering(self, ctr):
-        """Set the centering directive, resetting the transformation."""
-        if (yesno := bool(ctr)) is not self.__centering:
-            self._clear()
-            self.__centering = yesno
 
     @property
     def scaling(self) -> str:
         """Type of scaling (non-dimensionalization)."""
         return self.__scaling
 
-    @scaling.setter
-    def scaling(self, scl):
-        """Set the scaling strategy, resetting the transformation."""
-        if scl is None:
-            self._clear_scaling()
-            self.__scaling = scl
-            return
-        if not isinstance(scl, str):
-            raise TypeError("'scaling' must be None or of type 'str'")
-        if scl not in self._VALID_SCALINGS:
-            opts = ", ".join([f"'{v}'" for v in self._VALID_SCALINGS])
-            raise ValueError(
-                f"invalid scaling '{scl}'; valid options are {opts}"
-            )
-        if scl != self.__scaling:
-            self._clear_scaling()
-            self.__scaling = scl
-
     @property
     def byrow(self) -> bool:
         """If ``True``, scale each row of the snapshot matrix separately."""
         return self.__byrow
-
-    @byrow.setter
-    def byrow(self, by):
-        """Set the row-wise scaling directive, resetting the transformation."""
-        if (yesno := bool(by)) is not self.byrow:
-            if yesno and self.scaling is None:
-                warnings.warn(
-                    "scaling=None, byrow=True will have no effect",
-                    errors.UsageWarning,
-                )
-            self._clear_scaling()
-            self.__byrow = yesno
 
     @property
     def verbose(self) -> bool:
@@ -333,33 +306,19 @@ class SnapshotTransformer(TransformerTemplate):
         """Set the verbosity."""
         self.__verbose = bool(vbs)
 
-    @property
-    def state_dimension(self):
-        r"""Dimension :math:`n` of the state snapshots."""
-        return self.__n
-
-    @state_dimension.setter
-    def state_dimension(self, n):
-        """Set the state dimension."""
-        if (dim := int(n)) != self.__n:
-            self._clear()
-        self.__n = dim
-
+    # Properties: calibrated quantities ---------------------------------------
     @property
     def mean_(self):
         """Mean training snapshot. ``None`` unless ``centering = True``."""
         return self.__qbar
 
     @mean_.setter
-    @utils.requires("state_dimension")
     def mean_(self, mean):
         """Set the mean vector."""
         if not self.centering:
             raise AttributeError("cannot set mean_ (centering=False)")
-        if np.shape(mean) != (self.state_dimension,):
-            raise ValueError(
-                f"expected mean_ to be ({self.state_dimension:d},) ndarray"
-            )
+        if (n := self.state_dimension) and np.shape(mean) != (n,):
+            raise ValueError(f"expected mean_ to be ({n:d},) ndarray")
         self.__qbar = mean
 
     @property
@@ -370,15 +329,16 @@ class SnapshotTransformer(TransformerTemplate):
         return self.__alpha
 
     @scale_.setter
-    @utils.requires("state_dimension")
     def scale_(self, alpha):
         """Set the multiplicative factor of the scaling."""
         if self.scaling is None:
             raise AttributeError("cannot set scale_ (scaling=None)")
-        if self.byrow and np.shape(alpha) != (self.state_dimension,):
-            raise ValueError(
-                f"expected scale_ to be ({self.state_dimension:d},) ndarray"
-            )
+        if (
+            self.byrow
+            and (n := self.state_dimension) is not None
+            and np.shape(alpha) != (n,)
+        ):
+            raise ValueError(f"expected scale_ to be ({n:d},) ndarray")
         self.__alpha = alpha
 
     @property
@@ -389,18 +349,19 @@ class SnapshotTransformer(TransformerTemplate):
         return self.__beta
 
     @shift_.setter
-    @utils.requires("state_dimension")
     def shift_(self, beta):
         """Set the multiplicative factor of the scaling."""
         if self.scaling is None:
             raise AttributeError("cannot set shift_ (scaling=None)")
-        if self.byrow and np.shape(beta) != (self.state_dimension,):
-            raise ValueError(
-                f"expected shift_ to be ({self.state_dimension:d},) ndarray"
-            )
+        if (
+            self.byrow
+            and (n := self.state_dimension) is not None
+            and np.shape(beta) != (n,)
+        ):
+            raise ValueError(f"expected shift_ to be ({n:d},) ndarray")
         self.__beta = beta
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Test two SnapshotTransformers for equality."""
         if not isinstance(other, self.__class__):
             # print("WHY 1")
@@ -432,17 +393,16 @@ class SnapshotTransformer(TransformerTemplate):
 
     # Printing ----------------------------------------------------------------
     @staticmethod
-    def _statistics_report(Q):
+    def _statistics_report(Q) -> str:
         """Return a string of basis statistics about a data set."""
         return " | ".join(
             [f"{f(Q):>10.3e}" for f in (np.min, np.mean, np.max, np.std)]
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation: scaling type + centering bool."""
         out = ["Snapshot transformer"]
-        trained = self._is_trained()
-        if trained:
+        if self.state_dimension is not None:
             out.append(f"(state dimension n = {self.state_dimension:d})")
         if self.centering:
             out.append("with mean-snapshot centering")
@@ -450,11 +410,11 @@ class SnapshotTransformer(TransformerTemplate):
                 out.append(f"and '{self.scaling}' scaling")
         elif self.scaling:
             out.append(f"with '{self.scaling}' scaling")
-        if not trained:
+        if not self._is_trained():
             out.append("(call fit() or fit_transform() to train)")
         return " ".join(out)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Unique ID + string representation."""
         uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
         return f"{uniqueID}\n{str(self)}"
@@ -462,16 +422,13 @@ class SnapshotTransformer(TransformerTemplate):
     # Main routines -----------------------------------------------------------
     def _check_shape(self, Q):
         """Verify the shape of the snapshot set Q."""
-        if Q.shape[0] != self.state_dimension:
+        if (n := self.state_dimension) is not None and (n2 := Q.shape[0]) != n:
             raise ValueError(
-                f"states.shape[0] = {Q.shape[0]:d} "
-                f"!= {self.state_dimension} = state dimension n"
+                f"states.shape[0] = {n2:d} != {n:d} = state dimension n"
             )
 
-    def _is_trained(self):
+    def _is_trained(self) -> bool:
         """Return True if transform() and inverse_transform() are ready."""
-        if self.state_dimension is None:
-            return False
         if self.centering and self.mean_ is None:
             return False
         if self.scaling and any(
@@ -487,7 +444,7 @@ class SnapshotTransformer(TransformerTemplate):
                 "transformer not trained (call fit() or fit_transform())"
             )
 
-    def fit_transform(self, states, inplace=False):
+    def fit_transform(self, states, inplace: bool = False):
         """Learn and apply the transformation.
 
         Parameters
@@ -582,7 +539,7 @@ class SnapshotTransformer(TransformerTemplate):
 
         return Y
 
-    def transform(self, states, inplace=False):
+    def transform(self, states, inplace: bool = False):
         """Apply the learned transformation.
 
         Parameters
@@ -615,7 +572,7 @@ class SnapshotTransformer(TransformerTemplate):
 
         return Y
 
-    def transform_ddts(self, ddts, inplace=False):
+    def transform_ddts(self, ddts, inplace: bool = False):
         r"""Apply the learned transformation to snapshot time derivatives.
 
         Denoting the transformation by
@@ -646,7 +603,12 @@ class SnapshotTransformer(TransformerTemplate):
 
         return Z
 
-    def inverse_transform(self, states_transformed, inplace=False, locs=None):
+    def inverse_transform(
+        self,
+        states_transformed,
+        inplace: bool = False,
+        locs=None,
+    ):
         """Apply the inverse of the learned transformation.
 
         Parameters
@@ -692,7 +654,7 @@ class SnapshotTransformer(TransformerTemplate):
         return Y
 
     # Model persistence -------------------------------------------------------
-    def save(self, savefile, overwrite=False):
+    def save(self, savefile: str, overwrite: bool = False) -> None:
         """Save the current transformer to an HDF5 file.
 
         Parameters
@@ -727,7 +689,7 @@ class SnapshotTransformer(TransformerTemplate):
                 )
 
     @classmethod
-    def load(cls, loadfile):
+    def load(cls, loadfile: str):
         """Load a previously saved transformer from an HDF5 file.
 
         Parameters
