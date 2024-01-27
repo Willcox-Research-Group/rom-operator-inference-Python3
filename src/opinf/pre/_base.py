@@ -277,12 +277,12 @@ class _MultivarMixin:
 
     @variable_names.setter
     def variable_names(self, names):
+        """Set the variable names."""
         if names is None:
             names = [f"variable {i+1}" for i in range(self.num_variables)]
-        if not isinstance(names, list) or len(names) != self.num_variables:
-            raise TypeError(
-                "variable_names must be a list of"
-                f" length {self.num_variables}"
+        if len(names) != self.num_variables:
+            raise ValueError(
+                f"variable_names must have length {self.num_variables}"
             )
         self.__variable_names = names
 

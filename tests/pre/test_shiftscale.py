@@ -75,14 +75,14 @@ class TestSnapshotTransformer:
     """Test pre.SnapshotTransformer."""
 
     def test_init(self):
-        """Test pre.SnapshotTransformer.__init__()."""
+        """Test SnapshotTransformer.__init__()."""
         st = opinf.pre.SnapshotTransformer()
         for attr in ["scaling", "centering", "verbose"]:
             assert hasattr(st, attr)
 
     # Properties --------------------------------------------------------------
     def test_properties(self, n=10):
-        """Test pre.SnapshotTransformer properties (attribute protection)."""
+        """Test SnapshotTransformer properties (attribute protection)."""
         st = opinf.pre.SnapshotTransformer()
 
         # Check usage of utils.requires(<attr>) in property setters.
@@ -151,8 +151,14 @@ class TestSnapshotTransformer:
         assert st.scale_ is None
         assert st.shift_ is None
 
+        # Test verbose.
+        st.verbose = 0
+        assert st.verbose is False
+        st.verbose = "sure"
+        assert st.verbose is True
+
     def test_eq(self, n=200):
-        """Test pre.SnapshotTransformer.__eq__()."""
+        """Test SnapshotTransformer.__eq__()."""
         µ = np.random.randint(0, 100, (n,))
         a, b = 10, -3
 
@@ -202,7 +208,7 @@ class TestSnapshotTransformer:
 
     # Printing ----------------------------------------------------------------
     def test_str(self):
-        """Test pre.SnapshotTransformer.__str__()."""
+        """Test SnapshotTransformer.__str__()."""
         st = opinf.pre.SnapshotTransformer()
 
         st.centering = False
@@ -232,14 +238,14 @@ class TestSnapshotTransformer:
         assert str(hex(id(st))) in repr(st)
 
     def test_statistics_report(self):
-        """Test pre.SnapshotTransformer._statistics_report()."""
+        """Test SnapshotTransformer._statistics_report()."""
         X = np.arange(10) - 4
         report = opinf.pre.SnapshotTransformer._statistics_report(X)
         assert report == "-4.000e+00 |  5.000e-01 |  5.000e+00 |  2.872e+00"
 
     # Persistence -------------------------------------------------------------
     def test_save(self, n=200, k=50):
-        """Test pre.SnapshotTransformer.save()."""
+        """Test SnapshotTransformer.save()."""
         # Clean up after old tests.
         target = "_savetransformertest.h5"
         if os.path.isfile(target):  # pragma: no cover
@@ -295,7 +301,7 @@ class TestSnapshotTransformer:
         os.remove(target)
 
     def test_load(self, n=200, k=50):
-        """Test pre.SnapshotTransformer.load()."""
+        """Test SnapshotTransformer.load()."""
         # Clean up after old tests.
         target = "_loadtransformertest.h5"
         if os.path.isfile(target):  # pragma: no cover
@@ -320,7 +326,7 @@ class TestSnapshotTransformer:
 
     # Main routines -----------------------------------------------------------
     def test_check_shape(self):
-        """Test pre.SnapshotTransformerMulti._check_shape()."""
+        """Test SnapshotTransformerMulti._check_shape()."""
         stm = opinf.pre.SnapshotTransformer()
         stm.state_dimension = 12
         X = np.random.randint(0, 100, (12, 23)).astype(float)
@@ -333,7 +339,7 @@ class TestSnapshotTransformer:
         )
 
     def test_is_trained(self, n=20):
-        """Test pre.SnapshotTransformer._is_trained()."""
+        """Test SnapshotTransformer._is_trained()."""
         st = opinf.pre.SnapshotTransformer()
 
         # Null transformer is always trained once n is set.
@@ -359,7 +365,7 @@ class TestSnapshotTransformer:
         assert st._is_trained() is True
 
     def test_fit_transform(self, n=200, k=50):
-        """Test pre.SnapshotTransformer.fit_transform()."""
+        """Test SnapshotTransformer.fit_transform()."""
 
         def fit_transform_copy(st, A):
             """Assert A and B are not the same object but do have the same
@@ -470,7 +476,7 @@ class TestSnapshotTransformer:
             assert np.allclose(np.max(np.abs(Y), axis=1), 1)
 
     def test_transform(self, n=200, k=50):
-        """Test pre.SnapshotTransformer.transform()."""
+        """Test SnapshotTransformer.transform()."""
         X = np.random.randint(0, 100, (n, k)).astype(float)
         st = opinf.pre.SnapshotTransformer(verbose=False)
 
@@ -516,8 +522,23 @@ class TestSnapshotTransformer:
             assert Z.shape == Y.shape
             assert np.allclose(Z, a * Y + b)
 
+    def test_transform_ddts(self, n=150, k=400):
+        """Test SnapshotTransformer.transform_ddts()."""
+        t = np.linspace(0, 0.1, k)
+        Q = np.random.random((n, k))
+        st = opinf.pre.SnapshotTransformer(verbose=False)
+        st.state_dimension = n
+
+        for scaling, centering in itertools.product(
+            {None, *st._VALID_SCALINGS}, (True, False)
+        ):
+            st.scaling = scaling
+            st.centering = centering
+            st.fit(Q)
+            st.verify(Q, t)
+
     def test_inverse_transform(self, n=200, k=50):
-        """Test pre.SnapshotTransformer.inverse_transform()."""
+        """Test SnapshotTransformer.inverse_transform()."""
         X = np.random.randint(0, 100, (n, k)).astype(float)
         st = opinf.pre.SnapshotTransformer(verbose=False)
 
@@ -571,11 +592,11 @@ class TestSnapshotTransformer:
         assert ex.value.args[0] == "states_transformed not aligned with locs"
 
 
-class ProbablyDontTestSnapshotTransformerMultiYet:
+class DontTestSnapshotTransformerMultiYet:
     """Test pre.SnapshotTransformerMulti."""
 
     def test_init(self):
-        """Test pre.SnapshotTransformer.__init__()."""
+        """Test SnapshotTransformer.__init__()."""
         stm = opinf.pre.SnapshotTransformerMulti(1)
         for attr in [
             "scaling",
@@ -598,7 +619,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
         assert ex.value.args[0] == "len(centering) = 2 != 3 = num_variables"
         with pytest.raises(ValueError) as ex:
             opinf.pre.SnapshotTransformerMulti(3, centering="the centering")
-        assert ex.value.args[0] == "len(centering) = 10 != 3 = num_variables"
+        assert ex.value.args[0] == "len(centering) = 13 != 3 = num_variables"
         with pytest.raises(TypeError) as ex:
             opinf.pre.SnapshotTransformerMulti(3, centering=100)
         assert ex.value.args[0] == "object of type 'int' has no len()"
@@ -626,7 +647,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
 
     # Properties --------------------------------------------------------------
     def test_properties(self):
-        """Test pre.SnapshotTransformerMulti properties."""
+        """Test SnapshotTransformerMulti properties."""
 
         # Attribute setting blocked.
         stm = opinf.pre.SnapshotTransformerMulti(2)
@@ -658,7 +679,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
         assert stm.verbose is True
 
     def test_mean(self, num_variables=4, varsize=7):
-        """Test pre.SnapshotTransformerMulti.mean_."""
+        """Test SnapshotTransformerMulti.mean_."""
         centerings = [False, True, False, True]
         scalings = [None, None, "standard", "minmax"]
         stm = opinf.pre.SnapshotTransformerMulti(
@@ -691,13 +712,13 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
                 assert np.allclose(µµ[s], 0)
 
     def test_len(self):
-        """Test pre.SnapshotTransformerMulti.__len__()."""
+        """Test SnapshotTransformerMulti.__len__()."""
         for i in [2, 5, 10]:
             stm = opinf.pre.SnapshotTransformerMulti(i)
             assert len(stm) == i
 
     def test_getitem(self):
-        """Test pre.SnapshotTransformerMulti.__getitem__()."""
+        """Test SnapshotTransformerMulti.__getitem__()."""
         stm = opinf.pre.SnapshotTransformerMulti(10)
         for i in [3, 4, 7]:
             assert stm[i] is stm.transformers[i]
@@ -710,7 +731,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
             assert stm[name] is stm.transformers[names.index(name)]
 
     def test_setitem(self):
-        """Test pre.SnapshotTransformerMulti.__setitem__()."""
+        """Test SnapshotTransformerMulti.__setitem__()."""
         stm = opinf.pre.SnapshotTransformerMulti(10)
         st = opinf.pre.SnapshotTransformer(centering=True, scaling="minmax")
         for i in [3, 4, 7]:
@@ -728,7 +749,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
         )
 
     def test_eq(self):
-        """Test pre.SnapshotTransformerMulti.__eq__()."""
+        """Test SnapshotTransformerMulti.__eq__()."""
         # Null transformers.
         stm1 = opinf.pre.SnapshotTransformerMulti(3)
         assert stm1 != 100
@@ -753,7 +774,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
         assert stm1 == stm2
 
     def test_str(self):
-        """Test pre.SnapshotTransformerMulti.__str__()."""
+        """Test SnapshotTransformerMulti.__str__()."""
         names = ["var1", "var2", "var3"]
         stm = opinf.pre.SnapshotTransformerMulti(
             3, centering=False, scaling=None, variable_names=names
@@ -775,7 +796,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
 
     # Persistence -------------------------------------------------------------
     def test_save(self):
-        """Test pre.SnapshotTransformerMulti.save()."""
+        """Test SnapshotTransformerMulti.save()."""
         # Clean up after old tests.
         target = "_savetransformermultitest.h5"
         if os.path.isfile(target):  # pragma: no cover
@@ -846,7 +867,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
         os.remove(target)
 
     def test_load(self, n=200, k=50):
-        """Test pre.SnapshotTransformerMulti.load()."""
+        """Test SnapshotTransformerMulti.load()."""
         # Clean up after old tests.
         target = "_loadtransformermultitest.h5"
         if os.path.isfile(target):  # pragma: no cover
@@ -924,7 +945,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
         )
 
     def test_fit_transform(self):
-        """Test pre.SnapshotTransformerMulti.fit_transform()."""
+        """Test SnapshotTransformerMulti.fit_transform()."""
         stm = self.__testcase()
 
         # Test dimension check.
@@ -1004,7 +1025,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
             assert np.isclose(np.max(np.abs(Y[s])), 1)
 
     def test_transform(self):
-        """Test pre.SnapshotTransformerMulti.transform()."""
+        """Test SnapshotTransformerMulti.transform()."""
         stm = self.__testcase()
         stm.n = 120
 
@@ -1041,7 +1062,7 @@ class ProbablyDontTestSnapshotTransformerMultiYet:
         assert Z.shape == Y.shape
 
     def test_inverse_transform(self):
-        """Test pre.SnapshotTransformerMulti.transform()."""
+        """Test SnapshotTransformerMulti.transform()."""
         stm = self.__testcase()
 
         X = np.random.randint(0, 100, (120, 29)).astype(float)

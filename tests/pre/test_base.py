@@ -138,19 +138,9 @@ class TestMultivarMixin:
         for name in mix.variable_names:
             assert name.startswith("variable ")
 
-        with pytest.raises(TypeError) as ex:
-            mix.variable_names = 1
-        assert (
-            ex.value.args[0]
-            == f"variable_names must be a list of length {nvar}"
-        )
-
-        with pytest.raises(TypeError) as ex:
+        with pytest.raises(ValueError) as ex:
             mix.variable_names = vnames[:-1]
-        assert (
-            ex.value.args[0]
-            == f"variable_names must be a list of length {nvar}"
-        )
+        assert ex.value.args[0] == f"variable_names must have length {nvar}"
 
     def test_n_properties(self, nvar=5):
         """Test _MultivarMixin.n and ni."""
@@ -160,8 +150,8 @@ class TestMultivarMixin:
 
         with pytest.raises(ValueError) as ex:
             mix.n = 2 * nvar - 1
-        assert (
-            ex.value.args[0] == "n must be evenly divisible by num_variables"
+        assert ex.value.args[0] == (
+            "n must be evenly divisible by num_variables"
         )
 
         mix.n = nvar * 12

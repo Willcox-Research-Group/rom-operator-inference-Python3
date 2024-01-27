@@ -615,6 +615,37 @@ class SnapshotTransformer(TransformerTemplate):
 
         return Y
 
+    def transform_ddts(self, ddts, inplace=False):
+        r"""Apply the learned transformation to snapshot time derivatives.
+
+        Denoting the transformation by
+        :math:`\mathcal{T}(\q) = \alpha(\q - \bar{\q}) + \beta`,
+        this is the function :math:`\mathcal{T}'(\z) = \alpha\z`.
+        Hence, :math:`\mathcal{T}'(\ddt q) = \ddt \mathcal{T}(q)`.
+
+        Parameters
+        ----------
+        ddts : (n, k) ndarray
+            Matrix of k snapshot time derivatives.
+        inplace : bool
+            If True, overwrite ``ddts`` during the transformation.
+            If False, create a copy of the data to transform.
+
+        Returns
+        -------
+        ddts_transformed : (n, k) ndarray
+            Matrix of k transformed snapshot time derivatives.
+        """
+        self._check_is_trained()
+        self._check_shape(ddts)
+        Z = ddts if inplace else ddts.copy()
+
+        if self.scaling is not None:
+            _flip = self.byrow and Z.ndim > 1
+            Z *= self.scale_.reshape((-1, 1)) if _flip else self.scale_
+
+        return Z
+
     def inverse_transform(self, states_transformed, inplace=False, locs=None):
         """Apply the inverse of the learned transformation.
 
