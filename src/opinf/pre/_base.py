@@ -67,7 +67,7 @@ class TransformerTemplate(abc.ABC):
     def transform_ddts(self, ddts, inplace=False):
         r"""Apply the learned transformation to snapshot time derivatives.
 
-        If the transformation is denoted :math:`\mathcal{T} : q \mapsto q'`,
+        If the transformation is denoted by :math:`\mathcal{T}(q)`,
         this function implements :math:`\mathcal{T}'` such that
         :math:`\mathcal{T}'(\ddt q) = \ddt \mathcal{T}(q)`.
 
@@ -143,7 +143,7 @@ class TransformerTemplate(abc.ABC):
     def verify(self, states, t=None, tol: float = 1e-4):
         r"""Verify that :meth:`transform()` and :meth:`inverse_transform()`
         are consistent and that :meth:`transform_ddts()`, if implemented,
-        is consistent with
+        is consistent with :meth:`transform()`.
 
         * The :meth:`transform()` / :meth:`inverse_transform()` consistency
           check verifies that
@@ -155,6 +155,7 @@ class TransformerTemplate(abc.ABC):
           ``transform_ddts(opinf.ddt.ddt(states, t))`` and
           ``opinf.ddt.ddt(transform(states), t)`` is less than ``tol``.
           If this check fails, consider using a finer time mesh.
+        * The ``inplace`` and ``locs`` arguments are also checked.
 
         Parameters
         ----------
@@ -169,23 +170,49 @@ class TransformerTemplate(abc.ABC):
             Only used if :meth:`transform_ddts()` is implemented.
         """
         # Verify transform().
-        states_transformed = self.transform(states)
+        states_transformed = self.transform(states, inplace=False)
         if states_transformed.shape != states.shape:
             raise errors.VerificationError(
                 "transform(states).shape != states.shape"
             )
-
-        # Verify inverse_transform().
-        states_recovered = self.inverse_transform(states_transformed)
-        if states_recovered.shape != states_transformed.shape:
+        if states_transformed is states:
             raise errors.VerificationError(
-                "inverse_transform(transform(states)).shape "
-                "!= transform(states).shape"
+                "transform(states, inplace=False) is states"
+            )
+        states_copy = states.copy()
+        states_transformed = self.transform(states_copy, inplace=True)
+        if states_transformed is not states_copy:
+            raise errors.VerificationError(
+                "transform(states, inplace=True) is not states"
             )
 
-        # Check locs argument of inverse_transform().
+        # Verify inverse_transform().
+        states_recovered = self.inverse_transform(
+            states_transformed,
+            inplace=False,
+        )
+        if states_recovered.shape != states.shape:
+            raise errors.VerificationError(
+                "inverse_transform(transform(states)).shape != states.shape"
+            )
+        if states_recovered is states_transformed:
+            raise errors.VerificationError(
+                "inverse_transform(states_transformed, inplace=False) "
+                "is states_transformed"
+            )
+        states_transformed_copy = states_transformed.copy()
+        states_recovered = self.inverse_transform(
+            states_transformed_copy,
+            inplace=True,
+        )
+        if states_recovered is not states_transformed_copy:
+            raise errors.VerificationError(
+                "inverse_transform(states_transformed, inplace=True) "
+                "is not states_transformed"
+            )
+
         n = states.shape[0]
-        locs = np.sort(np.random.choice(n, size=n // 3, replace=False))
+        locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
         states_transformed_at_locs = states_transformed[locs]
         states_recovered_at_locs = self.inverse_transform(
             states_transformed_at_locs,
@@ -217,7 +244,12 @@ class TransformerTemplate(abc.ABC):
             raise ValueError(
                 "time domain 't' required for finite difference check"
             )
-        ddts_transformed = self.transform_ddts(ddt.ddt(states, t))
+        ddts = ddt.ddt(states, t)
+        ddts_transformed = self.transform_ddts(ddts, inplace=False)
+        if ddts_transformed is ddts:
+            raise errors.VerificationError(
+                "transform_ddts(ddts, inplace=False) is ddts"
+            )
         ddts_est = ddt.ddt(states_transformed, t)
         if (
             diff := la.norm(ddts_transformed - ddts_est) / la.norm(ddts_est)
@@ -226,6 +258,11 @@ class TransformerTemplate(abc.ABC):
                 "transform_ddts() failed finite difference check,\n\t"
                 "|| transform_ddts(d/dt[states]) - d/dt[transform(states)] || "
                 f" / || d/dt[transform(states)] || = {diff} > {tol = }"
+            )
+        ddts_transformed = self.transform_ddts(ddts, inplace=True)
+        if ddts_transformed is not ddts:
+            raise errors.VerificationError(
+                "transform_ddts(ddts, inplace=True) is not ddts"
             )
         print("transform() and transform_ddts() are consistent")
 
@@ -271,7 +308,7 @@ class _MultivarMixin:
         individual transformations to learn.
     variable_names : list(str) or None
         Name for each state variable.
-        Defaults to ``["variable 0", "variable 1", ...]``.
+        Defaults to ``("variable 0", "variable 1", ...)``.
     """
 
     def __init__(self, num_variables: int, variable_names=None):
@@ -314,7 +351,7 @@ class _MultivarMixin:
 
     @property
     def state_dimension(self):
-        """Total dimension :math:`n` of all state variables."""
+        """Total dimension :math:`n = n_q n_x` of all state variables."""
         return self.__n
 
     @state_dimension.setter
