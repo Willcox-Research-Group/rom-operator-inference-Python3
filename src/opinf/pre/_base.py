@@ -423,6 +423,7 @@ class _MultivarMixin:
         state_variable : list of nq (nx, ...) ndarrays
             Individual state variables, extracted from ``states``.
         """
+        self._check_shape(states)
         return np.split(states, self.num_variables, axis=0)
 
     # Verification ------------------------------------------------------------

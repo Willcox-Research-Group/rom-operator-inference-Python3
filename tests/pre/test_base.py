@@ -295,6 +295,23 @@ class TestMultivarMixin:
         assert q2.shape == (nx,)
         assert np.all(q2 == q[2 * nx : 3 * nx])
 
+    def test_split(self, nvar=5, nx=11, k=12):
+        """Test _MultivarMixin.split()."""
+        mix = self.Mixin(nvar)
+        mix.state_dimension = (n := nvar * nx)
+
+        q = np.random.random(n)
+        q_split = mix.split(q)
+        assert len(q_split) == nvar
+        assert all(qi.shape[0] == nx for qi in q_split)
+        assert np.all(q_split[0] == q[:nx])
+
+        Q = np.random.random((n, k))
+        Q_split = mix.split(Q)
+        assert len(Q_split) == nvar
+        assert all(Qi.shape == (nx, k) for Qi in Q_split)
+        assert np.all(Q_split[0] == Q[:nx])
+
     # Verification ------------------------------------------------------------
     def test_verify_locs(self, nvar=3, nx=11, k=12):
         """Test _MultivarMixin._verify_locs()."""
