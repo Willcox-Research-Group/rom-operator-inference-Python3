@@ -6,12 +6,14 @@ __all__ = [
 ]
 
 import abc
+import numbers
 import numpy as np
 import scipy.linalg as la
 
-from .. import errors, ddt
+from .. import errors, ddt, utils
 
 
+# Base class ==================================================================
 class TransformerTemplate(abc.ABC):
     """Template class for transformers.
 
@@ -228,8 +230,9 @@ class TransformerTemplate(abc.ABC):
         print("transform() and transform_ddts() are consistent")
 
 
+# Mixins ======================================================================
 class _UnivarMixin:
-    """Mixin for transformers and bases with single-variable states."""
+    """Mixin for transformers and bases with a single state variable."""
 
     def __init__(self):
         """Initialize attributes."""
@@ -247,121 +250,124 @@ class _UnivarMixin:
 
 
 class _MultivarMixin:
-    """Private mixin class for transfomers and bases with multivariate states.
+    r"""Mixin for transfomers and bases with multiple state variable.
+
+    This class is for states that can be written (after discretization) as
+
+    .. math::
+       \q = \left[\begin{array}{c}
+       \q_{0} \\ \q_{1} \\ \vdots \\ \q_{n_q - 1}
+       \end{array}\right]
+       \in \RR^{n},
+
+    where each :math:`\q_{i} \in \NN^{n_x}` represents a single discretized
+    state variable. The full state dimension is :math:`n = n_q n_x`, i.e.,
+    ``state_dimension = num_variables * variable_size``.
 
     Parameters
     ----------
     num_variables : int
-        Number of variables represented in a single snapshot (number of
-        individual transformations to learn). The dimension `n` of the
-        snapshots must be evenly divisible by num_variables; for example,
-        num_variables=3 means the first n entries of a snapshot correspond to
-        the first variable, and the next n entries correspond to the second
-        variable, and the last n entries correspond to the third variable.
-    variable_names : list of num_variables strings, optional
-        Names for each of the `num_variables` variables.
-        Defaults to "variable 1", "variable 2", ....
-
-    Attributes
-    ----------
-    n : int
-        Total dimension of the snapshots (all variables).
-    ni : int
-        Dimension of individual variables, i.e., ni = n / num_variables.
-
-    Notes
-    -----
-    Child classes should set ``n`` in their ``fit()`` methods.
+        Number of state variables :math:`n_q \in \NN`, i.e., the number of
+        individual transformations to learn.
+    variable_names : list(str) or None
+        Name for each state variable.
+        Defaults to ``["variable 0", "variable 1", ...]``.
     """
 
-    def __init__(self, num_variables, variable_names=None):
-        """Store variable information."""
-        if not np.isscalar(num_variables) or num_variables < 1:
-            raise ValueError("num_variables must be a positive integer")
-        self.__num_variables = num_variables
-        self.variable_names = variable_names
+    def __init__(self, num_variables: int, variable_names=None):
+        """Initialize variable information."""
+        if (
+            not isinstance(num_variables, numbers.Number)
+            or num_variables // 1 != num_variables
+            or num_variables < 1
+        ):
+            raise TypeError("'num_variables' must be a positive integer")
+
+        self.__nq = int(num_variables)
         self.__n = None
+        self.__nx = None
+        self.__slices = None
+
+        self.variable_names = variable_names
 
     # Properties --------------------------------------------------------------
     @property
     def num_variables(self):
-        """Number of variables represented in a single snapshot."""
-        return self.__num_variables
+        r"""Number of state variables :math:`n_q \in \NN`."""
+        return self.__nq
 
     @property
     def variable_names(self):
-        """Names for each of the `num_variables` variables."""
+        """Name for each state variable."""
         return self.__variable_names
 
     @variable_names.setter
     def variable_names(self, names):
-        """Set the variable names."""
+        """Set the variable_names."""
         if names is None:
-            names = [f"variable {i+1}" for i in range(self.num_variables)]
+            names = [f"variable {i}" for i in range(self.num_variables)]
         if len(names) != self.num_variables:
             raise ValueError(
                 f"variable_names must have length {self.num_variables}"
             )
-        self.__variable_names = names
+        self.__variable_names = tuple(names)
 
     @property
-    def n(self):
-        """Total dimension of the snapshots (all variables)."""
+    def state_dimension(self):
+        """Total dimension :math:`n` of all state variables."""
         return self.__n
 
-    @n.setter
-    def n(self, nn):
+    @state_dimension.setter
+    def state_dimension(self, n):
         """Set the total and individual variable dimensions."""
-        if nn % self.num_variables != 0:
-            raise ValueError("n must be evenly divisible by num_variables")
-        self.__n = nn
+        variable_size, remainder = divmod(n, self.num_variables)
+        if remainder != 0:
+            raise ValueError(
+                "'state_dimension' must be evenly divisible by 'num_variables'"
+            )
+        self.__n = int(n)
+        self.__nx = variable_size
+        self.__slices = [
+            slice(i * variable_size, (i + 1) * variable_size)
+            for i in range(self.num_variables)
+        ]
 
     @property
-    def ni(self):
-        """Dimension of individual variables, i.e., ni = n / num_variables."""
-        return None if self.n is None else self.n // self.num_variables
+    def variable_size(self):
+        r"""Size :math:`n_x \in \NN` of each state variable (mesh size)."""
+        return self.__nx
 
     # Convenience methods -----------------------------------------------------
-    def get_varslice(self, var):
-        """Get the indices (as a slice) where the specified variable resides.
+    def __len__(self):
+        """Length = number of state variables."""
+        return self.__nq
 
-        Parameters
-        ----------
-        var : int or str
-            Index or name of the variable to extract.
-
-        Returns
-        -------
-        s : slice
-            Slice object for accessing the specified variable, i.e.,
-            variable = state[s] for a single snapshot or
-            variable = states[:, s] for a collection of snapshots.
-        """
-        if var in self.variable_names:
-            var = self.variable_names.index(var)
-        return slice(var * self.ni, (var + 1) * self.ni)
+    @utils.requires("state_dimension")
+    def _check_shape(self, Q):
+        """Verify the shape of the snapshot set Q."""
+        if (nQ := Q.shape[0]) != self.state_dimension:
+            raise errors.DimensionalityError(
+                f"states.shape[0] = {nQ:d} "
+                f"!= {self.num_variables:d} * {self.variable_size:d} "
+                "= num_variables * variable_size = state_dimension"
+            )
 
     def get_var(self, var, states):
-        """Extract the ith variable from the states.
+        """Extract a single variable from the full state.
 
         Parameters
         ----------
         var : int or str
             Index or name of the variable to extract.
         states : (n, ...) ndarray
+            Full state vector or snapshot matrix.
 
         Returns
         -------
-        states_var : ndarray, shape (n, num_states)
+        state_variable : (nx, ...) ndarray
+            One state variable, extracted from ``states``.
         """
         self._check_shape(states)
-        return states[..., self.get_varslice(var)]
-
-    def _check_shape(self, Q):
-        """Verify the shape of the snapshot set Q."""
-        if Q.shape[0] != self.n:
-            raise ValueError(
-                f"states.shape[0] = {Q.shape[0]:d} "
-                f"!= {self.num_variables} * {self.ni} "
-                "= num_variables * n_i"
-            )
+        if var in self.variable_names:
+            var = self.variable_names.index(var)
+        return states[self.__slices[var]]
