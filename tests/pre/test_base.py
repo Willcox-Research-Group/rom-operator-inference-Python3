@@ -294,3 +294,54 @@ class TestMultivarMixin:
         q2 = mix.get_var("c", q)
         assert q2.shape == (nx,)
         assert np.all(q2 == q[2 * nx : 3 * nx])
+
+    # Verification ------------------------------------------------------------
+    def test_verify_locs(self, nvar=3, nx=11, k=12):
+        """Test _MultivarMixin._verify_locs()."""
+
+        class Dummy(self.Mixin):
+            def transform(self, states, locs=None):
+                return states
+
+            def inverse_transform(
+                self,
+                states_transformed,
+                locs=None,
+            ):
+                return states_transformed
+
+        mix = Dummy(nvar)
+        mix.state_dimension = (n := nvar * nx)
+        Q = np.random.random((n, k))
+        Qt = mix.transform(Q)
+        mix._verify_locs(Q, Qt)
+
+        class Dummy2(Dummy):
+            def inverse_transform(self, states_transformed, locs=None):
+                if locs is None:
+                    return states_transformed
+                return states_transformed[locs]
+
+        mix = Dummy2(nvar)
+        mix.state_dimension = n
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            mix._verify_locs(Q, Qt)
+        assert ex.value.args[0] == (
+            "inverse_transform(states_transformed_at_locs, locs).shape "
+            "!= states_at_locs.shape"
+        )
+
+        class Dummy3(Dummy):
+            def inverse_transform(self, states_transformed, locs=None):
+                if locs is None:
+                    return states_transformed
+                return states_transformed + 1
+
+        mix = Dummy3(nvar)
+        mix.state_dimension = n
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            mix._verify_locs(Q, Qt)
+        assert ex.value.args[0] == (
+            "transform() and inverse_transform() are not inverses "
+            "(locs != None)"
+        )

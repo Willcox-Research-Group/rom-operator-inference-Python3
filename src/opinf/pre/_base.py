@@ -155,7 +155,6 @@ class TransformerTemplate(abc.ABC):
           ``transform_ddts(opinf.ddt.ddt(states, t))`` and
           ``opinf.ddt.ddt(transform(states), t)`` is less than ``tol``.
           If this check fails, consider using a finer time mesh.
-        * The ``inplace`` and ``locs`` arguments are also checked.
 
         Parameters
         ----------
@@ -210,31 +209,33 @@ class TransformerTemplate(abc.ABC):
                 "inverse_transform(states_transformed, inplace=True) "
                 "is not states_transformed"
             )
-
-        n = states.shape[0]
-        locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
-        states_transformed_at_locs = states_transformed[locs]
-        states_recovered_at_locs = self.inverse_transform(
-            states_transformed_at_locs,
-            locs=locs,
-        )
-        states_at_locs = states[locs]
-        if states_recovered_at_locs.shape != states_at_locs.shape:
-            raise errors.VerificationError(
-                "inverse_transform(transform(states)[locs], locs).shape "
-                "!= states[locs].shape"
-            )
-
-        # Verify that transform() and inverse_transform() are inverses.
         if not np.allclose(states_recovered, states):
             raise errors.VerificationError(
                 "transform() and inverse_transform() are not inverses"
             )
-        if not np.allclose(states_recovered_at_locs, states_at_locs):
-            raise errors.VerificationError(
-                "transform() and inverse_transform() are not inverses "
-                "(locs != None)"
+
+        # Check locs argument of inverse_transform().
+        if isinstance(self, _MultivarMixin):
+            self._verify_locs(states, states_transformed)
+        else:
+            n = states.shape[0]
+            locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
+            states_transformed_at_locs = states_transformed[locs]
+            states_recovered_at_locs = self.inverse_transform(
+                states_transformed_at_locs,
+                locs=locs,
             )
+            states_at_locs = states[locs]
+            if states_recovered_at_locs.shape != states_at_locs.shape:
+                raise errors.VerificationError(
+                    "inverse_transform(transform(states)[locs], locs).shape "
+                    "!= states[locs].shape"
+                )
+            if not np.allclose(states_recovered_at_locs, states_at_locs):
+                raise errors.VerificationError(
+                    "transform() and inverse_transform() are not inverses "
+                    "(locs != None)"
+                )
         print("transform() and inverse_transform() are consistent")
 
         # Finite difference check for transform_ddts().
@@ -408,3 +409,44 @@ class _MultivarMixin:
         if var in self.variable_names:
             var = self.variable_names.index(var)
         return states[self.__slices[var]]
+
+    def split(self, states):
+        """Split the full state into the individual state variables.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Full state vector or snapshot matrix.
+
+        Returns
+        -------
+        state_variable : list of nq (nx, ...) ndarrays
+            Individual state variables, extracted from ``states``.
+        """
+        return np.split(states, self.num_variables, axis=0)
+
+    # Verification ------------------------------------------------------------
+    def _verify_locs(self, states, states_transformed):
+        """Verify :meth:`inverse_transform()` with ``locs != None``."""
+        nx = self.variable_size
+        locs = np.sort(np.random.choice(nx, size=(nx // 3), replace=False))
+
+        states_at_locs = np.concatenate([Q[locs] for Q in self.split(states)])
+        states_transformed_at_locs = np.concatenate(
+            [Qt[locs] for Qt in self.split(states_transformed)]
+        )
+        states_recovered_at_locs = self.inverse_transform(
+            states_transformed_at_locs,
+            locs=locs,
+        )
+
+        if states_recovered_at_locs.shape != states_at_locs.shape:
+            raise errors.VerificationError(
+                "inverse_transform(states_transformed_at_locs, locs).shape "
+                "!= states_at_locs.shape"
+            )
+        if not np.allclose(states_recovered_at_locs, states_at_locs):
+            raise errors.VerificationError(
+                "transform() and inverse_transform() are not inverses "
+                "(locs != None)"
+            )

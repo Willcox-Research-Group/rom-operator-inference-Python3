@@ -69,28 +69,27 @@ def shift(states: np.ndarray, shift_by: np.ndarray = None):
 
 
 def scale(states: np.ndarray, scale_to: tuple, scale_from: tuple = None):
-    r"""Scale the entries of a snapshot matrix to a specified interval
-    :math:`[a, b]`.
+    r"""Scale the entries of a snapshot matrix to a specified interval.
 
-    This scaling follows ``sklearn.preprocessing.MinMaxScaler``.
-    If the entries of the snapshot matrix are contained in the interval
-    :math:`[\bar{a}, \bar{b}]`, then the transformation is given by
+    The scaling from the interval :math:`[a, b]` to the interval
+    :math:`[a', b']` given by
 
     .. math::
-       q' = \frac{q - \bar{a}}{\bar{b} - \bar{a}}(b - a) + a,
+       q' = \frac{q - a}{b - a}(b' - a') + a',
 
     where :math:`q` is the original variable and :math:`q'` is the transformed
-    variable.
+    variable. This follows ``sklearn.preprocessing.MinMaxScaler``.
 
     Parameters
     ----------
     states : (n, k) ndarray
         Matrix of k snapshots to be scaled. Each column is a single snapshot.
     scale_to : (float, float)
-        Desired minimum and maximum of the scaled data, i.e., :math:`[a, b]`.
+        Desired minimum and maximum of the scaled data, i.e., :math:`[a', b']`.
     scale_from : (float, float)
-        Minimum and maximum of the snapshot data. If None, learn the scaling:
-        scale_from[0] = min(states); scale_from[1] = max(states).
+        Minimum and maximum of the snapshot data, i.e., :math:`[a, b]`.
+        If ``None`` (default), learn the scaling from the data:
+        ``scale_from[0] = min(states)``; ``scale_from[1] = max(states)``.
 
     Returns
     -------
@@ -416,8 +415,7 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
 
     def __repr__(self) -> str:
         """Unique ID + string representation."""
-        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
-        return f"{uniqueID}\n{str(self)}"
+        return utils.str2repr(self)
 
     # Main routines -----------------------------------------------------------
     def _check_shape(self, Q):
@@ -450,15 +448,15 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
         Parameters
         ----------
         states : (n, k) ndarray
-            Matrix of k snapshots. Each column is a snapshot of dimension n.
+            Matrix of `k` `n`-dimensional snapshots.
         inplace : bool
-            If ``True``, overwrite the input data during transformation.
+            If ``True``, overwrite ``states`` during transformation.
             If ``False``, create a copy of the data to transform.
 
         Returns
         -------
         states_transformed: (n, k) ndarray
-            Matrix of k transformed snapshots of dimension n.
+            Matrix of `k` `n`-dimensional transformed snapshots.
         """
         if states.ndim != 2:
             raise ValueError("2D array required to fit transformer")
@@ -544,17 +542,17 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
 
         Parameters
         ----------
-        states : (n, k) or (n,) ndarray
-            Matrix of k snapshots where each column is a snapshot of dimension
-            n, or a single snapshot of dimension n.
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
         inplace : bool
-            If ``True``, overwrite the input data during transformation.
+            If ``True``, overwrite ``states`` during transformation.
             If ``False``, create a copy of the data to transform.
 
         Returns
         -------
-        states_transformed: (n, k) ndarray
-            Matrix of k transformed snapshots of dimension n.
+        states_transformed: (n, ...) ndarray
+            Matrix of `n`-dimensional transformed snapshots, or a single
+            transformed snapshot.
         """
         self._check_is_trained()
         self._check_shape(states)
@@ -582,16 +580,17 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
 
         Parameters
         ----------
-        ddts : (n, k) ndarray
-            Matrix of k snapshot time derivatives.
+        ddts : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshot time derivatives, or a
+            single snapshot time derivative.
         inplace : bool
             If True, overwrite ``ddts`` during the transformation.
             If False, create a copy of the data to transform.
 
         Returns
         -------
-        ddts_transformed : (n, k) ndarray
-            Matrix of k transformed snapshot time derivatives.
+        ddts_transformed : (n, ...) ndarray
+            Transformed `n`-dimensional snapshot time derivatives.
         """
         self._check_is_trained()
         self._check_shape(ddts)
@@ -613,21 +612,22 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
 
         Parameters
         ----------
-        states_transformed : (n, k) or (p, k) ndarray
-            Matrix of k transformed snapshots of dimension n.
+        states_transformed : (n, ...) or (p, ...)  ndarray
+            Matrix of `n`-dimensional transformed snapshots, or a single
+            transformed snapshot.
         inplace : bool
             If ``True``, overwrite ``states_transformed`` during the inverse
             transformation. If ``False``, create a copy of the data to
             untransform.
         locs : slice or (p,) ndarray of integers or None
             If given, assume ``states_transformed`` contains the transformed
-            snapshots at only the p indices given by ``locs``.
+            snapshots at only the `p` indices described by ``locs``.
 
         Returns
         -------
-        states: (n, k) or (p, k) ndarray
-            Matrix of k untransformed snapshots of dimension n, or the p
-            entries of such at the indices specified by ``loc``.
+        states: (n, ...) or (p, ...) ndarray
+            Matrix of `n`-dimensional untransformed snapshots, or the `p`
+            entries of such at the indices specified by ``locs``.
         """
         self._check_is_trained()
 
@@ -655,12 +655,12 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile: str, overwrite: bool = False) -> None:
-        """Save the current transformer to an HDF5 file.
+        """Save the transformer to an HDF5 file.
 
         Parameters
         ----------
         savefile : str
-            Path of the file to save the transformer in.
+            Path of the file to save the transformer to.
         overwrite : bool
             If ``True``, overwrite the file if it already exists. If ``False``
             (default), raise a ``FileExistsError`` if the file already exists.
@@ -726,179 +726,161 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
 
 
 class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
-    """Transformer for multivariate snapshots.
+    r"""Transformer for states with multiple variables.
 
-    Groups multiple SnapshotTransformers for the centering and/or scaling
-    (in that order) of individual variables.
+    This class is for states that can be written (after discretization) as
+
+    .. math::
+       \q = \left[\begin{array}{c}
+       \q_{0} \\ \q_{1} \\ \vdots \\ \q_{n_q - 1}
+       \end{array}\right]
+       \in \RR^{n},
+
+    where each :math:`\q_{i} \in \NN^{n_x}` represents a single discretized
+    state variable. The full state dimension is :math:`n = n_q n_x`, i.e.,
+    ``state_dimension = num_variables * variable_size``. An individual
+    :class:`SnapshotTransformer` is calibrated for each state variable.
 
     Parameters
     ----------
     num_variables : int
-        Number of variables represented in a single snapshot (number of
-        individual transformations to learn). The dimension `n` of the
-        snapshots must be evenly divisible by num_variables; for example,
-        ``num_variables=3`` means the first `n` entries of a snapshot
-        correspond to the first variable, and the next `n` entries correspond
-        to the second variable, and the last `n` entries correspond to the
-        third variable.
-    centering : bool OR list of num_variables bools
-        If True, shift the snapshots by the mean training snapshot.
-        If a list, centering[i] is the centering directive for the ith
-        variable.
-    scaling : str, None, OR list of length num_variables
-        If given, scale (non-dimensionalize) the centered snapshot entries.
-        If a list, scaling[i] is the scaling directive for the ith variable.
-        * 'standard': standardize to zero mean and unit standard deviation.
-        * 'minmax': minmax scaling to [0, 1].
-        * 'minmaxsym': minmax scaling to [-1, 1].
-        * 'maxabs': maximum absolute scaling to [-1, 1] (no shift).
-        * 'maxabssym': maximum absolute scaling to [-1, 1] (mean shift).
-    variable_names : list of num_variables strings
-        Names for each of the `num_variables` variables.
-        Defaults to 'x1', 'x2', ....
+        Number of state variables :math:`n_q \in \NN`, i.e., the number of
+        individual transformations to learn.
+    centering : tuple(bool) or bool
+        Centering directive for each state variable.
+
+        * tuple of bools: ``centering[i]`` indicates whether or not to shift
+          the snapshots of state variable ``i`` by the mean training snapshot.
+        * ``True``: center all of the state variables.
+        * ``False`` (default): do not center any of the state variables.
+
+    scaling : tuple(str), str, or None
+        Scaling strategy for each state variable.
+
+        * tuple of strs: ``scaling[i]`` indicates the scaling strategy for
+          state variable ``i``.
+        * str: use the given scaling strategy for each state variable.
+        * None (default): do not scale any of the state variables.
+
+        See :class:`SnapshotTransformer` for details on available scaling
+        transformations.
+    variable_names : tuple(str) or None
+        Name for each state variable.
+        Defaults to ``("variable 0", "variable 1", ...)``.
     verbose : bool
-        If True, print information upon learning a transformation.
-
-    Attributes
-    ----------
-    transformers : list of num_variables SnapshotTransformers
-        Transformers for each snapshot variable.
-    n : int
-        Total dimension of the snapshots (all variables).
-    ni : int
-        Dimension of individual variables, i.e., ni = n / num_variables.
-
-    Notes
-    -----
-    See SnapshotTransformer for details on available transformations.
+        If ``True``, print information upon learning a transformation.
 
     Examples
     --------
-    # Center first and third variables and minmax scale the second variable.
-    >>> stm = SnapshotTransformerMulti(
-    ...     3,
+    >>> import opinf
+    # Center variables 0 and 2 and minmax scale variable 1.
+    >>> stm = opinf.pre.SnapshotTransformerMulti(
+    ...     num_variables=3,
     ...     centering=(True, False, True),
     ...     scaling=(None, "minmax", None),
     ... )
     # Center 6 variables and scale the final variable with a standard scaling.
-    >>> stm = SnapshotTransformerMulti(
-    ...     6,
+    >>> stm = opinf.pre.SnapshotTransformerMulti(
+    ...     num_variables=6,
     ...     centering=True,
     ...     scaling=(None, None, None, None, None, "standard")
     ... )
-    # OR
-    >>> stm = SnapshotTransformerMulti(6, centering=True, scaling=None)
-    >>> stm[-1].scaling = "standard"
     """
 
     def __init__(
         self,
-        num_variables,
+        num_variables: int,
         centering=False,
         scaling=None,
-        variable_names=None,
-        verbose=False,
+        variable_names: tuple = None,
+        verbose: bool = False,
     ):
-        """Interpret hyperparameters and initialize transformers."""
+        """Set transformation hyperparameters and initialize transformers."""
         _MultivarMixin.__init__(self, num_variables, variable_names)
 
         def _process_arg(attr, name, dtype):
             """Validation for centering and scaling directives."""
             if isinstance(attr, dtype):
-                attr = (attr,) * num_variables
-            if len(attr) != num_variables:
+                attr = (attr,) * self.num_variables
+            if len(attr) != self.num_variables:
                 raise ValueError(
                     f"len({name}) = {len(attr)} "
-                    f"!= {num_variables} = num_variables"
+                    f"!= {self.num_variables} = num_variables"
                 )
             return attr
 
         # Process and store transformation directives.
         centers = _process_arg(centering, "centering", bool)
         scalings = _process_arg(scaling, "scaling", (type(None), str))
+        # byrows = _process_arg(byrow, "byrow", bool)
 
         # Initialize transformers.
-        self.transformers = [
+        self.__transformers = tuple(
             SnapshotTransformer(
-                centering=ctr, scaling=scl, byrow=False, verbose=False
+                centering=ctr,
+                scaling=scl,
+                byrow=False,
+                verbose=False,
             )
             for ctr, scl in zip(centers, scalings)
-        ]
+        )
         self.verbose = verbose
 
-    # Properties --------------------------------------------------------------
+    # Properties: transformation directives -----------------------------------
     @property
     def centering(self):
-        """Snapshot mean-centering directive."""
+        """Centering directive for each state variable."""
         return tuple(st.centering for st in self.transformers)
 
     @property
     def scaling(self):
-        """Entrywise scaling (non-dimensionalization) directive.
-        * None: no scaling.
-        * 'standard': standardize to zero mean and unit standard deviation.
-        * 'minmax': minmax scaling to [0, 1].
-        * 'minmaxsym': minmax scaling to [-1, 1].
-        * 'maxabs': maximum absolute scaling to [-1, 1] (no shift).
-        * 'maxabssym': maximum absolute scaling to [-1, 1] (mean shift).
+        """Scaling strategy for each state variable.
+        See :class:`SnapshotTransformer` for options.
         """
         return tuple(st.scaling for st in self.transformers)
 
     @property
-    def variable_names(self):
-        """Names for each of the `num_variables` variables."""
-        return self.__variable_names
-
-    @variable_names.setter
-    def variable_names(self, names):
-        if names is None:
-            names = [f"variable {i+1}" for i in range(self.num_variables)]
-        if not isinstance(names, list) or len(names) != self.num_variables:
-            raise TypeError(
-                "variable_names must be list of"
-                f" length {self.num_variables}"
-            )
-        self.__variable_names = names
-
-    @property
     def verbose(self):
-        """If True, print information about upon learning a transformation."""
+        """If ``True``, print information upon learning a transformation."""
         return self.__verbose
 
     @verbose.setter
     def verbose(self, vbs):
-        """Set verbosity of all transformers (uniformly)."""
+        """Set verbosity of all transformers."""
         self.__verbose = bool(vbs)
         for st in self.transformers:
             st.verbose = self.__verbose
 
+    # Properties: calibrated quantities ---------------------------------------
+    @property
+    def transformers(self):
+        """:class:`SnapshotTransformer` for each state variable."""
+        return self.__transformers
+
     @property
     def mean_(self):
-        """Mean training snapshot across all transforms ((n,) ndarray)."""
-        if not self._is_trained():
+        """Centering snapshot across all state variables."""
+        if not all(st._is_trained() for st in self.transformers):
             return None
-        zeros = np.zeros(self.ni)
+        zeros = np.zeros(self.variable_size)
         return np.concatenate(
             [(st.mean_ if st.centering else zeros) for st in self.transformers]
         )
 
-    def __getitem__(self, key):
+    # Magic methods -----------------------------------------------------------
+    def __getitem__(self, key) -> SnapshotTransformer:
         """Get the transformer for variable i."""
         if key in self.variable_names:
             key = self.variable_names.index(key)
         return self.transformers[key]
 
-    def __setitem__(self, key, obj):
-        """Set the transformer for variable i."""
-        if not isinstance(obj, SnapshotTransformer):
-            raise TypeError("assignment object must be SnapshotTransformer")
-        self.transformers[key] = obj
+    # def __setitem__(self, key, obj):
+    #     """Set a transformer for a single state variable."""
+    #     if not isinstance(obj, SnapshotTransformer):
+    #         raise TypeError("assignment object must be SnapshotTransformer")
+    #     self.transformers[key] = obj
 
-    def __len__(self):
-        """Length = number of variables."""
-        return len(self.transformers)
-
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Test two SnapshotTransformerMulti objects for equality."""
         if not isinstance(other, self.__class__):
             return False
@@ -908,8 +890,7 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
             t1 == t2 for t1, t2 in zip(self.transformers, other.transformers)
         )
 
-    # Printing ----------------------------------------------------------------
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation: centering and scaling directives."""
         out = [f"{self.num_variables}-variable snapshot transformer"]
         namelength = max(len(name) for name in self.variable_names)
@@ -917,26 +898,25 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
             out.append(f"* {{:>{namelength}}} | {st}".format(name))
         return "\n".join(out)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Unique ID + string representation."""
-        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
-        return f"{uniqueID}\n{str(self)}"
+        return utils.str2repr(self)
 
     # Main routines -----------------------------------------------------------
-    def _is_trained(self):
-        """Return True if transform() and inverse_transform() are ready."""
-        return all(st._is_trained() for st in self.transformers)
+    # def _is_trained(self) -> bool:
+    #     """Return True if transform() and inverse_transform() are ready."""
+    #     return all(st._is_trained() for st in self.transformers)
 
-    def _check_is_trained(self):
-        """Raise an exception if the transformer is not trained."""
-        if not self._is_trained():
-            raise AttributeError(
-                "transformer not trained (call fit() or fit_transform())"
-            )
+    # def _check_is_trained(self):
+    #     """Raise an exception if the transformer is not trained."""
+    #     if not self._is_trained():
+    #         raise AttributeError(
+    #             "transformer not trained (call fit() or fit_transform())"
+    #         )
 
     def _apply(self, method, Q, inplace, locs=None):
         """
-        Apply a method of each transformer to the corresponding chunk of Q.
+        Apply a method of each transformer to the corresponding chunk of ``Q``.
         """
         options = dict(inplace=inplace)
         if locs is not None:
@@ -953,6 +933,7 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
             Ys.append(method(st, var, **options))
 
         if inplace and locs is None:
+            # TODO: is this clause necessary?
             return Q
         return np.concatenate(Ys, axis=0)
 
@@ -962,20 +943,22 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
         Parameters
         ----------
         states : (n, k) ndarray
-            Matrix of k snapshots. Each column is a snapshot of dimension n;
-            this dimension must be evenly divisible by `num_variables`.
+            Matrix of `k` `n`-dimensional snapshots.
+            The first ``variable_size`` entries correspond to the first state
+            variable, the next ``variable_size`` entries correspond to the
+            second state variable, and so on.
         inplace : bool
-            If True, overwrite the input data during transformation.
-            If False, create a copy of the data to transform.
+            If ``True``, overwrite ``states`` data during transformation.
+            If ``False``, create a copy of the data to transform.
 
         Returns
         -------
         states_transformed: (n, k) ndarray
-            Matrix of k transformed n-dimensional snapshots.
+            Matrix of `k` transformed `n`-dimensional snapshots.
         """
-        if states.ndim != 2:
-            raise ValueError("2D array required to fit transformer")
-        self.n = states.shape[0]
+        # if states.ndim != 2:
+        #     raise ValueError("2D array required to fit transformer")
+        self.state_dimension = states.shape[0]
         return self._apply(SnapshotTransformer.fit_transform, states, inplace)
 
     def transform(self, states, inplace=False):
@@ -983,45 +966,72 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
 
         Parameters
         ----------
-        states : (n, k) ndarray
-            Matrix of k snapshots. Each column is a snapshot of dimension n;
-            this dimension must be evenly divisible by `num_variables`.
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
         inplace : bool
-            If True, overwrite the input data during transformation.
+            If ``True``, overwrite ``states`` during transformation.
+            If ``False``, create a copy of the data to transform.
+
+        Returns
+        -------
+        states_transformed: (n, ...) ndarray
+            Matrix of `n`-dimensional transformed snapshots, or a single
+            transformed snapshot.
+        """
+        # self._check_is_trained()
+        return self._apply(SnapshotTransformer.transform, states, inplace)
+
+    def transform_ddts(self, ddts, inplace: bool = False):
+        r"""Apply the learned transformation to snapshot time derivatives.
+
+        Denoting the transformation by
+        :math:`\mathcal{T}(\q) = \alpha(\q - \bar{\q}) + \beta`,
+        this is the function :math:`\mathcal{T}'(\z) = \alpha\z`.
+        Hence, :math:`\mathcal{T}'(\ddt q) = \ddt \mathcal{T}(q)`.
+
+        Parameters
+        ----------
+        ddts : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshot time derivatives, or a
+            single snapshot time derivative.
+        inplace : bool
+            If True, overwrite ``ddts`` during the transformation.
             If False, create a copy of the data to transform.
 
         Returns
         -------
-        states_transformed: (n, k) ndarray
-            Matrix of k transformed n-dimensional snapshots.
+        ddts_transformed : (n, ...) ndarray
+            Transformed snapshot time derivatives.
         """
-        self._check_is_trained()
-        return self._apply(SnapshotTransformer.transform, states, inplace)
+        # self._check_is_trained()
+        return self._apply(SnapshotTransformer.transform_ddts, ddts, inplace)
 
     def inverse_transform(self, states_transformed, inplace=False, locs=None):
         """Apply the inverse of the learned transformation.
 
         Parameters
         ----------
-        states_transformed : (n, k) or (num_variables*p, k) ndarray
-            Matrix of k transformed n-dimensional snapshots, or the p entries
-            of the snapshots at the indices specified by `locs`.
+        states_transformed : (n, ...) or (num_variables*p, ...) ndarray
+            Matrix of `n`-dimensional transformed snapshots, or a single
+            transformed snapshot.
         inplace : bool
-            If True, overwrite the input data during inverse transformation.
-            If False, create a copy of the data to untransform.
+            If ``True``, overwrite ``states_transformed`` during the inverse
+            transformation. If ``False``, create a copy of the data to
+            untransform.
         locs : slice or (p,) ndarray of integers or None
-            If given, assume `states_transformed` contains the transformed
-            snapshots at only the indices given by `locs` for each variable.
+            If given, assume ``states_transformed`` contains the `p` entries
+            of each transformed state variable at the indices specified by
+            ``locs``.
 
         Returns
         -------
-        states: (n, k) or (num_variables*p, k) ndarray
-            Matrix of k untransformed snapshots of dimension n, or the p
-            entries of such at the indices specified by `loc`.
+        states: (n, ...) or (num_variables*p, ...) ndarray
+            Matrix of `n`-dimensional untransformed snapshots, or the
+            :math:`n_q p` entries of such at the indices specified by ``locs``.
         """
-        self._check_is_trained()
-        if locs is None:
-            self._check_shape(states_transformed)
+        # self._check_is_trained()
+        # if locs is None:
+        #     self._check_shape(states_transformed)
         return self._apply(
             SnapshotTransformer.inverse_transform,
             states_transformed,
@@ -1031,34 +1041,34 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile, overwrite=False):
-        """Save the current transformers to an HDF5 file.
+        """Save the transformer to an HDF5 file.
 
         Parameters
         ----------
         savefile : str
-            Path of the file to save the transformer in.
+            Path of the file to save the transformer to.
         overwrite : bool
-            If True, overwrite the file if it already exists. If False
-            (default), raise a FileExistsError if the file already exists.
+            If ``True``, overwrite the file if it already exists. If ``False``
+            (default), raise a ``FileExistsError`` if the file already exists.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             # Metadata
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_variables"] = self.num_variables
-            meta.attrs["verbose"] = self.verbose
             meta.attrs["variable_names"] = self.variable_names
+            meta.attrs["verbose"] = self.verbose
 
             for i in range(self.num_variables):
-                self.transformers[i].save(hf.create_group(f"variable{i+1}"))
+                self.transformers[i].save(hf.create_group(f"variable{i}"))
 
     @classmethod
     def load(cls, loadfile):
-        """Load a SnapshotTransformerMulti object from an HDF5 file.
+        """Load a previously saved transformer from an HDF5 file.
 
         Parameters
         ----------
         loadfile : str
-            Path to the file where the transformer was stored (via save()).
+            File where the transformer was stored via :meth:`save()`.
 
         Returns
         -------
@@ -1066,23 +1076,17 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
             # Load transformation hyperparameters.
-            if "meta" not in hf:
-                raise errors.LoadfileFormatError(
-                    "invalid save format (meta/ not found)"
-                )
-            num_variables = hf["meta"].attrs["num_variables"]
-            verbose = hf["meta"].attrs["verbose"]
+            num_variables = int(hf["meta"].attrs["num_variables"])
             names = hf["meta"].attrs["variable_names"].tolist()
-            stm = cls(num_variables, variable_names=names, verbose=verbose)
+            verbose = bool(hf["meta"].attrs["verbose"])
+            obj = cls(num_variables, variable_names=names, verbose=verbose)
 
             # Initialize individual transformers.
-            for i in range(num_variables):
-                group = f"variable{i+1}"
-                if group not in hf:
-                    raise errors.LoadfileFormatError(
-                        f"invalid save format ({group}/ not found)"
-                    )
-                stm[i] = SnapshotTransformer.load(hf[group])
-            stm.n = stm[0].n * num_variables
+            obj.__transformers = [
+                SnapshotTransformer.load(hf[f"variable{i}"])
+                for i in range(num_variables)
+            ]
+            if (nx := obj[0].state_dimension) is not None:
+                obj.state_dimension = num_variables * nx
 
-            return stm
+            return obj
