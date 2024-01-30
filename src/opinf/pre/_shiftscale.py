@@ -874,12 +874,6 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
             key = self.variable_names.index(key)
         return self.transformers[key]
 
-    # def __setitem__(self, key, obj):
-    #     """Set a transformer for a single state variable."""
-    #     if not isinstance(obj, SnapshotTransformer):
-    #         raise TypeError("assignment object must be SnapshotTransformer")
-    #     self.transformers[key] = obj
-
     def __eq__(self, other) -> bool:
         """Test two SnapshotTransformerMulti objects for equality."""
         if not isinstance(other, self.__class__):
@@ -903,17 +897,6 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
         return utils.str2repr(self)
 
     # Main routines -----------------------------------------------------------
-    # def _is_trained(self) -> bool:
-    #     """Return True if transform() and inverse_transform() are ready."""
-    #     return all(st._is_trained() for st in self.transformers)
-
-    # def _check_is_trained(self):
-    #     """Raise an exception if the transformer is not trained."""
-    #     if not self._is_trained():
-    #         raise AttributeError(
-    #             "transformer not trained (call fit() or fit_transform())"
-    #         )
-
     def _apply(self, method, Q, inplace, locs=None):
         """
         Apply a method of each transformer to the corresponding chunk of ``Q``.
@@ -933,7 +916,6 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
             Ys.append(method(st, var, **options))
 
         if inplace and locs is None:
-            # TODO: is this clause necessary?
             return Q
         return np.concatenate(Ys, axis=0)
 

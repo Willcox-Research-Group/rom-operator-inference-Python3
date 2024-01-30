@@ -663,24 +663,6 @@ class TestSnapshotTransformerMulti:
         for i, name in enumerate(names):
             assert stm[name] is stm.transformers[i]
 
-    # def test_setitem(self):
-    #     """Test SnapshotTransformerMulti.__setitem__()."""
-    #     stm = self.Transformer(10)
-    #     st = opinf.pre.SnapshotTransformer(centering=True, scaling="minmax")
-    #     for i in [3, 4, 7]:
-    #         stm[i] = st
-    #         assert stm.transformers[i] is st
-
-    #     for i in range(stm.num_variables):
-    #         stm[i].centering = False
-    #     assert stm.centering == (False,) * stm.num_variables
-
-    #     with pytest.raises(TypeError) as ex:
-    #         stm[2] = 10
-    #     assert ex.value.args[0] == (
-    #         "assignment object must be SnapshotTransformer"
-    #     )
-
     def test_eq(self):
         """Test SnapshotTransformerMulti.__eq__()."""
         # Null transformers.
@@ -786,21 +768,6 @@ class TestSnapshotTransformerMulti:
         stm.fit(Q)
         t = np.linspace(0, 0.1, k)
         stm.verify(Q, t)
-
-        # # Test locs argument separately.
-        # Qt = stm.transform(Q, inplace=False)
-        # locs = np.random.choice(nx, size=nx // 3, replace=False)
-        # Q_loc = np.concatenate(
-        #     [Qvar[locs] for Qvar in np.split(Q, stm.num_variables, axis=0)]
-        # )
-        # Qt_loc = np.concatenate(
-        #     [Qvar[locs] for Qvar in np.split(Qt, stm.num_variables, axis=0)]
-        # )
-        # assert Q_loc.shape == (stm.num_variables * len(locs), Qt.shape[1])
-        # assert Qt_loc.shape == Q_loc.shape
-        # Q_recon_loc = stm.inverse_transform(Qt_loc, locs=locs)
-        # assert Q_recon_loc == Q_loc.shape
-        # assert np.allclose(Q_recon_loc, Q_loc)
 
     # Persistence -------------------------------------------------------------
     def test_save(self, nvar=15):

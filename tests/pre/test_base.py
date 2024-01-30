@@ -337,7 +337,7 @@ class TestMultivarMixin:
             def inverse_transform(self, states_transformed, locs=None):
                 if locs is None:
                     return states_transformed
-                return states_transformed[locs]
+                return states_transformed[1:-1]
 
         mix = Dummy2(nvar)
         mix.state_dimension = n
