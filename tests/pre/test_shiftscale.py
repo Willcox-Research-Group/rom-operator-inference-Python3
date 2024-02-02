@@ -79,9 +79,14 @@ class TestSnapshotTransformer:
     def test_init(self, n=10):
         """Test SnapshotTransformer.__init__()."""
         st = self.Transformer()
-        for attr in ["scaling", "centering", "verbose", "state_dimension"]:
+        for attr in [
+            "scaling",
+            "centering",
+            "verbose",
+            "full_state_dimension",
+        ]:
             assert hasattr(st, attr)
-        assert st.state_dimension is None
+        assert st.full_state_dimension is None
 
         # Test centering.
         st = self.Transformer(centering=False)
@@ -90,13 +95,15 @@ class TestSnapshotTransformer:
         assert ex.value.args[0] == "cannot set mean_ (centering=False)"
 
         st = self.Transformer(centering=True, scaling=None)
-        st.state_dimension = n
+        with pytest.raises(ValueError) as ex:
+            st.mean_ = 10
+        assert ex.value.args[0] == "expected one-dimensional mean_"
+        st.mean_ = (qbar := np.random.random(n))
+        assert st.full_state_dimension == n
+        assert np.all(st.mean_ == qbar)
         with pytest.raises(ValueError) as ex:
             st.mean_ = 100
         assert ex.value.args[0] == f"expected mean_ to be ({n:d},) ndarray"
-
-        st.mean_ = (qbar := np.random.random(n))
-        assert np.all(st.mean_ == qbar)
 
         # Test scaling.
         for attr in "scale_", "shift_":
@@ -124,13 +131,16 @@ class TestSnapshotTransformer:
             "scaling=None --> byrow=True will have no effect"
         )
 
-        st = self.Transformer(scaling="standard", byrow=True)
-        st.state_dimension = n
         for attr in "scale_", "shift_":
+            st = self.Transformer(scaling="standard", byrow=True)
+            with pytest.raises(ValueError) as ex:
+                setattr(st, attr, 10)
+            assert ex.value.args[0] == f"expected one-dimensional {attr}"
+            setattr(st, attr, np.random.random(n))
+            assert st.full_state_dimension == n
             with pytest.raises(ValueError) as ex:
                 setattr(st, attr, 100)
             assert ex.value.args[0] == f"expected {attr} to be ({n},) ndarray"
-            setattr(st, attr, np.random.random(n))
 
         # Test verbose.
         st.verbose = 0
@@ -157,11 +167,11 @@ class TestSnapshotTransformer:
         st2 = self.Transformer(centering=True)
 
         # Mismatched dimensions.
-        st1.state_dimension = n
-        st2.state_dimension = n + 2
+        st1.full_state_dimension = n
+        st2.full_state_dimension = n + 2
         assert not (st1 == st2)
         assert st1 != st2
-        st2.state_dimension = n
+        st2.full_state_dimension = n
 
         # Centering attributes.
         st1.mean_ = µ
@@ -206,7 +216,7 @@ class TestSnapshotTransformer:
             assert str(st) == f"Snapshot transformer with '{s}' scaling {trn}"
 
         st = self.Transformer(centering=False, scaling=None)
-        st.state_dimension = 100
+        st.full_state_dimension = 100
         assert str(st) == "Snapshot transformer (state dimension n = 100)"
 
         assert str(hex(id(st))) in repr(st)
@@ -299,7 +309,7 @@ class TestSnapshotTransformer:
                 byrow=byrow if scaling else False,
                 verbose=not centering,
             )
-            st.state_dimension = n
+            st.full_state_dimension = n
             st.fit_transform(X, inplace=False)
             st.save(target, overwrite=True)
             st2 = self.Transformer.load(target)
@@ -311,7 +321,7 @@ class TestSnapshotTransformer:
     def test_check_shape(self, n=12):
         """Test SnapshotTransformerMulti._check_shape()."""
         stm = self.Transformer()
-        stm.state_dimension = n
+        stm.full_state_dimension = n
         X = np.random.randint(0, 100, (n, 2 * n)).astype(float)
         stm._check_shape(X)
 
@@ -348,6 +358,15 @@ class TestSnapshotTransformer:
         st.scale_ = 10
         assert st._is_trained() is False
         st.shift_ = 20
+        assert st._is_trained() is True
+
+        st = self.Transformer(centering=True, scaling="standard")
+        assert st._is_trained() is False
+        st.mean_ = np.random.random(n)
+        assert st._is_trained() is False
+        st.scale_ = np.random.random(n)
+        assert st._is_trained() is False
+        st.shift_ = np.random.random(n)
         assert st._is_trained() is True
 
     def test_verify(self, n=150, k=400):
@@ -628,7 +647,7 @@ class TestSnapshotTransformerMulti:
         assert stm.mean_ is None
 
         # Set the centering vectors.
-        stm.state_dimension = stm.num_variables * varsize
+        stm.full_state_dimension = stm.num_variables * varsize
         µs = [
             np.random.randint(0, 100, stm.variable_size)
             for _ in range(stm.num_variables)
@@ -644,7 +663,7 @@ class TestSnapshotTransformerMulti:
         # Validate concatenated mean_.
         µµ = stm.mean_
         assert isinstance(µµ, np.ndarray)
-        assert µµ.shape == (stm.state_dimension,)
+        assert µµ.shape == (stm.full_state_dimension,)
         for i, µ in enumerate(µs):
             s = slice(i * stm.variable_size, (i + 1) * stm.variable_size)
             if centerings[i]:
@@ -694,7 +713,7 @@ class TestSnapshotTransformerMulti:
             scaling=(None, None, "standard"),
             variable_names=names,
         )
-        stm[1].state_dimension = 10
+        stm[1].full_state_dimension = 10
 
         assert (
             str(stm) == "3-variable snapshot transformer\n"

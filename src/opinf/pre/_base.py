@@ -277,12 +277,12 @@ class _UnivarMixin:
         self.__n = None
 
     @property
-    def state_dimension(self):
+    def full_state_dimension(self):
         r"""Dimension :math:`n` of the state snapshots."""
         return self.__n
 
-    @state_dimension.setter
-    def state_dimension(self, n):
+    @full_state_dimension.setter
+    def full_state_dimension(self, n):
         """Set the state dimension."""
         self.__n = int(n)
 
@@ -300,7 +300,7 @@ class _MultivarMixin:
 
     where each :math:`\q_{i} \in \NN^{n_x}` represents a single discretized
     state variable. The full state dimension is :math:`n = n_q n_x`, i.e.,
-    ``state_dimension = num_variables * variable_size``.
+    ``full_state_dimension = num_variables * variable_size``.
 
     Parameters
     ----------
@@ -351,17 +351,18 @@ class _MultivarMixin:
         self.__variable_names = tuple(names)
 
     @property
-    def state_dimension(self):
+    def full_state_dimension(self):
         """Total dimension :math:`n = n_q n_x` of all state variables."""
         return self.__n
 
-    @state_dimension.setter
-    def state_dimension(self, n):
+    @full_state_dimension.setter
+    def full_state_dimension(self, n):
         """Set the total and individual variable dimensions."""
         variable_size, remainder = divmod(n, self.num_variables)
         if remainder != 0:
             raise ValueError(
-                "'state_dimension' must be evenly divisible by 'num_variables'"
+                "'full_state_dimension' must be evenly divisible "
+                "by 'num_variables'"
             )
         self.__n = int(n)
         self.__nx = variable_size
@@ -380,14 +381,14 @@ class _MultivarMixin:
         """Length = number of state variables."""
         return self.__nq
 
-    @utils.requires("state_dimension")
+    @utils.requires("full_state_dimension")
     def _check_shape(self, Q):
         """Verify the shape of the snapshot set Q."""
-        if (nQ := Q.shape[0]) != self.state_dimension:
+        if (nQ := Q.shape[0]) != self.full_state_dimension:
             raise errors.DimensionalityError(
                 f"states.shape[0] = {nQ:d} "
                 f"!= {self.num_variables:d} * {self.variable_size:d} "
-                "= num_variables * variable_size = state_dimension"
+                "= num_variables * variable_size = full_state_dimension"
             )
 
     def get_var(self, var, states):

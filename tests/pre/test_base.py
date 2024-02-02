@@ -200,14 +200,14 @@ class TestUnivarMixin:
 
     Mixin = opinf.pre._base._UnivarMixin
 
-    def test_state_dimension(self):
-        """Test _UnivarMixin.state_dimension."""
+    def test_full_state_dimension(self):
+        """Test _UnivarMixin.full_state_dimension."""
         mixin = self.Mixin()
-        assert mixin.state_dimension is None
-        mixin.state_dimension = 10.0
-        n = mixin.state_dimension
+        assert mixin.full_state_dimension is None
+        mixin.full_state_dimension = 10.0
+        n = mixin.full_state_dimension
         assert isinstance(n, int)
-        assert mixin.state_dimension == n
+        assert mixin.full_state_dimension == n
 
 
 class TestMultivarMixin:
@@ -223,7 +223,7 @@ class TestMultivarMixin:
 
         mix = self.Mixin(nvar)
         assert mix.num_variables == nvar
-        assert mix.state_dimension is None
+        assert mix.full_state_dimension is None
         assert mix.variable_size is None
 
         assert len(mix) == nvar
@@ -246,27 +246,28 @@ class TestMultivarMixin:
         assert ex.value.args[0] == f"variable_names must have length {nvar}"
 
     def test_properties(self, nvar=5):
-        """Test _MultivarMixin.state_dimension and variable_size."""
+        """Test _MultivarMixin.full_state_dimension and variable_size."""
         mix = self.Mixin(nvar)
-        assert mix.state_dimension is None
+        assert mix.full_state_dimension is None
         assert mix.variable_size is None
 
         with pytest.raises(ValueError) as ex:
-            mix.state_dimension = 2 * nvar - 1
+            mix.full_state_dimension = 2 * nvar - 1
         assert ex.value.args[0] == (
-            "'state_dimension' must be evenly divisible by 'num_variables'"
+            "'full_state_dimension' must be evenly divisible "
+            "by 'num_variables'"
         )
 
         for size in np.random.randint(3, 10, size=5):
-            mix.state_dimension = (n := nvar * size)
-            assert mix.state_dimension == n
+            mix.full_state_dimension = (n := nvar * size)
+            assert mix.full_state_dimension == n
             assert mix.variable_size == size
 
     # Convenience methods -----------------------------------------------------
     def test_check_shape(self, nvar=12, nx=10, k=20):
         """Test _MultivarMixin._check_shape()."""
         mix = self.Mixin(nvar)
-        mix.state_dimension = (n := nvar * nx)
+        mix.full_state_dimension = (n := nvar * nx)
         X = np.random.randint(0, 100, (n, k)).astype(float)
         mix._check_shape(X)
 
@@ -274,13 +275,13 @@ class TestMultivarMixin:
             mix._check_shape(X[:-1])
         assert ex.value.args[0] == (
             f"states.shape[0] = {n - 1:d} != {nvar:d} * {nx:d} "
-            "= num_variables * variable_size = state_dimension"
+            "= num_variables * variable_size = full_state_dimension"
         )
 
     def test_get_var(self, nvar=4, nx=9, k=3):
         """Test _MultivarMixin.get_var()."""
         mix = self.Mixin(nvar, variable_names="abcdefghijklmnop"[:nvar])
-        mix.state_dimension = (n := nvar * nx)
+        mix.full_state_dimension = (n := nvar * nx)
         q = np.random.random(n)
 
         q0 = mix.get_var(0, q)
@@ -298,7 +299,7 @@ class TestMultivarMixin:
     def test_split(self, nvar=5, nx=11, k=12):
         """Test _MultivarMixin.split()."""
         mix = self.Mixin(nvar)
-        mix.state_dimension = (n := nvar * nx)
+        mix.full_state_dimension = (n := nvar * nx)
 
         q = np.random.random(n)
         q_split = mix.split(q)
@@ -328,7 +329,7 @@ class TestMultivarMixin:
                 return states_transformed
 
         mix = Dummy(nvar)
-        mix.state_dimension = (n := nvar * nx)
+        mix.full_state_dimension = (n := nvar * nx)
         Q = np.random.random((n, k))
         Qt = mix.transform(Q)
         mix._verify_locs(Q, Qt)
@@ -340,7 +341,7 @@ class TestMultivarMixin:
                 return states_transformed[1:-1]
 
         mix = Dummy2(nvar)
-        mix.state_dimension = n
+        mix.full_state_dimension = n
         with pytest.raises(opinf.errors.VerificationError) as ex:
             mix._verify_locs(Q, Qt)
         assert ex.value.args[0] == (
@@ -355,7 +356,7 @@ class TestMultivarMixin:
                 return states_transformed + 1
 
         mix = Dummy3(nvar)
-        mix.state_dimension = n
+        mix.full_state_dimension = n
         with pytest.raises(opinf.errors.VerificationError) as ex:
             mix._verify_locs(Q, Qt)
         assert ex.value.args[0] == (

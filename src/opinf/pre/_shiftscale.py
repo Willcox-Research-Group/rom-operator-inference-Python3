@@ -226,6 +226,15 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
 
     verbose : bool
         If ``True``, print information upon learning a transformation.
+
+    Notes
+    -----
+    A custom shifting vector (i.e., the mean snapshot) can be specified by
+    setting the ``mean_`` attribute. Similarly, the scaling
+    :math:`q'\mapsto q'' = \alpha q' + \beta` can be adjusted by setting the
+    ``scale_`` (:math:`\alpha) and ``shift_`` (:math:`\beta`) attributes.
+    However, calling :meth`fit()` or :meth:`fit_transform()` will overwrite
+    all three attributes.
     """
     _VALID_SCALINGS = frozenset(
         (
@@ -316,7 +325,11 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
         """Set the mean vector."""
         if not self.centering:
             raise AttributeError("cannot set mean_ (centering=False)")
-        if (n := self.state_dimension) and np.shape(mean) != (n,):
+        if self.full_state_dimension is None:
+            if np.ndim(mean) != 1:
+                raise ValueError("expected one-dimensional mean_")
+            self.full_state_dimension = mean.shape[0]
+        if np.shape(mean) != ((n := self.full_state_dimension),):
             raise ValueError(f"expected mean_ to be ({n:d},) ndarray")
         self.__qbar = mean
 
@@ -332,12 +345,13 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
         """Set the multiplicative factor of the scaling."""
         if self.scaling is None:
             raise AttributeError("cannot set scale_ (scaling=None)")
-        if (
-            self.byrow
-            and (n := self.state_dimension) is not None
-            and np.shape(alpha) != (n,)
-        ):
-            raise ValueError(f"expected scale_ to be ({n:d},) ndarray")
+        if self.byrow:
+            if self.full_state_dimension is None:
+                if np.ndim(alpha) != 1 or np.isscalar(alpha):
+                    raise ValueError("expected one-dimensional scale_")
+                self.full_state_dimension = alpha.shape[0]
+            if np.shape(alpha) != ((n := self.full_state_dimension),):
+                raise ValueError(f"expected scale_ to be ({n:d},) ndarray")
         self.__alpha = alpha
 
     @property
@@ -352,42 +366,35 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
         """Set the multiplicative factor of the scaling."""
         if self.scaling is None:
             raise AttributeError("cannot set shift_ (scaling=None)")
-        if (
-            self.byrow
-            and (n := self.state_dimension) is not None
-            and np.shape(beta) != (n,)
-        ):
-            raise ValueError(f"expected shift_ to be ({n:d},) ndarray")
+        if self.byrow:
+            if self.full_state_dimension is None:
+                if np.ndim(beta) != 1 or np.isscalar(beta):
+                    raise ValueError("expected one-dimensional shift_")
+                self.full_state_dimension = beta.shape[0]
+            if np.shape(beta) != ((n := self.full_state_dimension),):
+                raise ValueError(f"expected shift_ to be ({n:d},) ndarray")
         self.__beta = beta
 
     def __eq__(self, other) -> bool:
         """Test two SnapshotTransformers for equality."""
         if not isinstance(other, self.__class__):
-            # print("WHY 1")
             return False
         for attr in ("centering", "scaling", "byrow"):
             if getattr(self, attr) != getattr(other, attr):
-                # print("WHY 2")
                 return False
-        if self.state_dimension != other.state_dimension:
-            # print("WHY 3")
+        if self.full_state_dimension != other.full_state_dimension:
             return False
         if self.centering and self.mean_ is not None:
             if other.mean_ is None:
-                # print("WHY 4")
                 return False
             if not np.all(self.mean_ == other.mean_):
-                # print("WHY 5")
                 return False
         if self.scaling and self.scale_ is not None:
             for attr in ("scale_", "shift_"):
                 if (oat := getattr(other, attr)) is None:
-                    # print("WHY 6")
                     return False
                 if not np.all(getattr(self, attr) == oat):
-                    # print("WHY 7")
                     return False
-        # print("WHY 8")
         return True
 
     # Printing ----------------------------------------------------------------
@@ -401,8 +408,8 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
     def __str__(self) -> str:
         """String representation: scaling type + centering bool."""
         out = ["Snapshot transformer"]
-        if self.state_dimension is not None:
-            out.append(f"(state dimension n = {self.state_dimension:d})")
+        if self.full_state_dimension is not None:
+            out.append(f"(state dimension n = {self.full_state_dimension:d})")
         if self.centering:
             out.append("with mean-snapshot centering")
             if self.scaling:
@@ -420,7 +427,9 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
     # Main routines -----------------------------------------------------------
     def _check_shape(self, Q):
         """Verify the shape of the snapshot set Q."""
-        if (n := self.state_dimension) is not None and (n2 := Q.shape[0]) != n:
+        if (n := self.full_state_dimension) is not None and (
+            n2 := Q.shape[0]
+        ) != n:
             raise ValueError(
                 f"states.shape[0] = {n2:d} != {n:d} = state dimension n"
             )
@@ -460,7 +469,7 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
         """
         if states.ndim != 2:
             raise ValueError("2D array required to fit transformer")
-        self.state_dimension = states.shape[0]
+        self.full_state_dimension = states.shape[0]
 
         Y = states if inplace else states.copy()
         axis = 1 if self.byrow else None
@@ -507,7 +516,7 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
             elif self.scaling == "maxabs":
                 self.scale_ = 1 / np.max(np.abs(Y), axis=axis)
                 self.shift_ = (
-                    0 if axis is None else np.zeros(self.state_dimension)
+                    0 if axis is None else np.zeros(self.full_state_dimension)
                 )
 
             # maxabssym: Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)))
@@ -633,7 +642,7 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
 
         if locs is not None:
             if isinstance(locs, slice):
-                locs = np.arange(self.state_dimension)[locs]
+                locs = np.arange(self.full_state_dimension)[locs]
             if states_transformed.shape[0] != locs.size:
                 raise ValueError("states_transformed not aligned with locs")
         else:
@@ -674,8 +683,8 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
             meta.attrs["verbose"] = self.verbose
 
             # Store learned transformation parameters.
-            n = self.state_dimension
-            meta.attrs["state_dimension"] = n if n is not None else False
+            n = self.full_state_dimension
+            meta.attrs["full_state_dimension"] = n if n is not None else False
             if self.centering and self.mean_ is not None:
                 hf.create_dataset("transformation/mean_", data=self.mean_)
             if self.scaling and self.scale_ is not None:
@@ -713,8 +722,8 @@ class SnapshotTransformer(TransformerTemplate, _UnivarMixin):
             )
 
             # Load learned transformation parameters.
-            n = meta.attrs["state_dimension"]
-            transformer.state_dimension = None if not n else n
+            n = meta.attrs["full_state_dimension"]
+            transformer.full_state_dimension = None if not n else n
             if transformer.centering and "transformation/mean_" in hf:
                 transformer.mean_ = hf["transformation/mean_"][:]
             if transformer.scaling and "transformation/scale_" in hf:
@@ -738,7 +747,7 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
 
     where each :math:`\q_{i} \in \NN^{n_x}` represents a single discretized
     state variable. The full state dimension is :math:`n = n_q n_x`, i.e.,
-    ``state_dimension = num_variables * variable_size``. An individual
+    ``full_state_dimension = num_variables * variable_size``. An individual
     :class:`SnapshotTransformer` is calibrated for each state variable.
 
     Parameters
@@ -940,7 +949,7 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
         """
         # if states.ndim != 2:
         #     raise ValueError("2D array required to fit transformer")
-        self.state_dimension = states.shape[0]
+        self.full_state_dimension = states.shape[0]
         return self._apply(SnapshotTransformer.fit_transform, states, inplace)
 
     def transform(self, states, inplace=False):
@@ -1068,7 +1077,7 @@ class SnapshotTransformerMulti(TransformerTemplate, _MultivarMixin):
                 SnapshotTransformer.load(hf[f"variable{i}"])
                 for i in range(num_variables)
             ]
-            if (nx := obj[0].state_dimension) is not None:
-                obj.state_dimension = num_variables * nx
+            if (nx := obj[0].full_state_dimension) is not None:
+                obj.full_state_dimension = num_variables * nx
 
             return obj
