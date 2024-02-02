@@ -3,7 +3,7 @@
 
 REMOVE = rm -rfv
 PYTHON = python3
-PYTEST = pytest --cov opinf tests/pre --cov-report html
+PYTEST = pytest --cov opinf tests --cov-report html
 
 
 # About -----------------------------------------------------------------------
