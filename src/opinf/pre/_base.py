@@ -42,7 +42,7 @@ class TransformerTemplate(abc.ABC):
         -------
         self
         """
-        self.fit_transform(states)
+        self.fit_transform(states, inplace=False)
         return self
 
     @abc.abstractmethod
@@ -130,12 +130,12 @@ class TransformerTemplate(abc.ABC):
         raise NotImplementedError  # pragma: no cover
 
     # Model persistence -------------------------------------------------------
-    def save(self, *args, **kwargs):
+    def save(self, savefile, overwrite=False):
         """Save the transformer to an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
     @classmethod
-    def load(cls, *args, **kwargs):
+    def load(cls, loadfile):
         """Load a transformer from an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
