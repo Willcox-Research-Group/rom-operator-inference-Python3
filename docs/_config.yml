@@ -68,6 +68,7 @@ sphinx:
           "z": "\\mathbf{z}"                  # rhs vector
           "d": "\\mathbf{d}"                  # data vector
           "f": "\\mathbf{f}"                  # model rhs function
+          "s": "\\mathbf{s}"                  # unprocessed state vector
           "Q": "\\mathbf{Q}"                  # state data
           "U": "\\mathbf{U}"                  # input data
           "Z": "\\mathbf{Z}"                  # rhs data
