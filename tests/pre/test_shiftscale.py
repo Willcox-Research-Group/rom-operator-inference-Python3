@@ -71,13 +71,13 @@ def test_scale(set_up_transformer_data):
 
 
 # Transformer classes for centering and scaling ===============================
-class TestSnapshotTransformer:
-    """Test pre.SnapshotTransformer."""
+class TestShiftScaleTransformer:
+    """Test pre.ShiftScaleTransformer."""
 
-    Transformer = opinf.pre.SnapshotTransformer
+    Transformer = opinf.pre.ShiftScaleTransformer
 
     def test_init(self, n=10):
-        """Test SnapshotTransformer.__init__()."""
+        """Test ShiftScaleTransformer.__init__()."""
         st = self.Transformer()
         for attr in [
             "scaling",
@@ -149,7 +149,7 @@ class TestSnapshotTransformer:
         assert st.verbose is True
 
     def test_eq(self, n=200):
-        """Test SnapshotTransformer.__eq__()."""
+        """Test ShiftScaleTransformer.__eq__()."""
         µ = np.random.randint(0, 100, (n,))
         a, b = 10, -3
 
@@ -199,7 +199,7 @@ class TestSnapshotTransformer:
 
     # Printing ----------------------------------------------------------------
     def test_str(self):
-        """Test SnapshotTransformer.__str__()."""
+        """Test ShiftScaleTransformer.__str__()."""
         st = self.Transformer()
         assert str(st) == "Snapshot transformer"
 
@@ -222,14 +222,14 @@ class TestSnapshotTransformer:
         assert str(hex(id(st))) in repr(st)
 
     def test_statistics_report(self):
-        """Test SnapshotTransformer._statistics_report()."""
+        """Test ShiftScaleTransformer._statistics_report()."""
         X = np.arange(10) - 4
         report = self.Transformer._statistics_report(X)
         assert report == "-4.000e+00 |  5.000e-01 |  5.000e+00 |  2.872e+00"
 
     # Persistence -------------------------------------------------------------
     def test_save(self, n=200, k=50):
-        """Test SnapshotTransformer.save()."""
+        """Test ShiftScaleTransformer.save()."""
         # Clean up after old tests.
         target = "_savetransformertest.h5"
         if os.path.isfile(target):  # pragma: no cover
@@ -288,7 +288,7 @@ class TestSnapshotTransformer:
         os.remove(target)
 
     def test_load(self, n=200, k=50):
-        """Test SnapshotTransformer.load()."""
+        """Test ShiftScaleTransformer.load()."""
         # Clean up after old tests.
         target = "_loadtransformertest.h5"
         if os.path.isfile(target):  # pragma: no cover
@@ -319,7 +319,7 @@ class TestSnapshotTransformer:
 
     # Main routines -----------------------------------------------------------
     def test_check_shape(self, n=12):
-        """Test SnapshotTransformerMulti._check_shape()."""
+        """Test ShiftScaleTransformerMulti._check_shape()."""
         stm = self.Transformer()
         stm.full_state_dimension = n
         X = np.random.randint(0, 100, (n, 2 * n)).astype(float)
@@ -332,7 +332,7 @@ class TestSnapshotTransformer:
         )
 
     def test_is_trained(self, n=20):
-        """Test SnapshotTransformer._is_trained()."""
+        """Test ShiftScaleTransformer._is_trained()."""
         Q = np.random.random((n, 2 * n))
         # Null transformer is always trained.
         st = self.Transformer()
@@ -370,7 +370,7 @@ class TestSnapshotTransformer:
         assert st._is_trained() is True
 
     def test_verify(self, n=150, k=400):
-        """Use SnapshotTransformer.verify() to run tests."""
+        """Use ShiftScaleTransformer.verify() to run tests."""
         t = np.linspace(0, 0.1, k)
         Q = np.random.random((n, k))
 
@@ -382,7 +382,7 @@ class TestSnapshotTransformer:
             st.verify(Q, t)
 
     def test_fit_transform(self, n=200, k=50):
-        """Test SnapshotTransformer.fit_transform()."""
+        """Test ShiftScaleTransformer.fit_transform()."""
 
         def fit_transform_copy(st, A):
             """Assert A and B are not the same object but do have the same
@@ -502,7 +502,7 @@ class TestSnapshotTransformer:
             assert np.allclose(np.max(np.abs(Y), axis=1), 1)
 
     def test_transform(self, n=200, k=50):
-        """Test SnapshotTransformer.transform()."""
+        """Test ShiftScaleTransformer.transform()."""
         X = np.random.randint(0, 100, (n, k)).astype(float)
         st = self.Transformer(verbose=False)
 
@@ -546,7 +546,7 @@ class TestSnapshotTransformer:
             assert np.allclose(Z, a * Y + b)
 
     def test_inverse_transform(self, n=200, k=50):
-        """Test SnapshotTransformer.inverse_transform()."""
+        """Test ShiftScaleTransformer.inverse_transform()."""
         X = np.random.randint(0, 100, (n, k)).astype(float)
         st = self.Transformer(centering=True, verbose=False)
 
@@ -597,13 +597,13 @@ class TestSnapshotTransformer:
         assert ex.value.args[0] == "states_transformed not aligned with locs"
 
 
-class TestSnapshotTransformerMulti:
-    """Test pre.SnapshotTransformerMulti."""
+class TestShiftScaleTransformerMulti:
+    """Test pre.ShiftScaleTransformerMulti."""
 
-    Transformer = opinf.pre.SnapshotTransformerMulti
+    Transformer = opinf.pre.ShiftScaleTransformerMulti
 
     def test_init(self):
-        """Test SnapshotTransformer.__init__()."""
+        """Test ShiftScaleTransformer.__init__()."""
 
         # Centering.
         stm = self.Transformer(2, centering=(True, False))
@@ -640,7 +640,7 @@ class TestSnapshotTransformerMulti:
 
     # Properties --------------------------------------------------------------
     def test_mean(self, num_variables=4, varsize=7):
-        """Test SnapshotTransformerMulti.mean_."""
+        """Test ShiftScaleTransformerMulti.mean_."""
         centerings = [False, True, False, True]
         scalings = [None, None, "standard", "minmax"]
         stm = self.Transformer(num_variables, centerings, scalings)
@@ -672,7 +672,7 @@ class TestSnapshotTransformerMulti:
                 assert np.allclose(µµ[s], 0)
 
     def test_getitem(self):
-        """Test SnapshotTransformerMulti.__getitem__()."""
+        """Test ShiftScaleTransformerMulti.__getitem__()."""
         stm = self.Transformer(10)
         for i in [3, 4, 7]:
             assert stm[i] is stm.transformers[i]
@@ -683,7 +683,7 @@ class TestSnapshotTransformerMulti:
             assert stm[name] is stm.transformers[i]
 
     def test_eq(self):
-        """Test SnapshotTransformerMulti.__eq__()."""
+        """Test ShiftScaleTransformerMulti.__eq__()."""
         # Null transformers.
         stm1 = self.Transformer(3)
         assert stm1 != 100
@@ -705,7 +705,7 @@ class TestSnapshotTransformerMulti:
         assert stm1 != stm2
 
     def test_str(self):
-        """Test SnapshotTransformerMulti.__str__()."""
+        """Test ShiftScaleTransformerMulti.__str__()."""
         names = ["var1", "var2", "var3"]
         stm = self.Transformer(
             num_variables=3,
@@ -728,7 +728,7 @@ class TestSnapshotTransformerMulti:
 
     # Main routines -----------------------------------------------------------
     def test_mains(self, nx=50, k=400):
-        """Use SnapshotTransformerMulti.verify() to run tests."""
+        """Use ShiftScaleTransformerMulti.verify() to run tests."""
 
         centerings = [
             False,
@@ -790,7 +790,7 @@ class TestSnapshotTransformerMulti:
 
     # Persistence -------------------------------------------------------------
     def test_save(self, nvar=15):
-        """Test SnapshotTransformerMulti.save()."""
+        """Test ShiftScaleTransformerMulti.save()."""
         # Clean up after old tests.
         target = "_savetransformermultitest.h5"
         if os.path.isfile(target):  # pragma: no cover
@@ -802,7 +802,10 @@ class TestSnapshotTransformerMulti:
         assert os.path.isfile(target)
 
         # Check non-null transformations.
-        scalings = {None, *opinf.pre.SnapshotTransformer._VALID_SCALINGS}
+        scalings = {
+            None,
+            *TestShiftScaleTransformer.Transformer._VALID_SCALINGS,
+        }
         for centering, scaling in itertools.product((True, False), scalings):
             stm = self.Transformer(nvar, centering=centering, scaling=scaling)
             X = np.random.randint(0, 100, (150, 17)).astype(float)
@@ -813,7 +816,7 @@ class TestSnapshotTransformerMulti:
         os.remove(target)
 
     def test_load(self, nvar=5, nx=20, k=50):
-        """Test SnapshotTransformerMulti.load()."""
+        """Test ShiftScaleTransformerMulti.load()."""
         # Clean up after old tests.
         target = "_loadtransformermultitest.h5"
         if os.path.isfile(target):  # pragma: no cover
@@ -821,7 +824,10 @@ class TestSnapshotTransformerMulti:
 
         # Check that save() -> load() gives the same transformer.
         stm = self.Transformer(nvar)
-        scalings = {None, *opinf.pre.SnapshotTransformer._VALID_SCALINGS}
+        scalings = {
+            None,
+            *TestShiftScaleTransformer.Transformer._VALID_SCALINGS,
+        }
         for centering, scaling in itertools.product((True, False), scalings):
             stm = self.Transformer(nvar, centering=centering, scaling=scaling)
             X = np.random.randint(0, 100, (150, 19)).astype(float)

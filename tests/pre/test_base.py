@@ -28,8 +28,17 @@ class TestTransformerTemplate:
 
     def test_verify(self, n=30, k=16):
         """Test TransformerTemplate.verify()."""
+        dummy = self.Dummy()
+        q = np.random.random(n)
+
+        with pytest.raises(ValueError) as ex:
+            dummy.verify(q)
+        assert ex.value.args[0] == (
+            "two-dimensional states required for verification"
+        )
+
         Q = np.random.random((n, k))
-        self.Dummy().verify(Q)
+        dummy.verify(Q)
 
         class Dummy2a(self.Dummy):
             def transform(self, states, inplace=False):
