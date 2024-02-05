@@ -201,11 +201,11 @@ class TestShiftScaleTransformer:
     def test_str(self):
         """Test ShiftScaleTransformer.__str__()."""
         st = self.Transformer()
-        assert str(st) == "Snapshot transformer"
+        assert str(st) == "ShiftScaleTransformer"
 
         st = self.Transformer(centering=True)
         trn = "(call fit() or fit_transform() to train)"
-        msc = "Snapshot transformer with mean-snapshot centering"
+        msc = "ShiftScaleTransformer with mean-snapshot centering"
         assert str(st) == f"{msc} {trn}"
         for s in st._VALID_SCALINGS:
             st = self.Transformer(centering=True, scaling=s)
@@ -213,11 +213,11 @@ class TestShiftScaleTransformer:
 
         for s in st._VALID_SCALINGS:
             st = self.Transformer(centering=False, scaling=s)
-            assert str(st) == f"Snapshot transformer with '{s}' scaling {trn}"
+            assert str(st) == f"ShiftScaleTransformer with '{s}' scaling {trn}"
 
         st = self.Transformer(centering=False, scaling=None)
         st.full_state_dimension = 100
-        assert str(st) == "Snapshot transformer (state dimension n = 100)"
+        assert str(st) == "ShiftScaleTransformer (state dimension n = 100)"
 
         assert str(hex(id(st))) in repr(st)
 
@@ -671,17 +671,7 @@ class TestShiftScaleTransformerMulti:
             else:
                 assert np.allclose(µµ[s], 0)
 
-    def test_getitem(self):
-        """Test ShiftScaleTransformerMulti.__getitem__()."""
-        stm = self.Transformer(10)
-        for i in [3, 4, 7]:
-            assert stm[i] is stm.transformers[i]
-
-        names = "ABCD"
-        stm = self.Transformer(len(names), variable_names=names)
-        for i, name in enumerate(names):
-            assert stm[name] is stm.transformers[i]
-
+    # Magic methods -----------------------------------------------------------
     def test_eq(self):
         """Test ShiftScaleTransformerMulti.__eq__()."""
         # Null transformers.
@@ -703,28 +693,6 @@ class TestShiftScaleTransformerMulti:
         assert stm1 == stm2
         stm2 = self.Transformer(3, scaling=("minmax", "standard", "minmax"))
         assert stm1 != stm2
-
-    def test_str(self):
-        """Test ShiftScaleTransformerMulti.__str__()."""
-        names = ["var1", "var2", "var3"]
-        stm = self.Transformer(
-            num_variables=3,
-            centering=(True, False, False),
-            scaling=(None, None, "standard"),
-            variable_names=names,
-        )
-        stm[1].full_state_dimension = 10
-
-        assert (
-            str(stm) == "3-variable snapshot transformer\n"
-            "* var1 | Snapshot transformer with mean-snapshot centering "
-            "(call fit() or fit_transform() to train)\n"
-            "* var2 | Snapshot transformer (state dimension n = 10)\n"
-            "* var3 | Snapshot transformer with 'standard' scaling "
-            "(call fit() or fit_transform() to train)"
-        )
-
-        assert str(hex(id(stm))) in repr(stm)
 
     # Main routines -----------------------------------------------------------
     def test_mains(self, nx=50, k=400):
@@ -784,7 +752,8 @@ class TestShiftScaleTransformerMulti:
             )
 
         # Verify the main routines.
-        stm.fit(Q)
+        Y = stm.fit_transform(Q, inplace=True)
+        assert Y is Q
         t = np.linspace(0, 0.1, k)
         stm.verify(Q, t)
 

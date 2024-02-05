@@ -329,10 +329,7 @@ class _MultivarMixin:
             raise TypeError("'num_variables' must be a positive integer")
 
         self.__nq = int(num_variables)
-        self.__n = None
-        self.__nx = None
-        self.__slices = None
-
+        self.full_state_dimension = None
         self.variable_names = variable_names
 
     # Properties --------------------------------------------------------------
@@ -365,6 +362,12 @@ class _MultivarMixin:
     @full_state_dimension.setter
     def full_state_dimension(self, n):
         """Set the total and individual variable dimensions."""
+        if n is None:
+            self.__n = None
+            self.__nx = None
+            self.__slices = None
+            return
+
         variable_size, remainder = divmod(n, self.num_variables)
         if remainder != 0:
             raise ValueError(
@@ -518,7 +521,7 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
         return self.transformers[key]
 
     def __eq__(self, other) -> bool:
-        """Test two SnapshotTransformerMulti objects for equality."""
+        """Test two TransformerMulti objects for equality."""
         if not isinstance(other, self.__class__):
             return False
         if self.num_variables != other.num_variables:
@@ -528,11 +531,11 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
         )
 
     def __str__(self) -> str:
-        """String representation: centering and scaling directives."""
-        out = [f"{self.num_variables}-variable snapshot transformer"]
+        """String representation: str() of each transformer."""
+        out = [f"{self.num_variables}-variable transformer"]
         namelength = max(len(name) for name in self.variable_names)
-        for name, st in zip(self.variable_names, self.transformers):
-            out.append(f"* {{:>{namelength}}} | {st}".format(name))
+        for name, tf in zip(self.variable_names, self.transformers):
+            out.append(f"* {{:>{namelength}}} | {tf}".format(name))
         return "\n".join(out)
 
     def __repr__(self) -> str:
@@ -540,25 +543,31 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
         return utils.str2repr(self)
 
     # Main routines -----------------------------------------------------------
-    def _apply(self, method, Q, inplace, locs=None):
+    def _apply(self, method, states, inplace, locs=None):
+        """Apply a method of each transformer to the corresponding chunk of
+        ``states``.
         """
-        Apply a method of each transformer to the corresponding chunk of ``Q``.
-        """
+        if self.full_state_dimension is None:
+            raise AttributeError(
+                "transformer not trained (call fit() or fit_transform())"
+            )
         options = dict(inplace=inplace)
         if locs is not None:
             options["locs"] = locs
+        else:
+            self._check_shape(states)
 
-        Ys = []
-        for st, var, name in zip(
-            self.transformers,
-            np.split(Q, self.num_variables, axis=0),
-            self.variable_names,
-        ):
-            Ys.append(getattr(st, method)(var, **options))
+        variables = np.split(states, self.num_variables, axis=0)
+        newstates = [
+            getattr(transformer, method)(var, **options)
+            for transformer, var in zip(self.transformers, variables)
+        ]
+        if any(Q is NotImplemented for Q in newstates):
+            return NotImplemented
 
         if inplace and locs is None:
-            return Q
-        return np.concatenate(Ys, axis=0)
+            return states
+        return np.concatenate(newstates, axis=0)
 
     def fit_transform(self, states, inplace=False):
         """Learn and apply the transformation.
@@ -579,8 +588,13 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
         states_transformed: (n, k) ndarray
             Matrix of `k` transformed `n`-dimensional snapshots.
         """
-        self.full_state_dimension = states.shape[0]
-        return self._apply("fit_transform", states, inplace)
+        old_dimension = self.full_state_dimension
+        try:
+            self.full_state_dimension = states.shape[0]
+            return self._apply("fit_transform", states, inplace)
+        except Exception:
+            self.full_state_dimension = old_dimension
+            raise
 
     def transform(self, states, inplace=False):
         """Apply the learned transformation.
@@ -672,7 +686,10 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["num_variables"] = self.num_variables
             meta.attrs["variable_names"] = self.variable_names
+            if (n := self.full_state_dimension) is not None:
+                meta.attrs["full_state_dimension"] = n
 
+            # Save individual transformers.
             for i, tf in enumerate(self.transformers):
                 tf.save(hf.create_group(f"variable{i}"))
 
@@ -690,17 +707,21 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
         TransformerMulti
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
-            # Load transformation hyperparameters.
+            # Load metadata.
             num_variables = int(hf["meta"].attrs["num_variables"])
             names = hf["meta"].attrs["variable_names"].tolist()
 
+            # Load individual transformers.
             transformers = [
                 TransformerClasses[i].load(hf[f"variable{i}"])
                 for i in range(num_variables)
             ]
 
+            # Initialize object and (if available) set state dimension.
             obj = cls(transformers, variable_names=names)
-            if (nx := obj[0].full_state_dimension) is not None:
-                obj.full_state_dimension = num_variables * nx
+            if "full_state_dimension" in hf["meta"].attrs:
+                obj.full_state_dimension = int(
+                    hf["meta"].attrs["full_state_dimension"]
+                )
 
             return obj

@@ -408,7 +408,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
 
     def __str__(self) -> str:
         """String representation: scaling type + centering bool."""
-        out = ["Snapshot transformer"]
+        out = [self.__class__.__name__]
         if self.full_state_dimension is not None:
             out.append(f"(state dimension n = {self.full_state_dimension:d})")
         if self.centering:
@@ -891,20 +891,25 @@ class ShiftScaleTransformerMulti(TransformerMulti):
         states_transformed: (n, k) ndarray
             Matrix of `k` transformed `n`-dimensional snapshots.
         """
-        Ys = []
-        for st, var, name in zip(
-            self.transformers,
-            np.split(states, self.num_variables, axis=0),
-            self.variable_names,
-        ):
-            if self.verbose:
-                print(f"{name}:")
-            Ys.append(st.fit_transform(var, inplace=inplace))
-        self.full_state_dimension = states.shape[0]
+        old_dimension = self.full_state_dimension
+        try:
+            self.full_state_dimension = states.shape[0]
+            new_states = []
+            for st, var, name in zip(
+                self.transformers,
+                self.split(states),
+                self.variable_names,
+            ):
+                if self.verbose:
+                    print(f"{name}:")
+                new_states.append(st.fit_transform(var, inplace=inplace))
 
-        if inplace:
-            return states
-        return np.concatenate(Ys, axis=0)
+            if inplace:
+                return states
+            return np.concatenate(new_states, axis=0)
+        except Exception:
+            self.full_state_dimension = old_dimension
+            raise
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile, overwrite=False):
