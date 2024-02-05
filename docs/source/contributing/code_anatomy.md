@@ -25,52 +25,28 @@ As you design new classes, take advantage of intermediate classes and inheritanc
 For example, the operator classes {class}`opinf.operators.LinearOperator` and {class}`opinf.operators.QuadraticOperator` both inherit from {class}`opinf.operators._base._NonparametricOperator`, which handles tasks that are common to all nonparametric operators.
 :::
 
-(subsec-contrib-transformerclass)=
-## Transformer Classes
+## Base Classes
+
+This section documents private classes that are part of the class hierarchy but are not meant to be instantiated.
+These are mostly abstract base classes or mixins.
+
+### `pre`
 
 ```{eval-rst}
 .. autosummary::
     :toctree: _autosummaries
     :nosignatures:
 
-    opinf.pre._base.TransformerTemplate
+    opinf.pre._base._UnivarMixin
     opinf.pre._base._MultivarMixin
 ```
 
-Transformer classes are defined in {mod}`opinf.pre`.
-All transformer classes must
+### `basis`
 
-- Inherit from {class}`opinf.pre._base.TransformerTemplate`.
-- Accept and store any hyperparameters (transformation settings) in the constructor.
-- Implement `transform()`, `fit_transform()`, and `inverse_transform()`. Note that `fit()` is already implemented in `TransformerTemplate` and should work as long as `fit_transform()` is implemented.
-
-(subsec-contrib-basisclass)=
-## Basis Classes
-
-```{eval-rst}
-.. autosummary::
-    :toctree: _autosummaries
-    :nosignatures:
-
-    opinf.basis._base._BaseBasis
-```
-
-Basis classes are defined in {mod}`opinf.basis`.
-All basis classes must
-
-- Inherit from {class}`opinf.basis._base._BaseBasis`.
-- Accept and store any hyperparameters in the constructor.
-- Implement `fit()`, `compress()`, and `decompress()`.
-
-:::{versionchanged} 0.4.4
-Note that `project()` is **not** the same as `compress()`, in fact `project(q) = decompress(compress(q))`.
-This is a name change from previous versions.
-:::
-
-Before implementing a new basis class, take a close look at {class}`opinf.basis.LinearBasis` and then {class}`opinf.basis.PODBasis`.
+TODO
 
 (subsec-contrib-opclass)=
-## Operator Classes
+### `operators`
 
 ```{eval-rst}
 .. autosummary::
@@ -82,11 +58,7 @@ Before implementing a new basis class, take a close look at {class}`opinf.basis.
     opinf.operators._interpolate._InterpolatedOperator
 ```
 
-Operator classes are defined in {mod}`opinf.operators`.
-The first step for implementing a new kind of reduced-order model is correctly implementing the individual operators that define the terms of the model, for example $\Ahat$ and $\Bhat$ of $\ddt\qhat(t) = \Ahat\qhat(t) + \Bhat\u(t)$.
-
-(subsec-contrib-modelclass)=
-## Model Classes
+### `models`
 
 ```{eval-rst}
 .. autosummary::
@@ -99,8 +71,7 @@ The first step for implementing a new kind of reduced-order model is correctly i
    opinf.models.mono._parametric._InterpolatedModel
 ```
 
-(subsec-contrib-lstsqsolvers)=
-## Least-squares Solvers
+### `lstsq`
 
 ```{eval-rst}
 .. autosummary::
@@ -111,7 +82,7 @@ The first step for implementing a new kind of reduced-order model is correctly i
     opinf.lstsq._tikhonov._BaseTikhonovSolver
 ```
 
-Solver classes are defined in {mod}`opinf.lstsq`.
+<!-- Solver classes are defined in {mod}`opinf.lstsq`.
 This module houses classes and tools for solving the least-squares problems that arise in operator inference, namely $\min_{\mathbf{X}}\|\A\mathbf{X} - \B\|$ plus regularization and/or constraints.
 Each solver class defines 1) how the problem is posed (e.g., is there regularization and how is it structured, are there constraints and if so what are they, etc.) and 2) how the problem is to be solved (e.g., use the SVD, use the QR decomposition, solve the normal equations, etc.).
 
@@ -123,6 +94,4 @@ Least-squares solver classes must do the following.
 - Accept any hyperparameters (e.g., regularization values) in the constructor.
 - Have a `fit(A, B)` method that calls `_BaseSolver.fit(A, B)` and sets up the least-squares problem.
 - Have a `predict()` method returns the solution `X` to the least-squares problem $||\mathbf{AX} - \B||$ (+ regularization, etc.).
-- Have a `_LSTSQ_LABEL` class attribute that is a string describing the form of the least-squares problem, e.g., `"min_{X} ||AX - B||_F^2 + ||µX||_F^2"` This is used in the string representation of the class.
-
-See {class}`opinf.lstsq.L2Solver` for an example.
+- Have a `_LSTSQ_LABEL` class attribute that is a string describing the form of the least-squares problem, e.g., `"min_{X} ||AX - B||_F^2 + ||µX||_F^2"` This is used in the string representation of the class. -->

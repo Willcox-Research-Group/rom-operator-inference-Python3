@@ -1,5 +1,5 @@
 # utils/__init__.py
-r"""Utility functions."""
+r"""Miscellaneous utility functions."""
 
 
 from ._hdf5 import *

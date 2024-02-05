@@ -279,9 +279,10 @@ class TransformerTemplate(abc.ABC):
 class _UnivarMixin:
     """Mixin for transformers and bases with a single state variable."""
 
-    def __init__(self):
+    def __init__(self, name: str = None):
         """Initialize attributes."""
         self.__n = None
+        self.__name = name
 
     @property
     def full_state_dimension(self):
@@ -292,6 +293,16 @@ class _UnivarMixin:
     def full_state_dimension(self, n):
         """Set the state dimension."""
         self.__n = int(n)
+
+    @property
+    def name(self):
+        """Label for the state variable."""
+        return self.__name
+
+    @name.setter
+    def name(self, label):
+        """Set the state variable name."""
+        self.__name = label
 
 
 class _MultivarMixin:
@@ -522,7 +533,10 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
 
     def __eq__(self, other) -> bool:
         """Test two TransformerMulti objects for equality."""
-        if not isinstance(other, self.__class__):
+        if not (
+            isinstance(other, self.__class__)
+            or isinstance(self, other.__class__)
+        ):
             return False
         if self.num_variables != other.num_variables:
             return False
@@ -532,7 +546,7 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
 
     def __str__(self) -> str:
         """String representation: str() of each transformer."""
-        out = [f"{self.num_variables}-variable transformer"]
+        out = [f"{self.num_variables}-variable {self.__class__.__name__}"]
         namelength = max(len(name) for name in self.variable_names)
         for name, tf in zip(self.variable_names, self.transformers):
             out.append(f"* {{:>{namelength}}} | {tf}".format(name))
