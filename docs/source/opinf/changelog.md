@@ -5,6 +5,28 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+:::{versionchanged} 0.5.2
+
+Updates to `pre`:
+
+- New `TransformerTemplate` for defining custom transformers.
+- Renamed `SnapshotTransformer` to `ShiftScaleTransformer`.
+- Removed `SnapshotTransformerMulti`.
+- Introduced `TransformerMulti` for joining multiple transformations.
+- Renamed some attributes of the transformer classes: `n` -> `full_state_dimension`, `ni` -> `variable_size`, etc.
+
+Updates to `basis` (**in progress**):
+
+- New `BasisTemplate` for defining custom bases.
+- Standardized arguments of `fit()` to always be the snapshots. Hyperparameters must come in the constructor.
+- `LinearBasis` now accepts an optional weight matrix.
+- `LinearBasis` raises a warning if the basis entries are not orthogonal (w.r.t. the weights).
+- Updated `PODBasis` dimensionality properties.
+- Removed `PODBasisMulti`.
+- Introduced `BasisMulti` for joining multiple bases.
+- Renamed some attributes of the basis classes (matching transformer syntax).
+:::
+
 :::{versionadded} 0.5.1
 New `lift` module that defines a template class for implementing lifting transformations.
 :::

@@ -236,8 +236,8 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
     A custom shifting vector (i.e., the mean snapshot) can be specified by
     setting the ``mean_`` attribute. Similarly, the scaling
     :math:`q'\mapsto q'' = \alpha q' + \beta` can be adjusted by setting the
-    ``scale_`` (:math:`\alpha) and ``shift_`` (:math:`\beta`) attributes.
-    However, calling :meth`fit()` or :meth:`fit_transform()` will overwrite
+    ``scale_`` (:math:`\alpha`) and ``shift_`` (:math:`\beta`) attributes.
+    However, calling :meth:`fit()` or :meth:`fit_transform()` will overwrite
     all three attributes.
     """
     _VALID_SCALINGS = frozenset(
@@ -549,7 +549,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
 
         if self.verbose:
             if self.name is not None:
-                report.insert(0, f"** {self.name} **")
+                report.insert(0, f"<{self.name}>")
             print("\n".join(report) + "\n")
 
         return Y

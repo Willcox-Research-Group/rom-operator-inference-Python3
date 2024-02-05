@@ -31,6 +31,5 @@ pre.ipynb
    shift
    scale
    ShiftScaleTransformer
-   ShiftScaleTransformerMulti
    TransformerMulti
    TransformerTemplate

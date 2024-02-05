@@ -23,7 +23,7 @@ class TransformerTemplate(abc.ABC):
     is used by the ROM class when snapshot time derivative data are available
     in the native state variables.
 
-    See :class:`SnapshotTransformer` for an example.
+    See :class:`ShiftScaleTransformer` for an example.
 
     The default implementation of :meth:`fit()` simply calls
     :meth:`fit_transform()`.
