@@ -36,7 +36,7 @@ class TransformerTemplate(abc.ABC):
         Parameters
         ----------
         states : (n, k) ndarray
-            Matrix of k snapshots. Each column is a snapshot of dimension n.
+            Matrix of `k` `n`-dimensional snapshots.
 
         Returns
         -------
@@ -46,21 +46,41 @@ class TransformerTemplate(abc.ABC):
         return self
 
     @abc.abstractmethod
+    def fit_transform(self, states, inplace=False):
+        """Learn and apply the transformation.
+
+        Parameters
+        ----------
+        states : (n, k) ndarray
+            Matrix of `k` `n`-dimensional snapshots.
+        inplace : bool
+            If ``True``, overwrite ``states`` during transformation.
+            If ``False``, create a copy of the data to transform.
+
+        Returns
+        -------
+        states_transformed: (n, k) ndarray
+            Matrix of `k` `n`-dimensional transformed snapshots.
+        """
+        raise NotImplementedError  # pragma: no cover
+
+    @abc.abstractmethod
     def transform(self, states, inplace=False):
         """Apply the learned transformation.
 
         Parameters
         ----------
-        states : (n, k) ndarray
-            Matrix of k snapshots. Each column is a snapshot of dimension n.
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
         inplace : bool
-            If True, overwrite the input data during the transformation.
-            If False, create a copy of the data to transform.
+            If ``True``, overwrite ``states`` during transformation.
+            If ``False``, create a copy of the data to transform.
 
         Returns
         -------
-        states_transformed : (n, k) ndarray
-            Matrix of k transformed snapshots of dimension n.
+        states_transformed: (n, ...) ndarray
+            Matrix of `n`-dimensional transformed snapshots, or a single
+            transformed snapshot.
         """
         raise NotImplementedError  # pragma: no cover
 
@@ -73,37 +93,19 @@ class TransformerTemplate(abc.ABC):
 
         Parameters
         ----------
-        ddts : (n, k) ndarray
-            Matrix of k snapshot time derivatives.
+        ddts : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshot time derivatives, or a
+            single snapshot time derivative.
         inplace : bool
-            If True, overwrite the input data during the transformation.
+            If True, overwrite ``ddts`` during the transformation.
             If False, create a copy of the data to transform.
 
         Returns
         -------
-        ddts_transformed : (n, k) ndarray
-            Matrix of k transformed snapshot time derivatives.
+        ddts_transformed : (n, ...) ndarray
+            Transformed `n`-dimensional snapshot time derivatives.
         """
         return NotImplemented  # pragma: no cover
-
-    @abc.abstractmethod
-    def fit_transform(self, states, inplace=False):
-        """Learn and apply the transformation.
-
-        Parameters
-        ----------
-        states : (n, k) ndarray
-            Matrix of k snapshots. Each column is a snapshot of dimension n.
-        inplace : bool
-            If True, overwrite the input data during the transformation.
-            If False, create a copy of the data to transform.
-
-        Returns
-        -------
-        states_transformed: (n, k) ndarray
-            Matrix of k transformed snapshots of dimension n.
-        """
-        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def inverse_transform(self, states_transformed, inplace=False, locs=None):
