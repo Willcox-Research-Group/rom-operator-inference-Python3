@@ -5,15 +5,13 @@ __all__ = [
     "shift",
     "scale",
     "ShiftScaleTransformer",
-    "ShiftScaleTransformerMulti",
 ]
 
-import h5py
 import warnings
 import numpy as np
 
 from .. import errors, utils
-from ._base import TransformerTemplate, _UnivarMixin, TransformerMulti
+from ._base import TransformerTemplate, _UnivarMixin
 
 
 # Functional paradigm =========================================================
@@ -173,6 +171,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         * ``'standard'``: standardize to zero mean and unit standard deviation.
 
           .. math:: \Q'' = \Q' - \frac{\mean(\Q')}{\std(\Q')}.
+
           Guarantees :math:`\mean(\Q'') = 0` and :math:`\std(\Q'') = 1`.
 
           If ``byrow=True``, then :math:`\mean_{j}(\Q_{i,j}'') = 0` and
@@ -181,6 +180,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         * ``'minmax'``: minmax scaling to :math:`[0, 1]`.
 
           .. math:: \Q'' = \frac{\Q' - \min(\Q')}{\max(\Q') - \min(\Q')}.
+
           Guarantees :math:`\min(\Q'') = 0` and :math:`\max(\Q'') = 1`.
 
           If ``byrow=True``, then :math:`\min_{j}(\Q_{i,j}'') = 0` and
@@ -189,6 +189,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         * ``'minmaxsym'``: minmax scaling to :math:`[-1, 1]`.
 
           .. math:: \Q'' = 2\frac{\Q' - \min(\Q')}{\max(\Q') - \min(\Q')} - 1.
+
           Guarantees :math:`\min(\Q'') = -1` and :math:`\max(\Q'') = 1`.
 
           If ``byrow=True``, then :math:`\min_{j}(\Q_{i,j}'') = -1` and
@@ -198,6 +199,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
           `without` scalar mean shift.
 
           .. math:: \Q'' = \frac{1}{\max(\text{abs}(\Q'))}\Q'.
+
           Guarantees
           :math:`\mean(\Q'') = \frac{\mean(\Q')}{\max(\text{abs}(\Q'))}`
           and :math:`\max(\text{abs}(\Q'')) = 1`.
@@ -214,6 +216,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
           .. math::
              \Q''
              = \frac{\Q' - \mean(\Q')}{\max(\text{abs}(\Q' - \mean(\Q')))}.
+
           Guarantees :math:`\mean(\Q'') = 0` and
           :math:`\max(\text{abs}(\Q'')) = 1`.
 
@@ -252,11 +255,13 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         "----|------------|------------|------------|------------"
     )
 
+    # TODO: allow scaling to be a tuple [a, b] to scale to (as in scale()).
     def __init__(
         self,
         centering: bool = False,
         scaling: str = None,
         byrow: bool = False,
+        name: str = None,
         verbose: bool = False,
     ):
         """Set transformation hyperparameters."""
@@ -287,7 +292,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         self.__qbar = None
         self.__alpha = None
         self.__beta = None
-        _UnivarMixin.__init__(self)
+        _UnivarMixin.__init__(self, name)
 
     # Properties: transformation directives -----------------------------------
     @property
@@ -543,6 +548,8 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
                 report.append(f"Q'' | {self._statistics_report(Y)}")
 
         if self.verbose:
+            if self.name is not None:
+                report.insert(0, f"** {self.name} **")
             print("\n".join(report) + "\n")
 
         return Y
@@ -733,225 +740,3 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
                 transformer.shift_ = hf["transformation/shift_"][ind]
 
             return transformer
-
-
-class ShiftScaleTransformerMulti(TransformerMulti):
-    r"""Transformer for states with multiple variables.
-
-    This class is for states that can be written (after discretization) as
-
-    .. math::
-       \q = \left[\begin{array}{c}
-       \q_{0} \\ \q_{1} \\ \vdots \\ \q_{n_q - 1}
-       \end{array}\right]
-       \in \RR^{n},
-
-    where each :math:`\q_{i} \in \NN^{n_x}` represents a single discretized
-    state variable. The full state dimension is :math:`n = n_q n_x`, i.e.,
-    ``full_state_dimension = num_variables * variable_size``. An individual
-    :class:`ShiftScaleTransformer` is calibrated for each state variable.
-
-    Parameters
-    ----------
-    num_variables : int
-        Number of state variables :math:`n_q \in \NN`, i.e., the number of
-        individual transformations to learn.
-    centering : tuple(bool) or bool
-        Centering directive for each state variable.
-
-        * tuple of bools: ``centering[i]`` indicates whether or not to shift
-          the snapshots of state variable ``i`` by the mean training snapshot.
-        * ``True``: center all of the state variables.
-        * ``False`` (default): do not center any of the state variables.
-
-    scaling : tuple(str), str, or None
-        Scaling strategy for each state variable.
-
-        * tuple of strs: ``scaling[i]`` indicates the scaling strategy for
-          state variable ``i``.
-        * str: use the given scaling strategy for each state variable.
-        * None (default): do not scale any of the state variables.
-
-        See :class:`ShiftScaleTransformer` for details on available scaling
-        transformations.
-    variable_names : tuple(str) or None
-        Name for each state variable.
-        Defaults to ``("variable 0", "variable 1", ...)``.
-    verbose : bool
-        If ``True``, print information upon learning a transformation.
-
-    Examples
-    --------
-    >>> import opinf
-    # Center variables 0 and 2 and minmax scale variable 1.
-    >>> stm = opinf.pre.ShiftScaleTransformerMulti(
-    ...     num_variables=3,
-    ...     centering=(True, False, True),
-    ...     scaling=(None, "minmax", None),
-    ... )
-    # Center 6 variables and scale the final variable with a standard scaling.
-    >>> stm = opinf.pre.ShiftScaleTransformerMulti(
-    ...     num_variables=6,
-    ...     centering=True,
-    ...     scaling=(None, None, None, None, None, "standard")
-    ... )
-    """
-
-    def __init__(
-        self,
-        num_variables: int,
-        centering=False,
-        scaling=None,
-        variable_names: tuple = None,
-        verbose: bool = False,
-    ):
-        """Set transformation hyperparameters and initialize transformers."""
-
-        def _process_arg(attr, name, dtype):
-            """Validation for centering and scaling directives."""
-            if isinstance(attr, dtype):
-                attr = (attr,) * num_variables
-            if len(attr) != num_variables:
-                raise ValueError(
-                    f"len({name}) = {len(attr)} "
-                    f"!= {num_variables} = num_variables"
-                )
-            return attr
-
-        # Process and store transformation directives.
-        centers = _process_arg(centering, "centering", bool)
-        scalings = _process_arg(scaling, "scaling", (type(None), str))
-
-        # Initialize transformers.
-        transformers = tuple(
-            ShiftScaleTransformer(
-                centering=ctr,
-                scaling=scl,
-                byrow=False,
-                verbose=False,
-            )
-            for ctr, scl in zip(centers, scalings)
-        )
-        TransformerMulti.__init__(self, transformers, variable_names)
-        self.verbose = verbose
-
-    # Properties: transformation directives -----------------------------------
-    @property
-    def centering(self):
-        """Centering directive for each state variable."""
-        return tuple(st.centering for st in self.transformers)
-
-    @property
-    def scaling(self):
-        """Scaling strategy for each state variable.
-        See :class:`ShiftScaleTransformer` for options.
-        """
-        return tuple(st.scaling for st in self.transformers)
-
-    @property
-    def verbose(self):
-        """If ``True``, print information upon learning a transformation."""
-        return self.__verbose
-
-    @verbose.setter
-    def verbose(self, vbs):
-        """Set verbosity of all transformers."""
-        self.__verbose = bool(vbs)
-        for st in self.transformers:
-            st.verbose = self.__verbose
-
-    # Properties: calibrated quantities ---------------------------------------
-    @property
-    def mean_(self):
-        """Centering snapshot across all state variables."""
-        if not all(st._is_trained() for st in self.transformers):
-            return None
-        zeros = np.zeros(self.variable_size)
-        return np.concatenate(
-            [(st.mean_ if st.centering else zeros) for st in self.transformers]
-        )
-
-    # Main routines -----------------------------------------------------------
-    def fit_transform(self, states, inplace=False):
-        """Learn and apply the transformation.
-
-        Parameters
-        ----------
-        states : (n, k) ndarray
-            Matrix of `k` `n`-dimensional snapshots.
-            The first ``variable_size`` entries correspond to the first state
-            variable, the next ``variable_size`` entries correspond to the
-            second state variable, and so on.
-        inplace : bool
-            If ``True``, overwrite ``states`` data during transformation.
-            If ``False``, create a copy of the data to transform.
-
-        Returns
-        -------
-        states_transformed: (n, k) ndarray
-            Matrix of `k` transformed `n`-dimensional snapshots.
-        """
-        old_dimension = self.full_state_dimension
-        try:
-            self.full_state_dimension = states.shape[0]
-            new_states = []
-            for st, var, name in zip(
-                self.transformers,
-                self.split(states),
-                self.variable_names,
-            ):
-                if self.verbose:
-                    print(f"{name}:")
-                new_states.append(st.fit_transform(var, inplace=inplace))
-
-            if inplace:
-                return states
-            return np.concatenate(new_states, axis=0)
-        except Exception:
-            self.full_state_dimension = old_dimension
-            raise
-
-    # Model persistence -------------------------------------------------------
-    def save(self, savefile, overwrite=False):
-        """Save the transformer to an HDF5 file.
-
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the transformer to.
-        overwrite : bool
-            If ``True``, overwrite the file if it already exists. If ``False``
-            (default), raise a ``FileExistsError`` if the file already exists.
-        """
-        TransformerMulti.save(self, savefile, overwrite=overwrite)
-        with h5py.File(savefile, "a") as hf:
-            hf["meta"].attrs["verbose"] = self.verbose
-
-    @classmethod
-    def load(cls, loadfile):
-        """Load a previously saved transformer from an HDF5 file.
-
-        Parameters
-        ----------
-        loadfile : str
-            File where the transformer was stored via :meth:`save()`.
-
-        Returns
-        -------
-        TransformerMulti
-        """
-        with utils.hdf5_loadhandle(loadfile) as hf:
-            num_variables = int(hf["meta"].attrs["num_variables"])
-            names = hf["meta"].attrs["variable_names"].tolist()
-            verbose = bool(hf["meta"].attrs["verbose"])
-            obj = cls(num_variables, variable_names=names, verbose=verbose)
-
-            # Initialize individual transformers.
-            obj.transformers = [
-                ShiftScaleTransformer.load(hf[f"variable{i}"])
-                for i in range(num_variables)
-            ]
-            if (nx := obj[0].full_state_dimension) is not None:
-                obj.full_state_dimension = num_variables * nx
-
-            return obj
