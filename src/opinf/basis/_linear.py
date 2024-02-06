@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .. import utils
+from .. import errors, utils
 from ._base import BasisTemplate, _UnivarBasisMixin
 
 
@@ -50,12 +50,9 @@ class LinearBasis(BasisTemplate, _UnivarBasisMixin):
     @entries.setter
     def entries(self, V):
         """Set the basis entries."""
-        if not hasattr(V, "T") or not hasattr(V, "__matmul__"):
-            raise TypeError("invalid basis")
-
         n, r = V.shape
         if not np.allclose(V.T @ V, np.eye(r)):
-            warnings.warn("basis is not orthogonal")
+            warnings.warn("basis is not orthogonal", errors.UsageWarning)
 
         self.__entries = V
         self.full_state_dimension = n
