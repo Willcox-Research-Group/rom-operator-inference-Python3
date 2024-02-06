@@ -1,9 +1,8 @@
-# pre/basis/_pod.py
-"""Tools for basis computation and reduced-dimension selection."""
+# basis/_pod.py
+"""Dimensionality reduction with Proper Orthogonal Decomposition (POD)."""
 
 __all__ = [
     "PODBasis",
-    "PODBasisMulti",
     "pod_basis",
     "svdval_decay",
     "cumulative_energy",
@@ -11,15 +10,13 @@ __all__ = [
     "projection_error",
 ]
 
-import h5py
 import numpy as np
 import scipy.linalg as la
 import sklearn.utils.extmath as sklmath
 import matplotlib.pyplot as plt
 
-from ..errors import LoadfileFormatError
-from ..utils import hdf5_savehandle, hdf5_loadhandle
-from ._linear import LinearBasis, LinearBasisMulti
+from .. import utils
+from ._linear import LinearBasis
 
 
 class PODBasis(LinearBasis):
@@ -93,7 +90,7 @@ class PODBasis(LinearBasis):
         """Set the economize flag."""
         self.__economize = bool(econ)
         if self.__economize:
-            self.__shrink_stored_entries_to(self.r)
+            self.__shrink_stored_entries_to(self.reduced_state_dimension)
 
     def set_dimension(
         self, r=None, cumulative_energy=None, residual_energy=None
@@ -129,7 +126,7 @@ class PODBasis(LinearBasis):
                 r = np.count_nonzero(1 - cum_energy > residual_energy) + 1
             else:
                 r = self.entries.shape[1]
-        self.r = r
+        self.reduced_state_dimension = r
 
     @property
     def rmax(self):
@@ -142,12 +139,11 @@ class PODBasis(LinearBasis):
     @property
     def entries(self):
         """Entries of the basis."""
-        return None if self.__entries is None else self.__entries[:, : self.r]
-
-    @property
-    def shape(self):
-        """Dimensions of the basis (state_dimension, reduced_dimension)."""
-        return None if self.entries is None else (self.n, self.r)
+        return (
+            None
+            if self.__entries is None
+            else self.__entries[:, : self.reduced_state_dimension]
+        )
 
     @property
     def svdvals(self):
@@ -157,7 +153,11 @@ class PODBasis(LinearBasis):
     @property
     def dual(self):
         """Leading *right* singular vectors."""
-        return None if self.__dual is None else self.__dual[:, : self.r]
+        return (
+            None
+            if self.__dual is None
+            else self.__dual[:, : self.reduced_state_dimension]
+        )
 
     # @property
     # def spatialweights(self):
@@ -168,10 +168,12 @@ class PODBasis(LinearBasis):
     # @spatialweights.setter
     # def spatialweights(self, weights):
     #     """Set the spatial weights, checking dimension."""
-    #     if weights is not None and self.n is not None:
-    #         if weights.shape[0] != self.n:
-    #             raise ValueError(f"{weights.shape} spatialweights "
-    #                              f"not aligned with dimension n = {self.n}")
+    #     if weights is not None and self.full_state_dimension is not None:
+    #         if weights.shape[0] != self.full_state_dimension:
+    #             raise ValueError(
+    #                 f"{weights.shape} spatialweights "
+    #                 f"not aligned with dimension "
+    #                 f"n = {self.full_state_dimension}")
     #     self.__spatialweights = weights
 
     # def _spatial_weighting(self, state, weights):
@@ -201,7 +203,8 @@ class PODBasis(LinearBasis):
     #         such vectors organized as the columns of a matrix.
     #     """
     #     # if self.spatialweights.ndim == 1 and
-    #     # # state.ndim == 2 and state.shape[1] < self.r:
+    #     # # state.ndim == 2
+    #     # # and state.shape[1] < self.reduced_state_dimension:
     #     #     return self._spatial_weighting(self.entries,
     #     #                                 self.spatialweights).T @ state
     #     return self.entries.T @ self._spatial_weighting(state,
@@ -512,11 +515,11 @@ class PODBasis(LinearBasis):
             If True, overwrite the file if it already exists. If False
             (default), raise a FileExistsError if the file already exists.
         """
-        with hdf5_savehandle(savefile, overwrite) as hf:
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["economize"] = int(self.economize)
-            if self.r is not None:
-                meta.attrs["r"] = self.r
+            if self.reduced_state_dimension is not None:
+                meta.attrs["r"] = self.reduced_state_dimension
 
             if self.entries is not None:
                 hf.create_dataset("entries", data=self.__entries)
@@ -539,11 +542,7 @@ class PODBasis(LinearBasis):
         PODBasis object
         """
         entries, svdvals, dualT, r = None, None, None, rmax
-        with hdf5_loadhandle(loadfile) as hf:
-            if "meta" not in hf:
-                raise LoadfileFormatError(
-                    "invalid save format " "(meta/ not found)"
-                )
+        with utils.hdf5_loadhandle(loadfile) as hf:
             economize = bool(hf["meta"].attrs["economize"])
             if "r" in hf["meta"].attrs:
                 r = int(hf["meta"].attrs["r"])
@@ -559,198 +558,6 @@ class PODBasis(LinearBasis):
         out._store_svd(entries, svdvals, dualT)
         out.r = r
         return out
-
-
-class PODBasisMulti(LinearBasisMulti):
-    r"""Block-diagonal proper othogonal decomposition basis, derived from the
-    principal left singular vectors of a collection of states grouped into
-    blocks.
-
-    .. math::
-       \Q = \left[\begin{array}{c}
-       \Q_1 \\ \vdots \\ \Q_{n_\text{vars}}
-       \end{array}\right]
-       \qquad\Longrightarrow\qquad
-       \text{pod\_multi}(\Q; r_1,\ldots,r_{n_\text{vars}})
-       = \left[\begin{array}{ccc}
-       \V_1 & & \\
-       & \ddots & \\
-       & & \V_{n_\text{vars}}
-       \end{array}\right]
-
-    where :math:`\V_i = \text{pod}(\Q_i;r_i), i=1,\ldots,n_\text{vars}`.
-
-    The low-dimensional approximation is linear (see :class:`PODBasis`).
-
-    Parameters
-    ----------
-    num_variables : int
-        Number of variables represented in a single snapshot (number of
-        individual bases to learn). The dimension `n` of the snapshots
-        must be evenly divisible by num_variables; for example,
-        num_variables=3 means the first n entries of a snapshot correspond to
-        the first variable, and the next n entries correspond to the second
-        variable, and the last n entries correspond to the third variable.
-    economize : bool
-        If True, throw away basis vectors beyond the first `r` whenever
-        the `r` attribute is changed.
-    variable_names : list of num_variables strings, optional
-        Names for each of the `num_variables` variables.
-        Defaults to "variable 1", "variable 2", ....
-    """
-    _BasisClass = PODBasis
-
-    def __init__(self, num_variables, economize=False, variable_names=None):
-        """Initialize an empty basis."""
-        # Store dimensions.
-        LinearBasisMulti.__init__(
-            self, num_variables, variable_names=variable_names
-        )
-        self.economize = bool(economize)
-
-    # Properties -------------------------------------------------------------
-    @property
-    def rs(self):
-        """Dimensions for each diagonal basis block, i.e., `rs[i]` is the
-        number of basis vectors in the representation for state variable `i`.
-        """
-        rs = [basis.r for basis in self.bases]
-        return rs if any(rs) else None
-
-    @rs.setter
-    def rs(self, rs):
-        """Reset the basis dimensions."""
-        if len(rs) != self.num_variables:
-            raise ValueError(f"rs must have length {self.num_variables}")
-
-        # This will raise an AttributeError if the entries are not set.
-        for basis, r in zip(self.bases, rs):
-            basis.r = r  # Economization is also taken care of here.
-
-        self._set_entries()
-
-    @property
-    def economize(self):
-        """If True, throw away basis vectors beyond the first `r` whenever
-        the `r` attribute is changed."""
-        return self.__economize
-
-    @economize.setter
-    def economize(self, econ):
-        """Set the economize flag."""
-        econ = bool(econ)
-        for basis in self.bases:
-            basis.economize = econ
-        self.__economize = econ
-
-    # Main routines -----------------------------------------------------------
-    def fit(
-        self,
-        states,
-        rs=None,
-        cumulative_energy=None,
-        residual_energy=None,
-        **options,
-    ):
-        """Fit the basis to the data.
-
-        Parameters
-        ----------
-        states : (n, k) ndarray
-            Matrix of k snapshots. Each column is a single snapshot of
-            dimension n.
-        rs : list(int) or None
-            Number of basis vectors for each state variable.
-            If None, use the largest possible bases (ri = min{ni, k}).
-        cumulative_energy : float or None
-            Cumulative energy threshold. If provided and rs=None, choose the
-            smallest number of basis vectors so that the cumulative singular
-            value energy exceeds the given threshold.
-        residual_energy : float or None
-            Residual energy threshold. If provided, rs=None, and
-            cumulative_energy=None, choose the smallest number of basis vectors
-            so that the residual singular value energy is less than the given
-            threshold.
-        options
-            Additional parameters for scipy.linalg.svd().
-        """
-        # Split the state and compute the basis for each variable.
-        if rs is None:
-            rs = [None] * self.num_variables
-        for basis, r, var in zip(
-            self.bases, rs, np.split(states, self.num_variables, axis=0)
-        ):
-            basis.fit(var, r, cumulative_energy, residual_energy, **options)
-
-        self._set_entries()
-        return self
-
-    def fit_randomized(self, states, rs, **options):
-        """Compute the POD basis of rank r corresponding to the states
-        via the randomized singular value decomposition
-        (sklearn.utils.extmath.randomized_svd()).
-
-        Parameters
-        ----------
-        states : (n, k) ndarray
-            Matrix of k snapshots. Each column is a single snapshot of
-            dimension n.
-        rs : list(int) or None
-            Number of basis vectors for each state variable.
-        options
-            Additional parameters for sklearn.utils.extmath.randomized_svd().
-
-        Notes
-        -----
-        This method uses an iterative method to approximate a partial singular
-        value decomposition, which can be useful for very large n.
-        The method fit() computes the full singular value decomposition.
-        """
-        # Fit the individual bases.
-        if not isinstance(rs, list) or len(rs) != self.num_variables:
-            raise TypeError(f"rs must be list of length {self.num_variables}")
-        for basis, r, var in zip(
-            self.bases, rs, np.split(states, self.num_variables, axis=0)
-        ):
-            basis.fit_randomized(var, r, **options)
-
-        self._set_entries()
-        return self
-
-    # Persistence -------------------------------------------------------------
-    def save(self, savefile, overwrite=False):
-        """Save the basis to an HDF5 file.
-
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the basis in.
-        overwrite : bool
-            If True, overwrite the file if it already exists. If False
-            (default), raise a FileExistsError if the file already exists.
-        """
-        LinearBasisMulti.save(self, savefile, overwrite)
-        with h5py.File(savefile, "a") as hf:
-            hf["meta"].attrs["economize"] = self.economize
-
-    @classmethod
-    def load(cls, loadfile):
-        """Load a basis from an HDF5 file.
-
-        Parameters
-        ----------
-        loadfile : str
-            Path to the file where the basis was stored (via save()).
-
-        Returns
-        -------
-        PODBasis object
-        """
-        # basis = LinearBasisMulti.load(cls, loadfile)
-        basis = super(cls, cls).load(loadfile)
-        with h5py.File(loadfile, "r") as hf:
-            basis.economize = hf["meta"].attrs["economize"]
-        return basis
 
 
 # Functional API ==============================================================

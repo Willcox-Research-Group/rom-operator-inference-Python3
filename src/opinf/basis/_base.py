@@ -1,87 +1,113 @@
 # pre/basis/_base.py
 """Base basis class."""
 
+__all__ = [
+    "BasisTemplate",
+]
+
 import abc
+import numpy as np
 import scipy.linalg as la
 
+from .. import errors
+from ..pre._base import _UnivarMixin
 
-class _BaseBasis(abc.ABC):
-    """Abstract base class for all basis classes."""
+
+# Base class ==================================================================
+class BasisTemplate(abc.ABC):
+    """Template class for bases.
+
+    Classes that inherit from this template must implement the methods
+    :meth:`fit()`, :meth:`compresss()`, and :meth:`decompress()`.
+
+    See :class:`PODBasis` for an example.
+    """
 
     # Fitting -----------------------------------------------------------------
     @abc.abstractmethod
-    def fit(self, *args, **kwargs):                         # pragma: no cover
-        """Construct the basis."""
-        raise NotImplementedError
+    def fit(self, states):
+        """Construct the basis.
+
+        Parameters
+        ----------
+        states : (n, k) ndarray
+            Matrix of `k` `n`-dimensional snapshots.
+
+        Returns
+        -------
+        self
+        """
+        raise NotImplementedError  # pragma: no cover
 
     # Dimension reduction -----------------------------------------------------
     @abc.abstractmethod
-    def compress(self, state):                              # pragma: no cover
+    def compress(self, states):
         """Map high-dimensional states to low-dimensional latent coordinates.
 
         Parameters
         ----------
-        state : (n,) or (n, k) ndarray
-            High-dimensional state vector, or a collection of k such vectors
-            organized as the columns of a matrix.
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional state vectors, or a single state vector.
 
         Returns
         -------
-        state_ : (r,) or (r, k) ndarray
-            Low-dimensional latent coordinate vector, or a collection of k
-            such vectors organized as the columns of a matrix.
+        states_compressed : (r, ...) ndarray
+            Matrix of `r`-dimensional latent coordinate vectors, or a single
+            coordinate vector.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
-    def decompress(self, state_, locs=None):                # pragma: no cover
+    def decompress(self, states_compressed, locs=None):
         """Map low-dimensional latent coordinates to high-dimensional states.
 
         Parameters
         ----------
-        state_ : (r,) or (r, k) ndarray
-            Low-dimensional latent coordinate vector, or a collection of k
-            such vectors organized as the columns of a matrix.
+        states_compressed : (r, ...) ndarray
+            Matrix of `r`-dimensional latent coordinate vectors, or a single
+            coordinate vector.
         locs : slice or (p,) ndarray of integers or None
-            If given, return the reconstructed state at only the specified
-            locations (indices).
+            If given, return the decompressed state at only the `p` specified
+            locations (indices) described by ``locs``.
 
         Returns
         -------
-        state : (n,) or (n, k) ndarray
-            High-dimensional state vector, or a collection of k such vectors
-            organized as the columns of a matrix. If `locs` is given, only
-            the specified coordinates are returned.
+        states_decompressed : (n, ...) or (p, ...) ndarray
+            Matrix of `n`-dimensional decompressed state vectors, or the `p`
+            entries of such at the entries specified by ``locs``.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Projection --------------------------------------------------------------
     def project(self, state):
         """Project a high-dimensional state vector to the subset of the
         high-dimensional space that can be represented by the basis by
-        1) expressing the state in low-dimensional latent coordinates, then 2)
-        reconstructing the high-dimensional state corresponding to those
-        coordinates. That is, ``project(Q)`` is equivalent to
-        ``decompress(compress(Q))``.
+
+        1. expressing the state in low-dimensional latent coordinates, then
+        2. reconstructing the high-dimensional state corresponding to those
+           coordinates.
+
+        That is, ``project(Q)`` is equivalent to ``decompress(compress(Q))``.
 
         Parameters
         ----------
-        state : (n,) or (n, k) ndarray
-            High-dimensional state vector, or a collection of `k` such vectors
-            organized as the columns of a matrix.
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional state vectors, or a single state vector.
 
         Returns
         -------
-        state_projected : (n,) or (n, k) ndarray
-            High-dimensional state vector, or a collection of `k` such vectors
-            organized as the columns of a matrix, projected to the basis range.
+        state_projected : (n, ...) ndarray
+            Matrix of `n`-dimensional projected state vectors, or a single
+            projected state vector.
         """
         return self.decompress(self.compress(state))
 
-    def projection_error(self, state, relative=True):
-        r"""Compute the error of the basis representation of a state or states:
-        ``|| state - project(state) || / || state ||``.
+    def projection_error(self, state, relative=True) -> float:
+        r"""Compute the error of the basis representation of a state or states.
 
+        This function computes :math:`\frac{\|\Q - \mathcal{P}(\Q)\|}{\|\Q\|}`,
+        where :math:`\Q` is the ``state`` and :math:`\mathcal{P}` is the
+        projection defined by :meth:`project()`.
         If ``state`` is one-dimensional then :math:`||\cdot||` is the vector
         2-norm. If ``state`` is two-dimensional then :math:`||\cdot||` is the
         Frobenius norm.
@@ -92,9 +118,9 @@ class _BaseBasis(abc.ABC):
             High-dimensional state vector, or a collection of `k` such vectors
             organized as the columns of a matrix.
         relative : bool
-            If True, return the relative error
+            If ``True`` (default), return the relative projection error
             ``|| state - project(state) || / || state ||``.
-            If False, return the absolute error
+            If ``False``, return the absolute projection error
             ``|| state - project(state) ||``.
 
         Returns
@@ -108,11 +134,108 @@ class _BaseBasis(abc.ABC):
             diff /= la.norm(state)
         return diff
 
-    # Persistence -------------------------------------------------------------
-    def save(self, *args, **kwargs):
-        """Save the basis to an HDF5 file."""
-        raise NotImplementedError("use pickle/joblib")      # pragma: no cover
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        """Save the transformer to an HDF5 file."""
+        raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
-    def load(self, *args, **kwargs):
-        """Load a basis from an HDF5 file."""
-        raise NotImplementedError("use pickle/joblib")      # pragma: no cover
+    @classmethod
+    def load(cls, loadfile):
+        """Load a transformer from an HDF5 file."""
+        raise NotImplementedError("use pickle/joblib")  # pragma: no cover
+
+    # Verification ------------------------------------------------------------
+    def verify(self, states):
+        """Verify that :meth:`compress()` and :meth:`decompress()` are
+        consistent in the sense that the range of :meth:`decompress()` is in
+        the domain of :meth:`compress()` and that :meth:`project()` defines
+        a projection operator.
+        """
+        if not np.ndim(states) == 2:
+            raise ValueError(
+                "two-dimensional states required for verification"
+            )
+        statevec = states[:, 0]
+
+        # Verify compress().
+        states_compressed = self.compress(states)
+        if states_compressed.shape[1] != states.shape[1]:
+            raise errors.VerificationError(
+                "compress(states).shape[1] != states.shape[1]"
+            )
+        statevec_compressed = self.compress(statevec)
+        if np.ndim(statevec_compressed) != 1:
+            raise errors.VerificationError(
+                "compress(single_state_vector).ndim != 1"
+            )
+
+        # Verify decompress().
+        states_projected = self.decompress(states_compressed)
+        if states_projected.shape != states.shape:
+            raise errors.VerificationError(
+                "decompress(compress(states)).shape != states.shape"
+            )
+        statevec_projected = self.decompress(statevec_compressed)
+        if np.ndim(statevec_projected) != 1:
+            raise errors.VerificationError(
+                "decompress(compress(single_state_vector)).ndim != 1"
+            )
+        self._verify_locs(states_compressed, states_projected)
+
+        # Verify project().
+        states_projected2 = self.project(states_projected)
+        if not np.allclose(states_projected2, states_projected):
+            raise errors.VerificationError(
+                "project(project(states)) != project(states)"
+            )
+        print("compress() and decompress() are consistent")
+
+    def _verify_locs(self, states_compressed, states_projected):
+        """Verification of decompress() with locs != None."""
+        n = states_projected.shape[0]
+        locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
+        states_projected_at_locs = states_projected[locs]
+        states_at_locs_projected = self.decompress(
+            states_compressed,
+            locs=locs,
+        )
+        if states_at_locs_projected.shape != states_projected_at_locs.shape:
+            raise errors.VerificationError(
+                "decompress(states_compressed, locs).shape "
+                "!= decompress(states_compressed)[locs].shape"
+            )
+        if not np.allclose(states_at_locs_projected, states_projected_at_locs):
+            raise errors.VerificationError(
+                "decompress(states_compressed, locs) "
+                "!= decompress(states_compressed)[locs]"
+            )
+
+
+# Mixins ======================================================================
+class _UnivarBasisMixin(_UnivarMixin):
+    """Mixin for basis classes that treat the state as a single variable."""
+
+    def __init__(self, name=None):
+        """Initialize attributes."""
+        self.__r = None
+        _UnivarMixin.__init__(self, name)
+
+    @property
+    def reduced_state_dimension(self):
+        r"""Dimension :math:`r` of the compressed state."""
+        return self.__r
+
+    @reduced_state_dimension.setter
+    def reduced_state_dimension(self, r):
+        """Set the reduced state dimension."""
+        self.__r = int(r) if r is not None else None
+
+    @property
+    def shape(self):
+        """Dimensions :math:`(n, r)` of the basis."""
+        if (
+            self.full_state_dimension is None
+            or self.reduced_state_dimension is None
+        ):
+            return None
+        return (self.full_state_dimension, self.reduced_state_dimension)
