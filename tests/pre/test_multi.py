@@ -68,6 +68,21 @@ class TestTransformerMulti:
             tfm.transformers = transformers[:-1]
         assert ex.value.args[0] == "len(transformers) != num_variables"
 
+        transformers[0].full_state_dimension = 12
+        transformers[1].full_state_dimension = 15
+        transformers[2].full_state_dimension = 18
+
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            self.Transformer(transformers)
+        assert ex.value.args[0] == (
+            "transformers have inconsistent full_state_dimension"
+        )
+
+        transformers[1].full_state_dimension = 12
+        transformers[2].full_state_dimension = 12
+        tfm = self.Transformer(transformers)
+        assert tfm.full_state_dimension == 12
+
     # Magic methods -----------------------------------------------------------
     def test_getitem(self):
         """Test TransformerMulti.__getitem__()."""

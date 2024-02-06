@@ -7,11 +7,11 @@ __all__ = [
 
 import numpy as np
 
-from .. import utils
+from .. import errors, utils
 from ._base import TransformerTemplate, _UnivarMixin, _MultivarMixin
 
 
-class TransformerMulti(TransformerTemplate, _MultivarMixin):
+class TransformerMulti(_MultivarMixin, TransformerTemplate):
     r"""Join transformers together for states with multiple variables.
 
     This class is for states that can be written (after discretization) as
@@ -32,9 +32,6 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
     transformers : list
         Initialized (but not necessarily trained) transformer objects,
         one for each state variable.
-    variable_names : tuple(str) or None
-        Name for each state variable.
-        Defaults to ``("variable 0", "variable 1", ...)``.
     """
 
     def __init__(self, transformers):
@@ -54,7 +51,7 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
         _MultivarMixin.__init__(self, len(transformers), variable_names)
         self.transformers = transformers
 
-    # Properties: calibrated quantities ---------------------------------------
+    # Properties --------------------------------------------------------------
     @property
     def transformers(self):
         """Transformers for each state variable."""
@@ -62,9 +59,28 @@ class TransformerMulti(TransformerTemplate, _MultivarMixin):
 
     @transformers.setter
     def transformers(self, tfs):
-        """Set the transformers"""
+        """Set the transformers."""
         if len(tfs) != self.num_variables:
             raise ValueError("len(transformers) != num_variables")
+
+        # Check for full_state_dimension consistency.
+        dim = None
+        for tf in tfs:
+            if (
+                not hasattr(tf, "full_state_dimension")
+                or (n := tf.full_state_dimension) is None
+            ):
+                dim = None
+                break
+            if dim is None:
+                dim = n
+            elif n != dim:
+                raise errors.DimensionalityError(
+                    "transformers have inconsistent full_state_dimension"
+                )
+        if dim is not None:
+            self.full_state_dimension = dim
+
         self.__transformers = tuple(tfs)
 
     # Magic methods -----------------------------------------------------------

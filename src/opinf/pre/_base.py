@@ -7,6 +7,7 @@ __all__ = [
 
 import abc
 import numbers
+import warnings
 import numpy as np
 import scipy.linalg as la
 
@@ -221,29 +222,7 @@ class TransformerTemplate(abc.ABC):
             raise errors.VerificationError(
                 "transform() and inverse_transform() are not inverses"
             )
-
-        # Check locs argument of inverse_transform().
-        if isinstance(self, _MultivarMixin):
-            self._verify_locs(states, states_transformed)
-        else:
-            n = states.shape[0]
-            locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
-            states_transformed_at_locs = states_transformed[locs]
-            states_recovered_at_locs = self.inverse_transform(
-                states_transformed_at_locs,
-                locs=locs,
-            )
-            states_at_locs = states[locs]
-            if states_recovered_at_locs.shape != states_at_locs.shape:
-                raise errors.VerificationError(
-                    "inverse_transform(transform(states)[locs], locs).shape "
-                    "!= states[locs].shape"
-                )
-            if not np.allclose(states_recovered_at_locs, states_at_locs):
-                raise errors.VerificationError(
-                    "transform() and inverse_transform() are not inverses "
-                    "(locs != None)"
-                )
+        self._verify_locs(states, states_transformed)
         print("transform() and inverse_transform() are consistent")
 
         # Finite difference check for transform_ddts().
@@ -275,6 +254,26 @@ class TransformerTemplate(abc.ABC):
             )
         print("transform() and transform_ddts() are consistent")
 
+    def _verify_locs(self, states, states_transformed):
+        n = states.shape[0]
+        locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
+        states_transformed_at_locs = states_transformed[locs]
+        states_recovered_at_locs = self.inverse_transform(
+            states_transformed_at_locs,
+            locs=locs,
+        )
+        states_at_locs = states[locs]
+        if states_recovered_at_locs.shape != states_at_locs.shape:
+            raise errors.VerificationError(
+                "inverse_transform(transform(states)[locs], locs).shape "
+                "!= states[locs].shape"
+            )
+        if not np.allclose(states_recovered_at_locs, states_at_locs):
+            raise errors.VerificationError(
+                "transform() and inverse_transform() are not inverses "
+                "(locs != None)"
+            )
+
 
 # Mixins ======================================================================
 class _UnivarMixin:
@@ -287,12 +286,12 @@ class _UnivarMixin:
 
     @property
     def full_state_dimension(self):
-        r"""Dimension :math:`n` of the state snapshots."""
+        r"""Dimension :math:`n` of the full state."""
         return self.__n
 
     @full_state_dimension.setter
     def full_state_dimension(self, n):
-        """Set the state dimension."""
+        """Set the full state dimension."""
         self.__n = int(n) if n is not None else None
 
     @property
@@ -307,7 +306,7 @@ class _UnivarMixin:
 
 
 class _MultivarMixin:
-    r"""Mixin for transfomers and bases with multiple state variable.
+    r"""Mixin for transfomers with multiple state variable.
 
     This class is for states that can be written (after discretization) as
 
@@ -340,7 +339,10 @@ class _MultivarMixin:
         ):
             raise TypeError("'num_variables' must be a positive integer")
 
-        self.__nq = int(num_variables)
+        if (nvar := int(num_variables)) == 1:
+            warnings.warn("only one variable detected", errors.UsageWarning)
+
+        self.__nq = nvar
         self.full_state_dimension = None
         self.variable_names = variable_names
 
@@ -404,9 +406,9 @@ class _MultivarMixin:
         return self.__nq
 
     @utils.requires("full_state_dimension")
-    def _check_shape(self, Q):
+    def _check_shape(self, states):
         """Verify the shape of the snapshot set Q."""
-        if (nQ := Q.shape[0]) != self.full_state_dimension:
+        if (nQ := states.shape[0]) != self.full_state_dimension:
             raise errors.DimensionalityError(
                 f"states.shape[0] = {nQ:d} "
                 f"!= {self.num_variables:d} * {self.variable_size:d} "

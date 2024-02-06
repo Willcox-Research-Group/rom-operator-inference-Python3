@@ -254,6 +254,11 @@ class TestMultivarMixin:
 
         assert len(mix) == nvar
 
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            mix = self.Mixin(1)
+        assert wn[0].message.args[0] == "only one variable detected"
+        assert mix.num_variables == 1
+
     def test_variable_names(self, nvar=3):
         """Test _MultivarMixin.variable_names."""
         vnames = list("abcdefghijklmnopqrstuvwxyz")[:nvar]
