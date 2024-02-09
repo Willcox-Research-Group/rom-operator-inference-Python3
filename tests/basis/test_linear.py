@@ -36,6 +36,11 @@ class TestLinearBasis:
 
         assert basis.fit() is basis
 
+        basis.entries = None
+        assert basis.entries is None
+        assert basis.full_state_dimension is None
+        assert basis.reduced_state_dimension is None
+
     def test_str(self):
         """Test __str__() and __repr__()."""
         basis = self.Basis(self._orth(10, 4))

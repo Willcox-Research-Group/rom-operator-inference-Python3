@@ -49,6 +49,8 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
 
     def __init__(self, bases):
         """Initialize the bases."""
+        self.__bases = None
+
         # Extract variable names if possible.
         variable_names = []
         for i, basis in enumerate(bases):
@@ -91,12 +93,12 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
                 break
             if dim is None:
                 dim = n
-            elif n != dim[0]:
+            elif n != dim:
                 raise errors.DimensionalityError(
                     "bases have inconsistent full_state_dimension"
                 )
         if dim is not None:
-            self.full_state_dimension = dim
+            self.full_state_dimension = dim * self.num_variables
 
         # Set reduced_state_dimensions.
         alldims = []
@@ -111,6 +113,15 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
         self.reduced_state_dimensions = alldims
 
         self.__bases = tuple(bs)
+
+    @_MultivarMixin.full_state_dimension.setter
+    def full_state_dimension(self, n):
+        """Set the full state dimension :math:`n = n_q n_x`."""
+        _MultivarMixin.full_state_dimension.fset(self, n)
+        if self.bases is not None:
+            for basis in zip(self.bases):
+                if hasattr(basis, "full_state_dimension"):
+                    basis.full_state_dimension = self.variable_size
 
     @property
     def reduced_state_dimensions(self):
@@ -140,6 +151,18 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
                 for i in range(self.num_variables)
             ]
         )
+
+        # Sync individual basis dimensions.
+        if self.bases is not None:
+            for r, basis in zip(self.__rs, self.bases):
+                if hasattr(basis, "reduced_state_dimension"):
+                    basis.reduced_state_dimension = r
+
+        if (n := self.full_state_dimension) is not None and self.__r >= n:
+            raise errors.UsageWarning(
+                f"reduced_state_dimension r = {self.__r} "
+                f"> {n} = full_state_dimension n"
+            )
 
     @property
     def reduced_state_dimension(self):
@@ -174,7 +197,7 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
             return False
         if self.num_variables != other.num_variables:
             return False
-        return all(t1 == t2 for t1, t2 in zip(self.bases, other.bases))
+        return all(b1 == b2 for b1, b2 in zip(self.bases, other.bases))
 
     def __str__(self) -> str:
         """String representation: str() of each basis."""
@@ -190,7 +213,10 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
 
     # Convenience methods -----------------------------------------------------
     def _check_is_trained(self):
-        if self.full_state_dimension or self.reduced_state_dimension is None:
+        if (
+            self.full_state_dimension is None
+            or self.reduced_state_dimension is None
+        ):
             raise AttributeError("basis not trained (call fit())")
 
     @utils.requires("full_state_dimension")
@@ -291,6 +317,8 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
         rs = []
         for var, basis in zip(self.split(states), self.bases):
             basis.fit(var)
+            # NOTE: Assumes basis has full_state_dimension attribute!
+            # ...but pretty necessary.
             n += basis.full_state_dimension
             rs.append(basis.reduced_state_dimension)
 
@@ -370,7 +398,7 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
             if (n := self.full_state_dimension) is not None:
                 meta.attrs["full_state_dimension"] = n
             if (rs := self.reduced_state_dimensions) is not None:
-                meta.attrs["reduced_state_dimensions"] = rs
+                hf.create_dataset("reduced_state_dimensions", data=rs)
 
             # Save individual bases.
             for i, tf in enumerate(self.bases):
@@ -394,24 +422,23 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
             # Load metadata.
-            num_variables = int(hf["meta"].attrs["num_variables"])
+            meta = hf["meta"].attrs
+            num_variables = int(meta["num_variables"])
 
-            # Load individual bases.
-            bases = [
-                BasisClasses[i].load(hf[f"variable{i}"])
-                for i in range(num_variables)
-            ]
-
-            # Initialize object and (if available) set state dimension.
-            obj = cls(bases)
-            if "full_state_dimension" in hf["meta"].attrs:
-                obj.full_state_dimension = int(
-                    hf["meta"].attrs["full_state_dimension"]
-                )
-            if "reduced_state_dimensions" in hf["meta"].attrs:
-                obj.reduced_state_dimensions = hf["meta"].attrs[
-                    "reduced_state_dimensions"
+            # Initialize object.
+            obj = cls(
+                [
+                    BasisClasses[i].load(hf[f"variable{i}"])
+                    for i in range(num_variables)
                 ]
+            )
+
+            # Set state dimensions if available.
+            if "full_state_dimension" in meta:
+                obj.full_state_dimension = int(meta["full_state_dimension"])
+            if "reduced_state_dimensions" in hf:
+                rs = hf["reduced_state_dimensions"][:]
+                obj.reduced_state_dimensions = rs
 
             return obj
 

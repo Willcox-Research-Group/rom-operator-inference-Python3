@@ -81,7 +81,7 @@ class TestTransformerMulti:
         transformers[1].full_state_dimension = 12
         transformers[2].full_state_dimension = 12
         tfm = self.Transformer(transformers)
-        assert tfm.full_state_dimension == 12
+        assert tfm.full_state_dimension == 36
 
     # Magic methods -----------------------------------------------------------
     def test_getitem(self):

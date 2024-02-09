@@ -50,6 +50,12 @@ class LinearBasis(BasisTemplate, _UnivarBasisMixin):
     @entries.setter
     def entries(self, V):
         """Set the basis entries."""
+        if V is None:
+            self.__entries = None
+            self.full_state_dimension = None
+            self.reduced_state_dimension = None
+            return
+
         n, r = V.shape
         if not np.allclose(V.T @ V, np.eye(r)):
             warnings.warn("basis is not orthogonal", errors.UsageWarning)

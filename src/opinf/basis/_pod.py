@@ -43,17 +43,16 @@ class PODBasis(LinearBasis):
     def __init__(self, economize=False):
         """Initialize an empty basis."""
         self.__r = None
-        self.__entries = None
         self.__svdvals = None
         self.__dual = None
         # self.__spatialweights = None
         self.economize = bool(economize)
-        LinearBasis.__init__(self)
+        LinearBasis.__init__(self, None)
 
     # Dimension selection -----------------------------------------------------
     def __shrink_stored_entries_to(self, r):
         if self.entries is not None and r is not None:
-            self.__entries = self.__entries[:, :r].copy()
+            self.entries = self.entries[:, :r].copy()
             self.__dual = self.__dual[:, :r].copy()
 
     @property
@@ -69,7 +68,7 @@ class PODBasis(LinearBasis):
             return
         if self.entries is None:
             raise AttributeError("empty basis (call fit() first)")
-        if self.__entries.shape[1] < r:
+        if self.entries.shape[1] < r:
             raise ValueError(
                 f"only {self.__entries.shape[1]:d} " "basis vectors stored"
             )
@@ -133,7 +132,11 @@ class PODBasis(LinearBasis):
         """Total number of stored basis vectors, i.e., the maximum value of r.
         Always the same as the dimension r if economize=True.
         """
-        return None if self.__entries is None else self.__entries.shape[1]
+        return (
+            None
+            if self.entries is None
+            else self.self._LinearBasis__entries.shape[1]
+        )
 
     # Properties --------------------------------------------------------------
     @property
@@ -141,8 +144,8 @@ class PODBasis(LinearBasis):
         """Entries of the basis."""
         return (
             None
-            if self.__entries is None
-            else self.__entries[:, : self.reduced_state_dimension]
+            if self._LinearBasis__entries is None
+            else self._LinearBasis__entries[:, : self.reduced_state_dimension]
         )
 
     @property

@@ -79,9 +79,17 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
                     "transformers have inconsistent full_state_dimension"
                 )
         if dim is not None:
-            self.full_state_dimension = dim
+            self.full_state_dimension = dim * self.num_variables
 
         self.__transformers = tuple(tfs)
+
+    @_MultivarMixin.full_state_dimension.setter
+    def full_state_dimension(self, n):
+        """Set the full state dimension :math:`n = n_q n_x`."""
+        _MultivarMixin.full_state_dimension.fset(self, n)
+        for tf in zip(self.transformers):
+            if hasattr(tf, "full_state_dimension"):
+                tf.full_state_dimension = self.variable_size
 
     # Magic methods -----------------------------------------------------------
     def __getitem__(self, key):
