@@ -10,10 +10,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from .. import errors, utils
-from ._base import BasisTemplate, _UnivarBasisMixin
+from ._base import BasisTemplate
 
 
-class LinearBasis(BasisTemplate, _UnivarBasisMixin):
+class LinearBasis(BasisTemplate):
     r"""Linear basis for representing the low-dimensional state approximation
 
     .. math::

@@ -6,12 +6,10 @@ __all__ = [
 ]
 
 import abc
-import numbers
-import warnings
 import numpy as np
 import scipy.linalg as la
 
-from .. import errors, ddt, utils
+from .. import errors, ddt
 
 
 # Base class ==================================================================
@@ -28,7 +26,38 @@ class TransformerTemplate(abc.ABC):
 
     The default implementation of :meth:`fit()` simply calls
     :meth:`fit_transform()`.
+
+    Parameters
+    ----------
+    name : str
+        Label for the state variable that this transformer acts on.
     """
+
+    def __init__(self, name: str = None):
+        """Initialize attributes."""
+        self.__n = None
+        self.__name = name
+
+    # Properties --------------------------------------------------------------
+    @property
+    def state_dimension(self):
+        r"""Dimension :math:`n` of the state."""
+        return self.__n
+
+    @state_dimension.setter
+    def state_dimension(self, n):
+        """Set the state dimension."""
+        self.__n = int(n) if n is not None else None
+
+    @property
+    def name(self):
+        """Label for the state variable."""
+        return self.__name
+
+    @name.setter
+    def name(self, label):
+        """Set the state variable name."""
+        self.__name = str(label) if label is not None else None
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):
@@ -255,6 +284,7 @@ class TransformerTemplate(abc.ABC):
         print("transform() and transform_ddts() are consistent")
 
     def _verify_locs(self, states, states_transformed):
+        """Verification for inverse_transform() with locs != None"""
         n = states.shape[0]
         locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
         states_transformed_at_locs = states_transformed[locs]
@@ -267,209 +297,6 @@ class TransformerTemplate(abc.ABC):
             raise errors.VerificationError(
                 "inverse_transform(transform(states)[locs], locs).shape "
                 "!= states[locs].shape"
-            )
-        if not np.allclose(states_recovered_at_locs, states_at_locs):
-            raise errors.VerificationError(
-                "transform() and inverse_transform() are not inverses "
-                "(locs != None)"
-            )
-
-
-# Mixins ======================================================================
-class _UnivarMixin:
-    """Mixin for transformers and bases with a single state variable."""
-
-    def __init__(self, name: str = None):
-        """Initialize attributes."""
-        self.__n = None
-        self.__name = name
-
-    @property
-    def full_state_dimension(self):
-        r"""Dimension :math:`n` of the full state."""
-        return self.__n
-
-    @full_state_dimension.setter
-    def full_state_dimension(self, n):
-        """Set the full state dimension."""
-        self.__n = int(n) if n is not None else None
-
-    @property
-    def name(self):
-        """Label for the state variable."""
-        return self.__name
-
-    @name.setter
-    def name(self, label):
-        """Set the state variable name."""
-        self.__name = str(label) if label is not None else None
-
-
-class _MultivarMixin:
-    r"""Mixin for transfomers with multiple state variable.
-
-    This class is for states that can be written (after discretization) as
-
-    .. math::
-       \q = \left[\begin{array}{c}
-       \q_{0} \\ \q_{1} \\ \vdots \\ \q_{n_q - 1}
-       \end{array}\right]
-       \in \RR^{n},
-
-    where each :math:`\q_{i} \in \NN^{n_x}` represents a single discretized
-    state variable. The full state dimension is :math:`n = n_q n_x`, i.e.,
-    ``full_state_dimension = num_variables * variable_size``.
-
-    Parameters
-    ----------
-    num_variables : int
-        Number of state variables :math:`n_q \in \NN`, i.e., the number of
-        individual transformations to learn.
-    variable_names : list(str) or None
-        Name for each state variable.
-        Defaults to ``("variable 0", "variable 1", ...)``.
-    """
-
-    def __init__(self, num_variables: int, variable_names=None):
-        """Initialize variable information."""
-        if (
-            not isinstance(num_variables, numbers.Number)
-            or num_variables // 1 != num_variables
-            or num_variables < 1
-        ):
-            raise TypeError("'num_variables' must be a positive integer")
-
-        if (nvar := int(num_variables)) == 1:
-            warnings.warn("only one variable detected", errors.UsageWarning)
-
-        self.__nq = nvar
-        self.full_state_dimension = None
-        self.variable_names = variable_names
-
-    # Properties --------------------------------------------------------------
-    @property
-    def num_variables(self):
-        r"""Number of state variables :math:`n_q \in \NN`."""
-        return self.__nq
-
-    @property
-    def variable_names(self):
-        """Name for each state variable."""
-        return self.__variable_names
-
-    @variable_names.setter
-    def variable_names(self, names):
-        """Set the variable_names."""
-        if names is None:
-            names = [f"variable {i}" for i in range(self.num_variables)]
-        if len(names) != self.num_variables:
-            raise ValueError(
-                f"variable_names must have length {self.num_variables}"
-            )
-        self.__variable_names = tuple(names)
-
-    @property
-    def full_state_dimension(self):
-        """Total dimension :math:`n = n_q n_x` of all state variables."""
-        return self.__n
-
-    @full_state_dimension.setter
-    def full_state_dimension(self, n):
-        """Set the total and individual variable dimensions."""
-        if n is None:
-            self.__n = None
-            self.__nx = None
-            self.__slices = None
-            return
-
-        variable_size, remainder = divmod(n, self.num_variables)
-        if remainder != 0:
-            raise ValueError(
-                "'full_state_dimension' must be evenly divisible "
-                "by 'num_variables'"
-            )
-        self.__n = int(n)
-        self.__nx = variable_size
-        self.__slices = [
-            slice(i * variable_size, (i + 1) * variable_size)
-            for i in range(self.num_variables)
-        ]
-
-    @property
-    def variable_size(self):
-        r"""Size :math:`n_x \in \NN` of each state variable (mesh size)."""
-        return self.__nx
-
-    # Convenience methods -----------------------------------------------------
-    def __len__(self):
-        """Length = number of state variables."""
-        return self.__nq
-
-    @utils.requires("full_state_dimension")
-    def _check_shape(self, states):
-        """Verify the shape of the snapshot set Q."""
-        if (nQ := states.shape[0]) != self.full_state_dimension:
-            raise errors.DimensionalityError(
-                f"states.shape[0] = {nQ:d} "
-                f"!= {self.num_variables:d} * {self.variable_size:d} "
-                "= num_variables * variable_size = full_state_dimension"
-            )
-
-    def get_var(self, var, states):
-        """Extract a single variable from the full state.
-
-        Parameters
-        ----------
-        var : int or str
-            Index or name of the variable to extract.
-        states : (n, ...) ndarray
-            Full state vector or snapshot matrix.
-
-        Returns
-        -------
-        state_variable : (nx, ...) ndarray
-            One state variable, extracted from ``states``.
-        """
-        self._check_shape(states)
-        if var in self.variable_names:
-            var = self.variable_names.index(var)
-        return states[self.__slices[var]]
-
-    def split(self, states):
-        """Split the full state into the individual state variables.
-
-        Parameters
-        ----------
-        states : (n, ...) ndarray
-            Full state vector or snapshot matrix.
-
-        Returns
-        -------
-        state_variable : list of nq (nx, ...) ndarrays
-            Individual state variables, extracted from ``states``.
-        """
-        self._check_shape(states)
-        return np.split(states, self.num_variables, axis=0)
-
-    # Verification ------------------------------------------------------------
-    def _verify_locs(self, states, states_transformed):
-        """Verify :meth:`inverse_transform()` with ``locs != None``."""
-        nx = self.variable_size
-        locs = np.sort(np.random.choice(nx, size=(nx // 3), replace=False))
-
-        states_at_locs = np.concatenate([Q[locs] for Q in self.split(states)])
-        states_transformed_at_locs = np.concatenate(
-            [Qt[locs] for Qt in self.split(states_transformed)]
-        )
-        states_recovered_at_locs = self.inverse_transform(
-            states_transformed_at_locs,
-            locs=locs,
-        )
-
-        if states_recovered_at_locs.shape != states_at_locs.shape:
-            raise errors.VerificationError(
-                "inverse_transform(states_transformed_at_locs, locs).shape "
-                "!= states_at_locs.shape"
             )
         if not np.allclose(states_recovered_at_locs, states_at_locs):
             raise errors.VerificationError(

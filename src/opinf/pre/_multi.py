@@ -5,13 +5,20 @@ __all__ = [
     "TransformerMulti",
 ]
 
+import warnings
 import numpy as np
 
 from .. import errors, utils
-from ._base import TransformerTemplate, _UnivarMixin, _MultivarMixin
+from ._base import TransformerTemplate
 
 
-class TransformerMulti(_MultivarMixin, TransformerTemplate):
+requires_trained = utils.requires2(
+    "state_dimension",
+    "transformer not trained, call fit() or fit_transform()",
+)
+
+
+class TransformerMulti:
     r"""Join transformers together for states with multiple variables.
 
     This class is for states that can be written (after discretization) as
@@ -22,33 +29,36 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
        \end{array}\right]
        \in \RR^{n},
 
-    where each :math:`\q_{i} \in \NN^{n_x}` represents a single discretized
-    state variable. The full state dimension is :math:`n = n_q n_x`, i.e.,
-    ``full_state_dimension = num_variables * variable_size``. Individual
-    transformers are calibrated for each state variable.
+    where each :math:`\q_{i} \in \NN^{n_i}` represents a single discretized
+    state variable of dimension :math:`n_i`. The dimension of the joint state
+    is :math:`n = \sum_{i=0}^{n_q - 1} n_i`, i.e.,
+    ``state_dimension = sum(variable_sizes)``.
+    Individual transformers are calibrated for each state variable.
 
     Parameters
     ----------
     transformers : list
         Initialized (but not necessarily trained) transformer objects,
         one for each state variable.
+    variable_sizes : list or None
+        Dimensions for each state variable.
+        If ``None`` (default), assume all state variables have the same
+        dimension, i.e., :math:`n_0 = n_1 = \cdots = n_x \in \NN`.
+        In this case, :math:`n = n_q n_x`.
     """
 
-    def __init__(self, transformers):
+    def __init__(
+        self,
+        transformers,
+        variable_sizes=None,
+    ):
         """Initialize the transformers."""
-        # Extract variable names if possible.
-        variable_names = []
-        for i, tf in enumerate(transformers):
-            default = f"variable {i}"
-            if isinstance(tf, _UnivarMixin):
-                if tf.name is None:
-                    tf.name = default
-                variable_names.append(tf.name)
-            else:
-                variable_names.append(default)
+        if variable_sizes is not None:
+            if len(variable_sizes) != len(transformers):
+                raise ValueError("len(variable_sizes) != len(transformers)")
+            for tf, n in zip(transformers, variable_sizes):
+                tf.state_dimension = n
 
-        # Store variable names and collection of transformers.
-        _MultivarMixin.__init__(self, len(transformers), variable_names)
         self.transformers = transformers
 
     # Properties --------------------------------------------------------------
@@ -60,38 +70,61 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
     @transformers.setter
     def transformers(self, tfs):
         """Set the transformers."""
-        if len(tfs) != self.num_variables:
-            raise ValueError("len(transformers) != num_variables")
+        if (num_variables := len(tfs)) == 0:
+            raise ValueError("at least one transformer required")
+        elif num_variables == 1:
+            warnings.warn("only one variable detected", errors.UsageWarning)
 
-        # Check for full_state_dimension consistency.
-        dim = None
-        for tf in tfs:
-            if (
-                not hasattr(tf, "full_state_dimension")
-                or (n := tf.full_state_dimension) is None
-            ):
-                dim = None
-                break
-            if dim is None:
-                dim = n
-            elif n != dim:
-                raise errors.DimensionalityError(
-                    "transformers have inconsistent full_state_dimension"
-                )
-        if dim is not None:
-            self.full_state_dimension = dim * self.num_variables
+        # Set default variable names.
+        for i, tf in enumerate(tfs):
+            if tf.name is None:
+                tf.name = f"variable {i}"
 
+        # Store transformers and set slice dimensions.
+        self.__nq = num_variables
         self.__transformers = tuple(tfs)
+        self._set_slices()
 
-    @_MultivarMixin.full_state_dimension.setter
-    def full_state_dimension(self, n):
-        """Set the full state dimension :math:`n = n_q n_x`."""
-        _MultivarMixin.full_state_dimension.fset(self, n)
-        for tf in zip(self.transformers):
-            if hasattr(tf, "full_state_dimension"):
-                tf.full_state_dimension = self.variable_size
+    @property
+    def num_variables(self):
+        r"""Number of state variables :math:`n_q \in \NN`."""
+        return self.__nq
+
+    @property
+    def variable_names(self):
+        """Name for each state variable."""
+        return tuple(tf.name for tf in self.transformers)
+
+    @property
+    def variable_sizes(self):
+        r"""Dimensions of each state variable."""
+        return tuple(tf.state_dimension for tf in self.transformers)
+
+    @property
+    def state_dimension(self):
+        r"""Total dimension :math:`n = \sum_{i=0}^{n_q-1} n_i` of all state
+        variables.
+        """
+        if None in (sizes := self.variable_sizes):
+            return None
+        return sum(sizes)
+
+    def _set_slices(self):
+        """Prepare variable slices."""
+        if None not in (sizes := self.variable_sizes):
+            dimsum = np.cumsum((0,) + sizes)
+            self.__nslices = tuple(
+                [
+                    slice(dimsum[i], dimsum[i + 1])
+                    for i in range(self.num_variables)
+                ]
+            )
 
     # Magic methods -----------------------------------------------------------
+    def __len__(self):
+        """Length = number of state variables."""
+        return self.num_variables
+
     def __getitem__(self, key):
         """Get the transformer for variable i."""
         if key in self.variable_names:
@@ -115,40 +148,74 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
         """String representation: str() of each transformer."""
         out = [f"{self.num_variables}-variable {self.__class__.__name__}"]
         namelength = max(len(name) for name in self.variable_names)
-        for name, tf in zip(self.variable_names, self.transformers):
-            out.append(f"* {{:>{namelength}}} | {tf}".format(name))
+        for tf in self.transformers:
+            out.append(f"* {{:>{namelength}}} | {tf}".format(tf.name))
         return "\n".join(out)
 
     def __repr__(self) -> str:
         """Unique ID + string representation."""
         return utils.str2repr(self)
 
-    # Main routines -----------------------------------------------------------
-    def _apply(self, method, states, inplace, locs=None):
-        """Apply a method of each transformer to the corresponding chunk of
-        ``states``.
-        """
-        if self.full_state_dimension is None:
-            raise AttributeError(
-                "transformer not trained (call fit() or fit_transform())"
+    # Convenience methods -----------------------------------------------------
+    @requires_trained
+    def _check_shape(self, states):
+        """Verify the shape of the snapshot set Q."""
+        if (nQ := len(states)) != (n := self.state_dimension):
+            raise errors.DimensionalityError(
+                f"len(states) = {nQ:d} != {n:d} = state_dimension"
             )
-        options = dict(inplace=inplace)
-        if locs is not None:
-            options["locs"] = locs
-        else:
-            self._check_shape(states)
 
-        variables = np.split(states, self.num_variables, axis=0)
-        newstates = [
-            getattr(transformer, method)(var, **options)
-            for transformer, var in zip(self.transformers, variables)
-        ]
-        if any(Q is NotImplemented for Q in newstates):
-            return NotImplemented
+    def get_var(self, var, states):
+        """Extract a single variable from the joint state.
 
-        if inplace and locs is None:
-            return states
-        return np.concatenate(newstates, axis=0)
+        Parameters
+        ----------
+        var : int or str
+            Index or name of the variable to extract.
+        states : (n, ...) ndarray
+            Joint state vector or snapshot matrix.
+
+        Returns
+        -------
+        state_variable : (n_i, ...) ndarray
+            One state variable, extracted from ``states``.
+        """
+        self._check_shape(states)
+        if var in (names := self.variable_names):
+            var = names.index(var)
+        return states[self.__nslices[var]]
+
+    def split(self, states):
+        """Split the full state into the individual state variables.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Full state vector or snapshot matrix.
+
+        Returns
+        -------
+        state_variable : list of nq (nx, ...) ndarrays
+            Individual state variables, extracted from ``states``.
+        """
+        self._check_shape(states)
+        return [states[s] for s in self.__nslices]
+
+    # Main routines -----------------------------------------------------------
+    def fit(self, states):
+        """Learn (but do not apply) the transformation.
+
+        Parameters
+        ----------
+        states : (n, k) ndarray
+            Matrix of `k` `n`-dimensional snapshots.
+
+        Returns
+        -------
+        self
+        """
+        self.fit_transform(states, inplace=False)
+        return self
 
     def fit_transform(self, states, inplace=False):
         """Learn and apply the transformation.
@@ -157,9 +224,11 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
         ----------
         states : (n, k) ndarray
             Matrix of `k` `n`-dimensional snapshots.
-            The first ``variable_size`` entries correspond to the first state
-            variable, the next ``variable_size`` entries correspond to the
-            second state variable, and so on.
+            The first ``variable_sizes[0]`` entries correspond to the first
+            state variable, the next ``variable_sizes[1]`` entries correspond
+            to the second state variable, and so on.
+            If ``variable_sizes`` are not yet prescribed, assume that each
+            state variable has the same dimension.
         inplace : bool
             If ``True``, overwrite ``states`` data during transformation.
             If ``False``, create a copy of the data to transform.
@@ -169,13 +238,27 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
         states_transformed: (n, k) ndarray
             Matrix of `k` transformed `n`-dimensional snapshots.
         """
-        old_dimension = self.full_state_dimension
-        try:
-            self.full_state_dimension = states.shape[0]
-            return self._apply("fit_transform", states, inplace)
-        except Exception:
-            self.full_state_dimension = old_dimension
-            raise
+        if self.state_dimension is None:
+            nx, remainder = divmod(states.shape[0], self.num_variables)
+            if remainder != 0:
+                raise ValueError(
+                    "len(states) must be evenly divisible by "
+                    f"the number of variables n_q = {self.num_variables}"
+                )
+            for tf in self.transformers:
+                tf.state_dimension = nx
+            self._set_slices()
+
+        new_states = np.concatenate(
+            [
+                transformer.fit_transform(state_variable, inplace=inplace)
+                for transformer, state_variable in zip(
+                    self.transformers, self.split(states)
+                )
+            ],
+            axis=0,
+        )
+        return states if inplace else new_states
 
     def transform(self, states, inplace=False):
         """Apply the learned transformation.
@@ -194,15 +277,20 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
             Matrix of `n`-dimensional transformed snapshots, or a single
             transformed snapshot.
         """
-        return self._apply("transform", states, inplace)
+        states_transformed = np.concatenate(
+            [
+                tf.transform(Q, inplace=inplace)
+                for tf, Q in zip(self.transformers, self.split(states))
+            ]
+        )
+        return states if inplace else states_transformed
 
     def transform_ddts(self, ddts, inplace: bool = False):
         r"""Apply the learned transformation to snapshot time derivatives.
 
-        Denoting the transformation by
-        :math:`\mathcal{T}(\q) = \alpha(\q - \bar{\q}) + \beta`,
-        this is the function :math:`\mathcal{T}'(\z) = \alpha\z`.
-        Hence, :math:`\mathcal{T}'(\ddt q) = \ddt \mathcal{T}(q)`.
+        If the transformation is denoted by :math:`\mathcal{T}(q)`,
+        this function implements :math:`\mathcal{T}'` such that
+        :math:`\mathcal{T}'(\ddt q) = \ddt \mathcal{T}(q)`.
 
         Parameters
         ----------
@@ -218,8 +306,15 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
         ddts_transformed : (n, ...) ndarray
             Transformed snapshot time derivatives.
         """
-        return self._apply("transform_ddts", ddts, inplace)
+        ddts_transformed = [
+            tf.transform_ddts(dQdt, inplace=inplace)
+            for tf, dQdt in zip(self.transformers, self.split(ddts))
+        ]
+        if any(dt is NotImplemented for dt in ddts_transformed):
+            return NotImplemented
+        return ddts if inplace else np.concatenate(ddts_transformed)
 
+    @requires_trained
     def inverse_transform(self, states_transformed, inplace=False, locs=None):
         """Apply the inverse of the learned transformation.
 
@@ -235,7 +330,8 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
         locs : slice or (p,) ndarray of integers or None
             If given, assume ``states_transformed`` contains the `p` entries
             of each transformed state variable at the indices specified by
-            ``locs``.
+            ``locs``. This option requires each state variable to have the
+            same dimension.
 
         Returns
         -------
@@ -243,12 +339,27 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
             Matrix of `n`-dimensional untransformed snapshots, or the
             :math:`n_q p` entries of such at the indices specified by ``locs``.
         """
-        return self._apply(
-            "inverse_transform",
-            states_transformed,
-            inplace,
-            locs,
+        if locs is not None:
+            if len(set(self.variable_sizes)) > 1:
+                raise ValueError(
+                    "'locs != None' requires that "
+                    "all transformers have the same state_dimension"
+                )
+            variables_transformed = np.split(
+                states_transformed,
+                self.num_variables,
+                axis=0,
+            )
+        else:
+            variables_transformed = self.split(states_transformed)
+
+        states = np.concatenate(
+            [
+                tf.inverse_transform(Q, inplace=inplace, locs=locs)
+                for tf, Q in zip(self.transformers, variables_transformed)
+            ]
         )
+        return states_transformed if inplace else states
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile, overwrite=False):
@@ -263,17 +374,17 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
             (default), raise a ``FileExistsError`` if the file already exists.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
-            # Metadata
-            meta = hf.create_dataset("meta", shape=(0,))
-            meta.attrs["num_variables"] = self.num_variables
-            if (n := self.full_state_dimension) is not None:
-                meta.attrs["full_state_dimension"] = n
+            hf.create_dataset(
+                "variable_sizes",
+                data=[
+                    (-1 if nx is None else nx) for nx in self.variable_sizes
+                ],
+            )
 
             # Save individual transformers.
             for i, tf in enumerate(self.transformers):
                 tf.save(hf.create_group(f"variable{i}"))
 
-    # TODO: can we get rid of the TransformerClasses argument?
     @classmethod
     def load(cls, loadfile, TransformerClasses):
         """Load a previously saved transformer from an HDF5 file.
@@ -290,20 +401,82 @@ class TransformerMulti(_MultivarMixin, TransformerTemplate):
         TransformerMulti
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
-            # Load metadata.
-            num_variables = int(hf["meta"].attrs["num_variables"])
+            variable_sizes = [
+                None if nx == -1 else int(nx) for nx in hf["variable_sizes"][:]
+            ]
 
-            # Load individual transformers.
+            num_variables = len(variable_sizes)
+            if isinstance(TransformerClasses, type):
+                TransformerClasses = [TransformerClasses] * num_variables
+            if nclasses := len(TransformerClasses) != num_variables:
+                raise ValueError(
+                    f"file contains {num_variables:d} transformers, "
+                    f"but {nclasses:d} classes provided"
+                )
+
             transformers = [
                 TransformerClasses[i].load(hf[f"variable{i}"])
                 for i in range(num_variables)
             ]
 
-            # Initialize object and (if available) set state dimension.
-            obj = cls(transformers)
-            if "full_state_dimension" in hf["meta"].attrs:
-                obj.full_state_dimension = int(
-                    hf["meta"].attrs["full_state_dimension"]
-                )
+            return cls(transformers, variable_sizes=variable_sizes)
 
-            return obj
+    # Verification ------------------------------------------------------------
+    # TODO: figure out what to do with transform_ddts().
+    # What if not every transformer has it implemented?
+    def verify(self, states, t=None, tol: float = 1e-4):
+        r"""Verify that :meth:`transform()` and :meth:`inverse_transform()`
+        are consistent and that :meth:`transform_ddts()`, if implemented,
+        is consistent with :meth:`transform()`.
+
+        * The :meth:`transform()` / :meth:`inverse_transform()` consistency
+          check verifies that
+          ``inverse_transform(transform(states)) == states``.
+        * The :meth:`transform_ddts()` consistency check uses
+          :meth:`opinf.ddt.ddt()` to estimate the time derivatives of the
+          states and the transformed states, then verfies that the relative
+          difference between
+          ``transform_ddts(opinf.ddt.ddt(states, t))`` and
+          ``opinf.ddt.ddt(transform(states), t)`` is less than ``tol``.
+          If this check fails, consider using a finer time mesh.
+
+        Parameters
+        ----------
+        states : (n, k)
+            Matrix of k snapshots. Each column is a snapshot of dimension n.
+        t : (k,) ndarray or None
+            Time domain corresponding to the states.
+            Only required if :meth:`transform_ddts()` is implemented.
+        tol : float > 0
+            Tolerance for the finite difference check of
+            :meth:`transform_ddts()`.
+            Only used if :meth:`transform_ddts()` is implemented.
+        """
+        return TransformerTemplate.verify(self, states, t, tol)
+
+    def _verify_locs(self, states, states_transformed):
+        """Verify :meth:`inverse_transform()` with ``locs != None``."""
+        if len(sizes := set(self.variable_sizes)) != 1:
+            return  # Cannot use locs unless all variable sizes equal.
+        nx = sizes.pop()
+        locs = np.sort(np.random.choice(nx, size=(nx // 3), replace=False))
+
+        states_at_locs = np.concatenate([Q[locs] for Q in self.split(states)])
+        states_transformed_at_locs = np.concatenate(
+            [Qt[locs] for Qt in self.split(states_transformed)]
+        )
+        states_recovered_at_locs = self.inverse_transform(
+            states_transformed_at_locs,
+            locs=locs,
+        )
+
+        if states_recovered_at_locs.shape != states_at_locs.shape:
+            raise errors.VerificationError(
+                "inverse_transform(states_transformed_at_locs, locs).shape "
+                "!= states_at_locs.shape"
+            )
+        if not np.allclose(states_recovered_at_locs, states_at_locs):
+            raise errors.VerificationError(
+                "transform() and inverse_transform() are not inverses "
+                "(locs != None)"
+            )

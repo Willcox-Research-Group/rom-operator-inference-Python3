@@ -20,6 +20,33 @@ class TestTransformerTemplate:
         def inverse_transform(self, states, inplace=False, locs=None):
             return states if inplace else states.copy()
 
+    def test_name(self):
+        """Test TransformerTemplate.__init__(), name."""
+        mixin = self.Dummy()
+        assert mixin.name is None
+
+        s1 = "the name"
+        mixin = self.Dummy(name=s1)
+        assert mixin.name == s1
+
+        s2 = "new name"
+        mixin.name = s2
+        assert mixin.name == s2
+
+        mixin.name = None
+        assert mixin.name is None
+
+    def test_state_dimension(self):
+        """Test TransformerTemplate.state_dimension."""
+        mixin = self.Dummy()
+        assert mixin.state_dimension is None
+        mixin.state_dimension = 10.0
+        n = mixin.state_dimension
+        assert isinstance(n, int)
+        assert mixin.state_dimension == n
+        mixin.state_dimension = None
+        assert mixin.state_dimension is None
+
     def test_fit(self):
         """Test TransformerTemplate.fit()."""
         tf = self.Dummy()
@@ -202,195 +229,3 @@ class TestTransformerTemplate:
                 return ddts if inplace else ddts.copy()
 
         Dummy7().verify(Q, t)
-
-
-class TestUnivarMixin:
-    """Tests for pre._base._UnivarMixin."""
-
-    Mixin = opinf.pre._base._UnivarMixin
-
-    def test_full_state_dimension(self):
-        """Test _UnivarMixin.full_state_dimension."""
-        mixin = self.Mixin()
-        assert mixin.full_state_dimension is None
-        mixin.full_state_dimension = 10.0
-        n = mixin.full_state_dimension
-        assert isinstance(n, int)
-        assert mixin.full_state_dimension == n
-        mixin.full_state_dimension = None
-        assert mixin.full_state_dimension is None
-
-    def test_name(self):
-        mixin = self.Mixin()
-        assert mixin.name is None
-
-        s1 = "the name"
-        mixin = self.Mixin(name=s1)
-        assert mixin.name == s1
-
-        s2 = "new name"
-        mixin.name = s2
-        assert mixin.name == s2
-
-        mixin.name = None
-        assert mixin.name is None
-
-
-class TestMultivarMixin:
-    """Tests for pre._base._MultivarMixin."""
-
-    Mixin = opinf.pre._base._MultivarMixin
-
-    def test_init(self, nvar=4):
-        """Test _MultivarMixin.__init__()."""
-        with pytest.raises(TypeError) as ex:
-            self.Mixin(-1)
-        assert ex.value.args[0] == "'num_variables' must be a positive integer"
-
-        mix = self.Mixin(nvar)
-        assert mix.num_variables == nvar
-        assert mix.full_state_dimension is None
-        assert mix.variable_size is None
-
-        assert len(mix) == nvar
-
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
-            mix = self.Mixin(1)
-        assert wn[0].message.args[0] == "only one variable detected"
-        assert mix.num_variables == 1
-
-    def test_variable_names(self, nvar=3):
-        """Test _MultivarMixin.variable_names."""
-        vnames = list("abcdefghijklmnopqrstuvwxyz")[:nvar]
-        mix = self.Mixin(nvar, vnames)
-        assert len(mix.variable_names) == nvar
-        for i in range(nvar):
-            assert mix.variable_names[i] == vnames[i]
-
-        mix.variable_names = None
-        assert len(mix.variable_names) == nvar
-        for name in mix.variable_names:
-            assert name.startswith("variable ")
-
-        with pytest.raises(ValueError) as ex:
-            mix.variable_names = vnames[:-1]
-        assert ex.value.args[0] == f"variable_names must have length {nvar}"
-
-    def test_properties(self, nvar=5):
-        """Test _MultivarMixin.full_state_dimension and variable_size."""
-        mix = self.Mixin(nvar)
-        assert mix.full_state_dimension is None
-        assert mix.variable_size is None
-
-        with pytest.raises(ValueError) as ex:
-            mix.full_state_dimension = 2 * nvar - 1
-        assert ex.value.args[0] == (
-            "'full_state_dimension' must be evenly divisible "
-            "by 'num_variables'"
-        )
-
-        for size in np.random.randint(3, 10, size=5):
-            mix.full_state_dimension = (n := nvar * size)
-            assert mix.full_state_dimension == n
-            assert mix.variable_size == size
-
-    # Convenience methods -----------------------------------------------------
-    def test_check_shape(self, nvar=12, nx=10, k=20):
-        """Test _MultivarMixin._check_shape()."""
-        mix = self.Mixin(nvar)
-        mix.full_state_dimension = (n := nvar * nx)
-        X = np.random.randint(0, 100, (n, k)).astype(float)
-        mix._check_shape(X)
-
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            mix._check_shape(X[:-1])
-        assert ex.value.args[0] == (
-            f"states.shape[0] = {n - 1:d} != {nvar:d} * {nx:d} "
-            "= num_variables * variable_size = full_state_dimension"
-        )
-
-    def test_get_var(self, nvar=4, nx=9, k=3):
-        """Test _MultivarMixin.get_var()."""
-        mix = self.Mixin(nvar, variable_names="abcdefghijklmnop"[:nvar])
-        mix.full_state_dimension = (n := nvar * nx)
-        q = np.random.random(n)
-
-        q0 = mix.get_var(0, q)
-        assert q0.shape == (nx,)
-        assert np.all(q0 == q[:nx])
-
-        q1 = mix.get_var(1, q)
-        assert q1.shape == (nx,)
-        assert np.all(q1 == q[nx : (2 * nx)])
-
-        q2 = mix.get_var("c", q)
-        assert q2.shape == (nx,)
-        assert np.all(q2 == q[2 * nx : 3 * nx])
-
-    def test_split(self, nvar=5, nx=11, k=12):
-        """Test _MultivarMixin.split()."""
-        mix = self.Mixin(nvar)
-        mix.full_state_dimension = (n := nvar * nx)
-
-        q = np.random.random(n)
-        q_split = mix.split(q)
-        assert len(q_split) == nvar
-        assert all(qi.shape[0] == nx for qi in q_split)
-        assert np.all(q_split[0] == q[:nx])
-
-        Q = np.random.random((n, k))
-        Q_split = mix.split(Q)
-        assert len(Q_split) == nvar
-        assert all(Qi.shape == (nx, k) for Qi in Q_split)
-        assert np.all(Q_split[0] == Q[:nx])
-
-    # Verification ------------------------------------------------------------
-    def test_verify_locs(self, nvar=3, nx=11, k=12):
-        """Test _MultivarMixin._verify_locs()."""
-
-        class Dummy(self.Mixin):
-            def transform(self, states, locs=None):
-                return states
-
-            def inverse_transform(
-                self,
-                states_transformed,
-                locs=None,
-            ):
-                return states_transformed
-
-        mix = Dummy(nvar)
-        mix.full_state_dimension = (n := nvar * nx)
-        Q = np.random.random((n, k))
-        Qt = mix.transform(Q)
-        mix._verify_locs(Q, Qt)
-
-        class Dummy2(Dummy):
-            def inverse_transform(self, states_transformed, locs=None):
-                if locs is None:
-                    return states_transformed
-                return states_transformed[1:-1]
-
-        mix = Dummy2(nvar)
-        mix.full_state_dimension = n
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            mix._verify_locs(Q, Qt)
-        assert ex.value.args[0] == (
-            "inverse_transform(states_transformed_at_locs, locs).shape "
-            "!= states_at_locs.shape"
-        )
-
-        class Dummy3(Dummy):
-            def inverse_transform(self, states_transformed, locs=None):
-                if locs is None:
-                    return states_transformed
-                return states_transformed + 1
-
-        mix = Dummy3(nvar)
-        mix.full_state_dimension = n
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            mix._verify_locs(Q, Qt)
-        assert ex.value.args[0] == (
-            "transform() and inverse_transform() are not inverses "
-            "(locs != None)"
-        )

@@ -8,11 +8,10 @@ __all__ = [
 import numpy as np
 
 from .. import errors, utils
-from ..pre._base import _MultivarMixin
-from ._base import BasisTemplate, _UnivarBasisMixin
+from ._base import BasisTemplate
 
 
-class BasisMulti(BasisTemplate, _MultivarMixin):
+class BasisMulti(BasisTemplate):
     r"""Join bases together for states with multiple variables.
 
     This class is for states that can be written (after discretization) as
@@ -55,19 +54,16 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
         variable_names = []
         for i, basis in enumerate(bases):
             default = f"variable {i}"
-            if isinstance(basis, _UnivarBasisMixin):
-                if basis.name is None:
-                    basis.name = default
-                variable_names.append(basis.name)
-            else:
-                variable_names.append(default)
+            if basis.name is None:
+                basis.name = default
+            variable_names.append(basis.name)
 
         # Store variables names and collection of bases.
-        _MultivarMixin.__init__(
-            self,
-            num_variables=len(bases),
-            variable_names=variable_names,
-        )
+        # _MultivarMixin.__init__(
+        #     self,
+        #     num_variables=len(bases),
+        #     variable_names=variable_names,
+        # )
         self.bases = bases
 
     # Properties --------------------------------------------------------------
@@ -113,15 +109,6 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
         self.reduced_state_dimensions = alldims
 
         self.__bases = tuple(bs)
-
-    @_MultivarMixin.full_state_dimension.setter
-    def full_state_dimension(self, n):
-        """Set the full state dimension :math:`n = n_q n_x`."""
-        _MultivarMixin.full_state_dimension.fset(self, n)
-        if self.bases is not None:
-            for basis in zip(self.bases):
-                if hasattr(basis, "full_state_dimension"):
-                    basis.full_state_dimension = self.variable_size
 
     @property
     def reduced_state_dimensions(self):
@@ -279,7 +266,8 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
             if var in self.variable_names:
                 var = self.variable_names.index(var)
             return states[self.__rslices[var]]
-        return _MultivarMixin.get_var(self, var, states)
+        # return _MultivarMixin.get_var(self, var, states)
+        raise NotImplementedError
 
     def split(self, states):
         """Split a reduced state vector into the individual reduced variables.
@@ -296,7 +284,8 @@ class BasisMulti(BasisTemplate, _MultivarMixin):
         """
         if self._check_is_reduced(states):
             return [states[s] for s in self.__rslices]
-        return _MultivarMixin.split(self, states)
+        # return _MultivarMixin.split(self, states)
+        raise NotImplementedError
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):

@@ -83,10 +83,10 @@ class TestShiftScaleTransformer:
             "scaling",
             "centering",
             "verbose",
-            "full_state_dimension",
+            "state_dimension",
         ]:
             assert hasattr(st, attr)
-        assert st.full_state_dimension is None
+        assert st.state_dimension is None
 
         # Test centering.
         st = self.Transformer(centering=False)
@@ -99,7 +99,7 @@ class TestShiftScaleTransformer:
             st.mean_ = 10
         assert ex.value.args[0] == "expected one-dimensional mean_"
         st.mean_ = (qbar := np.random.random(n))
-        assert st.full_state_dimension == n
+        assert st.state_dimension == n
         assert np.all(st.mean_ == qbar)
         with pytest.raises(ValueError) as ex:
             st.mean_ = 100
@@ -137,7 +137,7 @@ class TestShiftScaleTransformer:
                 setattr(st, attr, 10)
             assert ex.value.args[0] == f"expected one-dimensional {attr}"
             setattr(st, attr, np.random.random(n))
-            assert st.full_state_dimension == n
+            assert st.state_dimension == n
             with pytest.raises(ValueError) as ex:
                 setattr(st, attr, 100)
             assert ex.value.args[0] == f"expected {attr} to be ({n},) ndarray"
@@ -167,11 +167,11 @@ class TestShiftScaleTransformer:
         st2 = self.Transformer(centering=True)
 
         # Mismatched dimensions.
-        st1.full_state_dimension = n
-        st2.full_state_dimension = n + 2
+        st1.state_dimension = n
+        st2.state_dimension = n + 2
         assert not (st1 == st2)
         assert st1 != st2
-        st2.full_state_dimension = n
+        st2.state_dimension = n
 
         # Centering attributes.
         st1.mean_ = µ
@@ -216,7 +216,7 @@ class TestShiftScaleTransformer:
             assert str(st) == f"ShiftScaleTransformer with '{s}' scaling {trn}"
 
         st = self.Transformer(centering=False, scaling=None)
-        st.full_state_dimension = 100
+        st.state_dimension = 100
         assert str(st) == "ShiftScaleTransformer (state dimension n = 100)"
 
         assert str(hex(id(st))) in repr(st)
@@ -309,7 +309,7 @@ class TestShiftScaleTransformer:
                 byrow=byrow if scaling else False,
                 verbose=not centering,
             )
-            st.full_state_dimension = n
+            st.state_dimension = n
             st.fit_transform(X, inplace=False)
             st.save(target, overwrite=True)
             st2 = self.Transformer.load(target)
@@ -321,7 +321,7 @@ class TestShiftScaleTransformer:
     def test_check_shape(self, n=12):
         """Test ShiftScaleTransformerMulti._check_shape()."""
         stm = self.Transformer()
-        stm.full_state_dimension = n
+        stm.state_dimension = n
         X = np.random.randint(0, 100, (n, 2 * n)).astype(float)
         stm._check_shape(X)
 

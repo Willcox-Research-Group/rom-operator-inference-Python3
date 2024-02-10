@@ -11,7 +11,7 @@ import warnings
 import numpy as np
 
 from .. import errors, utils
-from ._base import TransformerTemplate, _UnivarMixin
+from ._base import TransformerTemplate
 
 
 # Functional paradigm =========================================================
@@ -134,7 +134,7 @@ def scale(states: np.ndarray, scale_to: tuple, scale_from: tuple = None):
 
 
 # Object-oriented paradigm ====================================================
-class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
+class ShiftScaleTransformer(TransformerTemplate):
     r"""Process snapshots by centering and/or scaling (in that order).
 
     Transformations with this class are notated below as
@@ -240,6 +240,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
     However, calling :meth:`fit()` or :meth:`fit_transform()` will overwrite
     all three attributes.
     """
+
     _VALID_SCALINGS = frozenset(
         (
             "standard",
@@ -292,7 +293,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         self.__qbar = None
         self.__alpha = None
         self.__beta = None
-        _UnivarMixin.__init__(self, name)
+        TransformerTemplate.__init__(self, name)
 
     # Properties: transformation directives -----------------------------------
     @property
@@ -331,11 +332,11 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         """Set the mean vector."""
         if not self.centering:
             raise AttributeError("cannot set mean_ (centering=False)")
-        if self.full_state_dimension is None:
+        if self.state_dimension is None:
             if np.ndim(mean) != 1:
                 raise ValueError("expected one-dimensional mean_")
-            self.full_state_dimension = mean.shape[0]
-        if np.shape(mean) != ((n := self.full_state_dimension),):
+            self.state_dimension = mean.shape[0]
+        if np.shape(mean) != ((n := self.state_dimension),):
             raise ValueError(f"expected mean_ to be ({n:d},) ndarray")
         self.__qbar = mean
 
@@ -352,11 +353,11 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         if self.scaling is None:
             raise AttributeError("cannot set scale_ (scaling=None)")
         if self.byrow:
-            if self.full_state_dimension is None:
+            if self.state_dimension is None:
                 if np.ndim(alpha) != 1 or np.isscalar(alpha):
                     raise ValueError("expected one-dimensional scale_")
-                self.full_state_dimension = alpha.shape[0]
-            if np.shape(alpha) != ((n := self.full_state_dimension),):
+                self.state_dimension = alpha.shape[0]
+            if np.shape(alpha) != ((n := self.state_dimension),):
                 raise ValueError(f"expected scale_ to be ({n:d},) ndarray")
         self.__alpha = alpha
 
@@ -373,11 +374,11 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         if self.scaling is None:
             raise AttributeError("cannot set shift_ (scaling=None)")
         if self.byrow:
-            if self.full_state_dimension is None:
+            if self.state_dimension is None:
                 if np.ndim(beta) != 1 or np.isscalar(beta):
                     raise ValueError("expected one-dimensional shift_")
-                self.full_state_dimension = beta.shape[0]
-            if np.shape(beta) != ((n := self.full_state_dimension),):
+                self.state_dimension = beta.shape[0]
+            if np.shape(beta) != ((n := self.state_dimension),):
                 raise ValueError(f"expected shift_ to be ({n:d},) ndarray")
         self.__beta = beta
 
@@ -388,7 +389,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         for attr in ("centering", "scaling", "byrow"):
             if getattr(self, attr) != getattr(other, attr):
                 return False
-        if self.full_state_dimension != other.full_state_dimension:
+        if self.state_dimension != other.state_dimension:
             return False
         if self.centering and self.mean_ is not None:
             if other.mean_ is None:
@@ -414,8 +415,8 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
     def __str__(self) -> str:
         """String representation: scaling type + centering bool."""
         out = [self.__class__.__name__]
-        if self.full_state_dimension is not None:
-            out.append(f"(state dimension n = {self.full_state_dimension:d})")
+        if self.state_dimension is not None:
+            out.append(f"(state dimension n = {self.state_dimension:d})")
         if self.centering:
             out.append("with mean-snapshot centering")
             if self.scaling:
@@ -433,9 +434,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
     # Main routines -----------------------------------------------------------
     def _check_shape(self, Q):
         """Verify the shape of the snapshot set Q."""
-        if (n := self.full_state_dimension) is not None and (
-            n2 := Q.shape[0]
-        ) != n:
+        if (n := self.state_dimension) is not None and (n2 := Q.shape[0]) != n:
             raise ValueError(
                 f"states.shape[0] = {n2:d} != {n:d} = state dimension n"
             )
@@ -475,7 +474,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
         """
         if states.ndim != 2:
             raise ValueError("2D array required to fit transformer")
-        self.full_state_dimension = states.shape[0]
+        self.state_dimension = states.shape[0]
 
         Y = states if inplace else states.copy()
         axis = 1 if self.byrow else None
@@ -522,7 +521,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
             elif self.scaling == "maxabs":
                 self.scale_ = 1 / np.max(np.abs(Y), axis=axis)
                 self.shift_ = (
-                    0 if axis is None else np.zeros(self.full_state_dimension)
+                    0 if axis is None else np.zeros(self.state_dimension)
                 )
 
             # maxabssym: Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)))
@@ -650,7 +649,7 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
 
         if locs is not None:
             if isinstance(locs, slice):
-                locs = np.arange(self.full_state_dimension)[locs]
+                locs = np.arange(self.state_dimension)[locs]
             if states_transformed.shape[0] != locs.size:
                 raise ValueError("states_transformed not aligned with locs")
         else:
@@ -691,8 +690,8 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
             meta.attrs["verbose"] = self.verbose
 
             # Store learned transformation parameters.
-            n = self.full_state_dimension
-            meta.attrs["full_state_dimension"] = n if n is not None else False
+            n = self.state_dimension
+            meta.attrs["state_dimension"] = n if n is not None else False
             if self.centering and self.mean_ is not None:
                 hf.create_dataset("transformation/mean_", data=self.mean_)
             if self.scaling and self.scale_ is not None:
@@ -730,8 +729,8 @@ class ShiftScaleTransformer(TransformerTemplate, _UnivarMixin):
             )
 
             # Load learned transformation parameters.
-            n = meta.attrs["full_state_dimension"]
-            transformer.full_state_dimension = None if not n else n
+            n = meta.attrs["state_dimension"]
+            transformer.state_dimension = None if not n else n
             if transformer.centering and "transformation/mean_" in hf:
                 transformer.mean_ = hf["transformation/mean_"][:]
             if transformer.scaling and "transformation/scale_" in hf:

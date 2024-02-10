@@ -10,7 +10,6 @@ import numpy as np
 import scipy.linalg as la
 
 from .. import errors
-from ..pre._base import _UnivarMixin
 
 
 # Base class ==================================================================
@@ -212,13 +211,13 @@ class BasisTemplate(abc.ABC):
 
 
 # Mixins ======================================================================
-class _UnivarBasisMixin(_UnivarMixin):
+class _UnivarBasisMixin:
     """Mixin for basis classes that treat the state as a single variable."""
 
     def __init__(self, name=None):
         """Initialize attributes."""
         self.__r = None
-        _UnivarMixin.__init__(self, name)
+        # _UnivarMixin.__init__(self, name)
 
     @property
     def reduced_state_dimension(self):
