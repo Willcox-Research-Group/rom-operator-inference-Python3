@@ -408,9 +408,9 @@ class TransformerMulti:
             num_variables = len(variable_sizes)
             if isinstance(TransformerClasses, type):
                 TransformerClasses = [TransformerClasses] * num_variables
-            if nclasses := len(TransformerClasses) != num_variables:
+            if (nclasses := len(TransformerClasses)) != num_variables:
                 raise ValueError(
-                    f"file contains {num_variables:d} transformers, "
+                    f"file contains {num_variables:d} transformers "
                     f"but {nclasses:d} classes provided"
                 )
 

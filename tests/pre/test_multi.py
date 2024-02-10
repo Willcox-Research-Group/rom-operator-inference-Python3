@@ -159,7 +159,7 @@ class TestTransformerMulti:
         assert q0.shape == (n1,)
         assert np.all(q0 == q[:n1])
 
-        q1 = tf.get_var(1, q)
+        q1 = tf.get_var("B", q)
         assert q1.shape == (n2,)
         assert np.all(q1 == q[n1:])
 
@@ -204,8 +204,17 @@ class TestTransformerMulti:
         assert tfm.transform_ddts(Q) is NotImplemented
         tfm.verify(Q)
 
+        transformers[0].state_dimension = nx + 1
+        with pytest.raises(ValueError) as ex:
+            tfm.inverse_transform(Q, locs=True)
+        assert ex.value.args[0] == (
+            "'locs != None' requires that "
+            "all transformers have the same state_dimension"
+        )
+
         for i in range(len(transformers)):
             transformers[i] = self.Dummy2()
+        tfm = self.Transformer(transformers)
         tfm.fit(Q)
         tfm.verify()
 
@@ -241,9 +250,15 @@ class TestTransformerMulti:
         TCs = [obj.__class__ for obj in transformers]
         num_variables = len(transformers)
 
-        # Check that save() -> load() gives the same transformer.
         tfm_original = self.Transformer(transformers)
         tfm_original.save(target)
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+            self.Transformer.load(target, TransformerClasses=TCs[:-1])
+        assert ex.value.args[0] == (
+            "file contains 3 transformers but 2 classes provided"
+        )
+
+        # Check that save() -> load() gives the same transformer.
         tfm = self.Transformer.load(target, TransformerClasses=TCs)
         assert len(tfm.transformers) == num_variables
         for i, tf in enumerate(transformers):
@@ -255,7 +270,7 @@ class TestTransformerMulti:
         for i, nx in enumerate(np.random.randint(2, 10, num_variables)):
             tfm_original[i].state_dimension = nx
         tfm_original.save(target, overwrite=True)
-        tfm = self.Transformer.load(target, TransformerClasses=TCs)
+        tfm = self.Transformer.load(target, TransformerClasses=TCs[0])
         assert tfm.num_variables == tfm_original.num_variables
         assert tfm.variable_sizes == tfm_original.variable_sizes
         assert tfm.state_dimension == tfm_original.state_dimension
