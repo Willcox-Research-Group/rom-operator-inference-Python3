@@ -12,7 +12,6 @@ import scipy.linalg as la
 from .. import errors
 
 
-# Base class ==================================================================
 class BasisTemplate(abc.ABC):
     """Template class for bases.
 
@@ -21,6 +20,53 @@ class BasisTemplate(abc.ABC):
 
     See :class:`PODBasis` for an example.
     """
+
+    def __init__(self, name: str = None):
+        """Initialize attributes."""
+        self.__n = None
+        self.__r = None
+        self.__name = name
+
+    # Properties --------------------------------------------------------------
+    @property
+    def full_state_dimension(self):
+        r"""Dimension :math:`n` of the full state."""
+        return self.__n
+
+    @full_state_dimension.setter
+    def full_state_dimension(self, n):
+        """Set the full state dimension."""
+        self.__n = int(n) if n is not None else None
+
+    @property
+    def reduced_state_dimension(self):
+        r"""Dimension :math:`r` of the reduced (compressed) state."""
+        return self.__r
+
+    @reduced_state_dimension.setter
+    def reduced_state_dimension(self, r):
+        """Set the reduced state dimension."""
+        self.__r = int(r) if r is not None else None
+
+    @property
+    def shape(self):
+        """Dimensions :math:`(n, r)` of the basis."""
+        if (
+            self.full_state_dimension is None
+            or self.reduced_state_dimension is None
+        ):
+            return None
+        return (self.full_state_dimension, self.reduced_state_dimension)
+
+    @property
+    def name(self):
+        """Label for the state variable that this basis approximates."""
+        return self.__name
+
+    @name.setter
+    def name(self, label):
+        """Set the state variable name."""
+        self.__name = str(label) if label is not None else None
 
     # Fitting -----------------------------------------------------------------
     @abc.abstractmethod
@@ -144,16 +190,15 @@ class BasisTemplate(abc.ABC):
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
     # Verification ------------------------------------------------------------
-    def verify(self, states):
+    def verify(self):
         """Verify that :meth:`compress()` and :meth:`decompress()` are
         consistent in the sense that the range of :meth:`decompress()` is in
         the domain of :meth:`compress()` and that :meth:`project()` defines
         a projection operator.
         """
-        if not np.ndim(states) == 2:
-            raise ValueError(
-                "two-dimensional states required for verification"
-            )
+        if (n := self.full_state_dimension) is None:
+            raise AttributeError("basis not trained, call fit()")
+        states = np.random.random((n, 20))
         statevec = states[:, 0]
 
         # Verify compress().
@@ -208,33 +253,3 @@ class BasisTemplate(abc.ABC):
                 "decompress(states_compressed, locs) "
                 "!= decompress(states_compressed)[locs]"
             )
-
-
-# Mixins ======================================================================
-class _UnivarBasisMixin:
-    """Mixin for basis classes that treat the state as a single variable."""
-
-    def __init__(self, name=None):
-        """Initialize attributes."""
-        self.__r = None
-        # _UnivarMixin.__init__(self, name)
-
-    @property
-    def reduced_state_dimension(self):
-        r"""Dimension :math:`r` of the compressed state."""
-        return self.__r
-
-    @reduced_state_dimension.setter
-    def reduced_state_dimension(self, r):
-        """Set the reduced state dimension."""
-        self.__r = int(r) if r is not None else None
-
-    @property
-    def shape(self):
-        """Dimensions :math:`(n, r)` of the basis."""
-        if (
-            self.full_state_dimension is None
-            or self.reduced_state_dimension is None
-        ):
-            return None
-        return (self.full_state_dimension, self.reduced_state_dimension)
