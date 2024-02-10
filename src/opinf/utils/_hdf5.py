@@ -82,13 +82,13 @@ class hdf5_savehandle(_hdf5_filehandle):
         * h5py File/Group handle : handle to part of an already open HDF5 file
           to save data to.
     overwrite : bool
-        If ``True``, overwrite the file if it already exists. If ``False``,
-        raise a ``FileExistsError`` if the file already exists.
+        If ``True``, overwrite the file if it already exists.
+        If ``False``, raise a ``FileExistsError`` if the file already exists.
 
     Examples
     --------
-    >>> with hdf5_savehandle("file_to_save_to.h5") as hf:
-    ...     hf.create_dataset(...)
+    >>> with hdf5_savehandle("file_to_save_to.h5", False) as hf:
+    ...     hf.create_dataset("dataset_label", data=dataset_to_save)
     """
 
     def __init__(self, savefile, overwrite):
@@ -108,7 +108,7 @@ class hdf5_loadhandle(_hdf5_filehandle):
     Examples
     --------
     >>> with hdf5_loadhandle("file_to_read_from.h5") as hf:
-    ...    data = hf[...]
+    ...    dataset = hf["dataset_label"][:]
     """
 
     def __init__(self, loadfile):

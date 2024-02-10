@@ -12,7 +12,6 @@ import scipy.linalg as la
 from .. import errors, ddt
 
 
-# Base class ==================================================================
 class TransformerTemplate(abc.ABC):
     """Template class for transformers.
 
@@ -51,13 +50,21 @@ class TransformerTemplate(abc.ABC):
 
     @property
     def name(self):
-        """Label for the state variable."""
+        """Label for the state variable that this transformer acts on."""
         return self.__name
 
     @name.setter
     def name(self, label):
         """Set the state variable name."""
         self.__name = str(label) if label is not None else None
+
+    # Convenience methods -----------------------------------------------------
+    def _check_shape(self, Q):
+        """Verify the shape of the snapshot set Q."""
+        if (n := self.state_dimension) is not None and (n2 := Q.shape[0]) != n:
+            raise ValueError(
+                f"states.shape[0] = {n2:d} != {n:d} = state dimension n"
+            )
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):

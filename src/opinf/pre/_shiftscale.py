@@ -432,13 +432,6 @@ class ShiftScaleTransformer(TransformerTemplate):
         return utils.str2repr(self)
 
     # Main routines -----------------------------------------------------------
-    def _check_shape(self, Q):
-        """Verify the shape of the snapshot set Q."""
-        if (n := self.state_dimension) is not None and (n2 := Q.shape[0]) != n:
-            raise ValueError(
-                f"states.shape[0] = {n2:d} != {n:d} = state dimension n"
-            )
-
     def _is_trained(self) -> bool:
         """Return True if transform() and inverse_transform() are ready."""
         if self.centering and self.mean_ is None:
@@ -688,12 +681,16 @@ class ShiftScaleTransformer(TransformerTemplate):
             meta.attrs["scaling"] = self.scaling if self.scaling else False
             meta.attrs["byrow"] = self.byrow
             meta.attrs["verbose"] = self.verbose
+            meta.attrs["name"] = str(self.name)
 
             # Store learned transformation parameters.
             n = self.state_dimension
             meta.attrs["state_dimension"] = n if n is not None else False
             if self.centering and self.mean_ is not None:
-                hf.create_dataset("transformation/mean_", data=self.mean_)
+                hf.create_dataset(
+                    "transformation/mean_",
+                    data=self.mean_,
+                )
             if self.scaling and self.scale_ is not None:
                 hf.create_dataset(
                     "transformation/scale_",
@@ -721,10 +718,14 @@ class ShiftScaleTransformer(TransformerTemplate):
             # Load transformation hyperparameters.
             meta = hf["meta"]
             scl = meta.attrs["scaling"]
+            name = meta.attrs["name"]
+
+            # Instantiate transformer.
             transformer = cls(
                 centering=bool(meta.attrs["centering"]),
-                scaling=scl if scl else None,
+                scaling=(scl if scl else None),
                 byrow=meta.attrs["byrow"],
+                name=(None if name == "None" else name),
                 verbose=meta.attrs["verbose"],
             )
 

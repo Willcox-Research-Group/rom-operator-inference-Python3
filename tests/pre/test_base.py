@@ -55,8 +55,7 @@ class TestTransformerTemplate:
 
     def test_verify(self, n=30):
         """Test TransformerTemplate.verify()."""
-        Dummy = self.Dummy
-        dummy = Dummy()
+        dummy = self.Dummy()
 
         with pytest.raises(AttributeError) as ex:
             dummy.verify()
@@ -68,19 +67,20 @@ class TestTransformerTemplate:
         dummy.state_dimension = n
         dummy.verify()
 
-        class Dummy2a(Dummy):
-            def __init__(self):
-                Dummy.__init__(self)
+        class Dummy1(self.Dummy):
+            def __init__(self, name=None):
+                super().__init__(name=name)
                 self.state_dimension = n
 
+        class Dummy2a(Dummy1):
             def transform(self, states, inplace=False):
                 return states[:-1]
 
-        class Dummy2b(Dummy2a):
+        class Dummy2b(Dummy1):
             def transform(self, states, inplace=False):
                 return states
 
-        class Dummy2c(Dummy2a):
+        class Dummy2c(Dummy1):
             def transform(self, states, inplace=False):
                 return states.copy()
 
@@ -98,19 +98,15 @@ class TestTransformerTemplate:
             "transform(states, inplace=True) is not states"
         )
 
-        class Dummy3a(Dummy):
-            def __init__(self):
-                Dummy.__init__(self)
-                self.state_dimension = n
-
+        class Dummy3a(Dummy1):
             def inverse_transform(self, states_transformed, inplace=False):
                 return states_transformed[:-1]
 
-        class Dummy3b(Dummy3a):
+        class Dummy3b(Dummy1):
             def inverse_transform(self, states_transformed, inplace=False):
                 return states_transformed
 
-        class Dummy3c(Dummy3a):
+        class Dummy3c(Dummy1):
             def inverse_transform(self, states_transformed, inplace=False):
                 return states_transformed.copy()
 
@@ -134,11 +130,7 @@ class TestTransformerTemplate:
             "is not states_transformed"
         )
 
-        class Dummy4(Dummy):
-            def __init__(self):
-                Dummy.__init__(self)
-                self.state_dimension = n
-
+        class Dummy4(Dummy1):
             def inverse_transform(
                 self,
                 states_transformed,
@@ -158,11 +150,7 @@ class TestTransformerTemplate:
             "!= states[locs].shape"
         )
 
-        class Dummy5a(Dummy):
-            def __init__(self):
-                Dummy.__init__(self)
-                self.state_dimension = n
-
+        class Dummy5a(Dummy1):
             def inverse_transform(
                 self,
                 states_transformed,
@@ -175,7 +163,7 @@ class TestTransformerTemplate:
                 Q += 1
                 return Q
 
-        class Dummy5b(Dummy5a):
+        class Dummy5b(Dummy1):
             def inverse_transform(
                 self,
                 states_transformed,
@@ -202,21 +190,17 @@ class TestTransformerTemplate:
             "(locs != None)"
         )
 
-        class Dummy6a(Dummy):
-            def __init__(self):
-                Dummy.__init__(self)
-                self.state_dimension = n
-
+        class Dummy6a(Dummy1):
             def transform_ddts(self, ddts, inplace=False):
                 return ddts
 
-        class Dummy6b(Dummy6a):
+        class Dummy6b(Dummy1):
             def transform_ddts(self, ddts, inplace=False):
                 dQ = ddts if inplace else ddts.copy()
                 dQ += 1e16
                 return dQ
 
-        class Dummy6c(Dummy6a):
+        class Dummy6c(Dummy1):
             def transform_ddts(self, ddts, inplace=False):
                 return ddts.copy()
 
@@ -238,11 +222,7 @@ class TestTransformerTemplate:
             "transform_ddts(ddts, inplace=True) is not ddts"
         )
 
-        class Dummy7(Dummy):
-            def __init__(self):
-                Dummy.__init__(self)
-                self.state_dimension = n
-
+        class Dummy7(Dummy1):
             def transform_ddts(self, ddts, inplace=False):
                 return ddts if inplace else ddts.copy()
 
