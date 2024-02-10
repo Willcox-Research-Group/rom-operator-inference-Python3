@@ -29,9 +29,9 @@ class TransformerMulti:
        \end{array}\right]
        \in \RR^{n},
 
-    where each :math:`\q_{i} \in \NN^{n_i}` represents a single discretized
-    state variable of dimension :math:`n_i`. The dimension of the joint state
-    is :math:`n = \sum_{i=0}^{n_q - 1} n_i`, i.e.,
+    where each :math:`\q_{i} \in \RR^{n_i}` represents a single discretized
+    state variable of dimension :math:`n_i \in \NN`. The dimension of the
+    joint state :math:`\q` is :math:`n = \sum_{i=0}^{n_q - 1} n_i`, i.e.,
     ``state_dimension = sum(variable_sizes)``.
     Individual transformers are calibrated for each state variable.
 
@@ -63,7 +63,7 @@ class TransformerMulti:
 
     # Properties --------------------------------------------------------------
     @property
-    def transformers(self):
+    def transformers(self) -> tuple:
         """Transformers for each state variable."""
         return self.__transformers
 
@@ -86,24 +86,24 @@ class TransformerMulti:
         self._set_slices()
 
     @property
-    def num_variables(self):
+    def num_variables(self) -> int:
         r"""Number of state variables :math:`n_q \in \NN`."""
         return self.__nq
 
     @property
-    def variable_names(self):
-        """Name for each state variable."""
+    def variable_names(self) -> tuple:
+        """Names for each state variable."""
         return tuple(tf.name for tf in self.transformers)
 
     @property
-    def variable_sizes(self):
+    def variable_sizes(self) -> tuple:
         r"""Dimensions of each state variable."""
         return tuple(tf.state_dimension for tf in self.transformers)
 
     @property
-    def state_dimension(self):
-        r"""Total dimension :math:`n = \sum_{i=0}^{n_q-1} n_i` of all state
-        variables.
+    def state_dimension(self) -> int:
+        r"""Total dimension :math:`n = \sum_{i=0}^{n_q-1} n_i \in \NN` of the
+        joint state.
         """
         if None in (sizes := self.variable_sizes):
             return None
@@ -121,7 +121,7 @@ class TransformerMulti:
             )
 
     # Magic methods -----------------------------------------------------------
-    def __len__(self):
+    def __len__(self) -> int:
         """Length = number of state variables."""
         return self.num_variables
 
@@ -186,12 +186,12 @@ class TransformerMulti:
         return states[self.__nslices[var]]
 
     def split(self, states):
-        """Split the full state into the individual state variables.
+        """Split the joint state into the individual state variables.
 
         Parameters
         ----------
         states : (n, ...) ndarray
-            Full state vector or snapshot matrix.
+            Joint state vector or snapshot matrix.
 
         Returns
         -------
@@ -424,8 +424,8 @@ class TransformerMulti:
     # Verification ------------------------------------------------------------
     def verify(self, tol: float = 1e-4):
         r"""Verify that :meth:`transform()` and :meth:`inverse_transform()`
-        are consistent and that :meth:`transform_ddts()`, if implemented,
-        is consistent with :meth:`transform()`.
+        are consistent and that :meth:`transform_ddts()`, if implemented in
+        each transformer, is consistent with :meth:`transform()`.
 
         * The :meth:`transform()` / :meth:`inverse_transform()` consistency
           check verifies that

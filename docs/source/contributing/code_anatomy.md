@@ -32,14 +32,7 @@ These are mostly abstract base classes or mixins.
 
 ### `pre`
 
-```{eval-rst}
-.. autosummary::
-    :toctree: _autosummaries
-    :nosignatures:
-
-    opinf.pre._base._UnivarMixin
-    opinf.pre._base._MultivarMixin
-```
+TODO
 
 ### `basis`
 

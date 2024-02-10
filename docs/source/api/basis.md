@@ -14,9 +14,8 @@ The following tools construct this approximation.
     :nosignatures:
 
     LinearBasis
-    LinearBasisMulti
     PODBasis
-    PODBasisMulti
+    BasisMulti
     cumulative_energy
     pod_basis
     projection_error
