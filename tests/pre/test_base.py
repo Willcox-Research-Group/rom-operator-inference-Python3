@@ -53,79 +53,92 @@ class TestTransformerTemplate:
         out = tf.fit(np.random.random((2, 5)))
         assert out is tf
 
-    def test_verify(self, n=30, k=16):
+    def test_verify(self, n=30):
         """Test TransformerTemplate.verify()."""
-        dummy = self.Dummy()
-        q = np.random.random(n)
+        Dummy = self.Dummy
+        dummy = Dummy()
 
-        with pytest.raises(ValueError) as ex:
-            dummy.verify(q)
+        with pytest.raises(AttributeError) as ex:
+            dummy.verify()
         assert ex.value.args[0] == (
-            "two-dimensional states required for verification"
+            "transformer not trained (state_dimension not set), "
+            "call fit() or fit_transform()"
         )
 
-        Q = np.random.random((n, k))
-        dummy.verify(Q)
+        dummy.state_dimension = n
+        dummy.verify()
 
-        class Dummy2a(self.Dummy):
+        class Dummy2a(Dummy):
+            def __init__(self):
+                Dummy.__init__(self)
+                self.state_dimension = n
+
             def transform(self, states, inplace=False):
                 return states[:-1]
 
-        class Dummy2b(self.Dummy):
+        class Dummy2b(Dummy2a):
             def transform(self, states, inplace=False):
                 return states
 
-        class Dummy2c(self.Dummy):
+        class Dummy2c(Dummy2a):
             def transform(self, states, inplace=False):
                 return states.copy()
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy2a().verify(Q)
+            Dummy2a().verify()
         assert ex.value.args[0] == "transform(states).shape != states.shape"
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy2b().verify(Q)
+            Dummy2b().verify()
         assert ex.value.args[0] == "transform(states, inplace=False) is states"
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy2c().verify(Q)
+            Dummy2c().verify()
         assert ex.value.args[0] == (
             "transform(states, inplace=True) is not states"
         )
 
-        class Dummy3a(self.Dummy):
+        class Dummy3a(Dummy):
+            def __init__(self):
+                Dummy.__init__(self)
+                self.state_dimension = n
+
             def inverse_transform(self, states_transformed, inplace=False):
                 return states_transformed[:-1]
 
-        class Dummy3b(self.Dummy):
+        class Dummy3b(Dummy3a):
             def inverse_transform(self, states_transformed, inplace=False):
                 return states_transformed
 
-        class Dummy3c(self.Dummy):
+        class Dummy3c(Dummy3a):
             def inverse_transform(self, states_transformed, inplace=False):
                 return states_transformed.copy()
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy3a().verify(Q)
+            Dummy3a().verify()
         assert ex.value.args[0] == (
             "inverse_transform(transform(states)).shape != states.shape"
         )
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy3b().verify(Q)
+            Dummy3b().verify()
         assert ex.value.args[0] == (
             "inverse_transform(states_transformed, inplace=False) "
             "is states_transformed"
         )
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy3c().verify(Q)
+            Dummy3c().verify()
         assert ex.value.args[0] == (
             "inverse_transform(states_transformed, inplace=True) "
             "is not states_transformed"
         )
 
-        class Dummy4(self.Dummy):
+        class Dummy4(Dummy):
+            def __init__(self):
+                Dummy.__init__(self)
+                self.state_dimension = n
+
             def inverse_transform(
                 self,
                 states_transformed,
@@ -139,13 +152,17 @@ class TestTransformerTemplate:
                 return states_transformed[:-1]
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy4().verify(Q)
+            Dummy4().verify()
         assert ex.value.args[0] == (
             "inverse_transform(transform(states)[locs], locs).shape "
             "!= states[locs].shape"
         )
 
-        class Dummy5a(self.Dummy):
+        class Dummy5a(Dummy):
+            def __init__(self):
+                Dummy.__init__(self)
+                self.state_dimension = n
+
             def inverse_transform(
                 self,
                 states_transformed,
@@ -158,7 +175,7 @@ class TestTransformerTemplate:
                 Q += 1
                 return Q
 
-        class Dummy5b(self.Dummy):
+        class Dummy5b(Dummy5a):
             def inverse_transform(
                 self,
                 states_transformed,
@@ -173,59 +190,60 @@ class TestTransformerTemplate:
                 return Q
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy5a().verify(Q)
+            Dummy5a().verify()
         assert ex.value.args[0] == (
             "transform() and inverse_transform() are not inverses"
         )
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy5b().verify(Q)
+            Dummy5b().verify()
         assert ex.value.args[0] == (
             "transform() and inverse_transform() are not inverses "
             "(locs != None)"
         )
 
-        class Dummy6a(self.Dummy):
+        class Dummy6a(Dummy):
+            def __init__(self):
+                Dummy.__init__(self)
+                self.state_dimension = n
+
             def transform_ddts(self, ddts, inplace=False):
                 return ddts
 
-        class Dummy6b(self.Dummy):
+        class Dummy6b(Dummy6a):
             def transform_ddts(self, ddts, inplace=False):
                 dQ = ddts if inplace else ddts.copy()
                 dQ += 1e16
                 return dQ
 
-        class Dummy6c(self.Dummy):
+        class Dummy6c(Dummy6a):
             def transform_ddts(self, ddts, inplace=False):
                 return ddts.copy()
 
-        with pytest.raises(ValueError) as ex:
-            Dummy6a().verify(Q)
-        assert ex.value.args[0] == (
-            "time domain 't' required for finite difference check"
-        )
-
-        t = np.linspace(0, 1, k)
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy6a().verify(Q, t)
+            Dummy6a().verify()
         assert ex.value.args[0].startswith(
             "transform_ddts(ddts, inplace=False) is ddts"
         )
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy6b().verify(Q, t)
+            Dummy6b().verify()
         assert ex.value.args[0].startswith(
             "transform_ddts() failed finite difference check"
         )
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy6c().verify(Q, t)
+            Dummy6c().verify()
         assert ex.value.args[0].startswith(
             "transform_ddts(ddts, inplace=True) is not ddts"
         )
 
-        class Dummy7(self.Dummy):
+        class Dummy7(Dummy):
+            def __init__(self):
+                Dummy.__init__(self)
+                self.state_dimension = n
+
             def transform_ddts(self, ddts, inplace=False):
                 return ddts if inplace else ddts.copy()
 
-        Dummy7().verify(Q, t)
+        Dummy7().verify()

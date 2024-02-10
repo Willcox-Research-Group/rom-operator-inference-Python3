@@ -173,7 +173,7 @@ class TransformerTemplate(abc.ABC):
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
     # Verification ------------------------------------------------------------
-    def verify(self, states, t=None, tol: float = 1e-4):
+    def verify(self, tol: float = 1e-4):
         r"""Verify that :meth:`transform()` and :meth:`inverse_transform()`
         are consistent and that :meth:`transform_ddts()`, if implemented,
         is consistent with :meth:`transform()`.
@@ -191,20 +191,17 @@ class TransformerTemplate(abc.ABC):
 
         Parameters
         ----------
-        states : (n, k)
-            Matrix of k snapshots. Each column is a snapshot of dimension n.
-        t : (k,) ndarray or None
-            Time domain corresponding to the states.
-            Only required if :meth:`transform_ddts()` is implemented.
         tol : float > 0
             Tolerance for the finite difference check of
             :meth:`transform_ddts()`.
             Only used if :meth:`transform_ddts()` is implemented.
         """
-        if not np.ndim(states) == 2:
-            raise ValueError(
-                "two-dimensional states required for verification"
+        if (n := self.state_dimension) is None:
+            raise AttributeError(
+                "transformer not trained (state_dimension not set), "
+                "call fit() or fit_transform()"
             )
+        states = np.random.random((n, 20))
 
         # Verify transform().
         states_transformed = self.transform(states, inplace=False)
@@ -257,10 +254,7 @@ class TransformerTemplate(abc.ABC):
         # Finite difference check for transform_ddts().
         if self.transform_ddts(states) is NotImplemented:
             return
-        if t is None:
-            raise ValueError(
-                "time domain 't' required for finite difference check"
-            )
+        t = np.linspace(0, 0.1, states.shape[1])
         ddts = ddt.ddt(states, t)
         ddts_transformed = self.transform_ddts(ddts, inplace=False)
         if ddts_transformed is ddts:

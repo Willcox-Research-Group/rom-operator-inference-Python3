@@ -371,7 +371,6 @@ class TestShiftScaleTransformer:
 
     def test_verify(self, n=150, k=400):
         """Use ShiftScaleTransformer.verify() to run tests."""
-        t = np.linspace(0, 0.1, k)
         Q = np.random.random((n, k))
 
         for scaling, centering in itertools.product(
@@ -379,7 +378,7 @@ class TestShiftScaleTransformer:
         ):
             st = self.Transformer(centering=centering, scaling=scaling)
             st.fit(Q)
-            st.verify(Q, t)
+            st.verify()
 
     def test_fit_transform(self, n=200, k=50):
         """Test ShiftScaleTransformer.fit_transform()."""

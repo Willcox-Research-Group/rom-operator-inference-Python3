@@ -422,9 +422,7 @@ class TransformerMulti:
             return cls(transformers, variable_sizes=variable_sizes)
 
     # Verification ------------------------------------------------------------
-    # TODO: figure out what to do with transform_ddts().
-    # What if not every transformer has it implemented?
-    def verify(self, states, t=None, tol: float = 1e-4):
+    def verify(self, tol: float = 1e-4):
         r"""Verify that :meth:`transform()` and :meth:`inverse_transform()`
         are consistent and that :meth:`transform_ddts()`, if implemented,
         is consistent with :meth:`transform()`.
@@ -442,17 +440,12 @@ class TransformerMulti:
 
         Parameters
         ----------
-        states : (n, k)
-            Matrix of k snapshots. Each column is a snapshot of dimension n.
-        t : (k,) ndarray or None
-            Time domain corresponding to the states.
-            Only required if :meth:`transform_ddts()` is implemented.
         tol : float > 0
             Tolerance for the finite difference check of
             :meth:`transform_ddts()`.
             Only used if :meth:`transform_ddts()` is implemented.
         """
-        return TransformerTemplate.verify(self, states, t, tol)
+        return TransformerTemplate.verify(self, tol)
 
     def _verify_locs(self, states, states_transformed):
         """Verify :meth:`inverse_transform()` with ``locs != None``."""

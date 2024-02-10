@@ -207,8 +207,7 @@ class TestTransformerMulti:
         for i in range(len(transformers)):
             transformers[i] = self.Dummy2()
         tfm.fit(Q)
-        t = np.linspace(0, 0.1, k)
-        tfm.verify(Q, t)
+        tfm.verify()
 
         with pytest.raises(Exception):
             tfm.fit(100)
@@ -292,12 +291,11 @@ class TestTransformerMulti:
         transformers = [tf1, tf2, tf3]
 
         tf = DummyMulti(transformers)
-        Q = np.random.random((31, k))
-        assert tf.verify(Q) is None
+        assert tf.verify() is None
 
         tf2.state_dimension = 10
         tf._set_slices()
-        Q = Q[1:, :]
+        Q = np.random.random((tf.state_dimension, k))
         Qt = tf.transform(Q)
         tf._verify_locs(Q, Qt)
 
