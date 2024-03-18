@@ -5,7 +5,6 @@ __all__ = [
     "mpl_config",
 ]
 
-import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -21,4 +20,10 @@ def mpl_config():
     plt.rc("text", usetex=True)
 
     # Pandas display options.
-    pd.options.display.float_format = "{:.4%}".format
+    try:
+        import pandas as pd
+    except ModuleNotFoundError as ex:  # pragma: no cover
+        if ex.args[0] != "No module named 'pandas'":
+            raise
+    else:
+        pd.options.display.float_format = "{:.4%}".format
