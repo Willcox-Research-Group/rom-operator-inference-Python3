@@ -4,6 +4,7 @@
 # Built documentation
 docs/_build/
 _autosummaries/
+docs/source/opinf/literature.md
 
 # Extra Python files
 *.py[cod]
