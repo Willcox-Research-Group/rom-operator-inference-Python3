@@ -29,6 +29,7 @@ execute:
 # Bibtex file for citations.
 bibtex_bibfiles:
   - references.bib
+  - literature.bib
 
 parse:
   myst_enable_extensions:

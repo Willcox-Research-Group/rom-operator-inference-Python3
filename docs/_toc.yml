@@ -12,8 +12,7 @@ parts:
     - file: source/opinf/intro.md
     - file: source/opinf/installation.md
     - file: source/opinf/changelog.md
-    # - file: source/opinf/gallery.md
-    # - file: source/opinf/literature.md
+    - file: source/opinf/literature.md
     - file: source/opinf/bibliography.md
 
   # Complete numerical examples, written in a tutorial style.

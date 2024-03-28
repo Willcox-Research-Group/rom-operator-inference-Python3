@@ -44,6 +44,7 @@ tests = [
     "pre-commit>=3.5.0",
 ]
 docs = [
+    "bibtexparser>=2.0.0b7",
     "chardet>=5.0",
     "jupyter-book>=0.14.0,<0.15.0",
     "jupyterlab>=4.0.9",

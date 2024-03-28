@@ -16,6 +16,7 @@ This package is a Python implementation of Operator Inference (OpInf), a project
 The procedure is data-driven and non-intrusive, making it a viable candidate for model reduction of "glass-box" systems where the structure of the governing equations is known but intrusive code queries are unavailable.
 
 Get started with [**What is Operator Inference?**](./opinf/intro.md) or head straight to [**Installation**](./opinf/installation.md) and the first tutorial, [**Getting Started**](./tutorials/basics.ipynb).
+See [**Literature**](./opinf/literature.md) for a list of scholarly works on operator inference.
 
 :::{image} ../images/summary.svg
 :align: center
