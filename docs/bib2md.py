@@ -5,6 +5,17 @@ import re
 import collections
 
 import bibtexparser
+import bibtexparser.middlewares as bm
+
+
+class TrimMiddleware(bm.BlockMiddleware):
+    """Trim out a few fields when writing the bibtex file."""
+
+    def transform_entry(self, entry, *args, **kwargs):
+        for field in "category", "url":
+            if field in entry:
+                entry.pop(field)
+        return entry
 
 
 HEADER = """# Literature
@@ -34,13 +45,13 @@ scholarIDS = {
     "huang": "lUXijaQAAAAJ",
     "issan": "eEIe19oAAAAJ",
     "ju": "JkKUWoAAAAAJ",
-    "junior": "66DEy5wAAAAJ",
     "karasözen": "R906kj0AAAAJ",
     "khodabakhshi": "lYr_g-MAAAAJ",
     "koike": "HFoIGcMAAAAJ",
     "kramer": "yfmbPNoAAAAJ",
     "mcquarrie": "qQ6JDJ4AAAAJ",
     "najera-flores": "HJ-Dfl8AAAAJ",
+    "nogueira": "66DEy5wAAAAJ",
     "peherstorfer": "C81WhlkAAAAJ",
     "qian": "jnHI7wQAAAAJ",
     "sharma": "Pb-tL5oAAAAJ",
@@ -104,7 +115,7 @@ def clean_title(title):
     return re.subn(r"\{(\w+?)\}", r"\1", clean_name(title))[0]
 
 
-def linkedname(firstname, lastname):
+def linkedname(firstname, lastname, junior=False):
     """Get the string of the form "First, Last" with a link to their
     Google Scholar page if possible.
     """
@@ -112,7 +123,11 @@ def linkedname(firstname, lastname):
         gsID = scholarIDS[lname]
         url = f"https://scholar.google.com/citations?user={gsID}"  # &hl=en
         # return "[" + firstname + " " + lastname + "](" + d[lastname] + ")"
+        if junior:
+            lastname = lastname + " Jr."
         return f"[{firstname} {lastname}]({url})"
+    if junior:
+        lastname = lastname + " Jr."
     return f"{firstname} {lastname}"
 
 
@@ -145,8 +160,14 @@ def main(bibfile, mdfile):
             if "," in author:
                 raise ValueError(f"change {bibfile} to avoid ',' in authors")
             names = author.split(" ")
-            initials = " ".join([name[0] + "." for name in names[:-1]])
-            authors.append(linkedname(initials, clean_name(names[-1])))
+            if names[-1] == "Jr":
+                initials = " ".join([name[0] + "." for name in names[:-2]])
+                authors.append(
+                    linkedname(initials, clean_name(names[-2]), junior=True)
+                )
+            else:
+                initials = " ".join([name[0] + "." for name in names[:-1]])
+                authors.append(linkedname(initials, clean_name(names[-1])))
 
         if len(authors) == 0:
             raise ValueError("empty author field")
@@ -177,6 +198,15 @@ def main(bibfile, mdfile):
             cat = entry["category"]
         sectiontxt[cat].append("  \n  ".join([authortxt, titletxt, citetxt]))
 
+    library = bibtexparser.parse_file(
+        bibfile,
+        append_middleware=[bm.SortBlocksByTypeAndKeyMiddleware()],
+    )
+    formatter = bibtexparser.BibtexFormat()
+    formatter.indent = "    "
+    formatter.trailing_comma = True
+    formatter.block_separator = "\n"
+
     with open(mdfile, "w") as outfile:
         outfile.write(HEADER)
         for cat in categories:
@@ -184,6 +214,16 @@ def main(bibfile, mdfile):
                 continue
             outfile.write(f"\n## {categories[cat]}\n")
             outfile.write("\n  <p></p>\n".join(sectiontxt[cat]) + "\n")
+
+        outfile.write("## BibTex File\n\n```bibtex\n")
+        outfile.write(
+            bibtexparser.write_string(
+                library,
+                bibtex_format=formatter,
+                prepend_middleware=[TrimMiddleware()],
+            )
+        )
+        outfile.write("\n```\n")
 
 
 if __name__ == "__main__":
