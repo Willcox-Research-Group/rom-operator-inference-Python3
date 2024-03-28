@@ -8,16 +8,9 @@ import bibtexparser
 import bibtexparser.middlewares as bm
 
 
-class TrimMiddleware(bm.BlockMiddleware):
-    """Trim out a few fields when writing the bibtex file."""
+# Configuration ===============================================================
 
-    def transform_entry(self, entry, *args, **kwargs):
-        for field in "category", "url":
-            if field in entry:
-                entry.pop(field)
-        return entry
-
-
+# Text before the list of references begins.
 HEADER = """# Literature
 
 This page lists scholarly publications that develop, extend, or apply
@@ -25,28 +18,24 @@ Operator Inference.
 """
 # [Click here submit a new entry](TODO).
 
+# Categories to group the references by.
+categories = {
+    "origin": "Original Paper",
+    "survey": "Surveys",
+    "method": "Methodology",
+    "struct": "Structure Preservation",
+    "theory": "Theory",
+    "application": "Applications",
+    "thesis": "Dissertations and Theses",
+    "other": "Other",
+}
 
-FOOTER = r"""## BibTex File
+# These categories will be subsubsections, not subsections.
+subsubsections = {
+    "struct",
+}
 
-:::{{admonition}} Sorted alphabetically by author
-:class: dropdown seealso
-
-```bibtex
-{}
-```
-:::
-
-:::{{admonition}} Sorted by year then alphabetically by author
-:class: dropdown seealso
-
-```bibtex
-{}
-```
-:::
-"""
-
-
-# Google Scholar IDs (https://scholar.google.com/citation?user=<this ID>)
+# Author citation IDs (https://scholar.google.com/citation?user=<this ID>)
 scholarIDS = {
     "abidnazari": "u8vJ9-oAAAAJ",
     "ashley": "9KFAXLYAAAAJ",
@@ -86,7 +75,7 @@ scholarIDS = {
     "yıldız": "UVPD79MAAAAJ",
 }
 
-
+# LaTeX special characters to convert for the markdown version.
 specialChars = (
     (r"\~{a}", "ã"),
     (r"\'{e}", "é"),
@@ -95,25 +84,36 @@ specialChars = (
     (r"\"{u}", "ü"),
 )
 
+# Text after the list of references.
+FOOTER = r"""## BibTex File
 
-# Fields in the BibTex file to ignore.
-toSkip = {
-    "category",
-    "url",
-}
+:::{{admonition}} Sorted alphabetically by author
+:class: dropdown seealso
+
+```bibtex
+{}
+```
+:::
+
+:::{{admonition}} Sorted by year then alphabetically by author
+:class: dropdown seealso
+
+```bibtex
+{}
+```
+:::
+"""
 
 
-# Categories to group the references by.
-categories = {
-    "origin": "Original Paper",
-    "survey": "Surveys",
-    "method": "Operator Inference Methodologies",
-    "theory": "Operator Inference Theory",
-    "struct": "Operator Inference with Structure",
-    "application": "Applications",
-    "thesis": "Dissertations and Theses",
-    "other": "Other",
-}
+# Helper functions ============================================================
+class TrimMiddleware(bm.BlockMiddleware):
+    """Trim out a few fields when writing the bibtex file."""
+
+    def transform_entry(self, entry, *args, **kwargs):
+        for field in "category", "url":
+            if field in entry:
+                entry.pop(field)
+        return entry
 
 
 def clean_name(name):
@@ -156,13 +156,16 @@ def entry2txt(bibraw):
     """Convert the bibtexparser entry to a printable string."""
     txt = f"@{bibraw.entry_type}{{{bibraw.key},\n"
     for field in bibraw.fields:
-        if (key := field.key) in toSkip:
+        if (key := field.key) == "category":
+            continue
+        elif key == "url" and "doi" in bibraw:
             continue
         txt = f"{txt}&nbsp;&nbsp;{key} = {{{bibraw[key]}}},\n"
     txt = f"{txt}  }}".replace("\\", "\\\\")
     return txt.replace('\\\\"', '\\\\\\\\"')
 
 
+# Main routine ================================================================
 def main(bibfile, mdfile):
     """Convert a BibTex file to Markdown."""
 
@@ -203,6 +206,8 @@ def main(bibfile, mdfile):
         title = clean_title(entry["title"])
         if "url" in entry:
             titletxt = f"[**{title}**]({entry['url']})"
+        elif "doi" in entry:
+            titletxt = f"[**{title}**](https://doi.org/{entry['doi']})"
         else:
             titletxt = f"**{title}**"
 
@@ -243,7 +248,8 @@ def main(bibfile, mdfile):
         for cat in categories:
             if cat not in sectiontxt:
                 continue
-            outfile.write(f"\n## {categories[cat]}\n")
+            prefix = "\n###" if cat in subsubsections else "\n##"
+            outfile.write(f"{prefix} {categories[cat]}\n")
             outfile.write("\n  <p></p>\n".join(sectiontxt[cat]) + "\n")
 
         footer = FOOTER.format(
@@ -265,5 +271,6 @@ def main(bibfile, mdfile):
         outfile.write(footer)
 
 
+# =============================================================================
 if __name__ == "__main__":
     main("literature.bib", "source/opinf/literature.md")
