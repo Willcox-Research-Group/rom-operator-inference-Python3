@@ -153,7 +153,7 @@ Common preprocessing steps include
 2. Centering or shifting data to account for boundary conditions.
 3. Scaling / nondimensionalizing the variables represented in the state.
 
-See [Data Preprocessing](sec-guide-preprocessing) for details and examples.
+See [`opinf.pre`](../api/pre.ipynb) for details and examples.
 :::
 
 Operator Inference uses a regression problem to compute the reduced-order operators, which requires state data ($\Q$), input data ($\U$), _and_ data for the corresponding time derivatives:

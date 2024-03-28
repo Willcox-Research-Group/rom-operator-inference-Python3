@@ -46,6 +46,7 @@ tests = [
 docs = [
     "bibtexparser>=2.0.0b7",
     "chardet>=5.0",
+    "docutils==0.17.1",
     "jupyter-book>=0.14.0,<0.15.0",
     "jupyterlab>=4.0.9",
     "numpydoc>=1.2",
