@@ -26,6 +26,26 @@ Operator Inference.
 # [Click here submit a new entry](TODO).
 
 
+FOOTER = r"""## BibTex File
+
+:::{{admonition}} Sorted alphabetically by author
+:class: dropdown seealso
+
+```bibtex
+{}
+```
+:::
+
+:::{{admonition}} Sorted by year then alphabetically by author
+:class: dropdown seealso
+
+```bibtex
+{}
+```
+:::
+"""
+
+
 # Google Scholar IDs (https://scholar.google.com/citation?user=<this ID>)
 scholarIDS = {
     "abidnazari": "u8vJ9-oAAAAJ",
@@ -91,6 +111,7 @@ categories = {
     "theory": "Operator Inference Theory",
     "struct": "Operator Inference with Structure",
     "application": "Applications",
+    "thesis": "Dissertations and Theses",
     "other": "Other",
 }
 
@@ -186,8 +207,22 @@ def main(bibfile, mdfile):
             titletxt = f"**{title}**"
 
         # Parse journal and year.
+        if "journal" in entry:
+            publication = entry["journal"]
+        elif "booktitle" in entry:
+            publication = entry["booktitle"]
+        elif entry["category"] == "thesis" and "school" in entry:
+            if entry.entry_type == "phdthesis":
+                publication = "PhD Thesis, " + entry["school"]
+            elif entry.entry_type == "mastersthesis":
+                publication = "Master's Thesis, " + entry["school"]
+            else:
+                raise ValueError("could not identify publication")
+        else:
+            raise ValueError("could not identify publication")
+
         citetxt = (
-            f"{entry['journal']}, {entry['year']} "
+            f"{publication}, {entry['year']} "
             f"<details><summary>BibTeX</summary><pre>{entry2txt(entry)}"
             f"</pre></details>"
         )
@@ -198,10 +233,6 @@ def main(bibfile, mdfile):
             cat = entry["category"]
         sectiontxt[cat].append("  \n  ".join([authortxt, titletxt, citetxt]))
 
-    library = bibtexparser.parse_file(
-        bibfile,
-        append_middleware=[bm.SortBlocksByTypeAndKeyMiddleware()],
-    )
     formatter = bibtexparser.BibtexFormat()
     formatter.indent = "    "
     formatter.trailing_comma = True
@@ -215,15 +246,23 @@ def main(bibfile, mdfile):
             outfile.write(f"\n## {categories[cat]}\n")
             outfile.write("\n  <p></p>\n".join(sectiontxt[cat]) + "\n")
 
-        outfile.write("## BibTex File\n\n```bibtex\n")
-        outfile.write(
-            bibtexparser.write_string(
+        footer = FOOTER.format(
+            bibtexparser.write_string(  # Sorted by 1st author last name.
+                bibtexparser.parse_file(
+                    bibfile,
+                    append_middleware=[bm.SortBlocksByTypeAndKeyMiddleware()],
+                ),
+                bibtex_format=formatter,
+                prepend_middleware=[TrimMiddleware()],
+            ),
+            bibtexparser.write_string(  # Sorted by year, then author.
                 library,
                 bibtex_format=formatter,
                 prepend_middleware=[TrimMiddleware()],
-            )
+            ),
         )
-        outfile.write("\n```\n")
+
+        outfile.write(footer)
 
 
 if __name__ == "__main__":
