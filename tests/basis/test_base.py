@@ -34,7 +34,6 @@ class TestBaseBasis:
         n = basis.full_state_dimension
         assert isinstance(n, int)
         assert basis.full_state_dimension == n
-        assert basis.shape is None
 
         basis.reduced_state_dimension = 4.0
         r = basis.reduced_state_dimension

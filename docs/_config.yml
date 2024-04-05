@@ -82,7 +82,8 @@ sphinx:
           "B": "\\mathbf{B}"                  # input operator
           "N": "\\mathbf{N}"                  # bilinear operator
           "v": "\\mathbf{v}"                  # basis vector
-          "V": "\\mathbf{V}"                  # generic basis matrix.
+          "V": "\\mathbf{V}"                  # generic basis matrix
+          "W": "\\mathbf{W}"                  # weight matrix
           "Vr": "\\mathbf{V}_{\\!r}"          # trial basis matrix
           "Wr": "\\mathbf{W}_{\\!r}"          # test basis matrix
           "qhat": "\\hat{\\mathbf{q}}"        # reduced state vector

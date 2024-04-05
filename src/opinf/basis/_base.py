@@ -51,11 +51,6 @@ class BasisTemplate(abc.ABC):
     @property
     def shape(self):
         """Dimensions :math:`(n, r)` of the basis."""
-        if (
-            self.full_state_dimension is None
-            or self.reduced_state_dimension is None
-        ):
-            return None
         return (self.full_state_dimension, self.reduced_state_dimension)
 
     @property
@@ -112,8 +107,8 @@ class BasisTemplate(abc.ABC):
             Matrix of `r`-dimensional latent coordinate vectors, or a single
             coordinate vector.
         locs : slice or (p,) ndarray of integers or None
-            If given, return the decompressed state at only the `p` specified
-            locations (indices) described by ``locs``.
+            If given, return the decompressed state at *only* the
+            `p` specified locations (indices) described by ``locs``.
 
         Returns
         -------
@@ -132,7 +127,8 @@ class BasisTemplate(abc.ABC):
         2. reconstructing the high-dimensional state corresponding to those
            coordinates.
 
-        That is, ``project(Q)`` is equivalent to ``decompress(compress(Q))``.
+        In other words, ``project(Q)`` is equivalent to
+        ``decompress(compress(Q))``.
 
         Parameters
         ----------
@@ -164,9 +160,9 @@ class BasisTemplate(abc.ABC):
             organized as the columns of a matrix.
         relative : bool
             If ``True`` (default), return the relative projection error
-            ``|| state - project(state) || / || state ||``.
+            ``norm(state - project(state)) / norm(state)``.
             If ``False``, return the absolute projection error
-            ``|| state - project(state) ||``.
+            ``norm(state - project(state))``.
 
         Returns
         -------
@@ -194,7 +190,7 @@ class BasisTemplate(abc.ABC):
         """Verify that :meth:`compress()` and :meth:`decompress()` are
         consistent in the sense that the range of :meth:`decompress()` is in
         the domain of :meth:`compress()` and that :meth:`project()` defines
-        a projection operator.
+        a projection operator, i.e., ``project(project(Q)) = project(Q)``.
         """
         if (n := self.full_state_dimension) is None:
             raise AttributeError("basis not trained, call fit()")
