@@ -16,6 +16,7 @@ class TestBasisMulti:
     class Dummy(opinf.basis.BasisTemplate):
         def __init__(self):
             self.data = np.random.random(np.random.randint(1, 10, size=2))
+            super().__init__()
 
         def fit(self, states):
             return self
@@ -44,10 +45,8 @@ class TestBasisMulti:
                 dummy.data = hf["data"][:]
             return dummy
 
-    class Dummy3(Dummy2, opinf.basis._base._UnivarBasisMixin):
-        def __init__(self, name=None):
-            opinf.basis._base._UnivarBasisMixin.__init__(self, name)
-            TestBasisMulti.Dummy2.__init__(self)
+    class Dummy3(Dummy2):
+        pass
 
     def test_init(self):
         """Test BasisMulti.__init__(), bases, dimensions."""
