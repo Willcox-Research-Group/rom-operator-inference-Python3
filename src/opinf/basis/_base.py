@@ -29,37 +29,37 @@ class BasisTemplate(abc.ABC):
 
     # Properties --------------------------------------------------------------
     @property
-    def full_state_dimension(self):
+    def full_state_dimension(self) -> int:
         r"""Dimension :math:`n` of the full state."""
         return self.__n
 
     @full_state_dimension.setter
-    def full_state_dimension(self, n):
+    def full_state_dimension(self, n: int):
         """Set the full state dimension."""
         self.__n = int(n) if n is not None else None
 
     @property
-    def reduced_state_dimension(self):
+    def reduced_state_dimension(self) -> int:
         r"""Dimension :math:`r` of the reduced (compressed) state."""
         return self.__r
 
     @reduced_state_dimension.setter
-    def reduced_state_dimension(self, r):
+    def reduced_state_dimension(self, r: int):
         """Set the reduced state dimension."""
         self.__r = int(r) if r is not None else None
 
     @property
-    def shape(self):
+    def shape(self) -> tuple[int, int]:
         """Dimensions :math:`(n, r)` of the basis."""
         return (self.full_state_dimension, self.reduced_state_dimension)
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Label for the state variable that this basis approximates."""
         return self.__name
 
     @name.setter
-    def name(self, label):
+    def name(self, label: str):
         """Set the state variable name."""
         self.__name = str(label) if label is not None else None
 
@@ -176,12 +176,12 @@ class BasisTemplate(abc.ABC):
         return diff
 
     # Model persistence -------------------------------------------------------
-    def save(self, savefile, overwrite=False):
+    def save(self, savefile: str, overwrite: bool = False):
         """Save the transformer to an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
     @classmethod
-    def load(cls, loadfile):
+    def load(cls, loadfile: str):
         """Load a transformer from an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 

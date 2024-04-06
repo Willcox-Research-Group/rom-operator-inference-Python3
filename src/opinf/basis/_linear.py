@@ -64,14 +64,17 @@ def weighted_svd(Q, W):
 
 
 class LinearBasis(BasisTemplate):
-    r"""Linear basis for representing the low-dimensional state approximation
+    r"""Linear low-dimensional state approximation.
 
     .. math::
        \q \approx \Vr\qhat = \sum_{i=1}^r \hat{q}_i \v_i,
 
     where :math:`\q\in\RR^n`,
-    :math:`\Vr = [\v_1, \ldots, \v_r]\in \RR^{n \times r}`, and
+    :math:`\Vr = [~\v_1~~\cdots~~\v_r~]\in \RR^{n \times r}`, and
     :math:`\qhat = [\hat{q}_1,\ldots,\hat{q}_r]\trp\in\RR^r`.
+
+    The basis entries are specified in the constructor, not learned from state
+    data. Hence, :meth:`fit` does nothing in this class.
 
     Parameters
     ----------
@@ -86,7 +89,7 @@ class LinearBasis(BasisTemplate):
     check_orthogonality : bool
         If ``True``, raise a warning if the basis is not orthogonal
         (with respect to the weights, if given).
-    name : str or None
+    name : str
         Label for the state variable that this basis approximates.
 
     Notes
@@ -109,7 +112,7 @@ class LinearBasis(BasisTemplate):
         # Empty intializer for child classes (POD).
         if entries is None:
             self.__entries = None
-            self.__weights = None
+            self.__weights = weights
             return
 
         # Orthogonalize the basis entries if desired.
@@ -122,7 +125,7 @@ class LinearBasis(BasisTemplate):
         # Set the entries.
         self.__entries = entries
         BasisTemplate.full_state_dimension.fset(self, entries.shape[0])
-        self.reduced_state_dimension = entries.shape[1]
+        BasisTemplate.reduced_state_dimension.fset(self, entries.shape[1])
 
         # Set the weights.
         if weights is not None and np.ndim(weights) == 1:
@@ -140,20 +143,25 @@ class LinearBasis(BasisTemplate):
     # Properties --------------------------------------------------------------
     @property
     def entries(self):
-        r"""Entries of the basis matrix :math:`\Vr\in\RR^{n \times r}`."""
+        r"""Entries of the basis matrix :math:`\Vr\in\RR^{n \times r}`.
+        Also accessible via indexing (``basis[:]``).
+        """
         return self.__entries
 
     @property
     def weights(self) -> np.ndarray:
-        r"""Weight matrix :math:`\W \in \RR^{n \times n}`.
-        A warning is raised if :math:`\Vr\trp\W\Vr` is not the identity matrix.
-        """
+        r"""Weight matrix :math:`\W \in \RR^{n \times n}`."""
         return self.__weights
 
     @property
     def full_state_dimension(self):
-        """Full state dimension."""
+        r"""Dimension :math:`n` of the full state."""
         return BasisTemplate.full_state_dimension.fget(self)
+
+    @property
+    def reduced_state_dimension(self):
+        r"""Dimension :math:`r` of the reduced (compressed) state."""
+        return BasisTemplate.reduced_state_dimension.fget(self)
 
     def __getitem__(self, key):
         """self[:] --> self.entries."""
@@ -181,7 +189,7 @@ class LinearBasis(BasisTemplate):
         return utils.str2repr(self)
 
     # Dimension reduction -----------------------------------------------------
-    def compress(self, state):
+    def compress(self, state: np.ndarray) -> np.ndarray:
         r"""Map high-dimensional states to low-dimensional latent coordinates.
 
         .. math:: \q \mapsto \qhat = \Vr\trp\q.
@@ -207,7 +215,11 @@ class LinearBasis(BasisTemplate):
             state = self.weights @ state
         return self.entries.T @ state
 
-    def decompress(self, states_compressed, locs=None):
+    def decompress(
+        self,
+        states_compressed: np.ndarray,
+        locs=None,
+    ) -> np.ndarray:
         r"""Map low-dimensional latent coordinates to high-dimensional states.
 
         .. math:: \qhat \mapsto \breve{\q} = \Vr\qhat
@@ -268,7 +280,7 @@ class LinearBasis(BasisTemplate):
         return ax
 
     # Persistence -------------------------------------------------------------
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Two LinearBasis objects are equal if their type, dimensions, and
         basis entries are the same.
         """
@@ -287,7 +299,7 @@ class LinearBasis(BasisTemplate):
                 return False
         return np.all(self.entries == other.entries)
 
-    def save(self, savefile, overwrite=False):
+    def save(self, savefile: str, overwrite: bool = False):
         """Save the basis to an HDF5 file.
 
         Parameters
@@ -306,7 +318,7 @@ class LinearBasis(BasisTemplate):
                 hf.create_dataset("weights", data=w)
 
     @classmethod
-    def load(cls, loadfile):
+    def load(cls, loadfile: str):
         """Load a basis from an HDF5 file.
 
         Parameters

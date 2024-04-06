@@ -92,10 +92,11 @@ class TestLinearBasis:
                 method(0)
             assert ex.value.args[0] == "basis entries not initialized"
 
-        # Ensure the full_state_dimension cannot be set.
-        with pytest.raises(AttributeError) as ex:
-            basis.full_state_dimension = 10
-        assert basis.full_state_dimension is None
+        # Ensure the state dimensions cannot be set.
+        for attr in "full_state_dimension", "reduced_state_dimension":
+            with pytest.raises(AttributeError) as ex:
+                setattr(basis, attr, 10)
+            assert getattr(basis, attr) is None
 
         # Orthogonal basis.
         Vr = self._orth(n, r)
@@ -161,6 +162,7 @@ class TestLinearBasis:
             "\nFull state dimension    n = 9"
             "\nReduced state dimension r = 5"
         )
+        assert repr(basis).count(str(basis)) == 1
 
     # Dimension reduction  ----------------------------------------------------
     def test_compress(self, n=9, r=4):
@@ -171,7 +173,10 @@ class TestLinearBasis:
         q_ = Vr.T @ q
         assert np.allclose(basis.compress(q), q_)
 
-        # TODO: test weighted compression
+        w = np.random.random(9)
+        basis = self.Basis(Vr, weights=w, orthogonalize=True)
+        q_ = basis.entries.T @ (w * q)
+        assert np.allclose(basis.compress(q), q_)
 
     def test_decompress(self, n=9, r=4):
         """Test decompress()."""
@@ -225,6 +230,9 @@ class TestLinearBasis:
         assert basis2 != basis1
         basis1 = self.Basis(basis2.entries, weights=basis2.weights)
         assert basis1 == basis2
+        with pytest.warns(opinf.errors.UsageWarning):
+            basis1 = self.Basis(basis2.entries, weights=(2 * basis2.weights))
+        assert basis1 != basis2
 
     def test_save(self, n=11, r=2, target="_linearbasissavetest.h5"):
         """Lightly test LinearBasis.save()."""
