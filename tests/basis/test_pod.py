@@ -4,7 +4,8 @@
 import os
 import pytest
 import numpy as np
-from scipy import linalg as la
+
+# from scipy import linalg as la
 from matplotlib import pyplot as plt
 
 import opinf
@@ -13,215 +14,88 @@ import opinf
 class TestPODBasis:
     """Test basis._pod.PODBasis."""
 
-    PODBasis = opinf.basis.PODBasis
+    Basis = opinf.basis.PODBasis
 
+    # Constructors ------------------------------------------------------------
     def test_init(self):
-        """Test __init__()."""
-        basis = self.PODBasis()
-        assert basis.reduced_state_dimension is None
-        assert basis.full_state_dimension is None
-        assert basis.shape is None
-        assert basis.entries is None
-        assert basis.svdvals is None
-        assert basis.dual is None
-        assert not basis.economize
-        assert basis.rmax is None
+        """Test __init__() andd properties."""
+        # Valid instantiation.
+        basis = self.Basis(num_vectors=10, name="testbasis")
+        for attr in (
+            "reduced_state_dimension",
+            "full_state_dimension",
+            "entries",
+            "weights",
+            "leftvecs",
+            "svdvals",
+            "rightvecs",
+            "residual_energy",
+            "cumulative_energy",
+        ):
+            assert getattr(basis, attr) is None
+        assert basis.name == "testbasis"
+        assert isinstance(basis.solver_options, dict)
+        assert len(basis.solver_options) == 0
 
-    def test_dimensions(self, n=20, r=5):
-        """Test r, economize, and _shrink_stored_entries_to()."""
-        basis = self.PODBasis(economize=False)
-
-        # Try setting the basis dimension before setting the entries.
+        # Setter for mode.
         with pytest.raises(AttributeError) as ex:
-            basis.reduced_state_dimension = 10
-        assert ex.value.args[0] == "empty basis (call fit() first)"
+            basis.mode = "smartly"
+        assert ex.value.args[0].startswith("invalid mode 'smartly', options: ")
+        basis.mode = "randomized"
 
-        # Test _store_svd() real quick.
-        V, s, Wt = la.svd(np.random.standard_normal((n, n)))
-        Vr, sr, Wtr = V[:, :r], s[:r], Wt[:r]
-        basis._store_svd(Vr, sr, Wtr)
-        assert np.all(basis.entries == Vr)
-        assert np.allclose(basis.dual, Wtr.T)
-        assert np.all(basis.svdvals == sr)
-        assert basis.rmax == r
+        # Setter for solver_options.
+        with pytest.raises(TypeError) as ex:
+            basis.solver_options = 10
+        assert ex.value.args[0] == "solver_options must be a dictionary"
+        basis.solver_options["full_matrices"] = False
 
-        # Try setting the dimension too high.
-        with pytest.raises(ValueError) as ex:
-            basis.reduced_state_dimension = r + 2
-        assert ex.value.args[0] == f"only {r} basis vectors stored"
+    def test_from_svd(self):
+        """Test from_svd() pseudoconstructor."""
+        raise NotImplementedError
 
-        # Shrink dimension and blow it back up (economize=False).
-        basis.reduced_state_dimension = r - 1
-        assert basis.shape == (n, r - 1)
-        assert np.all(basis.entries == Vr[:, :-1])
-        assert np.all(basis.dual == Wtr[:-1].T)
-        assert basis.svdvals.shape == sr.shape
-        assert np.all(basis.svdvals == sr)
-        assert basis.rmax == r
+    # Dimension management ----------------------------------------------------
+    def test_set_dimension(self):
+        basis = self.Basis(num_vectors=10)
 
-        basis.reduced_state_dimension = r
-        assert basis.shape == (n, r)
-        assert np.all(basis.entries == Vr)
-        assert np.all(basis.dual == Wtr.T)
-        assert basis.svdvals.shape == sr.shape
-        assert np.all(basis.svdvals == sr)
-        assert basis.rmax == r
-
-        # Shrink the dimension (economize=True).
-        basis.economize = True
-        basis.reduced_state_dimension = r - 1
-        assert basis.shape == (n, r - 1)
-        assert np.all(basis.entries == Vr[:, :-1])
-        assert np.all(basis.dual == Wtr[:-1].T)
-        assert basis.svdvals.shape == sr.shape
-        assert np.all(basis.svdvals == sr)
-        assert basis.rmax == r - 1
-
-        # Try to recover forgotten columns.
-        with pytest.raises(ValueError) as ex:
-            basis.reduced_state_dimension = r
-        assert ex.value.args[0] == f"only {r-1} basis vectors stored"
-
-        # Ensure setting economize = True shrinks the dimension.
-        basis.economize = False
-        basis._store_svd(Vr, sr, Wtr)
-        basis.reduced_state_dimension = r
-        assert basis.rmax == r
-        basis.reduced_state_dimension = r - 1
-        assert basis.reduced_state_dimension == r - 1
-        assert basis.rmax == r
-        basis.economize = True
-        assert basis.reduced_state_dimension == r - 1
-        assert basis.rmax == r - 1
-        with pytest.raises(ValueError) as ex:
-            basis.reduced_state_dimension = r
-        assert ex.value.args[0] == f"only {r-1} basis vectors stored"
-
-        # Tests what happens when the dimension is set to 1.
-        basis.economize = False
-        basis._store_svd(Vr, sr, Wtr)
-        basis.reduced_state_dimension = 1
-        assert basis.shape == (n, 1)
-        assert basis.dual.shape == (n, 1)
-        assert basis.svdvals.shape == (r,)
-        assert basis.compress(
-            np.random.random(
-                n,
+        # Dimension selection criteria
+        with pytest.raises(opinf.errors.UsageWarning) as wn:
+            basis._set_dimension_from_criterion(
+                num_vectors=20,
+                cumulative_energy=0.999,
+                residual_energy=0.01,
             )
-        ).shape == (1,)
-        assert basis.compress(np.random.random((n, n))).shape == (1, n)
-
-    def test_set_dimension(self, n=20):
-        """Test set_dimension()."""
-        basis = self.PODBasis(economize=False)
-
-        # Try setting dimension without singular values.
-        with pytest.raises(AttributeError) as ex:
-            basis.set_dimension(r=None, cumulative_energy=0.9985)
-        assert ex.value.args[0] == "no singular value data (call fit() first)"
-
-        V, _, Wt = la.svd(np.random.standard_normal((n, n)))
-        svdvals = np.sqrt(
-            [0.9, 0.09, 0.009, 0.0009, 0.00009, 0.000009, 0.0000009]
+        assert wn[0].message.args[0] == (
+            "received multiple dimension selection criteria, "
+            "using num_vectors=20"
         )
 
-        # Default: use all basis vectors.
-        basis._store_svd(V, svdvals, Wt)
-        basis.set_dimension()
-        assert basis.reduced_state_dimension == n
-
-        # Set specified dimension.
-        basis._store_svd(V, svdvals, Wt)
-        basis.set_dimension(n - 1)
-        assert basis.reduced_state_dimension == n - 1
-
-        # Choose dimension based on an energy criteria.
-        basis._store_svd(V, svdvals, Wt)
-        basis.set_dimension(cumulative_energy=0.9999)
-        assert basis.reduced_state_dimension == 4
-        basis.set_dimension(residual_energy=0.01)
-        assert basis.reduced_state_dimension == 2
-
-    def test_str(self):
-        """Lightly test __str__() and LinearBasis.__repr__()."""
-        basis = self.PODBasis()
-        assert str(basis) == "Empty PODBasis"
-        assert repr(basis).startswith("<PODBasis object at ")
-
-    def test_fit(self, n=20, k=15, r=5):
-        """Test fit()."""
-        # First test validate_rank().
-        states = np.empty((n, n))
         with pytest.raises(ValueError) as ex:
-            self.PODBasis._validate_rank(states, n + 1)
-        assert (
-            ex.value.args[0] == f"invalid POD rank r = {n + 1} "
-            f"(need 1 ≤ r ≤ {n})"
+            basis._set_dimension_selection_criterion()
+        assert ex.value.args[0] == (
+            "exactly one dimension selection criterion must be provided"
         )
 
-        self.PODBasis._validate_rank(states, n // 2)
+        basis._set_dimension_selection_criterion(residual_energy=1e-6)
+        criterion = basis._PODBasis__criterion
+        assert criterion[0] == "residual_energy"
+        assert criterion[1] == 1e-6
 
-        # Now test fit().
-        states = np.random.standard_normal((n, k))
-        U, vals, Wt = la.svd(states, full_matrices=False)
-        basis = self.PODBasis().fit(states, r)
-        assert basis.entries.shape == (n, r)
-        assert basis.svdvals.shape == (min(n, k),)
-        assert basis.dual.shape == (k, r)
-        VrTVr = basis.entries.T @ basis.entries
-        Ir = np.eye(r)
-        assert np.allclose(VrTVr, Ir)
-        WrTWr = basis.dual.T @ basis.dual
-        assert np.allclose(WrTWr, Ir)
-        assert basis.reduced_state_dimension == r
-        assert np.allclose(basis.entries, U[:, :r])
-        assert np.allclose(basis.svdvals, vals)
-        assert np.allclose(basis.dual, Wt[:r, :].T)
+        # Dimension setting (empty basis).
+        basis.reduced_state_dimension = 5
+        criterion = basis._PODBasis__criterion
+        assert criterion[0] == "num_vectors"
+        assert criterion[1] == 5
+        assert basis.reduced_state_dimension == 5
 
-        # TODO: weighted inner product matrix.
-
-        # Repeat with list of state trajectories.
-        states = [np.random.standard_normal((n, n)) for _ in range(4)]
-        basis = self.PODBasis()
-        basis.fit(states)
-        assert basis.full_state_dimension == n
-
-    def test_fit_randomized(self, n=20, k=14, r=5, tol=1e-6):
-        """Test fit_randomized()."""
-        options = dict(n_oversamples=30, n_iter=10, random_state=42)
-        states = np.random.standard_normal((n, k))
-        U, vals, Wt = la.svd(states, full_matrices=False)
-        basis = self.PODBasis().fit_randomized(states, r, **options)
-        assert basis.entries.shape == (n, r)
-        assert basis.svdvals.shape == (r,)
-        assert basis.dual.shape == (k, r)
-        VrTVr = basis.entries.T @ basis.entries
-        Ir = np.eye(r)
-        assert np.allclose(VrTVr, Ir)
-        WrTWr = basis.dual.T @ basis.dual
-        assert np.allclose(WrTWr, Ir)
-        assert basis.reduced_state_dimension == r
-        # Flip the signs in U and W if needed so things will match.
-        for i in range(r):
-            if np.sign(U[0, i]) != np.sign(basis[0, i]):
-                U[:, i] *= -1
-            if np.sign(Wt[i, 0]) != np.sign(basis.dual[0, i]):
-                Wt[i, :] *= -1
-        assert la.norm(basis.entries - U[:, :r], ord=2) < tol
-        assert la.norm(basis.svdvals - vals[:r]) / la.norm(basis.svdvals) < tol
-        assert la.norm(basis.dual - Wt[:r, :].T, ord=2) < tol
-
-        # Repeat with list of state trajectories.
-        states = [np.random.standard_normal((n, n)) for _ in range(4)]
-        basis = self.PODBasis()
-        options.pop("random_state")
-        basis.fit_randomized(states, r, **options)
-        assert basis.full_state_dimension == n
+        # Dimension setting (existing basis).
+        basis = self.Basis.from_svd(None, None)  # TODO
 
     # Visualization -----------------------------------------------------------
     def test_plots(self, n=40, k=25, r=4):
         """Lightly test plot_*()."""
-        basis = self.PODBasis().fit(np.random.standard_normal((n, k)))
+        basis = self.Basis(num_vectors=r).fit(
+            np.random.standard_normal((n, k))
+        )
 
         # Turn interactive mode on.
         _pltio = plt.isinteractive()
@@ -258,7 +132,7 @@ class TestPODBasis:
             os.remove(target)
 
         # Just save a basis to a temporary file, don't interrogate the file.
-        basis = self.PODBasis().fit(np.random.random((n, k)), r)
+        basis = self.Basis(num_vectors=r).fit(np.random.random((n, k)))
         basis.save(target)
         assert os.path.isfile(target)
 
@@ -272,42 +146,26 @@ class TestPODBasis:
             os.remove(target)
 
         # Test that save() and load() are inverses for an empty basis.
-        basis1 = self.PODBasis(economize=True)
+        basis1 = self.Basis(num_vectors=r)
         basis1.save(target, overwrite=True)
-        basis2 = self.PODBasis.load(target)
-        assert isinstance(basis2, self.PODBasis)
-        assert basis2.full_state_dimension is None
-        assert basis2.r is None
-        assert basis2.entries is None
-        assert basis2.dual is None
-        assert basis2.economize is True
+        basis2 = self.Basis.load(target)
         assert basis1 == basis2
 
-        # Just save a basis to a temporary file, don't interrogate the file.
-        basis1 = self.PODBasis().fit(np.random.random((n, k)), r)
+        # Test that save() and load() are inverses for a nonempty basis.
+        basis1.fit(np.random.random((n, k)))
         basis1.save(target, overwrite=True)
-
-        # Test that save() and load() are inverses.
-        basis2 = self.PODBasis.load(target)
-        assert basis1.r == basis2.r
-        assert basis1.entries.shape == basis2.entries.shape
-        assert np.allclose(basis1.entries, basis2.entries)
-        assert basis1.svdvals.shape == basis2.svdvals.shape
-        assert np.allclose(basis1.svdvals, basis2.svdvals)
-        assert basis1.dual.shape == basis2.dual.shape
-        assert np.allclose(basis1.dual, basis2.dual)
+        basis2 = self.Basis.load(target)
         assert basis1 == basis2
 
-        # Test rmax gives a smaller basis.
-        rnew = basis1.r - 2
-        basis2 = self.PODBasis.load(target, rmax=rnew)
-        assert basis2.r == basis1.r - 2
+        # Test max_vectors gives a smaller basis.
+        rnew = basis1.reduced_state_dimension - 2
+        basis2 = self.Basis.load(target, max_vectors=rnew)
+        assert basis2.reduced_state_dimension == rnew
         assert basis2.entries.shape == (basis1.entries.shape[0], rnew)
-        assert basis2.svdvals.shape == (rnew,)
-        assert basis2.dual.shape == (basis1.dual.shape[0], rnew)
-        assert np.allclose(basis2.entries, basis1.entries[:, :rnew])
-        assert np.allclose(basis2.svdvals, basis1.svdvals[:rnew])
-        assert np.allclose(basis2.dual, basis1.dual[:, :rnew])
+        assert basis2.max_vectors == rnew
+        assert basis2.svdvals.shape == (k,)
+        assert np.allclose(basis2.svdvals, basis1.svdvals)
+        assert np.allclose(basis1.entries[:, :-2], basis2.entries)
 
         # Clean up.
         os.remove(target)

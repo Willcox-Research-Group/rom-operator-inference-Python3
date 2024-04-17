@@ -71,7 +71,7 @@ class BasisTemplate(abc.ABC):
         Parameters
         ----------
         states : (n, k) ndarray
-            Matrix of `k` `n`-dimensional snapshots.
+            Matrix of :math:`k` :math:`n`-dimensional snapshots.
 
         Returns
         -------

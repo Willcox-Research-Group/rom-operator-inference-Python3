@@ -2,11 +2,11 @@
 """Tools for accuracy and error evaluation."""
 
 __all__ = [
-            "projection_error",
-            "frobenius_error",
-            "lp_error",
-            "Lp_error",
-          ]
+    "projection_error",
+    "frobenius_error",
+    "lp_error",
+    "Lp_error",
+]
 
 import numpy as np
 from scipy import linalg as la
@@ -59,8 +59,9 @@ def frobenius_error(Qtrue, Qapprox):
         raise ValueError("Qtrue and Qapprox must be two-dimensional")
 
     # Compute the errors.
-    return _absolute_and_relative_error(Qtrue, Qapprox,
-                                        lambda Z: la.norm(Z, ord="fro"))
+    return _absolute_and_relative_error(
+        Qtrue, Qapprox, lambda Z: la.norm(Z, ord="fro")
+    )
 
 
 def lp_error(Qtrue, Qapprox, p=2, normalize=False):
@@ -185,7 +186,7 @@ def Lp_error(Qtrue, Qapprox, t=None, p=2):
             raise ValueError("Qtrue not aligned with time t")
 
         def pnorm(Z):
-            return (np.trapz(np.sum(np.abs(Z)**p, axis=0), t))**(1/p)
+            return (np.trapz(np.sum(np.abs(Z) ** p, axis=0), t)) ** (1 / p)
 
     else:  # p == np.inf
 
