@@ -7,60 +7,11 @@ __all__ = [
 
 import warnings
 import numpy as np
-import scipy.linalg as la
 import scipy.sparse as sparse
 import matplotlib.pyplot as plt
 
 from .. import errors, utils
 from ._base import BasisTemplate
-
-
-def _Wmult(W, arr):
-    """Matrix multiply ``W`` and ``arr``, where ``W`` may be a one-dimensional
-    array representing diagonals or a two-dimensional array.
-    """
-    if W.ndim == 1:
-        if arr.ndim == 1:
-            return W * arr
-        elif arr.ndim == 2:
-            return W.reshape((-1, 1)) * arr
-        else:
-            raise ValueError("expected one- or two-dimensional array")
-    return W @ arr
-
-
-def weighted_svd(Q, W):
-    r"""Compute the weighted singular value decomposition of a matrix.
-
-    The weighed SVD is a decomposition :math:`\bfPhi\bfSigma\bfPsi\trp = \Q`
-    such that :math:`\bfPhi\trp\W\bfPhi = \I`.
-
-    Parameters
-    ----------
-    Q : (n, k) ndarray
-        Matrix to take the WSVD of.
-    W : (n,) or (n, n) ndarray
-        Weight matrix.
-
-    Returns
-    -------
-    Phi : (n, k) ndarray
-        Left singular vectors of ``Q``, orthonormal with respect to ``W``.
-    """
-    if W.ndim not in {1, 2}:
-        raise ValueError("expected one- or two-dimensional spatial weights")
-
-    # Weight the matrix.
-    root_weights = np.sqrt(W) if W.ndim == 1 else la.sqrtm(W)
-    WrootQ = _Wmult(root_weights, Q)
-
-    # Compute the (non-weighted) SVD.
-    Phi = la.svd(WrootQ, full_matrices=False)[0]
-
-    # Unweight the singular vectors.
-    if W.ndim == 1:
-        return _Wmult(1 / root_weights, Phi)
-    return la.solve(root_weights, Phi)
 
 
 class LinearBasis(BasisTemplate):
@@ -84,8 +35,6 @@ class LinearBasis(BasisTemplate):
         Weight matrix :math:`\W` or its diagonals.
         If ``None`` (default), set :math:`\W` to the identity.
         Raise a warning if :math:`\Vr\trp\W\Vr` is not the identity.
-    orthogonalize : bool
-        If ``True``, take the SVD of :math:`\Vr` to orthogonalize the basis.
     check_orthogonality : bool
         If ``True``, raise a warning if the basis is not orthogonal
         (with respect to the weights, if given).
@@ -102,7 +51,6 @@ class LinearBasis(BasisTemplate):
         self,
         entries,
         weights=None,
-        orthogonalize: bool = False,
         check_orthogonality: bool = True,
         name: str = None,
     ):
@@ -114,13 +62,6 @@ class LinearBasis(BasisTemplate):
             self.__entries = None
             self.__weights = weights
             return
-
-        # Orthogonalize the basis entries if desired.
-        if orthogonalize:
-            if weights is None:
-                entries = la.svd(entries, full_matrices=False)[0]
-            else:
-                entries = weighted_svd(entries, weights)
 
         # Set the entries.
         self.__entries = entries
@@ -311,6 +252,9 @@ class LinearBasis(BasisTemplate):
             (default), raise a FileExistsError if the file already exists.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            if self.name:
+                meta = hf.create_dataset("meta", shape=(0,))
+                meta.attrs["name"] = self.name
             hf.create_dataset("entries", data=self.entries)
             if (w := self.weights) is not None:
                 if isinstance(w, sparse.dia_array):
@@ -331,6 +275,9 @@ class LinearBasis(BasisTemplate):
         LinearBasis
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
+            name = None
+            if "meta" in hf:
+                name = hf["meta"].attrs["name"]
             entries = hf["entries"][:]
             weights = hf["weights"][:] if "weights" in hf else None
-            return cls(entries, weights)
+            return cls(entries, weights, name=name)

@@ -10,64 +10,6 @@ import matplotlib.pyplot as plt
 import opinf
 
 
-def test_Wmult(n=10):
-    """Test basis._linear._Wmult()."""
-    func = opinf.basis._linear._Wmult
-
-    w = np.random.random(n) + 0.1
-    W = np.diag(w)
-
-    # One-dimensional operand
-    q = np.random.random(n)
-    Wq = W @ q
-    for ww in w, W:
-        out = func(ww, q)
-        assert out.shape == (n,)
-        assert np.allclose(out, Wq)
-
-    # Two-dimensional operand
-    Q = np.random.random((n, n))
-    WQ = W @ Q
-    for ww in w, W:
-        out = func(ww, Q)
-        assert out.shape == (n, n)
-        assert np.allclose(out, WQ)
-
-    with pytest.raises(ValueError) as ex:
-        func(w, np.random.random((2, 2, 2)))
-    assert ex.value.args[0] == "expected one- or two-dimensional array"
-
-
-def test_weighted_svd(n=100, k=10):
-    """Test basis._linear.weighted_svd()."""
-    func = opinf.basis._linear.weighted_svd
-
-    with pytest.raises(ValueError) as ex:
-        func(None, np.random.random((1, 1, 1)))
-    assert ex.value.args[0] == (
-        "expected one- or two-dimensional spatial weights"
-    )
-
-    Q = np.random.random((n, k))
-    w = np.random.random(n) + 0.1
-    W = np.diag(w)
-    Id = np.eye(k)
-
-    # Diagonal weights.
-    for ww in w, W:
-        Qw = func(Q, ww)
-        assert Qw.shape == (n, k)
-        assert np.allclose(Qw.T @ W @ Qw, Id)
-
-    # Non-diagonal weights.
-    W = np.random.random((n, n))
-    u, s, _ = la.svd(W)
-    W = u @ np.diag(s + 1) @ u.T
-    QW = func(Q, W)
-    assert QW.shape == (n, k)
-    assert np.allclose(QW.T @ W @ QW, Id)
-
-
 class TestLinearBasis:
     """Test basis._linear.LinearBasis."""
 
@@ -120,32 +62,23 @@ class TestLinearBasis:
         assert basis.weights is None
         assert basis.fit() is basis
 
-        # Orthogonalize the basis.
-        basis = self.Basis(Vr, orthogonalize=True)
-        assert np.any(basis.entries != Vr)
-        assert np.allclose(basis.entries.T @ basis.entries, np.eye(r))
-
-        # Weighted basis without orthogonalizing.
+        # Weighted basis.
         w = 1 + np.random.random(n)
-        Vr = opinf.basis._linear.weighted_svd(np.random.random((n, r)), w)
+        wrootinv = 1 / np.sqrt(w)
+        Vr_euc = la.qr(np.random.random((n, r)), mode="economic")[0]
+        Vr = wrootinv.reshape((-1, 1)) * Vr_euc
         basis1 = self.Basis(
             entries=Vr,
             weights=w,
-            orthogonalize=False,
             check_orthogonality=True,
         )
         basis2 = self.Basis(
             entries=Vr,
             weights=np.diag(w),
-            orthogonalize=False,
             check_orthogonality=True,
         )
         assert np.all(basis1.entries == basis2.entries)
         assert np.all(basis2.entries == Vr)
-
-        # Weighted basis with orthogonalizing.
-        Vr = np.random.random((n, r))
-        basis = self.Basis(Vr, w, orthogonalize=True)
 
     def test_str(self):
         """Test __str__() and __repr__()."""
@@ -173,8 +106,8 @@ class TestLinearBasis:
         q_ = Vr.T @ q
         assert np.allclose(basis.compress(q), q_)
 
-        w = np.random.random(9)
-        basis = self.Basis(Vr, weights=w, orthogonalize=True)
+        w = np.random.random(n)
+        basis = self.Basis(Vr, weights=w, check_orthogonality=False)
         q_ = basis.entries.T @ (w * q)
         assert np.allclose(basis.compress(q), q_)
 
@@ -224,14 +157,21 @@ class TestLinearBasis:
         basis2 = self.Basis(
             basis2.entries,
             weights=np.random.random(basis2.full_state_dimension) + 0.5,
-            orthogonalize=True,
+            check_orthogonality=False,
         )
         assert basis1 != basis2
         assert basis2 != basis1
-        basis1 = self.Basis(basis2.entries, weights=basis2.weights)
+        basis1 = self.Basis(
+            basis2.entries,
+            weights=basis2.weights,
+            check_orthogonality=False,
+        )
         assert basis1 == basis2
-        with pytest.warns(opinf.errors.UsageWarning):
-            basis1 = self.Basis(basis2.entries, weights=(2 * basis2.weights))
+        basis1 = self.Basis(
+            basis2.entries,
+            weights=(2 * basis2.weights),
+            check_orthogonality=False,
+        )
         assert basis1 != basis2
 
     def test_save(self, n=11, r=2, target="_linearbasissavetest.h5"):
@@ -243,12 +183,12 @@ class TestLinearBasis:
         Vr = self._orth(n, r)
         w = np.random.random(n)
 
-        basis = self.Basis(Vr)
+        basis = self.Basis(Vr, name="mybasis")
         basis.save(target)
         assert os.path.isfile(target)
         os.remove(target)
 
-        basis = self.Basis(Vr, w, orthogonalize=True)
+        basis = self.Basis(Vr, w, check_orthogonality=False)
         basis.save(target)
         assert os.path.isfile(target)
         os.remove(target)
@@ -260,15 +200,17 @@ class TestLinearBasis:
             os.remove(target)
 
         Vr = self._orth(n, r)
-        basis1 = self.Basis(Vr)
+        basis1 = self.Basis(Vr, name="testbasis")
         basis1.save(target)
         basis2 = self.Basis.load(target)
+        assert basis2.name == "testbasis"
         assert basis2 == basis1
 
         w = np.random.random(n) + 0.5
-        basis1 = self.Basis(Vr, w, orthogonalize=True)
+        basis1 = self.Basis(Vr, w, check_orthogonality=False)
         basis1.save(target, overwrite=True)
-        basis2 = self.Basis.load(target)
+        with pytest.warns(opinf.errors.UsageWarning):
+            basis2 = self.Basis.load(target)
         assert basis2 == basis1
 
         # Clean up.
