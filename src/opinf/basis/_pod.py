@@ -7,20 +7,36 @@ __all__ = [
     "svdval_decay",
     "cumulative_energy",
     "residual_energy",
-    "projection_error",
 ]
 
 import warnings
 import numpy as np
 import scipy.linalg as la
+import scipy.sparse as sparse
 import sklearn.utils.extmath as sklmath
 import matplotlib.pyplot as plt
 
 from .. import errors, utils
 from ._base import BasisTemplate
-from ._linear import LinearBasis  # , _Wmult
+from ._linear import LinearBasis
 
 
+# Helper functions ============================================================
+def _Wmult(W, arr):
+    """Matrix multiply ``W`` and ``arr``, where ``W`` may be a one-dimensional
+    array representing diagonals or a two-dimensional array.
+    """
+    if W.ndim == 1:
+        if arr.ndim == 1:
+            return W * arr
+        elif arr.ndim == 2:
+            return W.reshape((-1, 1)) * arr
+        else:
+            raise ValueError("expected one- or two-dimensional array")
+    return W @ arr
+
+
+# Main class ==================================================================
 class PODBasis(LinearBasis):
     r"""Proper othogonal decomposition basis, consisting of the principal left
     singular vectors of a collection of states.
@@ -152,42 +168,76 @@ class PODBasis(LinearBasis):
         self.__residual_energy = None
         self.__cumulative_energy = None
 
+        # Store weights (separate from LinearBasis.__weights)
+        if weights is not None:
+            if weights.ndim == 1:
+                self.__sqrt_weights = np.sqrt(weights)
+            else:  # (weights.ndim == 2, checked by LinearBasis)
+                self.__sqrt_weights = la.sqrtm(weights)
+                self.__sqrt_weights_cho = la.cho_factor(self.__sqrt_weights)
+
     @classmethod
     def from_svd(
         cls,
-        left: np.ndarray,
+        leftvecs: np.ndarray,
         svdvals: np.ndarray,
-        right: np.ndarray = None,
+        rightvecs: np.ndarray = None,
         num_vectors: int = None,
+        svdval_threshold: float = None,
+        residual_energy: float = None,
+        cumulative_energy: float = None,
+        projection_error: float = None,
+        max_vectors: int = None,
+        mode: str = "dense",
         weights: np.ndarray = None,
+        name: str = None,
     ):
-        """Initialize a :class:`PODBasis` from a singular value decomposition.
+        r"""Initialize a :class:`PODBasis` from the singular value
+        decomposition of an :math:`n\times k` matrix.
 
         Parameters
         ----------
-        left : (n, k) ndarray
+        leftvecs : (n, r) ndarray
             Left singular vectors.
-        svdvals : (k,) ndarray
+        svdvals : (r,) ndarray
             Singular values.
-        right : (k, k) ndarray or None
-            Right singular vectors (each *column* is a singular vector).
-        num_vectors : int
-            Number of singular vectors to use in the basis entries.
-        weights : (n,) or (n, n) ndarray
-            Weight matrix for the left singular vectors, i.e.,
-            ``left.T @ weights @ left`` is the identity matrix.
+        rightvecs : (k, r) ndarray or None
+            Right singular vectors. Each *column* is a singular vector.
+
+        See :meth:`__init__` for details on other arguments.
 
         Returns
         -------
         Initialized :class:`PODBasis` object.
         """
-        k = left.shape[1]
-        if num_vectors is None:
-            num_vectors = k
+        # Default dimensionality criterion: use all left singular vectors.
+        if all(
+            arg is None
+            for arg in (
+                num_vectors,
+                svdval_threshold,
+                residual_energy,
+                cumulative_energy,
+                projection_error,
+            )
+        ):
+            num_vectors = leftvecs.shape[1]
 
-        basis = cls(num_vectors=num_vectors, weights=weights)
-        basis._store_svd(left[:, :k], svdvals, right[:, :k])
+        basis = cls(
+            num_vectors=num_vectors,
+            svdval_threshold=svdval_threshold,
+            residual_energy=residual_energy,
+            cumulative_energy=cumulative_energy,
+            projection_error=projection_error,
+            max_vectors=max_vectors,
+            mode=mode,
+            weights=weights,
+            name=name,
+        )
+        basis._store_svd(leftvecs, svdvals, rightvecs)
         basis._set_dimension_from_criterion()
+
+        return basis
 
     # Properties: hyperparameters ---------------------------------------------
     @property
@@ -234,7 +284,7 @@ class PODBasis(LinearBasis):
 
     @property
     def svdvals(self):
-        """Singular values of the training data."""
+        """Normalized singular values of the training data."""
         return self.__svdvals
 
     @property
@@ -298,7 +348,8 @@ class PODBasis(LinearBasis):
 
     @BasisTemplate.reduced_state_dimension.setter
     def reduced_state_dimension(self, r):
-        """Set the reduced state dimension :math:`r`.
+        """Set the reduced state dimension :math:`r`. If there is SVD data,
+        set the basis entries to the first r left singular vectors.
 
         If r > max_vectors, set r = max_vectors and raise a warning.
         """
@@ -306,15 +357,15 @@ class PODBasis(LinearBasis):
 
         # No basis data yet, but when fit() is called there will be r vectors.
         if self.svdvals is None:
-            self.__criterion = ("num_vectors", r)
+            self._set_dimension_selection_criterion(num_vectors=r)
             BasisTemplate.reduced_state_dimension.fset(self, r)
             return
 
         # Basis data already exists, change the dimension and update.
-        if r > self.max_vectors:
+        if r > (k := self.max_vectors):
             warnings.warn(
                 "selected reduced dimension exceeds number of stored vectors, "
-                "setting reduced_state_dimension = max_vectors",
+                f"setting reduced_state_dimension = max_vectors = {k:d}",
                 errors.UsageWarning,
             )
             r = self.max_vectors
@@ -329,9 +380,8 @@ class PODBasis(LinearBasis):
         # Update entries.
         LinearBasis.__init__(
             self,
-            self.__leftvecs[:, :r],
-            self.weights,
-            orthogonalize=False,
+            entries=self.__leftvecs[:, :r],
+            weights=self.weights,
             check_orthogonality=True,
             name=self.name,
         )
@@ -422,20 +472,13 @@ class PODBasis(LinearBasis):
         self._set_dimension_from_criterion()
 
     # Fitting -----------------------------------------------------------------
-    # def _spatial_weighting(self, state, weights):
-    #     """Weight a state or a collection of states (spatially)."""
-    #     if weights is not None:
-    #         if weights.ndim == 1:
-    #             if state.ndim == 2:
-    #                 weights = weights.reshape(-1, 1)
-    #             return weights * state
-    #         return weights @ state
-    #     return state
-
     def _store_svd(self, left, svdvals, right):
-        """Store the singular value decomposition."""
+        """Store the singular value decomposition, normalizing the singular
+        values.
+        """
         self.__leftvecs = left
-        self.__svdvals = svdvals
+        svdvals = np.sort(svdvals)[::-1]
+        self.__svdvals = svdvals / svdvals[0]
         self.__rightvecs = right
 
     def fit(self, states):
@@ -470,34 +513,31 @@ class PODBasis(LinearBasis):
             options["full_matrices"] = False
             driver = la.svd
         elif self.mode == "randomized":
-            options["n_components"] = self.max_vectors
+            options["n_components"] = keep
             if "random_state" not in options:
                 options["random_state"] = None
             driver = sklmath.randomized_svd
             if keep < rmax:
                 self.__energy_is_being_estimated = True
 
-        # # Weight the states.
-        # if spatialweights is not None:
-        #     if spatialweights.ndim == 1:
-        #         root_weights = np.sqrt(spatialweights)
-        #         inv_root_weights = 1 / root_weights
-        #     elif spatialweights.ndim == 2:
-        #         root_weights = la.sqrtm(spatialweights)
-        #         inv_root_weights = la.inv(root_weights)
-        #     else:
-        #         raise ValueError("1D spatial weights only")
-        #     states = self._spatial_weighting(states, root_weights)
+        # Weight the states.
+        if self.weights is not None:
+            if states.shape[0] != (nW := self.__sqrt_weights.shape[0]):
+                raise errors.DimensionalityError(
+                    f"states not aligned with weights, should have {nW:d} rows"
+                )
+            states = _Wmult(self.__sqrt_weights, states)
 
         # Compute the SVD.
         V, svdvals, Wt = driver(states, **options)
 
-        # Unweight the basis vectors.
-        # if spatialweights is not None:
-        #     if spatialweights.ndim == 1:
-        #         V *= np.reshape(1 / root_weights, (-1, 1))
-        #     elif spatialweights.ndim == 2:
-        #         V = inv_root_weights @ V
+        # Unweight the basis.
+        if self.weights is not None:
+            if self.__sqrt_weights.ndim == 1:
+                V = _Wmult(1 / self.__sqrt_weights, V)
+            else:
+                V = la.cho_solve(self.__sqrt_weights_cho, V)
+                # V = la.solve(sqrtW, V)
 
         # Store the results.
         self._store_svd(
@@ -515,124 +555,94 @@ class PODBasis(LinearBasis):
         if self.svdvals is None:
             raise AttributeError("no singular value data, call fit()")
 
-    # TODO: use the functional API for these methods (one implementation).
-    def plot_svdval_decay(self, threshold=None, normalize=True, ax=None):
+    def _plot_single(self, driver, threshold, ax, kwargs):
+        """Execute a single plotting routine."""
+        self._check_svdvals_exist()
+        driver(self.svdvals, threshold=threshold, plot=True, ax=ax, **kwargs)
+        return plt.gca()
+
+    def plot_svdval_decay(self, threshold=None, ax=None, **kwargs):
         """Plot the normalized singular value decay.
 
         Parameters
         ----------
-        threshold : float or None
-            Cutoff value to mark on the plot.
-        normalize : bool
-            If True, normalize so that the maximum singular value is 1.
+        threshold : float or list[floats] or None
+            Cutoff value(s) to mark on the plot.
         ax : plt.Axes or None
-            Matplotlib Axes to plot on. If None, a new figure is created.
+            Matplotlib Axes to plot on.
+            If ``None`` (default), a new single-axes figure is created.
+        kwargs : dict
+            Options to pass to ``plt.semilogy()``
 
         Returns
         -------
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        self._check_svdvals_exist()
-        if ax is None:
-            ax = plt.figure().add_subplot(111)
+        return self._plot_single(svdval_decay, threshold, ax, kwargs)
 
-        singular_values = self.svdvals
-        if normalize:
-            singular_values = singular_values / singular_values[0]
-        j = np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, singular_values, "k*", ms=10, mew=0, zorder=3)
-        ax.set_xlim((0, j.size))
+    def plot_residual_energy(self, threshold=None, ax=None, **kwargs):
+        r"""Plot the residual singular value energy.
 
-        if threshold is not None:
-            rank = np.count_nonzero(singular_values > threshold)
-            ax.axhline(threshold, color="gray", linewidth=0.5)
-            ax.axvline(rank, color="gray", linewidth=0.5)
-            # TODO: label lines with text.
+        The residual energy of :math:`r` singular values is defined by
 
-        ax.set_xlabel("Singular value index")
-        ax.set_ylabel(("Normalized s" if normalize else "") + "ingular values")
+        .. math::
+           \epsilon_r
+           = \sum_{i=r+1}^k\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+           = 1 - \left(
+           \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+           \right)
 
-        return ax
-
-    def plot_residual_energy(self, threshold=None, ax=None):
-        """Plot the residual singular value energy decay, defined by
-
-            residual_j = sum(svdvals[j+1:]**2) / sum(svdvals**2).
+        This method plots :math:`\epsilon_r` as a function of :math:`r`.
 
         Parameters
         ----------
-        threshold : 0 ≤ float ≤ 1 or None
-            Cutoff value to mark on the plot.
+        threshold : float or list[floats] or None
+            Cutoff value(s) to mark on the plot.
         ax : plt.Axes or None
-            Matplotlib Axes to plot on. If None, a new figure is created.
+            Matplotlib Axes to plot on.
+            If ``None`` (default), a new single-axes figure is created.
+        kwargs : dict
+            Options to pass to ``plt.semilogy()``
 
         Returns
         -------
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        self._check_svdvals_exist()
-        if ax is None:
-            ax = plt.figure().add_subplot(111)
+        return self._plot_single(residual_energy, threshold, ax, kwargs)
 
-        svdvals2 = self.svdvals**2
-        res_energy = 1 - (np.cumsum(svdvals2) / np.sum(svdvals2))
-        j = np.arange(1, svdvals2.size + 1)
-        ax.semilogy(j, res_energy, "C0.-", ms=10, lw=1, zorder=3)
-        ax.set_xlim(0, j.size)
+    def plot_cumulative_energy(self, threshold=None, ax=None, **kwargs):
+        r"""Plot the cumulative singular value energy.
 
-        if threshold is not None:
-            rank = np.count_nonzero(res_energy > threshold) + 1
-            ax.axhline(threshold, color="gray", linewidth=0.5)
-            ax.axvline(rank, color="gray", linewidth=0.5)
-            # TODO: label lines with text.
+        The cumulative energy of :math:`r` singular values is defined by
 
-        ax.set_xlabel("Singular value index")
-        ax.set_ylabel("Residual energy")
+        .. math::
+           \kappa_r = \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2.
 
-        return ax
-
-    def plot_cumulative_energy(self, threshold=None, ax=None):
-        """Plot the cumulative singular value energy, defined by
-
-            energy_j = sum(svdvals[:j]**2) / sum(svdvals**2).
+        This method plots :math:`\kappa_r` as a function of :math:`r`.
 
         Parameters
         ----------
-        threshold : 0 ≤ float ≤ 1 or None
-            Cutoff value to mark on the plot.
+        threshold : float or list[floats] or None
+            Threshold energy value(s) to mark on the plot.
         ax : plt.Axes or None
-            Matplotlib Axes to plot on. If None, a new figure is created.
+            Matplotlib Axes to plot on.
+            If ``None`` (default), a new single-axes figure is created.
+        kwargs : dict
+            Options to pass to ``plt.semilogy()``
 
         Returns
         -------
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        self._check_svdvals_exist()
-        if ax is None:
-            ax = plt.figure().add_subplot(111)
-
-        svdvals2 = self.svdvals**2
-        cum_energy = np.cumsum(svdvals2) / np.sum(svdvals2)
-        j = np.arange(1, svdvals2.size + 1)
-        ax.plot(j, cum_energy, "C0.-", ms=10, lw=1, zorder=3)
-        ax.set_xlim(0, j.size)
-
-        if threshold is not None:
-            rank = int(np.searchsorted(cum_energy, threshold)) + 1
-            ax.axhline(threshold, color="gray", linewidth=0.5)
-            ax.axvline(rank, color="gray", linewidth=0.5)
-            # TODO: label lines with text.
-
-        ax.set_xlabel(r"Singular value index")
-        ax.set_ylabel(r"Residual energy")
-
-        return ax
+        return self._plot_single(cumulative_energy, threshold, ax, kwargs)
 
     def plot_energy(self):
-        """Plot the normalized singular value and residual energy decay."""
+        """Plot the normalized singular values and the cumulative and residual
+        energies.
+        """
         self._check_svdvals_exist()
 
         fig, axes = plt.subplots(1, 2, figsize=(8, 3))
@@ -656,305 +666,366 @@ class PODBasis(LinearBasis):
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             meta = hf.create_dataset("meta", shape=(0,))
-            meta.attrs["economize"] = int(self.economize)
-            if self.reduced_state_dimension is not None:
-                meta.attrs["r"] = self.reduced_state_dimension
+            if self.name:
+                meta.attrs["name"] = self.name
 
-            if self.entries is not None:
-                hf.create_dataset("entries", data=self.__entries)
-                hf.create_dataset("svdvals", data=self.__svdvals)
-                hf.create_dataset("dual", data=self.__dual)
+            meta.attrs["criterion_type"] = self.__criterion[0]
+            hf.create_dataset("criterion_value", data=[self.__criterion[1]])
+
+            if self.__max_vectors_desired is not None:
+                hf.create_dataset(
+                    "max_vectors",
+                    data=[self.__max_vectors_desired],
+                )
+
+            if (w := self.weights) is not None:
+                if isinstance(w, sparse.dia_array):
+                    w = w.data[0]
+                hf.create_dataset("weights", data=w)
+
+            if self.leftvecs is not None:
+                hf.create_dataset("leftvecs", data=self.leftvecs)
+                hf.create_dataset("svdvals", data=self.svdvals)
+                hf.create_dataset("rightvecs", data=self.rightvecs)
 
     @classmethod
-    def load(cls, loadfile, rmax=None):
+    def load(cls, loadfile, max_vectors=None):
         """Load a basis from an HDF5 file.
 
         Parameters
         ----------
         loadfile : str
             Path to the file where the basis was stored (via save()).
-        rmax : int or None
+        max_vectors : int or None
             Maximum number of POD modes to load. If None (default), load all.
 
         Returns
         -------
         PODBasis object
         """
-        entries, svdvals, dualT, r = None, None, None, rmax
+        kwargs = {}
         with utils.hdf5_loadhandle(loadfile) as hf:
-            economize = bool(hf["meta"].attrs["economize"])
-            if "r" in hf["meta"].attrs:
-                r = int(hf["meta"].attrs["r"])
-                if rmax is not None:
-                    r = min(r, rmax)
+            attrs = hf["meta"].attrs
 
-            if "entries" in hf:
-                entries = hf["entries"][:, :rmax]
-                svdvals = hf["svdvals"][:rmax]
-                dualT = hf["dual"][:, :rmax].T
+            if "name" in attrs:
+                kwargs["name"] = attrs["name"]
 
-        out = cls(economize=economize)
-        out._store_svd(entries, svdvals, dualT)
-        out.r = r
-        return out
+            kwargs[attrs["criterion_type"]] = hf["criterion_value"][0]
+
+            if "max_vectors" in hf:
+                kwargs["max_vectors"] = hf["max_vectors"][0]
+
+            if "weights" in hf:
+                kwargs["weights"] = hf["weights"][:]
+
+            if "leftvecs" in hf:
+                if (r := max_vectors) is not None:
+                    r = min(r, hf["leftvecs"].shape[1])
+                    if "num_vectors" in kwargs:
+                        kwargs["num_vectors"] = r
+                kwargs["leftvecs"] = hf["leftvecs"][:, :r]
+                kwargs["svdvals"] = hf["svdvals"][:]
+                kwargs["rightvecs"] = hf["rightvecs"][:, :r]
+                return cls.from_svd(**kwargs)
+
+            return cls(**kwargs)
 
 
 # Functional API ==============================================================
 def pod_basis(
     states,
-    r: int = None,
+    num_vectors: int = None,
+    svdval_threshold: float = None,
+    residual_energy: float = None,
+    cumulative_energy: float = None,
+    projection_error: float = None,
     mode: str = "dense",
-    return_W: bool = False,
-    **options,
+    weights: np.ndarray = None,
+    return_rightvecs: bool = False,
+    **solver_options,
 ):
-    """Compute the POD basis of rank r corresponding to the states.
+    r"""Compute a POD basis from the given states.
 
     Parameters
     ----------
     states : (n, k) ndarray
-        Matrix of k snapshots. Each column is a single snapshot of dimension n.
-    r : int or None
-        Number of POD basis vectors and singular values to compute.
-        If None (default), compute the full SVD.
-    mode : str
-        Strategy to use for computing the truncated SVD of the states. Options:
+        Matrix of :math:`k` :math:`n`-dimensional snapshots.
+    return_rightvecx : bool
+        If ``True``, return the right singular vectors as well.
 
-        * "dense" (default): Use scipy.linalg.svd() to compute the SVD.
-            May be inefficient for very large matrices.
-        * "randomized": Compute an approximate SVD with a randomized approach
-            using sklearn.utils.extmath.randomized_svd(). This gives faster
-            results at the cost of some accuracy.
-
-    return_W : bool
-        If True, also return the first r *right* singular vectors.
-    options
-        Additional parameters for the SVD solver, which depends on `mode`:
-
-        * "dense": scipy.linalg.svd()
-        * "randomized": sklearn.utils.extmath.randomized_svd()
+    See :class:`PODBasis` for details on other arguments.
 
     Returns
     -------
     basis : (n, r) ndarray
-        First r POD basis vectors (left singular vectors).
-        Each column is a single basis vector of dimension n.
+        POD basis matrix, the first :math:`r` left singular vectors of the
+        states.
     svdvals : (n,), (k,), or (r,) ndarray
-        Singular values in descending order. Always returns as many as are
-        calculated: r for mode="randomize", min(n, k) for "dense".
-    W : (k, r) ndarray
-        First r **right** singular vectors, as columns.
-        **Only returned if return_W=True.**
+        Normalized singular values in descending order.
+        Always returns as many as are calculated:
+        :math:`min\{n, k\}` for ``mode="dense"``,
+        :math:`r` for ``mode="randomized"``.
+    rightvecs : (k, r) ndarray
+        First :math:`r` **right** singular vectors, as columns.
+        **Only returned if ``return_W=True``.**
     """
-    # Validate the rank.
-    rmax = min(states.shape)
-    if r is None:
-        r = rmax
-    if r > rmax or r < 1:
-        raise ValueError(f"invalid POD rank r = {r} (need 1 ≤ r ≤ {rmax})")
+    basis = PODBasis(
+        num_vectors=num_vectors,
+        svdval_threshold=svdval_threshold,
+        residual_energy=residual_energy,
+        cumulative_energy=cumulative_energy,
+        projection_error=projection_error,
+        mode=mode,
+        weights=weights,
+        **solver_options,
+    ).fit(states)
 
-    if mode == "dense":
-        V, svdvals, Wt = la.svd(states, full_matrices=False, **options)
-        W = Wt.T
+    if return_rightvecs:
+        r = basis.reduced_state_dimension
+        return basis.entries, basis.svdvals, basis.rightvecs[:, :r]
 
-    elif mode == "randomized":
-        if "random_state" not in options:
-            options["random_state"] = None
-        V, svdvals, Wt = sklmath.randomized_svd(states, r, **options)
-        W = Wt.T
-
-    else:
-        raise NotImplementedError(f"invalid mode '{mode}'")
-
-    if return_W:
-        return V[:, :r], svdvals, W[:, :r]
-    return V[:, :r], svdvals
+    return basis.entries, basis.svdvals
 
 
 def svdval_decay(
     singular_values,
-    tol: float = 1e-8,
-    normalize: bool = True,
+    threshold: float = 1e-8,
     plot: bool = True,
     ax=None,
+    **kwargs,
 ):
-    """Count the number of normalized singular values that are greater than
-    the specified tolerance.
+    """Count the number of **normalized** singular values that are greater than
+    a specified threshold.
 
     Parameters
     ----------
     singular_values : (n,) ndarray
-        Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
-    tol : float or list(float)
+        Singular values of a snapshot matrix, e.g.,
+        ``scipy.linalg.svdvals(states)``.
+    threshold : float or list[floats]
         Cutoff value(s) for the singular values.
-    normalize : bool
-        If True, normalize so that the maximum singular value is 1.
     plot : bool
-        If True, plot the singular values and the cutoff value(s) against the
-        singular value index.
+        If ``True``, plot the singular values and the cutoff value(s) against
+        the singular value index.
     ax : plt.Axes or None
-        Matplotlib Axes to plot the results on if plot = True.
+        Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
+    kwargs : dict
+        Options to pass to ``plt.semilogy()``
 
     Returns
     -------
     ranks : int or list(int)
-        The number of singular values greater than the cutoff value(s).
+        Number of singular values greater than the cutoff value(s).
     """
-    # Calculate the number of singular values above the cutoff value(s).
-    one_tol = np.isscalar(tol)
-    if one_tol:
-        tol = [tol]
     singular_values = np.sort(singular_values)[::-1]
-    if normalize:
-        singular_values /= singular_values[0]
-    ranks = [np.count_nonzero(singular_values > epsilon) for epsilon in tol]
+    singular_values /= singular_values[0]
+
+    # Calculate the number of singular values above the cutoff value(s).
+    if threshold:
+        if one_threshold := np.isscalar(threshold):
+            threshold = [threshold]
+        ranks = [np.count_nonzero(singular_values > ep) for ep in threshold]
 
     if plot:
-        # Visualize singular values and cutoff value(s).
+        # Plot singular values.
         if ax is None:
             ax = plt.figure().add_subplot(111)
+
+        options = dict(
+            marker="*",
+            color="k",
+            markersize=8,
+            markeredgewidth=0,
+            zorder=3,
+        )
+        options.update(kwargs)
+        marker = options.pop("marker")
+
         j = np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, singular_values, "C0*", ms=10, mew=0, zorder=3)
+        ax.semilogy(j, singular_values, marker, **options)
         ax.set_xlim((0, j.size))
-        ylim = ax.get_ylim()
-        for epsilon, r in zip(tol, ranks):
-            ax.axhline(epsilon, color="black", linewidth=0.5, alpha=0.75)
-            ax.axvline(r, color="black", linewidth=0.5, alpha=0.75)
-        ax.set_ylim(ylim)
-        ax.set_xlabel(r"Singular value index $j$")
-        ax.set_ylabel(r"Singular value $\sigma_j$")
 
-    return ranks[0] if one_tol else ranks
+        # Draw cutoff value(s).
+        if threshold:
+            ylim = ax.get_ylim()
+            for epsilon, r in zip(threshold, ranks):
+                ax.axhline(epsilon, color="gray", linewidth=0.5)
+                ax.axvline(r, color="gray", linewidth=0.5)
+            ax.set_ylim(ylim)
 
+        ax.set_xlabel("Singular value index")
+        ax.set_ylabel("Normalized singular values")
 
-def cumulative_energy(singular_values, thresh=0.9999, plot=True, ax=None):
-    """Compute the number of singular values needed to surpass a given
-    energy threshold. The energy of j singular values is defined by
-
-        energy_j = sum(singular_values[:j]**2) / sum(singular_values**2).
-
-    Parameters
-    ----------
-    singular_values : (n,) ndarray
-        Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
-    thresh : float or list(float)
-        Energy capture threshold(s). Default is 99.99%.
-    plot : bool
-        If True, plot the singular values and the cumulative energy against
-        the singular value index (linear scale).
-    ax : plt.Axes or None
-        Matplotlib Axes to plot the results on if plot = True.
-        If not given, a new single-axes figure is created.
-
-    Returns
-    -------
-    ranks : int or list(int)
-        The number of singular values required to capture more than each
-        energy capture threshold.
-    """
-    # Calculate the cumulative energy.
-    svdvals2 = np.sort(singular_values)[::-1] ** 2
-    cum_energy = np.cumsum(svdvals2) / np.sum(svdvals2)
-
-    # Determine the points at which the cumulative energy passes the threshold.
-    one_thresh = np.isscalar(thresh)
-    if one_thresh:
-        thresh = [thresh]
-    ranks = [int(np.searchsorted(cum_energy, xi)) + 1 for xi in thresh]
-
-    if plot:
-        # Visualize cumulative energy and threshold value(s).
-        if ax is None:
-            ax = plt.figure().add_subplot(111)
-        j = np.arange(1, singular_values.size + 1)
-        ax.plot(j, cum_energy, "C2.-", ms=10, lw=1, zorder=3)
-        ax.set_xlim(0, j.size)
-        for xi, r in zip(thresh, ranks):
-            ax.axhline(xi, color="black", linewidth=0.5, alpha=0.5)
-            ax.axvline(r, color="black", linewidth=0.5, alpha=0.5)
-        ax.set_xlabel(r"Singular value index")
-        ax.set_ylabel(r"Cumulative energy")
-
-    return ranks[0] if one_thresh else ranks
+    if threshold:
+        return ranks[0] if one_threshold else ranks
 
 
-def residual_energy(singular_values, tol=1e-6, plot=True, ax=None):
-    """Compute the number of singular values needed such that the residual
-    energy drops beneath the given tolerance. The residual energy of j
-    singular values is defined by
+def residual_energy(
+    singular_values,
+    threshold: float = 1e-6,
+    plot: bool = True,
+    ax=None,
+    **kwargs,
+):
+    r"""Compute the number of singular values needed such that the residual
+    energy drops beneath a given threshold.
 
-        residual_j = 1 - sum(singular_values[:j]**2) / sum(singular_values**2).
+    The residual energy of :math:`r` singular values is defined by
+
+    .. math::
+        \epsilon_r
+        = \sum_{i=r+1}^k\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+        = 1 - \left(
+        \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+        \right)
+
+    This method plots :math:`\epsilon_r` as a function of :math:`r`.
 
     Parameters
     ----------
     singular_values : (n,) ndarray
-        Singular values of a snapshot set, e.g., scipy.linalg.svdvals(states).
-    tol : float or list(float)
-        Energy residual tolerance(s). Default is 10^-6.
+        Singular values of a snapshot matrix, e.g.,
+        ``scipy.linalg.svdvals(states)``.
+    threshold : float or list[floats]
+        Energy residual threshold(s). Default is 10^-6.
     plot : bool
-        If True, plot the singular values and the residual energy against
-        the singular value index (log scale).
+        If ``True``, plot the residual energy and the threshold(s)
+        against the singular value index.
     ax : plt.Axes or None
-        Matplotlib Axes to plot the results on if plot = True.
+        Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
+    kwargs : dict
+        Options to pass to ``plt.semilogy()``
 
     Returns
     -------
-    ranks : int or list(int)
-        Number of singular values required to for the residual energy to drop
-        beneath each tolerance.
+    ranks : int or list[int]
+        Number of singular values required to shrink the residual energy below
+        the specified threshold.
     """
     # Calculate the residual energy.
     svdvals2 = np.sort(singular_values)[::-1] ** 2
     res_energy = 1 - (np.cumsum(svdvals2) / np.sum(svdvals2))
 
-    # Determine the points when the residual energy dips under the tolerance.
-    one_tol = np.isscalar(tol)
-    if one_tol:
-        tol = [tol]
-    ranks = [np.count_nonzero(res_energy > epsilon) + 1 for epsilon in tol]
+    # Determine the points when the residual energy dips under the threshold.
+    if threshold:
+        if one_threshold := np.isscalar(threshold):
+            threshold = [threshold]
+        ranks = [np.count_nonzero(res_energy > eps) + 1 for eps in threshold]
 
     if plot:
-        # Visualize residual energy and tolerance value(s).
+        # Plot residual energy and threshold value(s).
         if ax is None:
             ax = plt.figure().add_subplot(111)
+
+        options = dict(
+            linestyle="-",
+            marker="s",
+            color="C1",
+            markersize=4,
+            linewidth=0.5,
+            zorder=3,
+        )
+        options.update(kwargs)
+
         j = np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, res_energy, "C1.-", ms=10, lw=1, zorder=3)
+        ax.semilogy(j, res_energy, **options)
         ax.set_xlim(0, j.size)
-        for epsilon, r in zip(tol, ranks):
-            ax.axhline(epsilon, color="black", linewidth=0.5, alpha=0.5)
-            ax.axvline(r, color="black", linewidth=0.5, alpha=0.5)
+        ylim = ax.get_ylim()
+        ylim = (res_energy[-2] / 5, ylim[1])
+
+        if threshold:
+            for epsilon, r in zip(threshold, ranks):
+                ax.axhline(epsilon, color="gray", linewidth=0.5)
+                ax.axvline(r, color="gray", linewidth=0.5)
+        ax.set_ylim(ylim)
+
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Residual energy")
 
-    return ranks[0] if one_tol else ranks
+    if threshold:
+        return ranks[0] if one_threshold else ranks
 
 
-def projection_error(states, basis):
-    """Calculate the absolute and relative projection errors induced by
-    projecting states to a low dimensional basis, i.e.,
+def cumulative_energy(
+    singular_values,
+    threshold: float = 0.9999,
+    plot: bool = True,
+    ax=None,
+    **kwargs,
+):
+    r"""Compute the number of singular values needed to surpass a given
+    cumulative energy threshold.
 
-        absolute_error = ||Q - Vr Vr^T Q||_F,
-        relative_error = ||Q - Vr Vr^T Q||_F / ||Q||_F
+    The cumulative energy of :math:`r` singular values is defined by
 
-    where Q = states and Vr = basis. Note that Vr Vr^T is the orthogonal
-    projector onto subspace of R^n defined by the basis.
+    .. math::
+       \kappa_r = \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2.
+
+    This function determines the smalled :math:`r` such that
+    :math:`kappa_r` ``\ge thresh``.
 
     Parameters
     ----------
-    states : (n, k) or (k,) ndarray
-        Matrix of k snapshots where each column is a single snapshot, or a
-        single 1D snapshot. If 2D, use the Frobenius norm; if 1D, the l2 norm.
-    Vr : (n, r) ndarray
-        Low-dimensional basis of rank r. Each column is one basis vector.
+    singular_values : (n,) ndarray
+        Singular values of a snapshot matrix, e.g.,
+        ``scipy.linalg.svdvals(states)``.
+    threshold : float or list(float)
+        Energy capture threshold(s). Default is 99.99%.
+    plot : bool
+        If ``True``, plot the cumulative energy and the capture threshold(s)
+        against the singular value index (linear scale).
+    ax : plt.Axes or None
+        Axes to plot the results on if ``plot=True``.
+        If not given, a new single-axes figure is created.
+    kwargs : dict
+        Options to pass to ``plt.plot()``
 
     Returns
     -------
-    absolute_error : float
-        Absolute projection error ||Q - Vr Vr^T Q||_F.
-    relative_error : float
-        Relative projection error ||Q - Vr Vr^T Q||_F / ||Q||_F.
+    ranks : int or list(int)
+        Number of singular values required to capture the specified energy.
     """
-    norm_of_states = la.norm(states)
-    absolute_error = la.norm(states - basis @ (basis.T @ states))
-    return absolute_error, absolute_error / norm_of_states
+    # Calculate the cumulative energy.
+    svdvals2 = np.sort(singular_values)[::-1] ** 2
+    energy = np.cumsum(svdvals2) / np.sum(svdvals2)
+    energy = np.concatenate(([0], energy))
+
+    # Determine the points at which the cumulative energy passes the threshold.
+    if threshold:
+        if one_threshold := np.isscalar(threshold):
+            threshold = [threshold]
+        ranks = [int(np.searchsorted(energy, xi)) + 1 for xi in threshold]
+
+    if plot:
+        # Plot cumulative energy and threshold value(s).
+        if ax is None:
+            ax = plt.figure().add_subplot(111)
+
+        options = dict(
+            linestyle="-",
+            marker=".",
+            color="C2",
+            markersize=6,
+            linewidth=0.5,
+            zorder=3,
+        )
+        options.update(kwargs)
+
+        j = np.arange(singular_values.size + 1)
+        ax.plot(j, energy, **options)
+        ax.set_xlim(0, j.size)
+
+        if threshold:
+            ylim = ax.get_ylim()
+            for kappa, r in zip(threshold, ranks):
+                ax.axhline(kappa, color="gray", linewidth=0.5)
+                ax.axvline(r, color="gray", linewidth=0.5)
+            ax.set_ylim(ylim)
+
+        ax.set_xlabel(r"Singular value index")
+        ax.set_ylabel(r"Cumulative energy")
+
+    if threshold:
+        return ranks[0] if one_threshold else ranks

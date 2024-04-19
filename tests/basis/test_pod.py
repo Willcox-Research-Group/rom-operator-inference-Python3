@@ -4,11 +4,44 @@
 import os
 import pytest
 import numpy as np
-
-# from scipy import linalg as la
+from scipy import linalg as la
 from matplotlib import pyplot as plt
 
 import opinf
+
+
+def _spd(n):
+    """Generate a random symmetric postive definite nxn matrix."""
+    u, s, _ = la.svd(np.random.standard_normal((n, n)))
+    return u @ np.diag(s + 1) @ u.T
+
+
+def test_Wmult(n=10):
+    """Test basis._pod._Wmult()."""
+    func = opinf.basis._pod._Wmult
+
+    w = np.random.random(n) + 0.1
+    W = np.diag(w)
+
+    # One-dimensional operand
+    q = np.random.random(n)
+    Wq = W @ q
+    for ww in w, W:
+        out = func(ww, q)
+        assert out.shape == (n,)
+        assert np.allclose(out, Wq)
+
+    # Two-dimensional operand
+    Q = np.random.random((n, n))
+    WQ = W @ Q
+    for ww in w, W:
+        out = func(ww, Q)
+        assert out.shape == (n, n)
+        assert np.allclose(out, WQ)
+
+    with pytest.raises(ValueError) as ex:
+        func(w, np.random.random((2, 2, 2)))
+    assert ex.value.args[0] == "expected one- or two-dimensional array"
 
 
 class TestPODBasis:
@@ -37,6 +70,11 @@ class TestPODBasis:
         assert isinstance(basis.solver_options, dict)
         assert len(basis.solver_options) == 0
 
+        # Weights
+        w = np.ones(10)
+        self.Basis(num_vectors=2, weights=w)
+        self.Basis(num_vectors=2, weights=np.diag(w))
+
         # Setter for mode.
         with pytest.raises(AttributeError) as ex:
             basis.mode = "smartly"
@@ -48,21 +86,49 @@ class TestPODBasis:
             basis.solver_options = 10
         assert ex.value.args[0] == "solver_options must be a dictionary"
         basis.solver_options["full_matrices"] = False
+        basis.solver_options = None
+        assert isinstance(basis.solver_options, dict)
 
-    def test_from_svd(self):
+        with pytest.raises(ValueError) as ex:
+            self.Basis(num_vectors=10, max_vectors=-3)
+        assert ex.value.args[0] == "max_vectors must be a positive integer"
+
+    def test_from_svd(self, n=50, k=20, r=6):
         """Test from_svd() pseudoconstructor."""
-        raise NotImplementedError
+        Q = np.random.random((n, k))
+        Phi, svals, PsiT = la.svd(Q, full_matrices=False)
+        W = _spd(n)
+
+        basis = self.Basis.from_svd(Phi, svals)
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == k
+        assert basis.rightvecs is None
+        assert np.all(basis.entries == Phi)
+
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            basis = self.Basis.from_svd(
+                Phi,
+                svals,
+                PsiT.T,
+                num_vectors=r,
+                weights=W,
+            )
+        assert wn[0].message.args[0] == "basis not orthogonal"
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert basis.rightvecs is not None
+        assert np.all(basis.entries == Phi[:, :r])
 
     # Dimension management ----------------------------------------------------
-    def test_set_dimension(self):
+    def test_set_dimension(self, n=40, k=11, r=9):
         basis = self.Basis(num_vectors=10)
 
         # Dimension selection criteria
-        with pytest.raises(opinf.errors.UsageWarning) as wn:
-            basis._set_dimension_from_criterion(
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            basis._set_dimension_selection_criterion(
                 num_vectors=20,
-                cumulative_energy=0.999,
                 residual_energy=0.01,
+                cumulative_energy=0.999,
             )
         assert wn[0].message.args[0] == (
             "received multiple dimension selection criteria, "
@@ -87,31 +153,149 @@ class TestPODBasis:
         assert criterion[1] == 5
         assert basis.reduced_state_dimension == 5
 
+        basis.set_dimension(cumulative_energy=0.999)
+        criterion = basis._PODBasis__criterion
+        assert criterion[0] == "cumulative_energy"
+        assert criterion[1] == 0.999
+
         # Dimension setting (existing basis).
-        basis = self.Basis.from_svd(None, None)  # TODO
+        Phi, svals, PsiT = la.svd(
+            np.random.random((n, k)),
+            full_matrices=False,
+        )
+        svals = np.sqrt(10 ** -np.arange(k, dtype=float))
+        Q = Phi @ np.diag(svals) @ PsiT
+        total = np.sum(svals**2)
+
+        basis = self.Basis.from_svd(Phi, svals)
+        assert basis.reduced_state_dimension == k
+        assert basis.max_vectors == k
+
+        basis.reduced_state_dimension = 3
+        assert basis.reduced_state_dimension == 3
+        assert basis.max_vectors == k
+        assert basis.cumulative_energy == 1.11 / total
+
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            basis.reduced_state_dimension = k + 2
+        assert wn[0].message.args[0] == (
+            "selected reduced dimension exceeds number of stored vectors, "
+            f"setting reduced_state_dimension = max_vectors = {k}"
+        )
+        assert basis.reduced_state_dimension == k
+
+        basis.set_dimension(num_vectors=3)
+        assert basis.reduced_state_dimension == 3
+
+        basis.set_dimension(svdval_threshold=(svals[3] + svals[4]) / 2)
+        assert basis.reduced_state_dimension == 4
+
+        basis.set_dimension(cumulative_energy=0.99998)
+        assert basis.reduced_state_dimension == 5
+
+        basis.set_dimension(residual_energy=2e-2)
+        assert basis.reduced_state_dimension == 2
+
+        basis.set_dimension(projection_error=0.02)
+        assert basis.projection_error(Q, relative=True) < 0.02
+
+    def test_fit(self, n=60, k=20, r=4):
+        """Test fit()."""
+        Q = np.random.random((n, k))
+
+        # Dense, unweighted.
+        basis = self.Basis(num_vectors=r, max_vectors=k + 2, mode="dense")
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            out = basis.fit(Q)
+        assert wn[0].message.args[0] == (
+            f"only {k} singular vectors can be extracted from ({n} x {k}) "
+            f"snapshots, setting max_vectors={k}"
+        )
+        assert out is basis
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert basis.max_vectors == k
+        assert np.allclose(basis.entries.T @ basis.entries, np.eye(r))
+
+        # Dense, weighted.
+        w = np.random.random(n) + 0.1
+        W = np.diag(w)
+        Id = np.eye(r)
+        basis = self.Basis(num_vectors=r, mode="dense", weights=w)
+
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            basis.fit(Q[:-1, :])
+        assert ex.value.args[0] == (
+            f"states not aligned with weights, should have {n} rows"
+        )
+
+        basis.fit(Q)
+        assert np.allclose(basis.entries.T @ W @ basis.entries, Id)
+        basis = self.Basis(num_vectors=r, mode="dense", weights=W).fit(Q)
+        assert np.allclose(basis.entries.T @ W @ basis.entries, Id)
+        W = _spd(n)
+        basis = self.Basis(num_vectors=r, mode="dense", weights=W).fit(Q)
+        assert np.allclose(basis.entries.T @ W @ basis.entries, Id)
+
+        # Randomized.
+        basis = self.Basis(num_vectors=r, mode="randomized", max_vectors=r + 1)
+        Q = [np.random.random((n, k // 3)) for _ in range(3)]
+        basis.fit(Q)
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert basis.max_vectors == r + 1
+        assert np.allclose(basis.entries.T @ basis.entries, Id)
+
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            basis.set_dimension(residual_energy=1e-2)
+        assert wn[0].message.args[0] == (
+            "residual energy is being estimated from only "
+            f"{r + 1} singular values"
+        )
+
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            basis.set_dimension(cumulative_energy=0.9)
+        assert wn[0].message.args[0] == (
+            "cumulative energy is being estimated from only "
+            f"{r + 1} singular values"
+        )
+
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            basis.set_dimension(projection_error=0.1)
+        assert wn[0].message.args[0] == (
+            "projection error is being estimated from only "
+            f"{r + 1} singular values"
+        )
 
     # Visualization -----------------------------------------------------------
     def test_plots(self, n=40, k=25, r=4):
         """Lightly test plot_*()."""
-        basis = self.Basis(num_vectors=r).fit(
-            np.random.standard_normal((n, k))
-        )
+        basis = self.Basis(num_vectors=r)
+
+        with pytest.raises(AttributeError) as ex:
+            basis.plot_svdval_decay(threshold=1e-3)
+        assert ex.value.args[0] == "no singular value data, call fit()"
+
+        basis.fit(np.random.standard_normal((n, k)))
 
         # Turn interactive mode on.
         _pltio = plt.isinteractive()
-        plt.ion()
+        # plt.ion()
 
         # Call each plotting routine.
-        ax = basis.plot_svdval_decay(threshold=1e-3, normalize=True)
+        ax = basis.plot_svdval_decay(threshold=1e-2)
         assert isinstance(ax, plt.Axes)
+        plt.show()
         plt.close(ax.figure)
 
-        ax = basis.plot_residual_energy(threshold=1e-3)
+        ax = basis.plot_residual_energy(threshold=1e-1)
         assert isinstance(ax, plt.Axes)
+        plt.show()
         plt.close(ax.figure)
 
-        ax = basis.plot_cumulative_energy(threshold=0.999)
+        ax = basis.plot_cumulative_energy(threshold=[0.50, 0.75])
         assert isinstance(ax, plt.Axes)
+        plt.show()
         plt.close(ax.figure)
 
         fig, axes = basis.plot_energy()
@@ -119,6 +303,7 @@ class TestPODBasis:
         assert isinstance(axes, np.ndarray)
         for ax in axes.flat:
             assert isinstance(ax, plt.Axes)
+        plt.show()
         plt.close(fig)
 
         # Restore interactive mode setting.
@@ -132,8 +317,20 @@ class TestPODBasis:
             os.remove(target)
 
         # Just save a basis to a temporary file, don't interrogate the file.
-        basis = self.Basis(num_vectors=r).fit(np.random.random((n, k)))
+        basis = self.Basis(num_vectors=r, name="testbasis")
         basis.save(target)
+        assert os.path.isfile(target)
+
+        basis.fit(np.random.random((n, k)))
+        basis.save(target, overwrite=True)
+        assert os.path.isfile(target)
+
+        basis = self.Basis(
+            cumulative_energy=0.99,
+            max_vectors=10,
+            weights=np.ones(10),
+        )
+        basis.save(target, overwrite=True)
         assert os.path.isfile(target)
 
         os.remove(target)
@@ -146,7 +343,13 @@ class TestPODBasis:
             os.remove(target)
 
         # Test that save() and load() are inverses for an empty basis.
-        basis1 = self.Basis(num_vectors=r)
+        w = np.random.random(n) + 1
+        basis1 = self.Basis(
+            num_vectors=r,
+            weights=w,
+            name="testbasis",
+            max_vectors=2 * r,
+        )
         basis1.save(target, overwrite=True)
         basis2 = self.Basis.load(target)
         assert basis1 == basis2
@@ -160,6 +363,7 @@ class TestPODBasis:
         # Test max_vectors gives a smaller basis.
         rnew = basis1.reduced_state_dimension - 2
         basis2 = self.Basis.load(target, max_vectors=rnew)
+        assert basis2.full_state_dimension == n
         assert basis2.reduced_state_dimension == rnew
         assert basis2.entries.shape == (basis1.entries.shape[0], rnew)
         assert basis2.max_vectors == rnew
@@ -169,3 +373,22 @@ class TestPODBasis:
 
         # Clean up.
         os.remove(target)
+
+
+def test_pod_basis(n=40, k=20, r=3):
+    """Test basis._pod.pod_basis()."""
+    Q = np.random.random((n, k))
+    V, svals = opinf.basis.pod_basis(Q, num_vectors=r)
+    assert V.shape == (n, r)
+    assert svals.shape == (k,)
+    assert np.allclose(V.T @ V, np.eye(r))
+
+    V, svals, W = opinf.basis.pod_basis(
+        Q - 1,
+        num_vectors=r,
+        return_rightvecs=True,
+    )
+    assert V.shape == (n, r)
+    assert svals.shape == (k,)
+    assert W.shape == (k, r)
+    assert np.allclose(V.T @ V, np.eye(r))
