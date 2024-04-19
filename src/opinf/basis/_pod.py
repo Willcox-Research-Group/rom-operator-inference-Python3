@@ -75,14 +75,14 @@ class PODBasis(LinearBasis):
         are greater than the given threshold, i.e.,
         :math:`\sigma_{i}/\sigma_{1} \ge` ``svdval_threshold`` for
         :math:`i=1,\ldots,r`.
-    residual_energy : float
-        Choose :math:`r` as the smallest integer such that
-        :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2 \le `
-        ``residual_energy``.
     cumulative_energy : float
         Choose :math:`r` as the smallest integer such that
         :math:`\sum_{i=1}^{r}\sigma_i^2\big/\sum_{j=1}^{k}\sigma_j^2 \ge `
         ``cumulative_energy``.
+    residual_energy : float
+        Choose :math:`r` as the smallest integer such that
+        :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2 \le `
+        ``residual_energy``.
     projection_error : float
         Choose :math:`r` as the smallest integer such that
         :math:`\|\Q - \Vr\Vr\trp\Q\|_F \big/ \|\Q\|_F \le `
@@ -129,8 +129,8 @@ class PODBasis(LinearBasis):
         self,
         num_vectors: int = None,
         svdval_threshold: float = None,
-        residual_energy: float = None,
         cumulative_energy: float = None,
+        residual_energy: float = None,
         projection_error: float = None,
         max_vectors: int = None,
         mode: str = "dense",
@@ -146,8 +146,8 @@ class PODBasis(LinearBasis):
         self._set_dimension_selection_criterion(
             num_vectors=num_vectors,
             svdval_threshold=svdval_threshold,
-            residual_energy=residual_energy,
             cumulative_energy=cumulative_energy,
+            residual_energy=residual_energy,
             projection_error=projection_error,
         )
         self.__energy_is_being_estimated = False
@@ -293,33 +293,33 @@ class PODBasis(LinearBasis):
         return self.__rightvecs
 
     @property
-    def residual_energy(self) -> float:
-        r"""Amount of singular value energy *not* captured by the basis,
-        :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2`.
-        """
-        return self.__residual_energy
-
-    @property
     def cumulative_energy(self) -> float:
         r"""Amount of singular value energy captured by the basis,
         :math:`\sum_{i=1}^r\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2`.
         """
         return self.__cumulative_energy
 
+    @property
+    def residual_energy(self) -> float:
+        r"""Amount of singular value energy *not* captured by the basis,
+        :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2`.
+        """
+        return self.__residual_energy
+
     # Dimension selection -----------------------------------------------------
     def _set_dimension_selection_criterion(
         self,
         num_vectors: int = None,
         svdval_threshold: float = None,
-        residual_energy: float = None,
         cumulative_energy: float = None,
+        residual_energy: float = None,
         projection_error: float = None,
     ):
         args = [
             ("num_vectors", num_vectors),
             ("svdval_threshold", svdval_threshold),
-            ("residual_energy", residual_energy),
             ("cumulative_energy", cumulative_energy),
+            ("residual_energy", residual_energy),
             ("projection_error", projection_error),
         ]
         provided = [(arg[1] is not None) for arg in args]
@@ -397,19 +397,19 @@ class PODBasis(LinearBasis):
             r = value
         elif criterion == "svdval_threshold":
             r = np.count_nonzero(self.svdvals >= value)
-        elif criterion == "residual_energy":
-            r = np.count_nonzero(1 - energy >= value) + 1
-            if self.__energy_is_being_estimated:
-                warnings.warn(
-                    "residual energy is being estimated from only "
-                    f"{nsvdvals:d} singular values",
-                    errors.UsageWarning,
-                )
         elif criterion == "cumulative_energy":
             r = int(np.searchsorted(energy, value)) + 1
             if self.__energy_is_being_estimated:
                 warnings.warn(
                     "cumulative energy is being estimated from only "
+                    f"{nsvdvals:d} singular values",
+                    errors.UsageWarning,
+                )
+        elif criterion == "residual_energy":
+            r = np.count_nonzero(1 - energy >= value) + 1
+            if self.__energy_is_being_estimated:
+                warnings.warn(
+                    "residual energy is being estimated from only "
                     f"{nsvdvals:d} singular values",
                     errors.UsageWarning,
                 )
@@ -428,8 +428,8 @@ class PODBasis(LinearBasis):
         self,
         num_vectors: int = None,
         svdval_threshold: float = None,
-        residual_energy: float = None,
         cumulative_energy: float = None,
+        residual_energy: float = None,
         projection_error: float = None,
     ):
         r"""Set the reduced state dimension :math:`r`.
@@ -443,14 +443,14 @@ class PODBasis(LinearBasis):
             that are greater than the given threshold, i.e.,
             :math:`\sigma_{i}/\sigma_{1} \ge` ``svdval_threshold`` for
             :math:`i=1,\ldots,r`.
-        residual_energy : float
-            Choose :math:`r` as the smallest integer such that
-            :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2 \le `
-            ``residual_energy``.
         cumulative_energy : float
             Choose :math:`r` as the smallest integer such that
             :math:`\sum_{i=1}^{r}\sigma_i^2\big/\sum_{j=1}^{k}\sigma_j^2 \ge `
             ``cumulative_energy``.
+        residual_energy : float
+            Choose :math:`r` as the smallest integer such that
+            :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2 \le `
+            ``residual_energy``.
         projection_error : float
             Choose :math:`r` as the smallest integer such that
             :math:`\|\Q - \Vr\Vr\trp\Q\|_F \big/ \|\Q\|_F \le `
@@ -555,11 +555,11 @@ class PODBasis(LinearBasis):
         if self.svdvals is None:
             raise AttributeError("no singular value data, call fit()")
 
-    def _plot_single(self, driver, threshold, ax, kwargs):
+    def _plot_single(self, plotter, threshold, ax, kwargs):
         """Execute a single plotting routine."""
         self._check_svdvals_exist()
-        driver(self.svdvals, threshold=threshold, plot=True, ax=ax, **kwargs)
-        return plt.gca()
+        plotter(self.svdvals, threshold=threshold, plot=True, ax=ax, **kwargs)
+        return ax if ax is not None else plt.gca()
 
     def plot_svdval_decay(self, threshold=None, ax=None, **kwargs):
         """Plot the normalized singular value decay.
@@ -580,6 +580,33 @@ class PODBasis(LinearBasis):
             Matplotlib Axes for the plot.
         """
         return self._plot_single(svdval_decay, threshold, ax, kwargs)
+
+    def plot_cumulative_energy(self, threshold=None, ax=None, **kwargs):
+        r"""Plot the cumulative singular value energy.
+
+        The cumulative energy of :math:`r` singular values is defined by
+
+        .. math::
+           \kappa_r = \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2.
+
+        This method plots :math:`\kappa_r` as a function of :math:`r`.
+
+        Parameters
+        ----------
+        threshold : float or list[floats] or None
+            Threshold energy value(s) to mark on the plot.
+        ax : plt.Axes or None
+            Matplotlib Axes to plot on.
+            If ``None`` (default), a new single-axes figure is created.
+        kwargs : dict
+            Options to pass to ``plt.semilogy()``
+
+        Returns
+        -------
+        ax : plt.Axes
+            Matplotlib Axes for the plot.
+        """
+        return self._plot_single(cumulative_energy, threshold, ax, kwargs)
 
     def plot_residual_energy(self, threshold=None, ax=None, **kwargs):
         r"""Plot the residual singular value energy.
@@ -612,45 +639,41 @@ class PODBasis(LinearBasis):
         """
         return self._plot_single(residual_energy, threshold, ax, kwargs)
 
-    def plot_cumulative_energy(self, threshold=None, ax=None, **kwargs):
-        r"""Plot the cumulative singular value energy.
-
-        The cumulative energy of :math:`r` singular values is defined by
-
-        .. math::
-           \kappa_r = \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2.
-
-        This method plots :math:`\kappa_r` as a function of :math:`r`.
-
-        Parameters
-        ----------
-        threshold : float or list[floats] or None
-            Threshold energy value(s) to mark on the plot.
-        ax : plt.Axes or None
-            Matplotlib Axes to plot on.
-            If ``None`` (default), a new single-axes figure is created.
-        kwargs : dict
-            Options to pass to ``plt.semilogy()``
-
-        Returns
-        -------
-        ax : plt.Axes
-            Matplotlib Axes for the plot.
-        """
-        return self._plot_single(cumulative_energy, threshold, ax, kwargs)
-
     def plot_energy(self):
         """Plot the normalized singular values and the cumulative and residual
         energies.
         """
         self._check_svdvals_exist()
+        r = self.reduced_state_dimension
 
-        fig, axes = plt.subplots(1, 2, figsize=(8, 3))
-        self.plot_svdval_decay(ax=axes[0])
-        self.plot_residual_energy(ax=axes[1])
+        def _rline(ax, ymin):
+            ax.axvline(r, color="gray", linewidth=0.5, zorder=1)
+            ax.text(
+                r + 0.5,
+                ymin,
+                f"r = {r}",
+                color="gray",
+                horizontalalignment="left",
+                verticalalignment="bottom",
+            )
+
+        fig, axes = plt.subplots(1, 2, figsize=(13.44, 4.8))
+
+        ax = self.plot_svdval_decay(ax=axes[0])
+        ax.set_title("POD singular values")
+        _rline(ax, 1.05 * ax.get_ylim()[0])
+
+        ax = self.plot_cumulative_energy(ax=axes[1], color="C0")
+        ax.set_ylabel("Cumulative energy", color="C0")
+        ax.tick_params(axis="y", which="both", color="C0", labelcolor="C0")
+        _rline(ax, 0.01 + ax.get_ylim()[0])
+
+        ax = self.plot_residual_energy(ax=axes[1].twinx())
+        ax.set_ylabel("Residual energy", color="C1")
+        ax.tick_params(axis="y", which="both", color="C1", labelcolor="C1")
+        ax.set_title("POD singular value energy")
+
         fig.tight_layout()
-
-        return fig, axes
 
     # Persistence -------------------------------------------------------------
     def save(self, savefile, overwrite=False):
@@ -736,8 +759,8 @@ def pod_basis(
     states,
     num_vectors: int = None,
     svdval_threshold: float = None,
-    residual_energy: float = None,
     cumulative_energy: float = None,
+    residual_energy: float = None,
     projection_error: float = None,
     mode: str = "dense",
     weights: np.ndarray = None,
@@ -772,8 +795,8 @@ def pod_basis(
     basis = PODBasis(
         num_vectors=num_vectors,
         svdval_threshold=svdval_threshold,
-        residual_energy=residual_energy,
         cumulative_energy=cumulative_energy,
+        residual_energy=residual_energy,
         projection_error=projection_error,
         mode=mode,
         weights=weights,
@@ -844,106 +867,34 @@ def svdval_decay(
 
         j = np.arange(1, singular_values.size + 1)
         ax.semilogy(j, singular_values, marker, **options)
-        ax.set_xlim((0, j.size))
+        ax.set_xlim((0, j.size + 1))
 
         # Draw cutoff value(s).
         if threshold:
             ylim = ax.get_ylim()
-            for epsilon, r in zip(threshold, ranks):
-                ax.axhline(epsilon, color="gray", linewidth=0.5)
+            for sigma, r in zip(threshold, ranks):
+                ax.axhline(sigma, color="gray", linewidth=0.5)
+                ax.text(
+                    j[-1] + 0.5,
+                    1.05 * sigma,
+                    f"{sigma:.2e}",
+                    color="gray",
+                    horizontalalignment="right",
+                    verticalalignment="bottom",
+                )
                 ax.axvline(r, color="gray", linewidth=0.5)
+                ax.text(
+                    r + 0.5,
+                    1.05 * ylim[0],
+                    f"r = {r}",
+                    color="gray",
+                    horizontalalignment="left",
+                    verticalalignment="bottom",
+                )
             ax.set_ylim(ylim)
 
         ax.set_xlabel("Singular value index")
         ax.set_ylabel("Normalized singular values")
-
-    if threshold:
-        return ranks[0] if one_threshold else ranks
-
-
-def residual_energy(
-    singular_values,
-    threshold: float = 1e-6,
-    plot: bool = True,
-    ax=None,
-    **kwargs,
-):
-    r"""Compute the number of singular values needed such that the residual
-    energy drops beneath a given threshold.
-
-    The residual energy of :math:`r` singular values is defined by
-
-    .. math::
-        \epsilon_r
-        = \sum_{i=r+1}^k\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
-        = 1 - \left(
-        \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
-        \right)
-
-    This method plots :math:`\epsilon_r` as a function of :math:`r`.
-
-    Parameters
-    ----------
-    singular_values : (n,) ndarray
-        Singular values of a snapshot matrix, e.g.,
-        ``scipy.linalg.svdvals(states)``.
-    threshold : float or list[floats]
-        Energy residual threshold(s). Default is 10^-6.
-    plot : bool
-        If ``True``, plot the residual energy and the threshold(s)
-        against the singular value index.
-    ax : plt.Axes or None
-        Axes to plot the results on if ``plot=True``.
-        If not given, a new single-axes figure is created.
-    kwargs : dict
-        Options to pass to ``plt.semilogy()``
-
-    Returns
-    -------
-    ranks : int or list[int]
-        Number of singular values required to shrink the residual energy below
-        the specified threshold.
-    """
-    # Calculate the residual energy.
-    svdvals2 = np.sort(singular_values)[::-1] ** 2
-    res_energy = 1 - (np.cumsum(svdvals2) / np.sum(svdvals2))
-
-    # Determine the points when the residual energy dips under the threshold.
-    if threshold:
-        if one_threshold := np.isscalar(threshold):
-            threshold = [threshold]
-        ranks = [np.count_nonzero(res_energy > eps) + 1 for eps in threshold]
-
-    if plot:
-        # Plot residual energy and threshold value(s).
-        if ax is None:
-            ax = plt.figure().add_subplot(111)
-
-        options = dict(
-            linestyle="-",
-            marker="s",
-            color="C1",
-            markersize=4,
-            markeredgewidth=0,
-            linewidth=0.5,
-            zorder=3,
-        )
-        options.update(kwargs)
-
-        j = np.arange(1, singular_values.size + 1)
-        ax.semilogy(j, res_energy, **options)
-        ax.set_xlim(0, j.size)
-        ylim = ax.get_ylim()
-        ylim = (res_energy[-2] / 5, ylim[1])
-
-        if threshold:
-            for epsilon, r in zip(threshold, ranks):
-                ax.axhline(epsilon, color="gray", linewidth=0.5)
-                ax.axvline(r, color="gray", linewidth=0.5)
-        ax.set_ylim(ylim)
-
-        ax.set_xlabel(r"Singular value index")
-        ax.set_ylabel(r"Residual energy")
 
     if threshold:
         return ranks[0] if one_threshold else ranks
@@ -997,7 +948,7 @@ def cumulative_energy(
     if threshold:
         if one_threshold := np.isscalar(threshold):
             threshold = [threshold]
-        ranks = [int(np.searchsorted(energy, xi)) + 1 for xi in threshold]
+        ranks = [int(np.searchsorted(energy, xi)) for xi in threshold]
 
     if plot:
         # Plot cumulative energy and threshold value(s).
@@ -1018,16 +969,136 @@ def cumulative_energy(
         j = np.arange(singular_values.size + 1)
         ax.plot(j, energy, **options)
         ax.set_xlim(0, j.size)
+        ylim = (ax.get_ylim()[0], 1.05)
 
         if threshold:
-            ylim = ax.get_ylim()
             for kappa, r in zip(threshold, ranks):
                 ax.axhline(kappa, color="gray", linewidth=0.5)
+                ax.text(
+                    j[-1] + 0.5,
+                    kappa + 0.01,
+                    f"{kappa:%}",
+                    color="gray",
+                    horizontalalignment="right",
+                    verticalalignment="bottom",
+                )
                 ax.axvline(r, color="gray", linewidth=0.5)
-            ax.set_ylim(ylim)
+                ax.text(
+                    r + 0.5,
+                    ylim[0] + 0.01,
+                    f"r = {r}",
+                    color="gray",
+                    horizontalalignment="left",
+                    verticalalignment="bottom",
+                )
 
+        ax.set_ylim(ylim)
         ax.set_xlabel(r"Singular value index")
         ax.set_ylabel(r"Cumulative energy")
+
+    if threshold:
+        return ranks[0] if one_threshold else ranks
+
+
+def residual_energy(
+    singular_values,
+    threshold: float = 1e-6,
+    plot: bool = True,
+    ax=None,
+    **kwargs,
+):
+    r"""Compute the number of singular values needed such that the residual
+    energy drops beneath a given threshold.
+
+    The residual energy of :math:`r` singular values is defined by
+
+    .. math::
+        \epsilon_r
+        = \sum_{i=r+1}^k\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+        = 1 - \left(
+        \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+        \right)
+
+    This method plots :math:`\epsilon_r` as a function of :math:`r`.
+
+    Parameters
+    ----------
+    singular_values : (n,) ndarray
+        Singular values of a snapshot matrix, e.g.,
+        ``scipy.linalg.svdvals(states)``.
+    threshold : float or list[floats]
+        Energy residual threshold(s). Default is 10^-6.
+    plot : bool
+        If ``True``, plot the residual energy and the threshold(s)
+        against the singular value index.
+    ax : plt.Axes or None
+        Axes to plot the results on if ``plot=True``.
+        If not given, a new single-axes figure is created.
+    kwargs : dict
+        Options to pass to ``plt.semilogy()``
+
+    Returns
+    -------
+    ranks : int or list[int]
+        Number of singular values required to shrink the residual energy below
+        the specified threshold.
+    """
+    # Calculate the residual energy.
+    svdvals2 = np.sort(singular_values)[::-1] ** 2
+    res_energy = 1 - (np.cumsum(svdvals2) / np.sum(svdvals2))
+    res_energy = np.concatenate(([1], res_energy))
+
+    # Determine the points when the residual energy dips under the threshold.
+    if threshold:
+        if one_threshold := np.isscalar(threshold):
+            threshold = [threshold]
+        ranks = [np.count_nonzero(res_energy > eps) for eps in threshold]
+
+    if plot:
+        # Plot residual energy and threshold value(s).
+        if ax is None:
+            ax = plt.figure().add_subplot(111)
+
+        options = dict(
+            linestyle="-",
+            marker="s",
+            color="C1",
+            markersize=4,
+            markeredgewidth=0,
+            linewidth=0.5,
+            zorder=3,
+        )
+        options.update(kwargs)
+
+        j = np.arange(singular_values.size + 1)
+        ax.semilogy(j, res_energy, **options)
+        ax.set_xlim(0, j.size)
+        ylim = (res_energy[-2] / 5, 1.1)
+
+        if threshold:
+            for epsilon, r in zip(threshold, ranks):
+                ax.axhline(epsilon, color="gray", linewidth=0.5)
+                ax.text(
+                    j[-1] - 0.5,
+                    1.1 * epsilon,
+                    f"{epsilon:.2e}",
+                    color="gray",
+                    horizontalalignment="right",
+                    verticalalignment="bottom",
+                )
+                ax.axvline(r, color="gray", linewidth=0.5)
+                ax.text(
+                    r + 0.5,
+                    1.1 * ylim[0],
+                    f"r = {r}",
+                    color="gray",
+                    horizontalalignment="left",
+                    verticalalignment="bottom",
+                )
+
+        ax.set_ylim(ylim)
+        ax.set_xlabel(r"Singular value index")
+        ax.set_ylabel(r"Residual energy")
 
     if threshold:
         return ranks[0] if one_threshold else ranks

@@ -268,7 +268,7 @@ class TestPODBasis:
         )
 
     # Visualization -----------------------------------------------------------
-    def test_plots(self, n=40, k=25, r=4):
+    def test_plots(self, n=40, r=4):
         """Lightly test plot_*()."""
         basis = self.Basis(num_vectors=r)
 
@@ -276,14 +276,14 @@ class TestPODBasis:
             basis.plot_svdval_decay(threshold=1e-3)
         assert ex.value.args[0] == "no singular value data, call fit()"
 
-        basis.fit(np.random.standard_normal((n, k)))
+        basis.fit(np.diag(10 ** np.arange(n)))
 
         # Turn interactive mode on.
         _pltio = plt.isinteractive()
         # plt.ion()
 
         # Call each plotting routine.
-        ax = basis.plot_svdval_decay(threshold=1e-2)
+        ax = basis.plot_svdval_decay(threshold=4e-1)
         assert isinstance(ax, plt.Axes)
         plt.show()
         plt.close(ax.figure)
@@ -298,13 +298,9 @@ class TestPODBasis:
         plt.show()
         plt.close(ax.figure)
 
-        fig, axes = basis.plot_energy()
-        assert isinstance(fig, plt.Figure)
-        assert isinstance(axes, np.ndarray)
-        for ax in axes.flat:
-            assert isinstance(ax, plt.Axes)
+        basis.plot_energy()
         plt.show()
-        plt.close(fig)
+        plt.close("all")
 
         # Restore interactive mode setting.
         plt.interactive(_pltio)
