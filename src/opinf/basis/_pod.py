@@ -924,6 +924,7 @@ def residual_energy(
             marker="s",
             color="C1",
             markersize=4,
+            markeredgewidth=0,
             linewidth=0.5,
             zorder=3,
         )
@@ -1005,9 +1006,10 @@ def cumulative_energy(
 
         options = dict(
             linestyle="-",
-            marker=".",
+            marker="o",
             color="C2",
-            markersize=6,
+            markersize=4,
+            markeredgewidth=0,
             linewidth=0.5,
             zorder=3,
         )

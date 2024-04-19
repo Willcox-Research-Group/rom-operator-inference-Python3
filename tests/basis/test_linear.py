@@ -80,6 +80,14 @@ class TestLinearBasis:
         assert np.all(basis1.entries == basis2.entries)
         assert np.all(basis2.entries == Vr)
 
+        with pytest.raises(ValueError) as ex:
+            self.Basis(
+                entries=Vr,
+                weights=np.random.random((2, 2, 2)),
+                check_orthogonality=False,
+            )
+        assert ex.value.args[0] == "expected one- or two-dimensional weights"
+
     def test_str(self):
         """Test __str__() and __repr__()."""
         basis = self.Basis(self._orth(10, 4))

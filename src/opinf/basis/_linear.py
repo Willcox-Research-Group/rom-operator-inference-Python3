@@ -69,9 +69,12 @@ class LinearBasis(BasisTemplate):
         BasisTemplate.reduced_state_dimension.fset(self, entries.shape[1])
 
         # Set the weights.
-        if weights is not None and np.ndim(weights) == 1:
-            n = np.size(weights)
-            weights = sparse.dia_array(([weights], [0]), shape=(n, n))
+        if weights is not None:
+            if (dim := np.ndim(weights)) == 1:
+                n = np.size(weights)
+                weights = sparse.dia_array(([weights], [0]), shape=(n, n))
+            elif dim != 2:
+                raise ValueError("expected one- or two-dimensional weights")
         self.__weights = weights
 
         # Verify orthogonality if desired.

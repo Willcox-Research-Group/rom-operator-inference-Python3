@@ -293,7 +293,7 @@ class TestPODBasis:
         plt.show()
         plt.close(ax.figure)
 
-        ax = basis.plot_cumulative_energy(threshold=[0.50, 0.75])
+        ax = basis.plot_cumulative_energy(threshold=0.75)
         assert isinstance(ax, plt.Axes)
         plt.show()
         plt.close(ax.figure)
