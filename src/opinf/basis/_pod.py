@@ -57,8 +57,8 @@ class PODBasis(LinearBasis):
 
     The number of left singular vectors :math:`r` is the dimension of the
     reduced state and is set by specifying exactly one of the constructor
-    arguments ``num_modes``, ``svdval_threshold``, ``residual_energy``,
-    ``cumulative_energy``, or ``projection_error`. Once the basis entries are
+    arguments ``num_vectors``, ``svdval_threshold``, ``residual_energy``,
+    ``cumulative_energy``, or ``projection_error``. Once the basis entries are
     set by calling :meth:`fit`, the reduced state dimension :math:`r` can be
     updated by calling :meth:`set_dimension`.
 
@@ -77,16 +77,16 @@ class PODBasis(LinearBasis):
         :math:`i=1,\ldots,r`.
     cumulative_energy : float
         Choose :math:`r` as the smallest integer such that
-        :math:`\sum_{i=1}^{r}\sigma_i^2\big/\sum_{j=1}^{k}\sigma_j^2 \ge `
-        ``cumulative_energy``.
+        :math:`\sum_{i=1}^{r}\sigma_i^2\big/\sum_{j=1}^{k}\sigma_j^2`
+        is greater than or equal to ``cumulative_energy``.
     residual_energy : float
         Choose :math:`r` as the smallest integer such that
-        :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2 \le `
-        ``residual_energy``.
+        :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2`
+        is less than or equal to ``residual_energy``.
     projection_error : float
         Choose :math:`r` as the smallest integer such that
-        :math:`\|\Q - \Vr\Vr\trp\Q\|_F \big/ \|\Q\|_F \le `
-        ``projection_error``.
+        :math:`\|\Q - \Vr\Vr\trp\Q\|_F \big/ \|\Q\|_F`
+        is less than or equal to ``projection_error``.
     max_vectors : int
         Maximum number of POD basis vectors to store. After calling
         :meth:`fit`, the ``reduced_state_dimension`` can be increased up to
@@ -102,7 +102,10 @@ class PODBasis(LinearBasis):
         * ``"randomized"``: Compute an approximate SVD with a randomized
           approach via ``sklearn.utils.extmath.randomized_svd()``.
           May be more efficient but less accurate for very large state
-          matrices.
+          matrices. **NOTE**: it is highly recommended to set ``max_vectors``
+          to limit the number of computed singular vectors. In this case,
+          only ``max_vectors`` singular *values* are computed as well, meaning
+          the cumulative and residual energies cannot be computed exactly.
     weights : (n, n) ndarray or (n,) ndarray None
         Weight matrix :math:`\W` or its diagonals.
         When provided, a weighted singular value decomposition of the states
@@ -114,7 +117,7 @@ class PODBasis(LinearBasis):
     solver_options : dict
         Options to pass to the SVD solver (``scipy.linalg.svd()`` if
         ``mode="dense"``, ``sklearn.utils.extmath.randomized_svd()`` if
-        ``mode=="randomized"``).
+        ``mode="randomized"``).
     """
 
     # Valid modes for the SVD engine.
@@ -204,11 +207,13 @@ class PODBasis(LinearBasis):
         rightvecs : (k, r) ndarray or None
             Right singular vectors. Each *column* is a singular vector.
 
-        See :meth:`__init__` for details on other arguments.
-
         Returns
         -------
         Initialized :class:`PODBasis` object.
+
+        Notes
+        -----
+        See :class:`PODBasis` for details on other arguments.
         """
         # Default dimensionality criterion: use all left singular vectors.
         if all(
@@ -433,11 +438,12 @@ class PODBasis(LinearBasis):
         projection_error: float = None,
     ):
         r"""Set the reduced state dimension :math:`r`.
+        Exactly one argument should be specified
 
         Parameters
         ----------
         num_vectors : int
-            Set the reduced state dimension :math:`r` to ``num_vectors``.
+            Set :math:`r` to ``num_vectors``.
         svdval_threshold : float
             Choose :math:`r` as the number of normalized POD singular values
             that are greater than the given threshold, i.e.,
@@ -445,16 +451,16 @@ class PODBasis(LinearBasis):
             :math:`i=1,\ldots,r`.
         cumulative_energy : float
             Choose :math:`r` as the smallest integer such that
-            :math:`\sum_{i=1}^{r}\sigma_i^2\big/\sum_{j=1}^{k}\sigma_j^2 \ge `
-            ``cumulative_energy``.
+            :math:`\sum_{i=1}^{r}\sigma_i^2\big/\sum_{j=1}^{k}\sigma_j^2`
+            is greater than or equal to ``cumulative_energy``.
         residual_energy : float
             Choose :math:`r` as the smallest integer such that
-            :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2 \le `
-            ``residual_energy``.
+            :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2`
+            is less than or equal to ``residual_energy``.
         projection_error : float
             Choose :math:`r` as the smallest integer such that
-            :math:`\|\Q - \Vr\Vr\trp\Q\|_F \big/ \|\Q\|_F \le `
-            ``projection_error``.
+            :math:`\|\Q - \Vr\Vr\trp\Q\|_F \big/ \|\Q\|_F`
+            is less than or equal to ``projection_error``.
         """
         self._set_dimension_selection_criterion(
             num_vectors=num_vectors,
@@ -587,7 +593,7 @@ class PODBasis(LinearBasis):
         The cumulative energy of :math:`r` singular values is defined by
 
         .. math::
-           \kappa_r = \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2.
+           \kappa_r = \sum_{i=1}^r\sigma_i^2 \bigg/ \sum_{j=1}^k\sigma_j^2.
 
         This method plots :math:`\kappa_r` as a function of :math:`r`.
 
@@ -615,9 +621,9 @@ class PODBasis(LinearBasis):
 
         .. math::
            \epsilon_r
-           = \sum_{i=r+1}^k\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+           = \sum_{i=r+1}^k\sigma_i^2 \bigg/ \sum_{j=1}^k\sigma_j^2
            = 1 - \left(
-           \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+           \sum_{i=1}^r\sigma_i^2 \bigg/ \sum_{j=1}^k\sigma_j^2
            \right)
 
         This method plots :math:`\epsilon_r` as a function of :math:`r`.
@@ -682,10 +688,11 @@ class PODBasis(LinearBasis):
         Parameters
         ----------
         savefile : str
-            Path of the file to save the basis in.
+            Path of the file to save the basis to.
         overwrite : bool
-            If True, overwrite the file if it already exists. If False
-            (default), raise a FileExistsError if the file already exists.
+            If ``True``, overwrite the file if it already exists.
+            If ``False`` (default), raise a ``FileExistsError`` if the file
+            already exists.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             meta = hf.create_dataset("meta", shape=(0,))
@@ -718,7 +725,7 @@ class PODBasis(LinearBasis):
         Parameters
         ----------
         loadfile : str
-            Path to the file where the basis was stored (via save()).
+            Path to the file where the basis was stored via :meth:`save`.
         max_vectors : int or None
             Maximum number of POD modes to load. If None (default), load all.
 
@@ -773,10 +780,8 @@ def pod_basis(
     ----------
     states : (n, k) ndarray
         Matrix of :math:`k` :math:`n`-dimensional snapshots.
-    return_rightvecx : bool
+    return_rightvec : bool
         If ``True``, return the right singular vectors as well.
-
-    See :class:`PODBasis` for details on other arguments.
 
     Returns
     -------
@@ -786,11 +791,16 @@ def pod_basis(
     svdvals : (n,), (k,), or (r,) ndarray
         Normalized singular values in descending order.
         Always returns as many as are calculated:
-        :math:`min\{n, k\}` for ``mode="dense"``,
+        :math:`\min\{n, k\}` for ``mode="dense"``,
         :math:`r` for ``mode="randomized"``.
     rightvecs : (k, r) ndarray
         First :math:`r` **right** singular vectors, as columns.
-        **Only returned if ``return_W=True``.**
+        **NOTE**: only returned if ``return_W=True``.
+
+    Notes
+    -----
+    See :class:`PODBasis` for the mathematical definition of POD and for
+    details on other constructor arguments.
     """
     basis = PODBasis(
         num_vectors=num_vectors,
@@ -913,10 +923,10 @@ def cumulative_energy(
     The cumulative energy of :math:`r` singular values is defined by
 
     .. math::
-       \kappa_r = \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2.
+       \kappa_r = \sum_{i=1}^r\sigma_i^2 \bigg/ \sum_{j=1}^k\sigma_j^2.
 
     This function determines the smalled :math:`r` such that
-    :math:`kappa_r` ``\ge thresh``.
+    :math:`\kappa_r \ge` ``threshold``.
 
     Parameters
     ----------
@@ -1014,12 +1024,13 @@ def residual_energy(
 
     .. math::
         \epsilon_r
-        = \sum_{i=r+1}^k\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+        = \sum_{i=r+1}^k\sigma_i^2 \bigg/ \sum_{j=1}^k\sigma_j^2
         = 1 - \left(
-        \sum_{i=1}^r\sigma_i^2 \big/ \sum_{j=1}^k\sigma_j^2
+        \sum_{i=1}^r\sigma_i^2 \bigg/ \sum_{j=1}^k\sigma_j^2
         \right)
 
-    This method plots :math:`\epsilon_r` as a function of :math:`r`.
+    This function determines the smallest :math:`r` such that
+    :math:`\epsilon_r \le` ``threshold``.
 
     Parameters
     ----------

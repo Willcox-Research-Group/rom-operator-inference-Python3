@@ -17,28 +17,40 @@ from ._base import BasisTemplate
 class LinearBasis(BasisTemplate):
     r"""Linear low-dimensional state approximation.
 
+    This class approximates high-dimensional states :math:`\q\in\RR^n` as a
+    linear combination of :math:`r` basis vectors
+    :math:`\v_1,\ldots,\v_r\in\R^n`. The basis matrix
+    :math:`\Vr = [~\v_1~~\cdots~~\v_r~]\in \RR^{n \times r}` and an (optional)
+    weighting matrix :math:`\W\in\RR^{n \times n}` define the approximation.
+
+    The encoding from the high-dimensional space :math:`\RR^n` to the
+    low-dimensional space :math:`\RR^r` is given by
+
     .. math::
-       \q \approx \Vr\qhat = \sum_{i=1}^r \hat{q}_i \v_i,
+       \q \mapsto \qhat = \Vr\trp\W\q,
 
-    where :math:`\q\in\RR^n`,
-    :math:`\Vr = [~\v_1~~\cdots~~\v_r~]\in \RR^{n \times r}`, and
-    :math:`\qhat = [\hat{q}_1,\ldots,\hat{q}_r]\trp\in\RR^r`.
+    while the decoding from low-dimensional space :math:`\RR^r` to the
+    high-dimensional space :math:`\RR^n` is defined as
 
-    The basis entries are specified in the constructor, not learned from state
-    data. Hence, :meth:`fit` does nothing in this class.
+    .. math::
+       \qhat \mapsto \breve{\q} = \Vr\qhat = \sum_{i=1}^r \hat{q}_i \v_i,
+
+    where :math:`\qhat = [\hat{q}_1,\ldots,\hat{q}_r]\trp\in\RR^r`.
+
+    Basis entries :math:`\Vr` and the weights :math:`\W` are specified
+    explicitly in the constructor, not learned from state data.
 
     Parameters
     ----------
     entries : (n, r) ndarray
-        Basis entries :math:`\Vr`.
+        Basis entries :math:`\Vr\in\RR^{n\times r}`.
     weights : (n, n) ndarray or (n,) ndarray None
-        Weight matrix :math:`\W` or its diagonals.
+        Weight matrix :math:`\W\in\RR^n` or its diagonal entries.
         If ``None`` (default), set :math:`\W` to the identity.
-        Raise a warning if :math:`\Vr\trp\W\Vr` is not the identity.
     check_orthogonality : bool
-        If ``True``, raise a warning if the basis is not orthogonal
-        (with respect to the weights, if given).
-    name : str
+        If ``True``, raise a warning if the basis is not orthogonal, i.e.,
+        if :math:`\Vr\trp\W\Vr` is not the identity.
+    name : str or None
         Label for the state variable that this basis approximates.
 
     Notes
@@ -87,8 +99,8 @@ class LinearBasis(BasisTemplate):
     # Properties --------------------------------------------------------------
     @property
     def entries(self):
-        r"""Entries of the basis matrix :math:`\Vr\in\RR^{n \times r}`.
-        Also accessible via indexing (``basis[:]``).
+        r"""Entries of the basis matrix :math:`\Vr\in\RR^{n \times r}`. Also
+        accessible via indexing (``basis[:]``).
         """
         return self.__entries
 
@@ -189,14 +201,14 @@ class LinearBasis(BasisTemplate):
         return Vr @ states_compressed
 
     # Visualizations ----------------------------------------------------------
-    def plot1D(self, x, num_modes=None, ax=None, **kwargs):
+    def plot1D(self, x, num_vectors=None, ax=None, **kwargs):
         """Plot the basis vectors over a one-dimensional domain.
 
         Parameters
         ----------
         x : (n,) ndarray
             One-dimensional spatial domain over which to plot the vectors.
-        num_modes : int or None
+        num_vectors : int or None
             Number of basis vectors to plot.
             If ``None`` (default), plot all basis vectors.
         ax : plt.Axes or None
@@ -210,12 +222,12 @@ class LinearBasis(BasisTemplate):
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        if num_modes is None:
-            num_modes = self.reduced_state_dimension
+        if num_vectors is None:
+            num_vectors = self.reduced_state_dimension
         if ax is None:
             ax = plt.figure().add_subplot(111)
 
-        for j in range(num_modes):
+        for j in range(num_vectors):
             ax.plot(x, self.entries[:, j], **kwargs)
         ax.set_xlim(x[0], x[-1])
         ax.set_xlabel("spatial domain x")
@@ -249,10 +261,11 @@ class LinearBasis(BasisTemplate):
         Parameters
         ----------
         savefile : str
-            Path of the file to save the basis in.
+            Path of the file to save the basis to.
         overwrite : bool
-            If True, overwrite the file if it already exists. If False
-            (default), raise a FileExistsError if the file already exists.
+            If ``True``, overwrite the file if it already exists.
+            If ``False`` (default), raise a ``FileExistsError`` if the file
+            already exists.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             if self.name:
@@ -271,7 +284,7 @@ class LinearBasis(BasisTemplate):
         Parameters
         ----------
         loadfile : str
-            Path to the file where the basis was stored (via save()).
+            Path to the file where the basis was stored via :meth:`save`.
 
         Returns
         -------

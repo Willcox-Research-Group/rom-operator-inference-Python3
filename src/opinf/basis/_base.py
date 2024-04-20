@@ -121,7 +121,9 @@ class BasisTemplate(abc.ABC):
     # Projection --------------------------------------------------------------
     def project(self, state):
         """Project a high-dimensional state vector to the subset of the
-        high-dimensional space that can be represented by the basis by
+        high-dimensional space that can be represented by the basis.
+
+        This is done by
 
         1. expressing the state in low-dimensional latent coordinates, then
         2. reconstructing the high-dimensional state corresponding to those
