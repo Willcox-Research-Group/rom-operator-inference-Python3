@@ -201,13 +201,14 @@ class LinearBasis(BasisTemplate):
         return Vr @ states_compressed
 
     # Visualizations ----------------------------------------------------------
-    def plot1D(self, x, num_vectors=None, ax=None, **kwargs):
+    def plot1D(self, x=None, num_vectors=None, ax=None, **kwargs):
         """Plot the basis vectors over a one-dimensional domain.
 
         Parameters
         ----------
-        x : (n,) ndarray
+        x : (n,) ndarray or None
             One-dimensional spatial domain over which to plot the vectors.
+            Defaults to [0, 1] with `n` points.
         num_vectors : int or None
             Number of basis vectors to plot.
             If ``None`` (default), plot all basis vectors.
@@ -222,16 +223,19 @@ class LinearBasis(BasisTemplate):
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
+        if x is None:
+            x = np.linspace(0, 1, self.full_state_dimension)
         if num_vectors is None:
             num_vectors = self.reduced_state_dimension
+        num_vectors = min(num_vectors, self.reduced_state_dimension)
         if ax is None:
             ax = plt.figure().add_subplot(111)
 
         for j in range(num_vectors):
             ax.plot(x, self.entries[:, j], **kwargs)
         ax.set_xlim(x[0], x[-1])
-        ax.set_xlabel("spatial domain x")
-        ax.set_ylabel("basis vectors v(x)")
+        ax.set_xlabel("spatial domain")
+        ax.set_ylabel("basis vectors")
 
         return ax
 

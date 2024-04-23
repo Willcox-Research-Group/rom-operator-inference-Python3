@@ -16,7 +16,7 @@ class BasisTemplate(abc.ABC):
     """Template class for bases.
 
     Classes that inherit from this template must implement the methods
-    :meth:`fit()`, :meth:`compresss()`, and :meth:`decompress()`.
+    :meth:`fit`, :meth:`compress`, and :meth:`decompress`.
 
     See :class:`PODBasis` for an example.
     """

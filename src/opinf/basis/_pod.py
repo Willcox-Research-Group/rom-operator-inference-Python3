@@ -561,19 +561,22 @@ class PODBasis(LinearBasis):
         if self.svdvals is None:
             raise AttributeError("no singular value data, call fit()")
 
-    def _plot_single(self, plotter, threshold, ax, kwargs):
+    def _plot_single(self, plotter, **kwargs):
         """Execute a single plotting routine."""
         self._check_svdvals_exist()
-        plotter(self.svdvals, threshold=threshold, plot=True, ax=ax, **kwargs)
+        plotter(self.svdvals, **kwargs)
+        ax = kwargs.get("ax")
         return ax if ax is not None else plt.gca()
 
-    def plot_svdval_decay(self, threshold=None, ax=None, **kwargs):
+    def plot_svdval_decay(self, threshold=None, right=None, ax=None, **kwargs):
         """Plot the normalized singular value decay.
 
         Parameters
         ----------
         threshold : float or list[floats] or None
             Cutoff value(s) to mark on the plot.
+        right : int or None
+            Maximum singular value index to plot (``plt.xlim(right=right)``).
         ax : plt.Axes or None
             Matplotlib Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
@@ -585,9 +588,16 @@ class PODBasis(LinearBasis):
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        return self._plot_single(svdval_decay, threshold, ax, kwargs)
+        kwargs.update(dict(threshold=threshold, plot=True, right=right, ax=ax))
+        return self._plot_single(svdval_decay, **kwargs)
 
-    def plot_cumulative_energy(self, threshold=None, ax=None, **kwargs):
+    def plot_cumulative_energy(
+        self,
+        threshold=None,
+        right=None,
+        ax=None,
+        **kwargs,
+    ):
         r"""Plot the cumulative singular value energy.
 
         The cumulative energy of :math:`r` singular values is defined by
@@ -601,6 +611,8 @@ class PODBasis(LinearBasis):
         ----------
         threshold : float or list[floats] or None
             Threshold energy value(s) to mark on the plot.
+        right : int or None
+            Maximum singular value index to plot (``plt.xlim(right=right)``).
         ax : plt.Axes or None
             Matplotlib Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
@@ -612,9 +624,16 @@ class PODBasis(LinearBasis):
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        return self._plot_single(cumulative_energy, threshold, ax, kwargs)
+        kwargs.update(dict(threshold=threshold, plot=True, right=right, ax=ax))
+        return self._plot_single(cumulative_energy, **kwargs)
 
-    def plot_residual_energy(self, threshold=None, ax=None, **kwargs):
+    def plot_residual_energy(
+        self,
+        threshold=None,
+        right=None,
+        ax=None,
+        **kwargs,
+    ):
         r"""Plot the residual singular value energy.
 
         The residual energy of :math:`r` singular values is defined by
@@ -632,6 +651,8 @@ class PODBasis(LinearBasis):
         ----------
         threshold : float or list[floats] or None
             Cutoff value(s) to mark on the plot.
+        right : int or None
+            Maximum singular value index to plot (``plt.xlim(right=right)``).
         ax : plt.Axes or None
             Matplotlib Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
@@ -643,11 +664,17 @@ class PODBasis(LinearBasis):
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        return self._plot_single(residual_energy, threshold, ax, kwargs)
+        kwargs.update(dict(threshold=threshold, plot=True, right=right, ax=ax))
+        return self._plot_single(residual_energy, **kwargs)
 
-    def plot_energy(self):
+    def plot_energy(self, right=None):
         """Plot the normalized singular values and the cumulative and residual
         energies.
+
+        Parameters
+        ----------
+        right : int or None
+            Maximum singular value index to plot (``plt.xlim(right=right)``).
         """
         self._check_svdvals_exist()
         r = self.reduced_state_dimension
@@ -665,17 +692,19 @@ class PODBasis(LinearBasis):
 
         fig, axes = plt.subplots(1, 2, figsize=(13.44, 4.8))
 
-        ax = self.plot_svdval_decay(ax=axes[0])
+        ax = self.plot_svdval_decay(right=right, ax=axes[0])
         ax.set_title("POD singular values")
         _rline(ax, 1.05 * ax.get_ylim()[0])
 
-        ax = self.plot_cumulative_energy(ax=axes[1], color="C0")
+        ax = self.plot_cumulative_energy(ax=axes[1], right=right, color="C0")
+        ax.spines["left"].set_visible(True)
         ax.set_ylabel("Cumulative energy", color="C0")
         ax.tick_params(axis="y", which="both", color="C0", labelcolor="C0")
         _rline(ax, 0.01 + ax.get_ylim()[0])
 
-        ax = self.plot_residual_energy(ax=axes[1].twinx())
+        ax = self.plot_residual_energy(right=right, ax=axes[1].twinx())
         ax.set_ylabel("Residual energy", color="C1")
+        ax.spines["right"].set_visible(True)
         ax.tick_params(axis="y", which="both", color="C1", labelcolor="C1")
         ax.set_title("POD singular value energy")
 
@@ -824,6 +853,7 @@ def svdval_decay(
     singular_values,
     threshold: float = 1e-8,
     plot: bool = True,
+    right=None,
     ax=None,
     **kwargs,
 ):
@@ -840,6 +870,8 @@ def svdval_decay(
     plot : bool
         If ``True``, plot the singular values and the cutoff value(s) against
         the singular value index.
+    right : int or None
+        Maximum singular value index to plot (``plt.xlim(right=right)``).
     ax : plt.Axes or None
         Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
@@ -878,14 +910,19 @@ def svdval_decay(
         j = np.arange(1, singular_values.size + 1)
         ax.semilogy(j, singular_values, marker, **options)
         ax.set_xlim((0, j.size + 1))
+        if right:
+            ax.set_xlim(right=right)
+            _idx = min(int(right), singular_values.size - 1)
+            ax.set_ylim(bottom=singular_values[_idx] / 5)
 
         # Draw cutoff value(s).
         if threshold:
+            rborder = ax.get_xlim()[1]
             ylim = ax.get_ylim()
             for sigma, r in zip(threshold, ranks):
                 ax.axhline(sigma, color="gray", linewidth=0.5)
                 ax.text(
-                    j[-1] + 0.5,
+                    rborder - 0.5,
                     1.05 * sigma,
                     f"{sigma:.2e}",
                     color="gray",
@@ -914,6 +951,7 @@ def cumulative_energy(
     singular_values,
     threshold: float = 0.9999,
     plot: bool = True,
+    right=None,
     ax=None,
     **kwargs,
 ):
@@ -938,6 +976,8 @@ def cumulative_energy(
     plot : bool
         If ``True``, plot the cumulative energy and the capture threshold(s)
         against the singular value index (linear scale).
+    right : int or None
+        Maximum singular value index to plot (``plt.xlim(right=right)``).
     ax : plt.Axes or None
         Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
@@ -980,12 +1020,15 @@ def cumulative_energy(
         ax.plot(j, energy, **options)
         ax.set_xlim(0, j.size)
         ylim = (ax.get_ylim()[0], 1.05)
+        if right:
+            ax.set_xlim(right=right)
 
         if threshold:
+            rborder = ax.get_xlim()[1]
             for kappa, r in zip(threshold, ranks):
                 ax.axhline(kappa, color="gray", linewidth=0.5)
                 ax.text(
-                    j[-1] + 0.5,
+                    rborder - 0.5,
                     kappa + 0.01,
                     f"{kappa:%}",
                     color="gray",
@@ -1014,6 +1057,7 @@ def residual_energy(
     singular_values,
     threshold: float = 1e-6,
     plot: bool = True,
+    right=None,
     ax=None,
     **kwargs,
 ):
@@ -1042,6 +1086,8 @@ def residual_energy(
     plot : bool
         If ``True``, plot the residual energy and the threshold(s)
         against the singular value index.
+    right : int or None
+        Maximum singular value index to plot (``plt.xlim(right=right)``).
     ax : plt.Axes or None
         Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
@@ -1084,13 +1130,18 @@ def residual_energy(
         j = np.arange(singular_values.size + 1)
         ax.semilogy(j, res_energy, **options)
         ax.set_xlim(0, j.size)
-        ylim = (res_energy[-2] / 5, 1.1)
+        bottom = res_energy[-2]
+        if right:
+            ax.set_xlim(right=right)
+            bottom = res_energy[min(int(right) + 1, res_energy.size - 3)]
+        ylim = (bottom, 1.1)
 
         if threshold:
+            rborder = ax.get_xlim()[1]
             for epsilon, r in zip(threshold, ranks):
                 ax.axhline(epsilon, color="gray", linewidth=0.5)
                 ax.text(
-                    j[-1] - 0.5,
+                    rborder - 0.5,
                     1.1 * epsilon,
                     f"{epsilon:.2e}",
                     color="gray",

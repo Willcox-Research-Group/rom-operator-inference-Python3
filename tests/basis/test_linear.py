@@ -141,8 +141,12 @@ class TestLinearBasis:
         plt.ion()
 
         # Call the plotting routine.
-        x = np.linspace(0, 1, n)
+        x = np.linspace(0, 10, n)
         ax = basis.plot1D(x)
+        assert isinstance(ax, plt.Axes)
+        plt.close(ax.figure)
+
+        ax = basis.plot1D(num_vectors=(r - 1))
         assert isinstance(ax, plt.Axes)
         plt.close(ax.figure)
 

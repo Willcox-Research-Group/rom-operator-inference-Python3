@@ -280,26 +280,22 @@ class TestPODBasis:
 
         # Turn interactive mode on.
         _pltio = plt.isinteractive()
-        # plt.ion()
+        plt.ion()
 
         # Call each plotting routine.
-        ax = basis.plot_svdval_decay(threshold=4e-1)
+        ax = basis.plot_svdval_decay(threshold=4e-1, right=(n - 2))
         assert isinstance(ax, plt.Axes)
-        plt.show()
         plt.close(ax.figure)
 
-        ax = basis.plot_residual_energy(threshold=1e-1)
+        ax = basis.plot_residual_energy(threshold=1e-1, right=(n - 10))
         assert isinstance(ax, plt.Axes)
-        plt.show()
         plt.close(ax.figure)
 
-        ax = basis.plot_cumulative_energy(threshold=0.75)
+        ax = basis.plot_cumulative_energy(threshold=0.75, right=15.2)
         assert isinstance(ax, plt.Axes)
-        plt.show()
         plt.close(ax.figure)
 
         basis.plot_energy()
-        plt.show()
         plt.close("all")
 
         # Restore interactive mode setting.
