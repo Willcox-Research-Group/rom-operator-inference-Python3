@@ -9,12 +9,14 @@ __all__ = [
     "residual_energy",
 ]
 
+import types
 import warnings
 import numpy as np
 import scipy.linalg as la
 import scipy.sparse as sparse
 import sklearn.utils.extmath as sklmath
 import matplotlib.pyplot as plt
+from typing import Callable
 
 from .. import errors, utils
 from ._base import BasisTemplate
@@ -92,7 +94,7 @@ class PODBasis(LinearBasis):
         :meth:`fit`, the ``reduced_state_dimension`` can be increased up to
         ``max_vectors``. If not given (default), record all :math:`k` left
         singular vectors.
-    mode : str
+    svdsolver : str or callable
         Strategy for computing the thin SVD of the states.
 
         **Options:**
@@ -106,6 +108,9 @@ class PODBasis(LinearBasis):
           to limit the number of computed singular vectors. In this case,
           only ``max_vectors`` singular *values* are computed as well, meaning
           the cumulative and residual energies cannot be computed exactly.
+        * callable: If this argument is a callable function, use it for the
+          SVD computation. The signature must match ``scipy.linalg.svd()``,
+          i.e., ``U, s, Vh = svdsolver(states, **svdsolver_options)``
     weights : (n, n) ndarray or (n,) ndarray None
         Weight matrix :math:`\W` or its diagonals.
         When provided, a weighted singular value decomposition of the states
@@ -114,17 +119,17 @@ class PODBasis(LinearBasis):
         If ``None`` (default), set :math:`\W` to the identity.
     name : str
         Label for the state variable that this basis approximates.
-    solver_options : dict
-        Options to pass to the SVD solver (``scipy.linalg.svd()`` if
-        ``mode="dense"``, ``sklearn.utils.extmath.randomized_svd()`` if
-        ``mode="randomized"``).
+    svdsolver_options : dict
+        Options to pass to the SVD solver.
     """
 
-    # Valid modes for the SVD engine.
-    __MODES = (
-        "dense",
-        "randomized",
-        # "streaming",  # TODO
+    # Valid SVD solvers.
+    __SVDSOLVERS = types.MappingProxyType(
+        {
+            "dense": la.svd,
+            "randomized": sklmath.randomized_svd,
+            # "streaming":  # TODO
+        }
     )
 
     # Constructors ------------------------------------------------------------
@@ -136,10 +141,10 @@ class PODBasis(LinearBasis):
         residual_energy: float = None,
         projection_error: float = None,
         max_vectors: int = None,
-        mode: str = "dense",
+        svdsolver: str | Callable = "dense",
         weights: np.ndarray = None,
         name: str = None,
-        **solver_options,
+        **svdsolver_options,
     ):
         """Initialize an empty basis."""
         # Superclass constructor.
@@ -161,15 +166,15 @@ class PODBasis(LinearBasis):
             if max_vectors <= 0:
                 raise ValueError("max_vectors must be a positive integer")
         self.__max_vectors_desired = max_vectors
-        self.mode = mode
-        self.solver_options = solver_options
+        self.svdsolver = svdsolver
+        self.svdsolver_options = svdsolver_options
 
         # Initialize entry properties.
         self.__leftvecs = None
         self.__svdvals = None
         self.__rightvecs = None
-        self.__residual_energy = None
         self.__cumulative_energy = None
+        self.__residual_energy = None
 
         # Store weights (separate from LinearBasis.__weights)
         if weights is not None:
@@ -191,7 +196,6 @@ class PODBasis(LinearBasis):
         cumulative_energy: float = None,
         projection_error: float = None,
         max_vectors: int = None,
-        mode: str = "dense",
         weights: np.ndarray = None,
         name: str = None,
     ):
@@ -235,7 +239,6 @@ class PODBasis(LinearBasis):
             cumulative_energy=cumulative_energy,
             projection_error=projection_error,
             max_vectors=max_vectors,
-            mode=mode,
             weights=weights,
             name=name,
         )
@@ -246,33 +249,39 @@ class PODBasis(LinearBasis):
 
     # Properties: hyperparameters ---------------------------------------------
     @property
-    def mode(self) -> str:
+    def svdsolver(self) -> str:
         """Strategy for computing the thin SVD of the states, either
-        ``'dense'`` or ``'randomized'``.
+        ``'dense'``, ``'randomized'``, or ``'custom'``.
         """
-        return self.__mode
+        return self.__svdsolverlabel
 
-    @mode.setter
-    def mode(self, m):
-        if m not in self.__MODES:
+    @svdsolver.setter
+    def svdsolver(self, s):
+        if callable(s):
+            self.__svdsolverlabel = "custom"
+            self.__svdengine = s
+            return
+
+        if s not in self.__SVDSOLVERS:
             raise AttributeError(
-                f"invalid mode '{m}', options: "
-                + ", ".join([f"{x}" for x in self.__MODES])
+                f"invalid svdsolver '{s}', options: "
+                + ", ".join(self.__SVDSOLVERS.keys())
             )
-        self.__mode = m
+        self.__svdsolverlabel = s
+        self.__svdengine = self.__SVDSOLVERS[s]
 
     @property
-    def solver_options(self) -> dict:
+    def svdsolver_options(self) -> dict:
         """Options to pass to the SVD solver."""
-        return self.__solver_options
+        return self.__svdsolver_options
 
-    @solver_options.setter
-    def solver_options(self, options):
+    @svdsolver_options.setter
+    def svdsolver_options(self, options):
         if options is None:
             options = dict()
         if not isinstance(options, dict):
-            raise TypeError("solver_options must be a dictionary")
-        self.__solver_options = options
+            raise TypeError("svdsolver_options must be a dictionary")
+        self.__svdsolver_options = options
 
     # Properties: entries -----------------------------------------------------
     @property
@@ -310,6 +319,39 @@ class PODBasis(LinearBasis):
         :math:`\sum_{i=r+1}^k\sigma_i^2\big/\sum_{j=1}^k\sigma_j^2`.
         """
         return self.__residual_energy
+
+    def __str__(self):
+        """String representation: class, dimensions, and
+        singular value energies.
+        """
+        out = [LinearBasis.__str__(self)]
+
+        if (mv := self.max_vectors) is not None:
+            out.append(f"{mv:d} basis vectors available")
+
+        if (ce := self.cumulative_energy) is not None:
+            if self.__energy_is_being_estimated:
+                out.append(f"Approximate cumulative energy: {ce:%}")
+            else:
+                out.append(f"Cumulative energy: {ce:%}")
+
+        if (re := self.residual_energy) is not None:
+            if self.__energy_is_being_estimated:
+                out.append(f"Approximate residual energy:   {re:.4e}")
+            else:
+                out.append(f"Residual energy:   {re:.4e}")
+
+        if self.__svdsolverlabel == "dense":
+            out.append("SVD solver: scipy.linalg.svd()")
+        elif self.__svdsolverlabel == "randomized":
+            out.append("SVD solver: sklearn.utils.extmath.randomized_svd()")
+        elif self.__svdsolverlabel == "custom":
+            if (name := self.__svdengine.__name__) == "<lambda>":
+                out.append("SVD solver: custom lambda function")
+            else:
+                out.append(f"SVD solver: {name}()")
+
+        return "\n".join(out)
 
     # Dimension selection -----------------------------------------------------
     def _set_dimension_selection_criterion(
@@ -512,17 +554,16 @@ class PODBasis(LinearBasis):
             )
             keep = rmax
 
-        # SVD mode settings.
+        # SVD solver settings.
         self.__energy_is_being_estimated = False
-        options = self.solver_options.copy()
-        if self.mode == "dense":
+        options = self.svdsolver_options.copy()
+
+        if self.__svdsolverlabel == "dense":
             options["full_matrices"] = False
-            driver = la.svd
-        elif self.mode == "randomized":
+        elif self.__svdsolverlabel == "randomized":
             options["n_components"] = keep
             if "random_state" not in options:
                 options["random_state"] = None
-            driver = sklmath.randomized_svd
             if keep < rmax:
                 self.__energy_is_being_estimated = True
 
@@ -535,7 +576,7 @@ class PODBasis(LinearBasis):
             states = _Wmult(self.__sqrt_weights, states)
 
         # Compute the SVD.
-        V, svdvals, Wt = driver(states, **options)
+        V, svdvals, Wt = self.__svdengine(states, **options)
 
         # Unweight the basis.
         if self.weights is not None:
@@ -756,7 +797,7 @@ class PODBasis(LinearBasis):
         loadfile : str
             Path to the file where the basis was stored via :meth:`save`.
         max_vectors : int or None
-            Maximum number of POD modes to load. If None (default), load all.
+            Maximum number of POD vectors to load. If None (default), load all.
 
         Returns
         -------
@@ -798,10 +839,10 @@ def pod_basis(
     cumulative_energy: float = None,
     residual_energy: float = None,
     projection_error: float = None,
-    mode: str = "dense",
+    svdsolver: str = "dense",
     weights: np.ndarray = None,
     return_rightvecs: bool = False,
-    **solver_options,
+    **svdsolver_options,
 ):
     r"""Compute a POD basis from the given states.
 
@@ -820,8 +861,8 @@ def pod_basis(
     svdvals : (n,), (k,), or (r,) ndarray
         Normalized singular values in descending order.
         Always returns as many as are calculated:
-        :math:`\min\{n, k\}` for ``mode="dense"``,
-        :math:`r` for ``mode="randomized"``.
+        :math:`\min\{n, k\}` for ``svdsolver="dense"``,
+        :math:`r` for ``svdsolver="randomized"``.
     rightvecs : (k, r) ndarray
         First :math:`r` **right** singular vectors, as columns.
         **NOTE**: only returned if ``return_W=True``.
@@ -837,9 +878,9 @@ def pod_basis(
         cumulative_energy=cumulative_energy,
         residual_energy=residual_energy,
         projection_error=projection_error,
-        mode=mode,
+        svdsolver=svdsolver,
         weights=weights,
-        **solver_options,
+        **svdsolver_options,
     ).fit(states)
 
     if return_rightvecs:
@@ -911,6 +952,7 @@ def svdval_decay(
         ax.semilogy(j, singular_values, marker, **options)
         ax.set_xlim((0, j.size + 1))
         if right:
+            right = min(right, j.size)
             ax.set_xlim(right=right)
             _idx = min(int(right), singular_values.size - 1)
             ax.set_ylim(bottom=singular_values[_idx] / 5)
@@ -1021,6 +1063,7 @@ def cumulative_energy(
         ax.set_xlim(0, j.size)
         ylim = (ax.get_ylim()[0], 1.05)
         if right:
+            right = min(right, j.size)
             ax.set_xlim(right=right)
 
         if threshold:
@@ -1132,6 +1175,7 @@ def residual_energy(
         ax.set_xlim(0, j.size)
         bottom = res_energy[-2]
         if right:
+            right = min(right, j.size)
             ax.set_xlim(right=right)
             bottom = res_energy[min(int(right) + 1, res_energy.size - 3)]
         ylim = (bottom, 1.1)

@@ -127,23 +127,6 @@ class LinearBasis(BasisTemplate):
         """Do nothing, the basis entries are set in the constructor."""
         return self
 
-    def __str__(self):
-        """String representation: class and dimensions."""
-        out = [self.__class__.__name__]
-        if (name := self.name) is not None:
-            out[0] = f"{out[0]} for variable '{name}'"
-        out.append(
-            f"Full state dimension    n = {self.full_state_dimension:d}"
-        )
-        out.append(
-            f"Reduced state dimension r = {self.reduced_state_dimension:d}"
-        )
-        return "\n".join(out)
-
-    def __repr__(self):
-        """Unique ID + string representation."""
-        return utils.str2repr(self)
-
     # Dimension reduction -----------------------------------------------------
     def compress(self, state: np.ndarray) -> np.ndarray:
         r"""Map high-dimensional states to low-dimensional latent coordinates.

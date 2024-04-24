@@ -67,27 +67,30 @@ class TestPODBasis:
         ):
             assert getattr(basis, attr) is None
         assert basis.name == "testbasis"
-        assert isinstance(basis.solver_options, dict)
-        assert len(basis.solver_options) == 0
+        assert isinstance(basis.svdsolver_options, dict)
+        assert len(basis.svdsolver_options) == 0
 
         # Weights
         w = np.ones(10)
         self.Basis(num_vectors=2, weights=w)
         self.Basis(num_vectors=2, weights=np.diag(w))
 
-        # Setter for mode.
+        # Setter for svdsolver.
         with pytest.raises(AttributeError) as ex:
-            basis.mode = "smartly"
-        assert ex.value.args[0].startswith("invalid mode 'smartly', options: ")
-        basis.mode = "randomized"
+            basis.svdsolver = "smartly"
+        assert ex.value.args[0].startswith(
+            "invalid svdsolver 'smartly', options: "
+        )
+        basis.svdsolver = "randomized"
+        assert basis.svdsolver == "randomized"
 
-        # Setter for solver_options.
+        # Setter for svdsolver_options.
         with pytest.raises(TypeError) as ex:
-            basis.solver_options = 10
-        assert ex.value.args[0] == "solver_options must be a dictionary"
-        basis.solver_options["full_matrices"] = False
-        basis.solver_options = None
-        assert isinstance(basis.solver_options, dict)
+            basis.svdsolver_options = 10
+        assert ex.value.args[0] == "svdsolver_options must be a dictionary"
+        basis.svdsolver_options["full_matrices"] = False
+        basis.svdsolver_options = None
+        assert isinstance(basis.svdsolver_options, dict)
 
         with pytest.raises(ValueError) as ex:
             self.Basis(num_vectors=10, max_vectors=-3)
@@ -199,12 +202,53 @@ class TestPODBasis:
         basis.set_dimension(projection_error=0.02)
         assert basis.projection_error(Q, relative=True) < 0.02
 
+    def test_str(self, n=30, k=20, r=10):
+        """Test __str__()."""
+        basis = self.Basis(num_vectors=r)
+        strbasis = str(basis)
+        assert strbasis.count("\n") == 1
+        assert strbasis.endswith("SVD solver: scipy.linalg.svd()")
+
+        Q = np.random.random((n, k))
+        basis.fit(Q)
+        strbasis = str(basis)
+        assert strbasis.count(f"Full state dimension    n = {n}") == 1
+        assert strbasis.count(f"Reduced state dimension r = {r}") == 1
+        assert strbasis.count(f"{k} basis vectors available") == 1
+        assert strbasis.count("Cumulative energy:") == 1
+        assert strbasis.count("Residual energy:") == 1
+        assert strbasis.endswith("SVD solver: scipy.linalg.svd()")
+
+        basis = self.Basis(
+            num_vectors=r,
+            max_vectors=r,
+            svdsolver="randomized",
+        ).fit(Q)
+        strbasis = str(basis)
+        assert strbasis.count(f"Full state dimension    n = {n}") == 1
+        assert strbasis.count(f"Reduced state dimension r = {r}") == 1
+        assert strbasis.count(f"{r} basis vectors available") == 1
+        assert strbasis.count("Approximate cumulative energy:") == 1
+        assert strbasis.count("Approximate residual energy:") == 1
+        assert strbasis.endswith("sklearn.utils.extmath.randomized_svd()")
+
+        basis = self.Basis(num_vectors=r, svdsolver=lambda s: s)
+        strbasis = str(basis)
+        assert strbasis.endswith("SVD solver: custom lambda function")
+
+        def mysvdsolver(*args):
+            pass
+
+        basis = self.Basis(num_vectors=r, svdsolver=mysvdsolver)
+        strbasis = str(basis)
+        assert strbasis.endswith("SVD solver: mysvdsolver()")
+
     def test_fit(self, n=60, k=20, r=4):
         """Test fit()."""
         Q = np.random.random((n, k))
 
         # Dense, unweighted.
-        basis = self.Basis(num_vectors=r, max_vectors=k + 2, mode="dense")
+        basis = self.Basis(num_vectors=r, max_vectors=k + 2, svdsolver="dense")
         with pytest.warns(opinf.errors.UsageWarning) as wn:
             out = basis.fit(Q)
         assert wn[0].message.args[0] == (
@@ -221,7 +265,7 @@ class TestPODBasis:
         w = np.random.random(n) + 0.1
         W = np.diag(w)
         Id = np.eye(r)
-        basis = self.Basis(num_vectors=r, mode="dense", weights=w)
+        basis = self.Basis(num_vectors=r, svdsolver="dense", weights=w)
 
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             basis.fit(Q[:-1, :])
@@ -231,14 +275,18 @@ class TestPODBasis:
 
         basis.fit(Q)
         assert np.allclose(basis.entries.T @ W @ basis.entries, Id)
-        basis = self.Basis(num_vectors=r, mode="dense", weights=W).fit(Q)
+        basis = self.Basis(num_vectors=r, svdsolver="dense", weights=W).fit(Q)
         assert np.allclose(basis.entries.T @ W @ basis.entries, Id)
         W = _spd(n)
-        basis = self.Basis(num_vectors=r, mode="dense", weights=W).fit(Q)
+        basis = self.Basis(num_vectors=r, svdsolver="dense", weights=W).fit(Q)
         assert np.allclose(basis.entries.T @ W @ basis.entries, Id)
 
         # Randomized.
-        basis = self.Basis(num_vectors=r, mode="randomized", max_vectors=r + 1)
+        basis = self.Basis(
+            num_vectors=r,
+            svdsolver="randomized",
+            max_vectors=r + 1,
+        )
         Q = [np.random.random((n, k // 3)) for _ in range(3)]
         basis.fit(Q)
         assert basis.full_state_dimension == n

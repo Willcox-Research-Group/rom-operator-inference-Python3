@@ -47,6 +47,24 @@ class TestBaseBasis:
         basis.reduced_state_dimension = None
         assert basis.reduced_state_dimension is None
 
+    def test_str(self):
+        """Test __str__() and __repr__()."""
+
+        basis = self.Dummy()
+        assert str(basis) == "Dummy"
+
+        basis.full_state_dimension = 10
+        assert str(basis) == "Dummy\nFull state dimension    n = 10"
+
+        basis.name = "varname"
+        basis.reduced_state_dimension = 5
+        assert str(basis) == (
+            "Dummy for variable 'varname'"
+            "\nFull state dimension    n = 10"
+            "\nReduced state dimension r = 5"
+        )
+        assert repr(basis).count(str(basis)) == 1
+
     def test_project(self, q=5):
         """Test BasisTemplate.project() and projection_error()."""
         basis = self.Dummy()

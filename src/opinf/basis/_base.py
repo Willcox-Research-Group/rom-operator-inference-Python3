@@ -9,7 +9,7 @@ import abc
 import numpy as np
 import scipy.linalg as la
 
-from .. import errors
+from .. import errors, utils
 
 
 class BasisTemplate(abc.ABC):
@@ -62,6 +62,21 @@ class BasisTemplate(abc.ABC):
     def name(self, label: str):
         """Set the state variable name."""
         self.__name = str(label) if label is not None else None
+
+    def __str__(self):
+        """String representation: class and dimensions."""
+        out = [self.__class__.__name__]
+        if (name := self.name) is not None:
+            out[0] = f"{out[0]} for variable '{name}'"
+        if (n := self.full_state_dimension) is not None:
+            out.append(f"Full state dimension    n = {n:d}")
+        if (r := self.reduced_state_dimension) is not None:
+            out.append(f"Reduced state dimension r = {r:d}")
+        return "\n".join(out)
+
+    def __repr__(self):
+        """Unique ID + string representation."""
+        return utils.str2repr(self)
 
     # Fitting -----------------------------------------------------------------
     @abc.abstractmethod
