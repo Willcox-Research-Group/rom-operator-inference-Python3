@@ -31,7 +31,7 @@ parts:
     - file: source/api/main.md
     - file: source/api/lift.ipynb
     - file: source/api/pre.ipynb
-    - file: source/api/basis.md
+    - file: source/api/basis.ipynb
     - file: source/api/ddt.md
     - file: source/api/operators.md
     - file: source/api/models.md

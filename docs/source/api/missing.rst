@@ -33,3 +33,21 @@ pre.ipynb
    ShiftScaleTransformer
    TransformerMulti
    TransformerTemplate
+
+basis.ipynb
+-----------
+
+.. currentmodule:: opinf.basis
+
+.. autosummary::
+   :toctree: _autosummaries
+   :nosignatures:
+
+   pod_basis
+   cumulative_energy
+   residual_energy
+   svdval_decay
+   LinearBasis
+   PODBasis
+   BasisMulti
+   BasisTemplate

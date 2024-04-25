@@ -11,8 +11,6 @@ __all__ = [
 import numpy as np
 from scipy import linalg as la
 
-from ..basis import projection_error
-
 
 def _absolute_and_relative_error(Qtrue, Qapprox, norm):
     """Compute the absolute and relative errors between Qtrue and Qapprox,
@@ -27,6 +25,35 @@ def _absolute_and_relative_error(Qtrue, Qapprox, norm):
     norm_of_data = norm(Qtrue)
     absolute_error = norm(Qtrue - Qapprox)
     return absolute_error, absolute_error / norm_of_data
+
+
+def projection_error(states, basis):
+    """Calculate the absolute and relative projection errors induced by
+    projecting states to a low dimensional basis, i.e.,
+
+        absolute_error = ||Q - Vr Vr^T Q||_F,
+        relative_error = ||Q - Vr Vr^T Q||_F / ||Q||_F
+
+    where Q = states and Vr = basis. Note that Vr Vr^T is the orthogonal
+    projector onto subspace of R^n defined by the basis.
+
+    Parameters
+    ----------
+    states : (n, k) or (k,) ndarray
+        Matrix of k snapshots where each column is a single snapshot, or a
+        single 1D snapshot. If 2D, use the Frobenius norm; if 1D, the l2 norm.
+    Vr : (n, r) ndarray
+        Low-dimensional basis of rank r. Each column is one basis vector.
+
+    Returns
+    -------
+    absolute_error : float
+        Absolute projection error ||Q - Vr Vr^T Q||_F.
+    relative_error : float
+        Relative projection error ||Q - Vr Vr^T Q||_F / ||Q||_F.
+    """
+    Qapprox = basis @ (basis.T @ states)
+    return _absolute_and_relative_error(states, Qapprox, la.norm)
 
 
 def frobenius_error(Qtrue, Qapprox):

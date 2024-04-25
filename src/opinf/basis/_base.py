@@ -72,7 +72,7 @@ class BasisTemplate(abc.ABC):
             out.append(f"Full state dimension    n = {n:d}")
         if (r := self.reduced_state_dimension) is not None:
             out.append(f"Reduced state dimension r = {r:d}")
-        return "\n".join(out)
+        return "\n  ".join(out)
 
     def __repr__(self):
         """Unique ID + string representation."""

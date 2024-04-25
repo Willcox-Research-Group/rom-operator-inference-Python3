@@ -73,7 +73,7 @@ $$
 which simplifies to $\qhat = \Vr\trp\q$ since $\Vr\trp\Vr = \I$.
 :::
 
-Because $\boldsymbol{\Gamma}(\boldsymbol{\Gamma}^{*}(\q)) = \Vr\Vr\trp\q$, the matrix $\Vr\Vr\trp \in \RR^{n \times n}$ is called the _orthogonal projector_ onto $\textrm{range}(\Vr)$ (the $r$-dimensional subspace of $\RR^{n}$ spanned by the columns of $\Vr$).
+Because $\boldsymbol{\Gamma}(\boldsymbol{\Gamma}^{*}(\q)) = \Vr\Vr\trp\q$, the matrix $\Vr\Vr\trp \in \RR^{n \times n}$ is called the _orthogonal projector_ onto $\operatorname{range}(\Vr)$ (the $r$-dimensional subspace of $\RR^{n}$ spanned by the columns of $\Vr$).
 The projection error of $\q$ induced by $\Vr$ is
 
 $$
@@ -195,7 +195,7 @@ The following functions help measure these criteria.
 | [**basis.svdval_decay()**](opinf.basis.svdval_decay) | Plot the singular value decay and counts the number of singular values that are larger than a given $\varepsilon$. |
 | [**basis.cumulative_energy()**](opinf.basis.cumulative_energy) | Plot the cumulative energy as a function of $r$. |
 | [**basis.residual_energy()**](opinf.basis.residual_energy) | Plot the residual energy as a function of $r$. |
-| [**basis.projection_error()**](opinf.basis.projection_error) | Calculate projection error. |
+<!-- | [**basis.projection_error()**](opinf.basis.projection_error) | Calculate projection error. | -->
 
 ::::{note}
 Each of the singular value-based selection criteria are related.

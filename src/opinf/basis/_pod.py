@@ -326,9 +326,6 @@ class PODBasis(LinearBasis):
         """
         out = [LinearBasis.__str__(self)]
 
-        if (mv := self.max_vectors) is not None:
-            out.append(f"{mv:d} basis vectors available")
-
         if (ce := self.cumulative_energy) is not None:
             if self.__energy_is_being_estimated:
                 out.append(f"Approximate cumulative energy: {ce:%}")
@@ -341,6 +338,9 @@ class PODBasis(LinearBasis):
             else:
                 out.append(f"Residual energy:   {re:.4e}")
 
+        if (mv := self.max_vectors) is not None:
+            out.append(f"{mv:d} basis vectors available")
+
         if self.__svdsolverlabel == "dense":
             out.append("SVD solver: scipy.linalg.svd()")
         elif self.__svdsolverlabel == "randomized":
@@ -351,7 +351,7 @@ class PODBasis(LinearBasis):
             else:
                 out.append(f"SVD solver: {name}()")
 
-        return "\n".join(out)
+        return "\n  ".join(out)
 
     # Dimension selection -----------------------------------------------------
     def _set_dimension_selection_criterion(
@@ -737,17 +737,21 @@ class PODBasis(LinearBasis):
         ax.set_title("POD singular values")
         _rline(ax, 1.05 * ax.get_ylim()[0])
 
-        ax = self.plot_cumulative_energy(ax=axes[1], right=right, color="C0")
-        ax.spines["left"].set_visible(True)
-        ax.set_ylabel("Cumulative energy", color="C0")
-        ax.tick_params(axis="y", which="both", color="C0", labelcolor="C0")
-        _rline(ax, 0.01 + ax.get_ylim()[0])
-
-        ax = self.plot_residual_energy(right=right, ax=axes[1].twinx())
+        ax = self.plot_residual_energy(right=right, ax=axes[1])
         ax.set_ylabel("Residual energy", color="C1")
         ax.spines["right"].set_visible(True)
         ax.tick_params(axis="y", which="both", color="C1", labelcolor="C1")
         ax.set_title("POD singular value energy")
+
+        ax = self.plot_cumulative_energy(
+            right=right,
+            ax=axes[1].twinx(),
+            color="C0",
+        )
+        ax.spines["left"].set_visible(True)
+        ax.set_ylabel("Cumulative energy", color="C0")
+        ax.tick_params(axis="y", which="both", color="C0", labelcolor="C0")
+        _rline(ax, 0.01 + ax.get_ylim()[0])
 
         fig.tight_layout()
 
