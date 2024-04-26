@@ -14,6 +14,12 @@ from .. import errors, utils
 from ._base import BasisTemplate
 
 
+requires_entries = utils.requires2(
+    "entries",
+    "basis entries not initialized",
+)
+
+
 class LinearBasis(BasisTemplate):
     r"""Linear low-dimensional state approximation.
 
@@ -119,6 +125,7 @@ class LinearBasis(BasisTemplate):
         r"""Dimension :math:`r` of the reduced (compressed) state."""
         return BasisTemplate.reduced_state_dimension.fget(self)
 
+    @requires_entries
     def __getitem__(self, key):
         """self[:] --> self.entries."""
         return self.entries[key]
@@ -128,6 +135,7 @@ class LinearBasis(BasisTemplate):
         return self
 
     # Dimension reduction -----------------------------------------------------
+    @requires_entries
     def compress(self, state: np.ndarray) -> np.ndarray:
         r"""Map high-dimensional states to low-dimensional latent coordinates.
 
@@ -148,12 +156,11 @@ class LinearBasis(BasisTemplate):
             Matrix of `r`-dimensional latent coordinate vectors, or a single
             coordinate vector.
         """
-        if self.entries is None:
-            raise AttributeError("basis entries not initialized")
         if self.weights is not None:
             state = self.weights @ state
         return self.entries.T @ state
 
+    @requires_entries
     def decompress(
         self,
         states_compressed: np.ndarray,
@@ -178,12 +185,11 @@ class LinearBasis(BasisTemplate):
             Matrix of `n`-dimensional decompressed state vectors, or the `p`
             entries of such at the entries specified by ``locs``.
         """
-        if self.entries is None:
-            raise AttributeError("basis entries not initialized")
         Vr = self.entries if locs is None else self.entries[locs]
         return Vr @ states_compressed
 
     # Visualizations ----------------------------------------------------------
+    @requires_entries
     def plot1D(self, x=None, num_vectors=None, ax=None, **kwargs):
         """Plot the basis vectors over a one-dimensional domain.
 

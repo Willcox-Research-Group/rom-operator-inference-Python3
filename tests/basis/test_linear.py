@@ -93,15 +93,15 @@ class TestLinearBasis:
         basis = self.Basis(self._orth(10, 4))
         assert str(basis) == (
             "LinearBasis"
-            "\nFull state dimension    n = 10"
-            "\nReduced state dimension r = 4"
+            "\n  Full state dimension    n = 10"
+            "\n  Reduced state dimension r = 4"
         )
 
         basis = self.Basis(self._orth(9, 5), name="varname")
         assert str(basis) == (
             "LinearBasis for variable 'varname'"
-            "\nFull state dimension    n = 9"
-            "\nReduced state dimension r = 5"
+            "\n  Full state dimension    n = 9"
+            "\n  Reduced state dimension r = 5"
         )
         assert repr(basis).count(str(basis)) == 1
 

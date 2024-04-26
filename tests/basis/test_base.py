@@ -54,14 +54,14 @@ class TestBaseBasis:
         assert str(basis) == "Dummy"
 
         basis.full_state_dimension = 10
-        assert str(basis) == "Dummy\nFull state dimension    n = 10"
+        assert str(basis) == "Dummy\n  Full state dimension    n = 10"
 
         basis.name = "varname"
         basis.reduced_state_dimension = 5
         assert str(basis) == (
             "Dummy for variable 'varname'"
-            "\nFull state dimension    n = 10"
-            "\nReduced state dimension r = 5"
+            "\n  Full state dimension    n = 10"
+            "\n  Reduced state dimension r = 5"
         )
         assert repr(basis).count(str(basis)) == 1
 

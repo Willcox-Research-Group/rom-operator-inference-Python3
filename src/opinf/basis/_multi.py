@@ -5,13 +5,14 @@ __all__ = [
     "BasisMulti",
 ]
 
+import warnings
 import numpy as np
 
 from .. import errors, utils
 from ._base import BasisTemplate
 
 
-class BasisMulti(BasisTemplate):
+class BasisMulti:
     r"""Join bases together for states with multiple variables.
 
     This class is for states that can be written (after discretization) as
@@ -22,9 +23,9 @@ class BasisMulti(BasisTemplate):
        \end{array}\right]
        \in \RR^n,
 
-    where each :math:`\q_i \in \RR^{n_x}` represents a single discretized
-    state variable, and where each individual state variable is compressed
-    individually. That is, the compressed state can be written as
+    where each :math:`\q_i \in \RR^{n_i}` represents a single discretized
+    state variable, to be compressed (individually) to :math:`r_i` degrees of
+    freedom. The compressed state is therefore
 
     .. math::
        \qhat = \left[\begin{array}{c}
@@ -33,142 +34,117 @@ class BasisMulti(BasisTemplate):
        \in \RR^r,
 
     where each :math:`\qhat_i \in \RR^{r_i}` is the compressed version of the
-    state variable :math:`\q_i \in \RR^{n_x}`.
-    The full state dimension is :math:`n = n_q n_x`, i.e.,
-    ``full_state_dimension = num_variables * variable_size``; the reduced state
+    state variable :math:`\q_i \in \RR^{n_i}`.
+    The full state dimension is :math:`n = \sum_{i=0}^{n_q - 1} n_i`, i.e.,
+    ``full_state_dimension = sum(full_variable_sizes)``; the reduced state
     dimension is :math:`r = \sum_{i=0}^{n_q - 1}r_i`, i.e.,
-    ``reduced_state_dimension = sum(reduced_state_dimensions)``.
+    ``reduced_state_dimension = sum(reduced_variable_sizes)``.
 
     Parameters
     ----------
     bases : list
         Initialized (but not necessarily trained) basis objects,
         one for each state variable.
+    full_variable_sizes : list or None
+        Dimensions for each state variable, :math:`n_0,\ldots,n_{n_q-1}`.
+        If ``None`` (default), set :math:`n_i` to
+        ``bases[i].full_state_dimension``; if any of these are ``None``,
+        assume all state variables have the same dimension, i.e.,
+        :math:`n_0 = n_1 = \cdots = n_x \in \NN` with :math:`n_x` to be
+        determined in :meth:`fit`. In this case, :math:`n = n_q n_x`.
     """
 
-    def __init__(self, bases):
+    def __init__(self, bases, full_variable_sizes=None):
         """Initialize the bases."""
-        self.__bases = None
-
-        # Extract variable names if possible.
-        variable_names = []
-        for i, basis in enumerate(bases):
-            default = f"variable {i}"
-            if basis.name is None:
-                basis.name = default
-            variable_names.append(basis.name)
-
-        # Store variables names and collection of bases.
-        # _MultivarMixin.__init__(
-        #     self,
-        #     num_variables=len(bases),
-        #     variable_names=variable_names,
-        # )
         self.bases = bases
+
+        if full_variable_sizes is not None:
+            if len(full_variable_sizes) != len(bases):
+                raise ValueError("len(full_variable_sizes) != len(bases)")
+            for basis, ni in zip(bases, full_variable_sizes):
+                BasisTemplate.full_state_dimension.fset(basis, ni)
 
     # Properties --------------------------------------------------------------
     @property
-    def bases(self):
+    def bases(self) -> tuple:
         """Bases for each state variable."""
         return self.__bases
 
     @bases.setter
     def bases(self, bs):
         """Set the bases."""
-        if len(bs) != self.num_variables:
-            raise ValueError("len(bases) != num_variables")
+        if (num_variables := len(bs)) == 0:
+            raise ValueError("at least one basis required")
+        elif num_variables == 1:
+            warnings.warn("only one variable detected", errors.UsageWarning)
 
-        # Check for full_state_dimension consistency.
-        dim = None
-        for basis in bs:
-            if (
-                not hasattr(basis, "full_state_dimension")
-                or (n := basis.full_state_dimension) is None
-            ):
-                dim = None
-                break
-            if dim is None:
-                dim = n
-            elif n != dim:
-                raise errors.DimensionalityError(
-                    "bases have inconsistent full_state_dimension"
+        # Check inheritance and set default variable names.
+        for i, basis in enumerate(bs):
+            if not isinstance(basis, BasisTemplate):
+                warnings.warn(
+                    f"bases[{i}] does not inherit from "
+                    "BasisTemplate, unexpected behavior may occur",
+                    errors.UsageWarning,
                 )
-        if dim is not None:
-            self.full_state_dimension = dim * self.num_variables
+            if basis.name is None:
+                basis.name = f"variable {i}"
 
-        # Set reduced_state_dimensions.
-        alldims = []
-        for basis in bs:
-            if (
-                not hasattr(basis, "reduced_state_dimension")
-                or (r := basis.reduced_state_dimension) is None
-            ):
-                alldims = None
-                break
-            alldims.append(r)
-        self.reduced_state_dimensions = alldims
-
+        # Store bases and set slice dimensions..
+        self.__nq = num_variables
         self.__bases = tuple(bs)
 
     @property
-    def reduced_state_dimensions(self):
-        r"""Reduced state dimensions :math:`r_0, r_1, \ldots, r_{n_q}`."""
-        return self.__rs
+    def num_variables(self) -> int:
+        r"""Number of state variables :math:`n_q \in \NN`."""
+        return self.__nq
 
-    @reduced_state_dimensions.setter
-    def reduced_state_dimensions(self, rs):
-        """Set the reduced state dimensions."""
-        if rs is None:
-            self.__rs = None
-            self.__r = None
-            self.__rslices = None
-            return
+    @property
+    def variable_names(self) -> tuple:
+        """Names for each state variable."""
+        return tuple(basis.name for basis in self.bases)
 
-        if len(rs) != (nvar := self.num_variables):
-            raise ValueError(
-                f"reduced_state_dimensions must have length {nvar}"
-            )
+    @property
+    def full_variable_sizes(self) -> tuple:
+        r"""Dimensions of each state variable,
+        :math:`n_0, \ldots, n_{n_q - 1} \in \NN`.
+        """
+        return tuple(basis.full_state_dimension for basis in self.bases)
 
-        self.__rs = tuple([int(r) for r in rs])
-        dimsum = np.cumsum((0,) + self.__rs)
-        self.__r = int(dimsum[-1])
-        self.__rslices = tuple(
-            [
-                slice(dimsum[i], dimsum[i + 1])
-                for i in range(self.num_variables)
-            ]
-        )
+    @property
+    def full_state_dimension(self) -> int:
+        r"""Total dimension :math:`n = \sum_{i=0}^{n_q-1} n_i \in \NN` of the
+        joint full state.
+        """
+        if None in (ns := self.full_variable_sizes):
+            return None
+        return sum(ns)
 
-        # Sync individual basis dimensions.
-        if self.bases is not None:
-            for r, basis in zip(self.__rs, self.bases):
-                if hasattr(basis, "reduced_state_dimension"):
-                    basis.reduced_state_dimension = r
-
-        if (n := self.full_state_dimension) is not None and self.__r >= n:
-            raise errors.UsageWarning(
-                f"reduced_state_dimension r = {self.__r} "
-                f"> {n} = full_state_dimension n"
-            )
+    @property
+    def reduced_variable_sizes(self) -> tuple:
+        r"""Dimensions of each compressed state variable,
+        :math:`r_0, \ldots, r_{n_q - 1} \in \NN`.
+        """
+        return tuple(basis.reduced_state_dimension for basis in self.bases)
 
     @property
     def reduced_state_dimension(self):
-        r"""Total dimension of the reduced state,
-        :math:`r = \sum_{i=0}^{n_q - 1}r_i`.
+        r"""Total dimension :math:`r = \sum_{i=0}^{n_q - 1}r_i \in \NN`
+        of the joint reduced state.
         """
-        return self.__r
+        if None in (rs := self.reduced_variable_sizes):
+            return None
+        return sum(rs)
 
     @property
-    def shape(self):
+    def shape(self) -> tuple[int, int]:
         """Dimensions :math:`(n, r)` of the basis."""
-        if (
-            self.full_state_dimension is None
-            or self.reduced_state_dimension is None
-        ):
-            return None
         return (self.full_state_dimension, self.reduced_state_dimension)
 
     # Magic methods -----------------------------------------------------------
+    def __len__(self) -> int:
+        """Length = number of state variables."""
+        return self.num_variables
+
     def __getitem__(self, key):
         """Get the basis for variable i."""
         if key in self.variable_names:
@@ -198,16 +174,26 @@ class BasisMulti(BasisTemplate):
         """Unique ID + string representation."""
         return utils.str2repr(self)
 
-    # Convenience methods -----------------------------------------------------
-    def _check_is_trained(self):
-        if (
-            self.full_state_dimension is None
-            or self.reduced_state_dimension is None
-        ):
-            raise AttributeError("basis not trained (call fit())")
+    # Access convenience methods ----------------------------------------------
+    def _check_shape_full(self, states):
+        """Verify the shape of the full states."""
+        if (n := self.full_state_dimension) is None:
+            raise AttributeError("full_state_dimension not set, call fit()")
+        if (n2 := states.shape[0]) != n:
+            raise errors.DimensionalityError(
+                f"states.shape[0] = {n2:d} != {n:d} = full_state_dimension"
+            )
 
-    @utils.requires("full_state_dimension")
-    @utils.requires("reduced_state_dimension")
+    def _check_shape_reduced(self, states_compressed):
+        """Verify the shape of the reduced states."""
+        if (r := self.reduced_state_dimension) is None:
+            raise AttributeError("reduced_state_dimension not set, call fit()")
+        if (r2 := states_compressed.shape[0]) != r:
+            raise errors.DimensionalityError(
+                f"states_compressed.shape[0] = {r2:d} "
+                f"!= {r:d} = reduced_state_dimension"
+            )
+
     def _check_is_reduced(self, states) -> bool:
         """Verify the shape of the full or reduced vector / matrix Q.
 
@@ -227,28 +213,55 @@ class BasisMulti(BasisTemplate):
         errors.DimensionalityError
             If states is neither `n`- nor `r`-dimensional.
         """
-        if (nQ := states.shape[0]) == (n := self.full_state_dimension):
-            return False
-        elif nQ == (r := self.reduced_state_dimension):
-            return True
+        if (n := self.full_state_dimension) is not None:
+            if states.shape[0] == n:
+                return False
+        if (r := self.reduced_state_dimension) is not None:
+            if states.shape[0] == r:
+                return True
 
+        if n is r is None:
+            raise AttributeError("dimension attributes not set")
         raise errors.DimensionalityError(
             f"states.shape[0] must be "
             f"full_state_dimension (n = {n:d}) or "
             f"reduced_state_dimension (r = {r:d})"
         )
 
-    @utils.requires("reduced_state_dimension")
-    def _check_shape_reduced(self, states):
-        """Verify the shape of the reduced states."""
-        if (nQ := states.shape[0]) != (r := self.reduced_state_dimension):
-            raise errors.DimensionalityError(
-                f"states.shape[0] = {nQ:d} "
-                f"!= {r:d} = reduced_state_dimension"
-            )
+    def _slices(self, varindex: int = None, reduced: bool = False):
+        """Get slices for one or all full or reduced state variable(s).
+
+        Parameters
+        ----------
+        varindex : int
+            Index of the variable to get a slice for.
+            If ``None`` (default), get slices for all state variables.
+        reduced : bool
+            If ``True``, slice the reduced state variables.
+            If ``False`` (default), slice the full state variables.
+
+        Returns
+        -------
+        slice or tuple
+            Slice for the full state variable at index ``varindex``
+            or a tuple of slices for all state variables.
+        """
+        ds = (
+            self.reduced_variable_sizes
+            if reduced
+            else self.full_variable_sizes
+        )
+        dimsum = np.cumsum((0,) + ds)
+
+        if varindex is not None:
+            return slice(dimsum[varindex], dimsum[varindex + 1])
+
+        return [
+            slice(dimsum[i], dimsum[i + 1]) for i in range(self.num_variables)
+        ]
 
     def get_var(self, var, states):
-        """Extract a single variable from the joint state.
+        """Extract a single variable from the joint full or reduced state.
 
         Parameters
         ----------
@@ -259,22 +272,21 @@ class BasisMulti(BasisTemplate):
 
         Returns
         -------
-        state_variable : (nx, ...) or (rs[i], ...) ndarray
+        state_variable : (n_i, ...) or (r_i, ...) ndarray
             One full or reduced state variable, extracted from ``states``.
         """
+        if var in self.variable_names:
+            var = self.variable_names.index(var)
         if self._check_is_reduced(states):
-            if var in self.variable_names:
-                var = self.variable_names.index(var)
-            return states[self.__rslices[var]]
-        # return _MultivarMixin.get_var(self, var, states)
-        raise NotImplementedError
+            return states[self._slices(var, reduced=True)]
+        return states[self._slices(var, reduced=False)]
 
     def split(self, states):
-        """Split a reduced state vector into the individual reduced variables.
+        """Split a full or reduced state vector into the individual variables.
 
         Parameters
         ----------
-        states : (r,...) ndarray
+        states : (r, ...) ndarray
             Joint full or reduced state vector / snapshot matrix to split.
 
         Returns
@@ -283,9 +295,8 @@ class BasisMulti(BasisTemplate):
             Individual full or reduced state variables.
         """
         if self._check_is_reduced(states):
-            return [states[s] for s in self.__rslices]
-        # return _MultivarMixin.split(self, states)
-        raise NotImplementedError
+            return [states[s] for s in self._slices(reduced=True)]
+        return [states[s] for s in self._slices(reduced=False)]
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):
@@ -295,24 +306,31 @@ class BasisMulti(BasisTemplate):
         ----------
         states : (n, k) ndarray
             Matrix of `k` `n`-dimensional snapshots.
+            The first ``full_variable_sizes[0]`` entries correspond to the
+            first state variable, the next ``full_variable_sizes[1]`` entries
+            correspond to the second state variable, and so on.
+            If ``full_variable_sizes`` are not yet prescribed, assume that each
+            state variable has the same dimension.
 
         Returns
         -------
         self
         """
-        self._check_shape(states)
+        if self.full_state_dimension is None:
+            # Assume all state dimensions are equal.
+            nx, remainder = divmod(states.shape[0], self.num_variables)
+            if remainder != 0:
+                raise errors.DimensionalityError(
+                    "len(states) must be evenly divisible by "
+                    f"the number of variables n_q = {self.num_variables}"
+                )
+            for basis in self.bases:
+                BasisTemplate.full_state_dimension.fset(basis, nx)
 
-        n = 0
-        rs = []
-        for var, basis in zip(self.split(states), self.bases):
-            basis.fit(var)
-            # NOTE: Assumes basis has full_state_dimension attribute!
-            # ...but pretty necessary.
-            n += basis.full_state_dimension
-            rs.append(basis.reduced_state_dimension)
+        self._check_shape_full(states)
+        for basis, Q in zip(self.bases, self.split(states)):
+            basis.fit(Q)
 
-        self.full_state_dimension = n
-        self.reduced_state_dimensions = rs
         return self
 
     def compress(self, states):
@@ -322,20 +340,25 @@ class BasisMulti(BasisTemplate):
         ----------
         states : (n, ...) ndarray
             Matrix of `n`-dimensional state vectors, or a single state vector.
+            The first ``full_variable_sizes[0]`` entries correspond to the
+            first state variable, the next ``full_variable_sizes[1]`` entries
+            correspond to the second state variable, and so on.
 
         Returns
         -------
         states_compressed : (r, ...) ndarray
             Matrix of `r`-dimensional latent coordinate vectors, or a single
-            coordinate vector.
+            coordinate vector. The first ``reduced_variable_sizes[0]``
+            entries correspond to the first reduced state variable, the next
+            ``reduced_variable_sizes[1]`` entries correspond to the second
+            reduced state variable, and so on.
         """
-        self._check_is_trained()
-        self._check_shape(states)
+        self._check_shape_full(states)
 
         return np.concatenate(
             [
                 basis.compress(Q)
-                for Q, basis in zip(self.split(states), self.bases)
+                for basis, Q in zip(self.bases, self.split(states))
             ],
             axis=0,
         )
@@ -347,26 +370,67 @@ class BasisMulti(BasisTemplate):
         ----------
         states_compressed : (r, ...) ndarray
             Matrix of `r`-dimensional latent coordinate vectors, or a single
-            coordinate vector.
+            coordinate vector. The first ``reduced_variable_sizes[0]``
+            entries correspond to the first reduced state variable, the next
+            ``reduced_variable_sizes[1]`` entries correspond to the second
+            reduced state variable, and so on.
         locs : slice or (p,) ndarray of integers or None
-            If given, return the decompressed state at only the `p` specified
-            locations (indices) described by ``locs``.
+            If given, decompress each state variable at *only* the
+            `p` specified locations (indices) described by ``locs``.
+            This option requires each full state variable to have the
+            same dimension.
 
         Returns
         -------
-        states_decompressed : (n, ...) or (p, ...) ndarray
-            Matrix of `n`-dimensional decompressed state vectors, or the `p`
-            entries of such at the entries specified by ``locs``.
+        states_decompressed : (n, ...) or (num_variables*p, ...) ndarray
+            Matrix of `n`-dimensional decompressed state vectors, or the
+            :math:`n_q p` entries of such at the entries specified by ``locs``.
         """
-        self._check_is_trained()
         self._check_shape_reduced(states_compressed)
+        if locs is not None and len(set(self.full_variable_sizes)) > 1:
+            raise ValueError(
+                "'locs != None' requires that "
+                "all bases have the same full_state_dimension"
+            )
 
         return np.concatenate(
             [
                 basis.decompress(Q_, locs=locs)
-                for Q_, basis in zip(self.split(states_compressed), self.bases)
+                for basis, Q_ in zip(self.bases, self.split(states_compressed))
             ]
         )
+
+    def project(self, state):
+        """Project a high-dimensional state vector to the subset of the
+        high-dimensional space that can be represented by the basis.
+
+        This is done by
+
+        1. expressing the state in low-dimensional latent coordinates, then
+        2. reconstructing the high-dimensional state corresponding to those
+           coordinates.
+
+        In other words, ``project(Q)`` is equivalent to
+        ``decompress(compress(Q))``.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional state vectors, or a single state vector.
+            The first ``full_variable_sizes[0]`` entries correspond to the
+            first state variable, the next ``full_variable_sizes[1]`` entries
+            correspond to the second state variable, and so on.
+
+        Returns
+        -------
+        state_projected : (n, ...) ndarray
+            Matrix of `n`-dimensional projected state vectors, or a single
+            projected state vector. The first ``full_variable_sizes[0]``
+            entries correspond to the first state variable, the next
+            ``full_variable_sizes[1]`` entries correspond to the second state
+            variable, and so on.
+        """
+        return self.decompress(self.compress(state))
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile, overwrite=False):
@@ -381,19 +445,10 @@ class BasisMulti(BasisTemplate):
             (default), raise a ``FileExistsError`` if the file already exists.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
-            # Metadata
-            meta = hf.create_dataset("meta", shape=(0,))
-            meta.attrs["num_variables"] = self.num_variables
-            if (n := self.full_state_dimension) is not None:
-                meta.attrs["full_state_dimension"] = n
-            if (rs := self.reduced_state_dimensions) is not None:
-                hf.create_dataset("reduced_state_dimensions", data=rs)
+            hf.create_dataset("num_variables", data=[self.num_variables])
+            for i, basis in enumerate(self.bases):
+                basis.save(hf.create_group(f"variable{i}"))
 
-            # Save individual bases.
-            for i, tf in enumerate(self.bases):
-                tf.save(hf.create_group(f"variable{i}"))
-
-    # TODO: can we get rid of the BasisClasses argument?
     @classmethod
     def load(cls, loadfile, BasisClasses):
         """Load a previously saved transformer from an HDF5 file.
@@ -410,31 +465,40 @@ class BasisMulti(BasisTemplate):
         TransformerMulti
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
-            # Load metadata.
-            meta = hf["meta"].attrs
-            num_variables = int(meta["num_variables"])
+            num_variables = int(hf["num_variables"][0])
 
-            # Initialize object.
-            obj = cls(
-                [
-                    BasisClasses[i].load(hf[f"variable{i}"])
-                    for i in range(num_variables)
-                ]
-            )
+            if isinstance(BasisClasses, type):
+                BasisClasses = [BasisClasses] * num_variables
+            if (nclasses := len(BasisClasses)) != num_variables:
+                raise ValueError(
+                    f"file contains {num_variables:d} bases "
+                    f"but {nclasses:d} classes provided"
+                )
 
-            # Set state dimensions if available.
-            if "full_state_dimension" in meta:
-                obj.full_state_dimension = int(meta["full_state_dimension"])
-            if "reduced_state_dimensions" in hf:
-                rs = hf["reduced_state_dimensions"][:]
-                obj.reduced_state_dimensions = rs
+            bases = [
+                BasisClasses[i].load(hf[f"variable{i}"])
+                for i in range(num_variables)
+            ]
 
-            return obj
+            return cls(bases)
 
     # Verification ------------------------------------------------------------
+    def verify(self):
+        """Verify that :meth:`compress()` and :meth:`decompress()` are
+        consistent in the sense that the range of :meth:`decompress()` is in
+        the domain of :meth:`compress()` and that :meth:`project()` defines
+        a projection operator, i.e., ``project(project(Q)) = project(Q)``.
+        """
+        for basis, name in zip(self.bases, self.variable_names):
+            print(f"{name}:", end="\t")
+            basis.verify()
+        BasisTemplate.verify(self)
+
     def _verify_locs(self, states_compressed, states_projected):
         """Verify :meth:`decompress()` with ``locs != None``."""
-        nx = self.variable_size
+        if len(sizes := set(self.full_variable_sizes)) != 1:
+            return  # Cannot use locs unless all full variable sizes equal.
+        nx = sizes.pop()
         locs = np.sort(np.random.choice(nx, size=(nx // 3), replace=False))
 
         states_projected_at_locs = np.concatenate(
@@ -446,12 +510,12 @@ class BasisMulti(BasisTemplate):
         )
 
         if states_at_locs_projected.shape != states_projected_at_locs.shape:
-            raise errors.VerificationError(
+            raise errors.VerificationError(  # pragma: no cover
                 "decompress(states_compressed, locs).shape "
                 "!= decompressed_states_at_locs.shape"
             )
         if not np.allclose(states_at_locs_projected, states_projected_at_locs):
-            raise errors.VerificationError(
+            raise errors.VerificationError(  # pragma: no cover
                 "decompress(states_compressed, locs) "
                 "!= decompressed_states_at_locs"
             )

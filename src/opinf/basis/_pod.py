@@ -24,6 +24,12 @@ from ._linear import LinearBasis
 
 
 # Helper functions ============================================================
+requires_svdvals = utils.requires2(
+    "svdvals",
+    "no singular value data, call fit()",
+)
+
+
 def _Wmult(W, arr):
     """Matrix multiply ``W`` and ``arr``, where ``W`` may be a one-dimensional
     array representing diagonals or a two-dimensional array.
@@ -597,19 +603,19 @@ class PODBasis(LinearBasis):
         return self
 
     # Visualization -----------------------------------------------------------
-    def _check_svdvals_exist(self):
-        """Raise an AttributeError if there are no singular values stored."""
-        if self.svdvals is None:
-            raise AttributeError("no singular value data, call fit()")
-
+    @requires_svdvals
     def _plot_single(self, plotter, **kwargs):
         """Execute a single plotting routine."""
-        self._check_svdvals_exist()
         plotter(self.svdvals, **kwargs)
-        ax = kwargs.get("ax")
-        return ax if ax is not None else plt.gca()
+        return ax if (ax := kwargs.get("ax")) is not None else plt.gca()
 
-    def plot_svdval_decay(self, threshold=None, right=None, ax=None, **kwargs):
+    def plot_svdval_decay(
+        self,
+        threshold=None,
+        right=None,
+        ax=None,
+        **options,
+    ):
         """Plot the normalized singular value decay.
 
         Parameters
@@ -621,15 +627,16 @@ class PODBasis(LinearBasis):
         ax : plt.Axes or None
             Matplotlib Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
-        kwargs : dict
-            Options to pass to ``plt.semilogy()``
+        options : dict
+            Additional arguments to pass to ``plt.semilogy()``.
 
         Returns
         -------
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        kwargs.update(dict(threshold=threshold, plot=True, right=right, ax=ax))
+        kwargs = dict(threshold=threshold, plot=True, right=right, ax=ax)
+        kwargs.update(options)
         return self._plot_single(svdval_decay, **kwargs)
 
     def plot_cumulative_energy(
@@ -637,7 +644,7 @@ class PODBasis(LinearBasis):
         threshold=None,
         right=None,
         ax=None,
-        **kwargs,
+        **options,
     ):
         r"""Plot the cumulative singular value energy.
 
@@ -658,14 +665,15 @@ class PODBasis(LinearBasis):
             Matplotlib Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
         kwargs : dict
-            Options to pass to ``plt.semilogy()``
+            Additional arguments to pass to ``plt.semilogy()``.
 
         Returns
         -------
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        kwargs.update(dict(threshold=threshold, plot=True, right=right, ax=ax))
+        kwargs = dict(threshold=threshold, plot=True, right=right, ax=ax)
+        kwargs.update(options)
         return self._plot_single(cumulative_energy, **kwargs)
 
     def plot_residual_energy(
@@ -673,7 +681,7 @@ class PODBasis(LinearBasis):
         threshold=None,
         right=None,
         ax=None,
-        **kwargs,
+        **options,
     ):
         r"""Plot the residual singular value energy.
 
@@ -697,17 +705,19 @@ class PODBasis(LinearBasis):
         ax : plt.Axes or None
             Matplotlib Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
-        kwargs : dict
-            Options to pass to ``plt.semilogy()``
+        options : dict
+            Additional arguments to pass to ``plt.semilogy()``.
 
         Returns
         -------
         ax : plt.Axes
             Matplotlib Axes for the plot.
         """
-        kwargs.update(dict(threshold=threshold, plot=True, right=right, ax=ax))
+        kwargs = dict(threshold=threshold, plot=True, right=right, ax=ax)
+        kwargs.update(options)
         return self._plot_single(residual_energy, **kwargs)
 
+    @requires_svdvals
     def plot_energy(self, right=None):
         """Plot the normalized singular values and the cumulative and residual
         energies.
@@ -717,7 +727,6 @@ class PODBasis(LinearBasis):
         right : int or None
             Maximum singular value index to plot (``plt.xlim(right=right)``).
         """
-        self._check_svdvals_exist()
         r = self.reduced_state_dimension
 
         def _rline(ax, ymin):
