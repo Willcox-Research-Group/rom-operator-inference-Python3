@@ -455,6 +455,9 @@ class TransformerMulti:
             :meth:`transform_ddts()`.
             Only used if :meth:`transform_ddts()` is implemented.
         """
+        for tf, name in zip(self.transformers, self.variable_names):
+            print(f"{name}:", end="\t")
+            tf.verify(tol)
         return TransformerTemplate.verify(self, tol)
 
     def _verify_locs(self, states, states_transformed):
@@ -474,12 +477,12 @@ class TransformerMulti:
         )
 
         if states_recovered_at_locs.shape != states_at_locs.shape:
-            raise errors.VerificationError(
+            raise errors.VerificationError(  # pragma: no cover
                 "inverse_transform(states_transformed_at_locs, locs).shape "
                 "!= states_at_locs.shape"
             )
         if not np.allclose(states_recovered_at_locs, states_at_locs):
-            raise errors.VerificationError(
+            raise errors.VerificationError(  # pragma: no cover
                 "transform() and inverse_transform() are not inverses "
                 "(locs != None)"
             )

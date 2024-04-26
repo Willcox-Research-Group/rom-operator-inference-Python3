@@ -215,7 +215,7 @@ class TestTransformerMulti:
         assert tfm.fit(Q) is tfm
         assert tfm.state_dimension == n
         assert tfm.transform_ddts(Q) is NotImplemented
-        tfm.verify(Q)
+        tfm.verify()
 
         transformers[0].state_dimension = nx + 1
         with pytest.raises(ValueError) as ex:
@@ -227,7 +227,7 @@ class TestTransformerMulti:
 
         for i in range(len(transformers)):
             transformers[i] = self.Dummy2()
-        tfm = self.Transformer(transformers)
+        tfm = self.Transformer(transformers, variable_sizes=(nx + 10, nx - 10))
         tfm.fit(Q)
         tfm.verify()
 
