@@ -165,10 +165,8 @@ class BasisMulti:
     def __str__(self) -> str:
         """String representation: str() of each basis."""
         out = [f"{self.num_variables}-variable {self.__class__.__name__}"]
-        namelength = max(len(name) for name in self.variable_names)
-        for name, basis in zip(self.variable_names, self.bases):
-            out.append(f"* {{:>{namelength}}} | {basis}".format(name))
-        return "\n".join(out)
+        out += [str(basis) for basis in self.bases]
+        return "\n| ".join("\n\n".join(out).split("\n"))
 
     def __repr__(self) -> str:
         """Unique ID + string representation."""
@@ -300,7 +298,8 @@ class BasisMulti:
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):
-        """Construct the basis.
+        """Construct the joint basis by calling ``fit()`` on the basis for
+        each variable.
 
         Parameters
         ----------
@@ -364,7 +363,7 @@ class BasisMulti:
         )
 
     def decompress(self, states_compressed, locs=None):
-        """Map low-dimensional latent coordinates to high-dimensional states.
+        r"""Map low-dimensional latent coordinates to high-dimensional states.
 
         Parameters
         ----------
@@ -384,7 +383,8 @@ class BasisMulti:
         -------
         states_decompressed : (n, ...) or (num_variables*p, ...) ndarray
             Matrix of `n`-dimensional decompressed state vectors, or the
-            :math:`n_q p` entries of such at the entries specified by ``locs``.
+            :math:`n_q \cdot p` entries of such at the entries specified
+            by ``locs``.
         """
         self._check_shape_reduced(states_compressed)
         if locs is not None and len(set(self.full_variable_sizes)) > 1:
