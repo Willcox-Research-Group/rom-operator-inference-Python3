@@ -39,12 +39,16 @@ class TestTransformerMulti:
         def save(self, savefile, overwrite=False):
             with opinf.utils.hdf5_savehandle(savefile, overwrite) as hf:
                 hf.create_dataset("data", data=self.data)
+                if self.state_dimension is not None:
+                    hf.create_dataset("dim", data=[self.state_dimension])
 
         @classmethod
         def load(cls, loadfile):
             dummy = cls()
             with opinf.utils.hdf5_loadhandle(loadfile) as hf:
                 dummy.data = hf["data"][:]
+                if "dim" in hf:
+                    dummy.state_dimension = hf["dim"][0]
             return dummy
 
     class Dummy3(Dummy2):
@@ -85,6 +89,15 @@ class TestTransformerMulti:
         transformers[2].state_dimension = 18
         tfm = self.Transformer(transformers)
         assert tfm.state_dimension == 45
+
+        class ExtraDummy:
+            name = "nothing"
+
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            tfm.transformers = [ExtraDummy(), ExtraDummy()]
+        assert len(wn) == 2
+        assert wn[0].message.args[0].startswith("transformers[0] does not")
+        assert wn[1].message.args[0].startswith("transformers[1] does not")
 
     # Magic methods -----------------------------------------------------------
     def test_getitem(self):
@@ -192,7 +205,7 @@ class TestTransformerMulti:
             )
 
         assert tfm.state_dimension is None
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
             tfm.fit(Q[1:])
         assert ex.value.args[0] == (
             "len(states) must be evenly divisible "
@@ -309,7 +322,6 @@ class TestTransformerMulti:
         assert tf.verify() is None
 
         tf2.state_dimension = 10
-        tf._set_slices()
         Q = np.random.random((tf.state_dimension, k))
         Qt = tf.transform(Q)
         tf._verify_locs(Q, Qt)

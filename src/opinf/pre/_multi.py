@@ -41,25 +41,23 @@ class TransformerMulti:
         Initialized (but not necessarily trained) transformer objects,
         one for each state variable.
     variable_sizes : list or None
-        Dimensions for each state variable.
-        If ``None`` (default), assume all state variables have the same
-        dimension, i.e., :math:`n_0 = n_1 = \cdots = n_x \in \NN`.
-        In this case, :math:`n = n_q n_x`.
+        Dimensions for each state variable, :math:`n_0,\ldots,n_{n_q-1}`.
+        If ``None`` (default), set :math:`n_i` to
+        ``transformers[i].state_dimension``; if any of these are ``None``,
+        assume all state variables have the same dimension, i.e.,
+        :math:`n_0 = n_1 = \cdots = n_x \in \NN` with :math:`n_x` to be
+        determined in :meth:`fit`. In this case, :math:`n = n_q n_x`.
     """
 
-    def __init__(
-        self,
-        transformers,
-        variable_sizes=None,
-    ):
+    def __init__(self, transformers, variable_sizes=None):
         """Initialize the transformers."""
+        self.transformers = transformers
+
         if variable_sizes is not None:
             if len(variable_sizes) != len(transformers):
                 raise ValueError("len(variable_sizes) != len(transformers)")
-            for tf, n in zip(transformers, variable_sizes):
-                tf.state_dimension = n
-
-        self.transformers = transformers
+            for tf, ni in zip(transformers, variable_sizes):
+                TransformerTemplate.state_dimension.fset(tf, ni)
 
     # Properties --------------------------------------------------------------
     @property
@@ -75,15 +73,20 @@ class TransformerMulti:
         elif num_variables == 1:
             warnings.warn("only one variable detected", errors.UsageWarning)
 
-        # Set default variable names.
+        # Check inheritance and set default variable names.
         for i, tf in enumerate(tfs):
+            if not isinstance(tf, TransformerTemplate):
+                warnings.warn(
+                    f"transformers[{i}] does not inherit from "
+                    "TransformerTemplate, unexpected behavior may occur",
+                    errors.UsageWarning,
+                )
             if tf.name is None:
                 tf.name = f"variable {i}"
 
         # Store transformers and set slice dimensions.
         self.__nq = num_variables
         self.__transformers = tuple(tfs)
-        self._set_slices()
 
     @property
     def num_variables(self) -> int:
@@ -97,7 +100,9 @@ class TransformerMulti:
 
     @property
     def variable_sizes(self) -> tuple:
-        r"""Dimensions of each state variable."""
+        r"""Dimensions of each state variable,
+        :math:`n_0,\ldots,n_{n_q-1}\in\NN`.
+        """
         return tuple(tf.state_dimension for tf in self.transformers)
 
     @property
@@ -108,17 +113,6 @@ class TransformerMulti:
         if None in (sizes := self.variable_sizes):
             return None
         return sum(sizes)
-
-    def _set_slices(self):
-        """Prepare variable slices."""
-        if None not in (sizes := self.variable_sizes):
-            dimsum = np.cumsum((0,) + sizes)
-            self.__nslices = tuple(
-                [
-                    slice(dimsum[i], dimsum[i + 1])
-                    for i in range(self.num_variables)
-                ]
-            )
 
     # Magic methods -----------------------------------------------------------
     def __len__(self) -> int:
@@ -156,7 +150,7 @@ class TransformerMulti:
         """Unique ID + string representation."""
         return utils.str2repr(self)
 
-    # Convenience methods -----------------------------------------------------
+    # Access convenience methods ----------------------------------------------
     @requires_trained
     def _check_shape(self, states):
         """Verify the shape of the snapshot set Q."""
@@ -164,6 +158,32 @@ class TransformerMulti:
             raise errors.DimensionalityError(
                 f"len(states) = {nQ:d} != {n:d} = state_dimension"
             )
+
+    def _slices(self, varindex=None):
+        """Get slices for one or all state variable(s).
+
+        Parameters
+        ----------
+        varindex : int
+            Index of the variable to get a slice for.
+            If ``None`` (default), get slices for all state variables.
+
+        Returns
+        -------
+        slice or tuple
+            Slice for the state variable at index ``varindex``
+            or a tuple of slices for all state variables.
+        """
+        dimsum = np.cumsum((0,) + self.variable_sizes)
+        if varindex is not None:
+            return slice(dimsum[varindex], dimsum[varindex + 1])
+
+        return tuple(
+            [
+                slice(dimsum[i], dimsum[i + 1])
+                for i in range(self.num_variables)
+            ]
+        )
 
     def get_var(self, var, states):
         """Extract a single variable from the joint state.
@@ -183,7 +203,7 @@ class TransformerMulti:
         self._check_shape(states)
         if var in (names := self.variable_names):
             var = names.index(var)
-        return states[self.__nslices[var]]
+        return states[self._slices(var)]
 
     def split(self, states):
         """Split the joint state into the individual state variables.
@@ -199,7 +219,7 @@ class TransformerMulti:
             Individual state variables, extracted from ``states``.
         """
         self._check_shape(states)
-        return [states[s] for s in self.__nslices]
+        return [states[s] for s in self._slices()]
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):
@@ -239,15 +259,15 @@ class TransformerMulti:
             Matrix of `k` transformed `n`-dimensional snapshots.
         """
         if self.state_dimension is None:
+            # Assume all state dimensions are equal.
             nx, remainder = divmod(states.shape[0], self.num_variables)
             if remainder != 0:
-                raise ValueError(
+                raise errors.DimensionalityError(
                     "len(states) must be evenly divisible by "
                     f"the number of variables n_q = {self.num_variables}"
                 )
             for tf in self.transformers:
-                tf.state_dimension = nx
-            self._set_slices()
+                TransformerTemplate.state_dimension.fset(tf, nx)
 
         new_states = np.concatenate(
             [
@@ -374,14 +394,7 @@ class TransformerMulti:
             (default), raise a ``FileExistsError`` if the file already exists.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
-            hf.create_dataset(
-                "variable_sizes",
-                data=[
-                    (-1 if nx is None else nx) for nx in self.variable_sizes
-                ],
-            )
-
-            # Save individual transformers.
+            hf.create_dataset("num_variables", data=[self.num_variables])
             for i, tf in enumerate(self.transformers):
                 tf.save(hf.create_group(f"variable{i}"))
 
@@ -401,11 +414,8 @@ class TransformerMulti:
         TransformerMulti
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
-            variable_sizes = [
-                None if nx == -1 else int(nx) for nx in hf["variable_sizes"][:]
-            ]
+            num_variables = int(hf["num_variables"][0])
 
-            num_variables = len(variable_sizes)
             if isinstance(TransformerClasses, type):
                 TransformerClasses = [TransformerClasses] * num_variables
             if (nclasses := len(TransformerClasses)) != num_variables:
@@ -419,7 +429,7 @@ class TransformerMulti:
                 for i in range(num_variables)
             ]
 
-            return cls(transformers, variable_sizes=variable_sizes)
+            return cls(transformers)
 
     # Verification ------------------------------------------------------------
     def verify(self, tol: float = 1e-4):
