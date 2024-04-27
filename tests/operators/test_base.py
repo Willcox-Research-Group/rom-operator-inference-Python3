@@ -26,7 +26,7 @@ def test_requires_entries():
     dummy = Dummy()
     with pytest.raises(AttributeError) as ex:
         dummy.required()
-    assert ex.value.args[0] == "required 'entries' attribute not set"
+    assert ex.value.args[0] == "required attribute 'entries' not set"
 
     dummy.entries = 0
     assert dummy.required() == 1
@@ -70,7 +70,7 @@ class TestNonparametricOperator:
 
         with pytest.raises(AttributeError) as ex:
             op.jacobian(5)
-        assert ex.value.args[0] == "required 'entries' attribute not set"
+        assert ex.value.args[0] == "required attribute 'entries' not set"
 
         A = np.random.random((10, 11))
         op = self.Dummy(A)

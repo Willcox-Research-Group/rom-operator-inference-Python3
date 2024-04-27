@@ -280,6 +280,7 @@ class TestBasisMulti:
         assert basis.reduced_variable_sizes[0] == (r2 := r // 2)
         assert basis.reduced_variable_sizes[1] == r2
         basis.verify()
+        assert basis.projection_error(Q) > 0
 
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             basis.compress(Q[1:, :])

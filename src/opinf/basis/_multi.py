@@ -432,6 +432,37 @@ class BasisMulti:
         """
         return self.decompress(self.compress(state))
 
+    def projection_error(self, state, relative=True) -> float:
+        r"""Compute the error of the basis representation of a state or states.
+
+        This function computes :math:`\frac{\|\Q - \mathcal{P}(\Q)\|}{\|\Q\|}`,
+        where :math:`\Q` is the ``state`` and :math:`\mathcal{P}` is the
+        projection defined by :meth:`project()`.
+        If ``state`` is one-dimensional then :math:`||\cdot||` is the vector
+        2-norm. If ``state`` is two-dimensional then :math:`||\cdot||` is the
+        Frobenius norm.
+
+        Parameters
+        ----------
+        state : (n,) or (n, k) ndarray
+            Matrix of `n`-dimensional state vectors, or a single state vector.
+            The first ``full_variable_sizes[0]`` entries correspond to the
+            first state variable, the next ``full_variable_sizes[1]`` entries
+            correspond to the second state variable, and so on.
+        relative : bool
+            If ``True`` (default), return the relative projection error
+            ``norm(state - project(state)) / norm(state)``.
+            If ``False``, return the absolute projection error
+            ``norm(state - project(state))``.
+
+        Returns
+        -------
+        float
+            Relative error of the projection (``relative=True``) or
+            absolute error of the projection (``relative=False``).
+        """
+        return BasisTemplate.projection_error(self, state, relative)
+
     # Model persistence -------------------------------------------------------
     def save(self, savefile, overwrite=False):
         """Save the transformer to an HDF5 file.
