@@ -16,7 +16,6 @@ import scipy.linalg as la
 import scipy.sparse as sparse
 import sklearn.utils.extmath as sklmath
 import matplotlib.pyplot as plt
-from typing import Callable
 
 from .. import errors, utils
 from ._base import BasisTemplate
@@ -147,7 +146,7 @@ class PODBasis(LinearBasis):
         residual_energy: float = None,
         projection_error: float = None,
         max_vectors: int = None,
-        svdsolver: str | Callable = "dense",
+        svdsolver: str = "dense",
         weights: np.ndarray = None,
         name: str = None,
         **svdsolver_options,
