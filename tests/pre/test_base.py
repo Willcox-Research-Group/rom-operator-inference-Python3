@@ -7,147 +7,223 @@ import numpy as np
 import opinf
 
 
-class TestBaseTransformer:
-    """Test pre._base._BaseTransformer."""
+class TestTransformerTemplate:
+    """Test pre._base.TransformerTemplate."""
 
-    class Dummy(opinf.pre._base._BaseTransformer):
-        def fit_transform(self, states):
-            self.n = states.shape[0]
-            return states
+    class Dummy(opinf.pre.TransformerTemplate):
+        def fit_transform(self, states, inplace=False):
+            return states if inplace else states.copy()
 
-        def transform(self, states):
-            return states
+        def transform(self, states, inplace=False):
+            return states if inplace else states.copy()
 
-        def inverse_transform(self, states):
-            return states
+        def inverse_transform(self, states, inplace=False, locs=None):
+            return states if inplace else states.copy()
+
+    def test_name(self):
+        """Test TransformerTemplate.__init__(), name."""
+        mixin = self.Dummy()
+        assert mixin.name is None
+
+        s1 = "the name"
+        mixin = self.Dummy(name=s1)
+        assert mixin.name == s1
+
+        s2 = "new name"
+        mixin.name = s2
+        assert mixin.name == s2
+
+        mixin.name = None
+        assert mixin.name is None
+
+    def test_state_dimension(self):
+        """Test TransformerTemplate.state_dimension."""
+        mixin = self.Dummy()
+        assert mixin.state_dimension is None
+        mixin.state_dimension = 10.0
+        n = mixin.state_dimension
+        assert isinstance(n, int)
+        assert mixin.state_dimension == n
+        mixin.state_dimension = None
+        assert mixin.state_dimension is None
 
     def test_fit(self):
-        """Test pre._base._BaseTransformer.fit()."""
-        bt = self.Dummy()
-        states = np.random.random((10, 5))
-        out = bt.fit(states)
-        assert out is bt
-        assert hasattr(bt, "n")
-        assert bt.n == 10
+        """Test TransformerTemplate.fit()."""
+        tf = self.Dummy()
+        out = tf.fit(np.random.random((2, 5)))
+        assert out is tf
 
-    def test_save(self):
-        """Test pre._base._BaseTransformer.save()."""
-        with pytest.raises(NotImplementedError) as ex:
-            self.Dummy().save("test")
-        assert ex.value.args[0] == "use pickle/joblib"
+    def test_verify(self, n=30):
+        """Test TransformerTemplate.verify()."""
+        dummy = self.Dummy()
 
-    def test_load(self):
-        """Test pre._base._BaseTransformer.load()."""
-        with pytest.raises(NotImplementedError) as ex:
-            self.Dummy.load("test")
-        assert ex.value.args[0] == "use pickle/joblib"
-
-
-class TestMultivarMixin:
-    """Test for pre._base._MultivarMixin."""
-
-    Mixin = opinf.pre._base._MultivarMixin
-
-    def test_init(self, nvar=4):
-        """Test _MultivarMixin.__init__()."""
-        with pytest.raises(ValueError) as ex:
-            self.Mixin(-1)
-        assert ex.value.args[0] == "num_variables must be a positive integer"
-
-        mix = self.Mixin(nvar)
-        assert mix.num_variables == nvar
-        assert mix.n is None
-        assert mix.ni is None
-
-    def test_variable_names(self, nvar=3):
-        """Test _MultivarMixin.variable_names."""
-        vnames = list("abcdefghijklmnopqrstuvwxyz")[:nvar]
-        mix = self.Mixin(nvar, vnames)
-        assert len(mix.variable_names) == nvar
-        assert mix.variable_names == vnames
-
-        mix.variable_names = None
-        assert len(mix.variable_names) == nvar
-        for name in mix.variable_names:
-            assert name.startswith("variable ")
-
-        with pytest.raises(TypeError) as ex:
-            mix.variable_names = 1
-        assert (
-            ex.value.args[0]
-            == f"variable_names must be a list of length {nvar}"
+        with pytest.raises(AttributeError) as ex:
+            dummy.verify()
+        assert ex.value.args[0] == (
+            "transformer not trained (state_dimension not set), "
+            "call fit() or fit_transform()"
         )
 
-        with pytest.raises(TypeError) as ex:
-            mix.variable_names = vnames[:-1]
-        assert (
-            ex.value.args[0]
-            == f"variable_names must be a list of length {nvar}"
+        dummy.state_dimension = n
+        dummy.verify()
+
+        class Dummy1(self.Dummy):
+            def __init__(self, name=None):
+                super().__init__(name=name)
+                self.state_dimension = n
+
+        class Dummy2a(Dummy1):
+            def transform(self, states, inplace=False):
+                return states[:-1]
+
+        class Dummy2b(Dummy1):
+            def transform(self, states, inplace=False):
+                return states
+
+        class Dummy2c(Dummy1):
+            def transform(self, states, inplace=False):
+                return states.copy()
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy2a().verify()
+        assert ex.value.args[0] == "transform(states).shape != states.shape"
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy2b().verify()
+        assert ex.value.args[0] == "transform(states, inplace=False) is states"
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy2c().verify()
+        assert ex.value.args[0] == (
+            "transform(states, inplace=True) is not states"
         )
 
-    def test_n_properties(self, nvar=5):
-        """Test _MultivarMixin.n and ni."""
-        mix = self.Mixin(nvar)
-        assert mix.n is None
-        assert mix.ni is None
+        class Dummy3a(Dummy1):
+            def inverse_transform(self, states_transformed, inplace=False):
+                return states_transformed[:-1]
 
-        with pytest.raises(ValueError) as ex:
-            mix.n = 2 * nvar - 1
-        assert (
-            ex.value.args[0] == "n must be evenly divisible by num_variables"
+        class Dummy3b(Dummy1):
+            def inverse_transform(self, states_transformed, inplace=False):
+                return states_transformed
+
+        class Dummy3c(Dummy1):
+            def inverse_transform(self, states_transformed, inplace=False):
+                return states_transformed.copy()
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy3a().verify()
+        assert ex.value.args[0] == (
+            "inverse_transform(transform(states)).shape != states.shape"
         )
 
-        mix.n = nvar * 12
-        assert mix.n == nvar * 12
-        assert mix.ni == 12
-
-        mix.n = nvar * 3
-        assert mix.n == nvar * 3
-        assert mix.ni == 3
-
-    # Convenience methods -----------------------------------------------------
-    def test_get_varslice(self):
-        """Test _MultivarMixin.get_varslice()."""
-        mix = self.Mixin(4, variable_names=list("abcd"))
-        mix.n = 12
-        s0 = mix.get_varslice(0)
-        assert isinstance(s0, slice)
-        assert s0.start == 0
-        assert s0.stop == mix.ni
-        s1 = mix.get_varslice(1)
-        assert isinstance(s1, slice)
-        assert s1.start == mix.ni
-        assert s1.stop == 2 * mix.ni
-        s2 = mix.get_varslice("c")
-        assert isinstance(s2, slice)
-        assert s2.start == 2 * mix.ni
-        assert s2.stop == 3 * mix.ni
-
-    def test_get_var(self):
-        """Test _MultivarMixin.get_var()."""
-        mix = self.Mixin(4, variable_names=list("abcd"))
-        mix.n = 12
-        q = np.random.random(mix.n)
-        q0 = mix.get_var(0, q)
-        assert q0.shape == (mix.ni,)
-        assert np.all(q0 == q[: mix.ni])
-        q1 = mix.get_var(1, q)
-        assert q1.shape == (mix.ni,)
-        assert np.all(q1 == q[mix.ni : 2 * mix.ni])
-        q2 = mix.get_var("c", q)
-        assert q2.shape == (mix.ni,)
-        assert np.all(q2 == q[2 * mix.ni : 3 * mix.ni])
-
-    def test_check_shape(self):
-        """Test _MultivarMixin._check_shape()."""
-        mix = self.Mixin(12)
-        mix.n = 120
-        X = np.random.randint(0, 100, (120, 23)).astype(float)
-        mix._check_shape(X)
-
-        with pytest.raises(ValueError) as ex:
-            mix._check_shape(X[:-1])
-        assert (
-            ex.value.args[0]
-            == "states.shape[0] = 119 != 12 * 10 = num_variables * n_i"
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy3b().verify()
+        assert ex.value.args[0] == (
+            "inverse_transform(states_transformed, inplace=False) "
+            "is states_transformed"
         )
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy3c().verify()
+        assert ex.value.args[0] == (
+            "inverse_transform(states_transformed, inplace=True) "
+            "is not states_transformed"
+        )
+
+        class Dummy4(Dummy1):
+            def inverse_transform(
+                self,
+                states_transformed,
+                inplace=False,
+                locs=None,
+            ):
+                if locs is None:
+                    if inplace:
+                        return states_transformed
+                    return states_transformed.copy()
+                return states_transformed[:-1]
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy4().verify()
+        assert ex.value.args[0] == (
+            "inverse_transform(transform(states)[locs], locs).shape "
+            "!= states[locs].shape"
+        )
+
+        class Dummy5a(Dummy1):
+            def inverse_transform(
+                self,
+                states_transformed,
+                inplace=False,
+                locs=None,
+            ):
+                Q = states_transformed
+                if not inplace:
+                    Q = Q.copy()
+                Q += 1
+                return Q
+
+        class Dummy5b(Dummy1):
+            def inverse_transform(
+                self,
+                states_transformed,
+                inplace=False,
+                locs=None,
+            ):
+                Q = states_transformed
+                if not inplace:
+                    Q = Q.copy()
+                if locs is not None:
+                    Q += 1
+                return Q
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy5a().verify()
+        assert ex.value.args[0] == (
+            "transform() and inverse_transform() are not inverses"
+        )
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy5b().verify()
+        assert ex.value.args[0] == (
+            "transform() and inverse_transform() are not inverses "
+            "(locs != None)"
+        )
+
+        class Dummy6a(Dummy1):
+            def transform_ddts(self, ddts, inplace=False):
+                return ddts
+
+        class Dummy6b(Dummy1):
+            def transform_ddts(self, ddts, inplace=False):
+                dQ = ddts if inplace else ddts.copy()
+                dQ += 1e16
+                return dQ
+
+        class Dummy6c(Dummy1):
+            def transform_ddts(self, ddts, inplace=False):
+                return ddts.copy()
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy6a().verify()
+        assert ex.value.args[0].startswith(
+            "transform_ddts(ddts, inplace=False) is ddts"
+        )
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy6b().verify()
+        assert ex.value.args[0].startswith(
+            "transform_ddts() failed finite difference check"
+        )
+
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            Dummy6c().verify()
+        assert ex.value.args[0].startswith(
+            "transform_ddts(ddts, inplace=True) is not ddts"
+        )
+
+        class Dummy7(Dummy1):
+            def transform_ddts(self, ddts, inplace=False):
+                return ddts if inplace else ddts.copy()
+
+        Dummy7().verify()

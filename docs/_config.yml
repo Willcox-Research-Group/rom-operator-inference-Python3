@@ -29,6 +29,7 @@ execute:
 # Bibtex file for citations.
 bibtex_bibfiles:
   - references.bib
+  - literature.bib
 
 parse:
   myst_enable_extensions:
@@ -68,6 +69,7 @@ sphinx:
           "z": "\\mathbf{z}"                  # rhs vector
           "d": "\\mathbf{d}"                  # data vector
           "f": "\\mathbf{f}"                  # model rhs function
+          "s": "\\mathbf{s}"                  # unprocessed state vector
           "Q": "\\mathbf{Q}"                  # state data
           "U": "\\mathbf{U}"                  # input data
           "Z": "\\mathbf{Z}"                  # rhs data
@@ -80,7 +82,8 @@ sphinx:
           "B": "\\mathbf{B}"                  # input operator
           "N": "\\mathbf{N}"                  # bilinear operator
           "v": "\\mathbf{v}"                  # basis vector
-          "V": "\\mathbf{V}"                  # generic basis matrix.
+          "V": "\\mathbf{V}"                  # generic basis matrix
+          "W": "\\mathbf{W}"                  # weight matrix
           "Vr": "\\mathbf{V}_{\\!r}"          # trial basis matrix
           "Wr": "\\mathbf{W}_{\\!r}"          # test basis matrix
           "qhat": "\\hat{\\mathbf{q}}"        # reduced state vector
@@ -105,6 +108,8 @@ sphinx:
           "trp": "{^{\\mathsf{T}}}"           # transpose
           "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"    # time derivative
           "ddqhat": "\\frac{\\partial}{\\partial\\qhat}"    # d/dqhat
+          "mean": "\\operatorname{mean}"     # mean
+          "std": "\\operatorname{std}"        # standard deviation
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     numfig_secnum_depth: 1              # Eq (1.1) instead of (1).
     numpydoc_class_members_toctree: false

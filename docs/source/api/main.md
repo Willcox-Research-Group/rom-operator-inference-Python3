@@ -8,8 +8,10 @@ The `opinf` namespace is divided into the following submodules.
 
 .. autosummary::
 
+    opinf.lift
     opinf.pre
     opinf.basis
+    opinf.ddt
     opinf.operators
     opinf.models
     opinf.lstsq

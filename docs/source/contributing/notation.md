@@ -7,9 +7,9 @@ In the code, low-dimensional quantities ends with an underscore (e.g., `state` i
 
 | Symbol | Code | Description |
 | :----: | :--- | :---------- |
-| $n$ | `n` | Dimension of the full-order system (large) |
-| $r$ | `r` | Dimension of the reduced-order system (small) |
-| $m$ | `m` | Dimension of the input $\u$ |
+| $n$ | `full_state_dimension` | Dimension of the full-order system (large) |
+| $r$ | `reduced_state_dimension` | Dimension of the reduced-order system (small) |
+| $m$ | `input_dimension` | Dimension of the input $\u$ |
 | $k$ | `k` | Number of state snapshots, i.e., the number of training points |
 | $s$ | `s` | Number of parameter samples for parametric training |
 | $p$ | `p` | Dimension of the parameter space |

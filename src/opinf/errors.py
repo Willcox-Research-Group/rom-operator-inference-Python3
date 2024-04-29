@@ -2,7 +2,7 @@
 """Custom exception classes."""
 
 
-class DimensionalityError(Exception):  # pragma: no cover
+class DimensionalityError(ValueError):  # pragma: no cover
     """Dimension of data not aligned with previous model information."""
 
     pass
@@ -14,13 +14,13 @@ class LoadfileFormatError(Exception):  # pragma: no cover
     pass
 
 
-class VerificationError(Exception):  # pragma: no cover
+class VerificationError(RuntimeError):  # pragma: no cover
     """Implementation of a template fails to meet requriements."""
 
     pass
 
 
-class UsageWarning(Warning):  # pragma: no cover
+class UsageWarning(UserWarning):  # pragma: no cover
     """Generic warning for package usage."""
 
     pass

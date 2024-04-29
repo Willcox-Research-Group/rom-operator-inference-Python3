@@ -29,6 +29,27 @@ cd rom-operator-inference-Python3
 git remote add upstream https://<username>@github.com/Willcox-Research-Group/rom-operator-inference-Python3
 ```
 
+Like most Python packages, `opinf` has a few [software dependencies](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/network/dependencies).
+To avoid conflicts with other installed packages, we recommend installing `opinf` within a new [conda environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) (recommended) or [virtual Python environment](https://docs.python.org/3/tutorial/venv.html) .
+
+```shell
+# Make a fresh conda environment and install Python 3.11.
+conda create -n opinf3.11 python=3.11
+```
+
+Be sure to [activate](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment) the environment before using `pip` or other installation tools.
+
+```shell
+# Activate the conda environment (updates the PATH).
+$ conda activate opinf3.11
+
+# Verify python is now linked to the conda environment.
+$ which python3
+/path/to/your/conda/envs/opinf3.11/bin/python3
+$ python3 --version
+Python 3.11.8
+```
+
 ## Branches and Workflow
 
 The source repository has two special branches:
@@ -41,7 +62,7 @@ To contribute, get synced with the `main` branch, then start a new branch for ma
 ```bash
 git pull upstream main        # Synchronize main with the source repository.
 git branch <mynewbranch>      # Create a new branch to make edits from.
-git checkout <mynewbranch>    # Switch to the working branch to do work.
+git switch <mynewbranch>      # Switch to the new branch to do work.
 ```
 
 You are now ready to make edits on your newly created local branch.

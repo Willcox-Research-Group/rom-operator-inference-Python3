@@ -12,8 +12,7 @@ parts:
     - file: source/opinf/intro.md
     - file: source/opinf/installation.md
     - file: source/opinf/changelog.md
-    # - file: source/opinf/gallery.md
-    # - file: source/opinf/literature.md
+    - file: source/opinf/literature.md
     - file: source/opinf/bibliography.md
 
   # Complete numerical examples, written in a tutorial style.
@@ -22,8 +21,6 @@ parts:
     # numbered: 1
     chapters:
     - file: source/tutorials/basics.ipynb
-    - file: source/tutorials/preprocessing.ipynb
-    - file: source/tutorials/reduction.md
     - file: source/tutorials/heat_equation.ipynb
 
   # API reference via sphinx-autodoc + limited handwritten documentation.
@@ -32,8 +29,8 @@ parts:
     chapters:
     - file: source/api/main.md
     - file: source/api/lift.ipynb
-    - file: source/api/pre.md
-    - file: source/api/basis.md
+    - file: source/api/pre.ipynb
+    - file: source/api/basis.ipynb
     - file: source/api/ddt.md
     - file: source/api/operators.md
     - file: source/api/models.md

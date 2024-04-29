@@ -5,6 +5,31 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+:::{versionchanged} 0.5.2
+Significant updates to the `pre` and `basis` submodules.
+
+Updates to `pre`:
+
+- New `TransformerTemplate` class for defining custom transformers.
+- Renamed `SnapshotTransformer` to `ShiftScaleTransformer`.
+- Removed `SnapshotTransformerMulti`.
+- New `TransformerMulti` class for joining multiple transformations.
+- Renamed some attributes of the transformer classes: `n` -> `full_state_dimension`, `ni` -> `variable_size`, etc.
+
+Updates to `basis`:
+
+- New `BasisTemplate` class for defining custom bases.
+- Standardized arguments of `fit()` to always be the snapshots. Hyperparameters must come in the constructor.
+- `LinearBasis` now accepts an optional weight matrix.
+- `LinearBasis` raises a warning if the basis entries are not orthogonal (w.r.t. the weights).
+- Updated `PODBasis` dimensionality properties. Use `set_dimension()` to update the reduced state dimension on the fly.
+- Removed `PODBasisMulti`.
+- New `BasisMulti` multi class for joining multiple bases.
+- Renamed some attributes of the basis classes (matching transformer syntax): `n` -> `full_state_dimension`, `r` -> `reduced_state_dimension`, etc.
+
+Added a new Literature page to the documentation listing Operator Inference publications.
+:::
+
 :::{versionadded} 0.5.1
 New `lift` module that defines a template class for implementing lifting transformations.
 :::

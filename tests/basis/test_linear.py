@@ -2,11 +2,9 @@
 """Tests for basis._linear."""
 
 import os
-import h5py
 import pytest
 import numpy as np
 import scipy.linalg as la
-import scipy.sparse as sparse
 import matplotlib.pyplot as plt
 
 import opinf
@@ -14,59 +12,117 @@ import opinf
 
 class TestLinearBasis:
     """Test basis._linear.LinearBasis."""
-    LinearBasis = opinf.basis.LinearBasis
 
-    def test_init(self):
-        """Test __init__() and entries properties."""
-        basis = self.LinearBasis()
+    Basis = opinf.basis.LinearBasis
+
+    def _orth(self, n, r):
+        return la.svd(np.random.random((n, r)), full_matrices=False)[0]
+
+    def test_init(self, n=10, r=3):
+        """Test __init__(), fit(), and entries."""
+        # Empty basis.
+        basis = self.Basis(None, name="something")
         assert basis.entries is None
-        assert basis.shape is None
-        assert basis.r is None
+        assert basis.weights is None
+        assert basis.full_state_dimension is None
+        assert basis.reduced_state_dimension is None
+        assert basis.name == "something"
 
-        with pytest.raises(TypeError) as ex:
-            basis.fit(10)
-        assert ex.value.args[0].startswith("invalid basis")
+        # Check that compress() and decompress() are disabled.
+        for method in basis.compress, basis.decompress:
+            with pytest.raises(AttributeError) as ex:
+                method(0)
+            assert ex.value.args[0] == "basis entries not initialized"
 
-        Vr = np.random.random((10, 3))
-        basis.fit(Vr)
+        # Ensure the state dimensions cannot be set.
+        for attr in "full_state_dimension", "reduced_state_dimension":
+            with pytest.raises(AttributeError) as ex:
+                setattr(basis, attr, 10)
+            assert getattr(basis, attr) is None
+
+        # Orthogonal basis.
+        Vr = self._orth(n, r)
+        basis = self.Basis(Vr)
         assert basis.entries is Vr
+        assert basis.shape == (n, r)
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
         assert np.all(basis[:] == Vr)
-        assert basis.shape == (10, 3)
-        assert basis.r == 3
+        assert basis.weights is None
+        assert basis.name is None
 
-        out = basis.fit(Vr + 1)
-        assert out is basis
-        assert np.allclose(basis[:] - 1, Vr)
+        # Non-orthogonal basis.
+        Vr = np.ones((n, r))
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            basis = self.Basis(Vr)
+        assert wn[0].message.args[0] == "basis not orthogonal"
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert np.all(basis.entries == 1)
+        assert basis.weights is None
+        assert basis.fit() is basis
+
+        # Weighted basis.
+        w = 1 + np.random.random(n)
+        wrootinv = 1 / np.sqrt(w)
+        Vr_euc = la.qr(np.random.random((n, r)), mode="economic")[0]
+        Vr = wrootinv.reshape((-1, 1)) * Vr_euc
+        basis1 = self.Basis(
+            entries=Vr,
+            weights=w,
+            check_orthogonality=True,
+        )
+        basis2 = self.Basis(
+            entries=Vr,
+            weights=np.diag(w),
+            check_orthogonality=True,
+        )
+        assert np.all(basis1.entries == basis2.entries)
+        assert np.all(basis2.entries == Vr)
+
+        with pytest.raises(ValueError) as ex:
+            self.Basis(
+                entries=Vr,
+                weights=np.random.random((2, 2, 2)),
+                check_orthogonality=False,
+            )
+        assert ex.value.args[0] == "expected one- or two-dimensional weights"
 
     def test_str(self):
         """Test __str__() and __repr__()."""
-        basis = self.LinearBasis()
-        assert str(basis) == "Empty LinearBasis"
-        assert repr(basis).startswith("<LinearBasis object at ")
+        basis = self.Basis(self._orth(10, 4))
+        assert str(basis) == (
+            "LinearBasis"
+            "\n  Full state dimension    n = 10"
+            "\n  Reduced state dimension r = 4"
+        )
 
-        basis.fit(np.empty((10, 4)))
-        assert str(basis) == "LinearBasis" \
-            "\nFull-order dimension    n = 10" \
-            "\nReduced-order dimension r = 4"
-
-        basis.fit(np.empty((9, 5)))
-        assert str(basis) == "LinearBasis" \
-            "\nFull-order dimension    n = 9" \
-            "\nReduced-order dimension r = 5"
+        basis = self.Basis(self._orth(9, 5), name="varname")
+        assert str(basis) == (
+            "LinearBasis for variable 'varname'"
+            "\n  Full state dimension    n = 9"
+            "\n  Reduced state dimension r = 5"
+        )
+        assert repr(basis).count(str(basis)) == 1
 
     # Dimension reduction  ----------------------------------------------------
     def test_compress(self, n=9, r=4):
         """Test compress()."""
-        Vr = np.random.random((n, r))
-        basis = self.LinearBasis().fit(Vr)
+        Vr = self._orth(n, r)
+        basis = self.Basis(Vr)
         q = np.random.random(n)
         q_ = Vr.T @ q
         assert np.allclose(basis.compress(q), q_)
 
+        w = np.random.random(n)
+        basis = self.Basis(Vr, weights=w, check_orthogonality=False)
+        q_ = basis.entries.T @ (w * q)
+        assert np.allclose(basis.compress(q), q_)
+
     def test_decompress(self, n=9, r=4):
         """Test decompress()."""
-        Vr = np.random.random((n, r))
-        basis = self.LinearBasis().fit(Vr)
+        Vr = self._orth(n, r)
+        basis = self.Basis(Vr)
         q_ = np.random.random(r)
         q = Vr @ q_
         assert np.allclose(basis.decompress(q_), q)
@@ -78,17 +134,19 @@ class TestLinearBasis:
     # Visualization -----------------------------------------------------------
     def test_plot1D(self, n=20, r=4):
         """Lightly test plot1D()."""
-        basis = self.LinearBasis()
-        assert basis.plot1D(None) is None
-        basis.fit(np.random.standard_normal((n, r)))
+        basis = self.Basis(self._orth(n, r))
 
         # Turn interactive mode on.
         _pltio = plt.isinteractive()
         plt.ion()
 
         # Call the plotting routine.
-        x = np.linspace(0, 1, n)
+        x = np.linspace(0, 10, n)
         ax = basis.plot1D(x)
+        assert isinstance(ax, plt.Axes)
+        plt.close(ax.figure)
+
+        ax = basis.plot1D(num_vectors=(r - 1))
         assert isinstance(ax, plt.Axes)
         plt.close(ax.figure)
 
@@ -98,273 +156,74 @@ class TestLinearBasis:
     # Persistence -------------------------------------------------------------
     def test_eq(self):
         """Test __eq__()."""
-        basis1 = self.LinearBasis()
+        basis1 = self.Basis(self._orth(10, 4))
         assert basis1 != 10
-
-        basis2 = self.LinearBasis()
-        basis1.fit(np.random.random((10, 4)))
-        basis2.fit(np.random.random((10, 3)))
+        basis2 = self.Basis(self._orth(10, 3))
         assert basis1 != basis2
 
-        basis1 = self.LinearBasis()
-        basis1.fit(basis2.entries)
+        basis1 = self.Basis(basis2.entries)
         assert basis1 == basis2
-        basis1.fit(basis2.entries + 1)
+        basis1 = self.Basis(self._orth(10, 10) @ basis2.entries)
         assert basis1 != basis2
 
-    def test_save(self, n=11, r=2):
-        """Test save()."""
+        basis2 = self.Basis(
+            basis2.entries,
+            weights=np.random.random(basis2.full_state_dimension) + 0.5,
+            check_orthogonality=False,
+        )
+        assert basis1 != basis2
+        assert basis2 != basis1
+        basis1 = self.Basis(
+            basis2.entries,
+            weights=basis2.weights,
+            check_orthogonality=False,
+        )
+        assert basis1 == basis2
+        basis1 = self.Basis(
+            basis2.entries,
+            weights=(2 * basis2.weights),
+            check_orthogonality=False,
+        )
+        assert basis1 != basis2
+
+    def test_save(self, n=11, r=2, target="_linearbasissavetest.h5"):
+        """Lightly test LinearBasis.save()."""
         # Clean up after old tests.
-        target = "_linearbasissavetest.h5"
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
-        Vr = np.random.random((n, r))
+        Vr = self._orth(n, r)
+        w = np.random.random(n)
 
-        def _check_savefile(filename):
-            with h5py.File(filename, 'r') as hf:
-                assert "entries" in hf
-                assert np.all(hf["entries"][:] == Vr)
-
-        basis = self.LinearBasis().fit(Vr)
+        basis = self.Basis(Vr, name="mybasis")
         basis.save(target)
-        _check_savefile(target)
+        assert os.path.isfile(target)
         os.remove(target)
+
+        basis = self.Basis(Vr, w, check_orthogonality=False)
         basis.save(target)
-        _check_savefile(target)
-        os.remove(target)
-
-    def test_load(self, n=10, r=5):
-        """Test load()."""
-        # Clean up after old tests.
-        target = "_linearbasisloadtest.h5"
-        if os.path.isfile(target):              # pragma: no cover
-            os.remove(target)
-
-        Vr = np.random.random((n, r))
-
-        def _make_loadfile(loadfile):
-            with h5py.File(loadfile, 'w') as hf:
-                hf.create_dataset("entries", data=Vr)
-
-        _make_loadfile(target)
-        basis = self.LinearBasis.load(target)
-        assert isinstance(basis, self.LinearBasis)
-        assert np.all(basis.entries == Vr)
-        os.remove(target)
-
-        # Check that save() and load() are inverses for an empty basis.
-        basis1 = self.LinearBasis()
-        basis1.save(target, overwrite=True)
-        basis = self.LinearBasis.load(target)
-        assert basis == basis1
-
-        # Clean up.
-        os.remove(target)
-
-
-class TestLinearBasisMulti:
-    """Test basis._linear._LinearBasis."""
-    LinearBasisMulti = opinf.basis.LinearBasisMulti
-
-    def test_init(self):
-        """Test LinearBasisMulti.__init__()."""
-        basis = self.LinearBasisMulti(4, list("abcd"))
-        for attr in ["num_variables", "variable_names",
-                     "r", "rs", "n", "ni", "entries", "bases"]:
-            assert hasattr(basis, attr)
-
-        assert basis.num_variables == 4
-        assert basis.variable_names == list("abcd")
-        assert basis.r is None
-        assert basis.rs is None
-        assert basis.n is None
-        assert basis.ni is None
-        assert basis.entries is None
-
-        # Test individual bases.
-        assert len(basis.bases) == 4
-        for subbasis in basis.bases:
-            assert isinstance(subbasis, self.LinearBasisMulti._BasisClass)
-            assert subbasis.r is None
-            assert subbasis.entries is None
-
-    def test_properties(self, nvars=4, ni=10, k=27):
-        """Test LinearBasisMulti properties r, rs, and entries."""
-        basis = self.LinearBasisMulti(nvars)
-
-        with pytest.raises(AttributeError):
-            basis.r = 3
-
-        # To test r, rs, and entries, we need to set the basis entries.
-        rs = [i + 2 for i in range(nvars)]
-        Vs = [la.qr(np.random.standard_normal((ni, r)), mode="economic")[0]
-              for r in rs]
-        for Vi, subbasis in zip(Vs, basis.bases):
-            subbasis.fit(Vi)
-
-        n = nvars * ni
-        assert basis.rs == rs
-        assert basis.r == sum(rs)
-        for subbasis, r in zip(basis.bases, rs):
-            assert subbasis.r == r
-            assert subbasis.entries.shape == (ni, r)
-        assert basis.entries is None
-        basis._set_entries()
-        assert basis.entries is not None
-        assert basis.entries.shape == (n, basis.r)
-
-    def test_eq(self, nvars=3):
-        """Test LinearBasisMulti.__eq__()."""
-        basis1 = self.LinearBasisMulti(nvars)
-        assert basis1 != 100
-        basis2 = self.LinearBasisMulti(nvars + 1)
-        assert basis1 != basis2
-        basis2 = self.LinearBasisMulti(nvars)
-        assert basis1 == basis2
-        basis2.bases[0] = 10
-        assert basis1 != basis2
-
-    def test_str(self):
-        """Test LinearBasisMulti.__str__()."""
-        names = list("ABCD")
-        num = len(names)
-
-        # Empty basis.
-        basis = self.LinearBasisMulti(len(names), variable_names=names)
-        bstr = str(basis)
-        assert bstr.startswith(f"Empty {num:d}-variable LinearBasis")
-        for name in "ABCD":
-            assert f"\n* {name} : Empty LinearBasis" in bstr
-
-        # Non-empty basis.
-        rs = np.random.randint(2, 10, num)
-        Vs = [np.random.standard_normal((20, r)) for r in rs]
-        basis.fit(Vs)
-        bstr = str(basis)
-        assert bstr.startswith(
-            f"{num:d}-variable LinearBasis")
-        for i, (name, r) in enumerate(zip("ABCD", rs)):
-            assert f"\n* {name} : LinearBasis" in bstr
-            assert f"Full-order dimension    n{i+1} = 20" in bstr
-            assert f"Reduced-order dimension r{i+1} = {r:d}" in bstr
-        n = sum(V.shape[0] for V in Vs)
-        r = rs.sum()
-        assert f"\nTotal full-order dimension    n = {n:d}" in bstr
-        assert f"\nTotal reduced-order dimension r = {r:d}" in bstr
-
-    # Main routines -----------------------------------------------------------
-    def test_fit(self, nvars=4, ni=12, k=15):
-        """Test LinearBasisMulti.fit() and _set_entries."""
-        n = nvars * ni
-        rs = [i + 2 for i in range(nvars)]
-        rtotal = sum(rs)
-        Vs = [la.qr(np.random.standard_normal((ni, r)), mode="economic")[0]
-              for r in rs]
-        basis = self.LinearBasisMulti(nvars).fit(Vs)
-        assert isinstance(basis.entries, sparse.csc_matrix)
-        assert basis.shape == (n, sum(rs))
-        assert basis.n is not None
-        assert basis.n == n
-        assert basis.ni is not None
-        assert basis.ni == ni
-        assert basis.r is not None
-        assert basis.r == rtotal
-        for i, subbasis in enumerate(basis.bases):
-            r = rs[i]
-            assert subbasis.r == r
-            assert isinstance(subbasis.entries, np.ndarray)
-            assert subbasis.shape == (ni, r)
-            assert np.allclose(subbasis.entries, Vs[i])
-        topleft = basis.entries.toarray()[:ni, :rs[0]]
-        assert np.all(topleft == basis.bases[0].entries)
-        assert np.all(basis.entries.toarray()[ni:, :rs[0]] == 0)
-        basis_prod = basis.entries.T @ basis.entries
-        Id = np.eye(rtotal)
-        assert basis_prod.shape == Id.shape
-        assert np.allclose(basis_prod.toarray(), Id)
-
-        # Try to use bases with different ni dimension.
-        Vs = [np.random.standard_normal((ni + r, r)) for r in rs]
-        basis = self.LinearBasisMulti(nvars)
-        with pytest.raises(ValueError) as ex:
-            basis.fit(Vs)
-        assert ex.value.args[0] == "all bases must have the same row dimension"
-
-    # Persistence -------------------------------------------------------------
-    def test_save(self, nvars=4, ni=12, k=15):
-        """Lightly test LinearBasisMulti.save()."""
-        # Clean up after old tests.
-        target = "_linearbasismultisavetest.h5"
-        if os.path.isfile(target):              # pragma: no cover
-            os.remove(target)
-
-        # Save an empty basis.
-        basis = self.LinearBasisMulti(nvars)
-        basis.save(target, overwrite=False)
         assert os.path.isfile(target)
-
-        # Save a nonempty basis.
-        Vs = [la.qr(np.random.standard_normal((ni, i+2)), mode="economic")[0]
-              for i in range(nvars)]
-        basis.fit(Vs)
-        basis.save(target, overwrite=True)
-        assert os.path.isfile(target)
-
-        # Clean up.
         os.remove(target)
 
-    def test_load(self, nvars=4, ni=12, k=15):
-        """Test LinearBasisMulti.load()."""
+    def test_load(self, n=10, r=5, target="_linearbasisloadtest.h5"):
+        """Test LinearBasis.load()."""
         # Clean up after old tests.
-        target = "_linearbasismultiloadtest.h5"
-        if os.path.isfile(target):              # pragma: no cover
+        if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
-        # Try to load a bad file.
-        with h5py.File(target, "w"):
-            pass
+        Vr = self._orth(n, r)
+        basis1 = self.Basis(Vr, name="testbasis")
+        basis1.save(target)
+        basis2 = self.Basis.load(target)
+        assert basis2.name == "testbasis"
+        assert basis2 == basis1
 
-        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
-            self.LinearBasisMulti.load(target)
-        assert ex.value.args[0] == "invalid save format (meta/ not found)"
-
-        # Test that save() and load() are inverses for an empty basis.
-        basis1 = self.LinearBasisMulti(nvars)
+        w = np.random.random(n) + 0.5
+        basis1 = self.Basis(Vr, w, check_orthogonality=False)
         basis1.save(target, overwrite=True)
-        basis2 = self.LinearBasisMulti.load(target)
-        assert basis2.n is None
-        assert basis2.ni is None
-        assert basis2.r is None
-        assert basis2.rs is None
-        assert basis2.entries is None
-        assert basis1 == basis2
-
-        # Save a basis to a temporary file (don't interrogate the file).
-        rs = np.random.randint(2, 10, nvars)
-        Vs = [np.random.standard_normal((ni, r)) for r in rs]
-        basis1.fit(Vs)
-        basis1.save(target, overwrite=True)
-
-        # Test that save() and load() are inverses for a nonempty basis.
-        basis2 = self.LinearBasisMulti.load(target)
-        assert basis1.n == basis2.n
-        assert basis1.ni == basis2.ni
-        assert basis1.r == basis2.r
-        assert basis1.entries.shape == basis2.entries.shape
-        assert np.allclose(basis1.entries.toarray(), basis2.entries.toarray())
-        for i, subbasis in enumerate(basis2.bases):
-            assert subbasis.r == rs[i]
-            assert subbasis.shape == Vs[i].shape
-            assert np.all(subbasis.entries == Vs[i])
-        assert basis1 == basis2
-
-        with h5py.File(target, 'a') as hf:
-            hf["meta"].attrs["num_variables"] = nvars + 2
-        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
-            self.LinearBasisMulti.load(target)
-        assert ex.value.args[0] == \
-            f"invalid save format (variable{nvars+1:d}/ not found)"
+        with pytest.warns(opinf.errors.UsageWarning):
+            basis2 = self.Basis.load(target)
+        assert basis2 == basis1
 
         # Clean up.
         os.remove(target)

@@ -18,7 +18,7 @@ import scipy.linalg as la
 import scipy.interpolate as spinterp
 
 from .. import errors, utils
-from ._base import _ParametricOperator, _InputMixin, _requires_entries
+from ._base import _ParametricOperator, _InputMixin
 from ._nonparametric import (
     ConstantOperator,
     LinearOperator,
@@ -339,7 +339,7 @@ class _InterpolatedOperator(_ParametricOperator):
         return True
 
     # Evaluation --------------------------------------------------------------
-    @_requires_entries
+    @utils.requires("entries")
     def evaluate(self, parameter):
         r"""Evaluate the operator at the given parameter value,
         :math:`\Ophat_{\ell}(\cdot,\cdot;\bfmu)`.
@@ -358,7 +358,7 @@ class _InterpolatedOperator(_ParametricOperator):
         return self.OperatorClass(self.interpolator(parameter))
 
     # Dimensionality reduction ------------------------------------------------
-    @_requires_entries
+    @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Project this operator to a low-dimensional linear space.
 

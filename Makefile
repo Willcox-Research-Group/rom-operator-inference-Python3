@@ -80,6 +80,7 @@ test: clean install_tests test_light
 # Documentation ---------------------------------------------------------------
 # No cleaning, take advantage of caching.
 docs_light:
+	cd docs && $(PYTHON) bib2md.py
 	jupyter-book build --nitpick docs
 
 # Re-install package and build docs.

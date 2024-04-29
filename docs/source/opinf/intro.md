@@ -8,10 +8,10 @@
 The goal of Operator Inference is to construct a low-dimensional, computationally inexpensive system whose solutions are close to those of some high-dimensional system for which we have 1) training data and 2) some knowledge about the system structure.
 The main steps are the following.
 
-1. [**Get Training Data**](subsec-training-data). Gather and [preprocess](../tutorials/preprocessing.ipynb) high-dimensional data to learn a low-dimensional model from. This package has a few common preprocessing tools, but the user must bring the data to the table.
-2. [**Compute a Low-dimensional Representation**](subsec-basis-computation). Represent the high-dimensional data with only a few degrees of freedom. The simplest approach is to take the SVD of the high-dimensional training data, extract the first few left singular vectors, and use these vectors as a new coordinate basis.
-3. [**Set up and Solve a Low-dimensional Regression**](subsec-opinf-regression). Use the low-dimensional representation of the training data to determine a reduced-order model that best fits the data in a minimum-residual sense. This is the core objective of the package.
-4. [**Evaluate the Reduced-order Model**](subsec-rom-evaluation). Use the learned model to make computationally efficient predictions.
+1. [**Get training data**](subsec-training-data). Gather and [preprocess](../api/pre.ipynb) high-dimensional data to learn a low-dimensional model from. This package has a few common preprocessing tools, but the user must bring the data to the table.
+2. [**Compute a low-dimensional representation**](subsec-basis-computation). Approximate the high-dimensional data with only a few degrees of freedom. The simplest approach is to take the SVD of the high-dimensional training data, extract the first few left singular vectors, and use these vectors as a new coordinate basis.
+3. [**Set up and solve a low-dimensional regression**](subsec-opinf-regression). Use the low-dimensional representation of the training data to determine a reduced-order model that best fits the data in a minimum-residual sense. This is the core objective of the package.
+4. [**Evaluate the reduced-order model**](subsec-rom-evaluation). Use the learned model to make computationally efficient predictions.
 
 This page gives an overview of Operator Inference by walking through each of these steps.
 
@@ -153,7 +153,7 @@ Common preprocessing steps include
 2. Centering or shifting data to account for boundary conditions.
 3. Scaling / nondimensionalizing the variables represented in the state.
 
-See [Data Preprocessing](sec-guide-preprocessing) for details and examples.
+See [`opinf.pre`](../api/pre.ipynb) for details and examples.
 :::
 
 Operator Inference uses a regression problem to compute the reduced-order operators, which requires state data ($\Q$), input data ($\U$), _and_ data for the corresponding time derivatives:
