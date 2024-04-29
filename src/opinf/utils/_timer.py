@@ -89,7 +89,9 @@ class timed_block:
         else:  # If no exception, report execution time.
             if self.verbose:
                 print(
-                    f"done in {elapsed:.2f} s.", flush=True, end=self._backend
+                    f"done in {elapsed:.2f} s.",
+                    flush=True,
+                    end=self._backend,
                 )
             logging.info(f"{self.message}...done in {elapsed:.6f} s.")
         self.elapsed = elapsed
