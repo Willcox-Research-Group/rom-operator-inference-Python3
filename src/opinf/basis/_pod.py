@@ -1202,6 +1202,7 @@ def residual_energy(
             right = min(right, j.size)
             ax.set_xlim(right=right)
             bottom = res_energy[min(int(right) + 1, res_energy.size - 3)]
+        bottom = max(bottom, 1e-17)
         ylim = (bottom, 1.1)
 
         if threshold:
