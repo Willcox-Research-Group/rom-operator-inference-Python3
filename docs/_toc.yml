@@ -21,7 +21,6 @@ parts:
     # numbered: 1
     chapters:
     - file: source/tutorials/basics.ipynb
-    - file: source/tutorials/reduction.md
     - file: source/tutorials/heat_equation.ipynb
 
   # API reference via sphinx-autodoc + limited handwritten documentation.
