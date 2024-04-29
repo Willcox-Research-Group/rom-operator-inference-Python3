@@ -418,17 +418,21 @@ class TestPODBasis:
 def test_pod_basis(n=40, k=20, r=3):
     """Test basis._pod.pod_basis()."""
     Q = np.random.random((n, k))
-    V, svals = opinf.basis.pod_basis(Q, num_vectors=r)
-    assert V.shape == (n, r)
+    V, svals = opinf.basis.pod_basis(Q)
+    assert V.shape == (n, k)
     assert svals.shape == (k,)
-    assert np.allclose(V.T @ V, np.eye(r))
+    assert np.allclose(V.T @ V, np.eye(k))
 
+    weights = np.diag(np.random.random(n))
+    Id = np.eye(r)
     V, svals, W = opinf.basis.pod_basis(
         Q - 1,
         num_vectors=r,
+        weights=weights,
         return_rightvecs=True,
     )
     assert V.shape == (n, r)
     assert svals.shape == (k,)
     assert W.shape == (k, r)
-    assert np.allclose(V.T @ V, np.eye(r))
+    assert np.allclose(V.T @ weights @ V, Id)
+    assert np.allclose(W.T @ W, Id)

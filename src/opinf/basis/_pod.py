@@ -878,13 +878,24 @@ def pod_basis(
         :math:`r` for ``svdsolver="randomized"``.
     rightvecs : (k, r) ndarray
         First :math:`r` **right** singular vectors, as columns.
-        **NOTE**: only returned if ``return_W=True``.
+        **NOTE**: only returned if ``return_rightvecs=True``.
 
     Notes
     -----
     See :class:`PODBasis` for the mathematical definition of POD and for
     details on other constructor arguments.
     """
+    # If no criteria given, use the maximum dimension based on the states.
+    criteria = {
+        num_vectors,
+        svdval_threshold,
+        cumulative_energy,
+        residual_energy,
+        projection_error,
+    }
+    if len(criteria) == 1 and criteria.pop() is None:
+        num_vectors = min(states.shape)
+
     basis = PODBasis(
         num_vectors=num_vectors,
         svdval_threshold=svdval_threshold,
