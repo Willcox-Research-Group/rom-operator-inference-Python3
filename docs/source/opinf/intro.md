@@ -234,7 +234,7 @@ The basis matrix is the link between the high-dimensional state space of the ful
 :width: 80 %
 :::
 
-See [Dimensionality Reduction](sec-guide-dimensionality) for tools to compute the basis $\Vr\in\RR^{n \times r}$ and select an appropriate dimension $r$.
+See {mod}`opinf.basis` for tools to compute the basis $\Vr\in\RR^{n \times r}$ and select an appropriate dimension $r$.
 
 <!-- :::{tip}
 In the case of finite differences, the time derivative estimation can be done after the data is projected to the low-dimensional subspace defined by the basis (the column space of $\Vr$).
