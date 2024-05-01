@@ -10,20 +10,13 @@ import bibtexparser.middlewares as bm
 
 # Configuration ===============================================================
 
-# Text before the list of references begins.
-HEADER = """# Literature
-
-This page lists scholarly publications that develop, extend, or apply
-Operator Inference.
-"""
-# [Click here submit a new entry](TODO).
-
 # Categories to group the references by.
+# These are the options for the `categories` field in literature.bib entries.
 categories = {
     "origin": "Original Paper",
     "survey": "Surveys",
     "method": "Methodology",
-    "struct": "Structure Preservation",
+    "structure": "Structure Preservation",
     "theory": "Theory",
     "application": "Applications",
     "thesis": "Dissertations and Theses",
@@ -32,47 +25,51 @@ categories = {
 
 # These categories will be subsubsections, not subsections.
 subsubsections = {
-    "struct",
+    "structure",
 }
 
 # Author citation IDs (https://scholar.google.com/citation?user=<this ID>)
 scholarIDS = {
-    "abidnazari": "u8vJ9-oAAAAJ",
-    "ashley": "9KFAXLYAAAAJ",
-    "benner": "6zcRrC4AAAAJ",
-    "chaudhuri": "oGL9YJIAAAAJ",
-    "duff": "OAkPFdkAAAAJ",
-    "farcas": "Cts5ePIAAAAJ",
-    "geelen": "vBzKRMsAAAAJ",
-    "ghattas": "A5vhsIYAAAAJ",
-    "gomes": "s6mocWAAAAAJ",
-    "goyal": "9rEfaRwAAAAJ",
-    "gruber": "CJVuqfoAAAAJ",
-    "guo": "eON6MykAAAAJ",
-    "hartmann": "4XvBneEAAAAJ",
-    "heiland": "wkHSeoYAAAAJ",
-    "huang": "lUXijaQAAAAJ",
-    "issan": "eEIe19oAAAAJ",
-    "ju": "JkKUWoAAAAAJ",
-    "karasözen": "R906kj0AAAAJ",
-    "khodabakhshi": "lYr_g-MAAAAJ",
-    "koike": "HFoIGcMAAAAJ",
-    "kramer": "yfmbPNoAAAAJ",
-    "mcquarrie": "qQ6JDJ4AAAAJ",
-    "najera-flores": "HJ-Dfl8AAAAJ",
-    "nogueira": "66DEy5wAAAAJ",
-    "peherstorfer": "C81WhlkAAAAJ",
-    "qian": "jnHI7wQAAAAJ",
-    "sharma": "Pb-tL5oAAAAJ",
-    "swischuk": "L9D0LBsAAAAJ",
-    "tezaur": "Q3fx78kAAAAJ",
-    "todd": "jzY8TSkAAAAJ",
-    "tolley": "0kOHVOkAAAAJ",
-    "uy": "hNN_KRQAAAAJ",
-    "wen": "uXJoQCAAAAAJ",
-    "willcox": "axvGyXoAAAAJ",
-    "wright": "VFQRIOwAAAAJ",
-    "yıldız": "UVPD79MAAAAJ",
+    "iman_adibnazari": "u8vJ9-oAAAAJ",
+    "anthony_ashley": "9KFAXLYAAAAJ",
+    "laura_balzano": "X6fRNfUAAAAJ",
+    "peter_benner": "6zcRrC4AAAAJ",
+    "anirban_chaudhuri": "oGL9YJIAAAAJ",
+    "igor_duff": "OAkPFdkAAAAJ",
+    "ionut-gabriel_farcas": "Cts5ePIAAAAJ",
+    "rudy_geelen": "vBzKRMsAAAAJ",
+    "omar_ghattas": "A5vhsIYAAAAJ",
+    "marcos_gomes": "s6mocWAAAAAJ",
+    "pawan_goyal": "9rEfaRwAAAAJ",
+    "anthony_gruber": "CJVuqfoAAAAJ",
+    "mengwu_guo": "eON6MykAAAAJ",
+    "dirk_hartmann": "4XvBneEAAAAJ",
+    "jan_heiland": "wkHSeoYAAAAJ",
+    "cheng_huang": "lUXijaQAAAAJ",
+    "opal_issan": "eEIe19oAAAAJ",
+    "lili_ju": "JkKUWoAAAAAJ",
+    "bülent_karasözen": "R906kj0AAAAJ",
+    "parisa_khodabakhshi": "lYr_g-MAAAAJ",
+    "tomoki_koike": "HFoIGcMAAAAJ",
+    "boris_kramer": "yfmbPNoAAAAJ",
+    "shane_mcquarrie": "qQ6JDJ4AAAAJ",
+    "david_najera-flores": "HJ-Dfl8AAAAJ",
+    "alberto_nogueira": "66DEy5wAAAAJ",
+    "benjamin_peherstorfer": "C81WhlkAAAAJ",
+    "arthur-pires": "qIUw-GEAAAAJ",
+    "gleb-pogudin": "C5NP1o0AAAAJ",
+    "elizabeth_qian": "jnHI7wQAAAAJ",
+    "harsh_sharma": "Pb-tL5oAAAAJ",
+    "renee_swischuk": "L9D0LBsAAAAJ",
+    "irina_tezaur": "Q3fx78kAAAAJ",
+    "michael_todd": "jzY8TSkAAAAJ",
+    "michael_tolley": "0kOHVOkAAAAJ",
+    "wayne_uy": "hNN_KRQAAAAJ",
+    "zhu_wang": "jkmwEF0AAAAJ",
+    "yuxiao_wen": "uXJoQCAAAAAJ",
+    "karen_willcox": "axvGyXoAAAAJ",
+    "stephen_wright": "VFQRIOwAAAAJ",
+    "süleyman_yıldız": "UVPD79MAAAAJ",
 }
 
 # LaTeX special characters to convert for the markdown version.
@@ -83,6 +80,22 @@ specialChars = (
     (r"\"{o}", "ö"),
     (r"\"{u}", "ü"),
 )
+
+# Text before the list of references begins.
+HEADER = r"""# Literature
+
+This page lists scholarly publications that develop, extend, or apply
+Operator Inference.
+
+:::{admonition} Add Your Work
+:class: hint
+
+Don't see your publication?
+[**Click here**](https://forms.gle/BgZK4b4DfuaPsGFd7)
+to submit a request to add entries to this page,
+or see the [instructions for adding entries with git](lit:add-your-work).
+:::
+"""
 
 # Text after the list of references.
 FOOTER = r"""## BibTex File
@@ -102,6 +115,40 @@ FOOTER = r"""## BibTex File
 {}
 ```
 :::
+
+(lit:add-your-work)=
+## Add Your Work
+
+[**Click here**](https://forms.gle/BgZK4b4DfuaPsGFd7)
+to submit a request to add entries to this page.
+You can also submit entries yourself through a pull request:
+
+1. Fork and clone the repository (see
+   [How to Contribute](../contributing/how_to_contribute.md)).
+2. On a new branch, add BibTeX entries to `docs/literature.bib`.
+   - Please keep the entries sorted by year, then by author last name.
+   - Authors should be listed with first-then-last names and separated with
+     "and":
+
+     `authors = {{First1 Last1 and First2 Last2}},`
+
+   - Include a "doi" field if applicable.
+   - Add a "category" field to indicate which section the reference should be
+     listed under on this page. Options include `survey`, `method`,
+     `structure`, `theory`, `application`, `thesis`, and `other`.
+3. Add the Google Scholar IDs of each author who has one to the `scholarIDS`
+   dictionary in `docs/bib2md.py`. This is the unique part of a Google Scholar
+   profile page url:
+
+   `https://scholar.google.com/citations?user=<GoogleScholarID>&hl=en`
+
+4. Build the documentation with `make docs`, then open
+   `docs/_build/html/source/opinf/literature.html`
+   in a browser to verify the additions.
+5. Commit the changes, push to your fork, and make a pull request on GitHub.
+
+Note that this page is generated automatically from `docs/literature.bib` and
+`docs/bib2md.py` and is not tracked by git.
 """
 
 
@@ -136,20 +183,29 @@ def clean_title(title):
     return re.subn(r"\{(\w+?)\}", r"\1", clean_name(title))[0]
 
 
-def linkedname(firstname, lastname, junior=False):
+def linkedname(names):
     """Get the string of the form "First, Last" with a link to their
     Google Scholar page if possible.
     """
-    if (lname := lastname.lower()) in scholarIDS:
-        gsID = scholarIDS[lname]
-        url = f"https://scholar.google.com/citations?user={gsID}"  # &hl=en
-        # return "[" + firstname + " " + lastname + "](" + d[lastname] + ")"
-        if junior:
-            lastname = lastname + " Jr."
-        return f"[{firstname} {lastname}]({url})"
-    if junior:
-        lastname = lastname + " Jr."
-    return f"{firstname} {lastname}"
+    # Extract first and last names and initials.
+    firstname = clean_name(names[0]).lower()
+    if names[-1] == "Jr":
+        lastname = clean_name(names[-2])
+        initials = " ".join([name[0] + "." for name in names[:-2]])
+        key = f"{firstname}_{lastname.lower()}"
+        lastname = f"{lastname} Jr."
+    else:
+        lastname = clean_name(names[-1])
+        initials = " ".join([name[0] + "." for name in names[:-1]])
+        key = f"{firstname}_{lastname.lower()}"
+
+    # Get the Google Scholar link if possible.
+    if key in scholarIDS:
+        gsID = scholarIDS[key]
+        gsURL = f"https://scholar.google.com/citations?user={gsID}"  # &hl=en
+        return f"[{initials} {lastname}]({gsURL})"
+
+    return f"{initials} {lastname}"
 
 
 def entry2txt(bibraw):
@@ -182,16 +238,10 @@ def main(bibfile, mdfile):
         for author in entry["author"].split(" and "):
             author = author.strip()
             if "," in author:
-                raise ValueError(f"change {bibfile} to avoid ',' in authors")
-            names = author.split(" ")
-            if names[-1] == "Jr":
-                initials = " ".join([name[0] + "." for name in names[:-2]])
-                authors.append(
-                    linkedname(initials, clean_name(names[-2]), junior=True)
+                raise ValueError(
+                    f"change {bibfile} to avoid ',' in author '{author}'"
                 )
-            else:
-                initials = " ".join([name[0] + "." for name in names[:-1]])
-                authors.append(linkedname(initials, clean_name(names[-1])))
+            authors.append(linkedname(author.split(" ")))
 
         if len(authors) == 0:
             raise ValueError("empty author field")
