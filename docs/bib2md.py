@@ -11,12 +11,19 @@ import bibtexparser.middlewares as bm
 # Configuration ===============================================================
 
 # Text before the list of references begins.
-HEADER = """# Literature
+HEADER = r"""# Literature
 
 This page lists scholarly publications that develop, extend, or apply
 Operator Inference.
+
+:::{admonition} Add Your Work
+:class: hint
+
+Don't see your publication?
+[**Click here**](https://forms.gle/BgZK4b4DfuaPsGFd7)
+to submit a request to add an entry to this page.
+:::
 """
-# [Click here submit a new entry](TODO).
 
 # Categories to group the references by.
 categories = {
