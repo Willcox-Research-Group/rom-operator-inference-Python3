@@ -246,20 +246,20 @@ def main(bibfile, mdfile):
         if len(authors) == 0:
             raise ValueError("empty author field")
         if len(authors) == 1:
-            authortxt = f"* {authors[0]}"
+            authortxt = f"{authors[0]}"
         elif len(authors) == 2:
-            authortxt = f"* {authors[0]} and {authors[1]}"
+            authortxt = f"{authors[0]} and {authors[1]}"
         else:
-            authortxt = "* " + ", ".join(authors[:-1]) + f", and {authors[-1]}"
+            authortxt = ", ".join(authors[:-1]) + f", and {authors[-1]}"
 
         # Parse paper title.
         title = clean_title(entry["title"])
         if "url" in entry:
-            titletxt = f"[**{title}**]({entry['url']})"
+            titletxt = f"* [**{title}**]({entry['url']})"
         elif "doi" in entry:
-            titletxt = f"[**{title}**](https://doi.org/{entry['doi']})"
+            titletxt = f"* [**{title}**](https://doi.org/{entry['doi']})"
         else:
-            titletxt = f"**{title}**"
+            titletxt = f"* **{title}**"
 
         # Parse journal and year.
         if "journal" in entry:
@@ -286,7 +286,7 @@ def main(bibfile, mdfile):
         cat = "other"
         if "category" in entry:
             cat = entry["category"]
-        sectiontxt[cat].append("  \n  ".join([authortxt, titletxt, citetxt]))
+        sectiontxt[cat].append("  \n  ".join([titletxt, authortxt, citetxt]))
 
     formatter = bibtexparser.BibtexFormat()
     formatter.indent = "    "
