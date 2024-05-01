@@ -10,27 +10,13 @@ import bibtexparser.middlewares as bm
 
 # Configuration ===============================================================
 
-# Text before the list of references begins.
-HEADER = r"""# Literature
-
-This page lists scholarly publications that develop, extend, or apply
-Operator Inference.
-
-:::{admonition} Add Your Work
-:class: hint
-
-Don't see your publication?
-[**Click here**](https://forms.gle/BgZK4b4DfuaPsGFd7)
-to submit a request to add an entry to this page.
-:::
-"""
-
 # Categories to group the references by.
+# These are the options for the `categories` field in literature.bib entries.
 categories = {
     "origin": "Original Paper",
     "survey": "Surveys",
     "method": "Methodology",
-    "struct": "Structure Preservation",
+    "structure": "Structure Preservation",
     "theory": "Theory",
     "application": "Applications",
     "thesis": "Dissertations and Theses",
@@ -39,7 +25,7 @@ categories = {
 
 # These categories will be subsubsections, not subsections.
 subsubsections = {
-    "struct",
+    "structure",
 }
 
 # Author citation IDs (https://scholar.google.com/citation?user=<this ID>)
@@ -95,6 +81,22 @@ specialChars = (
     (r"\"{u}", "ü"),
 )
 
+# Text before the list of references begins.
+HEADER = r"""# Literature
+
+This page lists scholarly publications that develop, extend, or apply
+Operator Inference.
+
+:::{admonition} Add Your Work
+:class: hint
+
+Don't see your publication?
+[**Click here**](https://forms.gle/BgZK4b4DfuaPsGFd7)
+to submit a request to add entries to this page,
+or see the [instructions for adding entries with git](lit:add-your-work).
+:::
+"""
+
 # Text after the list of references.
 FOOTER = r"""## BibTex File
 
@@ -113,6 +115,40 @@ FOOTER = r"""## BibTex File
 {}
 ```
 :::
+
+(lit:add-your-work)=
+## Add Your Work
+
+[**Click here**](https://forms.gle/BgZK4b4DfuaPsGFd7)
+to submit a request to add entries to this page.
+You can also submit entries yourself through a pull request:
+
+1. Fork and clone the repository (see
+   [How to Contribute](../contributing/how_to_contribute.md)).
+2. On a new branch, add BibTeX entries to `docs/literature.bib`.
+   - Please keep the entries sorted by year, then by author last name.
+   - Authors should be listed with first-then-last names and separated with
+     "and":
+
+     `authors = {{First1 Last1 and First2 Last2}},`
+
+   - Include a "doi" field if applicable.
+   - Add a "category" field to indicate which section the reference should be
+     listed under on this page. Options include `survey`, `method`,
+     `structure`, `theory`, `application`, `thesis`, and `other`.
+3. Add the Google Scholar IDs of each author who has one to the `scholarIDS`
+   dictionary in `docs/bib2md.py`. This is the unique part of a Google Scholar
+   profile page url:
+
+   `https://scholar.google.com/citations?user=<GoogleScholarID>&hl=en`
+
+4. Build the documentation with `make docs`, then open
+   `docs/_build/html/source/opinf/literature.html`
+   in a browser to verify the additions.
+5. Commit the changes, push to your fork, and make a pull request on GitHub.
+
+Note that this page is generated automatically from `docs/literature.bib` and
+`docs/bib2md.py` and is not tracked by git.
 """
 
 
@@ -166,8 +202,8 @@ def linkedname(names):
     # Get the Google Scholar link if possible.
     if key in scholarIDS:
         gsID = scholarIDS[key]
-        url = f"https://scholar.google.com/citations?user={gsID}"  # &hl=en
-        return f"[{initials} {lastname}]({url})"
+        gsURL = f"https://scholar.google.com/citations?user={gsID}"  # &hl=en
+        return f"[{initials} {lastname}]({gsURL})"
 
     return f"{initials} {lastname}"
 
