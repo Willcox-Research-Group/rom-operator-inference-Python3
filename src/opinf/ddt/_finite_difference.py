@@ -1,4 +1,4 @@
-# pre/_finite_difference.py
+# ddt/_finite_difference.py
 """Finite-difference schemes for estimating snapshot time derivatives."""
 
 __all__ = [
