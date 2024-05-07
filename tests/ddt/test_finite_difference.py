@@ -63,19 +63,19 @@ def test_ddt_uniform(set_up_uniform_difference_data):
         assert np.allclose(dY, dY_, atol=1e-4)
 
     # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(opinf.errors.DimensionalityError) as ex:
         _module.ddt_uniform(Y[:, 0], dt, order=2)
-    assert exc.value.args[0] == "states must be two-dimensional"
+    assert ex.value.args[0] == "states must be two-dimensional"
 
     # Try with bad order.
-    with pytest.raises(NotImplementedError) as exc:
+    with pytest.raises(NotImplementedError) as ex:
         _module.ddt_uniform(Y, dt, order=-1)
-    assert exc.value.args[0] == "invalid order '-1'; valid options: {2, 4, 6}"
+    assert ex.value.args[0] == "invalid order '-1'; valid options: {2, 4, 6}"
 
     # Try with bad dt type.
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(TypeError) as ex:
         _module.ddt_uniform(Y, np.array([dt, 2 * dt]), order=-1)
-    assert exc.value.args[0] == "time step dt must be a scalar (e.g., float)"
+    assert ex.value.args[0] == "time step dt must be a scalar (e.g., float)"
 
 
 def test_ddt_nonuniform(set_up_nonuniform_difference_data):
@@ -87,22 +87,23 @@ def test_ddt_nonuniform(set_up_nonuniform_difference_data):
     assert np.allclose(dY, dY_, atol=1e-4)
 
     # Try with bad data shape.
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(opinf.errors.DimensionalityError) as ex:
         _module.ddt_nonuniform(Y[:, 0], t)
-    assert exc.value.args[0] == "states must be two-dimensional"
+    assert ex.value.args[0] == "states must be two-dimensional"
 
     # Try with bad time shape.
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(opinf.errors.DimensionalityError) as ex:
         _module.ddt_nonuniform(Y, np.dstack((t, t)))
-    assert exc.value.args[0] == "time t must be one-dimensional"
+    assert ex.value.args[0] == "time t must be one-dimensional"
 
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(opinf.errors.DimensionalityError) as ex:
         _module.ddt_nonuniform(Y, np.hstack((t, t)))
-    assert exc.value.args[0] == "states not aligned with time t"
+    assert ex.value.args[0] == "states not aligned with time t"
 
 
 def test_ddt(
-    set_up_uniform_difference_data, set_up_nonuniform_difference_data
+    set_up_uniform_difference_data,
+    set_up_nonuniform_difference_data,
 ):
     """Test utils._finite_difference.ddt()."""
     # Uniform tests.
@@ -132,30 +133,28 @@ def test_ddt(
     _single_test(Y, t=t)
 
     # Try with bad arguments.
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(TypeError) as ex:
         _module.ddt(Y)
-    assert (
-        exc.value.args[0] == "at least one other argument required (dt or t)"
+    assert ex.value.args[0] == (
+        "at least one other argument required (dt or t)"
     )
 
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(TypeError) as ex:
         _module.ddt(Y, order=2)
-    assert (
-        exc.value.args[0]
-        == "keyword argument 'order' requires float argument dt"
+    assert ex.value.args[0] == (
+        "keyword argument 'order' requires float argument dt"
     )
 
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(TypeError) as ex:
         _module.ddt(Y, other=2)
-    assert exc.value.args[0] == "ddt() got unexpected keyword argument 'other'"
+    assert ex.value.args[0] == "ddt() got unexpected keyword argument 'other'"
 
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(TypeError) as ex:
         _module.ddt(Y, 2)
-    assert exc.value.args[0] == "invalid argument type '<class 'int'>'"
+    assert ex.value.args[0] == "invalid argument type '<class 'int'>'"
 
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(TypeError) as ex:
         _module.ddt(Y, dt, 4, None)
-    assert (
-        exc.value.args[0]
-        == "ddt() takes 2 or 3 positional arguments but 4 were given"
+    assert ex.value.args[0] == (
+        "ddt() takes 2 or 3 positional arguments but 4 were given"
     )

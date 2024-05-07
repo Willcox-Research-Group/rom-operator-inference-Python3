@@ -21,11 +21,33 @@ class _BaseDerivativeEstimator(abc.ABC):
     entries via regression. This class is a base for all classes that
     estimate time derivatives of state snapshots.
 
-    This class may be extended in the future for estimates of the second
+    This class may be extended in the future for estimates of the _second_
     time derivative. For now, use :class:`DerivativeEstimatorTemplate` as a
-    superclass of new estimators for the first time derivative.
+    superclass of new estimators for the _first_ time derivative.
+
+    Parameters
+    ----------
+    time_domain : (k,) ndarray
+        Time domain of the snapshot data.
     """
 
+    # Constructor -------------------------------------------------------------
+    def __init__(self, time_domain):
+        """Set the time domain."""
+        self.time_domain = time_domain
+
+    # Properties --------------------------------------------------------------
+    @property
+    def time_domain(self):
+        """Time domain of the snapshot data, a (k,) ndarray."""
+        return self.__t
+
+    @time_domain.setter
+    def time_domain(self, t):
+        """Set the time domain."""
+        self.__t = t
+
+    # Main routine ------------------------------------------------------------
     @abc.abstractmethod
     def estimate(self, states, inputs=None):
         r"""Estimate the first time derivatives of the states.
@@ -45,9 +67,11 @@ class _BaseDerivativeEstimator(abc.ABC):
             First time derivatives corresponding to ``_states``.
         _inputs : (m, k') ndarray or None
             Inputs corresponding to ``_states``, if applicable.
+            **Only returned** if ``inputs`` is provided.
         """
         raise NotImplementedError
 
+    # Verification ------------------------------------------------------------
     def verify(self, r: int = 5, k: int = 20, m: int = 3):
         """Verify that :meth:`estimate()` is consistent in the sense that the
         all outputs have the same number of columns. This method does **not**
@@ -69,9 +93,7 @@ class _BaseDerivativeEstimator(abc.ABC):
         # Call estimate() with inputs=None.
         outputs = self.estimate(Q)
         if not isinstance(outputs, tuple) or len(outputs) != 3:
-            raise errors.VerificationError(
-                "estimate(states) should return tuple of three outputs"
-            )
+            raise errors.VerificationError("len(estimate(states)) != 3")
 
         _Q, _dQdt, _U = outputs
         if _Q.shape[0] != r:
@@ -96,7 +118,7 @@ class _BaseDerivativeEstimator(abc.ABC):
         outputs = self.estimate(Q, U)
         if not isinstance(outputs, tuple) or len(outputs) != 3:
             raise errors.VerificationError(
-                "estimate(states) should return tuple of three arrays"
+                "len(estimate(states, inputs)) != 3"
             )
 
         _Q, _dQdt, _U = outputs
@@ -136,6 +158,11 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
     Depending on the estimation scheme, the derivatives may only be computed
     for a subset of the states. For example, a first-order backward difference
     may omit an estimate for :math:`\dot{\q}_0`.
+
+    Parameters
+    ----------
+    time_domain : (k,) ndarray
+        Time domain of the snapshot data.
     """
 
     __tests = (
@@ -191,8 +218,10 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
         """
         _BaseDerivativeEstimator.verify(self)
 
-        dts = np.logspace(-10, -1, 10)[::-1]
+        time_domain = self.time_domain  # Record original time domain.
+        dts = np.logspace(-12, -1, 12)[::-1]
         estimation_errors = collections.defaultdict(list)
+        estimation_errors["dts"] = dts
 
         for dt in dts:
             # Construct test cases.
@@ -200,6 +229,7 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
             t = np.arange(0, 1, k)
             Q = np.row_stack([test[0](t) for test in self.__tests])
             dQdt = np.row_stack([test[1](t) for test in self.__tests])
+            self.time_domain = t
 
             # Call the derivative estimator.
             Q_est, dQdt_est, _ = self.estimate(Q, dQdt, None)
@@ -245,5 +275,5 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
                 for dt, err in zip(dts, estimation_errors[name]):
                     print(f"dt = {dt:.1e}:\terror = {err:.4e}")
 
-        estimation_errors["dts"] = dts
+        self.time_domain = time_domain  # Restore original time domain.
         return estimation_errors
