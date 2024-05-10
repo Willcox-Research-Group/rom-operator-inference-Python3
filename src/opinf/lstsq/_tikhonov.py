@@ -78,7 +78,7 @@ class L2Solver(_BaseTikhonovSolver):
 
     _LSTSQ_LABEL = r"min_{X} ||AX - B||_F^2 + ||λX||_F^2"
 
-    def __init__(self, regularizer=0):
+    def __init__(self, regularizer=0.0):
         """Store the regularizer and initialize attributes.
 
         Parameters
