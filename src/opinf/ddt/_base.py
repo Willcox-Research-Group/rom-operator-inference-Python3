@@ -69,10 +69,10 @@ class _BaseDerivativeEstimator(abc.ABC):
             Inputs corresponding to ``_states``, if applicable.
             **Only returned** if ``inputs`` is provided.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Verification ------------------------------------------------------------
-    def verify(self, r: int = 5, k: int = 20, m: int = 3):
+    def verify(self, r: int = 5, m: int = 3):
         """Verify that :meth:`estimate()` is consistent in the sense that the
         all outputs have the same number of columns. This method does **not**
         check the accuracy of the derivative estimation.
@@ -81,21 +81,25 @@ class _BaseDerivativeEstimator(abc.ABC):
         ----------
         r : int
             State dimension to use in the check.
-        k : int
-            Number of snapshots to use in the check.
         m : int
             Number of inputs to use in the check.
+            The ``inputs`` argument used to verify :meth:`estimate()` is
+            a two-dimensional array of shape ``(m, k)`` even if ``m = 1``,
+            where ``k`` is the size of the time domain.
         """
         # Get random data. What matters here is the size, not the entries.
+        k = self.time_domain.size
         Q = np.random.random((r, k))
         U = np.random.random((m, k))
 
         # Call estimate() with inputs=None.
         outputs = self.estimate(Q)
-        if not isinstance(outputs, tuple) or len(outputs) != 3:
-            raise errors.VerificationError("len(estimate(states)) != 3")
+        if not isinstance(outputs, tuple) or len(outputs) != 2:
+            raise errors.VerificationError(
+                "len(estimate(states, inputs=None)) != 2"
+            )
 
-        _Q, _dQdt, _U = outputs
+        _Q, _dQdt = outputs
         if _Q.shape[0] != r:
             raise errors.VerificationError(
                 "estimate(states)[0].shape[0] != states.shape[0]"
@@ -105,13 +109,10 @@ class _BaseDerivativeEstimator(abc.ABC):
                 "estimate(states)[1].shape[0] != states.shape[0]"
             )
         if _Q.shape[1] != _dQdt.shape[1]:
+            print(_Q.shape[1], _dQdt.shape[1])
             raise errors.VerificationError(
                 "Q.shape[1] != dQdt.shape[1] "
-                "where Q, dQdt, _ = estimate(states)"
-            )
-        if _U is not None:
-            raise errors.VerificationError(
-                "estimate(states, inputs=0)[2] should always be None"
+                "where Q, dQdt = estimate(states, inputs=None)"
             )
 
         # Call estimate() with non-None inputs.
@@ -130,7 +131,7 @@ class _BaseDerivativeEstimator(abc.ABC):
             raise errors.VerificationError(
                 "estimate(states, inputs)[2].shape[0] != inputs.shape[0]"
             )
-        if _U.shape[1] != m:
+        if _U.shape[1] != _Q.shape[1]:
             raise errors.VerificationError(
                 "Q.shape[1] != U.shape[1] "
                 "where Q, _, U = estimate(states, inputs)"
@@ -144,16 +145,15 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
 
     Operator Inference for time-continuous (semi-discrete) models requires
     state snapshots and their time derivatives in order to learn operator
-    entries via regression. This class is a template for estimating time
-    derivatives of state snapshots estimators. Specifically, using a
-    collection of snapshots :math:`\q_0,\ldots,\q_{k-1}\in\RR^n` representing
-    the state at time instances :math:`t_0,\ldots,t_{k-1}`, the goal is to
-    estimate the time derivatives
+    entries via regression. This class is a template for estimating first time
+    derivatives of state snapshots estimators. Specifically, from a collection
+    of snapshots :math:`\q_0,\ldots,\q_{k-1}\in\RR^n` representing the state
+    at time instances :math:`t_0,\ldots,t_{k-1}`, the goal is to estimate
 
     .. math::
         \dot{\q}_j = \ddt\q(t)\bigg|_{t = t_j}
 
-    for :math:`j = 0,\ldots,k-1`.
+    for :math:`j = 0, \ldots, k - 1`.
 
     Depending on the estimation scheme, the derivatives may only be computed
     for a subset of the states. For example, a first-order backward difference
@@ -167,13 +167,18 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
 
     __tests = (
         (
+            r"$f(t) = 1",
+            np.ones_like,
+            np.zeros_like,
+        ),
+        (
             r"$f(t) = t$",
             lambda t: t,
             np.ones_like,
         ),
         (
             r"$f(t) = t^4 - \frac{1}{3}t^3$",
-            lambda t: t**4 - t**3 / 3,
+            lambda t: t**4 - (t**3 / 3),
             lambda t: 4 * t**3 - t**2,
         ),
         (
@@ -187,7 +192,7 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
             np.exp,
         ),
         (
-            r"$f(t) = frac{1}{1 + t}",
+            r"$f(t) = frac{1}{1 + t}$",
             lambda t: 1 / (t + 1),
             lambda t: -1 / (t + 1) ** 2,
         ),
@@ -223,16 +228,16 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
         estimation_errors = collections.defaultdict(list)
         estimation_errors["dts"] = dts
 
+        t_base = np.arange(1001)
         for dt in dts:
             # Construct test cases.
-            k = int(1 / dt) + 1
-            t = np.arange(0, 1, k)
-            Q = np.row_stack([test[0](t) for test in self.__tests])
-            dQdt = np.row_stack([test[1](t) for test in self.__tests])
+            t = 1 + (dt * t_base)
+            Q = np.row_stack([test[1](t) for test in self.__tests])
+            dQdt = np.row_stack([test[2](t) for test in self.__tests])
             self.time_domain = t
 
             # Call the derivative estimator.
-            Q_est, dQdt_est, _ = self.estimate(Q, dQdt, None)
+            Q_est, dQdt_est = self.estimate(Q, None)
 
             # Use new states to infer the indices of the returns.
             start = np.argmin(
@@ -242,7 +247,12 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
             truth = dQdt[:, s]
 
             # Calculate the relative error of the time derivative estimate.
-            errs = la.norm(dQdt_est - truth, axis=1) / la.norm(truth, axis=1)
+            kind = "relative"
+            denom = la.norm(truth, axis=1)
+            if np.any(denom < np.finfo(float).eps):
+                denom = denom.max()
+                kind = "absolute"
+            errs = la.norm(dQdt_est - truth, axis=1) / denom
             for test, err in zip(self.__tests, errs):
                 estimation_errors[test[0]].append(err)
 
@@ -260,18 +270,19 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
                 )
                 ax.legend(loc="lower right", frameon=False)
                 ax.set_xlabel("time step")
-                ax.set_ylabel("relative error")
+                ax.set_ylabel(f"{kind} error")
                 fig.suptitle("Time derivative estimation errors")
                 plt.show()
         else:
             print(
-                "Time derivative estimation (relative) errors",
-                "============================================",
+                (title := f"Time derivative estimation ({kind}) errors"),
+                "=" * len(title),
                 sep="\n",
             )
             for test in self.__tests:
                 name = test[0]
-                print(f"\n{name}", len(name) * "-", sep="\n")
+                rawname = name.strip("$")
+                print(f"\n{rawname}", len(rawname) * "-", sep="\n")
                 for dt, err in zip(dts, estimation_errors[name]):
                     print(f"dt = {dt:.1e}:\terror = {err:.4e}")
 

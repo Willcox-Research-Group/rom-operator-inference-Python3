@@ -2,12 +2,33 @@
 """Finite-difference schemes for estimating snapshot time derivatives."""
 
 __all__ = [
+    "fwd1",
+    "fwd2",
+    "fwd3",
+    "fwd4",
+    "fwd5",
+    "fwd6",
+    "bwd1",
+    "bwd2",
+    "bwd3",
+    "bwd4",
+    "bwd5",
+    "bwd6",
+    "ctr2",
+    "ctr4",
+    "ctr6",
+    "ord2",
+    "ord4",
+    "ord6",
     "ddt_uniform",
     "ddt_nonuniform",
     "ddt",
+    "UniformFiniteDifferencer",
+    "NonuniformFiniteDifferencer",
 ]
 
 import types
+import warnings
 import numpy as np
 
 from .. import errors
@@ -50,13 +71,8 @@ def _finite_difference(states, coeffs, mode, inputs=None):
     r, k = states.shape
     order = len(coeffs) - 1
 
-    ddts = np.zeros((r, k - order))
-    for j, coeff in enumerate(coeffs):
-        if coeff != 0:
-            ddts += coeff * states[:, j : k - order + j]
-
     if mode == "fwd":
-        cols = slice(0, 1 - order)
+        cols = slice(0, -order)
     elif mode == "bwd":
         cols = slice(order, None)
     elif mode == "ctr":
@@ -64,6 +80,11 @@ def _finite_difference(states, coeffs, mode, inputs=None):
         cols = slice(margin, -margin)
     else:
         raise ValueError(f"invalid finite difference mode '{mode}'")
+
+    ddts = np.zeros((r, k - order))
+    for j, coeff in enumerate(coeffs):
+        if coeff != 0:
+            ddts += coeff * states[:, j : k - order + j]
 
     if inputs is not None:
         return states[:, cols], ddts, inputs[..., cols]
@@ -712,7 +733,7 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
         Each output should have the same number of columns.
     """
 
-    __schemes = types.MappingProxyType(
+    _schemes = types.MappingProxyType(
         {
             "fwd1": fwd1,
             "fwd2": fwd2,
@@ -757,7 +778,7 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
             self.__dt = None
         else:
             raise ValueError("time_domain should be a one-dimensional array")
-        DerivativeEstimatorTemplate.time_domain.fset(t)
+        DerivativeEstimatorTemplate.time_domain.fset(self, t)
 
     @property
     def dt(self):
@@ -773,84 +794,201 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
     def scheme(self, f):
         """Set the finite difference scheme."""
         if not callable(f):
-            if f not in self.__schemes:
+            if f not in self._schemes:
                 raise ValueError(f"invalid finite difference scheme '{f}'")
-            f = self.__schemes[f]
+            f = self._schemes[f]
         self.__scheme = f
 
+    # Main routine ------------------------------------------------------------
     def estimate(self, states, inputs=None):
+        r"""Estimate the first time derivatives of the states using
+        finite differences.
+
+        The stencil and order of the method are determined by the ``scheme``
+        attribute.
+
+        Parameters
+        ----------
+        states : (r, k) ndarray
+            State snapshots, either full or (preferably) reduced.
+        inputs : (m, k) ndarray or None
+            Inputs corresponding to the state snapshots, if applicable.
+
+        Returns
+        -------
+        _states : (r, k') ndarray
+            Subset of the state snapshots.
+        ddts : (r, k') ndarray
+            First time derivatives corresponding to ``_states``.
+        _inputs : (m, k') ndarray or None
+            Inputs corresponding to ``_states``, if applicable.
+            **Only returned** if ``inputs`` is provided.
+        """
         if self.dt is None:
             raise RuntimeError("dt is None")
+
+        if states.ndim != 2:
+            raise errors.DimensionalityError("states must be two-dimensional")
+        if inputs is not None:
+            if inputs.ndim == 1:
+                inputs = inputs.reshape((1, -1))
+            if inputs.shape[1] != states.shape[1]:
+                raise errors.DimensionalityError(
+                    "states and inputs not aligned"
+                )
+
         return self.scheme(states, self.dt, inputs)
 
 
 class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
-    pass
+    """Time derivative estimation with finite differences for state snapshots
+    that are **not** spaced uniformly in time.
 
-
-# Finite difference stencils ==================================================
-def _fwd4(y, dt):
-    """Compute the first derivative of a uniformly-spaced-in-time array with a
-    fourth-order forward difference scheme.
+    This class essentially wraps ``np.gradient()``, which uses second-order
+    finite differences.
 
     Parameters
     ----------
-    y : (5, ...) ndarray
-        Data to differentiate. The derivative is taken along the first axis.
-    dt : float
-        Time step (the uniform spacing).
-
-    Returns
-    -------
-    dy0 : float or (...) ndarray
-        Approximate derivative of y at the first entry, i.e., dy[0] / dt.
+    time_domain : (k,) ndarray
+        Time domain corresponding to the snapshot data.
+        This class is for time domains that are not uniformly spaced, see
+        :class:`UniformFiniteDifferencer` for uniformly spaced time domains.
     """
-    return (-25 * y[0] + 48 * y[1] - 36 * y[2] + 16 * y[3] - 3 * y[4]) / (
-        12 * dt
-    )
+
+    def __init__(self, time_domain):
+        """Set the time domain."""
+        self.__check_uniformity = True
+        DerivativeEstimatorTemplate.__init__(self, time_domain)
+
+    # Properties --------------------------------------------------------------
+    @DerivativeEstimatorTemplate.time_domain.setter
+    def time_domain(self, t):
+        """Set the time domain. Raise a warning if it is uniform."""
+        if np.isscalar(t[0]):
+            # Case 1: the time domain is a one-dimensional array.
+            if self.__check_uniformity and np.allclose(
+                diffs := np.diff(t), diffs[0]
+            ):
+                warnings.warn(
+                    "time_domain is uniformly spaced, consider using "
+                    "UniformFiniteDifferencer",
+                    errors.UsageWarning,
+                )
+        elif not all(np.ndim(tt) == 1 for tt in t):  # OK if several domains.
+            raise ValueError("time_domain should be a one-dimensional array")
+        DerivativeEstimatorTemplate.time_domain.fset(self, t)
+
+    # Main routine ------------------------------------------------------------
+    def estimate(self, states, inputs=None):
+        r"""Estimate the first time derivatives of the states using
+        second-order finite differences.
+
+        Parameters
+        ----------
+        states : (r, k) ndarray
+            State snapshots, either full or (preferably) reduced.
+        inputs : (m, k) ndarray or None
+            Inputs corresponding to the state snapshots, if applicable.
+
+        Returns
+        -------
+        _states : (r, k') ndarray
+            Subset of the state snapshots.
+        ddts : (r, k') ndarray
+            First time derivatives corresponding to ``_states``.
+        _inputs : (m, k') ndarray or None
+            Inputs corresponding to ``_states``, if applicable.
+            **Only returned** if ``inputs`` is provided.
+        """
+        # Check dimensions.
+        if states.ndim != 2:
+            raise errors.DimensionalityError("states must be two-dimensional")
+        if states.shape[-1] != self.time_domain.size:
+            raise errors.DimensionalityError(
+                "states not aligned with time_domain"
+            )
+        if inputs is not None:
+            if inputs.ndim == 1:
+                inputs = inputs.reshape((1, -1))
+            if inputs.shape[1] != self.time_domain.size:
+                raise errors.DimensionalityError(
+                    "inputs not aligned with time_domain"
+                )
+
+        # Do the computation.
+        ddts = np.gradient(states, self.time_domain, edge_order=2, axis=-1)
+
+        if inputs is not None:
+            return states, ddts, inputs
+        return states, ddts
+
+    # Verification ------------------------------------------------------------
+    def verify(self, plot: bool = False):
+        """Verify that :meth:`estimate()` is consistent in the sense that the
+        all outputs have the same number of columns and test the accuracy of
+        the results on a few test problems.
+
+        Parameters
+        ----------
+        plot : bool
+            If ``True``, plot the relative errors of the derivative estimation
+            errors as a function of the time step.
+            If ``False`` (default), print a report of the relative errors.
+
+        Returns
+        -------
+        errors : dict
+            Estimation errors for each test case.
+            Time steps are listed as ``errors[dts]``.
+        """
+        self.__check_uniformity = False
+        DerivativeEstimatorTemplate.verify(self, plot=plot)
+        self.__check_uniformity = True
 
 
-def _fwd6(y, dt):
-    """Compute the first derivative of a uniformly-spaced-in-time array with a
-    sixth-order forward difference scheme.
+# Helper functions ============================================================
+def _fdcoeffs(s):  # pragma: no cover
+    r"""Vandermonde solve for finite difference coefficients.
 
     Parameters
     ----------
-    y : (7, ...) ndarray
-        Data to differentiate. The derivative is taken along the first axis.
-    dt : float
-        Time step (the uniform spacing).
+    s : (p,) ndarray
+        Finite difference stencil. For example, ``s=[-2, -1, 0, 1]`` means
+        we want coefficients :math:`c_{-2},c_{-1},c_{0},c_{1}` such that
+        :math:`f'(x) \approx
+        c_{-2} f(x - 2) + c_{-1} f(x - 1) + c_{0} f(x) + c_{1} f(x + 1)`.
 
     Returns
     -------
-    dy0 : float or (...) ndarray
-        Approximate derivative of y at the first entry, i.e., dy[0] / dt.
+    (p,) ndarray
+        Finite difference coefficients (the :math:`c_{j}`'s).
     """
-    return (
-        -147 * y[0]
-        + 360 * y[1]
-        - 450 * y[2]
-        + 400 * y[3]
-        - 225 * y[4]
-        + 72 * y[5]
-        - 10 * y[6]
-    ) / (60 * dt)
-
-
-# Main routines ===============================================================
-def _fdcoeffs(s):
-    """Vandermonde solve for finite difference coefficients."""
     V = np.vander(s, increasing=True).T
     e = np.zeros_like(s)
     e[1] = 1
     return np.linalg.solve(V, e)
 
 
-def _fdcoeffs2(s):
-    """Stable solve for finite difference coefficients (LeVeque)."""
+def _fdcoeffs2(s):  # pragma: no cover
+    r"""Stable solve for finite difference coefficients (LeVeque).
+
+    Parameters
+    ----------
+    s : (p,) ndarray
+        Finite difference stencil. For example, ``[-2, -1, 0, 1]`` means
+        get coefficients :math:`c_{-2},c_{-1},c_{0},c_{1}` such that
+        :math:`f'(x) \approx
+        c_{-2} f(x - 2) + c_{-1} f(x - 1) + c_{0} f(x) + c_{1} f(x + 1)`.
+
+    Returns
+    -------
+    (p,) ndarray
+        Finite difference coefficients (the :math:`c_{j}`'s).
+    """
     pass
 
 
+# Old API =====================================================================
 def ddt_uniform(states, dt, order=2):
     """Approximate the time derivatives for a chunk of snapshots that are
     uniformly spaced in time.
@@ -881,7 +1019,7 @@ def ddt_uniform(states, dt, order=2):
     ddts = np.empty_like(states)
 
     if order == 2:
-        # Does this do what the rest does?
+        # TODO: Does this next line do what the rest does?
         # return np.gradient(states, dt, edge_order=2, axis=1)
         coeffs0 = np.array([-3, 4, -1]) / (2 * dt)
         # Forward differences on the front.
@@ -969,7 +1107,8 @@ def ddt(states, *args, **kwargs):
         States to estimate the derivative of. The jth column is a snapshot
         that corresponds to the jth time step, i.e., states[:, j] = x(t[j]).
     dt : float
-        The time step between the snapshots, i.e., t[j+1] - t[j] = dt.
+        The time step between the snapshots, i.e., t[j+1] - t[j] = dt,
+        in the case of a uniform time step.
     order : int {2, 4, 6} (optional)
         The order of the derivative approximation.
         See https://en.wikipedia.org/wiki/Finite_difference_coefficient.
@@ -1002,13 +1141,13 @@ def ddt(states, *args, **kwargs):
                 )
             else:
                 raise TypeError(
-                    "ddt() got unexpected keyword argument " f"'{arg_name}'"
+                    f"ddt() got unexpected keyword argument '{arg_name}'"
                 )
         elif n_args == 1:  # It is a positional argument.
             arg = args[0]
             if isinstance(arg, float):  # arg = dt.
                 func = ddt_uniform
-            elif isinstance(arg, np.ndarray):  # arg = t; do uniformity test.
+            elif isinstance(arg, np.ndarray):  # arg = t.
                 func = ddt_nonuniform
             else:
                 raise TypeError(f"invalid argument type '{type(arg)}'")
