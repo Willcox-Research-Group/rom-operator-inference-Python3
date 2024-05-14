@@ -116,9 +116,9 @@ def fwd1(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the last snapshot.
     ddts : (r, k - 1) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 1) or (k - 1,) ndarray or None
+    _inputs : (m, k - 1) or (k - 1,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-1, 1]) / dt
     return _finite_difference(states, coeffs, "fwd", inputs)
@@ -148,9 +148,9 @@ def fwd2(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the last two snapshots.
     ddts : (r, k - 2) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 2) or (k - 2,) ndarray or None
+    _inputs : (m, k - 2) or (k - 2,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-3, 4, -1]) / (2 * dt)
     return _finite_difference(states, coeffs, "fwd", inputs)
@@ -181,9 +181,9 @@ def fwd3(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the last three snapshots.
     ddts : (r, k - 3) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 3) or (k - 3,) ndarray or None
+    _inputs : (m, k - 3) or (k - 3,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-11, 18, -9, 2]) / (6 * dt)
     return _finite_difference(states, coeffs, "fwd", inputs)
@@ -214,9 +214,9 @@ def fwd4(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the last four snapshots.
     ddts : (r, k - 4) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 4) or (k - 4,) ndarray or None
+    _inputs : (m, k - 4) or (k - 4,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-25, 48, -36, 16, -3]) / (12 * dt)
     return _finite_difference(states, coeffs, "fwd", inputs)
@@ -247,9 +247,9 @@ def fwd5(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the last five snapshots.
     ddts : (r, k - 5) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 5) or (k - 5,) ndarray or None
+    _inputs : (m, k - 5) or (k - 5,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-137, 300, -300, 200, -75, 12]) / (60 * dt)
     return _finite_difference(states, coeffs, "fwd", inputs)
@@ -262,8 +262,7 @@ def fwd6(states: np.ndarray, dt: float, inputs=None):
        \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_j}
        \approx \frac{1}{60\delta t}(
        -147\q(t_j) + 360\q(t_{j+1}) - 450\q(t_{j+2}) + 400\q(t_{j+3})
-       - 225\q(t_{j+4}) + 72\q(t_{j+5}) - 10\q(t_{j+6})
-       )
+       - 225\q(t_{j+4}) + 72\q(t_{j+5}) - 10\q(t_{j+6}))
 
     where :math:`\delta t = t_{j+1} - t_j` for all :math:`j`.
 
@@ -282,9 +281,9 @@ def fwd6(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the last six snapshots.
     ddts : (r, k - 6) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 6) or (k - 6,) ndarray or None
+    _inputs : (m, k - 6) or (k - 6,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-147, 360, -450, 400, -225, 72, -10]) / (60 * dt)
     return _finite_difference(states, coeffs, "fwd", inputs)
@@ -315,9 +314,9 @@ def bwd1(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the first snapshot.
     ddts : (r, k - 1) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 1) or (k - 1,) ndarray or None
+    _inputs : (m, k - 1) or (k - 1,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-1, 1]) / dt
     return _finite_difference(states, coeffs, "bwd", inputs)
@@ -347,9 +346,9 @@ def bwd2(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the first two snapshots.
     ddts : (r, k - 2) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 2) or (k - 2,) ndarray or None
+    _inputs : (m, k - 2) or (k - 2,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([1, -4, 3]) / (2 * dt)
     return _finite_difference(states, coeffs, "bwd", inputs)
@@ -380,9 +379,9 @@ def bwd3(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the first three snapshots.
     ddts : (r, k - 3) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 3) or (k - 3,) ndarray or None
+    _inputs : (m, k - 3) or (k - 3,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-2, 9, -18, 11]) / (6 * dt)
     return _finite_difference(states, coeffs, "bwd", inputs)
@@ -413,9 +412,9 @@ def bwd4(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the first four snapshots.
     ddts : (r, k - 4) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 4) or (k - 4,) ndarray or None
+    _inputs : (m, k - 4) or (k - 4,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([3, -16, 36, -48, 25]) / (12 * dt)
     return _finite_difference(states, coeffs, "bwd", inputs)
@@ -446,9 +445,9 @@ def bwd5(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the first five snapshots.
     ddts : (r, k - 5) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 5) or (k - 5,) ndarray or None
+    _inputs : (m, k - 5) or (k - 5,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-12, 75, -200, 300, -300, 137]) / (60 * dt)
     return _finite_difference(states, coeffs, "bwd", inputs)
@@ -481,9 +480,9 @@ def bwd6(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the first six snapshots.
     ddts : (r, k - 6) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 6) or (k - 6,) ndarray or None
+    _inputs : (m, k - 6) or (k - 6,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([10, -72, 225, -400, 450, -360, 147]) / (60 * dt)
     return _finite_difference(states, coeffs, "bwd", inputs)
@@ -514,9 +513,9 @@ def ctr2(states: np.ndarray, dt: float, inputs=None):
         State snapshots, excluding the first and last snapshots.
     ddts : (r, k - 2) ndarray
         Time derivative estimates corresponding to the state snapshots.
-    _inputs: (m, k - 2) or (k - 2,) ndarray or None
+    _inputs : (m, k - 2) or (k - 2,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-1, 0, 1]) / (2 * dt)
     return _finite_difference(states, coeffs, "ctr", inputs)
@@ -549,7 +548,7 @@ def ctr4(states: np.ndarray, dt: float, inputs=None):
         Time derivative estimates corresponding to the state snapshots.
     _inputs : (m, k - 4) or (k - 4,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([1, -8, 0, 8, -1]) / (12 * dt)
     return _finite_difference(states, coeffs, "ctr", inputs)
@@ -583,7 +582,7 @@ def ctr6(states: np.ndarray, dt: float, inputs=None):
         Time derivative estimates corresponding to the state snapshots.
     _inputs : (m, k - 6) or (k - 6,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     coeffs = np.array([-1, 9, -45, 0, 45, -9, 1]) / (60 * dt)
     return _finite_difference(states, coeffs, "ctr", inputs)
@@ -603,7 +602,20 @@ def ord2(states: np.ndarray, dt: float, inputs=None):
     the first derivative.
 
     Central differences are used where possible; forward differences are used
-    for the first point and backward differences are used for the last point.
+    for the first point and backward differences are used for the last point:
+
+    .. math::
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_0}
+       &\approx \frac{1}{2\delta t}(-3\q(t_0) + 4\q(t_{1}) - \q(t_{2})),
+       \\ \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_j}
+       &\approx \frac{1}{2\delta t}(-\q(t_{j-1}) + \q(t_{j+1})),
+       \quad j = 2,\ldots,k-2,
+       \\ \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_{k-1}}
+       &\approx \frac{1}{2\delta t}(\q(t_{k-3}) - 4\q(t_{k-2}) + 3\q(t_{k-1}))
+
+    where :math:`\delta t = t_{j+1} - t_j` for all :math:`j`.
 
     Parameters
     ----------
@@ -622,7 +634,7 @@ def ord2(states: np.ndarray, dt: float, inputs=None):
         Time derivative estimates corresponding to the state snapshots.
     inputs : (m, k) or (k,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     return _mixed_differences(states, dt, 2, inputs)
 
@@ -633,7 +645,32 @@ def ord4(states: np.ndarray, dt: float, inputs=None):
 
     Central differences are used where possible; forward differences are used
     for the first two points and backward differences are used for the last
-    two points.
+    two points:
+
+    .. math::
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_0}
+       &\approx \frac{1}{12\delta t}(-25\q(t_0) + 48\q(t_{1}) - 36\q(t_{2})
+       + 16\q(t_{3}) - 3\q(t_{4})),
+       \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_1}
+       &\approx \frac{1}{12\delta t}(-3\q(t_0) - 10\q(t_{1}) + 18\q(t_{2})
+       - 6\q(t_{3}) + \q(t_{4})),
+       \\ \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_j}
+       &\approx \frac{1}{12\delta t}
+       (\q(t_{j-2}) - 8\q(t_{j-1}) + 8\q(t_{j+1}) - \q(t_{j+2})),
+       \quad j = 2,\ldots,k-3,
+       \\ \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_{k-2}}
+       &\approx \frac{1}{12\delta t}(-\q(t_{k-5}) + 6\q(t_{k-4})
+       - 18\q(t_{k-3}) + 10\q(t_{k-2}) + 3\q(t_{k-1})),
+       \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_{k-1}}
+       &\approx \frac{1}{12\delta t}(3\q(t_{k-5}) - 16\q(t_{k-4})
+       + 36\q(t_{k-3}) - 48\q(t_{k-2}) + 25\q(t_{k-1})),
+
+    where :math:`\delta t = t_{j+1} - t_j` for all :math:`j`.
+
 
     Parameters
     ----------
@@ -652,7 +689,7 @@ def ord4(states: np.ndarray, dt: float, inputs=None):
         Time derivative estimates corresponding to the state snapshots.
     inputs : (m, k) or (k,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     return _mixed_differences(states, dt, 4, inputs)
 
@@ -663,7 +700,46 @@ def ord6(states: np.ndarray, dt: float, inputs=None):
 
     Central differences are used where possible; forward differences are used
     for the first three points and backward differences are used for the last
-    three points.
+    three points:
+
+    .. math::
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_0}
+       &\approx \frac{1}{60\delta t}(
+       -147\q(t_0) + 360\q(t_{1}) - 450\q(t_{2}) + 400\q(t_{3})
+       - 225\q(t_{4}) + 72\q(t_{5}) - 10\q(t_{6})),
+       \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_1}
+       &\approx \frac{1}{60\delta t}(
+       -10\q(t_0) - 77\q(t_{1}) + 150\q(t_{2}) - 100\q(t_{3})
+       + 50\q(t_{4}) - 15\q(t_{5}) + 2\q(t_{6})),
+       \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_2}
+       &\approx \frac{1}{60\delta t}(
+       2\q(t_0) - 24\q(t_{1}) - 35\q(t_{2}) + 80\q(t_{3})
+       - 30\q(t_{4}) + 8\q(t_{5}) - \q(t_{6})),
+       \\ \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_j}
+       &\approx \frac{1}{60\delta t}
+       (-\q(t_{j-3}) + 9\q(t_{j-2}) - 45\q(t_{j-1})
+       + 45\q(t_{j+1})) - 9\q(t_{j+2}) + \q(t_{j+3}),
+       \quad j = 3, \ldots, k - 4,
+       \\ \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_{k-3}}
+       &\approx \frac{1}{60\delta t}(
+       \q(t_{k-7}) - 8\q(t_{k-6}) + 30\q(t_{k-5}) - 80\q(t_{k-4})
+       + 35\q(t_{k-3}) + 24\q(t_{k-2}) - 2\q(t_{k-1})),
+       \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_{k-2}}
+       &\approx \frac{1}{60\delta t}(
+       -2\q(t_{k-7}) + 15\q(t_{k-6}) - 50\q(t_{k-5}) + 100\q(t_{k-4})
+       - 150\q(t_{k-3}) + 77\q(t_{k-2}) + 10\q(t_{k-1})),
+       \\
+       \frac{\textup{d}}{\textup{d}t}\q(t)\bigg|_{t = t_{k-1}}
+       &\approx \frac{1}{60\delta t}(
+       10\q(t_{k-7}) - 72\q(t_{k-6}) + 225\q(t_{k-5}) - 400\q(t_{k-4})
+       + 450\q(t_{k-3}) - 360\q(t_{k-2}) + 147\q(t_{k-1})),
+
+    where :math:`\delta t = t_{j+1} - t_j` for all :math:`j`.
 
     Parameters
     ----------
@@ -682,7 +758,7 @@ def ord6(states: np.ndarray, dt: float, inputs=None):
         Time derivative estimates corresponding to the state snapshots.
     inputs : (m, k) or (k,) ndarray or None
         Inputs corresponding to ``_states``, if applicable.
-        **Only** returned if ``inputs`` is not ``None``.
+        **Only returned** if ``inputs`` is not ``None``.
     """
     return _mixed_differences(states, dt, 6, inputs)
 
@@ -718,8 +794,8 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
         * ``'ctr4'``: fourth-order backward differences, see :func:`ctr4`.
         * ``'ctr6'``: sixth-order backward differences, see :func:`ctr6`.
         * ``'ord2'``: second-order differences, see :func:`ord2`.
-        * ``'ord2'``: fourth-order differences, see :func:`ord4`.
-        * ``'ord2'``: sixth-order differences, see :func:`ord6`.
+        * ``'ord4'``: fourth-order differences, see :func:`ord4`.
+        * ``'ord6'``: sixth-order differences, see :func:`ord6`.
 
         If ``scheme`` is a callable function, its signature must match the
         following syntax.
@@ -892,11 +968,11 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
 
         Returns
         -------
-        _states : (r, k') ndarray
-            Subset of the state snapshots.
-        ddts : (r, k') ndarray
+        _states : (r, k) ndarray
+            State snapshots.
+        ddts : (r, k) ndarray
             First time derivatives corresponding to ``_states``.
-        _inputs : (m, k') ndarray or None
+        _inputs : (m, k) ndarray or None
             Inputs corresponding to ``_states``, if applicable.
             **Only returned** if ``inputs`` is provided.
         """
@@ -946,69 +1022,24 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
         self.__check_uniformity = True
 
 
-# Helper functions ============================================================
-def _fdcoeffs(s):  # pragma: no cover
-    r"""Vandermonde solve for finite difference coefficients.
-
-    Parameters
-    ----------
-    s : (p,) ndarray
-        Finite difference stencil. For example, ``s=[-2, -1, 0, 1]`` means
-        we want coefficients :math:`c_{-2},c_{-1},c_{0},c_{1}` such that
-        :math:`f'(x) \approx
-        c_{-2} f(x - 2) + c_{-1} f(x - 1) + c_{0} f(x) + c_{1} f(x + 1)`.
-
-    Returns
-    -------
-    (p,) ndarray
-        Finite difference coefficients (the :math:`c_{j}`'s).
-    """
-    V = np.vander(s, increasing=True).T
-    e = np.zeros_like(s)
-    e[1] = 1
-    return np.linalg.solve(V, e)
-
-
-def _fdcoeffs2(s):  # pragma: no cover
-    r"""Stable solve for finite difference coefficients (LeVeque).
-
-    Parameters
-    ----------
-    s : (p,) ndarray
-        Finite difference stencil. For example, ``[-2, -1, 0, 1]`` means
-        get coefficients :math:`c_{-2},c_{-1},c_{0},c_{1}` such that
-        :math:`f'(x) \approx
-        c_{-2} f(x - 2) + c_{-1} f(x - 1) + c_{0} f(x) + c_{1} f(x + 1)`.
-
-    Returns
-    -------
-    (p,) ndarray
-        Finite difference coefficients (the :math:`c_{j}`'s).
-    """
-    pass
-
-
 # Old API =====================================================================
 def ddt_uniform(states, dt, order=2):
-    """Approximate the time derivatives for a chunk of snapshots that are
-    uniformly spaced in time.
+    """Forward, central, and backward differences for estimating the first
+    derivative.
 
     Parameters
     ----------
-    states : (n, k) ndarray
-        States to estimate the derivative of. The jth column is a snapshot
-        that corresponds to the jth time step, i.e., states[:, j] = x(t[j]).
+    states : (r, k) ndarray
+        State snapshots: ``states[:, j]`` is the state at time :math:`t_j`.
     dt : float
-        The time step between the snapshots, i.e., t[j+1] - t[j] = dt.
+        Time step between snapshots.
     order : int {2, 4, 6}
         The order of the derivative approximation.
-        See https://en.wikipedia.org/wiki/Finite_difference_coefficient.
 
     Returns
     -------
-    ddts : (n, k) ndarray
-        Approximate time derivative of the snapshot data. The jth column is
-        the derivative dx / dt corresponding to the jth snapshot, states[:, j].
+    ddts : (r, k) ndarray
+        Time derivative estimates corresponding to the state snapshots.
     """
     # Check dimensions and input types.
     if states.ndim != 2:
@@ -1065,24 +1096,19 @@ def ddt_uniform(states, dt, order=2):
 
 
 def ddt_nonuniform(states, t):
-    """Approximate the time derivatives for a chunk of snapshots with a
-    second-order finite difference scheme.
+    """Second-order finite differences for estimating the first derivative.
 
     Parameters
     ----------
-    states : (n, k) ndarray
-        States to estimate the derivative of. The jth column is a snapshot
-        that corresponds to the jth time step, i.e., states[:, j] = x(t[j]).
+    states : (r, k) ndarray
+        State snapshots: ``states[:, j]`` is the state at time :math:`t_j`.
     t : (k,) ndarray
-        The times corresponding to the snapshots. May not be uniformly spaced.
-        See ddt_uniform() for higher-order computation in the case of
-        evenly-spaced-in-time snapshots.
+        Time domain corresponding to the state snapshots.
 
     Returns
     -------
-    ddts : (n, k) ndarray
-        Approximate time derivative of the snapshot data. The jth column is
-        the derivative dx / dt corresponding to the jth snapshot, states[:, j].
+    ddts : (r, k) ndarray
+        Time derivative estimates corresponding to the state snapshots.
     """
     # Check dimensions.
     if states.ndim != 2:
@@ -1097,30 +1123,28 @@ def ddt_nonuniform(states, t):
 
 
 def ddt(states, *args, **kwargs):
-    """Approximate the time derivatives for a chunk of snapshots with a finite
-    difference scheme. Calls ddt_uniform() or ddt_nonuniform(), depending on
-    the arguments.
+    """Finite differences for estimating the first derivative.
+
+    This is a convenience function that calls either :func:`ddt_uniform()` or
+    :func:`ddt_nonuniform()`, depending on the arguments.
 
     Parameters
     ----------
-    states : (n, k) ndarray
-        States to estimate the derivative of. The jth column is a snapshot
-        that corresponds to the jth time step, i.e., states[:, j] = x(t[j]).
+    states : (r, k) ndarray
+        State snapshots: ``states[:, j]`` is the state at time :math:`t_j`.
     dt : float
-        The time step between the snapshots, i.e., t[j+1] - t[j] = dt,
-        in the case of a uniform time step.
+        Time step between snapshots (in the case of a time domain with
+        uniform spacing).
     order : int {2, 4, 6} (optional)
         The order of the derivative approximation.
-        See https://en.wikipedia.org/wiki/Finite_difference_coefficient.
     t : (k,) ndarray
-        The times corresponding to the snapshots. May or may not be uniformly
-        spaced.
+       Time domain corresponding to the state snapshots.
+       May or may not be uniformly spaced.
 
     Returns
     -------
-    ddts : (n, k) ndarray
-        Approximate time derivative of the snapshot data. The jth column is
-        the derivative dx / dt corresponding to the jth snapshot, states[:, j].
+    ddts : (r, k) ndarray
+        Time derivative estimates corresponding to the state snapshots.
     """
     n_args = len(args)  # Number of other positional args.
     n_kwargs = len(kwargs)  # Number of keyword args.
@@ -1160,3 +1184,45 @@ def ddt(states, *args, **kwargs):
         )
 
     return func(states, *args, **kwargs)
+
+
+# Helper functions ============================================================
+def _fdcoeffs(s):  # pragma: no cover
+    r"""Vandermonde solve for finite difference coefficients.
+
+    Parameters
+    ----------
+    s : (p,) ndarray
+        Finite difference stencil. For example, ``s=[-2, -1, 0, 1]`` means
+        we want coefficients :math:`c_{-2},c_{-1},c_{0},c_{1}` such that
+        :math:`f'(x) \approx
+        c_{-2} f(x - 2) + c_{-1} f(x - 1) + c_{0} f(x) + c_{1} f(x + 1)`.
+
+    Returns
+    -------
+    (p,) ndarray
+        Finite difference coefficients (the :math:`c_{j}`'s).
+    """
+    V = np.vander(s, increasing=True).T
+    e = np.zeros_like(s)
+    e[1] = 1
+    return np.linalg.solve(V, e)
+
+
+def _fdcoeffs2(s):  # pragma: no cover
+    r"""Stable solve for finite difference coefficients (LeVeque).
+
+    Parameters
+    ----------
+    s : (p,) ndarray
+        Finite difference stencil. For example, ``[-2, -1, 0, 1]`` means
+        get coefficients :math:`c_{-2},c_{-1},c_{0},c_{1}` such that
+        :math:`f'(x) \approx
+        c_{-2} f(x - 2) + c_{-1} f(x - 1) + c_{0} f(x) + c_{1} f(x + 1)`.
+
+    Returns
+    -------
+    (p,) ndarray
+        Finite difference coefficients (the :math:`c_{j}`'s).
+    """
+    pass
