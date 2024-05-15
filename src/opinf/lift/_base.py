@@ -106,13 +106,15 @@ class LifterTemplate(abc.ABC):
         lifted_states = self.lift(states)
         if (k1 := lifted_states.shape[1]) != states.shape[1]:
             raise errors.VerificationError(
-                f"{k1} = lift(states).shape[1] != {states.shape[1] = }"
+                f"{k1} = lift(states).shape[1] "
+                f"!= states.shape[1] = {states.shape[1]}"
             )
 
         unlifted_states = self.unlift(lifted_states)
         if (shape := unlifted_states.shape) != states.shape:
             raise errors.VerificationError(
-                f"{shape} = unlift(lift(states)).shape != {states.shape = }"
+                f"{shape} = unlift(lift(states)).shape "
+                f"!= states.shape = {states.shape}"
             )
         if not np.allclose(unlifted_states, states):
             raise errors.VerificationError("unlift(lift(states)) != states")
@@ -138,6 +140,6 @@ class LifterTemplate(abc.ABC):
             raise errors.VerificationError(
                 "lift_ddts() failed finite difference check,\n\t"
                 "|| lift_ddts(states, d/dt[states]) - d/dt[lift(states)] || "
-                f" / || d/dt[lift(states)] || = {diff} > {tol = }"
+                f" / || d/dt[lift(states)] || = {diff} > tol = {tol}"
             )
         print("lift() and lift_ddts() are consistent")

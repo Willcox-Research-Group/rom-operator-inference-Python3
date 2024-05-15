@@ -275,7 +275,7 @@ class TransformerTemplate(abc.ABC):
             raise errors.VerificationError(
                 "transform_ddts() failed finite difference check,\n\t"
                 "|| transform_ddts(d/dt[states]) - d/dt[transform(states)] || "
-                f" / || d/dt[transform(states)] || = {diff} > {tol = }"
+                f" / || d/dt[transform(states)] || = {diff} > {tol} = tol"
             )
         ddts_transformed = self.transform_ddts(ddts, inplace=True)
         if ddts_transformed is not ddts:
