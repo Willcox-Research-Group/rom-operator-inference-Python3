@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,13 +9,14 @@ dynamic = ["version"]
 authors = [
     { name = "Willcox Research Group", email = "kwillcox@oden.utexas.edu" },
 ]
-maintainers = [{ name = "Shane A. McQuarrie", email = "shanemcq@utexas.edu" }]
+maintainers = [{ name = "Shane A. McQuarrie", email = "smcquar@sandia.gov" }]
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
 keywords = [
     "operator inference",
     "model reduction",
+    "data-driven model reduction",
     "scientific machine learning",
 ]
 classifiers = [
@@ -45,14 +46,14 @@ tests = [
 ]
 docs = [
     "bibtexparser>=2.0.0b7",
-    "chardet>=5.0",
-    "docutils==0.17.1",
-    "jupyter-book>=0.14.0,<0.15.0",
-    "jupyterlab>=4.0.9",
-    "numpydoc>=1.2",
-    "pandas>=2.0.3",
-    "sphinx-design>=0.1.0",
-    "sphinxcontrib-mermaid>=0.7.1",
+    "chardet",
+    "docutils",
+    "jupyter-book",
+    "jupyterlab",
+    "numpydoc",
+    "pandas",
+    "sphinx-design",
+    "sphinxcontrib-mermaid",
 ]
 
 [project.urls]
