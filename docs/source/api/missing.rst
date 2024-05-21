@@ -51,3 +51,37 @@ basis.ipynb
    PODBasis
    BasisMulti
    BasisTemplate
+
+ddt.ipynb
+---------
+
+.. currentmodule:: opinf.ddt
+
+.. autosummary::
+   :toctree: _autosummaries
+   :nosignatures:
+
+   UniformFiniteDifferencer
+   NonuniformFiniteDifferencer
+   DerivativeEstimatorTemplate
+   fwd1
+   fwd2
+   fwd3
+   fwd4
+   fwd5
+   fwd6
+   bwd1
+   bwd2
+   bwd3
+   bwd4
+   bwd5
+   bwd6
+   ctr2
+   ctr4
+   ctr6
+   ord2
+   ord4
+   ord6
+   ddt_uniform
+   ddt_nonuniform
+   ddt
