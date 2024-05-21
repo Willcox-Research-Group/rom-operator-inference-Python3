@@ -1,7 +1,9 @@
 # ddt/_base.py
 """Template for time derivative estimators."""
 
-__all__ = []
+__all__ = [
+    "DerivativeEstimatorTemplate",
+]
 
 
 import abc
@@ -13,23 +15,63 @@ import matplotlib.pyplot as plt
 from .. import errors
 
 
-class _BaseDerivativeEstimator(abc.ABC):
-    r"""Base class for time derivative estimators.
+class DerivativeEstimatorTemplate(abc.ABC):
+    r"""Template for time derivative estimators.
 
     Operator Inference for time-continuous (semi-discrete) models requires
     state snapshots and their time derivatives in order to learn operator
-    entries via regression. This class is a base for all classes that
-    estimate time derivatives of state snapshots.
+    entries via regression. This class is a template for estimating the first
+    time derivative of state snapshots. Specifically, from a collection of
+    snapshots :math:`\qhat_0,\ldots,\qhat_{k-1}\in\RR^r` representing the state
+    at time instances :math:`t_0,\ldots,t_{k-1}`, the goal is to estimate
 
-    This class may be extended in the future for estimates of the _second_
-    time derivative. For now, use :class:`DerivativeEstimatorTemplate` as a
-    superclass of new estimators for the _first_ time derivative.
+    .. math::
+        \dot{\qhat}_j \approx \ddt\qhat(t)\bigg|_{t = t_j} \in \RR^{r}
+
+    for :math:`j = 0, \ldots, k - 1`.
+
+    Depending on the estimation strategy, the derivatives may only be computed
+    for a subset of the states. For example, a first-order backward difference
+    may omit an estimate for :math:`\dot{\qhat}_0`.
 
     Parameters
     ----------
     time_domain : (k,) ndarray
         Time domain of the snapshot data.
     """
+
+    __tests = (
+        (
+            r"$f(t) = t$",
+            lambda t: t,
+            np.ones_like,
+        ),
+        (
+            r"$f(t) = t^4 - \frac{1}{3}t^3$",
+            lambda t: t**4 - (t**3 / 3),
+            lambda t: 4 * t**3 - t**2,
+        ),
+        (
+            r"$f(t) = \sin(t)$",
+            np.sin,
+            np.cos,
+        ),
+        (
+            r"$f(t) = e^t$",
+            np.exp,
+            np.exp,
+        ),
+        (
+            r"$f(t) = \frac{1}{1 + t}$",
+            lambda t: 1 / (t + 1),
+            lambda t: -1 / (t + 1) ** 2,
+        ),
+        (
+            r"$f(t) = t - t^3 + \cos(t) - e^{t/2}$",
+            lambda t: t - t**3 + np.cos(t) - np.exp(t / 2),
+            lambda t: 1 - 3 * t**2 - np.sin(t) - np.exp(t / 2) / 2,
+        ),
+    )
 
     # Constructor -------------------------------------------------------------
     def __init__(self, time_domain):
@@ -50,7 +92,7 @@ class _BaseDerivativeEstimator(abc.ABC):
     # Main routine ------------------------------------------------------------
     @abc.abstractmethod
     def estimate(self, states, inputs=None):
-        r"""Estimate the first time derivatives of the states.
+        """Estimate the first time derivatives of the states.
 
         Parameters
         ----------
@@ -72,7 +114,7 @@ class _BaseDerivativeEstimator(abc.ABC):
         raise NotImplementedError  # pragma: no cover
 
     # Verification ------------------------------------------------------------
-    def verify(self, r: int = 5, m: int = 3):
+    def verify_shapes(self, r: int = 5, m: int = 3):
         """Verify that :meth:`estimate()` is consistent in the sense that the
         all outputs have the same number of columns. This method does **not**
         check the accuracy of the derivative estimation.
@@ -139,71 +181,7 @@ class _BaseDerivativeEstimator(abc.ABC):
 
         print("estimate() output shapes are consistent")
 
-
-class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
-    r"""Template for time derivative estimators.
-
-    Operator Inference for time-continuous (semi-discrete) models requires
-    state snapshots and their time derivatives in order to learn operator
-    entries via regression. This class is a template for estimating first time
-    derivatives of state snapshots estimators. Specifically, from a collection
-    of snapshots :math:`\q_0,\ldots,\q_{k-1}\in\RR^n` representing the state
-    at time instances :math:`t_0,\ldots,t_{k-1}`, the goal is to estimate
-
-    .. math::
-        \dot{\q}_j = \ddt\q(t)\bigg|_{t = t_j}
-
-    for :math:`j = 0, \ldots, k - 1`.
-
-    Depending on the estimation scheme, the derivatives may only be computed
-    for a subset of the states. For example, a first-order backward difference
-    may omit an estimate for :math:`\dot{\q}_0`.
-
-    Parameters
-    ----------
-    time_domain : (k,) ndarray
-        Time domain of the snapshot data.
-    """
-
-    __tests = (
-        (
-            r"$f(t) = 1",
-            np.ones_like,
-            np.zeros_like,
-        ),
-        (
-            r"$f(t) = t$",
-            lambda t: t,
-            np.ones_like,
-        ),
-        (
-            r"$f(t) = t^4 - \frac{1}{3}t^3$",
-            lambda t: t**4 - (t**3 / 3),
-            lambda t: 4 * t**3 - t**2,
-        ),
-        (
-            r"$f(t) = \sin(t)$",
-            np.sin,
-            np.cos,
-        ),
-        (
-            r"$f(t) = e^t$",
-            np.exp,
-            np.exp,
-        ),
-        (
-            r"$f(t) = frac{1}{1 + t}$",
-            lambda t: 1 / (t + 1),
-            lambda t: -1 / (t + 1) ** 2,
-        ),
-        (
-            r"$f(t) = t - t^3 + \cos(t) - e^{t/2}$",
-            lambda t: t - t**3 + np.cos(t) - np.exp(t / 2),
-            lambda t: 1 - 3 * t**2 - np.sin(t) - np.exp(t / 2) / 2,
-        ),
-    )
-
-    def verify(self, plot: bool = False):
+    def verify(self, plot: bool = False, return_errors=False):
         """Verify that :meth:`estimate()` is consistent in the sense that the
         all outputs have the same number of columns and test the accuracy of
         the results on a few test problems.
@@ -214,14 +192,18 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
             If ``True``, plot the relative errors of the derivative estimation
             errors as a function of the time step.
             If ``False`` (default), print a report of the relative errors.
+        return_errors : bool
+            If ``True``, return the errors for each test as a dictionary.
+            If ``False`` (default), return nothing.
 
         Returns
         -------
         errors : dict
             Estimation errors for each test case.
             Time steps are listed as ``errors[dts]``.
+            **Only returned** if ``return_errors=True``.
         """
-        _BaseDerivativeEstimator.verify(self)
+        self.verify_shapes()
 
         time_domain = self.time_domain  # Record original time domain.
         dts = np.logspace(-12, -1, 12)[::-1]
@@ -247,11 +229,7 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
             truth = dQdt[:, s]
 
             # Calculate the relative error of the time derivative estimate.
-            kind = "relative"
             denom = la.norm(truth, axis=1)
-            if np.any(denom < np.finfo(float).eps):
-                denom = denom.max()
-                kind = "absolute"
             errs = la.norm(dQdt_est - truth, axis=1) / denom
             for test, err in zip(self.__tests, errs):
                 estimation_errors[test[0]].append(err)
@@ -265,17 +243,18 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
                     estimation_errors[name],
                     ".-",
                     linewidth=0.5,
-                    markersize=10,
+                    markersize=5,
                     label=name,
                 )
-                ax.legend(loc="lower right", frameon=False)
-                ax.set_xlabel("time step")
-                ax.set_ylabel(f"{kind} error")
-                fig.suptitle("Time derivative estimation errors")
-                plt.show()
+            ymin, ymax = ax.get_ylim()
+            ax.set_ylim(bottom=max(ymin, 1e-14), top=min(ymax, 10))
+            ax.set_xlabel("time step")
+            ax.set_ylabel("relative error")
+            ax.legend(ncols=2, frameon=False, fontsize="small")
+            ax.set_title("Time derivative estimation errors")
         else:
             print(
-                (title := f"Time derivative estimation ({kind}) errors"),
+                (title := "\nTime derivative estimation relative errors"),
                 "=" * len(title),
                 sep="\n",
             )
@@ -287,4 +266,5 @@ class DerivativeEstimatorTemplate(_BaseDerivativeEstimator):
                     print(f"dt = {dt:.1e}:\terror = {err:.4e}")
 
         self.time_domain = time_domain  # Restore original time domain.
-        return estimation_errors
+        if return_errors:
+            return estimation_errors

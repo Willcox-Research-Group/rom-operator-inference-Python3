@@ -115,7 +115,7 @@ class TestUniformFiniteDifferencer:
         # Test all schemes.
         for name, _ in self.Diff._schemes.items():
             differ = self.Diff(t, scheme=name)
-            errors = differ.verify(plot=False)
+            errors = differ.verify(plot=False, return_errors=True)
             for label, results in errors.items():
                 if label == "dts":
                     continue
