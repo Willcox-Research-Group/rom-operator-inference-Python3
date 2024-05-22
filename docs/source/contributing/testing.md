@@ -58,7 +58,7 @@ All done! ✨ 🍰 ✨
 The `pre-commit` hook requires `black` and `flake8` to pass before allowing a `git commit`.
 
 ```shell
-(opinfdev) $ python3 -m pre-commit install
+(opinfdev) $ pre-commit install
 ```
 
 :::
@@ -67,7 +67,7 @@ The `pre-commit` hook requires `black` and `flake8` to pass before allowing a `g
 Most IDEs, such as Visual Studio Code, have [plugins](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter) for `black` so that code is automatically formatted when a file is saved.
 :::
 
-## Linting with Flake8
+## Code Style with Black and Flake8
 
 Source and test code must be free of syntax error and conform to the standard Python style guide, such as [PEP 8](https://www.python.org/dev/peps/pep-0008/).
 Code style is verified by `black` and by [`flake8`](https://flake8.pycqa.org/en/latest/), a common Python [linter](https://en.wikipedia.org/wiki/Lint_(software)).
@@ -127,7 +127,11 @@ style: commands[3]> flake8 tests
 ```
 
 :::{tip}
-To see a more detailed report from `black` about the changes it would make, run `black --check --diff --color .`.
+The following command gives a more detailed report from `black` about the changes it would like to make.
+
+```shell
+(opinfdev) $ black --check --diff --color .
+```
 
 ```text
 --- /../OpInf/src/opinf/pre/_base.py
@@ -180,5 +184,10 @@ To test a single Python version, use `tox -e py310` for Python 3.10, `tox -e py3
 
 Pull requests to `develop` are tested through GitHub Actions:
 GitHub clones the new version of the repository, runs the linter and unit tests, compiles the documentation, and reports any errors.
-**All tests must pass** before changes can be merged in.
-Before pushing new changes, run `tox` until all tests pass.
+**All tests must pass** before changes can be merged.
+Before pushing new changes, ensure the following tests pass.
+
+```shell
+(opinfdev) $ tox -e style
+(opinfdev) $ tox
+```

@@ -17,6 +17,7 @@ help:
 	@echo "make style   -> check style with black and flake8"
 	@echo "make test    -> run unit tests via pytest"
 	@echo "make docs    -> build jupyter-book documentation"
+	@echo "make all     -> check style, run tests, and build docs"
 	@echo " "
 	@echo "tox environments (tox -e <env>)"
 	@echo "-------------------------------"
@@ -52,6 +53,8 @@ test: style
 
 docs:
 	$(TOX) -e literature,docs
+
+all: test docs
 
 
 # Deployment (ADMINISTRATORS ONLY) --------------------------------------------
