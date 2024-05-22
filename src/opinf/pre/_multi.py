@@ -355,7 +355,7 @@ class TransformerMulti:
 
         Returns
         -------
-        states: (n, ...) or (num_variables*p, ...) ndarray
+        states_untransformed: (n, ...) or (num_variables*p, ...) ndarray
             Matrix of `n`-dimensional untransformed snapshots, or the
             :math:`n_q p` entries of such at the indices specified by ``locs``.
         """

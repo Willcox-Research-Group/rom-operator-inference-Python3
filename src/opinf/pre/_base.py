@@ -163,7 +163,7 @@ class TransformerTemplate(abc.ABC):
 
         Returns
         -------
-        states: (n, ...) or (p, ...) ndarray
+        states_untransformed: (n, ...) or (p, ...) ndarray
             Matrix of `n`-dimensional untransformed snapshots, or the `p`
             entries of such at the indices specified by ``locs``.
         """
