@@ -70,11 +70,8 @@ Most IDEs, such as Visual Studio Code, have [plugins](https://marketplace.visual
 ## Linting with Flake8
 
 Source and test code must be free of syntax error and conform to the standard Python style guide, such as [PEP 8](https://www.python.org/dev/peps/pep-0008/).
-Code style is verified by [`flake8`](https://flake8.pycqa.org/en/latest/), a common Python [linter](https://en.wikipedia.org/wiki/Lint_(software)).
+Code style is verified by `black` and by [`flake8`](https://flake8.pycqa.org/en/latest/), a common Python [linter](https://en.wikipedia.org/wiki/Lint_(software)).
 Unlike `black`, linters do not alter the code; they only checks that code satisfies the style guide and sometimes identifies syntax and other errors.
-
-To use the linter, run `tox -e style` in the command line from the root folder of the repository.
-This also checks that code the matches `black` conventions but does not actually modify any files.
 
 ```shell
 # Make sure the development environment is active.

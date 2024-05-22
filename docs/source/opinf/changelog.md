@@ -14,6 +14,8 @@ Expanded the `ddt` submodule (but no API changes to existing functions).
 - Better documentation of the module.
 
 The documentation was also updated to JupyterBook 1.0.0, a significant improvement to the look and feel.
+
+Tests are now managed with `tox`, the contributor instructions were updated.
 :::
 
 :::{versionchanged} 0.5.2
