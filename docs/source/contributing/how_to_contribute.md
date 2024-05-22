@@ -6,11 +6,11 @@ Before you begin, please review our [Code of Conduct](https://github.com/Willcox
 :::{admonition} Summary
 
 - Changes to the [source code](./code_anatomy.md) must be accompanied with updates to corresponding [unit tests](./testing.md) and [documentation](./documentation.md).
-- Use `Makefile` shortcuts while developing:
-  - `make lint` checks that source code and tests follow the style guide.
-  - `make test` executes all unit tests.
-  - `make docs` compiles the documentation.
-- When all tests pass, make a pull request to the `main` branch on GitHub.
+- Use `tox` to run tests while developing:
+  - `tox -e style` checks that source code and tests follow the style guide.
+  - `tox` (without arguments) executes all unit tests.
+  - `tox -e literature,docs` compiles the documentation.
+- When all tests pass, open a pull request to the `main` branch on GitHub.
 :::
 
 ## Setup
@@ -20,12 +20,12 @@ Contributing to this project requires familiarity with GitHub and `git`.
 If you are unfamiliar with either, start with the [GitHub tutorial](https://docs.github.com/en/get-started/quickstart/hello-world) or the [git tutorial](https://git-scm.com/docs/gittutorial).
 :::
 
-Now that you are a git expert, [fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo) [the GitHub repository](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3) and [clone your fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository).
+Now that you are a `git` expert, [fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo) [the GitHub repository](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3) and [clone your fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository).
 Add the original repository as [an upstream remote](https://docs.github.com/en/get-started/quickstart/fork-a-repo#configuring-git-to-sync-your-fork-with-the-original-repository).
 
 ```bash
-git clone https://<username>@github.com/<username>/rom-operator-inference-Python3
-cd rom-operator-inference-Python3
+git clone https://<username>@github.com/<username>/rom-operator-inference-Python3 OpInf
+cd OpInf
 git remote add upstream https://<username>@github.com/Willcox-Research-Group/rom-operator-inference-Python3
 ```
 
@@ -33,29 +33,62 @@ Like most Python packages, `opinf` has a few [software dependencies](https://git
 To avoid conflicts with other installed packages, we recommend installing `opinf` within a new [conda environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) (recommended) or [virtual Python environment](https://docs.python.org/3/tutorial/venv.html) .
 
 ```shell
-# Make a fresh conda environment and install Python 3.11.
-conda create -n opinf3.11 python=3.11
+# Make a fresh conda environment and install Python 3.12.
+conda create -n opinfdev python=3.12
 ```
 
 Be sure to [activate](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment) the environment before using `pip` or other installation tools.
+Then, install the package with developer dependencies.
 
 ```shell
 # Activate the conda environment (updates the PATH).
-$ conda activate opinf3.11
+$ conda activate opinfdev
 
 # Verify python is now linked to the conda environment.
-$ which python3
-/path/to/your/conda/envs/opinf3.11/bin/python3
-$ python3 --version
-Python 3.11.8
+(opinfdev) $ which python3
+/path/to/your/conda/envs/opinfdev/bin/python3
+(opinfdev) $ python3 --version
+Python 3.12.3
+
+# Install the package and its dependencies in development mode.
+(opinfdev) $ python3 -m pip install -e ".[dev]"
 ```
+
+Style checks, unit tests, and documentation builds are managed with [`tox`](https://tox.wiki/en/latest).
+For each of these tasks, `tox` creates a new virtual environment, installs the dependencies (e.g., `pytest` for running unit tests), and executes the task recipe.
+
+:::{note}
+Unit tests are executed for Python 3.9 through 3.12 if they are installed on your system.
+The best way to install multiple Python versions varies by platform; for MacOS, [we suggest](https://stackoverflow.com/questions/36968425/how-can-i-install-multiple-versions-of-python-on-latest-os-x-and-use-them-in-par#answer-65094122) using [Homebrew](https://brew.sh/).
+
+```shell
+# After installing Homebrew:
+brew install python@3.9
+brew install python@3.10
+brew install python@3.11
+brew install python@3.12
+```
+
+:::
+
+Finally, to ensure that new additions follow code standards and conventions, install the [git pre-commit hook](https://pre-commit.com/) with the following command.
+
+```shell
+(opinfdev) $ python3 -m pre-commit install
+```
+
+:::{important}
+Don't skip this step!
+It will help prevent automated tests from failing when a pull request is made.
+:::
 
 ## Branches and Workflow
 
-The source repository has two special branches:
+The source repository has three special branches:
 
 - `main` is the most up-to-date version of the code. Tags on the `main` branch correspond to [public PyPi releases](https://pypi.org/project/opinf/).
 - `gh-pages` contains only the current build files for this documentation. _This branch is updated by maintainers only._
+- `data` contains only data files used in documentation demos.
 
 To contribute, get synced with the `main` branch, then start a new branch for making active changes.
 
@@ -70,30 +103,28 @@ When you're ready, [create a pull request](https://docs.github.com/en/get-starte
 
 ## Repository Organization
 
-The GitHub repository is organized as follows.
-
 ::::{margin}
 :::{note}
-Full examples, like the one you see on the left under the **Tutorials** heading, are part of the documentation.
+Full examples, like the one listed on the left under the **Tutorials** heading, are part of the documentation.
 They should be written as Jupyter notebooks and placed in `docs/content/tutorials/`.
 :::
 ::::
 
+The GitHub repository is organized as follows.
+
 - [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) contains the actual package code, see the [Source Code Guide](./code_anatomy.md).
-- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/opinf/`. See [Testing](./testing.md).
+- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/opinf/`. See [Testing Source Code](./testing.md).
 - [`docs/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/docs) contains documentation (including this page!). See [Documentation](./documentation.md).
 
 ## Acceptance Standards
 
-::::{margin}
+Changes are not usually be accepted until the following tests pass.
+
+1. `tox`: write or update tests to validate your additions or changes, preferably with full line coverage.
+2. `tox -e style`: write readable code that conforms to our style guide.
+3. `tox -e literature,docs`: write or update documentation based on your changes.
+
 :::{tip}
-The file `Makefile` defines routines that are triggered by the `make` command line utility.
-The aptly named [makefiletutorial.com](https://makefiletutorial.com/) gives a good overview of `Makefile` syntax and usage.
+The `Makefile` has recipes for these commands, run `make` to see options.
+See [makefiletutorial.com](https://makefiletutorial.com/) for an overview of `Makefile` syntax and usage.
 :::
-::::
-
-For any changes to be accepted, they need to address three things.
-
-1. [**Source Code.**](./code_anatomy.md) Write readable code that conforms to our style guide: `make lint` must succeed.
-2. [**Unit tests.**](./testing.md) Write or update tests to validate your additions or changes: `make test` must succeed with full line coverage.
-3. [**Documentation.**](./documentation.md) Write or update documentation based on your changes: `make docs` must succeed.

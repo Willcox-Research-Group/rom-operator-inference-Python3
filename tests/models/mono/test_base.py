@@ -49,8 +49,8 @@ class TestModel:
         ]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             self.Dummy(bad_ops)
-        assert (
-            ex.value.args[0] == "operators not aligned "
+        assert ex.value.args[0] == (
+            "operators not aligned "
             "(state dimension must be the same for all operators)"
         )
 
@@ -61,8 +61,8 @@ class TestModel:
         ]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             self.Dummy(bad_ops)
-        assert (
-            ex.value.args[0] == "input operators not aligned "
+        assert ex.value.args[0] == (
+            "input operators not aligned "
             "(input dimension must be the same for all input operators)"
         )
 
@@ -277,9 +277,8 @@ class TestModel:
         with pytest.warns(UserWarning) as wn:
             model._check_inputargs(1, "u")
         assert len(wn) == 1
-        assert (
-            wn[0].message.args[0] == "argument 'u' should be None, "
-            "argument will be ignored"
+        assert wn[0].message.args[0] == (
+            "argument 'u' should be None, argument will be ignored"
         )
 
     def test_is_trained(self, m=4, r=7):

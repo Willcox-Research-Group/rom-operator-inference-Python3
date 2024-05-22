@@ -1,6 +1,7 @@
 [![License](https://img.shields.io/github/license/Willcox-Research-Group/rom-operator-inference-python3)](./LICENSE)
 [![Top language](https://img.shields.io/github/languages/top/Willcox-Research-Group/rom-operator-inference-python3)](https://www.python.org)
 ![Code size](https://img.shields.io/github/languages/code-size/Willcox-Research-Group/rom-operator-inference-python3)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://black.readthedocs.io/en/stable/)
 [![Issues](https://img.shields.io/github/issues/Willcox-Research-Group/rom-operator-inference-python3)](https://github.com/Willcox-Research-Group/rom-operator-inference-python3/issues)
 [![Latest commit](https://img.shields.io/github/last-commit/Willcox-Research-Group/rom-operator-inference-python3)](https://github.com/Willcox-Research-Group/rom-operator-inference-python3/commits/main)
 [![PyPI](https://img.shields.io/pypi/wheel/opinf)](https://pypi.org/project/opinf/)

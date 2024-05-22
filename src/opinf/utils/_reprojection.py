@@ -4,9 +4,9 @@ Operator Inference.
 """
 
 __all__ = [
-            "reproject_discrete",
-            "reproject_continuous",
-          ]
+    "reproject_discrete",
+    "reproject_continuous",
+]
 
 import numpy as np
 
@@ -48,14 +48,16 @@ def reproject_discrete(f, basis, init, niters, inputs=None):
 
     # Run the re-projection iteration.
     if inputs is None:
-        for j in range(niters-1):
-            states_[:, j+1] = basis.T @ f(basis @ states_[:, j])
+        for j in range(niters - 1):
+            states_[:, j + 1] = basis.T @ f(basis @ states_[:, j])
     elif inputs.ndim == 1:
-        for j in range(niters-1):
-            states_[:, j+1] = basis.T @ f(basis @ states_[:, j], inputs[j])
+        for j in range(niters - 1):
+            states_[:, j + 1] = basis.T @ f(basis @ states_[:, j], inputs[j])
     else:
-        for j in range(niters-1):
-            states_[:, j+1] = basis.T @ f(basis @ states_[:, j], inputs[:, j])
+        for j in range(niters - 1):
+            states_[:, j + 1] = basis.T @ f(
+                basis @ states_[:, j], inputs[:, j]
+            )
 
     return states_
 
@@ -87,8 +89,10 @@ def reproject_continuous(f, basis, states, inputs=None):
     """
     # Validate and extract dimensions.
     if states.shape[0] != basis.shape[0]:
-        raise ValueError("states and basis not aligned, first dimension "
-                         f"{states.shape[0]} != {basis.shape[0]}")
+        raise ValueError(
+            "states and basis not aligned, first dimension "
+            f"{states.shape[0]} != {basis.shape[0]}"
+        )
     n, r = basis.shape
     k = states.shape[1]
 

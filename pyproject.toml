@@ -37,23 +37,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tests = [
-    "pytest>=6.0.2",
-    "pytest-cov>=2.12.1",
-    "black>=23.10.0",
-    "flake8>=3.9.0",
-    "pre-commit>=3.5.0",
-]
-docs = [
-    "bibtexparser>=2.0.0b7",
-    "chardet",
-    "docutils",
-    "jupyter-book",
+dev = [
+    "tox>=4",
+    "pre-commit>=3.7.1",
+    "flake8==7.0.0",
+    "black==24.4.2",
     "jupyterlab",
-    "numpydoc",
-    "pandas",
-    "sphinx-design",
-    "sphinxcontrib-mermaid",
+    "notebook",
 ]
 
 [project.urls]

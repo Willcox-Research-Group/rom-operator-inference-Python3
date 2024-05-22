@@ -20,6 +20,7 @@ class TotalLeastSquaresSolver(_BaseSolver):
     The solution is calculated using standard computations
     (see Wikipedia for example).
     """
+
     _LSTSQ_LABEL = r"argmin_{X, G, H} ||[G H]||_F | (A+G)X = B+H"
 
     def predict(self):

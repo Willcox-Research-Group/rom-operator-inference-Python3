@@ -32,9 +32,8 @@ class TestConstantOperator:
         cbad = np.arange(12).reshape((4, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(cbad)
-        assert (
-            ex.value.args[0] == "ConstantOperator entries must be "
-            "one-dimensional"
+        assert ex.value.args[0] == (
+            "ConstantOperator entries must be one-dimensional"
         )
 
         # Case 1: one-dimensional array.
@@ -152,17 +151,16 @@ class TestLinearOperator:
         Abad = np.arange(12).reshape((2, 2, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Abad)
-        assert (
-            ex.value.args[0] == "LinearOperator entries must be "
-            "two-dimensional"
+        assert ex.value.args[0] == (
+            "LinearOperator entries must be two-dimensional"
         )
 
         # Nonsquare.
         Abad = Abad.reshape((4, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Abad)
-        assert (
-            ex.value.args[0] == "LinearOperator entries must be square (r x r)"
+        assert ex.value.args[0] == (
+            "LinearOperator entries must be square (r x r)"
         )
 
         # Correct square usage.
@@ -274,17 +272,16 @@ class TestQuadraticOperator:
         Hbad = np.arange(16).reshape((2, 2, 2, 2))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Hbad)
-        assert (
-            ex.value.args[0] == "QuadraticOperator entries must be "
-            "two-dimensional"
+        assert ex.value.args[0] == (
+            "QuadraticOperator entries must be two-dimensional"
         )
 
         # Two-dimensional but invalid shape.
         Hbad = Hbad.reshape((r, r))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Hbad)
-        assert (
-            ex.value.args[0] == "invalid QuadraticOperator entries dimensions"
+        assert ex.value.args[0] == (
+            "invalid QuadraticOperator entries dimensions"
         )
 
         # Special case: r = 1, H a scalar.
@@ -502,10 +499,10 @@ class TestQuadraticOperator:
         r = 5
         r2bad = r**2 + 1
         H = np.empty((r, r2bad))
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             self._OpClass.compress_entries(H)
-        assert (
-            exc.value.args[0] == f"invalid shape (a, r2) = {(r, r2bad)} "
+        assert ex.value.args[0] == (
+            f"invalid shape (a, r2) = {(r, r2bad)} "
             "with r2 not a perfect square"
         )
 
@@ -542,10 +539,10 @@ class TestQuadraticOperator:
         r = 5
         r2bad = (r * (r + 1) // 2) + 1
         Hc = np.empty((r, r2bad))
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             self._OpClass.expand_entries(Hc)
-        assert (
-            exc.value.args[0] == f"invalid shape (a, r2) = {(r, r2bad)} "
+        assert ex.value.args[0] == (
+            f"invalid shape (a, r2) = {(r, r2bad)} "
             "with r2 != r(r+1)/2 for any integer r"
         )
 
@@ -592,8 +589,8 @@ class TestCubicOperator:
         Gbad = np.arange(4).reshape((1, 2, 1, 2))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Gbad)
-        assert (
-            ex.value.args[0] == "CubicOperator entries must be two-dimensional"
+        assert ex.value.args[0] == (
+            "CubicOperator entries must be two-dimensional"
         )
 
         # Two-dimensional but invalid shape.
@@ -810,10 +807,10 @@ class TestCubicOperator:
         r = 5
         r3bad = r**3 + 1
         G = np.empty((r, r3bad))
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             self._OpClass.compress_entries(G)
-        assert (
-            exc.value.args[0] == f"invalid shape (a, r3) = {(r, r3bad)} "
+        assert ex.value.args[0] == (
+            f"invalid shape (a, r3) = {(r, r3bad)} "
             "with r3 not a perfect cube"
         )
 
@@ -843,10 +840,10 @@ class TestCubicOperator:
         r = 5
         r3bad = (r * (r + 1) * (r + 2) // 6) + 1
         Gc = np.empty((r, r3bad))
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError) as ex:
             self._OpClass.expand_entries(Gc)
-        assert (
-            exc.value.args[0] == f"invalid shape (a, r3) = {(r, r3bad)} "
+        assert ex.value.args[0] == (
+            f"invalid shape (a, r3) = {(r, r3bad)} "
             "with r3 != r(r+1)(r+2)/6 for any integer r"
         )
 
@@ -902,8 +899,8 @@ class TestInputOperator:
         Bbad = np.arange(12).reshape((2, 2, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Bbad)
-        assert (
-            ex.value.args[0] == "InputOperator entries must be two-dimensional"
+        assert ex.value.args[0] == (
+            "InputOperator entries must be two-dimensional"
         )
 
         # Nonsquare is OK.
@@ -1057,17 +1054,16 @@ class TestStateInputOperator:
         Nbad = np.arange(12).reshape((2, 2, 3))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Nbad)
-        assert (
-            ex.value.args[0] == "StateInputOperator entries must be "
-            "two-dimensional"
+        assert ex.value.args[0] == (
+            "StateInputOperator entries must be two-dimensional"
         )
 
         # Two-dimensional but invalid shape.
         Nbad = np.random.random((3, 7))
         with pytest.raises(ValueError) as ex:
             op.set_entries(Nbad)
-        assert (
-            ex.value.args[0] == "invalid StateInputOperator entries dimensions"
+        assert ex.value.args[0] == (
+            "invalid StateInputOperator entries dimensions"
         )
 
         # Correct dimensions.

@@ -504,6 +504,7 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
     operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
     """
+
     _LHS_ARGNAME = "forcing"
     _LHS_LABEL = "z"
     _STATE_LABEL = "q"
@@ -626,6 +627,7 @@ class DiscreteModel(_NonparametricModel):
     operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
     """
+
     _LHS_ARGNAME = "nextstates"
     _LHS_LABEL = r"q_{j+1}"
     _STATE_LABEL = r"q_{j}"
@@ -872,6 +874,7 @@ class ContinuousModel(_NonparametricModel):
     operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
     """
+
     _LHS_ARGNAME = "ddts"
     _LHS_LABEL = "dq / dt"
     _STATE_LABEL = "q(t)"

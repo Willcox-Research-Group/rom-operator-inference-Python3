@@ -1011,6 +1011,7 @@ class ParametricDiscreteModel(_ParametricDiscreteMixin, _ParametricModel):
     operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
     """
+
     pass
 
 
@@ -1032,6 +1033,7 @@ class ParametricContinuousModel(_ParametricContinuousMixin, _ParametricModel):
     operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
     """
+
     pass
 
 
@@ -1407,6 +1409,7 @@ class InterpolatedDiscreteModel(_ParametricDiscreteMixin, _InterpolatedModel):
         for one-dimensional parameters and
         ``scipy.interpolate.LinearNDInterpolator`` otherwise.
     """
+
     pass
 
 
@@ -1442,4 +1445,5 @@ class InterpolatedContinuousModel(
         for one-dimensional parameters and
         ``scipy.interpolate.LinearNDInterpolator`` otherwise.
     """
+
     pass

@@ -12,7 +12,7 @@ import opinf
 def test_reproject_discrete(n=50, m=5, r=3):
     """Test utils._reprojection.reproject_discrete()."""
     # Construct dummy operators.
-    k = 1 + r + r*(r+1)//2
+    k = 1 + r + r * (r + 1) // 2
     D = np.diag(1 - np.logspace(-1, -2, n))
     W = la.qr(np.random.normal(size=(n, n)))[0]
     A = W.T @ D @ W
@@ -28,9 +28,9 @@ def test_reproject_discrete(n=50, m=5, r=3):
     x0[0] = 1
 
     # Try with bad initial condition shape.
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError) as ex:
         opinf.utils.reproject_discrete(lambda x: x, basis, x0[:-1], k)
-    assert exc.value.args[0] == "basis and initial condition not aligned"
+    assert ex.value.args[0] == "basis and initial condition not aligned"
 
     # Linear case, no inputs.
     def f(x):
@@ -65,7 +65,7 @@ def test_reproject_discrete(n=50, m=5, r=3):
     assert np.allclose(rom.B_.entries, basis.T @ B)
 
     # Quadratic case, no inputs.
-    '''# Test fails unreliably, removing for now.
+    """# Test fails unreliably, removing for now.
     def f(x):
         return A @ x + H @ np.kron(x, x)
 
@@ -80,13 +80,13 @@ def test_reproject_discrete(n=50, m=5, r=3):
         x_ = np.random.random(r)
         x2_ = np.kron(x_, x_)
         assert np.allclose(rom.H_(x_), H_ @ x2_)
-    '''
+    """
 
 
 def test_reproject_continuous(n=100, m=20, r=10):
     """Test utils._reprojection.reproject_continuous()."""
     # Construct dummy operators.
-    k = 1 + r + r*(r+1)//2
+    k = 1 + r + r * (r + 1) // 2
     D = np.diag(1 - np.logspace(-1, -2, n))
     W = la.qr(np.random.normal(size=(n, n)))[0]
     A = W.T @ D @ W
@@ -101,10 +101,11 @@ def test_reproject_continuous(n=100, m=20, r=10):
     X = np.random.random((n, k))
 
     # Try with bad initial condition shape.
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError) as ex:
         opinf.utils.reproject_continuous(lambda x: x, basis, X[:-1, :])
-    assert exc.value.args[0] == \
+    assert ex.value.args[0] == (
         f"states and basis not aligned, first dimension {n-1} != {n}"
+    )
 
     # Linear case, no inputs.
     def f(x):
@@ -139,7 +140,7 @@ def test_reproject_continuous(n=100, m=20, r=10):
     assert np.allclose(rom.B_.entries, basis.T @ B)
 
     # Quadratic case, no inputs.
-    '''# Test fails unreliably, removing for now.
+    """# Test fails unreliably, removing for now.
     def f(x):
         return A @ x + H @ np.kron(x, x)
 
@@ -153,4 +154,4 @@ def test_reproject_continuous(n=100, m=20, r=10):
         x_ = np.random.random(r)
         x2_ = np.kron(x_, x_)
         assert np.allclose(rom.H_(x_), H_ @ x2_)
-    '''
+    """
