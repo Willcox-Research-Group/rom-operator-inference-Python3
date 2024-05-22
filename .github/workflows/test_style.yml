@@ -1,6 +1,6 @@
-# test_src.yml
-# Run the same tests that would be done locally with `make test`.
-name: CI-src
+# test_style.yml
+# Check source code and unit tests follow the style guide.
+name: CI-style
 
 on:
   push:

@@ -1,5 +1,5 @@
 # test_src.yml
-# Run the same tests that would be done locally with `make test`.
+# Run unit tests for all supported platforms and Python versions.
 name: CI-src
 
 on:
@@ -39,4 +39,4 @@ jobs:
           python -m pip install tox
       - name: Run tests
         run: |
-          python -m tox -e py${{ matrix.python-version//./ }}
+          python -m tox -e py${{ matrix.python-version.replace('.', '') }}
