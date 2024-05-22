@@ -37,7 +37,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["tox>=4", "pre-commit", "flake8", "black", "jupyterlab", "notebook"]
+dev = [
+    "tox>=4",
+    "pre-commit>=3.7.1",
+    "flake8==7.0.0",
+    "black==24.4.2",
+    "jupyterlab",
+    "notebook",
+]
 
 [project.urls]
 homepage = "https://willcox-research-group.github.io/rom-operator-inference-Python3/source/index.html"
