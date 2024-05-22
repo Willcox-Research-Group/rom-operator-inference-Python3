@@ -123,9 +123,9 @@ class ROM:
 
         Parameters
         ----------
-        states : (n, k) ndarray
+        states : (n, ...) ndarray
             State snapshots in the original state space.
-        lhs : (n, k) ndarray or None
+        lhs : (n, ...) ndarray or None
             Left-hand side regression data.
 
             - If the model is time continuous, these are the time derivatives
@@ -138,10 +138,10 @@ class ROM:
 
         Returns
         -------
-        states_encoded : (r, k) ndarray
+        states_encoded : (r, ...) ndarray
             Low-dimensional representation of ``states``
             in the latent reduced state space.
-        lhs_compressed : (r, k) ndarray
+        lhs_encoded : (r, ...) ndarray
             Low-dimensional representation of ``lhs``
             in the latent reduced state space.
             **Only returned** if ``lhs`` is not ``None``.
