@@ -6,11 +6,11 @@ Only the maintainers need to worry about GitHub pages, so this guide focuses on 
 :::{admonition} Summary
 
 - Documentation is stored as Markdown files or Jupyter notebooks in the `docs/` folder.
-- Use `make docs` to compile the documentation locally.
+- Use `tox -e literature,docs` to compile the documentation locally.
 - Do **not** `git add` files from `docs/_build/`.
 :::
 
-## Jupyter Books
+## Jupyter Book
 
 [Jupyter Book](https://jupyterbook.org/intro.html) is "an open source project for building beautiful, publication-quality books and documents from computational material."
 It allows you write technical content as Markdown files (`.md`) or Jupyter notebooks (`.ipynb`).
@@ -37,8 +37,9 @@ As you can see on the left of this page, `docs/source/` is organized into the fo
 
 ## Building Documentation Locally
 
-From the root folder of the repository, execute `make docs` to build the documentation.
-This is a shortcut for the `tox` recipe to invoke `jupyter-book`.
+From the root folder of the repository, execute `tox -e docs` to build the documentation.
+This is a shortcut for invoking `jupyter-book` with the right prerequisites.
+If any changes are made to the [Literature](../opinf/literature.md) page through modifications to `docs/bib2md.py`, run `tox -e literature` first.
 
 The documentation is processed and copied to in `docs/_build`.
 Open the file `docs/_build/html/index.html` in a browser to see a preview (try Google Chrome if the file doesn't render nicely).
@@ -80,7 +81,7 @@ git commit -m "add datafile for <the tutorial>"
 git push origin data
 ```
 
-Then make a pull request to the data branch.
+Then open a pull request to the data branch.
 
 :::
 

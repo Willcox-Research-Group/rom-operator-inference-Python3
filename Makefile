@@ -1,21 +1,26 @@
-.PHONY: help install dev lint format test docs deploy_package deploy_docs
+.PHONY: help clean_docs install dev format style test docs deploy_package deploy_docs
 
 
 REMOVE = rm -rfv
 PYTHON = python3
 PIP = $(PYTHON) -m pip install
-TOX = $(PYTHON) -m tox -e
+TOX = $(PYTHON) -m tox
 
 
 # About -----------------------------------------------------------------------
 help:
-	@echo "usage:"
-	@echo "  make install:    install the package locally from source"
-	@echo "  make dev:        install the package locally in development mode"
-	@echo "  make format:     (FUTURE FEATURE) run black formatter"
-	@echo "  make lint:       check style with flake8"
-	@echo "  make test:       run unit tests via pytest"
-	@echo "  make docs:       build jupyter-book documentation"
+	@echo "make recipes"
+	@echo "------------"
+	@echo "make install -> install the package locally from source"
+	@echo "make dev     -> install the package locally in development mode"
+	@echo "make format  -> format code with black"
+	@echo "make style   -> check style with black and flake8"
+	@echo "make test    -> run unit tests via pytest"
+	@echo "make docs    -> build jupyter-book documentation"
+	@echo " "
+	@echo "tox environments (tox -e <env>)"
+	@echo "-------------------------------"
+	@$(TOX) list
 
 
 clean_docs:
@@ -34,19 +39,19 @@ dev:
 
 # Testing and documentation ---------------------------------------------------
 format:
-	# $(TOX) format
+	$(TOX) -e format
 
 
-lint:
-	$(TOX) lint
+style:
+	$(TOX) -e style
 
 
-test:
-	$(TOX) lint,format,py39,py310,py311,py312
+test: style
+	$(TOX)
 
 
 docs:
-	$(TOX) literature,docs
+	$(TOX) -e literature,docs
 
 
 # Deployment (ADMINISTRATORS ONLY) --------------------------------------------

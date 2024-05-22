@@ -26,4 +26,4 @@ jobs:
           python -m pip install tox
       - name: Check code style
         run: |
-          python -m tox -e lint
+          python -m tox -e style

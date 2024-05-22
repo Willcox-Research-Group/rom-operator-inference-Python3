@@ -6,11 +6,11 @@ Before you begin, please review our [Code of Conduct](https://github.com/Willcox
 :::{admonition} Summary
 
 - Changes to the [source code](./code_anatomy.md) must be accompanied with updates to corresponding [unit tests](./testing.md) and [documentation](./documentation.md).
-- Use `Makefile` shortcuts while developing:
-  - `make lint` checks that source code and tests follow the style guide.
-  - `make test` executes all unit tests.
-  - `make docs` compiles the documentation.
-- When all tests pass, make a pull request to the `main` branch on GitHub.
+- Use `tox` to run tests while developing:
+  - `tox -e style` checks that source code and tests follow the style guide.
+  - `tox` executes all unit tests.
+  - `tox -e literature,docs` compiles the documentation.
+- When all tests pass, open a pull request to the `main` branch on GitHub.
 :::
 
 ## Setup
@@ -24,8 +24,8 @@ Now that you are a `git` expert, [fork](https://docs.github.com/en/get-started/q
 Add the original repository as [an upstream remote](https://docs.github.com/en/get-started/quickstart/fork-a-repo#configuring-git-to-sync-your-fork-with-the-original-repository).
 
 ```bash
-git clone https://<username>@github.com/<username>/rom-operator-inference-Python3
-cd rom-operator-inference-Python3
+git clone https://<username>@github.com/<username>/rom-operator-inference-Python3 OpInf
+cd OpInf
 git remote add upstream https://<username>@github.com/Willcox-Research-Group/rom-operator-inference-Python3
 ```
 
@@ -72,11 +72,15 @@ brew install python@3.12
 :::
 
 Finally, to ensure that new additions follow code standards and conventions, install the [git pre-commit hook](https://pre-commit.com/) with the following command.
-This step is optional, but it will help prevent automated tests from failing when a pull request is made.
 
 ```shell
 (opinfdev) $ python3 -m pre-commit install
 ```
+
+:::{important}
+Don't skip this step!
+It will help prevent automated tests from failing when a pull request is made.
+:::
 
 ## Branches and Workflow
 
@@ -114,15 +118,13 @@ They should be written as Jupyter notebooks and placed in `docs/content/tutorial
 
 ## Acceptance Standards
 
-::::{margin}
-:::{tip}
-The file `Makefile` defines routines that are triggered by the `make` command line utility.
-The aptly named [makefiletutorial.com](https://makefiletutorial.com/) gives a good overview of `Makefile` syntax and usage.
-:::
-::::
-
 For any changes to be accepted, they need to address three things.
 
-1. [**Source Code.**](./code_anatomy.md) Write readable code that conforms to our style guide: `make lint` must succeed.
-2. [**Unit tests.**](./testing.md) Write or update tests to validate your additions or changes: `make test` must succeed, preferably with full line coverage.
-3. [**Documentation.**](./documentation.md) Write or update documentation based on your changes: `make docs` must succeed.
+1. [**Source Code.**](./code_anatomy.md) Write readable code that conforms to our style guide: `tox -e style` must succeed.
+2. [**Unit tests.**](./testing.md) Write or update tests to validate your additions or changes: `tox` must succeed, preferably with full line coverage.
+3. [**Documentation.**](./documentation.md) Write or update documentation based on your changes: `tox -e literature,docs` must succeed.
+
+:::{tip}
+The `Makefile` has recipes for these commands, run `make` to see options.
+See [makefiletutorial.com](https://makefiletutorial.com/) for an overview of `Makefile` syntax and usage.
+:::
