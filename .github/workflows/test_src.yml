@@ -39,4 +39,4 @@ jobs:
           python -m pip install tox
       - name: Run tests
         run: |
-          python -m tox -e py${{ matrix.python-version.replace('.', '') }}
+          python -m tox -e py${{ matrix.python-version }}
