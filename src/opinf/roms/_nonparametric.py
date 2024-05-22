@@ -118,7 +118,14 @@ class ROM:
         return utils.str2repr(self)
 
     # Mappings between original and latent state spaces -----------------------
-    def encode(self, states, lhs=None, inplace: bool = False):
+    def encode(
+        self,
+        states,
+        lhs=None,
+        inplace: bool = False,
+        *,
+        training: bool = False,
+    ):
         """Map high-dimensional data to its low-dimensional representation.
 
         Parameters
@@ -135,6 +142,9 @@ class ROM:
         inplace : bool
             If ``True``, modify the ``states`` and ``lhs`` in-place in the
             preprocessing transformation (if applicable).
+        training : bool
+            If ``True``, calibrate the high-to-low dimensional mapping
+            using the ``states``.
 
         Returns
         -------
@@ -154,19 +164,30 @@ class ROM:
 
         # Preprocessing.
         if self.transformer is not None:
-            states = self.transformer.fit_transform(states, inplace=inplace)
-            if self.iscontinuous and lhs is not None:
-                lhs = self.transformer.transform_ddts(lhs, inplace=inplace)
+            if training:
+                states = self.transformer.fit_transform(
+                    states,
+                    inplace=inplace,
+                )
+            else:
+                states = self.tranformer.tranform(states, inplace=inplace)
+            if lhs is not None:
+                if self.iscontinuous:
+                    lhs = self.transformer.transform_ddts(lhs, inplace=inplace)
+                else:
+                    lhs = self.transformer.tranform(lhs, inplace=inplace)
 
         # Dimensionality reduction.
         if self.basis is not None:
-            states = self.basis.fit(states).compress(states)
+            if training:
+                self.basis.fit(states)
+            states = self.basis.compress(states)
             if lhs is not None:
                 lhs = self.basis.compress(lhs)
 
         if lhs is not None:
-            return lhs
-        return states, lhs
+            return states, lhs
+        return states
 
     def decode(self, states_encoded):
         """Map low-dimensional data to the original state space.
@@ -247,7 +268,7 @@ class ROM:
         """
 
         # Express the states and the LHS in the latent state space.
-        reduced = self.encode(states, lhs=lhs, inplace=inplace)
+        reduced = self.encode(states, lhs=lhs, inplace=inplace, training=True)
         if lhs is None:
             states = reduced
         else:
@@ -278,16 +299,25 @@ class ROM:
         return self
 
     # Evaluation --------------------------------------------------------------
-    def predict(self, *args, **kwargs):
+    def predict(self, state0, *args, **kwargs):
         """Evaluate the reduced-order model.
 
         Parameters are the same as the model's ``predict()`` method.
 
+        Parameters
+        ----------
+        state0 : (n,) ndarray
+            Initial state, expressed in the original state space.
+        *args : list
+            Other positional arguments to ``model.predict()``.
+        **kwargs : dict
+            Keyword arguments to ``model.predict()``.
+
         Returns
         -------
-        states
-            (n, k) ndarray
+        states: (n, k) ndarray
             Solution to the model, expressed in the original state space.
         """
-        states = self.model.predict(*args, **kwargs)
+        q0_ = self.encode(state0, training=False)
+        states = self.model.predict(q0_, *args, **kwargs)
         return self.decode(states)
