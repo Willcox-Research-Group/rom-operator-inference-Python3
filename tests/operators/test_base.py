@@ -84,9 +84,8 @@ class TestNonparametricOperator:
         func = _module._NonparametricOperator._validate_entries
         with pytest.raises(TypeError) as ex:
             func([1, 2, 3, 4])
-        assert (
-            ex.value.args[0] == "operator entries must be "
-            "NumPy or scipy.sparse array"
+        assert ex.value.args[0] == (
+            "operator entries must be NumPy or scipy.sparse array"
         )
 
         A = np.arange(12, dtype=float).reshape((4, 3)).T
@@ -165,9 +164,8 @@ class TestNonparametricOperator:
         # Try with invalid type.
         with pytest.raises(TypeError) as ex:
             op1 + 10
-        assert (
-            ex.value.args[0] == "can't add object of type 'int' "
-            "to object of type 'Dummy'"
+        assert ex.value.args[0] == (
+            "can't add object of type 'int' to object of type 'Dummy'"
         )
 
         op2 = self.Dummy(np.random.random((r, r)))
@@ -251,9 +249,8 @@ class TestNonparametricOperator:
 
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             Dummy2.load(target)
-        assert (
-            ex.value.args[0] == f"file '{target}' contains 'Dummy' object, "
-            "use 'Dummy.load()"
+        assert ex.value.args[0] == (
+            f"file '{target}' contains 'Dummy' object, use 'Dummy.load()"
         )
 
         os.remove(target)
@@ -321,8 +318,8 @@ class TestParametricOperator:
 
         with pytest.raises(ValueError) as ex:
             op._set_parameter_dimension_from_data(np.random.random((2, 2, 2)))
-        assert (
-            ex.value.args[0] == "parameter values must be scalars or 1D arrays"
+        assert ex.value.args[0] == (
+            "parameter values must be scalars or 1D arrays"
         )
 
     def test_check_shape_consistency(self):

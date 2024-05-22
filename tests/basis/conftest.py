@@ -9,4 +9,4 @@ import numpy as np
 def set_up_basis_data():
     n = 2000
     k = 500
-    return np.random.random((n, k)) - .5
+    return np.random.random((n, k)) - 0.5

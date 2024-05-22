@@ -78,17 +78,15 @@ class TestInterpolatedOperator:
 
         with pytest.raises(TypeError) as ex:
             self.Dummy._from_operators(mu, [10, "10"])
-        assert (
-            ex.value.args[0] == "can only interpolate operators "
-            "of type '_DummyOperator'"
+        assert ex.value.args[0] == (
+            "can only interpolate operators of type '_DummyOperator'"
         )
 
         operators = [_DummyOperator() for _ in range(s)]
         with pytest.raises(ValueError) as ex:
             self.Dummy._from_operators(mu, operators)
-        assert (
-            ex.value.args[0] == "operators must have entries set "
-            "in order to interpolate"
+        assert ex.value.args[0] == (
+            "operators must have entries set in order to interpolate"
         )
 
         for op in operators:
@@ -118,8 +116,8 @@ class TestInterpolatedOperator:
         mu_bad = np.empty((s, p, p))
         with pytest.raises(ValueError) as ex:
             op.training_parameters = mu_bad
-        assert (
-            ex.value.args[0] == "parameter values must be scalars or 1D arrays"
+        assert ex.value.args[0] == (
+            "parameter values must be scalars or 1D arrays"
         )
 
         mu = np.empty((s, p))
@@ -139,9 +137,8 @@ class TestInterpolatedOperator:
 
         with pytest.raises(AttributeError) as ex:
             op.set_training_parameters(mu)
-        assert (
-            ex.value.args[0] == "can't set attribute "
-            "(entries already set, call _clear())"
+        assert ex.value.args[0] == (
+            "can't set attribute (entries already set, call _clear())"
         )
 
     def test_set_entries(self, s=5, p=3, r=4):
@@ -155,8 +152,8 @@ class TestInterpolatedOperator:
         op = self.Dummy()
         with pytest.raises(AttributeError) as ex:
             op.entries = entries
-        assert (
-            ex.value.args[0] == "training_parameters have not been set, "
+        assert ex.value.args[0] == (
+            "training_parameters have not been set, "
             "call set_training_parameters() first"
         )
 
@@ -165,9 +162,8 @@ class TestInterpolatedOperator:
         # Try with wrong number of entry arrays.
         with pytest.raises(ValueError) as ex:
             op.set_entries(entries[1:])
-        assert (
-            ex.value.args[0] == f"{s} = len(training_parameters) "
-            f"!= len(entries) = {s-1}"
+        assert ex.value.args[0] == (
+            f"{s} = len(training_parameters) != len(entries) = {s-1}"
         )
 
         # As a list of arrays.
@@ -192,8 +188,8 @@ class TestInterpolatedOperator:
 
         with pytest.raises(ValueError) as ex:
             op.set_entries(entries, fromblock=True)
-        assert (
-            ex.value.args[0] == "entries must be a "
+        assert ex.value.args[0] == (
+            "entries must be a "
             "1- or 2-dimensional ndarray when fromblock=True"
         )
 
@@ -340,8 +336,8 @@ class TestInterpolatedOperator:
 
         with pytest.warns(opinf.errors.UsageWarning) as wn:
             op.save(target)
-        assert (
-            wn[0].message.args[0] == "cannot serialize InterpolatorClass "
+        assert wn[0].message.args[0] == (
+            "cannot serialize InterpolatorClass "
             "'_DummyInterpolator', must pass in the class when calling load()"
         )
         assert os.path.isfile(target)
@@ -376,8 +372,8 @@ class TestInterpolatedOperator:
             )
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             self.Dummy.load(target)
-        assert (
-            ex.value.args[0] == "unknown InterpolatorClass "
+        assert ex.value.args[0] == (
+            "unknown InterpolatorClass "
             f"'_DummyInterpolator', "
             f"call Dummy.load({target}, _DummyInterpolator)"
         )
@@ -487,8 +483,8 @@ def test_nonparametric_to_interpolated():
 
     with pytest.raises(TypeError) as ex:
         _module.nonparametric_to_interpolated(float)
-    assert (
-        ex.value.args[0] == "_InterpolatedOperator for class 'float' not found"
+    assert ex.value.args[0] == (
+        "_InterpolatedOperator for class 'float' not found"
     )
 
     OpClass = _module.nonparametric_to_interpolated(

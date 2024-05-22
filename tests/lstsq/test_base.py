@@ -25,19 +25,19 @@ def test_lstsq_size():
     assert opinf.lstsq.lstsq_size("c", r) == 1
     assert opinf.lstsq.lstsq_size("A", r) == r
     assert opinf.lstsq.lstsq_size("cA", r) == 1 + r
-    assert opinf.lstsq.lstsq_size("cAH", r) == 1 + r + r*(r+1)//2
-    assert opinf.lstsq.lstsq_size("cG", r) == 1 + r*(r+1)*(r+2)//6
+    assert opinf.lstsq.lstsq_size("cAH", r) == 1 + r + r * (r + 1) // 2
+    assert opinf.lstsq.lstsq_size("cG", r) == 1 + r * (r + 1) * (r + 2) // 6
 
     # Test with inputs.
     assert opinf.lstsq.lstsq_size("cB", r, m) == 1 + m
     assert opinf.lstsq.lstsq_size("AB", r, m) == r + m
     assert opinf.lstsq.lstsq_size("cAB", r, m) == 1 + r + m
-    assert opinf.lstsq.lstsq_size("AHB", r, m) == r + r*(r+1)//2 + m
-    assert opinf.lstsq.lstsq_size("GB", r, m) == r*(r+1)*(r+2)//6 + m
+    assert opinf.lstsq.lstsq_size("AHB", r, m) == r + r * (r + 1) // 2 + m
+    assert opinf.lstsq.lstsq_size("GB", r, m) == r * (r + 1) * (r + 2) // 6 + m
 
     # Test with affines.
     assert opinf.lstsq.lstsq_size("c", r, affines={"c": [0, 0]}) == 2
-    assert opinf.lstsq.lstsq_size("A", r, affines={"A": [0, 0]}) == 2*r
+    assert opinf.lstsq.lstsq_size("A", r, affines={"A": [0, 0]}) == 2 * r
 
 
 class TestBaseSolver:
@@ -45,6 +45,7 @@ class TestBaseSolver:
 
     class Dummy(opinf.lstsq._base._BaseSolver):
         """Instantiable version of _BaseSolver."""
+
         _LSTSQ_LABEL = "some OpInf problem"
 
         def predict(*args, **kwargs):
@@ -141,19 +142,19 @@ class TestBaseSolver:
 
         rep = repr(solver)
         assert rep.startswith("<Dummy object at ")
-        assert len(rep.split('\n')) == 2
+        assert len(rep.split("\n")) == 2
 
         A = np.empty((k, d))
         B = np.empty((k, r))
         solver.fit(A, B)
-        strlines = str(solver).split('\n')
+        strlines = str(solver).split("\n")
         assert len(strlines) == 4
         assert strlines[0] == "Least-squares solver for some OpInf problem"
         assert strlines[1] == f"A: ({k:d}, {d:d})"
         assert strlines[2] == f"X: ({d:d}, {r:d})"
         assert strlines[3] == f"B: ({k:d}, {r:d})"
 
-        replines = repr(solver).split('\n')
+        replines = repr(solver).split("\n")
         assert len(replines) == 5
         assert replines[1:] == strlines
 
@@ -174,7 +175,7 @@ class TestBaseSolver:
         assert np.isclose(solver.cond(), 1)
 
         # Contrived test 2
-        A = np.diag(np.arange(1, d+1))
+        A = np.diag(np.arange(1, d + 1))
         B = np.zeros((d, r))
         solver.fit(A, B)
         assert np.isclose(solver.cond(), d)
@@ -200,18 +201,19 @@ class TestBaseSolver:
         solver.fit(A, B)
 
         # Try with badly shaped X.
-        X = np.random.standard_normal((d+1, r-1))
+        X = np.random.standard_normal((d + 1, r - 1))
         with pytest.raises(ValueError) as ex:
             solver.misfit(X)
-        assert ex.value.args[0] == \
+        assert ex.value.args[0] == (
             f"X.shape = {(d+1, r-1)} != {(d, r)} = (d, r)"
+        )
 
         # Two-dimensional case.
         X = np.random.standard_normal((d, r))
         misfit = solver.misfit(X)
         assert isinstance(misfit, np.ndarray)
         assert misfit.shape == (r,)
-        assert np.allclose(misfit, la.norm(A @ X - B, ord=2, axis=0)**2)
+        assert np.allclose(misfit, la.norm(A @ X - B, ord=2, axis=0) ** 2)
 
         # One-dimensional case.
         b = B[:, 0]
@@ -220,7 +222,7 @@ class TestBaseSolver:
         x = np.random.standard_normal(d)
         misfit = solver.misfit(x)
         assert isinstance(misfit, float)
-        assert np.isclose(misfit, np.linalg.norm(A @ x - b)**2)
+        assert np.isclose(misfit, np.linalg.norm(A @ x - b) ** 2)
 
 
 class TestPlainSolver:

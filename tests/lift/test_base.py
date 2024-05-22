@@ -43,9 +43,8 @@ class TestLifterTemplate:
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
             Dummy2().verify(Q)
-        assert (
-            ex.value.args[0] == f"{k//2} = lift(states).shape[1] "
-            f"!= states.shape[1] = {k}"
+        assert ex.value.args[0] == (
+            f"{k//2} = lift(states).shape[1] != states.shape[1] = {k}"
         )
 
         class Dummy3(self.Dummy):
@@ -55,8 +54,8 @@ class TestLifterTemplate:
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
             Dummy3().verify(Q)
-        assert (
-            ex.value.args[0] == f"{(n, k//2)} = unlift(lift(states)).shape "
+        assert ex.value.args[0] == (
+            f"{(n, k//2)} = unlift(lift(states)).shape "
             f"!= states.shape = {(n, k)}"
         )
 
@@ -76,15 +75,14 @@ class TestLifterTemplate:
 
         with pytest.raises(ValueError) as ex:
             Dummy5().verify(Q)
-        assert (
-            ex.value.args[0] == "time domain 't' required "
-            "for finite difference check"
+        assert ex.value.args[0] == (
+            "time domain 't' required for finite difference check"
         )
 
         with pytest.raises(opinf.errors.VerificationError) as ex:
             Dummy5().verify(Q, t)
-        assert (
-            ex.value.args[0] == f"{(n, k//2)} = lift_ddts(states, ddts).shape "
+        assert ex.value.args[0] == (
+            f"{(n, k//2)} = lift_ddts(states, ddts).shape "
             f"!= lift(states).shape = {(n, k)}"
         )
 

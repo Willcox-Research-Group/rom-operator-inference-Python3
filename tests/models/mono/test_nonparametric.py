@@ -40,8 +40,8 @@ class TestNonparametricModel:
         # Try with duplicate (nonintrusive) operator types.
         with pytest.raises(ValueError) as ex:
             self.Dummy("AA")
-        assert (
-            ex.value.args[0] == "duplicate type in list of operators to infer"
+        assert ex.value.args[0] == (
+            "duplicate type in list of operators to infer"
         )
 
         # Test __init__() shortcuts.
@@ -196,9 +196,8 @@ class TestNonparametricModel:
 
         with pytest.warns(UserWarning) as wn:
             model._fit_solver(Q, Qdot, inputs=U)
-        assert (
-            wn[0].message.args[0] == "all operators initialized "
-            "intrusively, nothing to learn"
+        assert wn[0].message.args[0] == (
+            "all operators initialized intrusively, nothing to learn"
         )
 
         assert model.data_matrix_ is None
@@ -224,8 +223,8 @@ class TestNonparametricModel:
         model = self.Dummy([A, "B"])
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(Q, lhs[:, :-1], U)
-        assert (
-            ex.value.args[0] == f"{self.Dummy._LHS_ARGNAME}.shape[-1] = {k-1} "
+        assert ex.value.args[0] == (
+            f"{self.Dummy._LHS_ARGNAME}.shape[-1] = {k-1} "
             f"!= {k} = states.shape[-1]"
         )
 
@@ -238,9 +237,8 @@ class TestNonparametricModel:
         # Inputs not aligned with states.
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(Q, lhs, U[:, :-1])
-        assert (
-            ex.value.args[0] == f"inputs.shape[-1] = {k-1} "
-            f"!= {k} = states.shape[-1]"
+        assert ex.value.args[0] == (
+            f"inputs.shape[-1] = {k-1} != {k} = states.shape[-1]"
         )
 
         # Correct usage #
@@ -306,9 +304,8 @@ class TestNonparametricModel:
         model = self.Dummy([A, B])
         with pytest.warns(UserWarning) as wn:
             Q_, lhs_, _, _ = model._process_fit_arguments(Q, lhs, U)
-        assert (
-            wn[0].message.args[0] == "all operators initialized "
-            "intrusively, nothing to learn"
+        assert wn[0].message.args[0] == (
+            "all operators initialized intrusively, nothing to learn"
         )
         assert Q_ is None
         assert lhs_ is None
@@ -417,9 +414,8 @@ class TestNonparametricModel:
 
         with pytest.warns(UserWarning) as wn:
             model.fit(None, None, None)
-        assert (
-            wn[0].message.args[0] == "all operators initialized "
-            "intrusively, nothing to learn"
+        assert wn[0].message.args[0] == (
+            "all operators initialized intrusively, nothing to learn"
         )
 
         assert model.solver_ is None
@@ -720,23 +716,23 @@ class TestDiscreteModel:
         # Try to predict with bad niters argument.
         with pytest.raises(ValueError) as ex:
             model.predict(q0, -18, U)
-        assert (
-            ex.value.args[0] == "argument 'niters' must be a positive integer"
+        assert ex.value.args[0] == (
+            "argument 'niters' must be a positive integer"
         )
 
         # Try to predict with badly-shaped discrete inputs.
         with pytest.raises(ValueError) as ex:
             model.predict(q0, niters, np.random.random((m - 1, niters - 1)))
-        assert (
-            ex.value.args[0] == f"inputs.shape = ({(m-1, niters-1)} "
+        assert ex.value.args[0] == (
+            f"inputs.shape = ({(m-1, niters-1)} "
             f"!= {(m, niters-1)} = (m, niters-1)"
         )
 
         model_m1 = self.ModelClass([A_, B1d_])
         with pytest.raises(ValueError) as ex:
             model_m1.predict(q0, niters, np.random.random((2, niters - 1)))
-        assert (
-            ex.value.args[0] == f"inputs.shape = ({(2, niters-1)} "
+        assert ex.value.args[0] == (
+            f"inputs.shape = ({(2, niters-1)} "
             f"!= {(1, niters-1)} = (m, niters-1)"
         )
 
@@ -858,39 +854,35 @@ class TestContinuousModel:
         model = _trainedmodel(self.ModelClass, "cAHB", r, m)
         with pytest.raises(ValueError) as ex:
             model.predict(q0, t, np.random.random((m - 1, nt)))
-        assert (
-            ex.value.args[0] == f"input_func.shape = {(m-1, nt)} "
-            f"!= {(m, nt)} = (m, len(t))"
+        assert ex.value.args[0] == (
+            f"input_func.shape = {(m-1, nt)} != {(m, nt)} = (m, len(t))"
         )
 
         model = _trainedmodel(self.ModelClass, "cAHB", r, m=1)
         with pytest.raises(ValueError) as ex:
             model.predict(q0, t, np.random.random((2, nt)))
-        assert (
-            ex.value.args[0] == f"input_func.shape = {(2, nt)} "
-            f"!= {(1, nt)} = (m, len(t))"
+        assert ex.value.args[0] == (
+            f"input_func.shape = {(2, nt)} != {(1, nt)} = (m, len(t))"
         )
 
         # Try to predict with badly-shaped continuous inputs.
         model = _trainedmodel(self.ModelClass, "cAHB", r, m)
         with pytest.raises(ValueError) as ex:
             model.predict(q0, t, lambda t: np.ones(m - 1))
-        assert (
-            ex.value.args[0] == "input_func() must return ndarray "
-            f"of shape (m,) = {(m,)}"
+        assert ex.value.args[0] == (
+            f"input_func() must return ndarray of shape (m,) = {(m,)}"
         )
         with pytest.raises(ValueError) as ex:
             model.predict(q0, t, lambda t: 1)
-        assert (
-            ex.value.args[0] == "input_func() must return ndarray "
-            f"of shape (m,) = {(m,)}"
+        assert ex.value.args[0] == (
+            f"input_func() must return ndarray of shape (m,) = {(m,)}"
         )
 
         model = _trainedmodel(self.ModelClass, "cAHB", r, m=1)
         with pytest.raises(ValueError) as ex:
             model.predict(q0, t, input_func)
-        assert (
-            ex.value.args[0] == "input_func() must return ndarray "
+        assert ex.value.args[0] == (
+            "input_func() must return ndarray "
             "of shape (m,) = (1,) or scalar"
         )
 
@@ -898,9 +890,8 @@ class TestContinuousModel:
         model = _trainedmodel(self.ModelClass, "cAHB", r, m)
         with pytest.raises(ValueError) as ex:
             model.predict(q0, t, lambda t: set([5]))
-        assert (
-            ex.value.args[0] == "input_func() must return ndarray of "
-            f"shape (m,) = {(m,)}"
+        assert ex.value.args[0] == (
+            f"input_func() must return ndarray of shape (m,) = {(m,)}"
         )
 
         for form in MODEL_FORMS:

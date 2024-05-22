@@ -128,16 +128,16 @@ class TestParametricModel:
 
         with pytest.raises(ValueError) as ex:
             self.Dummy._check_operator_types_unique(operators)
-        assert (
-            ex.value.args[0] == "duplicate type in list of operators to infer"
+        assert ex.value.args[0] == (
+            "duplicate type in list of operators to infer"
         )
 
         operators = [DummyParametricOperator(), DummyNonparametricOperator()]
 
         with pytest.raises(ValueError) as ex:
             self.Dummy._check_operator_types_unique(operators)
-        assert (
-            ex.value.args[0] == "duplicate type in list of operators to infer"
+        assert ex.value.args[0] == (
+            "duplicate type in list of operators to infer"
         )
 
         operators = [DummyParametricOperator(), DummyParametricOperator2()]
@@ -149,8 +149,8 @@ class TestParametricModel:
 
         with pytest.warns(opinf.errors.UsageWarning) as wn:
             self.Dummy(operators)
-        assert (
-            wn[0].message.args[0] == "no parametric operators detected, "
+        assert wn[0].message.args[0] == (
+            "no parametric operators detected, "
             "consider using a nonparametric model class"
         )
 
@@ -158,8 +158,8 @@ class TestParametricModel:
 
         with pytest.warns(opinf.errors.UsageWarning) as wn:
             self.Dummy(operators)
-        assert (
-            wn[0].message.args[0] == "all operators interpolatory, "
+        assert wn[0].message.args[0] == (
+            "all operators interpolatory, "
             "consider using an InterpolatedModel class"
         )
 
@@ -198,8 +198,8 @@ class TestParametricModel:
 
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             self.Dummy._check_parameter_dimension_consistency([op1, op2])
-        assert (
-            ex.value.args[0] == "operators not aligned "
+        assert ex.value.args[0] == (
+            "operators not aligned "
             "(parameter_dimension must be the same for all operators)"
         )
 
@@ -218,9 +218,8 @@ class TestParametricModel:
 
         with pytest.raises(AttributeError) as ex:
             model.parameter_dimension = 15
-        assert (
-            ex.value.args[0] == "can't set attribute "
-            "(existing operators have p = 10)"
+        assert ex.value.args[0] == (
+            "can't set attribute (existing operators have p = 10)"
         )
 
         model.parameter_dimension = 20
@@ -232,8 +231,8 @@ class TestParametricModel:
 
         with pytest.raises(ValueError) as ex:
             model._set_parameter_dimension_from_data(np.empty((s, s, s)))
-        assert (
-            ex.value.args[0] == "parameter values must be scalars or 1D arrays"
+        assert ex.value.args[0] == (
+            "parameter values must be scalars or 1D arrays"
         )
 
     def test_process_fit_arguments(self, s=5, p=2, m=4, r=3, k=10):
@@ -244,9 +243,8 @@ class TestParametricModel:
 
         with pytest.warns(opinf.errors.UsageWarning) as wn:
             out = model._process_fit_arguments(None, None, None, None)
-        assert (
-            wn[0].message.args[0] == "all operators initialized intrusively, "
-            "nothing to learn"
+        assert wn[0].message.args[0] == (
+            "all operators initialized intrusively, nothing to learn"
         )
         assert len(out) == 5
         assert all(x is None for x in out)
@@ -259,8 +257,8 @@ class TestParametricModel:
         lhs = [np.empty((r, k)) for _ in range(s)]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(params, states[1:], None, None)
-        assert (
-            ex.value.args[0] == f"len(states) = {s-1} != {s} = len(parameters)"
+        assert ex.value.args[0] == (
+            f"len(states) = {s-1} != {s} = len(parameters)"
         )
 
         # Inconsistent state dimension.
@@ -273,9 +271,8 @@ class TestParametricModel:
         states[1] = np.empty((r, k - 1))
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(params, states, lhs, None)
-        assert (
-            ex.value.args[0] == f"mylhs[1].shape[-1] = {k} "
-            f"!= {k-1} = states[1].shape[-1]"
+        assert ex.value.args[0] == (
+            f"mylhs[1].shape[-1] = {k} != {k-1} = states[1].shape[-1]"
         )
 
         # Inconsistent input dimension.
@@ -285,7 +282,7 @@ class TestParametricModel:
         model._has_inputs = True
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(params, states, lhs, inputs)
-        assert ex.value.args[0] == f"inputs[1].shape[0] = {m-1} " f"!= {m} = m"
+        assert ex.value.args[0] == f"inputs[1].shape[0] = {m-1} != {m} = m"
 
         # Correct usage, partially intrusive
         op2 = DummyParametricOperator2(np.random.random((r, r)))
@@ -354,9 +351,8 @@ class TestInterpolatedModel:
         model2 = self.Dummy([opinf.operators.InterpolatedCubicOperator()])
         with pytest.raises(TypeError) as ex:
             self.Dummy._from_models(mu, [model2, model1])
-        assert (
-            ex.value.args[0] == "expected models of type "
-            "'DummyNonparametricModel'"
+        assert ex.value.args[0] == (
+            "expected models of type 'DummyNonparametricModel'"
         )
 
         # Inconsistent number of operators.
@@ -365,9 +361,8 @@ class TestInterpolatedModel:
         )
         with pytest.raises(ValueError) as ex:
             self.Dummy._from_models(mu, [model1, model2])
-        assert (
-            ex.value.args[0] == "models not aligned "
-            "(inconsistent number of operators)"
+        assert ex.value.args[0] == (
+            "models not aligned (inconsistent number of operators)"
         )
 
         # Inconsistent operator types.
@@ -376,9 +371,8 @@ class TestInterpolatedModel:
         )
         with pytest.raises(ValueError) as ex:
             self.Dummy._from_models(mu, [model1, model2])
-        assert (
-            ex.value.args[0] == "models not aligned "
-            "(inconsistent operator types)"
+        assert ex.value.args[0] == (
+            "models not aligned (inconsistent operator types)"
         )
 
         # Correct usage
@@ -473,9 +467,8 @@ class TestInterpolatedModel:
 
         with pytest.raises(RuntimeError) as ex:
             model._evaluate_solver()
-        assert (
-            ex.value.args[0] == "model solvers not set, "
-            "call _fit_solver() first"
+        assert ex.value.args[0] == (
+            "model solvers not set, call _fit_solver() first"
         )
 
         model._fit_solver(params, states, lhs)
@@ -512,8 +505,8 @@ class TestInterpolatedModel:
         with pytest.warns(opinf.errors.UsageWarning) as wn:
             model.save(target, overwrite=True)
         assert len(wn) == 1
-        assert (
-            wn[0].message.args[0] == "cannot serialize InterpolatorClass "
+        assert wn[0].message.args[0] == (
+            "cannot serialize InterpolatorClass "
             "'float', must pass in the class when calling load()"
         )
         assert os.path.isfile(target)
@@ -536,9 +529,8 @@ class TestInterpolatedModel:
 
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
             self.Dummy.load(target)
-        assert (
-            ex.value.args[0] == "unknown InterpolatorClass "
-            f"'float', call load({target}, float)"
+        assert ex.value.args[0] == (
+            f"unknown InterpolatorClass 'float', call load({target}, float)"
         )
         self.Dummy.load(target, float)
 
