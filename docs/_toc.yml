@@ -9,7 +9,7 @@ parts:
     maxdepth: 1
     # numbered: 1
     chapters:
-    - file: source/opinf/intro.md
+    - file: source/opinf/intro.ipynb
     - file: source/opinf/installation.md
     - file: source/opinf/changelog.md
     - file: source/opinf/literature.md
@@ -31,7 +31,7 @@ parts:
     - file: source/api/lift.ipynb
     - file: source/api/pre.ipynb
     - file: source/api/basis.ipynb
-    - file: source/api/ddt.md
+    - file: source/api/ddt.ipynb
     - file: source/api/operators.md
     - file: source/api/models.md
     - file: source/api/lstsq.md

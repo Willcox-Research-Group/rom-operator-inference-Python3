@@ -25,6 +25,7 @@ html:
 # See https://jupyterbook.org/content/execute.html
 execute:
   execute_notebooks: cache              # auto, force, cache, or 'off'.
+  timeout: 120                          # seconds before KeyboardInterrupt.
 
 # Bibtex file for citations.
 bibtex_bibfiles:

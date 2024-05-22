@@ -19,6 +19,7 @@ dist/
 *.egg-info/
 .vscode/
 .pypirc
+.tox/
 
 # Extra Matlab files
 *.mat
@@ -49,4 +50,5 @@ html/
 *.np[yz]
 
 # Other
+*.swp
 .markdownlint.json

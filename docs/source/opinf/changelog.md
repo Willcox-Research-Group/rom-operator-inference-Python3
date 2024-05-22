@@ -5,6 +5,17 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+:::{versionadded} 0.5.3
+Expanded the `ddt` submodule (but no API changes to existing functions).
+
+- New backward, central, and forward difference schemes up to sixth order.
+- New `DerivativeEstimatorTemplate` class for implementing custom derivative estimation strategies.
+- New `UniformFiniteDifference` and `NonuniformFiniteDifference` convenience classes for working with `ROM` classes in the future.
+- Better documentation of the module.
+
+The documentation was also updated to JupyterBook 1.0.0, a significant improvement to the look and feel.
+:::
+
 :::{versionchanged} 0.5.2
 Significant updates to the `pre` and `basis` submodules.
 
