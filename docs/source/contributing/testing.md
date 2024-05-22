@@ -9,6 +9,20 @@ This page is an overview of the package testing infrastructure.
 - Use `make test` to run the tests.
 :::
 
+(sec-contrib-formatting)=
+## Formatting with Black
+
+:::{admonition} TODO
+
+**This is a future feature**.
+Some parts of the current package do not yet follow `black` conventions.
+
+- What is `black`
+- How to run it
+- Pre-commit hook
+- Format on save functionality in many IDEs
+:::
+
 (sec-contrib-linting)=
 ## Linting with Flake8
 
@@ -18,11 +32,20 @@ These are enforced by [`flake8`](https://flake8.pycqa.org/en/latest/), a common 
 The linter does not alter the code; it only checks that code satisfies a specified style guide and sometimes identifies syntax and other errors.
 
 To use the linter, run `make lint` in the command line from the root folder of the repository.
-If your code passes, you will see the following.
+If your code passes, you will see something like the following.
 
 ```bash
-python3 -m flake8 src
-python3 -m flake8 tests
+# Make sure your development environment is active.
+$ conda deactivate
+$ conda activate opinfdev
+
+# Run the linter.
+$ make lint
+python3 -m tox -e lint
+lint: commands[0]> flake8 src
+lint: commands[1]> flake8 tests
+  lint: OK (1.05=setup[0.03]+cmd[0.66,0.36] seconds)
+  congratulations :) (1.96 seconds)
 ```
 
 If your code fails, you will get specific feedback about what is wrong and where.
@@ -39,17 +62,6 @@ make: *** [lint] Error 1
 Code that passes the linter satisfies the style guide, but it is not guaranteed to _work_ as intended.
 Linting does not replace unit tests for gauging code correctness and functionality.
 ```
-
-(sec-contrib-formatting)=
-## Formatting with Black
-
-:::{admonition} TODO
-
-- What is black
-- How to run it
-- Pre-commit hook
-- Format on save functionality in many IDEs
-:::
 
 ## Unit Testing with Pytest
 
