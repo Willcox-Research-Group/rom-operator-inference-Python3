@@ -60,9 +60,7 @@ def lstsq_size(modelform, r, m=0, affines=None):
         (
             len(affines[op])
             if (op in affines and op in modelform)
-            else 1
-            if op in modelform
-            else 0
+            else 1 if op in modelform else 0
         )
         for op in "cAHGB"
     ]

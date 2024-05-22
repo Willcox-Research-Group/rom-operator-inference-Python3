@@ -181,9 +181,7 @@ class L2Solver(_BaseTikhonovSolver):
             Residuals ||Ax_i - b_i||_2^2 + ||λx_i||_2^2, i = 1, ..., r.
         """
         self._check_is_trained()
-        return self.misfit(X) + (self.regularizer**2) * np.sum(
-            X**2, axis=0
-        )
+        return self.misfit(X) + (self.regularizer**2) * np.sum(X**2, axis=0)
 
 
 class L2SolverDecoupled(L2Solver):

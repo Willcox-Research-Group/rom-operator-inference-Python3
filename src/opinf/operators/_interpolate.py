@@ -624,6 +624,7 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
     """
+
     _OperatorClass = ConstantOperator
 
 
@@ -671,6 +672,7 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
     """
+
     _OperatorClass = LinearOperator
 
 
@@ -718,6 +720,7 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
     """
+
     _OperatorClass = QuadraticOperator
 
 
@@ -766,6 +769,7 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
     """
+
     _OperatorClass = CubicOperator
 
 
@@ -814,6 +818,7 @@ class InterpolatedInputOperator(_InterpolatedOperator, _InputMixin):
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
     """
+
     _OperatorClass = InputOperator
 
     @property
@@ -866,6 +871,7 @@ class InterpolatedStateInputOperator(_InterpolatedOperator, _InputMixin):
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
     """
+
     _OperatorClass = StateInputOperator
 
     @property
