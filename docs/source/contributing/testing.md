@@ -15,8 +15,7 @@ The `Makefile` also has recipes for these commands, run `make` to see options.
 
 ## Formatting with Black
 
-Source and test code should conform to [`black`](https://black.readthedocs.io/en/stable/) conventions.
-To format the code with `black`, run `tox -e format` in the command line from the root folder of the repository.
+Source and test code must conform to [`black`](https://black.readthedocs.io/en/stable/) conventions.
 
 ```shell
 # Make sure the development environment is active.
@@ -55,7 +54,14 @@ All done! ✨ 🍰 ✨
   congratulations :) (0.89 seconds)
 ```
 
-The [pre-commit hook](./how_to_contribute.md#setup) runs `black` and ensures that no formatting changes were made before allowing a `git commit`.
+:::{note}
+The `pre-commit` hook requires `black` and `flake8` to pass before allowing a `git commit`.
+
+```shell
+(opinfdev) $ python3 -m pre-commit install
+```
+
+:::
 
 :::{tip}
 Most IDEs, such as Visual Studio Code, have [plugins](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter) for `black` so that code is automatically formatted when a file is saved.

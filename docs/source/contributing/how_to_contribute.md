@@ -8,7 +8,7 @@ Before you begin, please review our [Code of Conduct](https://github.com/Willcox
 - Changes to the [source code](./code_anatomy.md) must be accompanied with updates to corresponding [unit tests](./testing.md) and [documentation](./documentation.md).
 - Use `tox` to run tests while developing:
   - `tox -e style` checks that source code and tests follow the style guide.
-  - `tox` executes all unit tests.
+  - `tox` (without arguments) executes all unit tests.
   - `tox -e literature,docs` compiles the documentation.
 - When all tests pass, open a pull request to the `main` branch on GitHub.
 :::
@@ -57,7 +57,7 @@ Python 3.12.3
 Style checks, unit tests, and documentation builds are managed with [`tox`](https://tox.wiki/en/latest).
 For each of these tasks, `tox` creates a new virtual environment, installs the dependencies (e.g., `pytest` for running unit tests), and executes the task recipe.
 
-:::{important}
+:::{note}
 Unit tests are executed for Python 3.9 through 3.12 if they are installed on your system.
 The best way to install multiple Python versions varies by platform; for MacOS, [we suggest](https://stackoverflow.com/questions/36968425/how-can-i-install-multiple-versions-of-python-on-latest-os-x-and-use-them-in-par#answer-65094122) using [Homebrew](https://brew.sh/).
 
@@ -103,26 +103,26 @@ When you're ready, [create a pull request](https://docs.github.com/en/get-starte
 
 ## Repository Organization
 
-The GitHub repository is organized as follows.
-
 ::::{margin}
 :::{note}
-Full examples, like the one you see on the left under the **Tutorials** heading, are part of the documentation.
+Full examples, like the one listed on the left under the **Tutorials** heading, are part of the documentation.
 They should be written as Jupyter notebooks and placed in `docs/content/tutorials/`.
 :::
 ::::
 
+The GitHub repository is organized as follows.
+
 - [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) contains the actual package code, see the [Source Code Guide](./code_anatomy.md).
-- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/opinf/`. See [Testing](./testing.md).
+- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/opinf/`. See [Testing Source Code](./testing.md).
 - [`docs/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/docs) contains documentation (including this page!). See [Documentation](./documentation.md).
 
 ## Acceptance Standards
 
-For any changes to be accepted, they need to address three things.
+Changes are not usually be accepted until the following tests pass.
 
-1. [**Source Code.**](./code_anatomy.md) Write readable code that conforms to our style guide: `tox -e style` must succeed.
-2. [**Unit tests.**](./testing.md) Write or update tests to validate your additions or changes: `tox` must succeed, preferably with full line coverage.
-3. [**Documentation.**](./documentation.md) Write or update documentation based on your changes: `tox -e literature,docs` must succeed.
+1. `tox`: write or update tests to validate your additions or changes, preferably with full line coverage.
+2. `tox -e style`: write readable code that conforms to our style guide.
+3. `tox -e literature,docs`: write or update documentation based on your changes.
 
 :::{tip}
 The `Makefile` has recipes for these commands, run `make` to see options.
