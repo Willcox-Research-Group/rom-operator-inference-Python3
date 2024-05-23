@@ -5,7 +5,9 @@ __all__ = [
     "ROM",
 ]
 
-from .. import models, utils
+import warnings
+
+from .. import errors, models, utils
 
 
 class ROM:
@@ -97,13 +99,13 @@ class ROM:
         lines = ["Nonparametric reduced-order model"]
 
         def indent(text):
-            return "\n".join("\t" + line for line in text.rstrip().split("\n"))
+            return "\n".join(f"  {line}" for line in text.rstrip().split("\n"))
 
         for label, obj in [
             ("Lifting", self.lifter),
             ("Transformer", self.transformer),
             ("Basis", self.basis),
-            ("Time derivative estimator", self.ddt_func),
+            ("Time derivative estimator", self.ddt_estimator),
             ("Model", self.model),
             ("Solver", self.solver),
         ]:
@@ -124,7 +126,8 @@ class ROM:
         lhs=None,
         inplace: bool = False,
         *,
-        training: bool = False,
+        fit_transformer: bool = False,
+        fit_basis: bool = False,
     ):
         """Map high-dimensional data to its low-dimensional representation.
 
@@ -142,9 +145,6 @@ class ROM:
         inplace : bool
             If ``True``, modify the ``states`` and ``lhs`` in-place in the
             preprocessing transformation (if applicable).
-        training : bool
-            If ``True``, calibrate the high-to-low dimensional mapping
-            using the ``states``.
 
         Returns
         -------
@@ -164,7 +164,7 @@ class ROM:
 
         # Preprocessing.
         if self.transformer is not None:
-            if training:
+            if fit_transformer:
                 states = self.transformer.fit_transform(
                     states,
                     inplace=inplace,
@@ -179,7 +179,7 @@ class ROM:
 
         # Dimensionality reduction.
         if self.basis is not None:
-            if training:
+            if fit_basis:
                 self.basis.fit(states)
             states = self.basis.compress(states)
             if lhs is not None:
@@ -244,7 +244,15 @@ class ROM:
         return self.decode(self.encode(states))
 
     # Training ----------------------------------------------------------------
-    def fit(self, states, lhs=None, inputs=None, inplace=False):
+    def fit(
+        self,
+        states,
+        lhs=None,
+        inputs=None,
+        inplace: bool = False,
+        fit_transformer: bool = True,
+        fit_basis: bool = True,
+    ):
         """Calibrate the model to the data.
 
         Parameters
@@ -261,6 +269,14 @@ class ROM:
         inplace : bool
             If ``True``, modify the ``states`` and ``lhs`` in-place in the
             preprocessing transformation (if applicable).
+        fit_transformer : bool
+            If ``True`` (default), calibrate the high-to-low dimensional
+            mapping using the ``states``.
+            If ``False``, assume the transformer is already calibrated.
+        fit_basis : bool
+            If ``True``, calibrate the high-to-low dimensional mapping
+            using the ``states``.
+            If ``False``, assume the basis is already calibrated.
 
         Returns
         -------
@@ -268,24 +284,36 @@ class ROM:
         """
 
         # Express the states and the LHS in the latent state space.
-        reduced = self.encode(states, lhs=lhs, inplace=inplace, training=True)
+        reduced = self.encode(
+            states,
+            lhs=lhs,
+            inplace=inplace,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+        )
         if lhs is None:
             states = reduced
         else:
             states, lhs = reduced
 
         # If needed, estimate time derivatives.
-        if lhs is None and self.iscontinuous:
-            if self.ddt_estimator is None:
-                raise ValueError(
-                    "ddt_estimator required for time-continuous model "
-                    "and lhs=None"
+        if self.iscontinuous:
+            if lhs is None:
+                if self.ddt_estimator is None:
+                    raise ValueError(
+                        "ddt_estimator required for time-continuous model "
+                        "and lhs=None"
+                    )
+                estimated = self.ddt_estimator.estimate(states, inputs)
+                if inputs is None:
+                    states, lhs = estimated
+                else:
+                    states, lhs, inputs = estimated
+            elif self.ddt_estimator is not None:
+                warnings.warn(
+                    "using provided time derivatives, ignoring ddt_estimator",
+                    errors.UsageWarning,
                 )
-            estimated = self.ddt_estimator.estimate(states, inputs)
-            if inputs is None:
-                states, lhs = estimated
-            else:
-                states, lhs, inputs = estimated
 
         # Calibrate the model.
         kwargs = dict(inputs=inputs, solver=self.solver)
@@ -318,6 +346,6 @@ class ROM:
         states: (n, k) ndarray
             Solution to the model, expressed in the original state space.
         """
-        q0_ = self.encode(state0, training=False)
+        q0_ = self.encode(state0, fit_transformer=False, fit_basis=False)
         states = self.model.predict(q0_, *args, **kwargs)
         return self.decode(states)
