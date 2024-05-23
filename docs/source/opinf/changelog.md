@@ -5,6 +5,12 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+:::{versionadded} 0.5.4
+New `opinf.roms` submodule containing an `opinf.roms.ROM` class, also available in the main namespace as `opinf.ROM`.
+This class wraps a lifter, transformer, basis, time derivative estimator, model, and least-squares solver together for convenience.
+Rewrote the first tutorial to use `opinf.ROM`.
+:::
+
 :::{versionadded} 0.5.3
 Expanded the `ddt` submodule (but no API changes to existing functions).
 
