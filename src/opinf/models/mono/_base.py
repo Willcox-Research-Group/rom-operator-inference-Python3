@@ -20,19 +20,23 @@ class _Model(abc.ABC):
     * :class:`opinf.models.mono._parametric._ParametricModel`
     """
 
-    def __init__(self, operators):
+    def __init__(self, operators, solver=None):
         """Define the model structure.
 
         Parameters
         ----------
         operators : list of :mod:`opinf.operators` objects
             Operators comprising the terms of the model.
+        solver : :mod:`opinf.lstsq` object
+            Solver for the Operator Inference regression.
         """
         self.__r = None
         self.__m = None
         self.__operators = None
+        self.__solver = None
 
         self.operators = operators
+        self.solver = solver
 
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = dict()  # Abbreviations for model operators.
@@ -104,6 +108,7 @@ class _Model(abc.ABC):
         self.__operators = ops
         self._indices_of_operators_to_infer = toinfer
         self._indices_of_known_operators = known
+        self._fully_intrusive = len(toinfer) == 0
 
     def _clear(self):
         """Reset the entries of the non-intrusive operators and the
@@ -224,12 +229,56 @@ class _Model(abc.ABC):
                     )
         self.__m = int(m)
 
+    # Properties: solver ------------------------------------------------------
+    @property
+    def solver(self):
+        """Solver for the least-squares regression, see :mod:`opinf.lstsq`."""
+        return self.__solver
+
+    @solver.setter
+    def solver(self, solver):
+        """Set the solver, including default options."""
+        if self._fully_intrusive:
+            if solver is not None:
+                warnings.warn(
+                    "all operators initialized explicity, setting solver=None",
+                    errors.UsageWarning,
+                )
+            self.__solver = None
+            return
+
+        # Defaults and shortcuts.
+        if solver is None:
+            # No regularization.
+            solver = lstsq.PlainSolver()
+        elif np.isscalar(solver):
+            if solver == 0:
+                # Also no regularization.
+                solver = lstsq.PlainSolver()
+            elif solver > 0:
+                # Scalar Tikhonov (L2) regularization.
+                solver = lstsq.L2Solver(solver)
+            else:
+                raise ValueError("if a scalar, solver must be nonnegative")
+
+        # Light validation: must be instance w/ fit(), predict().
+        if isinstance(solver, type):
+            raise TypeError("solver must be an instance, not a class")
+        for mtd in "fit", "predict":
+            if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
+                warnings.warn(
+                    f"solver should have a '{mtd}()' method",
+                    errors.UsageWarning,
+                )
+
+        self.__solver = solver
+
     # Dimensionality reduction ------------------------------------------------
     def galerkin(self, Vr, Wr=None):
         r"""Construct a reduced-order model by taking the (Petrov-)Galerkin
         projection of each model operator.
 
-        Consider a model :math:`\z = \f(\q,\u)` where
+        Consider a model :math:`\z = \f(\q, \u)` where
 
         * :math:`\q\in\RR^n` is the model state,
         * :math:`\u\in\RR^m` is the input, and
@@ -280,34 +329,6 @@ class _Model(abc.ABC):
         )
 
     # Validation methods ------------------------------------------------------
-    @staticmethod
-    def _check_solver(solver):
-        """Check that ``solver`` is a valid least-squares solver according to
-        the API.
-        """
-        # Defaults and shortcuts.
-        if solver is None:
-            # No regularization.
-            solver = lstsq.PlainSolver()
-        elif np.isscalar(solver):
-            if solver == 0:
-                # Also no regularization.
-                solver = lstsq.PlainSolver()
-            elif solver > 0:
-                # Scalar Tikhonov (L2) regularization.
-                solver = lstsq.L2Solver(solver)
-            else:
-                raise ValueError("if a scalar, `solver` must be nonnegative")
-
-        # Light validation: must be instance w/ fit(), predict().
-        if isinstance(solver, type):
-            raise TypeError("solver must be an instance, not a class")
-        for mtd in "fit", "predict":
-            if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
-                raise TypeError(f"solver must have a '{mtd}()' method")
-
-        return solver
-
     def _check_inputargs(self, u, argname):
         """Check that the model structure agrees with input arguments."""
         if self._has_inputs and u is None:

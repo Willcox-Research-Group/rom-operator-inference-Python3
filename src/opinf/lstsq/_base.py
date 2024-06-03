@@ -207,6 +207,39 @@ class _BaseSolver(abc.ABC):
         resids = np.sum((self.A @ X - self.B) ** 2, axis=0)
         return resids[0] if self.r == 1 else resids
 
+    # Persistence -------------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        """Serialize the solver, saving it in HDF5 format.
+        The model can be recovered with the :meth:`load()` class method.
+
+        Parameters
+        ----------
+        savefile : str
+            File to save to, with extension ``.h5`` (HDF5).
+        overwrite : bool
+            If ``True`` and the specified ``savefile`` already exists,
+            overwrite the file. If ``False`` (default) and the specified
+            ``savefile`` already exists, raise an error.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def load(cls, loadfile: str):
+        """Load a serialized solver from an HDF5 file, created previously from
+        the :meth:`save()` method.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the model was stored via :meth:`save()`.
+
+        Returns
+        -------
+        solver : _BaseSolver
+            Loaded solver.
+        """
+        raise NotImplementedError
+
 
 class PlainSolver(_BaseSolver):
     """Solve the l2-norm ordinary least-squares problem without any
@@ -220,15 +253,48 @@ class PlainSolver(_BaseSolver):
     _LSTSQ_LABEL = "||AX - B||"
 
     def __init__(self, options=None):
-        """Store keyword arguments for scipy.linalg.lstsq().
+        """Store least-squares solver options.
 
         Parameters
         ----------
         options : dict
-            Keyword arguments for scipy.linalg.lstsq().
+            Keyword arguments for ``scipy.linalg.lstsq()``.
         """
-        self.options = {} if options is None else options
+        _BaseSolver.__init__(self)
+        self.options = dict() if options is None else options
 
     def predict(self):
         """Solve the least-squares problem."""
         return la.lstsq(self.A, self.B, **self.options)[0]
+
+    def save(self, savefile, overwrite=False):
+        """Serialize the solver, saving it in HDF5 format.
+        The model can be recovered with the :meth:`load()` class method.
+
+        Parameters
+        ----------
+        savefile : str
+            File to save to, with extension ``.h5`` (HDF5).
+        overwrite : bool
+            If ``True`` and the specified ``savefile`` already exists,
+            overwrite the file. If ``False`` (default) and the specified
+            ``savefile`` already exists, raise an error.
+        """
+        pass
+
+    @classmethod
+    def load(cls, loadfile: str):
+        """Load a serialized solver from an HDF5 file, created previously from
+        the :meth:`save()` method.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the model was stored via :meth:`save()`.
+
+        Returns
+        -------
+        solver : _BaseSolver
+            Loaded solver.
+        """
+        return cls()

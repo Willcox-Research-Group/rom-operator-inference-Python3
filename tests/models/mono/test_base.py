@@ -234,24 +234,40 @@ class TestModel:
             assert rom.operators[i].entries is None
 
     # Validation methods ------------------------------------------------------
-    def test_check_solver(self):
-        """Test _Model._check_solver()."""
+    def test_solver(self):
+        """Test __init__() and solver."""
+        ops = [opinf.operators.LinearOperator()]
+        model = self.Dummy(ops)
+        assert isinstance(model.solver, opinf.lstsq.PlainSolver)
 
         with pytest.raises(ValueError) as ex:
-            self.Dummy._check_solver(-1)
-        assert ex.value.args[0] == "if a scalar, `solver` must be nonnegative"
+            model.solver = -1
+        assert ex.value.args[0] == "if a scalar, solver must be nonnegative"
 
         with pytest.raises(TypeError) as ex:
-            self.Dummy._check_solver(list)
+            model.solver = list
         assert ex.value.args[0] == "solver must be an instance, not a class"
 
-        with pytest.raises(TypeError) as ex:
-            self.Dummy._check_solver([])
-        assert ex.value.args[0] == "solver must have a 'fit()' method"
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            model.solver = []
+        assert len(wn) == 2
+        assert wn[0].message.args[0] == "solver should have a 'fit()' method"
+        assert wn[1].message.args[0] == (
+            "solver should have a 'predict()' method"
+        )
 
-        self.Dummy._check_solver(None)
-        self.Dummy._check_solver(0)
-        self.Dummy._check_solver(1)
+        model.solver = 0
+        assert isinstance(model.solver, opinf.lstsq.PlainSolver)
+        model.solver = 1
+        assert isinstance(model.solver, opinf.lstsq.L2Solver)
+
+        ops[0].entries = np.random.random((3, 3))
+        with pytest.warns(opinf.errors.UsageWarning) as wn:
+            model = self.Dummy(ops, solver=2)
+        assert len(wn) == 1
+        assert wn[0].message.args[0] == (
+            "all operators initialized explicity, setting solver=None"
+        )
 
     def test_check_inputargs(self):
         """Test _Model._check_inputargs()."""
