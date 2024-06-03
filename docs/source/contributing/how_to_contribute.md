@@ -24,9 +24,9 @@ Now that you are a `git` expert, [fork](https://docs.github.com/en/get-started/q
 Add the original repository as [an upstream remote](https://docs.github.com/en/get-started/quickstart/fork-a-repo#configuring-git-to-sync-your-fork-with-the-original-repository).
 
 ```bash
-git clone https://<username>@github.com/<username>/rom-operator-inference-Python3 OpInf
+git clone git@github.com:<username>/rom-operator-inference-Python3.git OpInf
 cd OpInf
-git remote add upstream https://<username>@github.com/Willcox-Research-Group/rom-operator-inference-Python3
+git remote add upstream git@github.com:Willcox-Research-Group/rom-operator-inference-Python3.git
 ```
 
 Like most Python packages, `opinf` has a few [software dependencies](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/network/dependencies).
@@ -74,7 +74,7 @@ brew install python@3.12
 Finally, to ensure that new additions follow code standards and conventions, install the [git pre-commit hook](https://pre-commit.com/) with the following command.
 
 ```shell
-(opinfdev) $ python3 -m pre-commit install
+(opinfdev) $ pre-commit install
 ```
 
 :::{important}
