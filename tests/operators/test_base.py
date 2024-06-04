@@ -5,6 +5,7 @@ import os
 import h5py
 import pytest
 import numpy as np
+import scipy.linalg as la
 
 import opinf
 
@@ -175,15 +176,28 @@ class TestNonparametricOperator:
     # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=10, r=3):
         """Test _NonparametricOperator.galerkin()."""
-        Vr = np.random.random((n, r))
+        Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
+        Wr = la.qr(np.random.random((n, r)), mode="economic")[0]
         A = np.random.random((n, n))
         op = self.Dummy(A)
-        B = np.random.random(r)
-        op_ = op.galerkin(Vr, Vr, lambda x, y, z: B)
+        c = np.random.random(n)
+
+        op_ = op.galerkin(Vr, Vr, lambda x, y: c)
         assert isinstance(op_, op.__class__)
-        assert op_.shape == B.shape
-        assert np.all(op_.entries == B)
-        assert op is not op_
+        assert op_ is not op
+        assert op_.shape == (r,)
+        assert np.all(op_.entries == Vr.T @ c)
+
+        op_ = op.galerkin(Vr, Wr, lambda x, y: c)
+        assert isinstance(op_, op.__class__)
+        assert op_ is not op
+        assert op_.shape == (r,)
+        assert np.allclose(Wr.T @ Vr @ op_.entries, Wr.T @ c)
+
+        Wr_bad = np.random.random((n, r - 1))
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            op.galerkin(Vr, Wr_bad, None)
+        assert ex.value.args[0] == "trial and test bases not aligned"
 
         A = np.random.random((n - 1, r + 1))
         op = self.Dummy(A)

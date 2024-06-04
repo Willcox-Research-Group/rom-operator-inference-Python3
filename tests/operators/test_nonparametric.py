@@ -11,6 +11,31 @@ import opinf
 _module = opinf.operators._nonparametric
 
 
+def _test_galerkin(op, shape, n, m, r, ntrials):
+    Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
+    Wr = np.random.random((n, r))
+
+    op_ = op.galerkin(Vr)
+    assert isinstance(op_, op.__class__)
+    assert op_.shape == shape
+    for _ in range(ntrials):
+        q_ = np.random.random(r)
+        u = np.random.random(m)
+        full = Vr.T @ op.apply(Vr @ q_, u)
+        reduced = op_.apply(q_, u)
+        assert np.allclose(reduced, full)
+
+    op_ = op.galerkin(Vr, Wr)
+    assert isinstance(op_, op.__class__)
+    assert op_.shape == shape
+    for _ in range(ntrials):
+        q_ = np.random.random(r)
+        u = np.random.random(m)
+        full = la.solve(Wr.T @ Vr, Wr.T @ op.apply(Vr @ q_, u))
+        reduced = op_.apply(q_, u)
+        assert np.allclose(reduced, full)
+
+
 # No dependence on state or input =============================================
 class TestConstantOperator:
     """Test operators._nonparametric.ConstantOperator."""
@@ -97,19 +122,9 @@ class TestConstantOperator:
 
     def test_galerkin(self, n=10, r=3, ntrials=10):
         """Test ConstantOperator.galerkin()."""
-        Vr = np.random.random((n, r))
-        Wr = np.random.random((n, r))
         c = np.random.random(n)
-
         op = self._OpClass(c)
-        op_ = op.galerkin(Vr, Wr)
-        assert isinstance(op_, self._OpClass)
-        assert op_.shape == (r,)
-        for _ in range(ntrials):
-            q_ = np.random.random(r)
-            full = Wr.T @ op.apply(Vr @ q_)
-            reduced = op_.apply(q_)
-            assert np.allclose(reduced, full)
+        _test_galerkin(op, (r,), n, 2, r, ntrials)
 
     def test_datablock(self, k=20):
         """Test ConstantOperator.datablock()."""
@@ -218,19 +233,8 @@ class TestLinearOperator:
 
     def test_galerkin(self, n=10, r=3, ntrials=10):
         """Test LinearOperator.galerkin()."""
-        Vr = np.random.random((n, r))
-        Wr = np.random.random((n, r))
-        A = np.random.random((n, n))
-
-        op = self._OpClass(A)
-        op_ = op.galerkin(Vr, Wr)
-        assert isinstance(op_, self._OpClass)
-        assert op_.shape == (r, r)
-        for _ in range(ntrials):
-            q_ = np.random.random(r)
-            full = Wr.T @ op.apply(Vr @ q_)
-            reduced = op_.apply(q_)
-            assert np.allclose(reduced, full)
+        op = self._OpClass(np.random.random((n, n)))
+        _test_galerkin(op, (r, r), n, 2, r, ntrials)
 
     def test_datablock(self, m=3, k=20, r=10):
         """Test LinearOperator.datablock()."""
@@ -389,19 +393,8 @@ class TestQuadraticOperator:
 
     def test_galerkin(self, n=10, r=3, ntrials=10):
         """Test QuadraticOperator.galerkin()."""
-        Vr = np.random.random((n, r))
-        Wr = np.random.random((n, r))
-        H = np.random.random((n, n**2))
-
-        op = self._OpClass(H)
-        op_ = op.galerkin(Vr, Wr)
-        assert isinstance(op_, self._OpClass)
-        assert op_.shape == (r, r * (r + 1) // 2)
-        for _ in range(ntrials):
-            q_ = np.random.random(r)
-            full = Wr.T @ op.apply(Vr @ q_)
-            reduced = op_.apply(q_)
-            assert np.allclose(reduced, full)
+        op = self._OpClass(np.random.random((n, n**2)))
+        _test_galerkin(op, (r, r * (r + 1) // 2), n, 2, r, ntrials)
 
     def test_datablock(self, k=20, r=10):
         """Test QuadraticOperator.datablock()."""
@@ -701,19 +694,8 @@ class TestCubicOperator:
 
     def test_galerkin(self, n=5, r=2, ntrials=10):
         """Test CubicOperator.galerkin()."""
-        Vr = np.random.random((n, r))
-        Wr = np.random.random((n, r))
-        H = np.random.random((n, n**3))
-
-        op = self._OpClass(H)
-        op_ = op.galerkin(Vr, Wr)
-        assert isinstance(op_, self._OpClass)
-        assert op_.shape == (r, r * (r + 1) * (r + 2) // 6)
-        for _ in range(ntrials):
-            q_ = np.random.random(r)
-            full = Wr.T @ op.apply(Vr @ q_)
-            reduced = op_.apply(q_)
-            assert np.allclose(reduced, full)
+        op = self._OpClass(np.random.random((n, n**3)))
+        _test_galerkin(op, (r, r * (r + 1) * (r + 2) // 6), n, 2, r, ntrials)
 
     def test_datablock(self, k=20, r=10):
         """Test CubicOperator.datablock()."""
@@ -989,20 +971,8 @@ class TestInputOperator:
 
     def test_galerkin(self, n=10, r=4, m=3, ntrials=10):
         """Test InputOperator.galerkin()."""
-        Vr = np.random.random((n, r))
-        Wr = np.random.random((n, r))
-        B = np.random.random((n, m))
-
-        op = self._OpClass(B)
-        op_ = op.galerkin(Vr, Wr)
-        assert isinstance(op_, self._OpClass)
-        assert op_.shape == (r, m)
-        for _ in range(ntrials):
-            q_ = np.random.random(r)
-            u = np.random.random(m)
-            full = Wr.T @ op.apply(Vr @ q_, u)
-            reduced = op_.apply(q_, u)
-            assert np.allclose(reduced, full)
+        op = self._OpClass(np.random.random((n, m)))
+        _test_galerkin(op, (r, m), n, m, r, ntrials)
 
     def test_datablock(self, m=3, k=20, r=10):
         """Test InputOperator.datablock()."""
@@ -1197,20 +1167,8 @@ class TestStateInputOperator:
 
     def test_galerkin(self, n=10, r=4, m=3, ntrials=10):
         """Test StateInputOperator.galerkin()."""
-        Vr = np.random.random((n, r))
-        Wr = np.random.random((n, r))
-        N = np.random.random((n, n * m))
-
-        op = self._OpClass(N)
-        op_ = op.galerkin(Vr, Wr)
-        assert isinstance(op_, self._OpClass)
-        assert op_.shape == (r, r * m)
-        for _ in range(ntrials):
-            q_ = np.random.random(r)
-            u = np.random.random(m)
-            full = Wr.T @ op.apply(Vr @ q_, u)
-            reduced = op_.apply(q_, u)
-            assert np.allclose(reduced, full)
+        op = self._OpClass(np.random.random((n, n * m)))
+        _test_galerkin(op, (r, r * m), n, m, r, ntrials)
 
     def test_datablock(self, m=3, k=20, r=10):
         """Test StateInputOperator.datablock()."""

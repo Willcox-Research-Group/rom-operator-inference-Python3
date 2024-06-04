@@ -292,7 +292,7 @@ class _Model(abc.ABC):
         .. math::
            \zhat = \Wr\trp\z,
            \qquad
-           \fhat(\qhat,\u) = \Wr\trp\f(\Vr\qhat,\u).
+           \fhat(\qhat,\u) = (\Wr\trp\Vr)^{-1}\Wr\trp\f(\Vr\qhat,\u).
 
         Here,
 

@@ -3,6 +3,7 @@
 
 import pytest
 import numpy as np
+import scipy.linalg as la
 
 import opinf
 
@@ -211,7 +212,7 @@ class TestModel:
     def test_galerkin(self, n=20, r=6):
         """Test _Model.galerkin()."""
         A = _get_operators("A", n)[0]
-        Vr = np.random.random((20, 6))
+        Vr = la.qr(np.random.random((20, 6)), mode="economic")[0]
 
         fom = self.Dummy(
             [
