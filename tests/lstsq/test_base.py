@@ -158,13 +158,13 @@ class TestSolverTemplate:
         solver.fit(D, Z)
         assert np.isclose(solver.cond(), svals[0] / svals[-1])
 
-    def test_misfit(self, k=20, d=10, r=4):
-        """Test misfit()."""
+    def test_residual(self, k=20, d=10, r=4):
+        """Test residual()."""
         solver = self.Dummy()
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
-            solver.misfit(0)
+            solver.residual(0)
         assert ex.value.args[0] == "solver not trained, call fit()"
 
         D = np.random.standard_normal((k, d))
@@ -174,27 +174,27 @@ class TestSolverTemplate:
         # Try with badly shaped Ohat.
         Ohat = np.random.standard_normal((r - 1, d + 1))
         with pytest.raises(ValueError) as ex:
-            solver.misfit(Ohat)
+            solver.residual(Ohat)
         assert ex.value.args[0] == (
             f"Ohat.shape = {(r - 1, d + 1)} != {(r, d)} = (r, d)"
         )
 
         # Two-dimensional case.
         Ohat = np.random.standard_normal((r, d))
-        misfit = solver.misfit(Ohat)
-        assert isinstance(misfit, np.ndarray)
-        assert misfit.shape == (r,)
+        residual = solver.residual(Ohat)
+        assert isinstance(residual, np.ndarray)
+        assert residual.shape == (r,)
         for i in range(r):
-            assert np.isclose(misfit[i], la.norm(D @ Ohat[i] - Z[i]))
+            assert np.isclose(residual[i], la.norm(D @ Ohat[i] - Z[i]))
 
         # One-dimensional case.
         z = Z[0, :]
         solver.fit(D, z)
         assert solver.r == 1
         ohat = np.random.standard_normal(d)
-        misfit = solver.misfit(ohat)
-        assert isinstance(misfit, float)
-        assert np.isclose(misfit, la.norm(D @ ohat - z))
+        residual = solver.residual(ohat)
+        assert isinstance(residual, float)
+        assert np.isclose(residual, la.norm(D @ ohat - z))
 
 
 class TestPlainSolver:
@@ -223,8 +223,7 @@ class TestPlainSolver:
         k = 15
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))
-        solver.options["check_finite"] = True
-        solver.options["cond"] = 1e-14
+        solver = self.Solver(lapack_driver="gelsy", cond=1e-4)
         out = solver.fit(D, Z)
         assert out is solver
 
@@ -246,18 +245,14 @@ class TestPlainSolver:
         if os.path.isfile(outfile):  # pragma: no cover
             os.remove(outfile)
 
-        solver = self.Solver(
-            lapack_driver="gelsy",
-            check_finite=True,
-            cond=1e-14,
-        )
+        solver = self.Solver(lapack_driver="gelsy", cond=1e-14)
         solver.save(outfile)
 
         assert os.path.isfile(outfile)
 
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))
-        solver.fit(D, Z)
+        solver = self.Solver().fit(D, Z)
         solver.save(outfile, overwrite=True)
 
         os.remove(outfile)
@@ -271,16 +266,13 @@ class TestPlainSolver:
         solver.save(outfile)
         solver2 = self.Solver.load(outfile)
         assert solver2.data_matrix is None
-        assert len(solver2.options) == 0
 
-        solver.options["lapack_driver"] = "gelsy"
-        solver.options["check_finite"] = True
+        solver = self.Solver(lapack_driver="gelsy", cond=1e-12)
         solver.save(outfile, overwrite=True)
         solver2 = self.Solver.load(outfile)
         assert solver2.data_matrix is None
-        assert len(solver2.options) == 2
         assert solver2.options["lapack_driver"] == "gelsy"
-        assert solver2.options["check_finite"]
+        assert solver2.options["cond"] == 1e-12
 
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))

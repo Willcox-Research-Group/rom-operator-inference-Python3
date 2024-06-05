@@ -73,7 +73,7 @@ sphinx:
           "s": "\\mathbf{s}"                  # unprocessed state vector
           "Q": "\\mathbf{Q}"                  # state data
           "U": "\\mathbf{U}"                  # input data
-          "Z": "\\mathbf{Z}"                  # rhs data
+          "Z": "\\mathbf{Z}"                  # rhs regression data
           "Op": "\\mathbf{f}"                 # generic operator
           "Ophat": "\\hat{\\mathbf{f}}"       # generic reduced operator
           "c": "\\mathbf{c}"                  # constant operator

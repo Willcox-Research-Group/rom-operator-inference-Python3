@@ -8,6 +8,7 @@ __all__ = [
 ]
 
 import abc
+import types
 import warnings
 import numpy as np
 import scipy.linalg as la
@@ -22,7 +23,7 @@ _require_trained = utils.requires2(
 
 
 def lstsq_size(modelform, r, m=0, affines=None):
-    r"""Calculate the number of columns in the operator matrix :math:`\Ohat` in
+    r"""Compute the number of columns in the operator matrix :math:`\Ohat` in
     the Operator Inference least-squares problem. This is also the number of
     columns in the data matrix :math:`\D`.
 
@@ -80,13 +81,13 @@ def lstsq_size(modelform, r, m=0, affines=None):
 
 
 class SolverTemplate(abc.ABC):
-    r"""Base class for solvers for the Operator Inference regression
-    :math:`\Z \approx \Ohat\D\trp` (or :math:`\D\Ohat\trp = \Z\trp`)
+    r"""Template for solvers for the Operator Inference regression
+    :math:`\Z \approx \Ohat\D\trp` (or :math:`\D\Ohat\trp \approx \Z\trp`)
     for the operator matrix :math:`\Ohat`.
 
     Child classes formulate the regression, which may include regularization
     terms and/or optimization constraints. Hyperparameters should be set in
-    the constructor (regularization scalars, truncation size, etc.).
+    the constructor (regularization terms, etc.).
     """
 
     def __init__(self):
@@ -95,12 +96,12 @@ class SolverTemplate(abc.ABC):
 
     # Properties: matrices ----------------------------------------------------
     @property
-    def data_matrix(self):
+    def data_matrix(self) -> np.ndarray:
         r""":math:`k \times d` data matrix :math:`\D`."""
         return self.__D
 
     @property
-    def lhs_matrix(self):
+    def lhs_matrix(self) -> np.ndarray:
         r""":math:`r \times k` left-hand side data :math:`\Z`."""
         return self.__Z
 
@@ -130,7 +131,7 @@ class SolverTemplate(abc.ABC):
         return Z.shape[0] if Z is not None else None
 
     # String representation ---------------------------------------------------
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation: class name + dimensions."""
         out = [self.__class__.__name__]
         if (self.data_matrix is not None) and (self.lhs_matrix is not None):
@@ -141,7 +142,7 @@ class SolverTemplate(abc.ABC):
             out[0] += " (not trained)"
         return "\n".join(out)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Unique ID + string representation."""
         return utils.str2repr(self)
 
@@ -154,8 +155,8 @@ class SolverTemplate(abc.ABC):
         data_matrix : (k, d) ndarray
             Data matrix :math:`\D`.
         lhs_matrix : (r, k) ndarray
-            "Left-hand side" data matrix :math:`\Z` (not its transpose!)
-            If one-dimensional, assume r = 1.
+            "Left-hand side" data matrix :math:`\Z` (not its transpose!).
+            If one-dimensional, assume :math:`r = 1`.
         """
         # Verify dimensions.
         if data_matrix.ndim != 2:
@@ -177,26 +178,30 @@ class SolverTemplate(abc.ABC):
 
     @abc.abstractmethod
     def predict(self):  # pragma: no cover
-        r"""Solver the Operator Inference regression.
+        r"""Solve the Operator Inference regression.
 
         Returns
         -------
         Ohat : (r, d) ndarray
-            Operator matrix :math:`\Ohat` (not its transpose!)
+            Operator matrix :math:`\Ohat` (not its transpose!).
         """
         raise NotImplementedError
 
     # Post-processing --------------------------------------------------------
     @_require_trained
     def cond(self):
-        r"""Calculate the 2-norm condition number of the data matrix
+        r"""Compute the :math:`2`-norm condition number of the data matrix
         :math:`\D`.
+
+        Returns
+        -------
+        conditionnumber : float
         """
         return np.linalg.cond(self.data_matrix)
 
     @_require_trained
-    def misfit(self, Ohat):
-        r"""Calculate the misfit (residual) in the :math:`2`-norm for each row
+    def residual(self, Ohat):
+        r"""Compute the residual in the :math:`2`-norm for each row
         of the given operator matrix.
 
         Specifically, given a potential :math:`\Ohat`, compute
@@ -215,8 +220,9 @@ class SolverTemplate(abc.ABC):
 
         Returns
         -------
-        resids : (r,) ndarray or float (r = 1)
-            :math:`2`-norm misfits for each row of the operator matrix.
+        residuals : (r,) ndarray or float
+            :math:`2`-norm residuals for each row of the operator matrix.
+            If :math:`r = 1`, a float is returned.
         """
         if self.r == 1 and Ohat.ndim == 1:
             Ohat = Ohat.reshape((1, -1))
@@ -274,18 +280,23 @@ class PlainSolver(SolverTemplate):
         \argmin_{\Ohat} ||\D\Ohat\trp - \Z\trp||_F^2.
 
     The solution is calculated using ``scipy.linalg.lstsq()``.
+
+    Parameters
+    ----------
+    cond : float or None
+        Cutoff for 'small' singular values of the data matrix.
+        See ``scipy.linalg.lstsq()``.
+    lapack_driver : str or None
+        Which LAPACK driver is used to solve the least-squares problem.
+        See ``scipy.linalg.lstsq()``.
     """
 
-    def __init__(self, **options):
-        """Store least-squares solver options.
-
-        Parameters
-        ----------
-        options : dict
-            Keyword arguments for ``scipy.linalg.lstsq()``.
-        """
+    def __init__(self, cond=None, lapack_driver=None):
+        """Store least-squares solver options."""
         SolverTemplate.__init__(self)
-        self.__options = options
+        self.__options = types.MappingProxyType(
+            dict(cond=cond, lapack_driver=lapack_driver)
+        )
 
     @property
     def options(self):
@@ -301,8 +312,8 @@ class PlainSolver(SolverTemplate):
         data_matrix : (k, d) ndarray
             Data matrix :math:`\D`.
         lhs_matrix : (r, k) or (k,) ndarray
-            "Left-hand side" data matrix :math:`\Z` (not its transpose!)
-            If one-dimensional, assume r = 1.
+            "Left-hand side" data matrix :math:`\Z` (not its transpose!).
+            If one-dimensional, assume :math:`r = 1`.
         """
         SolverTemplate.fit(self, data_matrix, lhs_matrix)
         if self.k < self.d:
@@ -314,14 +325,14 @@ class PlainSolver(SolverTemplate):
         return self
 
     def predict(self):
-        r"""Solver the Operator Inference regression.
+        r"""Solve the Operator Inference regression.
 
-        The solution is calculated using ``scipy.linalg.lstsq()`.
+        The solution is calculated using ``scipy.linalg.lstsq()``.
 
         Returns
         -------
         Ohat : (r, d) ndarray
-            Operator matrix :math:`\Ohat` (not its transpose!)
+            Operator matrix :math:`\Ohat` (not its transpose!).
         """
         results = la.lstsq(self.data_matrix, self.lhs_matrix.T, **self.options)
         return results[0].T
@@ -341,10 +352,9 @@ class PlainSolver(SolverTemplate):
             ``savefile`` already exists, raise an error.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
-            if len(self.options) > 0:
-                options = hf.create_dataset("options", shape=(0,))
-                for key, value in self.options.items():
-                    options.attrs[key] = value
+            options = hf.create_dataset("options", shape=(0,))
+            for key, value in self.options.items():
+                options.attrs[key] = "NULL" if value is None else value
             if self.data_matrix is not None:
                 hf.create_dataset("data_matrix", data=self.data_matrix)
                 hf.create_dataset("lhs_matrix", data=self.lhs_matrix)
@@ -367,9 +377,9 @@ class PlainSolver(SolverTemplate):
         options = dict()
         with utils.hdf5_loadhandle(loadfile) as hf:
 
-            if "options" in hf:
-                for key in hf["options"].attrs:
-                    options[key] = hf["options"].attrs[key]
+            for key in hf["options"].attrs:
+                value = hf["options"].attrs[key]
+                options[key] = None if value == "NULL" else value
             solver = cls(**options)
 
             if "data_matrix" in hf:
