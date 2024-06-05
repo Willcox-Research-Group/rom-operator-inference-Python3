@@ -32,8 +32,6 @@ class ROM:
     ddt_estimator : opinf.ddt.DerivativeEstimatorTemplate
         Time derivative estimator.
         Ignored if ``model`` is not time continuous.
-    solver : opinf.lstsq._BaseSolver or None
-        Least-squares solver.
     """
 
     def __init__(
@@ -44,7 +42,6 @@ class ROM:
         transformer=None,
         basis=None,
         ddt_estimator=None,
-        solver=None,
     ):
         """Store each argument as an attribute."""
         # TODO: verify each argument here.
@@ -53,7 +50,6 @@ class ROM:
         self.__transformer = transformer
         self.__basis = basis
         self.__ddter = ddt_estimator
-        self.__solver = solver
 
     # Properties --------------------------------------------------------------
     @property
@@ -88,11 +84,6 @@ class ROM:
         """
         return isinstance(self.model, models.ContinuousModel)
 
-    @property
-    def solver(self):
-        """Least-squares solver."""
-        return self.__solver
-
     # Printing ----------------------------------------------------------------
     def __str__(self):
         """String representation."""
@@ -107,7 +98,6 @@ class ROM:
             ("Basis", self.basis),
             ("Time derivative estimator", self.ddt_estimator),
             ("Model", self.model),
-            ("Solver", self.solver),
         ]:
             if obj is not None:
                 lines.append(f"{label}:")
@@ -316,7 +306,7 @@ class ROM:
                 )
 
         # Calibrate the model.
-        kwargs = dict(inputs=inputs, solver=self.solver)
+        kwargs = dict(inputs=inputs)
         if self.iscontinuous:
             self.model.fit(states, lhs, **kwargs)
         else:
