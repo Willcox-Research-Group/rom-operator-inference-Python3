@@ -66,6 +66,7 @@ the following class.
     :nosignatures:
 
     PlainSolver
+    SolverTemplate
 
 
 Tikhonov Regularization

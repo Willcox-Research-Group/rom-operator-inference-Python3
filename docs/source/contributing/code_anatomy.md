@@ -30,14 +30,6 @@ For example, the operator classes {class}`opinf.operators.LinearOperator` and {c
 This section documents private classes that are part of the class hierarchy but are not meant to be instantiated.
 These are mostly abstract base classes or mixins.
 
-### `pre`
-
-TODO
-
-### `basis`
-
-TODO
-
 (subsec-contrib-opclass)=
 ### `operators`
 
@@ -71,8 +63,7 @@ TODO
     :toctree: _autosummaries
     :nosignatures:
 
-    opinf.lstsq._base._BaseSolver
-    opinf.lstsq._tikhonov._BaseTikhonovSolver
+    opinf.lstsq._tikhonov._BaseRegularizedSolver
 ```
 
 <!-- Solver classes are defined in {mod}`opinf.lstsq`.
@@ -83,8 +74,8 @@ The `fit()` method of each model class has a `solver` keyword argument which acc
 
 Least-squares solver classes must do the following.
 
-- Inherit from {class}`opinf.lstsq._base._BaseSolver`.
+- Inherit from {class}`opinf.lstsq.SolverTemplate`.
 - Accept any hyperparameters (e.g., regularization values) in the constructor.
-- Have a `fit(A, B)` method that calls `_BaseSolver.fit(A, B)` and sets up the least-squares problem.
+- Have a `fit(A, B)` method that calls `SolverTempalte.fit(A, B)` and sets up the least-squares problem.
 - Have a `predict()` method returns the solution `X` to the least-squares problem $||\mathbf{AX} - \B||$ (+ regularization, etc.).
 - Have a `_LSTSQ_LABEL` class attribute that is a string describing the form of the least-squares problem, e.g., `"min_{X} ||AX - B||_F^2 + ||µX||_F^2"` This is used in the string representation of the class. -->
