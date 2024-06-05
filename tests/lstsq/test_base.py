@@ -1,6 +1,7 @@
 # lstsq/_base.py
 """Tests for lstsq._base.py."""
 
+import os
 import pytest
 import numpy as np
 import scipy.linalg as la
@@ -40,119 +41,89 @@ def test_lstsq_size():
     assert opinf.lstsq.lstsq_size("A", r, affines={"A": [0, 0]}) == 2 * r
 
 
-class TestBaseSolver:
-    """Test lstsq._base._BaseSolver."""
+class TestSolverTemplate:
+    """Test lstsq._base.SolverTemplate."""
 
-    class Dummy(opinf.lstsq._base._BaseSolver):
-        """Instantiable version of _BaseSolver."""
+    class Dummy(opinf.lstsq._base.SolverTemplate):
+        """Instantiable version of SolverTemplate."""
 
-        _LSTSQ_LABEL = "some OpInf problem"
-
-        def predict(*args, **kwargs):
+        def predict(self):
             pass
 
     def test_properties(self):
-        """Test A, B, k, d, r, properties."""
+        """Test data_matrix, lhs_matrix, k, d, r, properties."""
         solver = self.Dummy()
-        assert solver.A is None
-        assert solver.B is None
-        assert solver.k is None
-        assert solver.d is None
-        assert solver.r is None
-
-        with pytest.raises(AttributeError) as ex:
-            solver.A = 1
-        assert ex.value.args[0] == "can't set attribute (call fit())"
-
-        with pytest.raises(AttributeError) as ex:
-            solver.B = 2
-        assert ex.value.args[0] == "can't set attribute (call fit())"
+        for attr in ("data_matrix", "lhs_matrix", "k", "d", "r"):
+            assert hasattr(solver, attr)
+            assert getattr(solver, attr) is None
 
     def test_fit(self, k=30, d=20, r=5):
         """Test fit()."""
         solver = self.Dummy()
 
         # Bad dimensions.
-        A = np.random.random(k)
-        B = np.random.random((k, r))
+        D = np.random.random(k)
+        Z = np.random.random((r, k))
         with pytest.raises(ValueError) as ex:
-            solver.fit(A, B)
-        assert ex.value.args[0] == "A must be two-dimensional"
+            solver.fit(D, Z)
+        assert ex.value.args[0] == "data_matrix must be two-dimensional"
 
-        A = np.random.random((k, d))
-        B = np.random.random((k, r, d))
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k, d))
         with pytest.raises(ValueError) as ex:
-            solver.fit(A, B)
-        assert ex.value.args[0] == "B must be one- or two-dimensional"
+            solver.fit(D, Z)
+        assert ex.value.args[0] == "lhs_matrix must be one- or two-dimensional"
 
         # Mismatched shapes.
-        A = np.random.random((k, d))
-        B = np.random.random((k - 1, r))
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k - 1))
         with pytest.raises(ValueError) as ex:
-            solver.fit(A, B)
-        assert ex.value.args[0] == "A.shape[0] != B.shape[0]"
+            solver.fit(D, Z)
+        assert ex.value.args[0] == (
+            "data_matrix and lhs_matrix not aligned "
+            f"(lhs_matrix.shape[-1] = {k - 1} != {k} = data_matrix.shape[0])"
+        )
 
         # Correct usage, r > 1.
-        A = np.random.random((k, d))
-        B = np.random.random((k, r))
-        assert solver.fit(A, B) is solver
-        assert solver.A is A
-        assert solver.B is B
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        assert solver.fit(D, Z) is solver
+        assert solver.data_matrix is D
+        assert solver.lhs_matrix is Z
         assert solver.k == k
         assert solver.d == d
         assert solver.r == r
 
         # Correct usage, r = 1.
-        B = np.random.random(k)
-        assert solver.fit(A, B) is solver
-        assert solver.A is A
-        assert solver.B.shape == (k, 1)
+        Z = np.random.random(k)
+        assert solver.fit(D, Z) is solver
+        assert solver.data_matrix is D
+        assert solver.lhs_matrix.shape == (1, k)
         assert solver.k == k
         assert solver.d == d
         assert solver.r == 1
-        assert np.all(solver.B[:, 0] == B)
-
-    def test_check_is_trained(self, k=10, d=4, r=3):
-        """Test _check_is_trained()"""
-        solver = self.Dummy()
-
-        # Try before calling fit().
-        with pytest.raises(AttributeError) as ex:
-            solver._check_is_trained()
-        assert ex.value.args[0] == "lstsq solver not trained (call fit())"
-
-        A = np.empty((k, d))
-        B = np.empty((k, r))
-        solver.fit(A, B)
-
-        # Try after calling fit() but with a missing attribute.
-        with pytest.raises(AttributeError) as ex:
-            solver._check_is_trained("_nonexistentattribute")
-        assert ex.value.args[0] == "lstsq solver not trained (call fit())"
-
-        # Correct usage.
-        solver._check_is_trained()
+        assert np.all(solver.lhs_matrix[0, :] == Z)
 
     # String representations --------------------------------------------------
     def test_str(self, k=20, d=6, r=3):
         """Test __str__() and __repr__()."""
         # Before fitting.
         solver = self.Dummy()
-        assert str(solver) == "Least-squares solver for some OpInf problem"
+        assert str(solver) == "Dummy (not trained)"
 
         rep = repr(solver)
         assert rep.startswith("<Dummy object at ")
         assert len(rep.split("\n")) == 2
 
-        A = np.empty((k, d))
-        B = np.empty((k, r))
-        solver.fit(A, B)
+        D = np.empty((k, d))
+        Z = np.empty((r, k))
+        solver.fit(D, Z)
         strlines = str(solver).split("\n")
         assert len(strlines) == 4
-        assert strlines[0] == "Least-squares solver for some OpInf problem"
-        assert strlines[1] == f"A: ({k:d}, {d:d})"
-        assert strlines[2] == f"X: ({d:d}, {r:d})"
-        assert strlines[3] == f"B: ({k:d}, {r:d})"
+        assert strlines[0] == "Dummy"
+        assert strlines[1] == f"  Data matrix: ({k:d}, {d:d})"
+        assert strlines[2] == f"  LHS matrix: ({r:d}, {k:d})"
+        assert strlines[3] == f"  Solver for ({r:d}, {d:d}) operator matrix"
 
         replines = repr(solver).split("\n")
         assert len(replines) == 5
@@ -166,25 +137,25 @@ class TestBaseSolver:
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
             solver.cond()
-        assert ex.value.args[0] == "lstsq solver not trained (call fit())"
+        assert ex.value.args[0] == "solver not trained, call fit()"
 
         # Contrived test 1
-        A = np.eye(d)
-        B = np.zeros((d, r))
-        solver.fit(A, B)
+        D = np.eye(d)
+        Z = np.zeros((r, d))
+        solver.fit(D, Z)
         assert np.isclose(solver.cond(), 1)
 
         # Contrived test 2
-        A = np.diag(np.arange(1, d + 1))
-        B = np.zeros((d, r))
-        solver.fit(A, B)
+        D = np.diag(np.arange(1, d + 1))
+        Z = np.zeros((r, d))
+        solver.fit(D, Z)
         assert np.isclose(solver.cond(), d)
 
         # Random test
-        A = np.random.standard_normal((k, d))
-        B = np.random.standard_normal((k, r))
-        svals = la.svdvals(A)
-        solver.fit(A, B)
+        D = np.random.standard_normal((k, d))
+        Z = np.random.standard_normal((r, k))
+        svals = la.svdvals(D)
+        solver.fit(D, Z)
         assert np.isclose(solver.cond(), svals[0] / svals[-1])
 
     def test_misfit(self, k=20, d=10, r=4):
@@ -194,49 +165,130 @@ class TestBaseSolver:
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
             solver.misfit(0)
-        assert ex.value.args[0] == "lstsq solver not trained (call fit())"
+        assert ex.value.args[0] == "solver not trained, call fit()"
 
-        A = np.random.standard_normal((k, d))
-        B = np.random.standard_normal((k, r))
-        solver.fit(A, B)
+        D = np.random.standard_normal((k, d))
+        Z = np.random.standard_normal((r, k))
+        solver.fit(D, Z)
 
-        # Try with badly shaped X.
-        X = np.random.standard_normal((d + 1, r - 1))
+        # Try with badly shaped Ohat.
+        Ohat = np.random.standard_normal((r - 1, d + 1))
         with pytest.raises(ValueError) as ex:
-            solver.misfit(X)
+            solver.misfit(Ohat)
         assert ex.value.args[0] == (
-            f"X.shape = {(d+1, r-1)} != {(d, r)} = (d, r)"
+            f"Ohat.shape = {(r - 1, d + 1)} != {(r, d)} = (r, d)"
         )
 
         # Two-dimensional case.
-        X = np.random.standard_normal((d, r))
-        misfit = solver.misfit(X)
+        Ohat = np.random.standard_normal((r, d))
+        misfit = solver.misfit(Ohat)
         assert isinstance(misfit, np.ndarray)
         assert misfit.shape == (r,)
-        assert np.allclose(misfit, la.norm(A @ X - B, ord=2, axis=0) ** 2)
+        for i in range(r):
+            assert np.isclose(misfit[i], la.norm(D @ Ohat[i] - Z[i]))
 
         # One-dimensional case.
-        b = B[:, 0]
-        solver.fit(A, b)
+        z = Z[0, :]
+        solver.fit(D, z)
         assert solver.r == 1
-        x = np.random.standard_normal(d)
-        misfit = solver.misfit(x)
+        ohat = np.random.standard_normal(d)
+        misfit = solver.misfit(ohat)
         assert isinstance(misfit, float)
-        assert np.isclose(misfit, np.linalg.norm(A @ x - b) ** 2)
+        assert np.isclose(misfit, la.norm(D @ ohat - z))
 
 
 class TestPlainSolver:
     """Test lstsq._base.PlainSolver."""
 
+    Solver = opinf.lstsq.PlainSolver
+
+    def test_fit(self):
+        """Test fit()."""
+        solver = self.Solver(lapack_driver="gelsy")
+
+        # Underdetermined.
+        k = 5
+        d = 10
+        r = 6
+        D = np.random.standard_normal((k, d))
+        Z = np.random.random((r, k))
+
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            solver.fit(D, Z)
+        assert wn[0].message.args[0] == (
+            "least-squares regression is underdetermined"
+        )
+
+        # Overdetermined.
+        k = 15
+        D = np.random.standard_normal((k, d))
+        Z = np.random.random((r, k))
+        solver.options["check_finite"] = True
+        solver.options["cond"] = 1e-14
+        out = solver.fit(D, Z)
+        assert out is solver
+
     def test_predict(self, k=20, d=11, r=3):
         """Test predict()."""
         # Set up and manually solve a least-squares problem.
-        A = np.random.standard_normal((k, d))
-        B = np.random.random((k, r))
-        U, s, Vt = la.svd(A, full_matrices=False)
-        Xtrue = Vt.T @ np.diag(1 / s) @ U.T @ B
+        D = np.random.standard_normal((k, d))
+        Z = np.random.random((r, k))
+        U, s, Vt = la.svd(D, full_matrices=False)
+        Ohat_true = Z @ U @ np.diag(1 / s) @ Vt
 
         # Check the least-squares solution.
-        solver = opinf.lstsq.PlainSolver().fit(A, B)
-        Xpred = solver.predict()
-        assert np.allclose(Xpred, Xtrue)
+        solver = self.Solver().fit(D, Z)
+        Ohat = solver.predict()
+        assert np.allclose(Ohat, Ohat_true)
+
+    def test_save(self, k=6, d=4, r=2, outfile="_plainsolversavetest.h5"):
+        """Lightly test save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver(
+            lapack_driver="gelsy",
+            check_finite=True,
+            cond=1e-14,
+        )
+        solver.save(outfile)
+
+        assert os.path.isfile(outfile)
+
+        D = np.random.standard_normal((k, d))
+        Z = np.random.random((r, k))
+        solver.fit(D, Z)
+        solver.save(outfile, overwrite=True)
+
+        os.remove(outfile)
+
+    def test_load(self, k=10, d=6, r=3, outfile="_plainsolverloadtest.h5"):
+        """Test that load() is the inverse of save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver()
+        solver.save(outfile)
+        solver2 = self.Solver.load(outfile)
+        assert solver2.data_matrix is None
+        assert len(solver2.options) == 0
+
+        solver.options["lapack_driver"] = "gelsy"
+        solver.options["check_finite"] = True
+        solver.save(outfile, overwrite=True)
+        solver2 = self.Solver.load(outfile)
+        assert solver2.data_matrix is None
+        assert len(solver2.options) == 2
+        assert solver2.options["lapack_driver"] == "gelsy"
+        assert solver2.options["check_finite"]
+
+        D = np.random.standard_normal((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver().fit(D, Z)
+        solver.save(outfile, overwrite=True)
+        solver2 = self.Solver.load(outfile)
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
