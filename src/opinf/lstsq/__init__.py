@@ -44,7 +44,7 @@ where
 
 This module defines least-squares solver classes for solving the above
 regression problem. These classes should be instantiated before being passed to
-the ``fit()`` method of a ROM class using the ``solver`` keyword argument.
+the constructor of a model class using the ``solver`` keyword argument.
 In addition, the following function calculates the column dimension of
 :math:`\Ohat` and :math:`\D`.
 
