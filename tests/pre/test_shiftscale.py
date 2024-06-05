@@ -125,7 +125,7 @@ class TestShiftScaleTransformer:
             st.shift_ = 1
 
         # Test byrow.
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Transformer(scaling=None, byrow=True)
         assert wn[0].message.args[0] == (
             "scaling=None --> byrow=True will have no effect"

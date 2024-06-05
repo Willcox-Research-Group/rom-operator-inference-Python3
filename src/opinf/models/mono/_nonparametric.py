@@ -336,7 +336,7 @@ class _NonparametricModel(_Model):
         if self._fully_intrusive:
             warnings.warn(
                 "all operators initialized explicitly, nothing to learn",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
             return self
 

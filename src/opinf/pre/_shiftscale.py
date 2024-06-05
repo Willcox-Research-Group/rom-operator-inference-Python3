@@ -285,7 +285,7 @@ class ShiftScaleTransformer(TransformerTemplate):
         if self.__byrow and self.scaling is None:
             warnings.warn(
                 "scaling=None --> byrow=True will have no effect",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
 
         # Set other properties.

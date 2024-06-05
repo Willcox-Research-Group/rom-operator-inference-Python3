@@ -64,7 +64,7 @@ class TestPolynomialLifter:
         assert lifter.num_variables == 3
 
         # Non-invertible.
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Lifter(0)
         assert wn[0].message.args[0] == "q -> q^0 = 1 is not invertible"
         self.Lifter((0, 3))
@@ -128,7 +128,7 @@ class TestPolynomialLifter:
         assert np.allclose(Q_unlifted, Q)
 
         # Non-invertible.
-        with pytest.warns(opinf.errors.UsageWarning):
+        with pytest.warns(opinf.errors.OpInfWarning):
             lifter = self.Lifter(0)
         with pytest.raises(ZeroDivisionError) as ex:
             lifter.unlift(Q_lifted)

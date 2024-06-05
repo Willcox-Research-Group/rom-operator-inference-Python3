@@ -133,7 +133,7 @@ class TestNonuniformFiniteDifferencer:
         """Test __init__(), time_domain, and order."""
         t = np.linspace(0, 1, k)
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Diff(t)
         assert wn[0].message.args[0] == (
             "time_domain is uniformly spaced, consider using "

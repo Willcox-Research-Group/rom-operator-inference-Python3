@@ -146,7 +146,7 @@ class TestParametricModel:
         """Test _ParametricModel.operators.fset()."""
         operators = [DummyNonparametricOperator()]
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Dummy(operators)
         assert wn[0].message.args[0] == (
             "no parametric operators detected, "
@@ -155,7 +155,7 @@ class TestParametricModel:
 
         operators = [DummyInterpolatedOperator()]
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Dummy(operators)
         assert wn[0].message.args[0] == (
             "all operators interpolatory, "
@@ -488,7 +488,7 @@ class TestInterpolatedModel:
 
         model.set_interpolator(float)
         os.remove(target)
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             model.save(target, overwrite=True)
         assert len(wn) == 1
         assert wn[0].message.args[0] == (
@@ -510,7 +510,7 @@ class TestInterpolatedModel:
         ]
         model = self.Dummy(operators, InterpolatorClass=float)
 
-        with pytest.warns(opinf.errors.UsageWarning):
+        with pytest.warns(opinf.errors.OpInfWarning):
             model.save(target)
 
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
@@ -526,7 +526,7 @@ class TestInterpolatedModel:
         )
         model1.save(target, overwrite=True)
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             model2 = self.Dummy.load(target, float)
         assert wn[0].message.args[0] == (
             "InterpolatorClass=float does not match loadfile "

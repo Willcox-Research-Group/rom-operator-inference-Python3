@@ -43,7 +43,7 @@ class _hdf5_filehandle:
             if not filename.endswith(".h5"):
                 warnings.warn(
                     "expected file with extension '.h5'",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
             if os.path.isfile(filename) and not overwrite:
                 raise FileExistsError(f"{filename} (overwrite=True to ignore)")

@@ -312,7 +312,7 @@ class ROM:
             elif self.ddt_estimator is not None:
                 warnings.warn(
                     "using provided time derivatives, ignoring ddt_estimator",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
 
         # Calibrate the model.

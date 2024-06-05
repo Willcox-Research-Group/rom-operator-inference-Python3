@@ -124,7 +124,7 @@ class _ParametricModel(_Model):
             warnings.warn(
                 "no parametric operators detected, "
                 "consider using a nonparametric model class",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
 
         # Check that not every operator is interpolated.
@@ -138,7 +138,7 @@ class _ParametricModel(_Model):
                 warnings.warn(
                     "all operators interpolatory, "
                     "consider using an InterpolatedModel class",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
         self.__p = self._check_parameter_dimension_consistency(self.operators)
 
@@ -216,7 +216,7 @@ class _ParametricModel(_Model):
         if len(self._indices_of_operators_to_infer) == 0:
             warnings.warn(
                 "all operators initialized intrusively, nothing to learn",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
             return None, None, None, None
 
@@ -394,7 +394,7 @@ class _ParametricModel(_Model):
         if self._fully_intrusive:
             warnings.warn(
                 "all operators initialized explicitly, nothing to learn",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
             return self
 
@@ -1239,7 +1239,7 @@ class _InterpolatedModel(_ParametricModel):
                     "cannot serialize InterpolatorClass "
                     f"'{InterpolatorClassName}', must pass in the class "
                     "when calling load()",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
                 suppress_warnings = True
 
@@ -1252,7 +1252,7 @@ class _InterpolatedModel(_ParametricModel):
             )
             with warnings.catch_warnings():
                 if suppress_warnings:
-                    warnings.simplefilter("ignore", errors.UsageWarning)
+                    warnings.simplefilter("ignore", errors.OpInfWarning)
                 for i, op in enumerate(self.operators):
                     op.save(hf.create_group(f"operator_{i}"))
 
@@ -1304,7 +1304,7 @@ class _InterpolatedModel(_ParametricModel):
                     warnings.warn(
                         f"InterpolatorClass={InterpolatorClassName} does not "
                         f"match loadfile InterpolatorClass '{SavedClassName}'",
-                        errors.UsageWarning,
+                        errors.OpInfWarning,
                     )
 
             # Load operators.

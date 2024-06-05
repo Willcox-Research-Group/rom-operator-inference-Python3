@@ -242,7 +242,7 @@ class _Model(abc.ABC):
             if solver is not None:
                 warnings.warn(
                     "all operators initialized explicity, setting solver=None",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
             self.__solver = None
             return
@@ -268,7 +268,7 @@ class _Model(abc.ABC):
             if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
                 warnings.warn(
                     f"solver should have a '{mtd}()' method",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
 
         self.__solver = solver

@@ -79,7 +79,7 @@ class TestTransformerMulti:
             tfm.transformers = []
         assert ex.value.args[0] == "at least one transformer required"
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             tfm.transformers = transformers[:1]
         assert wn[0].message.args[0] == "only one variable detected"
         assert tfm.num_variables == 1
@@ -93,7 +93,7 @@ class TestTransformerMulti:
         class ExtraDummy:
             name = "nothing"
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             tfm.transformers = [ExtraDummy(), ExtraDummy()]
         assert len(wn) == 2
         assert wn[0].message.args[0].startswith("transformers[0] does not")

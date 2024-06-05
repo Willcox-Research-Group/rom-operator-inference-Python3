@@ -108,14 +108,14 @@ class TestBasisMulti:
             self.Basis([])
         assert ex.value.args[0] == "at least one basis required"
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Basis(bases[:1])
         assert wn[0].message.args[0] == "only one variable detected"
 
         class ExtraDummy:
             name = "nothing"
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Basis([ExtraDummy(), ExtraDummy()])
         assert len(wn) == 2
         assert wn[0].message.args[0].startswith("bases[0] does not inherit")

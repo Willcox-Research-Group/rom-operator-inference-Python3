@@ -249,7 +249,7 @@ class TestModel:
             model.solver = list
         assert ex.value.args[0] == "solver must be an instance, not a class"
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             model.solver = []
         assert len(wn) == 2
         assert wn[0].message.args[0] == "solver should have a 'fit()' method"
@@ -263,7 +263,7 @@ class TestModel:
         assert isinstance(model.solver, opinf.lstsq.L2Solver)
 
         ops[0].entries = np.random.random((3, 3))
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             model = self.Dummy(ops, solver=2)
         assert len(wn) == 1
         assert wn[0].message.args[0] == (
