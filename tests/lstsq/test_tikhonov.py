@@ -272,7 +272,7 @@ class TestL2Solver:
         solver = self.Solver(regularizer=4)
         solver.save(outfile)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert solver2.regularizer == 4
         assert solver2.data_matrix is None
 
@@ -281,7 +281,7 @@ class TestL2Solver:
         solver = self.Solver(regularizer=8, lapack_driver="gesvd").fit(D, Z)
         solver.save(outfile, overwrite=True)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert solver2.regularizer == 8
         assert solver2.r == r
         assert solver2.k == k
@@ -296,7 +296,7 @@ class TestL2Solver:
         """Test copy()."""
         solver = self.Solver(regularizer=4)
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert solver2.regularizer == 4
         assert solver2.data_matrix is None
 
@@ -304,7 +304,7 @@ class TestL2Solver:
         Z = np.random.random((r, k))
         solver = self.Solver(regularizer=8, lapack_driver="gesvd").fit(D, Z)
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert solver2.regularizer == 8
         assert solver2.r == r
         assert solver2.k == k
@@ -455,7 +455,7 @@ class TestL2DecoupledSolver:
         solver = self.Solver(regularizer=(reg := np.random.random(r)))
         solver.save(outfile)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.data_matrix is None
 
@@ -467,7 +467,7 @@ class TestL2DecoupledSolver:
         ).fit(D, Z)
         solver.save(outfile, overwrite=True)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.r == r
         assert solver2.k == k
@@ -482,7 +482,7 @@ class TestL2DecoupledSolver:
         """Test copy()."""
         solver = self.Solver(regularizer=(reg := np.random.random(r)))
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.data_matrix is None
 
@@ -493,7 +493,7 @@ class TestL2DecoupledSolver:
             lapack_driver="gesvd",
         ).fit(D, Z)
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.r == r
         assert solver2.k == k
@@ -738,7 +738,7 @@ class TestTikhonovSolver:
         solver = self.Solver(regularizer=(reg := np.random.random((d, d))))
         solver.save(outfile)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.data_matrix is None
 
@@ -751,7 +751,7 @@ class TestTikhonovSolver:
         ).fit(D, Z)
         solver.save(outfile, overwrite=True)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.r == r
         assert solver2.k == k
@@ -766,7 +766,7 @@ class TestTikhonovSolver:
         """Test copy()."""
         solver = self.Solver(regularizer=(reg := np.random.random((d, d))))
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.data_matrix is None
 
@@ -777,7 +777,7 @@ class TestTikhonovSolver:
             lapack_driver="gelss",
         ).fit(D, Z)
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.r == r
         assert solver2.k == k
@@ -950,7 +950,7 @@ class TestTikhonovDecoupledSolver:
         solver = self.Solver(regularizer=(reg := np.random.random((r, d, d))))
         solver.save(outfile)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.data_matrix is None
 
@@ -963,7 +963,7 @@ class TestTikhonovDecoupledSolver:
         ).fit(D, Z)
         solver.save(outfile, overwrite=True)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.r == r
         assert solver2.k == k
@@ -978,7 +978,7 @@ class TestTikhonovDecoupledSolver:
         """Test copy()."""
         solver = self.Solver(regularizer=(reg := np.random.random((r, d, d))))
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.data_matrix is None
 
@@ -989,7 +989,7 @@ class TestTikhonovDecoupledSolver:
             lapack_driver="gelss",
         ).fit(D, Z)
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert np.all(solver2.regularizer == reg)
         assert solver2.r == r
         assert solver2.k == k

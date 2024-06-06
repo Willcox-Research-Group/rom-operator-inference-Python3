@@ -7,6 +7,7 @@ __all__ = [
     "PlainSolver",
 ]
 
+import os
 import abc
 import copy
 import types
@@ -290,6 +291,79 @@ class SolverTemplate(abc.ABC):
         """Make a copy of the solver."""
         return copy.deepcopy(self)
 
+    # Verification ------------------------------------------------------------
+    def verify(self, *, k: int = 200, d: int = 40, r: int = 5):
+        """Verify the solver.
+
+        Check :meth:`predict()`, :meth:`copy()`, :meth:`save()` and
+        :meth:`load()` if implemented, and :meth:`fit()` if the object is not
+        yet trained.
+        """
+        tempfile = "_solververification.h5"
+
+        def _make_copy(solver):
+            newsolver = solver.copy()
+            if (s2cls := newsolver.__class__) is not (scls := self.__class__):
+                raise errors.VerificationError(
+                    f"{scls.__name__}.copy() returned object "
+                    f"of type '{s2cls.__name__}'"
+                )
+            return newsolver
+
+        def _verify_predict(solver):
+            Ohat = solver.predict()
+            if (shape1 := Ohat.shape) != (shape2 := (r, d)):
+                raise errors.VerificationError(
+                    "predict() did not return array of shape (r, d) "
+                    f"(expected {shape2}, got {shape1})"
+                )
+            return Ohat
+
+        def _check_equality(obj1, obj2, Ohat1, operation):
+            if obj1.r != obj2.r or obj1.d != obj2.d or obj1.k != obj2.k:
+                raise errors.VerificationError(
+                    f"{operation} does not preserve problem dimensions"
+                )
+            if not np.all(obj2.predict() == Ohat1):
+                raise errors.VerificationError(
+                    f"{operation} does not preserve the result of predict()"
+                )
+
+        try:
+            # If not trained, make a copy and train it.
+            if self.data_matrix is None:
+                self2 = _make_copy(self)
+                D = np.random.random((k, d))
+                Z = np.random.random((r, k))
+                try:
+                    self2.fit(D, Z)
+                except Exception as ex:
+                    raise errors.VerificationError("fit() failed") from ex
+                if self2.data_matrix is not D:
+                    raise errors.VerificationError(
+                        "fit() should call SolverTemplate.fit()"
+                    )
+
+            else:
+                self2 = self
+
+            # Check predict().
+            Ohat = _verify_predict(self2)
+            self3 = _make_copy(self2)
+            _check_equality(self2, self3, Ohat, "copy()")
+
+            print("fit() and predict() are consistent")
+
+            try:
+                self2.save(tempfile, overwrite=True)
+                self3 = self2.load(tempfile)
+                _check_equality(self2, self3, Ohat, "save()/load()")
+            except NotImplementedError:
+                print("save() and/or load() not implemented")
+        finally:
+            if os.path.isfile(tempfile):
+                os.remove(tempfile)
+
 
 class PlainSolver(SolverTemplate):
     r"""Solve the :math:`2`-norm ordinary least-squares problem without any
@@ -346,9 +420,8 @@ class PlainSolver(SolverTemplate):
         return self
 
     def predict(self):
-        r"""Solve the Operator Inference regression.
-
-        The solution is calculated using ``scipy.linalg.lstsq()``.
+        r"""Solve the Operator Inference regression via
+        ``scipy.linalg.lstsq()``.
 
         Returns
         -------

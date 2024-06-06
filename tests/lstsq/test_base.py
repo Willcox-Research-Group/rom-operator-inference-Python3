@@ -48,7 +48,7 @@ class TestSolverTemplate:
         """Instantiable version of SolverTemplate."""
 
         def predict(self):
-            pass
+            return np.ones((self.r, self.d))
 
     def test_properties(self):
         """Test data_matrix, lhs_matrix, k, d, r, properties."""
@@ -216,6 +216,71 @@ class TestSolverTemplate:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
+
+    # Verification ------------------------------------------------------------
+    def test_verify(self):
+        """Test verify()."""
+
+        def _single(DClass, message):
+            dummy = DClass()
+            with pytest.raises(opinf.errors.VerificationError) as ex:
+                dummy.verify()
+            assert ex.value.args[0].startswith(message)
+
+        class Dummy2(self.Dummy):
+            def copy(self):
+                return 10
+
+        _single(Dummy2, "Dummy2.copy() returned object of type 'int'")
+
+        class Dummy3(self.Dummy):
+            def fit(self, D, Z):
+                self.Ohat = D - Z
+
+        _single(Dummy3, "fit() failed")
+
+        class Dummy4(self.Dummy):
+            def fit(self, D, Z):
+                pass
+
+        _single(Dummy4, "fit() should call SolverTemplate.fit()")
+
+        class Dummy5(self.Dummy):
+            def predict(self):
+                return np.empty((1, 1))
+
+        _single(Dummy5, "predict() did not return array of shape (r, d)")
+
+        class Dummy6(self.Dummy):
+            def copy(self):
+                newsolver = Dummy6()
+                if self.data_matrix is not None:
+                    newsolver.fit(self.data_matrix[:, 1:], self.lhs_matrix)
+                return newsolver
+
+        _single(Dummy6, "copy() does not preserve problem dimensions")
+
+        class Dummy7(self.Dummy):
+            def predict(self):
+                return np.random.random((self.r, self.d))
+
+        _single(Dummy7, "copy() does not preserve the result of predict()")
+
+        class Dummy8(self.Dummy):
+            def save(self, savefile, overwrite=False):
+                Dummy8.D = self.data_matrix
+                Dummy8.Z = self.lhs_matrix
+
+            @classmethod
+            def load(cls, loadfile):
+                newsolver = Dummy8()
+                if cls.D is not None:
+                    newsolver.fit(cls.D[:, 1:], cls.Z)
+                return newsolver
+
+        _single(Dummy8, "save()/load() does not preserve problem dimensions")
+
+        self.Dummy().verify()
 
 
 class TestPlainSolver:

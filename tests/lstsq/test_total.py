@@ -65,7 +65,7 @@ class TestTotalLeastSquaresSolver:
         solver = self.Solver(lapack_driver="gesvd")
         solver.save(outfile)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert solver2.data_matrix is None
         assert solver2.options["lapack_driver"] == "gesvd"
 
@@ -74,7 +74,7 @@ class TestTotalLeastSquaresSolver:
         solver = self.Solver().fit(D, Z)
         solver.save(outfile, overwrite=True)
         solver2 = self.Solver.load(outfile)
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert solver2.r == r
         assert solver2.k == k
         assert solver2.d == d
@@ -88,7 +88,7 @@ class TestTotalLeastSquaresSolver:
         """Test copy()."""
         solver = self.Solver(lapack_driver="gesvd")
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert solver2.data_matrix is None
         assert solver2.options["lapack_driver"] == "gesvd"
 
@@ -96,7 +96,7 @@ class TestTotalLeastSquaresSolver:
         Z = np.random.random((r, k))
         solver = self.Solver().fit(D, Z)
         solver2 = solver.copy()
-        assert isinstance(solver2, self.Solver)
+        assert solver2.__class__ is self.Solver
         assert solver2.r == r
         assert solver2.k == k
         assert solver2.d == d
