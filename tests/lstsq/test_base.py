@@ -196,6 +196,27 @@ class TestSolverTemplate:
         assert isinstance(residual, float)
         assert np.isclose(residual, la.norm(D @ ohat - z) ** 2)
 
+    def test_copy(self, k=18, d=10, r=4):
+        """Test copy()."""
+        solver = self.Dummy()
+        solver2 = solver.copy()
+        assert solver2 is not solver
+        assert isinstance(solver2, self.Dummy)
+        assert solver2.data_matrix is None
+        assert solver2.lhs_matrix is None
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver.fit(D, Z)
+        solver2 = solver.copy()
+        assert solver2 is not solver
+        assert isinstance(solver2, self.Dummy)
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+
 
 class TestPlainSolver:
     """Test lstsq._base.PlainSolver."""
@@ -279,6 +300,30 @@ class TestPlainSolver:
         solver = self.Solver().fit(D, Z)
         solver.save(outfile, overwrite=True)
         solver2 = self.Solver.load(outfile)
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+
+    def test_copy(self, k=18, d=10, r=4):
+        """Test copy()."""
+        solver = self.Solver(lapack_driver="gelsy")
+        solver2 = solver.copy()
+        assert solver2 is not solver
+        assert isinstance(solver2, self.Solver)
+        assert solver2.data_matrix is None
+        assert solver2.lhs_matrix is None
+        assert solver2.options["lapack_driver"] == "gelsy"
+
+        solver = self.Solver(cond=2e-3)
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver.fit(D, Z)
+        solver2 = solver.copy()
+        assert solver2 is not solver
+        assert isinstance(solver2, self.Solver)
+        assert solver2.options["cond"] == 2e-3
         assert solver2.r == r
         assert solver2.k == k
         assert solver2.d == d

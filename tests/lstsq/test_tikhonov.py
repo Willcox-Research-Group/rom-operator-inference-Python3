@@ -1,6 +1,7 @@
 # lstsq/test_tikhonov.py
 """Tests for lstsq._tikhonov.py."""
 
+import os
 import pytest
 import numpy as np
 import scipy.linalg as la
@@ -58,32 +59,32 @@ class TestBaseRegularizedSolver:
 class TestL2Solver:
     """Test lstsq._tikhonov.L2Solver."""
 
-    SolverClass = opinf.lstsq.L2Solver
+    Solver = opinf.lstsq.L2Solver
 
     # Properties --------------------------------------------------------------
     def test_regularizer(self, k=20, d=11, r=3):
         """Test regularizer (property and setter)."""
         # Try with nonscalar regularizer.
         with pytest.raises(TypeError) as ex:
-            self.SolverClass([1, 2, 3])
+            self.Solver([1, 2, 3])
         assert ex.value.args[0] == ("regularization constant must be a scalar")
 
         # Negative regularization parameter not allowed.
         with pytest.raises(ValueError) as ex:
-            self.SolverClass(-1)
+            self.Solver(-1)
         assert ex.value.args[0] == (
             "regularization constant must be nonnegative"
         )
 
         regularizer = np.random.uniform()
-        solver = self.SolverClass(regularizer)
+        solver = self.Solver(regularizer)
         assert solver.regularizer == regularizer
 
     # Main methods ------------------------------------------------------------
     def test_fit(self, k=20, d=11, r=3):
         """Test fit()."""
 
-        solver = self.SolverClass(1)
+        solver = self.Solver(1)
         A = np.random.standard_normal((k, d))
         B = np.random.standard_normal((r, k))
         solver.fit(A, B)
@@ -102,8 +103,8 @@ class TestL2Solver:
 
     def test_predict(self, k=20, d=10, r=5):
         """Test predict()."""
-        solver1D = self.SolverClass(0)
-        solver2D = self.SolverClass(0)
+        solver1D = self.Solver(0)
+        solver2D = self.Solver(0)
         A = np.random.random((k, d))
         B = np.random.random((r, k))
         b = B[0, :]
@@ -145,7 +146,7 @@ class TestL2Solver:
     # Post-processing ---------------------------------------------------------
     def test_cond(self, k=20, d=11, r=3):
         """Test cond()."""
-        solver = self.SolverClass(0)
+        solver = self.Solver(0)
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -172,7 +173,7 @@ class TestL2Solver:
 
     def test_regcond(self, k=20, d=11, r=3, ntests=5):
         """Test regcond()."""
-        solver = self.SolverClass(0)
+        solver = self.Solver(0)
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -203,7 +204,7 @@ class TestL2Solver:
 
     def test_regresidual(self, k=20, d=11, r=3, ntests=5):
         """Test regresidual()."""
-        solver = self.SolverClass(0)
+        solver = self.Solver(0)
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -245,18 +246,95 @@ class TestL2Solver:
             ans = np.linalg.norm(A @ x - b) ** 2 + np.linalg.norm(reg * x) ** 2
             assert np.isclose(residual, ans)
 
+    # Persistence -------------------------------------------------------------
+    def test_save(self, k=9, d=4, r=3, outfile="_l2solversavetest.h5"):
+        """Lightly test save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver(regularizer=3)
+        solver.save(outfile)
+        assert os.path.isfile(outfile)
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver.fit(D, Z)
+        solver.save(outfile, overwrite=True)
+        assert os.path.isfile(outfile)
+
+        os.remove(outfile)
+
+    def test_load(self, k=20, d=10, r=8, outfile="_l2solverloadtest.h5"):
+        """Test load() and verify it is the inverse of save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver(regularizer=4)
+        solver.save(outfile)
+        solver2 = self.Solver.load(outfile)
+        assert isinstance(solver2, self.Solver)
+        assert solver2.regularizer == 4
+        assert solver2.data_matrix is None
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver(regularizer=8, lapack_driver="gesvd").fit(D, Z)
+        solver.save(outfile, overwrite=True)
+        solver2 = self.Solver.load(outfile)
+        assert isinstance(solver2, self.Solver)
+        assert solver2.regularizer == 8
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+        assert np.all(solver2.predict() == solver.predict())
+
+        os.remove(outfile)
+
+    def test_copy(self, k=19, d=9, r=7):
+        """Test copy()."""
+        solver = self.Solver(regularizer=4)
+        solver2 = solver.copy()
+        assert isinstance(solver2, self.Solver)
+        assert solver2.regularizer == 4
+        assert solver2.data_matrix is None
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver(regularizer=8, lapack_driver="gesvd").fit(D, Z)
+        solver2 = solver.copy()
+        assert isinstance(solver2, self.Solver)
+        assert solver2.regularizer == 8
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+        assert np.all(solver2.predict() == solver.predict())
+
 
 class TestL2SolverDecoupled:
     """Test lstsq._tikhonov.L2SolverDecoupled."""
 
-    SolverClass = opinf.lstsq.L2SolverDecoupled
+    Solver = opinf.lstsq.L2SolverDecoupled
 
     # Properties --------------------------------------------------------------
     def test_regularizer(self, k=10, d=6, r=3):
         """Test _check_regularizer_shape(), fit(), and regularizer property."""
-        solver = self.SolverClass(np.random.random(r + 1))
+        solver = self.Solver(np.random.random(r + 1))
         A = np.empty((k, d))
         B = np.empty((r, k))
+
+        with pytest.raises(ValueError) as ex:
+            solver.regularizer = np.random.random((r, r))
+        assert ex.value.args[0] == "regularizer must be one-dimensional"
+
+        with pytest.raises(ValueError) as ex:
+            solver.regularizer = -np.ones(r)
+        assert ex.value.args[0] == (
+            "regularization constants must be nonnegative"
+        )
 
         with pytest.raises(ValueError) as ex:
             solver.fit(A, B)
@@ -275,7 +353,7 @@ class TestL2SolverDecoupled:
         r = len(regularizers)
         A = np.random.random((k, d))
         B = np.random.random((r, k))
-        solver = self.SolverClass(regularizers).fit(A, B)
+        solver = self.Solver(regularizers).fit(A, B)
 
         Id = np.eye(d)
         Apads = [np.vstack((A, reg * Id)) for reg in regularizers]
@@ -289,7 +367,7 @@ class TestL2SolverDecoupled:
     # Post-processing ---------------------------------------------------------
     def test_regcond(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov.L2SolverDecoupled.regcond()."""
-        solver = self.SolverClass([0] * r)
+        solver = self.Solver([0] * r)
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -319,7 +397,7 @@ class TestL2SolverDecoupled:
 
     def test_regresidual(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov.L2SolverDecoupled.residual()."""
-        solver = self.SolverClass([0] * r)
+        solver = self.Solver([0] * r)
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -351,11 +429,84 @@ class TestL2SolverDecoupled:
         )
         assert np.allclose(residual, ans)
 
+    # Persistence -------------------------------------------------------------
+    def test_save(self, k=9, d=4, r=3, outfile="_l2decoupledsavetest.h5"):
+        """Lightly test save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver(regularizer=np.random.random(3))
+        solver.save(outfile)
+        assert os.path.isfile(outfile)
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver.fit(D, Z)
+        solver.save(outfile, overwrite=True)
+        assert os.path.isfile(outfile)
+
+        os.remove(outfile)
+
+    def test_load(self, k=20, d=10, r=8, outfile="_l2decoupledloadtest.h5"):
+        """Test load() and verify it is the inverse of save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver(regularizer=(reg := np.random.random(r)))
+        solver.save(outfile)
+        solver2 = self.Solver.load(outfile)
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.data_matrix is None
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver(
+            regularizer=(reg := np.random.random(r)),
+            lapack_driver="gesvd",
+        ).fit(D, Z)
+        solver.save(outfile, overwrite=True)
+        solver2 = self.Solver.load(outfile)
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+        assert np.all(solver2.predict() == solver.predict())
+
+        os.remove(outfile)
+
+    def test_copy(self, k=19, d=9, r=7):
+        """Test copy()."""
+        solver = self.Solver(regularizer=(reg := np.random.random(r)))
+        solver2 = solver.copy()
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.data_matrix is None
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver(
+            regularizer=(reg := np.random.random(r)),
+            lapack_driver="gesvd",
+        ).fit(D, Z)
+        solver2 = solver.copy()
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+        assert np.all(solver2.predict() == solver.predict())
+
 
 class TestTikhonovSolver:
     """Test lstsq._tikhonov.TikhonovSolver."""
 
-    SolverClass = opinf.lstsq.TikhonovSolver
+    Solver = opinf.lstsq.TikhonovSolver
 
     # Properties --------------------------------------------------------------
     def test_regularizer(self, k=20, d=11, r=3):
@@ -363,11 +514,11 @@ class TestTikhonovSolver:
         Z = np.random.random((d, d))
 
         with pytest.raises(ValueError) as ex:
-            self.SolverClass(Z, method="invalidmethodoption")
+            self.Solver(Z, method="invalidmethodoption")
         assert ex.value.args[0] == "method must be 'lstsq' or 'normal'"
 
         Zdiag = np.diag(Z)
-        solver = self.SolverClass(Z, method="normal")
+        solver = self.Solver(Z, method="normal")
         solver.regularizer = sparse.diags(Zdiag)
         assert isinstance(solver.regularizer, np.ndarray)
         assert np.allclose(solver.regularizer, np.diag(Zdiag))
@@ -406,7 +557,7 @@ class TestTikhonovSolver:
         Z = np.zeros((d, d))
         A = np.random.standard_normal((k, d))
         B = np.random.standard_normal((r, k))
-        solver = self.SolverClass(Z).fit(A, B)
+        solver = self.Solver(Z).fit(A, B)
 
         for attr, shape in [
             ("data_matrix", (k, d)),
@@ -429,8 +580,8 @@ class TestTikhonovSolver:
         bpad = Bpad[:, 0]
         Z = np.zeros((d, d))
         Id = np.eye(d)
-        solver1D = self.SolverClass(Z).fit(A, b)
-        solver2D = self.SolverClass(Z).fit(A, B)
+        solver1D = self.Solver(Z).fit(A, b)
+        solver2D = self.Solver(Z).fit(A, B)
 
         for method in ["normal", "lstsq"]:
             # Test without regularization, b.ndim = 1.
@@ -470,7 +621,7 @@ class TestTikhonovSolver:
         assert np.linalg.cond(A) > 1e15
 
         # No regularization.
-        solver2D = self.SolverClass(Z, method="lstsq").fit(A, B)
+        solver2D = self.Solver(Z, method="lstsq").fit(A, B)
         X1 = la.lstsq(A, B.T)[0].T
         X2 = solver2D.predict()
         assert np.allclose(X1, X2)
@@ -488,7 +639,7 @@ class TestTikhonovSolver:
         """Test regcond()."""
         Z = np.zeros(d)
         Id = np.eye(d)
-        solver = self.SolverClass(Z)
+        solver = self.Solver(Z)
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -525,7 +676,7 @@ class TestTikhonovSolver:
     def test_regresidual(self, k=20, d=11, r=3, ntests=5):
         """Test lstsq._tikhonov.TikhonovSolver.residual()."""
         Z = np.zeros(d)
-        solver = self.SolverClass(Z)
+        solver = self.Solver(Z)
 
         # Try before calling fit().
         with pytest.raises(AttributeError) as ex:
@@ -561,11 +712,85 @@ class TestTikhonovSolver:
             ans = np.linalg.norm(A @ x - b) ** 2 + np.linalg.norm(P * x) ** 2
             assert np.isclose(residual, ans)
 
+    # Persistence -------------------------------------------------------------
+    def test_save(self, k=9, d=4, r=3, outfile="_l2decoupledsavetest.h5"):
+        """Lightly test save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver(regularizer=np.random.random((d, d)))
+        solver.save(outfile)
+        assert os.path.isfile(outfile)
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver.fit(D, Z)
+        solver.save(outfile, overwrite=True)
+        assert os.path.isfile(outfile)
+
+        os.remove(outfile)
+
+    def test_load(self, k=20, d=10, r=8, outfile="_l2decoupledloadtest.h5"):
+        """Test load() and verify it is the inverse of save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver(regularizer=(reg := np.random.random((d, d))))
+        solver.save(outfile)
+        solver2 = self.Solver.load(outfile)
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.data_matrix is None
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver(
+            regularizer=(reg := np.random.random((d, d))),
+            lapack_driver="gelss",
+            cond=1e-12,
+        ).fit(D, Z)
+        solver.save(outfile, overwrite=True)
+        solver2 = self.Solver.load(outfile)
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+        assert np.all(solver2.predict() == solver.predict())
+
+        os.remove(outfile)
+
+    def test_copy(self, k=19, d=9, r=7):
+        """Test copy()."""
+        solver = self.Solver(regularizer=(reg := np.random.random((d, d))))
+        solver2 = solver.copy()
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.data_matrix is None
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver(
+            regularizer=(reg := np.random.random((d, d))),
+            lapack_driver="gelss",
+        ).fit(D, Z)
+        solver2 = solver.copy()
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+        assert np.all(solver2.predict() == solver.predict())
+
 
 class TestTikhonovSolverDecoupled:
     """Test lstsq._tikhonov.TikhonovSolverDecoupled."""
 
-    SolverClass = opinf.lstsq.TikhonovSolverDecoupled
+    Solver = opinf.lstsq.TikhonovSolverDecoupled
 
     # Properties --------------------------------------------------------------
     def test_regularizer(self, k=10, d=6, r=3):
@@ -609,7 +834,7 @@ class TestTikhonovSolverDecoupled:
         r = len(Ps)
         A = np.random.random((k, d))
         B = np.random.random((r, k))
-        solver = self.SolverClass(Ps)
+        solver = self.Solver(Ps)
 
         # Try predicting before fitting.
         with pytest.raises(AttributeError) as ex:
@@ -636,7 +861,7 @@ class TestTikhonovSolverDecoupled:
         assert np.linalg.cond(A) > 1e15
 
         # No regularization.
-        solver = self.SolverClass([Z] * r).fit(A, B)
+        solver = self.Solver([Z] * r).fit(A, B)
         Z = np.zeros(d)
         X1 = la.lstsq(A, B.T)[0].T
         X2 = solver.predict()
@@ -663,7 +888,7 @@ class TestTikhonovSolverDecoupled:
         A = np.diag(np.arange(1, d + 1))
         B = np.zeros((r, d))
         z = np.zeros(d)
-        solver = self.SolverClass([z] * r).fit(A, B)
+        solver = self.Solver([z] * r).fit(A, B)
         assert np.allclose(solver.regcond(), [d] * r)
 
         regularizer = np.random.uniform(1, 10, r)
@@ -675,7 +900,7 @@ class TestTikhonovSolverDecoupled:
         A = np.random.standard_normal((k, d))
         B = np.random.standard_normal((r, k))
         Ps = np.random.standard_normal((r, d, d))
-        solver = self.SolverClass(Ps).fit(A, B)
+        solver = self.Solver(Ps).fit(A, B)
         conds = [np.linalg.cond(np.vstack((A, P))) for P in Ps]
         assert np.allclose(solver.regcond(), conds)
 
@@ -685,7 +910,7 @@ class TestTikhonovSolverDecoupled:
         B = np.random.standard_normal((r, k))
         Ohat = np.random.standard_normal((r, d))
         Ps = np.random.standard_normal((r, d, d))
-        solver = self.SolverClass(Ps).fit(A, B)
+        solver = self.Solver(Ps).fit(A, B)
         print("Code")
         residual = solver.regresidual(Ohat)
         print("\nDriver")
@@ -698,3 +923,77 @@ class TestTikhonovSolverDecoupled:
             [la.norm(P @ Ohat[i], ord=2) ** 2 for i, P in enumerate(Ps)]
         )
         assert np.allclose(residual, ans)
+
+    # Persistence -------------------------------------------------------------
+    def test_save(self, k=9, d=4, r=3, outfile="_l2decoupledsavetest.h5"):
+        """Lightly test save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver(regularizer=np.random.random((r, d)))
+        solver.save(outfile)
+        assert os.path.isfile(outfile)
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver.fit(D, Z)
+        solver.save(outfile, overwrite=True)
+        assert os.path.isfile(outfile)
+
+        os.remove(outfile)
+
+    def test_load(self, k=20, d=10, r=8, outfile="_l2decoupledloadtest.h5"):
+        """Test load() and verify it is the inverse of save()."""
+        if os.path.isfile(outfile):  # pragma: no cover
+            os.remove(outfile)
+
+        solver = self.Solver(regularizer=(reg := np.random.random((r, d, d))))
+        solver.save(outfile)
+        solver2 = self.Solver.load(outfile)
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.data_matrix is None
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver(
+            regularizer=(reg := np.random.random((r, d, d))),
+            lapack_driver="gelss",
+            cond=1e-12,
+        ).fit(D, Z)
+        solver.save(outfile, overwrite=True)
+        solver2 = self.Solver.load(outfile)
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+        assert np.all(solver2.predict() == solver.predict())
+
+        os.remove(outfile)
+
+    def test_copy(self, k=19, d=9, r=7):
+        """Test copy()."""
+        solver = self.Solver(regularizer=(reg := np.random.random((r, d, d))))
+        solver2 = solver.copy()
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.data_matrix is None
+
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver(
+            regularizer=(reg := np.random.random((r, d, d))),
+            lapack_driver="gelss",
+        ).fit(D, Z)
+        solver2 = solver.copy()
+        assert isinstance(solver2, self.Solver)
+        assert np.all(solver2.regularizer == reg)
+        assert solver2.r == r
+        assert solver2.k == k
+        assert solver2.d == d
+        assert np.all(solver2.data_matrix == D)
+        assert np.all(solver2.lhs_matrix == Z)
+        assert np.all(solver2.predict() == solver.predict())

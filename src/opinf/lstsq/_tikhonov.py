@@ -103,7 +103,7 @@ class _BaseRegularizedSolver(SolverTemplate):
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             reg = self.regularizer
-            if isinstance(self, L2Solver):
+            if self.__class__ is L2Solver:
                 reg = [reg]
             hf.create_dataset("regularizer", data=reg)
 
