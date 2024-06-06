@@ -8,7 +8,6 @@ __all__ = [
     "InterpolatedContinuousModel",
 ]
 
-import copy
 import warnings
 import numpy as np
 import scipy.interpolate as spinterpolate
@@ -1164,7 +1163,7 @@ class _InterpolatedModel(_ParametricModel):
                     )
                     for op in self.operators
                 ],
-                solver=copy.deepcopy(self.solver),
+                solver=self.solver.copy(),
             )
             model_i._fit_solver(
                 states_[i],

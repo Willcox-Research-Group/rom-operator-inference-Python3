@@ -121,74 +121,25 @@ class TestNonparametricModel:
         assert firstline(self.Dummy("A")).startswith("<Dummy object at")
 
     # Properties: operator inference ------------------------------------------
-    def test_operator_matrix_(self, r=15, m=3):
-        """Test _NonparametricModel.operator_matrix_."""
+    def test_operator_matrix(self, r=15, m=3):
+        """Test _NonparametricModel.operator_matrix."""
         c, A, H, G, B, N = _get_operators("cAHGBN", r, m)
 
         model = self.Dummy("cA")
         model.state_dimension = r
         model.operators[:] = (c, A)
         D = np.column_stack([c.entries, A.entries])
-        assert np.all(model.operator_matrix_ == D)
+        assert np.all(model.operator_matrix == D)
 
         model.operators[:] = (H, B)
         model._has_inputs = True
         model.input_dimension = m
         D = np.column_stack([H.entries, B.entries])
-        assert np.all(model.operator_matrix_ == D)
+        assert np.all(model.operator_matrix == D)
 
         model.operators[:] = [G, N]
         D = np.column_stack([G.entries, N.entries])
-        assert np.all(model.operator_matrix_ == D)
-
-    def test_data_matrix_(self, k=500, m=20, r=10):
-        """Test _NonparametricModel.data_matrix_
-        (_assemble_data_matrix(), operator_matrix_dimension).
-        """
-        Q, Qdot, U = _get_data(r, k, m)
-
-        model = self.Dummy("cAH")
-        assert model.data_matrix_ is None
-        model.solver = 2
-        assert model.data_matrix_ is None
-
-        model.operators = "A"
-        model._fit_solver(Q, Qdot, inputs=None)
-        D = model.data_matrix_
-        assert D.shape == (k, r)
-        assert np.all(D == Q.T)
-        assert model.operator_matrix_dimension == r
-
-        model.operators = "B"
-        model._fit_solver(Q, Qdot, inputs=U)
-        D = model.data_matrix_
-        assert D.shape == (k, m)
-        assert np.all(D == U.T)
-        assert model.operator_matrix_dimension == m
-
-        model.operators = "HG"
-        model._fit_solver(Q, Qdot, inputs=None)
-        Dtrue = np.column_stack([kron2c(Q).T, kron3c(Q).T])
-        D = model.data_matrix_
-        d = r * (r + 1) // 2 + r * (r + 1) * (r + 2) // 6
-        assert D.shape == (k, d)
-        assert np.allclose(D, Dtrue)
-        assert model.operator_matrix_dimension == d
-
-        model.operators = "c"
-        model._fit_solver(Q, Qdot, inputs=None)
-        D = model.data_matrix_
-        assert D.shape == (k, 1)
-        assert np.all(D == 1)
-        assert model.operator_matrix_dimension == 1
-
-        # Partially intrusive case.
-        c = opinf.operators.ConstantOperator(np.ones(r))
-        model.operators = ["A", c]
-        model._fit_solver(Q, Qdot, inputs=None)
-        D = model.data_matrix_
-        assert D.shape == (k, r)
-        assert np.all(D == Q.T)
+        assert np.all(model.operator_matrix == D)
 
     # Fitting -----------------------------------------------------------------
     def test_process_fit_arguments(self, k=50, m=4, r=6):
@@ -360,7 +311,7 @@ class TestNonparametricModel:
         assert np.allclose(model.G_.entries, G)
         assert np.allclose(model.B_.entries, B)
 
-    def test_fit(self, k=50, m=4, r=6):
+    def test_fit(self, k=500, m=4, r=6):
         """Test _NonparametricModel.fit()."""
         # Get test data.
         Q, F, U = _get_data(r, k, m)

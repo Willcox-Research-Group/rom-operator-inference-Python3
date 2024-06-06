@@ -91,7 +91,7 @@ class _NonparametricModel(_Model):
 
     # Properties: operator inference ------------------------------------------
     @property
-    def operator_matrix_(self):
+    def operator_matrix(self):
         r""":math:`r \times d(r, m)` operator matrix, e.g.,
         :math:`\Ohat = [~\chat~~\Ahat~~\Hhat~~\Bhat~]`.
 
@@ -105,17 +105,6 @@ class _NonparametricModel(_Model):
                 for i in self._indices_of_operators_to_infer
             ]
         )
-
-    @property
-    def data_matrix_(self):
-        r""":math:`k \times d(r, m)` data matrix, e.g.,
-        :math:`\D = [~
-        \mathbf{1}~~
-        \widehat{\Q}\trp~~
-        (\widehat{\Q}\odot\widehat{\Q})\trp~~
-        \U\trp~]`.
-        """
-        return self.solver.A if (self.solver is not None) else None
 
     @property
     def operator_matrix_dimension(self):
@@ -255,7 +244,7 @@ class _NonparametricModel(_Model):
             states, lhs, inputs
         )
         D = self._assemble_data_matrix(states_, inputs_)
-        self.solver.fit(D, lhs_.T)
+        self.solver.fit(D, lhs_)
 
     def refit(self):
         """Solve the Operator Inference regression using the data from the
@@ -277,8 +266,7 @@ class _NonparametricModel(_Model):
             return self
 
         # Execute non-intrusive learning.
-        OhatT = self.solver.predict()
-        self._extract_operators(np.atleast_2d(OhatT.T))
+        self._extract_operators(np.atleast_2d(self.solver.predict()))
 
     def fit(self, states, lhs, inputs=None):
         r"""Learn the model operators from data.
