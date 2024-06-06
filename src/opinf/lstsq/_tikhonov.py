@@ -3,9 +3,9 @@
 
 __all__ = [
     "L2Solver",
-    "L2SolverDecoupled",
+    "L2DecoupledSolver",
     "TikhonovSolver",
-    "TikhonovSolverDecoupled",
+    "TikhonovDecoupledSolver",
 ]
 
 import abc
@@ -367,7 +367,7 @@ class L2Solver(_BaseRegularizedSolver):
         return solver
 
 
-class L2SolverDecoupled(L2Solver):
+class L2DecoupledSolver(L2Solver):
     r"""Solve :math:`r` independent :math:`2`-norm ordinary least-squares
     problems, each with the same data matrix but a different :math:`L_2`
     regularization.
@@ -744,7 +744,7 @@ class TikhonovSolver(_BaseRegularizedSolver):
         return solver
 
 
-class TikhonovSolverDecoupled(TikhonovSolver):
+class TikhonovDecoupledSolver(TikhonovSolver):
     r"""Solve :math:`r` independent :math:`2`-norm ordinary least-squares
     problems, each with the same data matrix but a different Tikhonov
     regularization.

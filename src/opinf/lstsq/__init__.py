@@ -91,9 +91,9 @@ The following classes solve the above problem with different choices of
     :nosignatures:
 
     L2Solver
-    L2SolverDecoupled
+    L2DecoupledSolver
     TikhonovSolver
-    TikhonovSolverDecoupled
+    TikhonovDecoupledSolver
 
 
 Total Least-Squares Solver

@@ -314,10 +314,10 @@ class TestL2Solver:
         assert np.all(solver2.predict() == solver.predict())
 
 
-class TestL2SolverDecoupled:
-    """Test lstsq._tikhonov.L2SolverDecoupled."""
+class TestL2DecoupledSolver:
+    """Test lstsq._tikhonov.L2DecoupledSolver."""
 
-    Solver = opinf.lstsq.L2SolverDecoupled
+    Solver = opinf.lstsq.L2DecoupledSolver
 
     # Properties --------------------------------------------------------------
     def test_regularizer(self, k=10, d=6, r=3):
@@ -366,7 +366,7 @@ class TestL2SolverDecoupled:
 
     # Post-processing ---------------------------------------------------------
     def test_regcond(self, k=20, d=11, r=3):
-        """Test lstsq._tikhonov.L2SolverDecoupled.regcond()."""
+        """Test lstsq._tikhonov.L2DecoupledSolver.regcond()."""
         solver = self.Solver([0] * r)
 
         # Try before calling fit().
@@ -396,7 +396,7 @@ class TestL2SolverDecoupled:
         assert np.allclose(solver.regcond(), conds)
 
     def test_regresidual(self, k=20, d=11, r=3):
-        """Test lstsq._tikhonov.L2SolverDecoupled.residual()."""
+        """Test lstsq._tikhonov.L2DecoupledSolver.residual()."""
         solver = self.Solver([0] * r)
 
         # Try before calling fit().
@@ -787,16 +787,16 @@ class TestTikhonovSolver:
         assert np.all(solver2.predict() == solver.predict())
 
 
-class TestTikhonovSolverDecoupled:
-    """Test lstsq._tikhonov.TikhonovSolverDecoupled."""
+class TestTikhonovDecoupledSolver:
+    """Test lstsq._tikhonov.TikhonovDecoupledSolver."""
 
-    Solver = opinf.lstsq.TikhonovSolverDecoupled
+    Solver = opinf.lstsq.TikhonovDecoupledSolver
 
     # Properties --------------------------------------------------------------
     def test_regularizer(self, k=10, d=6, r=3):
         """Test _check_regularizer_shape() and regularizer."""
         Z = np.random.random((d, d))
-        solver = opinf.lstsq.TikhonovSolverDecoupled([Z] * r)
+        solver = opinf.lstsq.TikhonovDecoupledSolver([Z] * r)
         A = np.empty((k, d))
         B = np.empty((r, k))
         solver.fit(A, B)
@@ -828,7 +828,7 @@ class TestTikhonovSolverDecoupled:
 
     # Main methods ------------------------------------------------------------
     def test_predict(self, k=20, d=10):
-        """Test lstsq._tikhonov.TikhonovSolverDecoupled.predict()."""
+        """Test lstsq._tikhonov.TikhonovDecoupledSolver.predict()."""
         Z = np.zeros(d)
         Ps = [np.eye(d), np.full(d, 2)]
         r = len(Ps)
@@ -882,7 +882,7 @@ class TestTikhonovSolverDecoupled:
 
     # Post-processing ---------------------------------------------------------
     def test_regcond(self, k=20, d=11, r=3):
-        """Test lstsq._tikhonov.TikhonovSolverDecoupled.regcond()."""
+        """Test lstsq._tikhonov.TikhonovDecoupledSolver.regcond()."""
 
         # Square, diagonal tests.
         A = np.diag(np.arange(1, d + 1))
@@ -905,7 +905,7 @@ class TestTikhonovSolverDecoupled:
         assert np.allclose(solver.regcond(), conds)
 
     def test_regresidual(self, k=20, d=11, r=3):
-        """Test lstsq._tikhonov.TikhonovSolverDecoupled.residual()."""
+        """Test lstsq._tikhonov.TikhonovDecoupledSolver.residual()."""
         A = np.random.standard_normal((k, d))
         B = np.random.standard_normal((r, k))
         Ohat = np.random.standard_normal((r, d))

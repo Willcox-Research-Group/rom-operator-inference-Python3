@@ -94,8 +94,9 @@ Pass a positive scalar ($\lambda$) as the `regularizer` argument in `fit()` to u
     :nosignatures:
 
     L2Solver
-    L2SolverDecoupled
+    L2DecoupledSolver
     TikhonovSolver
-    TikhonovSolverDecoupled
+    TikhonovDecoupledSolver
+    TotalLeastSquaresSolver
 :::
 -->
