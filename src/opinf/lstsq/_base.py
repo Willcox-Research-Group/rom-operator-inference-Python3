@@ -8,6 +8,7 @@ __all__ = [
 ]
 
 import abc
+import copy
 import types
 import warnings
 import numpy as np
@@ -201,13 +202,13 @@ class SolverTemplate(abc.ABC):
 
     @_require_trained
     def residual(self, Ohat):
-        r"""Compute the residual in the :math:`2`-norm for each row
-        of the given operator matrix.
+        r"""Compute the residual of the :math:`2`-norm regression objective for
+        each row of the given operator matrix.
 
         Specifically, given a potential :math:`\Ohat`, compute
 
         .. math::
-           \|\D\ohat_i - \z_i\|_2,
+           \|\D\ohat_i - \z_i\|_2^2,
            \quad i = 1, \ldots, r,
 
         where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
@@ -230,8 +231,8 @@ class SolverTemplate(abc.ABC):
             raise errors.DimensionalityError(
                 f"Ohat.shape = {Ohat.shape} != {shape} = (r, d)"
             )
-        resids = la.norm(
-            self.data_matrix @ Ohat.T - self.lhs_matrix.T,
+        resids = np.sum(
+            (self.data_matrix @ Ohat.T - self.lhs_matrix.T) ** 2,
             axis=0,
         )
         return resids[0] if self.r == 1 else resids
@@ -268,6 +269,26 @@ class SolverTemplate(abc.ABC):
             Loaded solver.
         """
         raise NotImplementedError
+
+    def _save_dict(self, hf, attr="options"):
+        """Helper method for serializing a dictionary in HDF5 format."""
+        options = hf.create_dataset(attr, shape=(0,))
+        for key, value in getattr(self, attr).items():
+            options.attrs[key] = "NULL" if value is None else value
+
+    @staticmethod
+    def _load_dict(hf, attr="options"):
+        """Helper method for loading a dictionary from HDF5 format. This
+        function is the inverse of :meth:`_save_dict()`."""
+        options = dict()
+        for key in hf[attr].attrs:
+            value = hf[attr].attrs[key]
+            options[key] = None if value == "NULL" else value
+        return options
+
+    def copy(self):
+        """Make a copy of the solver."""
+        return copy.deepcopy(self)
 
 
 class PlainSolver(SolverTemplate):
@@ -318,7 +339,7 @@ class PlainSolver(SolverTemplate):
         SolverTemplate.fit(self, data_matrix, lhs_matrix)
         if self.k < self.d:
             warnings.warn(
-                "least-squares regression is underdetermined",
+                "least-squares system is underdetermined",
                 errors.OpInfWarning,
                 stacklevel=2,
             )
@@ -352,9 +373,7 @@ class PlainSolver(SolverTemplate):
             ``savefile`` already exists, raise an error.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
-            options = hf.create_dataset("options", shape=(0,))
-            for key, value in self.options.items():
-                options.attrs[key] = "NULL" if value is None else value
+            self._save_dict(hf, "options")
             if self.data_matrix is not None:
                 hf.create_dataset("data_matrix", data=self.data_matrix)
                 hf.create_dataset("lhs_matrix", data=self.lhs_matrix)
@@ -377,9 +396,7 @@ class PlainSolver(SolverTemplate):
         options = dict()
         with utils.hdf5_loadhandle(loadfile) as hf:
 
-            for key in hf["options"].attrs:
-                value = hf["options"].attrs[key]
-                options[key] = None if value == "NULL" else value
+            options = cls._load_dict(hf, "options")
             solver = cls(**options)
 
             if "data_matrix" in hf:
@@ -387,4 +404,14 @@ class PlainSolver(SolverTemplate):
                 Z = hf["lhs_matrix"][:]
                 solver.fit(D, Z)
 
+        return solver
+
+    def copy(self):
+        """Make a copy of the solver."""
+        solver = PlainSolver(
+            cond=self.options["cond"],
+            lapack_driver=self.options["lapack_driver"],
+        )
+        if self.data_matrix is not None:
+            SolverTemplate.fit(solver, self.data_matrix, self.lhs_matrix)
         return solver

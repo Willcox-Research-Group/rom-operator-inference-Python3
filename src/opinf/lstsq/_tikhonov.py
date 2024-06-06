@@ -9,19 +9,41 @@ __all__ = [
 ]
 
 import abc
+import types
 import warnings
 import numpy as np
 import scipy.linalg as la
 import scipy.sparse as sparse
 
-from ._base import _BaseSolver
+from .. import errors, utils
+from ._base import SolverTemplate, _require_trained
 
 
 # Solver classes ==============================================================
-class _BaseTikhonovSolver(_BaseSolver):
-    """Base solver for regularized linear least-squares problems of the form
+class _BaseRegularizedSolver(SolverTemplate):
+    r"""Base class for solvers of regularized linear least-squares problems.
 
-    sum_{i} min_{x_i} ||Ax_i - b_i||^2 + ||P_i x_i||^2.
+    .. math::
+       \argmin_{\Ohat}\|\D\Ohat\trp - \Z\trp\|_F^2 + \|\bfGamma\Ohat\trp\|_F^2.
+
+    This is equivalent to the following stacked ordinary least-squares problem:
+
+    .. math::
+       \argmin{\Ohat}
+       \left\|
+           \left[\begin{array}{c}\D \\ \bfGamma\end{array}\right]\Ohat\trp
+           - \left[\begin{array}{c}\Z\trp \\ \0\end{array}\right]
+        \right\|_F^2.
+
+    The exact solution is described by the normal equations:
+
+    .. math::
+        (\D\trp\D + \bfGamma\trp\bfGamma)\Ohat\trp = \D\trp\Z\trp,
+
+    that is,
+
+    .. math::
+        \Ohat = \Z\D(\D\trp\D + \bfGamma\trp\bfGamma)^{-\mathsf{T}}.
     """
 
     # Properties: regularization ----------------------------------------------
@@ -31,518 +53,862 @@ class _BaseTikhonovSolver(_BaseSolver):
         raise NotImplementedError
 
     # Main methods ------------------------------------------------------------
-    def fit(self, A, B):
-        """Verify dimensions and save A and B.
+    def fit(self, data_matrix, lhs_matrix):
+        r"""Verify dimensions and save the data matrices.
 
         Parameters
         ----------
-        A : (k, d) ndarray
-            The "left-hand side" matrix.
-        B : (k, r) ndarray
-            The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
+        data_matrix : (k, d) ndarray
+            Data matrix :math:`\D`.
+        lhs_matrix : (r, k) or (k,) ndarray
+            "Left-hand side" data matrix :math:`\Z` (not its transpose!).
+            If one-dimensional, assume :math:`r = 1`.
         """
-        _BaseSolver.fit(self, A, B)
+        SolverTemplate.fit(self, data_matrix, lhs_matrix)
         if self.k < self.d:
             warnings.warn(
-                "non-regularized least-squares system is underdetermined!",
-                la.LinAlgWarning,
-                stacklevel=2,
+                "non-regularized least-squares system is underdetermined",
+                errors.OpInfWarning,
             )
         return self
 
     # Post-processing ---------------------------------------------------------
     @abc.abstractmethod
     def regcond(self):  # pragma: no cover
-        """Compute the condition number of the regularized data matrix."""
+        r"""Compute the :math:`2`-norm condition number of the regularized
+        data matrix :math:`[~\D\trp~~\bfGamma\trp~]\trp.`
+        """
         raise NotImplementedError
 
     @abc.abstractmethod
-    def residual(self, X):  # pragma: no cover
-        """Calculate the residual of the regularized regression problem."""
+    def regresidual(self, Ohat):  # pragma: no cover
+        """Compute the residual of the regularized regression problem."""
         raise NotImplementedError
 
-
-class L2Solver(_BaseTikhonovSolver):
-    """Solve the l2-norm ordinary least-squares problem with L2 regularization:
-
-        sum_{i} min_{x_i} ||Ax_i - b_i||_2^2 + ||λx_i||_2^2,    λ ≥ 0,
-
-    or, written in the Frobenius norm,
-
-        min_{X} ||AX - B||_F^2 + ||λX||_F^2,                    λ ≥ 0.
-
-    The solution is calculated using the singular value decomposition of A:
-    If A = U Σ V^T, then X = V Σinv(λ) U^T B, where
-    Σinv(λ)[i, i] = Σ[i, i] / (Σ[i, i]^2 + λ^2).
-    """
-
-    _LSTSQ_LABEL = r"min_{X} ||AX - B||_F^2 + ||λX||_F^2"
-
-    def __init__(self, regularizer=0.0):
-        """Store the regularizer and initialize attributes.
+    # Persistence -------------------------------------------------------------
+    def _save(self, savefile, overwrite=False, extras=tuple()):
+        """Serialize the solver, saving it in HDF5 format.
+        The model can be recovered with the :meth:`_load()` class method.
 
         Parameters
         ----------
-        regularizer : float ≥ 0
-            Scalar L2 regularization hyperparameter.
+        savefile : str
+            File to save to, with extension ``.h5`` (HDF5).
+        overwrite : bool
+            If ``True`` and the specified ``savefile`` already exists,
+            overwrite the file. If ``False`` (default) and the specified
+            ``savefile`` already exists, raise an error.
+        extras : list
+            Names of additional attributes to save.
         """
-        _BaseTikhonovSolver.__init__(self)
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            reg = self.regularizer
+            if isinstance(self, L2Solver):
+                reg = [reg]
+            hf.create_dataset("regularizer", data=reg)
+
+            if isinstance(self, TikhonovSolver):
+                meta = hf.create_dataset("meta", shape=(0,))
+                meta.attrs["method"] = self.method
+
+            self._save_dict(hf, "options")
+
+            if self.data_matrix is not None:
+                hf.create_dataset("data_matrix", data=self.data_matrix)
+                hf.create_dataset("lhs_matrix", data=self.lhs_matrix)
+                for attr in extras:
+                    hf.create_dataset(attr, data=getattr(self, attr))
+
+    @classmethod
+    def _load(cls, loadfile: str, extras=tuple()):
+        """Load a serialized solver from an HDF5 file, created previously from
+        the :meth:`save()` method.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the model was stored via :meth:`save()`.
+        extras : list
+            Names of additional attributes to load.
+
+        Returns
+        -------
+        solver : _BaseRegularizedSolver
+            Loaded solver.
+        """
+        options = dict()
+        with utils.hdf5_loadhandle(loadfile) as hf:
+
+            reg = hf["regularizer"][:]
+            if cls is L2Solver:
+                reg = reg[0]
+
+            options = cls._load_dict(hf, "options")
+            kwargs = dict(
+                regularizer=reg,
+                lapack_driver=options["lapack_driver"],
+            )
+
+            if issubclass(cls, TikhonovSolver):
+                if "cond" in options:
+                    kwargs["cond"] = options["cond"]
+                kwargs["method"] = hf["meta"].attrs["method"]
+
+            solver = cls(**kwargs)
+
+            if "data_matrix" in hf:
+                D = hf["data_matrix"][:]
+                Z = hf["lhs_matrix"][:]
+                _BaseRegularizedSolver.fit(solver, D, Z)
+                for attr in extras:
+                    setattr(solver, attr, hf[attr][:])
+
+        return solver
+
+
+class L2Solver(_BaseRegularizedSolver):
+    r"""Solve the Frobenius-norm ordinary least-squares problem with
+    :math:`L_2` regularization.
+
+    That is, solve
+
+    .. math::
+        \argmin_{\Ohat}\|\D\Ohat\trp - \Z\trp\|_F^2 + \|\lambda\Ohat\trp\|_F^2
+
+    for some specified :math:`\lambda \ge 0`.
+
+    The exact solution is described by the normal equations:
+
+    .. math::
+        (\D\trp\D + \lambda^2\I)\Ohat\trp = \D\trp\Z\trp,
+
+    that is,
+
+    .. math::
+        \Ohat = \Z\D(\D\trp\D + \lambda^2\I)^{-\mathsf{T}}.
+
+    Instead of solving these equations directly, the solution is calculated
+    using the singular value decomposition of the data matrix :math:`\D`:
+    if :math:`\D = \bfPhi\bfSigma\bfPsi\trp`, then
+    :math:`\Ohat\trp = \bfPsi\bfSigma^{*}\bfPhi\trp\Z\trp` (i.e.,
+    :math:`\Ohat = \Z\bfPhi\bfSigma^{*}\bfPsi\trp`), where
+    :math:`\bfSigma^{*}` is a diagonal matrix with :math:`i`-th diagonal entry
+    :math:`\Sigma_{i,i}^{*} = \Sigma_{i,i}/(\Sigma_{i,i}^{2} + \lambda^2).`
+
+    Parameters
+    ----------
+    regularizer : float
+        Scalar :math:`L_2` regularization constant.
+    lapack_driver : str
+        LAPACK routine for computing the SVD. See ``scipy.linalg.svd()``.
+    """
+
+    def __init__(self, regularizer: float = 0.0, lapack_driver="gesdd"):
+        """Store the regularizer and initialize attributes."""
+        _BaseRegularizedSolver.__init__(self)
         self.regularizer = regularizer
+        self.__options = types.MappingProxyType(
+            dict(full_matrices=False, lapack_driver=lapack_driver)
+        )
 
     # Properties --------------------------------------------------------------
     @property
     def regularizer(self):
+        r"""Scalar :math:`L_2` regularization constant
+        :math:`\lambda > 0.`
+        """
         return self.__reg
 
     @regularizer.setter
     def regularizer(self, reg):
-        """Set the regularization hyperparameter."""
+        """Set the regularization constant."""
         if not np.isscalar(reg):
-            raise TypeError("regularization hyperparameter must be a scalar")
+            raise TypeError("regularization constant must be a scalar")
         if reg < 0:
-            raise ValueError(
-                "regularization hyperparameter must be " "non-negative"
-            )
+            raise ValueError("regularization constant must be nonnegative")
         self.__reg = reg
 
+    @property
+    def options(self):
+        """Keyword arguments for ``scipy.linalg.svd()``."""
+        return self.__options
+
     # Main methods ------------------------------------------------------------
-    def fit(self, A, B):
-        """Take the SVD of A in preparation to solve the least-squares problem.
+    def fit(self, data_matrix, lhs_matrix):
+        r"""Verify dimensions and compute the singular value decomposition of
+        the data matrix in preparation to solve the least-squares problem.
 
         Parameters
         ----------
-        A : (k, d) ndarray
-            The "left-hand side" matrix.
-        B : (k, r) ndarray
-            The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
+        data_matrix : (k, d) ndarray
+            Data matrix :math:`\D`.
+        lhs_matrix : (r, k) ndarray
+            "Left-hand side" data matrix :math:`\Z` (not its transpose!).
+            If one-dimensional, assume :math:`r = 1`.
         """
-        _BaseTikhonovSolver.fit(self, A, B)
+        _BaseRegularizedSolver.fit(self, data_matrix, lhs_matrix)
 
-        # Compute the SVD of A and save what is needed to solve the problem.
-        U, svals, Vt = la.svd(self.A, full_matrices=False)
-        self._V = Vt.T
+        Phi, svals, PsiT = la.svd(self.data_matrix, **self.options)
         self._svals = svals
-        self._UtB = U.T @ self.B
+        self._ZPhi = self.lhs_matrix @ Phi
+        self._PsiT = PsiT
 
         return self
 
+    @_require_trained
     def predict(self):
-        """Solve the regularized least-squares problem.
+        r"""Solve the Operator Inference regression.
 
         Returns
         -------
-        X : (d, r) or (d,) ndarray
-            Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
-            solution to the subproblem with the corresponding column of B.
-            The result is flattened to a one-dimensional array if r = 1.
+        Ohat : (r, d) or (d,) ndarray
+            Operator matrix :math:`\Ohat` (not its transpose!).
+            If :math:`r = 1`, a one-dimensional array is returned.
         """
-        self._check_is_trained("_V")
-
-        # X = V svals_inv U.T B
         svals = self._svals.reshape((-1, 1))
         svals_inv = svals / (svals**2 + self.regularizer**2)
-        X = self._V @ (svals_inv * self._UtB)
+        Ohat = (self._ZPhi * svals_inv.T) @ self._PsiT
 
-        return np.ravel(X) if self.r == 1 else X
+        return np.ravel(Ohat) if self.r == 1 else Ohat
 
     # Post-processing ---------------------------------------------------------
+    @_require_trained
     def cond(self):
-        """Calculate the 2-norm condition number of the data matrix A."""
-        self._check_is_trained("_svals")
-        return abs(self._svals.max() / self._svals.min())
+        r"""Compute the :math:`2`-norm condition number of the data matrix
+        :math:`\D`.
+        """
+        return self._svals.max() / self._svals.min()
 
+    @_require_trained
     def regcond(self):
-        """Compute the 2-norm condition number of the regularized data matrix.
+        r"""Compute the :math:`2`-norm condition number of the regularized
+        data matrix :math:`[~\D\trp~~\lambda\I~]\trp.`
 
         Returns
         -------
-        rc : float ≥ 0
-            cond([A.T | λI.T].T), computed from filtered singular values of A.
+        cond : float
+            Condition number of the regularized data matrix.
         """
-        self._check_is_trained("_svals")
         svals2 = self._svals**2 + self.regularizer**2
         return np.sqrt(svals2.max() / svals2.min())
 
-    def residual(self, X):
-        """Calculate the residual of the regularized problem for each column of
-        B = [ b_1 | ... | b_r ], i.e., ||Ax_i - b_i||_2^2 + ||λx_i||_2^2.
+    @_require_trained
+    def regresidual(self, Ohat):
+        r"""Compute the residual of the regularized regression objective for
+        each row of the given operator matrix.
+
+        Specifically, given a potential :math:`\Ohat`, compute
+
+        .. math::
+           \|\D\ohat_i - \z_i\|_2^2 + \|\lambda\ohat_i\|_2^2,
+           \quad i = 1, \ldots, r,
+
+        where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
+        :math:`\Ohat` and :math:`\Z`, respectively.
 
         Parameters
         ----------
-        X : (d, r) ndarray
-            Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
-            solution to the subproblem with the corresponding column of B.
-        regularizer : float ≥ 0
-            Scalar regularization hyperparameter.
+        Ohat : (r, d) ndarray
+            Operator matrix :math:`\Ohat`.
 
         Returns
         -------
-        resids : (r,) ndarray or float (r = 1)
-            Residuals ||Ax_i - b_i||_2^2 + ||λx_i||_2^2, i = 1, ..., r.
+        residuals : (r,) ndarray or float
+            :math:`2`-norm residuals for each row of the operator matrix.
+            If :math:`r = 1`, a float is returned.
         """
-        self._check_is_trained()
-        return self.misfit(X) + (self.regularizer**2) * np.sum(X**2, axis=0)
+        residual = self.residual(Ohat)
+        return residual + (self.regularizer**2 * np.sum(Ohat**2, axis=-1))
 
-
-class L2SolverDecoupled(L2Solver):
-    """Solve r independent l2-norm ordinary least-squares problems, each with
-    the same data matrix A but different L2 regularizations λ_i > 0 for the
-    columns of X and B:
-
-        min_{x_i} ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2,    i = 1, ..., r.
-
-    The solution is calculated using the singular value decomposition of A.
-    """
-
-    _LSTSQ_LABEL = r"min_{x_i} ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2"
-
-    def __init__(self, regularizer):
-        """Store the regularizer and initialize attributes.
+    # Persistence -------------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        """Serialize the solver, saving it in HDF5 format.
+        The model can be recovered with the :meth:`load()` class method.
 
         Parameters
         ----------
-        regularizer : (r,) ndarray or list(r floats ≥ 0)
-            Scalar L2 regularization hyperparameter for each column of X and B.
+        savefile : str
+            File to save to, with extension ``.h5`` (HDF5).
+        overwrite : bool
+            If ``True`` and the specified ``savefile`` already exists,
+            overwrite the file. If ``False`` (default) and the specified
+            ``savefile`` already exists, raise an error.
         """
-        return L2Solver.__init__(self, regularizer)
+        return self._save(savefile, overwrite, ["_svals", "_ZPhi", "_PsiT"])
+
+    @classmethod
+    def load(cls, loadfile: str):
+        """Load a serialized solver from an HDF5 file, created previously from
+        the :meth:`save()` method.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the model was stored via :meth:`save()`.
+
+        Returns
+        -------
+        solver : L2Solver
+            Loaded solver.
+        """
+        return cls._load(loadfile, ["_svals", "_ZPhi", "_PsiT"])
+
+    def copy(self):
+        """Make a copy of the solver."""
+        solver = self.__class__(
+            regularizer=self.regularizer,
+            lapack_driver=self.options["lapack_driver"],
+        )
+        if self.data_matrix is not None:
+            SolverTemplate.fit(solver, self.data_matrix, self.lhs_matrix)
+            solver._svals = self._svals
+            solver._ZPhi = self._ZPhi
+            solver._PsiT = self._PsiT
+        return solver
+
+
+class L2SolverDecoupled(L2Solver):
+    r"""Solve :math:`r` independent :math:`2`-norm ordinary least-squares
+    problems, each with the same data matrix but a different :math:`L_2`
+    regularization.
+
+    That is, for :math:`i = 1, \ldots, r`, construct :math:`\Ohat` by solving
+
+    .. math::
+        \argmin_{\Ohat}\|\D\ohat_i - \z_i\|_2^2 + \|\lambda_i\Ohat_i\|_2^2
+
+    where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
+    :math:`\Ohat` and :math:`\Z`, respectively, with corresponding
+    regularization constant :math:`\lambda_i > 0`.
+
+    The exact solution for the :math:`i`-th problem is described by the normal
+    equations:
+
+    .. math::
+        (\D\trp\D + \lambda_i^2\I)\ohat_i = \D\trp\z_i.
+
+    Instead of solving these equations directly, the solution is calculated
+    using the singular value decomposition of the data matrix
+    (see :class:`L2Solver`).
+
+    Parameters
+    ----------
+    regularizer : (r,) ndarray
+        Scalar :math:`L_2` regularization constants, one for each row
+        of the operator matrix.
+    lapack_driver : str
+        LAPACK routine for computing the SVD. See ``scipy.linalg.svd()``.
+    """
 
     # Properties --------------------------------------------------------------
     def _check_regularizer_shape(self):
-        if self.regularizer.shape != (self.r,):
-            raise ValueError("len(regularizer) != number of columns of B")
+        if (shape1 := self.regularizer.shape) != (shape2 := (self.r,)):
+            raise errors.DimensionalityError(
+                f"regularizer.shape = {shape1} != {shape2} = (r,)"
+            )
 
-    @L2Solver.regularizer.setter
-    def regularizer(self, regs):
-        """Scalar regularization hyperparameters, one for each
-        column of X and B (an (r,) ndarray)
+    @property
+    def regularizer(self):
+        r"""Scalar :math:`L_2` regularization constants, one for each row
+        of the  operator matrix :math:`\Ohat`.
         """
-        self._L2Solver__reg = np.array(regs)
+        return self.__regs
+
+    @regularizer.setter
+    def regularizer(self, regs):
+        """Set the regularization constants."""
+        regs = np.array(regs)
+        if regs.ndim != 1:
+            raise ValueError("regularizer must be one-dimensional")
+        if np.any(regs < 0):
+            raise ValueError("regularization constants must be nonnegative")
+        self.__regs = regs
         if self.r is not None:
             self._check_regularizer_shape()
 
     # Main methods ------------------------------------------------------------
-    def fit(self, A, B):
-        """Take the SVD of A and store B.
+    def fit(self, data_matrix, lhs_matrix):
+        r"""Verify dimensions and compute the singular value decomposition of
+        the data matrix in preparation to solve the least-squares problem.
 
         Parameters
         ----------
-        A : (k, d) ndarray
-            The "left-hand side" matrix.
-        B : (k, r) ndarray
-            The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
+        data_matrix : (k, d) ndarray
+            Data matrix :math:`\D`.
+        lhs_matrix : (r, k) ndarray
+            "Left-hand side" data matrix :math:`\Z` (not its transpose!).
+            If one-dimensional, assume :math:`r = 1`.
         """
-        L2Solver.fit(self, A, B)
+        L2Solver.fit(self, data_matrix, lhs_matrix)
         self._check_regularizer_shape()
         return self
 
     # Post-processing ---------------------------------------------------------
+    @_require_trained
     def regcond(self):
-        """Compute the 2-norm condition number of each regularized data matrix.
+        r"""Compute the :math:`2`-norm condition number of each regularized
+        data matrix, :math:`[~\D\trp~~\lambda_i\I~]\trp` for
+        :math:`i = 1, \ldots, r`.
 
         Returns
         -------
-        rcs : (r,) ndarray
-            cond([A.T | (λ_i I).T].T), i = 1, ..., r, computed from filtered
-            singular values of the data matrix A.
+        conds : (r,) ndarray
+            Condition numbers of the regularized data matrices.
         """
-        self._check_is_trained("_svals")
         svals2 = self._svals**2 + self.regularizer.reshape((-1, 1)) ** 2
         return np.sqrt(svals2.max(axis=1) / svals2.min(axis=1))
 
-    def residual(self, X):
-        """Calculate the residual of the regularized problem for each column of
-        B = [ b_1 | ... | b_r ], i.e., ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2.
+    def regresidual(self, Ohat):
+        r"""Compute the residual of the regularized regression objective for
+        each row of the given operator matrix.
+
+        Specifically, given a potential :math:`\Ohat`, compute
+
+        .. math::
+           \|\D\ohat_i - \z_i\|_2^2 + \|\lambda_i\ohat_i\|_2^2,
+           \quad i = 1, \ldots, r,
+
+        where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
+        :math:`\Ohat` and :math:`\Z`, respectively, and :math:`\lambda_i \ge 0`
+        is the corresponding regularization constant.
 
         Parameters
         ----------
-        X : (d, r) ndarray
-            Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
-            solution to the subproblem with the corresponding column of B.
+        Ohat : (r, d) ndarray
+            Operator matrix :math:`\Ohat`.
 
         Returns
         -------
-        resids : (r,) ndarray
-            Residuals ||Ax_i - b_i||_2^2 + ||λ_i x_i||_2^2, i = 1, ..., r.
+        residuals : (r,) ndarray or float
+            :math:`2`-norm residuals for each row of the operator matrix.
+            If :math:`r = 1`, a float is returned.
         """
-        return L2Solver.residual(self, X)
+        return L2Solver.regresidual(self, Ohat)
 
 
-class TikhonovSolver(_BaseTikhonovSolver):
-    """Solve the l2-norm ordinary least-squares problem with Tikhonov
-    regularization:
+class TikhonovSolver(_BaseRegularizedSolver):
+    r"""Solve the Frobenius-norm ordinary least-squares problem with
+    Tikhonov regularization.
 
-        sum_{i} min_{x_i} ||Ax_i - b_i||_2^2 + ||Px_i||_2^2,    P > 0 (SPD).
+    That is, solve
 
-    or, written in the Frobenius norm,
+    .. math::
+       \argmin_{\Ohat}\|\D\Ohat\trp - \Z\trp\|_F^2 + \|\bfGamma\Ohat\trp\|_F^2
 
-        min_{X} ||AX - B||_F^2 + ||PX||_F^2,                    P > 0 (SPD).
+    for a specified symmetric-positive-definite regularization matrix
+    :math:`\bfGamma \in \RR^{d \times d}`. This is equivalent to solving the
+    following stacked least-squares problem:
 
-    The problem is solved by taking the singular value decomposition of the
-    augmented data matrix [A.T | P.T].T, which is equivalent to solving
+    .. math::
+       \argmin_{\Ohat}
+       \left\|
+           \left[\begin{array}{c}\D \\ \bfGamma\end{array}\right]\Ohat\trp
+           - \left[\begin{array}{c}\Z\trp \\ \0\end{array}\right]
+       \right\|_F^2.
 
-        min_{X} || [A]    _  [B] ||^{2}
-                || [P] X     [0] ||_{F}
+    The exact solution is described by the normal equations:
 
-    or the Normal equations
+    .. math::
+       (\D\trp\D + \bfGamma\trp\bfGamma)\Ohat\trp = \D\trp\Z\trp,
 
-        (A.T A + P.T P) X = A.T B.
+    that is,
+
+    .. math::
+       \Ohat = \Z\D(\D\trp\D + \bfGamma\trp\bfGamma)^{-\mathsf{T}}.
+
+    Parameters
+    ----------
+    regularizer : (d, d) or (d,) ndarray
+        Symmetric semi-positive-definite regularization matrix :math:`\bfGamma`
+        or, if ``regularizer`` is a one-dimensional array, the diagonal entries
+        of :math:`\bfGamma`. Here, ``d`` is the number of columns in the data
+        matrix.
+    method : str
+        Strategy for solving the regularized least-squares problem.
+        **Options**:
+
+        * ``"lstsq"``: solve the stacked least-squares problem via
+          ``scipy.linalg.lstsq()``; by default, this computes and uses the
+          singular value decomposition of the stacked data matrix
+          :math:`[~D\trp~~\bfGamma\trp~]\trp`.
+        * ``"normal"``: directly solve the normal equations
+          :math:`(\D\trp\D + \bfGamma\trp\bfGamma) \Ohat\trp = \D\trp\Z\trp`
+          via ``scipy.linalg.solve()``.
+    cond : float or None
+        Cutoff for 'small' singular values of the data matrix,
+        see ``scipy.linalg.lstsq()``. Ignored if ``method = "normal"``.
+    lapack_driver : str or None
+        Which LAPACK driver is used to solve the least-squares problem,
+        see ``scipy.linalg.lstsq()``. Ignored if ``method = "normal"``.
     """
 
-    _LSTSQ_LABEL = r"min_{X} ||AX - B||_F^2 + ||PX||_F^2"
-
-    def __init__(self, regularizer, method="svd"):
-        """Store the regularizer and initialize attributes.
-
-        Parameters
-        ----------
-        regularizer : (d, d) or (d,) ndarray
-            Symmetric semi-positive-definite regularization matrix P
-            or, if P is diagonal, just the diagonal entries.
-        method : str
-            The strategy for solving the regularized least-squares problem.
-            * "svd": take the SVD of the stacked data matrix [A.T | P.T].T.
-            * "normal": solve the normal equations (A.T A + P.T P) X = A.T B.
-        """
-        _BaseTikhonovSolver.__init__(self)
+    def __init__(
+        self,
+        regularizer,
+        method: str = "lstsq",
+        cond: float = None,
+        lapack_driver: str = None,
+    ):
+        """Store the regularizer and initialize attributes."""
+        _BaseRegularizedSolver.__init__(self)
         self.regularizer = regularizer
         self.method = method
+        self.__options = types.MappingProxyType(
+            dict(cond=cond, lapack_driver=lapack_driver)
+        )
+
+    @property
+    def options(self):
+        """Keyword arguments for ``scipy.linalg.lstsq()``."""
+        return self.__options
 
     # Properties --------------------------------------------------------------
     def _check_regularizer_shape(self):
-        if self.regularizer.shape != (self.d, self.d):
-            raise ValueError("regularizer.shape != (d, d) (d = A.shape[1])")
+        if (shape1 := self.regularizer.shape) != (shape2 := (self.d, self.d)):
+            raise errors.DimensionalityError(
+                f"regularizer.shape = {shape1} != {shape2} = (d, d)"
+            )
 
     @property
     def regularizer(self):
-        """(d, d) ndarray:
-        symmetric semi-positive-definite regularization matrix P.
+        r"""Symmetric semi-positive-definite :math:`d \times d` regularization
+        matrix :math:`\bfGamma`.
         """
         return self.__reg
 
     @regularizer.setter
-    def regularizer(self, P):
+    def regularizer(self, G):
         """Set the regularization matrix."""
-        if sparse.issparse(P):
-            P = P.toarray()
-        elif not isinstance(P, np.ndarray):
-            P = np.array(P)
+        if sparse.issparse(G):
+            G = G.toarray()
+        elif not isinstance(G, np.ndarray):
+            G = np.array(G)
 
-        if P.ndim == 1:
-            if np.any(P < 0):
+        if G.ndim == 1:
+            if np.any(G < 0):
                 raise ValueError(
-                    "diagonal regularizer must be " "positive semi-definite"
+                    "diagonal regularizer must be positive semi-definite"
                 )
-            P = np.diag(P)
+            G = np.diag(G)
 
-        self.__reg = P
+        self.__reg = G
+
         if self.d is not None:
             self._check_regularizer_shape()
 
     @property
     def method(self):
-        """str : Strategy for solving the regularized least-squares problem.
-        * "svd": take the SVD of the stacked data matrix [A.T | P.T].T.
-        * "normal": solve the normal equations (A.T A + P.T P) X = A.T B.
+        """Strategy for solving the regularized least-squares problem, either
+        ``"lstsq"`` (default) or ``"normal"``.
         """
         return self.__method
 
     @method.setter
     def method(self, method):
         """Set the method and precompute stuff as needed."""
-        if method not in ("svd", "normal"):
-            raise ValueError("method must be 'svd' or 'normal'")
+        if method not in ("lstsq", "normal"):
+            raise ValueError("method must be 'lstsq' or 'normal'")
         self.__method = method
 
     # Main routines -----------------------------------------------------------
-    def fit(self, A, B):
-        """Store A and B."""
-        _BaseTikhonovSolver.fit(self, A, B)
+    def fit(self, data_matrix, lhs_matrix):
+        r"""Verify dimensions and precompute quantities in preparation to
+        solve the least-squares problem.
+
+        Parameters
+        ----------
+        data_matrix : (k, d) ndarray
+            Data matrix :math:`\D`.
+        lhs_matrix : (r, k) ndarray
+            "Left-hand side" data matrix :math:`\Z` (not its transpose!).
+            If one-dimensional, assume :math:`r = 1`.
+        """
+        _BaseRegularizedSolver.fit(self, data_matrix, lhs_matrix)
         self._check_regularizer_shape()
+        D, Z = self.data_matrix, self.lhs_matrix
 
-        # Pad B for "svd" solve.
-        self._Bpad = np.vstack((self.B, np.zeros((self.d, self.r))))
+        # Pad lhs matrix for "svd" solve.
+        self._ZtPad = np.vstack((Z.T, np.zeros((self.d, self.r))))
 
-        # Precompute Normal equations terms for "normal" solve.
-        self._AtA = self.A.T @ self.A
-        self._rhs = self.A.T @ self.B
+        # Precompute normal equations terms for "normal" solve.
+        self._DtD = D.T @ D
+        self._DtZt = D.T @ Z.T
 
         return self
 
+    @_require_trained
     def predict(self):
-        """Solve the least-squares problem.
+        r"""Solve the Operator Inference regression.
 
         Returns
         -------
-        X : (d, r) or (d,) ndarray
-            Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
-            solution to the subproblem with the corresponding column of B.
-            The result is flattened to a one-dimensional array if r = 1.
+        Ohat : (r, d) or (d,) ndarray
+            Operator matrix :math:`\Ohat` (not its transpose!).
+            If :math:`r = 1`, a one-dimensional array is returned.
         """
-        self._check_is_trained("_Bpad")
-
-        if self.method == "svd":
-            X = la.lstsq(np.vstack((self.A, self.regularizer)), self._Bpad)[0]
+        if self.method == "lstsq":
+            DPad = np.vstack((self.data_matrix, self.regularizer))
+            Ohat = la.lstsq(DPad, self._ZtPad, **self.options)[0].T
         elif self.method == "normal":
-            lhs = self._AtA + (self.regularizer.T @ self.regularizer)
-            X = la.solve(lhs, self._rhs, assume_a="pos")
+            regD = self._DtD + (self.regularizer.T @ self.regularizer)
+            Ohat = la.solve(regD, self._DtZt, assume_a="pos").T
 
-        return np.ravel(X) if self.r == 1 else X
+        return np.ravel(Ohat) if self.r == 1 else Ohat
 
     # Post-processing ---------------------------------------------------------
+    @_require_trained
     def regcond(self):
-        """Compute the 2-norm condition number of the regularized data matrix.
+        r"""Compute the :math:`2`-norm condition number of the regularized
+        data matrix :math:`[~\D\trp~~\bfGamma\trp~]\trp.`
 
         Returns
         -------
-        rc : float ≥ 0
-            cond([A.T | P.T].T).
+        cond : float
+            Condition number of the regularized data matrix.
         """
-        self._check_is_trained()
-        return np.linalg.cond(np.vstack((self.A, self.regularizer)))
+        return np.linalg.cond(np.vstack((self.data_matrix, self.regularizer)))
 
-    def residual(self, X):
-        """Calculate the residual of the regularized problem for each column of
-        B = [ b_1 | ... | b_r ], i.e., ||Ax_i - b_i||_2^2 + ||Px_i||_2^2.
+    @_require_trained
+    def regresidual(self, Ohat):
+        r"""Compute the residual of the regularized regression objective for
+        each row of the given operator matrix.
+
+        Specifically, given a potential :math:`\Ohat`, compute
+
+        .. math::
+           \|\D\ohat_i - \z_i\|_2^2 + \|\bfGamma\ohat_i\|_2^2,
+           \quad i = 1, \ldots, r,
+
+        where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
+        :math:`\Ohat` and :math:`\Z`, respectively.
 
         Parameters
         ----------
-        X : (d, r) ndarray
-            Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
-            solution to the subproblem with the corresponding column of B.
+        Ohat : (r, d) ndarray
+            Operator matrix :math:`\Ohat`.
 
         Returns
         -------
-        resids : (r,) ndarray or float (r = 1)
-            Residuals ||Ax_i - b_i||_2^2 + ||Px_i||_2^2, i = 1, ..., r.
+        residuals : (r,) ndarray or float
+            :math:`2`-norm residuals for each row of the operator matrix.
+            If :math:`r = 1`, a float is returned.
         """
-        self._check_is_trained()
-        return self.misfit(X) + np.sum((self.regularizer @ X) ** 2, axis=0)
+        residual = self.residual(Ohat)
+        return residual + np.sum((self.regularizer @ Ohat.T) ** 2, axis=0)
+
+    def save(self, savefile, overwrite=False):
+        """Serialize the solver, saving it in HDF5 format.
+        The model can be recovered with the :meth:`load()` class method.
+
+        Parameters
+        ----------
+        savefile : str
+            File to save to, with extension ``.h5`` (HDF5).
+        overwrite : bool
+            If ``True`` and the specified ``savefile`` already exists,
+            overwrite the file. If ``False`` (default) and the specified
+            ``savefile`` already exists, raise an error.
+        """
+        return self._save(savefile, overwrite, ["_ZtPad", "_DtD", "_DtZt"])
+
+    @classmethod
+    def load(cls, loadfile: str):
+        """Load a serialized solver from an HDF5 file, created previously from
+        the :meth:`save()` method.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the model was stored via :meth:`save()`.
+
+        Returns
+        -------
+        solver : L2Solver
+            Loaded solver.
+        """
+        return cls._load(loadfile, ["_ZtPad", "_DtD", "_DtZt"])
+
+    def copy(self):
+        """Make a copy of the solver."""
+        solver = self.__class__(
+            regularizer=self.regularizer,
+            method=self.method,
+            cond=self.options["cond"],
+            lapack_driver=self.options["lapack_driver"],
+        )
+        if self.data_matrix is not None:
+            SolverTemplate.fit(solver, self.data_matrix, self.lhs_matrix)
+            solver._ZtPad = self._ZtPad
+            solver._DtD = self._DtD
+            solver._DtZt = self._DtZt
+        return solver
 
 
 class TikhonovSolverDecoupled(TikhonovSolver):
-    """Solve r independent l2-norm ordinary least-squares problems, each with
-    the same data matrix but a different Tikhonov regularizer,
+    r"""Solve :math:`r` independent :math:`2`-norm ordinary least-squares
+    problems, each with the same data matrix but a different Tikhonov
+    regularization.
 
-        min_{x_i} ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2,     i = 1, ..., r.
+    That is, for :math:`i = 1, \ldots, r`, construct :math:`\Ohat` by solving
+
+    .. math::
+        \argmin_\Ohat\|\D\Ohat\trp - \Z\trp\|_F^2 + \|\bfGamma\Ohat\trp\|_F^2
+
+    where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
+    :math:`\Ohat` and :math:`\Z`, respectively, with corresponding
+    symmetric-positive-definite regularization matrix :math:`\bfGamma_i`.
+
+    This is equivalent to solving the following stacked least-squares problems:
+
+    .. math::
+       \argmin{\Ohat}
+       \left\|
+           \left[\begin{array}{c}\D \\ \bfGamma_i\end{array}\right]\Ohat\trp
+           - \left[\begin{array}{c}\Z\trp \\ \0\end{array}\right]
+       \right\|_F^2,
+       \quad i = 1, \ldots, r.
+
+    The exact solution of the :math:`i`-th problem is described by the normal
+    equations:
+
+    .. math::
+       (\D\trp\D + \bfGamma_i\trp\bfGamma_i)\ohat_i = \D\trp\z_i.
+
+    Parameters
+    ----------
+    regularizer : list of r (d, d) or (d,) ndarrays
+        Symmetric semi-positive-definite regularization matrices
+        :math:`\bfGamma_1,\ldots,\bfGamma_r`.
+        If the ``i``th entry of ``regularizer`` is a one-dimensional array,
+        it is intepreted as the diagonal entries of :math:`\bfGamma_i`. Here,
+        `d` is the number of columns in the data matrix.
+    method : str
+        Strategy for solving the regularized least-squares problem.
+        **Options**:
+
+        * ``"lstsq"``: solve the stacked least-squares problem via
+          ``scipy.linalg.lstsq()``; by default, this computes and uses the
+          singular value decomposition of the stacked data matrix
+          :math:`[~D\trp~~\bfGamma\trp~]\trp`.
+        * ``"normal"``: directly solve the normal equations
+          :math:`(\D\trp\D + \bfGamma\trp\bfGamma) \Ohat\trp = \D\trp\Z\trp`
+          via ``scipy.linalg.solve()``.
+    cond : float or None
+        Cutoff for 'small' singular values of the data matrix,
+        see ``scipy.linalg.lstsq()``. Ignored if ``method = "normal"``.
+    lapack_driver : str or None
+        Which LAPACK driver is used to solve the least-squares problem,
+        see ``scipy.linalg.lstsq()``. Ignored if ``method = "normal"``.
     """
-
-    _LSTSQ_LABEL = r"sum_{i} min_{x_i} ||Ax_i - b_i||^2 + ||P_i x_i||^2"
-
-    def __init__(self, regularizer, method="svd"):
-        """Store the regularizer and initialize attributes.
-
-        Parameters
-        ----------
-        regularizer : (d, d) or (d,) ndarray
-            Symmetric semi-positive-definite regularization matrix P
-            or, if P is diagonal, just the diagonal entries.
-        method : str
-            The strategy for solving the regularized least-squares problem.
-            * "svd": take the SVD of the stacked data matrix [A.T | P.T].T.
-            * "normal": solve the normal equations (A.T A + P.T P) X = A.T B.
-        """
-        return TikhonovSolver.__init__(self, regularizer, method)
 
     # Properties --------------------------------------------------------------
     def _check_regularizer_shape(self):
         """Check that the regularizer has the correct shape."""
         if len(self.regularizer) != self.r:
             raise ValueError("len(regularizer) != r")
-        for i, P in enumerate(self.regularizer):
-            if P.shape != (self.d, self.d):
-                raise ValueError(f"regularizer[{i}].shape != (d, d)")
+        for i, G in enumerate(self.regularizer):
+            if (shape1 := G.shape) != (shape2 := (self.d, self.d)):
+                raise ValueError(
+                    f"regularizer[{i}].shape = {shape1} != {shape2} = (d, d)"
+                )
 
     @property
     def regularizer(self):
-        """Symmetric semi-positive-definite regularization
-        matrices [P_1, ..., P_r], one for each column of X and B
-        (r (d, d) ndarrays)
+        r"""Symmetric semi-positive-definite regularization matrices
+        :math:`\bfGamma_1,\ldots,\bfGamma_r`, one for each row of the
+        operator matrix.
         """
-        return self._TikhonovSolver__reg
+        return self.__regs
 
     @regularizer.setter
-    def regularizer(self, Ps):
+    def regularizer(self, Gs):
         """Set the regularization matrices."""
         regs = []
-        for P in Ps:
-            if sparse.issparse(P):
-                P = P.toarray()
-            elif not isinstance(P, np.ndarray):
-                P = np.array(P)
-            if P.ndim == 1:
-                if np.any(P < 0):
+        for G in Gs:
+            if sparse.issparse(G):
+                G = G.toarray()
+            elif not isinstance(G, np.ndarray):
+                G = np.array(G)
+            if G.ndim == 1:
+                if np.any(G < 0):
                     raise ValueError(
-                        "diagonal regularizer must be "
-                        "positive semi-definite"
+                        "diagonal regularizer must be positive semi-definite"
                     )
-                P = np.diag(P)
-            regs.append(P)
+                G = np.diag(G)
+            regs.append(G)
 
-        self._TikhonovSolver__reg = regs
+        self.__regs = regs
         if self.d is not None:
             self._check_regularizer_shape()
 
     # Main methods ------------------------------------------------------------
+    @_require_trained
     def predict(self):
-        """Solve the least-squares problems.
+        r"""Solve the Operator Inference regression.
 
         Returns
         -------
-        X : (d, r) ndarray
-            Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
-            solution to the subproblem with the corresponding column of B.
+        Ohat : (r, d) or (d,) ndarray
+            Operator matrix :math:`\Ohat` (not its transpose!).
+            If :math:`r = 1`, a one-dimensional array is returned.
         """
-        self._check_is_trained()
+        Ohat = np.empty((self.r, self.d))
 
-        # Allocate space for the solution.
-        X = np.empty((self.d, self.r))
-
-        # Solve each independent problem (iteratively for now).
-        for j, P in enumerate(self.regularizer):
-            if self.method == "svd":
-                X[:, j] = la.lstsq(np.vstack((self.A, P)), self._Bpad[:, j])[0]
+        # Solve each independent regression problem (sequentially for now).
+        for i, Gamma in enumerate(self.regularizer):
+            if self.method == "lstsq":
+                Dpad = np.vstack((self.data_matrix, Gamma))
+                Ohat[i] = la.lstsq(Dpad, self._ZtPad[:, i])[0]
             elif self.method == "normal":
-                lhs = self._AtA + P.T @ P
-                X[:, j] = la.solve(lhs, self._rhs[:, j], assume_a="pos")
+                regD = self._DtD + Gamma.T @ Gamma
+                Ohat[i] = la.solve(regD, self._DtZt[:, i], assume_a="pos")
 
-        return X
+        return Ohat
 
     # Post-processing ---------------------------------------------------------
+    @_require_trained
     def regcond(self):
-        """Compute the 2-norm condition number of each regularized data matrix.
+        r"""Compute the :math:`2`-norm condition number of each regularized
+        data matrix :math:`[~\D\trp~~\bfGamma_i\trp~]\trp,~~i = 1, \ldots, r`.
 
         Returns
         -------
-        rcs : float ≥ 0
-            cond([A.T | P_i.T].T), i = 1, ..., r, computed as
-            sqrt(cond(A.T A + P_i.T P_i)).
+        conds : (r,) ndarray
+            Condition numbers for the regularized data matrices.
         """
-        self._check_is_trained()
         return np.array(
-            [np.linalg.cond(np.vstack((self.A, P))) for P in self.regularizer]
+            [
+                np.linalg.cond(np.vstack((self.data_matrix, G)))
+                for G in self.regularizer
+            ]
         )
 
-    def residual(self, X):
-        """Calculate the residual of the regularized problem for each column of
-        B = [ b_1 | ... | b_r ], i.e., ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2.
+    @_require_trained
+    def regresidual(self, Ohat):
+        r"""Compute the residual of the regularized regression objective for
+        each row of the given operator matrix.
+
+        Specifically, given a potential :math:`\Ohat`, compute
+
+        .. math::
+           \|\D\ohat_i - \z_i\|_2^2 + \|\bfGamma_i\ohat_i\|_2^2,
+           \quad i = 1, \ldots, r,
+
+        where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
+        :math:`\Ohat` and :math:`\Z`, respectively, and :math:`\bfGamma_i` is
+        the corresponding symmetric-positive-definite regularization matrix.
 
         Parameters
         ----------
-        X : (d, r) ndarray
-            Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
-            solution to the subproblem with the corresponding column of B.
+        Ohat : (r, d) ndarray
+            Operator matrix :math:`\Ohat`.
 
         Returns
         -------
-        resids : (r,) ndarray
-            Residuals ||Ax_i - b_i||_2^2 + ||P_i x_i||_2^2, i = 1, ..., r.
+        residuals : (r,) ndarray or float
+            :math:`2`-norm residuals for each row of the operator matrix.
+            If :math:`r = 1`, a float is returned.
         """
-        self._check_is_trained()
-        misfit = self.misfit(X)
-        Pxs = np.array(
-            [
-                np.sum((P @ X[:, j]) ** 2)
-                for j, P in enumerate(self.regularizer)
-            ]
-        )
-        return misfit + Pxs
+        residual = self.residual(Ohat)
+        rg = [np.sum((G @ oi) ** 2) for G, oi in zip(self.regularizer, Ohat)]
+        return residual + np.array(rg)

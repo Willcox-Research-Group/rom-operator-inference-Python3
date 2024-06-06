@@ -185,7 +185,7 @@ class TestSolverTemplate:
         assert isinstance(residual, np.ndarray)
         assert residual.shape == (r,)
         for i in range(r):
-            assert np.isclose(residual[i], la.norm(D @ Ohat[i] - Z[i]))
+            assert np.isclose(residual[i], la.norm(D @ Ohat[i] - Z[i]) ** 2)
 
         # One-dimensional case.
         z = Z[0, :]
@@ -194,7 +194,7 @@ class TestSolverTemplate:
         ohat = np.random.standard_normal(d)
         residual = solver.residual(ohat)
         assert isinstance(residual, float)
-        assert np.isclose(residual, la.norm(D @ ohat - z))
+        assert np.isclose(residual, la.norm(D @ ohat - z) ** 2)
 
 
 class TestPlainSolver:
@@ -216,7 +216,7 @@ class TestPlainSolver:
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
             solver.fit(D, Z)
         assert wn[0].message.args[0] == (
-            "least-squares regression is underdetermined"
+            "least-squares system is underdetermined"
         )
 
         # Overdetermined.

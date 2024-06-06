@@ -7,13 +7,14 @@ import opinf
 
 
 class TestTotalLeastSquaresSolver:
-    """Test lstsq._base.TotalLeastSquaresSolver."""
+    """Test lstsq._total.TotalLeastSquaresSolver."""
 
-    def test_predict_tls(self, k=15, d=7, r=5):
+    Solver = opinf.lstsq.TotalLeastSquaresSolver
+
+    def test_predict(self, k=15, d=7, r=5):
         """Test predict()."""
-        A = np.random.standard_normal((k, d))
-        B = np.random.random((k, r))
-        # Check the least-squares solution.
-        solver = opinf.lstsq.TotalLeastSquaresSolver().fit(A, B)
-        Xpred = solver.predict()
-        assert Xpred.shape == (d, r)
+        D = np.random.standard_normal((k, d))
+        Z = np.random.random((r, k))
+        solver = self.Solver().fit(D, Z)
+        Ohat = solver.predict()
+        assert Ohat.shape == (r, d)
