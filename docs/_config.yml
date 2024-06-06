@@ -106,7 +106,6 @@ sphinx:
           "bfPhi": "\\boldsymbol{\\Phi}"      # left singular vectors
           "bfSigma": "\\boldsymbol{\\Sigma}"  # singular values
           "bfPsi": "\\boldsymbol{\\Psi}"      # right singular vectors
-          "bfEpsilon": "\\boldsymbol{\\Epsilon}"  # error matrix
           "trp": "{^{\\mathsf{T}}}"           # transpose
           "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"    # time derivative
           "ddqhat": "\\frac{\\partial}{\\partial\\qhat}"    # d/dqhat
