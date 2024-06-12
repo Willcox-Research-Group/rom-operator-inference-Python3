@@ -24,26 +24,25 @@ class _BaseRegularizedSolver(SolverTemplate):
     r"""Base class for solvers of regularized linear least-squares problems.
 
     .. math::
-       \argmin_{\Ohat}\|\D\Ohat\trp - \Z\trp\|_F^2 + \|\bfGamma\Ohat\trp\|_F^2.
+       \argmin_{\ohat_i}
+       \|\D\ohat_i - \z_i\|_2^2
+       + \sum_{i=1}^{r}\|\bfGamma_i\ohat_i\|_2^2,
+       \quad i = 1, \ldots, r.
 
-    This is equivalent to the following stacked ordinary least-squares problem:
+    For each :math:`i`, this is equivalent to the following stacked ordinary
+    least-squares problem:
 
     .. math::
        \argmin{\Ohat}
        \left\|
-           \left[\begin{array}{c}\D \\ \bfGamma\end{array}\right]\Ohat\trp
-           - \left[\begin{array}{c}\Z\trp \\ \0\end{array}\right]
-        \right\|_F^2.
+           \left[\begin{array}{c}\D \\ \bfGamma_i\end{array}\right]\ohat_i
+           - \left[\begin{array}{c}\z_i \\ \0\end{array}\right]
+        \right\|_2^2.
 
     The exact solution is described by the normal equations:
 
     .. math::
-        (\D\trp\D + \bfGamma\trp\bfGamma)\Ohat\trp = \D\trp\Z\trp,
-
-    that is,
-
-    .. math::
-        \Ohat = \Z\D(\D\trp\D + \bfGamma\trp\bfGamma)^{-\mathsf{T}}.
+        (\D\trp\D + \bfGamma_i\trp\bfGamma_i)\ohat_i = \D\trp\z_i.
     """
 
     # Properties: regularization ----------------------------------------------

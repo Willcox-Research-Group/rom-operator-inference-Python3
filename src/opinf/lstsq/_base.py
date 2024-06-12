@@ -372,7 +372,7 @@ class PlainSolver(SolverTemplate):
     That is, solve
 
     .. math::
-        \argmin_{\Ohat} ||\D\Ohat\trp - \Z\trp||_F^2.
+        \argmin_{\Ohat} \|\D\Ohat\trp - \Z\trp\|_F^2.
 
     The solution is calculated using ``scipy.linalg.lstsq()``.
 
