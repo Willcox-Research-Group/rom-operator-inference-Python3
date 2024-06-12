@@ -24,7 +24,7 @@ _require_trained = utils.requires2(
 )
 
 
-def lstsq_size(modelform, r, m=0, affines=None):
+def lstsq_size(modelform, r, m=0, affines=None) -> int:
     r"""Compute the number of columns in the operator matrix :math:`\Ohat` in
     the Operator Inference least-squares problem. This is also the number of
     columns in the data matrix :math:`\D`.
@@ -179,7 +179,7 @@ class SolverTemplate(abc.ABC):
         return self
 
     @abc.abstractmethod
-    def predict(self):  # pragma: no cover
+    def predict(self) -> np.ndarray:  # pragma: no cover
         r"""Solve the Operator Inference regression.
 
         Returns
@@ -191,7 +191,7 @@ class SolverTemplate(abc.ABC):
 
     # Post-processing --------------------------------------------------------
     @_require_trained
-    def cond(self):
+    def cond(self) -> float:
         r"""Compute the :math:`2`-norm condition number of the data matrix
         :math:`\D`.
 
@@ -202,7 +202,7 @@ class SolverTemplate(abc.ABC):
         return np.linalg.cond(self.data_matrix)
 
     @_require_trained
-    def residual(self, Ohat):
+    def residual(self, Ohat: np.ndarray):
         r"""Compute the residual of the :math:`2`-norm regression objective for
         each row of the given operator matrix.
 
@@ -239,7 +239,7 @@ class SolverTemplate(abc.ABC):
         return resids[0] if self.r == 1 else resids
 
     # Persistence -------------------------------------------------------------
-    def save(self, savefile, overwrite=False):  # pragma: no cover
+    def save(self, savefile: str, overwrite: bool = False):  # pragma: no cover
         """Serialize the solver, saving it in HDF5 format.
         The model can be recovered with the :meth:`load()` class method.
 
@@ -345,7 +345,7 @@ class SolverTemplate(abc.ABC):
                     )
 
             else:
-                self2 = self
+                self2, k, d, r = self, self.k, self.d, self.r
 
             # Check predict().
             Ohat = _verify_predict(self2)
