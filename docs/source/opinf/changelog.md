@@ -5,13 +5,45 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
-:::{versionadded} 0.5.4
+## Version 0.5.5
+
+Changes to the `opinf.lstsq` API and improvements to the documentation.
+
+- `opinf.model` classes now receive solvers **in the constructor, not in fit()**. This change will be useful for future models that require specific solvers. Updated `ROM` class and tutorials accordingly.
+- New `SolverTemplate` class and inheritance guide for creating new solvers.
+- Renamed attributes to match OpInf terminology.
+  - `A --> data_matrix`, called $\D$ in the docs.
+  - `B --> lhs_matrix`, called $\Z$ in the docs. **Warning:** `fit()` receives $\Z$, **not** $\Z\trp$!
+  - $X$ is replaced with $\Ohat$. **Warning**: `predict()` returns $\Ohat$, **not** $\Ohat\trp$!
+- Renamed two Tikhonov solver classes:
+  - `L2SolverDecoupled --> L2DecoupledSolver`
+  - `TikhonovSolverDecoupled --> TikhonovDecoupledSolver`
+- Tikhonov solvers no longer have a default regularization value of zero.
+
+Before:
+
+```python
+>>> model = opinf.models.ContinuousModel("A")
+>>> solver = opinf.lstsq.L2Solver(regularizer=1e-2)
+>>> model.fit(states, ddts, inputs, solver=solver)
+```
+
+After:
+
+```python
+>>> solver = opinf.lstsq.L2Solver(regularizer=1e-2)
+>>> model = opinf.models.ContinuousModel("A", solver=solver)
+>>> model.fit(states, ddts, inputs)
+```
+
+## Version 0.5.4
+
 New `opinf.roms` submodule containing an `opinf.roms.ROM` class, also available in the main namespace as `opinf.ROM`.
 This class wraps a lifter, transformer, basis, time derivative estimator, model, and least-squares solver together for convenience.
 Rewrote the first tutorial to use `opinf.ROM`.
-:::
 
-:::{versionadded} 0.5.3
+## Version 0.5.3
+
 Expanded the `ddt` submodule (but no API changes to existing functions).
 
 - New backward, central, and forward difference schemes up to sixth order.
@@ -22,9 +54,9 @@ Expanded the `ddt` submodule (but no API changes to existing functions).
 The documentation was also updated to JupyterBook 1.0.0, a significant improvement to the look and feel.
 
 Tests are now managed with `tox`, the contributor instructions were updated.
-:::
 
-:::{versionchanged} 0.5.2
+## Version 0.5.2
+
 Significant updates to the `pre` and `basis` submodules.
 
 Updates to `pre`:
@@ -47,13 +79,12 @@ Updates to `basis`:
 - Renamed some attributes of the basis classes (matching transformer syntax): `n` -> `full_state_dimension`, `r` -> `reduced_state_dimension`, etc.
 
 Added a new Literature page to the documentation listing Operator Inference publications.
-:::
 
-:::{versionadded} 0.5.1
+## Version 0.5.1
+
 New `lift` module that defines a template class for implementing lifting transformations.
-:::
 
-:::{versionchanged} 0.5.0
+## Version 0.5.0
 
 - Overhauled the `operators` module so that each operator class is responsible for its portion of the Operator Inference data matrix.
   - New `StateInputOperator` for state-input bilinear interactions, $\Nhat[\u\otimes\qhat]$.
@@ -79,24 +110,21 @@ New `lift` module that defines a template class for implementing lifting transfo
   - `utils.kron3c_indices()` is now `CubicOperator.ckron_indices()`
   - `utils.compress_cubic()` is now `CubicOperator.compress_entries()`
   - `utils.expand_cubic()` is now `CubicOperator.expand_entries()`
-:::
 
-:::{versionchanged} 0.4.5
+## Version 0.4.5
 
 - Moved basis classes and dimensionality reduction tools to a new `basis` submodule.
 - Moved operator classes from `core.operators` to a new `operators` submodule.
 - Renamed the `core` submodule to `roms`.
 - Moved time derivative estimation tools to the `utils` module.
-:::
 
-:::{versionchanged} 0.4.4
+## Version 0.4.4
 
 - Fixed a bug in `SnapshotTransformer.load()` that treated the `centered_` attribute incorrectly.
 - Removed the `transformer` attribute from basis classes.
 - Renamed `encode()` to `compress()` and `decode()` to `decompress()`.
-:::
 
-:::{versionchanged} 0.4.2
+## Version 0.4.2
 
 - In the `fit()` method in ROM classes, replaced the `regularizer` argument with a `solver` keyword argument. The user should pass in an instantiation of a least-squares solver class from the `lstsq` submodule.
 - Hyperparameters for least-squares solver classes in the `lstsq` submodule are now passed to the constructor; `predict()` must not take any arguments.
@@ -121,8 +149,6 @@ After:
 # The L2 solver is also the default if a float is given:
 >>> rom.fit(basis, states, ddts, inputs, solver=1e-2)
 ```
-
-:::
 
 ## Versions 0.4.0 and 0.4.1
 

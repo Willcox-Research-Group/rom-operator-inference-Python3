@@ -202,7 +202,7 @@ class L2Solver(_BaseRegularizedSolver):
         LAPACK routine for computing the SVD. See ``scipy.linalg.svd()``.
     """
 
-    def __init__(self, regularizer: float = 0.0, lapack_driver="gesdd"):
+    def __init__(self, regularizer, lapack_driver="gesdd"):
         """Store the regularizer and initialize attributes."""
         _BaseRegularizedSolver.__init__(self)
         self.regularizer = regularizer
