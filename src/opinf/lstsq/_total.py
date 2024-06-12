@@ -55,10 +55,24 @@ class TotalLeastSquaresSolver(SolverTemplate):
             dict(full_matrices=False, lapack_driver=lapack_driver)
         )
 
+    # Properties --------------------------------------------------------------
     @property
     def options(self):
         """Keyword arguments for ``scipy.linalg.svd()``."""
         return self.__options
+
+    def __str__(self):
+        """String representation: dimensions + solver options."""
+        start = SolverTemplate.__str__(self)
+        if self.data_matrix is not None:
+            lines = start.split("\n")
+            lines.insert(
+                4,
+                f"    Augmented condition number: {self._augcond:.4e}",
+            )
+            start = "\n".join(lines)
+        kwargs = self._print_kwargs(self.options)
+        return start + f"\n  SVD solver: scipy.linalg.svd({kwargs})"
 
     # Main methods ------------------------------------------------------------
     def fit(self, data_matrix, lhs_matrix):

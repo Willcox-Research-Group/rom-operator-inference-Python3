@@ -137,9 +137,10 @@ class SolverTemplate(abc.ABC):
         """String representation: class name + dimensions."""
         out = [self.__class__.__name__]
         if (self.data_matrix is not None) and (self.lhs_matrix is not None):
-            out.append(f"  Data matrix: {self.data_matrix.shape}")
-            out.append(f"  LHS matrix: {self.lhs_matrix.shape}")
-            out.append(f"  Solver for {self.r, self.d} operator matrix")
+            out.append(f"  Data matrix:     {self.data_matrix.shape}")
+            out.append(f"    Condition number: {self.cond():.4e}")
+            out.append(f"  LHS matrix:      {self.lhs_matrix.shape}")
+            out.append(f"  Operator matrix: {self.r, self.d}")
         else:
             out[0] += " (not trained)"
         return "\n".join(out)
@@ -147,6 +148,11 @@ class SolverTemplate(abc.ABC):
     def __repr__(self) -> str:
         """Unique ID + string representation."""
         return utils.str2repr(self)
+
+    @staticmethod
+    def _print_kwargs(opts: dict) -> str:
+        """Utility for printing routine options in __str__()."""
+        return ", ".join([f"{key}={repr(val)}" for key, val in opts.items()])
 
     # Main methods -----------------------------------------------------------
     def fit(self, data_matrix, lhs_matrix):
@@ -397,6 +403,12 @@ class PlainSolver(SolverTemplate):
     def options(self):
         """Keyword arguments for ``scipy.linalg.lstsq()``."""
         return self.__options
+
+    def __str__(self):
+        """String representation: dimensions + solver options."""
+        start = SolverTemplate.__str__(self)
+        kwargs = self._print_kwargs(self.options)
+        return start + f"\n  solver: scipy.linalg.lstsq({kwargs})"
 
     # Main methods ------------------------------------------------------------
     def fit(self, data_matrix, lhs_matrix):

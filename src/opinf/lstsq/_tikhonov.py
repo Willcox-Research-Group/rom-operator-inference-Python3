@@ -232,6 +232,12 @@ class L2Solver(_BaseRegularizedSolver):
         """Keyword arguments for ``scipy.linalg.svd()``."""
         return self.__options
 
+    def __str__(self):
+        """String representation: dimensions + solver options."""
+        start = SolverTemplate.__str__(self)
+        kwargs = self._print_kwargs(self.options)
+        return start + f"\n  SVD solver: scipy.linalg.svd({kwargs})"
+
     # Main methods ------------------------------------------------------------
     def fit(self, data_matrix, lhs_matrix):
         r"""Verify dimensions and compute the singular value decomposition of
@@ -556,12 +562,20 @@ class TikhonovSolver(_BaseRegularizedSolver):
             dict(cond=cond, lapack_driver=lapack_driver)
         )
 
+    # Properties --------------------------------------------------------------
     @property
     def options(self):
         """Keyword arguments for ``scipy.linalg.lstsq()``."""
         return self.__options
 
-    # Properties --------------------------------------------------------------
+    def __str__(self):
+        """String representation: dimensions + solver options."""
+        s = SolverTemplate.__str__(self)
+        if self.method == "lstsq":
+            kwargs = self._print_kwargs(self.options)
+            return s + f"\n  solver ('lstsq'): scipy.linalg.lstsq({kwargs})"
+        return s + "\n  solver ('normal'): scipy.linalg.solve(assume_a='pos')"
+
     def _check_regularizer_shape(self):
         if (shape1 := self.regularizer.shape) != (shape2 := (self.d, self.d)):
             raise errors.DimensionalityError(
