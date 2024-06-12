@@ -119,14 +119,15 @@ class TestSolverTemplate:
         Z = np.empty((r, k))
         solver.fit(D, Z)
         strlines = str(solver).split("\n")
-        assert len(strlines) == 4
+        assert len(strlines) == 5
         assert strlines[0] == "Dummy"
-        assert strlines[1] == f"  Data matrix: ({k:d}, {d:d})"
-        assert strlines[2] == f"  LHS matrix: ({r:d}, {k:d})"
-        assert strlines[3] == f"  Solver for ({r:d}, {d:d}) operator matrix"
+        assert strlines[1] == f"  Data matrix:     ({k:d}, {d:d})"
+        assert strlines[2].startswith("    Condition number")
+        assert strlines[3] == f"  LHS matrix:      ({r:d}, {k:d})"
+        assert strlines[4] == f"  Operator matrix: ({r:d}, {d:d})"
 
         replines = repr(solver).split("\n")
-        assert len(replines) == 5
+        assert len(replines) == 6
         assert replines[1:] == strlines
 
     # Post-processing ---------------------------------------------------------
