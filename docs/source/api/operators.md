@@ -19,20 +19,20 @@ There are a few different types of operators:
 Reduced-order models based on Operator Inference are systems of [ordinary differential equations](opinf.models.ContinuousModel) (or [discrete-time difference equations](opinf.models.DiscreteModel)) that can be written as
 
 $$
-\begin{align*}
+\begin{aligned}
    \ddt\qhat(t)
    = \sum_{\ell=1}^{n_\textrm{terms}}
    \Ophat_{\ell}(\qhat(t),\u(t))
-\end{align*}
+\end{aligned}
 $$ (eq:operators:model)
 
 where each $\Ophat_{\ell}:\RR^{r}\times\RR^{m}\to\RR^{r}$ is a vector-valued function that is polynomial with respect to the reduced state $\qhat\in\RR^{n}$ and the input $\u\in\RR^{m}$.
 Such functions, which we refer to as *operators*, can be represented by a matrix-vector product
 
 $$
-\begin{align*}
+\begin{aligned}
     \Ophat_{\ell}(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)
-\end{align*}
+\end{aligned}
 $$
 
 for some data-dependent vector $\d_{\ell}:\RR^{r}\times\RR^{m}\to\RR^{d}$ and constant matrix $\Ohat_{\ell}\in\RR^{r\times d}$.
@@ -66,11 +66,11 @@ we use the following operator classes.
 An {class}`opinf.models.ContinuousModel` object can be instantiated with a list of operators objects to represent {eq}`eq:operators:ltiexample` as
 
 $$
-\begin{align*}
+\begin{aligned}
     \ddt\qhat(t)
     = \Ophat_{1}(\qhat(t),\u(t))
     + \Ophat_{2}(\qhat(t),\u(t)).
-\end{align*}
+\end{aligned}
 $$
 
 ```python
@@ -135,54 +135,54 @@ of the operator or its derivatives.
 Suppose we have state-input-derivative data triples $\{(\qhat_j,\u_j,\dot{\qhat}_j)\}_{j=0}^{k-1}$ that approximately satisfy the model {eq}`eq:operators:model`, i.e.,
 
 $$
-\begin{align*}
+\begin{aligned}
     \dot{\qhat}_j
     \approx \Ophat(\qhat_j, \u_j)
     = \sum_{\ell=1}^{n_\textrm{terms}} \Ophat_{\ell}(\qhat_j, \u_j)
     = \sum_{\ell=1}^{n_\textrm{terms}} \Ohat_{\ell}\d_{\ell}(\qhat_j, \u_j).
-\end{align*}
+\end{aligned}
 $$ (eq:operators:approx)
 
 Operator Inference determines the operator entries $\Ohat_1,\ldots,\Ohat_{n_\textrm{terms}}$ by minimizing the residual of {eq}`eq:operators:approx`:
 
 $$
-\begin{align*}
+\begin{aligned}
     \min_{\Ohat_1,\ldots,\Ohat_{n_\textrm{terms}}}\sum_{j=0}^{k-1}\left\|
         \sum_{\ell=1}^{n_\textrm{terms}}\Ohat_\ell\d_\ell(\qhat_j,\u_j) - \dot{\qhat}_j
     \right\|_2^2.
-\end{align*}
+\end{aligned}
 $$
 
 To facilitate this, nonparametric operator classes have a static `datablock()` method that, given the state-input data pairs $\{(\qhat_j,\u_j)\}_{j=0}^{k-1}$, forms the matrix
 
 $$
-\begin{align*}
+\begin{aligned}
     \D_{\ell}\trp = \left[\begin{array}{c|c|c|c}
         & & & \\
         \d_{\ell}(\qhat_0,\u_0) & \d_{\ell}(\qhat_1,\u_1) & \cdots & \d_{\ell}(\qhat_{k-1},\u_{k-1})
         \\ & & &
     \end{array}\right]
     \in \RR^{d \times k}.
-\end{align*}
+\end{aligned}
 $$
 
 Then {eq}`eq:operators:approx` can be written in the linear least-squares form
 
 $$
-\begin{align*}
+\begin{aligned}
     \min_{\Ohat_1,\ldots,\Ohat_{n_\textrm{terms}}}\sum_{j=0}^{k-1}\left\|
         \sum_{\ell=1}^{n_\textrm{terms}}\Ohat_\ell\d_\ell(\qhat_j,\u_j) - \dot{\qhat}_j
     \right\|_2^2
     = \min_{\Ohat}\left\|
         \D\Ohat\trp - [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\trp
     \right\|_F^2,
-\end{align*}
+\end{aligned}
 $$
 
 where the complete operator matrix $\Ohat$ and data matrix $\D$ are concatenations of the operator and data matrices from each operator:
 
 $$
-\begin{align*}
+\begin{aligned}
     \Ohat = \left[\begin{array}{ccc}
         & & \\
         \Ohat_1 & \cdots & \Ohat_{n_\textrm{terms}}
@@ -194,7 +194,7 @@ $$
         \D_1 & \cdots & \D_{n_\textrm{terms}}
         \\ & &
     \end{array}\right].
-\end{align*}
+\end{aligned}
 $$
 
 Model classes from {mod}`opinf.models` are instantiated with a list of operators.
@@ -206,14 +206,14 @@ The model's `fit()` method calls the `datablock()` method of each operator to as
 For the LTI system {eq}`eq:operators:ltiexample`, the operator inference problem is the following regression.
 
 $$
-\begin{align*}
+\begin{aligned}
     \min_{\Ahat,\Bhat}\sum_{j=0}^{k-1}\left\|
         \Ahat\qhat_j + \Bhat\u_j - \dot{\qhat}_j
     \right\|_2^2
     = \min_{\Ohat}\left\|
         \D\Ohat\trp - [~\dot{\qhat}_0~~\cdots~~\dot{\qhat}_{k-1}~]\trp
     \right\|_F^2,
-\end{align*}
+\end{aligned}
 $$
 
 with operator matrix $\Ohat=[~\Ahat~~\Bhat~]$
@@ -240,7 +240,7 @@ LTI_model = opinf.models.ContinuousModel(
 In this case, `LIT_model.fit()` only determines the entries of the {class}`LinearOperator` object using Operator Inference, with regression problem
 
 $$
-\begin{align*}
+\begin{aligned}
     &\min_{\Ahat,}\sum_{j=0}^{k-1}\left\|
         \Ahat\qhat_j - (\dot{\qhat}_j - \Bhat\u_j)
     \right\|_2^2
@@ -248,7 +248,7 @@ $$
     &= \min_{\Ohat}\left\|
         \Qhat\trp\Ahat\trp - [~(\dot{\qhat}_0 - \Bhat\u_0)~~\cdots~~(\dot{\qhat}_{k-1} - \Bhat\u_{k-1})~]\trp
     \right\|_F^2.
-\end{align*}
+\end{aligned}
 $$
 
 :::
@@ -265,9 +265,9 @@ Consider a full-order operator $\Op:\RR^{n}\times\RR^{m}\to\RR^{n}$, written $\O
 Given a *trial basis* $\Vr\in\RR^{n\times r}$ and a *test basis* $\Wr\in\RR^{n\times r}$, the corresponding intrusive projection of $\Op$ is the operator $\Ophat:\RR^{r}\times\RR^{m}\to\RR^{r}$ defined by
 
 $$
-\begin{align*}
-    \Ophat(\qhat, \u) = \Wr\trp\Op(\Vr\qhat, \u)
-\end{align*}
+\begin{aligned}
+    \Ophat(\qhat, \u) = (\Wr\trp\Vr)^{-1}\Wr\trp\Op(\Vr\qhat, \u)
+\end{aligned}
 $$
 
 where
@@ -276,24 +276,31 @@ where
 
 This approach uses the low-dimensional state approximation $\q = \Vr\qhat$.
 If $\Wr = \Vr$, the result is called a *Galerkin projection*.
-If $\Wr \neq \Vr$, it is called a *Petrov-Galerkin projection*.
+Note that if $\Vr$ has orthonormal columns, we have in this case the simplification
+
+$$
+    \Ophat(\qhat, \u) = \Vr\trp\Op(\Vr\qhat, \u).
+$$
+
+If $\Wr \neq \Vr$, the result is called a *Petrov-Galerkin projection*.
 
 :::{admonition} Example
 :class: tip
 
 Consider the bilinear operator
 $\Op(\q,\u) = \N[\u\otimes\q]$ where $\N\in\RR^{n \times nm}$.
-The intrusive Galerkin projection of $\Op$ is the bilinear operator
+The intrusive Petrov-Galerkin projection of $\Op$ is the bilinear operator
 
 $$
-\begin{align*}
+\begin{aligned}
     \Ophat(\qhat,\u)
-    = \Wr\trp\N[\u\otimes\Vr\qhat]
+    = (\Wr\trp\Vr)^{-1}\Wr\trp\N[\u\otimes\Vr\qhat]
     = \Nhat[\u\otimes\qhat]
-\end{align*}
+\end{aligned}
 $$
 
-where $\Nhat = \Wr\trp\N(\I_m\otimes\Vr) \in \RR^{r\times rm}$.
+where $\Nhat = (\Wr\trp\Vr)^{-1}\Wr\trp\N(\I_m\otimes\Vr) \in \RR^{r\times rm}$.
+The intrusive Galerkin projection has $\Nhat = \Vr\trp\N(\I_m\otimes\Vr)$.
 :::
 
 Every operator class has a `galerkin()` method that performs intrusive projection.
@@ -318,11 +325,11 @@ is a parametric operator with parameter-dependent entries $\Ohat_1(\bfmu) = \mu_
 These operators handle the parametric dependence on $\bfmu$ by using elementwise interpolation:
 
 $$
-\begin{align*}
+\begin{aligned}
     \Ohat_{\ell}(\bfmu)
     = \text{interpolate}(
     (\bfmu_{1},\Ohat_{\ell}^{(1)}),\ldots,(\bfmu_{s},\Ohat_{\ell}^{(s)}); \bfmu),
-\end{align*}
+\end{aligned}
 $$
 
 where $\bfmu_1,\ldots,\bfmu_s$ are training parameter values and $\Ohat_{\ell}^{(i)} = \Ohat_{\ell}(\bfmu_i)$ for $i=1,\ldots,s$.
@@ -345,10 +352,10 @@ where $\bfmu_1,\ldots,\bfmu_s$ are training parameter values and $\Ohat_{\ell}^{
 <!-- ### Affine Operators
 
 $$
-\begin{align*}
+\begin{aligned}
     \Ophat(\qhat,\u;\bfmu)
     = \sum_{\ell=1}^{n_{\theta}}\theta_{\ell}(\bfmu)\Ophat_{\ell}(\qhat,\u)
-\end{align*}
+\end{aligned}
 $$
 
 :::{admonition} TODO
