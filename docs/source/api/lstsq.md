@@ -2,9 +2,28 @@
 
 ```{eval-rst}
 .. automodule:: opinf.lstsq
+
+.. currentmodule:: opinf.lstsq
+
+.. autosummary::
+   :toctree: _autosummaries
+   :nosignatures:
+
+   lstsq_size
+   SolverTemplate
+   PlainSolver
+   L2Solver
+   L2DecoupledSolver
+   TikhonovSolver
+   TikhonovDecoupledSolver
+   TotalLeastSquaresSolver
 ```
 
-<!-- The following [least-squares regression problem](subsec-opinf-regression) is at the heart of Operator Inference:
+EXAMPLE DATA
+
+## Least-squares Operator Inference Problems
+
+The following [least-squares regression problem](subsec-opinf-regression) is at the heart of Operator Inference:
 
 $$
 \min_{\chat,\Ahat,\Hhat,\Bhat}\sum_{j=0}^{k-1}\left\|
@@ -16,50 +35,49 @@ $$
 \right\|_{2}^{2}
 \\
 = \min_{\Ohat}\left\|
-    \D\Ohat\trp - \mathbf{R}\trp
+    \D\Ohat\trp - \Z\trp
 \right\|_{F}^{2},
 $$
 
 where
+
 - $\qhat_{j} = \Vr\trp\q(t_{j})$ is the state at time $t_{j}$ represented in the coordinates of the basis,
 - $\dot{\qhat}_{j} = \ddt\Vr\trp\q\big|_{t=t_{j}}$ is the time derivative of the state at time $t_{j}$ in the coordinates of the basis,
 - $\u_{j} = \u(t_j)$ is the input at time $t_{j}$,
-- $\D$ is the _data matrix_ containing low-dimensional state data,
-- $\Ohat$ is the _operator matrix_ of unknown operators to be inferred, and
-- $\mathbf{R}$ is the matrix of low-dimensional time derivative data.
+- $\D$ is the *data matrix* containing low-dimensional state data,
+- $\Ohat$ is the *operator matrix* of unknown operators to be inferred, and
+- $\Z$ is the matrix of low-dimensional time derivative data.
 
-We often need to add a _regularization term_ $\mathcal{R}(\Ohat)$ that penalizes the entries of the learned operators.
+This module defines classes for solving the above problem, or related problems with regularization and/or constraints, given the data matrices $\D$ and $\Z$.
+
+Solver objects are passed to the constructor of {mod}`opinf.models` classes.
+
+## Default Solver
+
+The {class}`PlainSolver` class solves EQREF without any additional terms.
+
+We often need to add a *regularization term* $\mathcal{R}(\Ohat)$ that penalizes the entries of the learned operators.
 This promotes stability and accuracy in the learned reduced-order model by preventing overfitting.
 The problem stated above then becomes
 
 $$
-\min_{\Ohat}\left\|
-    \D\Ohat\trp - \mathbf{R}\trp
-\right\|_{F}^{2} + \mathcal{R}(\Ohat),
+\begin{aligned}
+    \min_{\Ohat}\left\|
+        \D\Ohat\trp - \mathbf{R}\trp
+    \right\|_{F}^{2} + \mathcal{R}(\Ohat),
+\end{aligned}
 $$
 
 The form of the regularization $\mathcal{R}$ and the numerical method for solving the corresponding least-squares regression are specified by _solver_ objects in `opinf.lstsq`.
 For example, `opinf.lstsq.L2Solver` implements the $L_{2}$ scalar regularizer
 
 $$
-\mathcal{R}(\Ohat)
-= \lambda \|\Ohat\trp\|_{F}^{2},
-\qquad \lambda > 0.
+\begin{aligned}
+    \mathcal{R}(\Ohat)
+    = \lambda \|\Ohat\trp\|_{F}^{2},
+    \qquad \lambda > 0.
+\end{aligned}
 $$
-
-Least-squares solver objects are passed to `fit()` using the `solver` keyword argument.
-If `fit()` does not receive a `solver` object, no regularization is added ($\mathcal{R}(\Ohat) = \mathbf{0}$) and the regression is solved using [`scipy.linalg.lstsq()`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html).
-
-:::{eval-rst}
-.. currentmodule:: opinf.lstsq
-
-.. autosummary::
-    :toctree: _autosummaries
-    :nosignatures:
-
-    lstsq_size
-    PlainSolver
-:::
 
 ## Tikhonov Regularization
 
@@ -86,17 +104,12 @@ $$
 Pass a positive scalar ($\lambda$) as the `regularizer` argument in `fit()` to use this regularization.
 :::
 
-:::{eval-rst}
-.. currentmodule:: opinf.lstsq
+## Total Least-Squares
+
+If you want to use the total least-squares solver use the following class.
 
 .. autosummary::
     :toctree: _autosummaries
     :nosignatures:
 
-    L2Solver
-    L2DecoupledSolver
-    TikhonovSolver
-    TikhonovDecoupledSolver
     TotalLeastSquaresSolver
-:::
--->
