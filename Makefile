@@ -58,8 +58,9 @@ all: test docs
 
 
 # Deployment (ADMINISTRATORS ONLY) --------------------------------------------
-deploy_package: test
+deploy_package:
 	git checkout main
+	$(TOX)
 	$(PIP) --upgrade build
 	$(PIP) --upgrade twine
 	$(REMOVE) dist/
@@ -68,7 +69,8 @@ deploy_package: test
 	$(PYTHON) -m twine upload dist/*
 
 
-deploy_docs: docs  # clean_docs
-	$(PYTHON) -m pip install --upgrade ghp-import
+deploy_docs: # clean_docs
 	git checkout main
+	$(TOX) -e literature,docs
+	$(PYTHON) -m pip install --upgrade ghp-import
 	ghp-import --remote upstream --no-jekyll --push --force --no-history docs/_build/html
