@@ -895,7 +895,7 @@ class _ParametricContinuousMixin:
 
     def predict(self, parameter, state0, t, input_func=None, **options):
         r"""Solve the system of ordinary differential equations.
-        This method wraps ``scipy.integrate.solve_ivp()``.
+        This method wraps :func:`scipy.integrate.solve_ivp()`.
 
         Parameters
         ----------
@@ -910,8 +910,7 @@ class _ParametricContinuousMixin:
             times ``t``. If given as an array, cubic spline interpolation on
             the known data points is used as needed.
         options
-            Arguments for ``scipy.integrate.solve_ivp()``,
-            See https://docs.scipy.org/doc/scipy/reference/integrate.html.
+            Arguments for :func:`scipy.integrate.solve_ivp()`.
             Common options:
 
             * **method : str** ODE solver for the model.
@@ -1017,10 +1016,10 @@ class _InterpolatedModel(_ParametricModel):
            >>> interpolator = InterpolatorClass(data_points, data_values)
            >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
     """
 
     @property
@@ -1051,10 +1050,10 @@ class _InterpolatedModel(_ParametricModel):
                >>> interpolator = InterpolatorClass(data_points, data_values)
                >>> interpolator_evaluation = interpolator(new_data_point)
 
-            This can be, e.g., a class from ``scipy.interpolate``.
-            If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+            This can be, e.g., a class from :mod:`scipy.interpolate`.
+            If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
             for one-dimensional parameters and
-            ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+            :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         """
         # Check for consistency in the models.
         opclasses = [type(op) for op in models[0].operators]
@@ -1104,10 +1103,10 @@ class _InterpolatedModel(_ParametricModel):
                 >>> interpolator = InterpolatorClass(data_points, data_values)
                 >>> interpolator_evaluation = interpolator(new_data_point)
 
-            This can be, e.g., a class from ``scipy.interpolate``.
-            If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+            This can be, e.g., a class from :mod:`scipy.interpolate`.
+            If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
             for one-dimensional parameters and
-            ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+            :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         """
         if InterpolatorClass is not None:
             for op in self.operators:
@@ -1271,7 +1270,7 @@ class _InterpolatedModel(_ParametricModel):
                >>> interpolator_evaluation = interpolator(new_data_point)
 
             Not required if the saved operator utilizes a class from
-            ``scipy.interpolate``.
+            :mod:`scipy.interpolate`.
 
         Returns
         -------
@@ -1363,10 +1362,10 @@ class InterpolatedDiscreteModel(_ParametricDiscreteMixin, _InterpolatedModel):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
     """
 
     pass
@@ -1399,10 +1398,10 @@ class InterpolatedContinuousModel(
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
     """
 
     pass

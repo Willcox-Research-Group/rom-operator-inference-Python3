@@ -104,8 +104,8 @@ class PODBasis(LinearBasis):
 
         **Options:**
 
-        * ``"dense"`` (default): Use ``scipy.linalg.svd()`` to compute the SVD.
-          May be inefficient for very large state matrices.
+        * ``"dense"`` (default): Use :func:`scipy.linalg.svd()` to
+          compute the SVD. May be inefficient for very large state matrices.
         * ``"randomized"``: Compute an approximate SVD with a randomized
           approach via ``sklearn.utils.extmath.randomized_svd()``.
           May be more efficient but less accurate for very large state
@@ -114,7 +114,7 @@ class PODBasis(LinearBasis):
           only ``max_vectors`` singular *values* are computed as well, meaning
           the cumulative and residual energies cannot be computed exactly.
         * callable: If this argument is a callable function, use it for the
-          SVD computation. The signature must match ``scipy.linalg.svd()``,
+          SVD computation. The signature must match :func:`scipy.linalg.svd()`,
           i.e., ``U, s, Vh = svdsolver(states, **svdsolver_options)``
     weights : (n, n) ndarray or (n,) ndarray None
         Weight matrix :math:`\W` or its diagonals.

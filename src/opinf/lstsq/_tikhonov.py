@@ -199,7 +199,7 @@ class L2Solver(_BaseRegularizedSolver):
     regularizer : float
         Scalar :math:`L_2` regularization constant.
     lapack_driver : str
-        LAPACK routine for computing the SVD. See ``scipy.linalg.svd()``.
+        LAPACK routine for computing the SVD. See :func:`scipy.linalg.svd()`.
     """
 
     def __init__(self, regularizer, lapack_driver: str = "gesdd"):
@@ -229,7 +229,7 @@ class L2Solver(_BaseRegularizedSolver):
 
     @property
     def options(self):
-        """Keyword arguments for ``scipy.linalg.svd()``."""
+        """Keyword arguments for :func:`scipy.linalg.svd()`."""
         return self.__options
 
     def __str__(self):
@@ -402,7 +402,7 @@ class L2DecoupledSolver(L2Solver):
         Scalar :math:`L_2` regularization constants, one for each row
         of the operator matrix.
     lapack_driver : str
-        LAPACK routine for computing the SVD. See ``scipy.linalg.svd()``.
+        LAPACK routine for computing the SVD. See :func:`scipy.linalg.svd()`.
     """
 
     # Properties --------------------------------------------------------------
@@ -533,18 +533,18 @@ class TikhonovSolver(_BaseRegularizedSolver):
         **Options**:
 
         * ``"lstsq"``: solve the stacked least-squares problem via
-          ``scipy.linalg.lstsq()``; by default, this computes and uses the
+          :func:`scipy.linalg.lstsq()`; by default, this computes and uses the
           singular value decomposition of the stacked data matrix
           :math:`[~D\trp~~\bfGamma\trp~]\trp`.
         * ``"normal"``: directly solve the normal equations
           :math:`(\D\trp\D + \bfGamma\trp\bfGamma) \Ohat\trp = \D\trp\Z\trp`
-          via ``scipy.linalg.solve()``.
+          via :func:`scipy.linalg.solve()`.
     cond : float or None
         Cutoff for 'small' singular values of the data matrix,
-        see ``scipy.linalg.lstsq()``. Ignored if ``method = "normal"``.
+        see :func:`scipy.linalg.lstsq()`. Ignored if ``method = "normal"``.
     lapack_driver : str or None
         Which LAPACK driver is used to solve the least-squares problem,
-        see ``scipy.linalg.lstsq()``. Ignored if ``method = "normal"``.
+        see :func:`scipy.linalg.lstsq()`. Ignored if ``method = "normal"``.
     """
 
     def __init__(
@@ -565,7 +565,7 @@ class TikhonovSolver(_BaseRegularizedSolver):
     # Properties --------------------------------------------------------------
     @property
     def options(self):
-        """Keyword arguments for ``scipy.linalg.lstsq()``."""
+        """Keyword arguments for :func:`scipy.linalg.lstsq()`."""
         return self.__options
 
     def __str__(self):
@@ -800,18 +800,18 @@ class TikhonovDecoupledSolver(TikhonovSolver):
         **Options**:
 
         * ``"lstsq"``: solve the stacked least-squares problem via
-          ``scipy.linalg.lstsq()``; by default, this computes and uses the
+          :func:`scipy.linalg.lstsq()`; by default, this computes and uses the
           singular value decomposition of the stacked data matrix
           :math:`[~D\trp~~\bfGamma\trp~]\trp`.
         * ``"normal"``: directly solve the normal equations
           :math:`(\D\trp\D + \bfGamma\trp\bfGamma) \Ohat\trp = \D\trp\Z\trp`
-          via ``scipy.linalg.solve()``.
+          via :func:`scipy.linalg.solve()`.
     cond : float or None
         Cutoff for 'small' singular values of the data matrix,
-        see ``scipy.linalg.lstsq()``. Ignored if ``method = "normal"``.
+        see :func:`scipy.linalg.lstsq()`. Ignored if ``method = "normal"``.
     lapack_driver : str or None
         Which LAPACK driver is used to solve the least-squares problem,
-        see ``scipy.linalg.lstsq()``. Ignored if ``method = "normal"``.
+        see :func:`scipy.linalg.lstsq()`. Ignored if ``method = "normal"``.
     """
 
     # Properties --------------------------------------------------------------

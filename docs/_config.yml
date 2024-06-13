@@ -51,11 +51,10 @@ sphinx:
     autosummary_generate: true          # Turn on sphinx.ext.autosummary.
     bibtex_reference_style: label
     # bibtex_default_style: plain       # Citations as numbers.
-    # intersphinx_mapping: {
-    #   "python": ("https://docs.python.org/3", None),
-    #   "numpy": ("https://numpy.org/devdocs", None),
-    #   "matplotlib": ("https://matplotlib.org/stable", None),
-    # }
+    intersphinx_mapping:
+      scipy:
+        - "https://docs.scipy.org/doc/scipy/"
+        - null
     mathjax3_config:
       tex:
         macros:
@@ -125,6 +124,7 @@ sphinx:
     - sphinx_design
     - sphinx.ext.autodoc
     - sphinx.ext.autosummary
+    - sphinx.ext.intersphinx
     - sphinx.ext.napoleon
     - sphinx.ext.viewcode
     - sphinxcontrib.mermaid

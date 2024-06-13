@@ -380,16 +380,16 @@ class PlainSolver(SolverTemplate):
     .. math::
         \argmin_{\Ohat} \|\D\Ohat\trp - \Z\trp\|_F^2.
 
-    The solution is calculated using ``scipy.linalg.lstsq()``.
+    The solution is calculated using :func:`scipy.linalg.lstsq()`.
 
     Parameters
     ----------
     cond : float or None
         Cutoff for 'small' singular values of the data matrix.
-        See ``scipy.linalg.lstsq()``.
+        See :func:`scipy.linalg.lstsq()`.
     lapack_driver : str or None
         Which LAPACK driver is used to solve the least-squares problem.
-        See ``scipy.linalg.lstsq()``.
+        See :func:`scipy.linalg.lstsq()`.
     """
 
     def __init__(self, cond=None, lapack_driver=None):
@@ -401,7 +401,7 @@ class PlainSolver(SolverTemplate):
 
     @property
     def options(self):
-        """Keyword arguments for ``scipy.linalg.lstsq()``."""
+        """Keyword arguments for :func:`scipy.linalg.lstsq()`."""
         return self.__options
 
     def __str__(self):
@@ -433,7 +433,7 @@ class PlainSolver(SolverTemplate):
 
     def predict(self):
         r"""Solve the Operator Inference regression via
-        ``scipy.linalg.lstsq()``.
+        :func:`scipy.linalg.lstsq()`.
 
         Returns
         -------

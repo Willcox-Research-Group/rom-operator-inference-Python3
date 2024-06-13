@@ -74,10 +74,10 @@ class _InterpolatedOperator(_ParametricOperator):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         If not provided in the constructor, use :meth:`set_interpolator` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -278,7 +278,7 @@ class _InterpolatedOperator(_ParametricOperator):
                >>> interpolator = InterpolatorClass(data_points, data_values)
                >>> interpolator_evaluation = interpolator(new_data_point)
 
-            This can be, e.g., a class from ``scipy.interpolate``.
+            This can be, e.g., a class from :mod:`scipy.interpolate`.
         """
         if self.entries is not None:
             # Default interpolator classes.
@@ -531,7 +531,7 @@ class _InterpolatedOperator(_ParametricOperator):
                >>> interpolator_evaluation = interpolator(new_data_point)
 
             Not required if the saved operator utilizes a class from
-            ``scipy.interpolate``.
+            :mod:`scipy.interpolate`.
 
         Returns
         -------
@@ -614,10 +614,10 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         If not provided in the constructor, use :meth:`set_interpolator` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -662,10 +662,10 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         If not provided in the constructor, use :meth:`set_interpolator` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -710,10 +710,10 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         If not provided in the constructor, use :meth:`set_interpolator` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -759,10 +759,10 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         If not provided in the constructor, use :meth:`set_interpolator` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -808,10 +808,10 @@ class InterpolatedInputOperator(_InterpolatedOperator, _InputMixin):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         If not provided in the constructor, use :meth:`set_interpolator` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -861,10 +861,10 @@ class InterpolatedStateInputOperator(_InterpolatedOperator, _InputMixin):
             >>> interpolator = InterpolatorClass(data_points, data_values)
             >>> interpolator_evaluation = interpolator(new_data_point)
 
-        This can be, e.g., a class from ``scipy.interpolate``.
-        If ``None`` (default), use ``scipy.interpolate.CubicSpline``
+        This can be, e.g., a class from :mod:`scipy.interpolate`.
+        If ``None`` (default), use :class:`scipy.interpolate.CubicSpline`
         for one-dimensional parameters and
-        ``scipy.interpolate.LinearNDInterpolator`` otherwise.
+        :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         If not provided in the constructor, use :meth:`set_interpolator` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
