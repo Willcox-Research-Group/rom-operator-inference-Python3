@@ -10,13 +10,16 @@
    {% block properties %}
    {% if attributes %}
 
-   **Properties**
+   .. raw:: html
 
-   .. autosummary::
+      <div style="background-color: #f4f4f4; padding: 0px; margin-bottom: 0px; margin-top: 2em">
+         <strong>Properties:</strong>
+      </div>
+
    {% for item in all_attributes %}
-      {%- if not item.startswith('_') %}
-      ~{{ name }}.{{ item }}
-      {%- endif -%}
+   {%- if not item.startswith('_') %}
+   .. autoattribute:: {{ name }}.{{ item }}
+   {%- endif -%}
    {%- endfor %}
    {% endif %}
    {% endblock %}
@@ -24,7 +27,11 @@
    {% block methods %}
    {% if methods %}
 
-   **Methods**
+   .. raw:: html
+
+      <div style="background-color: #f4f4f4; padding: 0px; margin-bottom: 0px; margin-top: 2em">
+         <strong>Methods:</strong>
+      </div>
 
    .. autosummary::
       :toctree:

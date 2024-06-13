@@ -14,12 +14,13 @@ repository:
 
 # GitHub buttons and other web options.
 html:
+  extra_css: ["_static/properties.css"]
+  favicon: images/favicon.svg
   home_page_in_navbar: false
   use_edit_page_button: false
   use_issues_button: true
   use_multitoc_numbering: false
   use_repository_button: true
-  favicon: images/favicon.svg
 
 # Notebooks execution configuration for build.
 # See https://jupyterbook.org/content/execute.html
