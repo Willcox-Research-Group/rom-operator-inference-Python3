@@ -87,7 +87,7 @@ It will help prevent automated tests from failing when a pull request is made.
 The source repository has three special branches:
 
 - `main` is the most up-to-date version of the code. Tags on the `main` branch correspond to [public PyPi releases](https://pypi.org/project/opinf/).
-- `gh-pages` contains only the current build files for this documentation. _This branch is updated by maintainers only._
+- `gh-pages` contains only the current build files for this documentation. *This branch is updated by maintainers only.*
 - `data` contains only data files used in documentation demos.
 
 To contribute, get synced with the `main` branch, then start a new branch for making active changes.
