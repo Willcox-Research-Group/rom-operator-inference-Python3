@@ -382,7 +382,7 @@ class PODBasis(LinearBasis):
             warnings.warn(
                 "received multiple dimension selection criteria, using "
                 f"{firstarg[0]}={firstarg[1]}",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
             self.__criterion = firstarg
             return
@@ -418,7 +418,7 @@ class PODBasis(LinearBasis):
             warnings.warn(
                 "selected reduced dimension exceeds number of stored vectors, "
                 f"setting reduced_state_dimension = max_vectors = {k:d}",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
             r = self.max_vectors
         BasisTemplate.reduced_state_dimension.fset(self, r)
@@ -455,7 +455,7 @@ class PODBasis(LinearBasis):
                 warnings.warn(
                     "cumulative energy is being estimated from only "
                     f"{nsvdvals:d} singular values",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
         elif criterion == "residual_energy":
             r = np.count_nonzero(1 - energy >= value) + 1
@@ -463,7 +463,7 @@ class PODBasis(LinearBasis):
                 warnings.warn(
                     "residual energy is being estimated from only "
                     f"{nsvdvals:d} singular values",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
         elif criterion == "projection_error":
             r = np.count_nonzero(np.sqrt(1 - energy) >= value) + 1
@@ -471,7 +471,7 @@ class PODBasis(LinearBasis):
                 warnings.warn(
                     "projection error is being estimated from only "
                     f"{nsvdvals:d} singular values",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
 
         self.reduced_state_dimension = r
@@ -555,7 +555,7 @@ class PODBasis(LinearBasis):
                 f"only {rmax:d} singular vectors can be extracted "
                 f"from ({states.shape[0]:d} x {states.shape[1]:d}) snapshots, "
                 f"setting max_vectors={rmax:d}",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
             keep = rmax
 

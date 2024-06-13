@@ -3,7 +3,6 @@
 
 import os
 
-# import h5py
 import pytest
 import numpy as np
 import scipy.interpolate as interp
@@ -147,7 +146,7 @@ class TestParametricModel:
         """Test _ParametricModel.operators.fset()."""
         operators = [DummyNonparametricOperator()]
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Dummy(operators)
         assert wn[0].message.args[0] == (
             "no parametric operators detected, "
@@ -156,7 +155,7 @@ class TestParametricModel:
 
         operators = [DummyInterpolatedOperator()]
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Dummy(operators)
         assert wn[0].message.args[0] == (
             "all operators interpolatory, "
@@ -237,24 +236,13 @@ class TestParametricModel:
 
     def test_process_fit_arguments(self, s=5, p=2, m=4, r=3, k=10):
         """Test _ParametricModel._process_fit_arguments()."""
-        # Intrusive case.
-        op = DummyParametricOperator(np.random.random((3, 3)))
-        model = self.Dummy([op])
-
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
-            out = model._process_fit_arguments(None, None, None, None)
-        assert wn[0].message.args[0] == (
-            "all operators initialized intrusively, nothing to learn"
-        )
-        assert len(out) == 5
-        assert all(x is None for x in out)
-
-        # Inconsistent number of training sets.
-        op.entries = None
+        op = DummyParametricOperator()
         model = self.Dummy([op])
         params = np.empty((s, p))
         states = [np.empty((r, k)) for _ in range(s)]
         lhs = [np.empty((r, k)) for _ in range(s)]
+
+        # Inconsistent number of parameter values.
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(params, states[1:], None, None)
         assert ex.value.args[0] == (
@@ -436,9 +424,9 @@ class TestInterpolatedModel:
         model = self.Dummy(operators)
         model._fit_solver(params, states, lhs)
 
-        assert hasattr(model, "solvers_")
-        assert len(model.solvers_) == s
-        for solver in model.solvers_:
+        assert hasattr(model, "solvers")
+        assert len(model.solvers) == s
+        for solver in model.solvers:
             assert isinstance(solver, opinf.lstsq.PlainSolver)
 
         assert hasattr(model, "_submodels")
@@ -453,8 +441,8 @@ class TestInterpolatedModel:
         assert isinstance(model._training_parameters, np.ndarray)
         assert np.all(model._training_parameters == params)
 
-    def test_evaluate_solver(self, s=10, r=3, k=15):
-        """Test _InterpolatedModel._evaluate_solver()."""
+    def test_refit(self, s=10, r=3, k=15):
+        """Test _InterpolatedModel.refit()."""
         operators = [
             opinf.operators.InterpolatedConstantOperator(),
             opinf.operators.InterpolatedLinearOperator(),
@@ -466,13 +454,11 @@ class TestInterpolatedModel:
         model = self.Dummy(operators)
 
         with pytest.raises(RuntimeError) as ex:
-            model._evaluate_solver()
-        assert ex.value.args[0] == (
-            "model solvers not set, call _fit_solver() first"
-        )
+            model.refit()
+        assert ex.value.args[0] == "model solvers not set, call fit() first"
 
         model._fit_solver(params, states, lhs)
-        model._evaluate_solver()
+        model.refit()
 
         assert hasattr(model, "_submodels")
         assert len(model._submodels) == s
@@ -502,7 +488,7 @@ class TestInterpolatedModel:
 
         model.set_interpolator(float)
         os.remove(target)
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             model.save(target, overwrite=True)
         assert len(wn) == 1
         assert wn[0].message.args[0] == (
@@ -524,7 +510,7 @@ class TestInterpolatedModel:
         ]
         model = self.Dummy(operators, InterpolatorClass=float)
 
-        with pytest.warns(opinf.errors.UsageWarning):
+        with pytest.warns(opinf.errors.OpInfWarning):
             model.save(target)
 
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
@@ -540,7 +526,7 @@ class TestInterpolatedModel:
         )
         model1.save(target, overwrite=True)
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             model2 = self.Dummy.load(target, float)
         assert wn[0].message.args[0] == (
             "InterpolatorClass=float does not match loadfile "
@@ -608,11 +594,11 @@ class TestInterpolatedDiscreteModel:
         inputs = np.random.random((s, m, k))
 
         model = self.ModelClass("A")
-        out = model.fit(params, states, regularizer=1)
+        out = model.fit(params, states)
         assert out is model
 
         model = self.ModelClass("AB")
-        out = model.fit(params, states, nextstates, inputs, solver=1)
+        out = model.fit(params, states, nextstates, inputs)
         assert out is model
 
     def test_rhs(self, s=10, r=3, m=2):
@@ -702,11 +688,11 @@ class TestInterpolatedContinuousModel:
         inputs = np.random.random((s, m, k))
 
         model = self.ModelClass("A")
-        out = model.fit(params, states, ddts, regularizer=1)
+        out = model.fit(params, states, ddts)
         assert out is model
 
         model = self.ModelClass("AB")
-        out = model.fit(params, states, ddts, inputs, solver=1)
+        out = model.fit(params, states, ddts, inputs)
         assert out is model
 
     def test_rhs(self, s=10, r=3, m=2):

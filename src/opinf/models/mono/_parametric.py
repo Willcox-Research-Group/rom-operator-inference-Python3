@@ -8,7 +8,6 @@ __all__ = [
     "InterpolatedContinuousModel",
 ]
 
-import copy
 import warnings
 import numpy as np
 import scipy.interpolate as spinterpolate
@@ -124,7 +123,7 @@ class _ParametricModel(_Model):
             warnings.warn(
                 "no parametric operators detected, "
                 "consider using a nonparametric model class",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
 
         # Check that not every operator is interpolated.
@@ -138,7 +137,7 @@ class _ParametricModel(_Model):
                 warnings.warn(
                     "all operators interpolatory, "
                     "consider using an InterpolatedModel class",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
         self.__p = self._check_parameter_dimension_consistency(self.operators)
 
@@ -204,14 +203,7 @@ class _ParametricModel(_Model):
             raise ValueError("parameter values must be scalars or 1D arrays")
 
     # Fitting -----------------------------------------------------------------
-    def _process_fit_arguments(
-        self,
-        parameters,
-        states,
-        lhs,
-        inputs,
-        solver=None,
-    ):
+    def _process_fit_arguments(self, parameters, states, lhs, inputs):
         """Prepare training data for Operator Inference by extracting
         dimensions, validating data sizes, and modifying the left-hand side
         data if there are any known operators.
@@ -223,12 +215,9 @@ class _ParametricModel(_Model):
         if len(self._indices_of_operators_to_infer) == 0:
             warnings.warn(
                 "all operators initialized intrusively, nothing to learn",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
-            return None, None, None, None, None
-
-        # Validate / process solver.
-        solver = self._check_solver(solver)
+            return None, None, None, None
 
         # Process parameters.
         parameters = np.array(parameters)
@@ -296,13 +285,13 @@ class _ParametricModel(_Model):
                     parameters[i], states[i], inputs[i]
                 )
 
-        return parameters, states, lhs, inputs, solver
+        return parameters, states, lhs, inputs
 
-    def _assemble_data_matrix(self, states, inputs):
+    def _assemble_data_matrix(self, parameters, states, inputs):
         """Assemble the data matrix for operator inference."""
         raise NotImplementedError("future release")
 
-    def _fit_solver(self, parameters, states, lhs, inputs=None, solver=None):
+    def _fit_solver(self, parameters, states, lhs, inputs=None):
         """Construct a solver for the operator inference least-squares
         regression."""
         (
@@ -310,35 +299,40 @@ class _ParametricModel(_Model):
             states_,
             lhs_,
             inputs_,
-            solver_,
-        ) = self._process_fit_arguments(
-            parameters, states, lhs, inputs, solver=solver
-        )
-
-        # Fully intrusive case (nothing to learn).
-        if states_ is lhs_ is None:
-            self.solver_ = None
-            return
+        ) = self._process_fit_arguments(parameters, states, lhs, inputs)
 
         # Set up non-intrusive learning.
-        D = self._assemble_data_matrix(states_, inputs_)
-        self.solver_ = solver_.fit(D, np.hstack(lhs_).T)
+        D = self._assemble_data_matrix(parameters_, states_, inputs_)
+        self.solver.fit(D, np.hstack(lhs_).T)
 
     def _extract_operators(self, Ohat):
         """Unpack the operator matrix and populate operator entries."""
         raise NotImplementedError("future release")
 
-    def _evaluate_solver(self):
-        """Evaluate the least-squares solver and process the results."""
+    def refit(self):
+        """Solve the Operator Inference regression using the data from the
+        last :meth:`fit()` call, then extract the inferred operators.
+
+        This method is useful for calibrating the model operators with
+        different ``solver`` hyperparameters without reprocessing any training
+        data. For example, if ``solver`` is an :class:`opinf.lstsq.L2Solver`,
+        changing its ``regularizer`` attribute and calling this method solves
+        the regression with the new regression value without re-factorizing the
+        data matrix.
+        """
         # Fully intrusive case (nothing to learn).
-        if self.solver_ is None:
-            return
+        if self._fully_intrusive:
+            warnings.warn(
+                "all operators initialized explicitly, nothing to learn",
+                UserWarning,
+            )
+            return self
 
         # Execute non-intrusive learning.
-        OhatT = self.solver_.predict()
+        OhatT = self.solver.predict()
         self._extract_operators(np.atleast_2d(OhatT.T))
 
-    def fit(self, parameters, states, lhs, inputs=None, solver=None):
+    def fit(self, parameters, states, lhs, inputs=None):
         r"""Learn the model operators from data.
 
         The operators are inferred by solving the regression problem
@@ -367,7 +361,8 @@ class _ParametricModel(_Model):
         See the :mod:`opinf.operators` module for more explanation.
 
         The strategy for solving the regression, as well as any additional
-        regularization or constraints, are specified by the ``solver``.
+        regularization or constraints, are specified by the ``solver`` in
+        the constructor.
 
         Parameters
         ----------
@@ -390,20 +385,20 @@ class _ParametricModel(_Model):
             corresponding to parameter value ``parameters[i]``; each column
             ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
             May be a two-dimensional array if `m=1` (scalar input).
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization.
-            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization.
 
         Returns
         -------
         self
         """
-        self._fit_solver(parameters, states, lhs, inputs, solver=solver)
-        self._evaluate_solver()
+        if self._fully_intrusive:
+            warnings.warn(
+                "all operators initialized explicitly, nothing to learn",
+                errors.OpInfWarning,
+            )
+            return self
+
+        self._fit_solver(parameters, states, lhs, inputs)
+        self.refit()
         return self
 
     # Parametric evaluation ---------------------------------------------------
@@ -523,16 +518,7 @@ class _ParametricDiscreteMixin:
 
     _ModelClass = _FrozenDiscreteModel
 
-    def fit(
-        self,
-        parameters,
-        states,
-        nextstates=None,
-        inputs=None,
-        solver=None,
-        *,
-        regularizer: float = None,
-    ):
+    def fit(self, parameters, states, nextstates=None, inputs=None):
         r"""Learn the model operators from data.
 
         The operators are inferred by solving the regression problem
@@ -584,7 +570,8 @@ class _ParametricDiscreteMixin:
            (\bfmu_1, \Ohat^{(i)}), \ldots, (\bfmu_s, \Ohat^{(s)}); \bfmu).
 
         The strategy for solving the regression, as well as any additional
-        regularization or constraints, are specified by the ``solver``.
+        regularization or constraints, are specified by the ``solver`` in
+        the constructor.
 
         Parameters
         ----------
@@ -605,13 +592,6 @@ class _ParametricDiscreteMixin:
             corresponding to parameter value ``parameters[i]``; each column
             ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
             May be a two-dimensional array if `m=1` (scalar input).
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization.
-            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization.
 
         Returns
         -------
@@ -622,9 +602,7 @@ class _ParametricDiscreteMixin:
             states = [Q[:, :-1] for Q in states]
         if inputs is not None:
             inputs = [U[..., : Q.shape[1]] for U, Q in zip(inputs, states)]
-        if solver is None and regularizer is not None:
-            solver = regularizer  # pragma: no cover
-        return super().fit(parameters, states, nextstates, inputs, solver)
+        return super().fit(parameters, states, nextstates, inputs)
 
     def rhs(self, parameter, state, input_=None):
         r"""Evaluate the right-hand side of the model by applying each operator
@@ -747,16 +725,7 @@ class _ParametricContinuousMixin:
 
     _ModelClass = _FrozenContinuousModel
 
-    def fit(
-        self,
-        parameters,
-        states,
-        ddts,
-        inputs=None,
-        solver=None,
-        *,
-        regularizer: float = None,
-    ):
+    def fit(self, parameters, states, ddts, inputs=None):
         r"""Learn the model operators from data.
 
         The operators are inferred by solving the regression problem
@@ -809,7 +778,8 @@ class _ParametricContinuousMixin:
            (\bfmu_1, \Ohat^{(i)}), \ldots, (\bfmu_s, \Ohat^{(s)}); \bfmu).
 
         The strategy for solving the regression, as well as any additional
-        regularization or constraints, are specified by the ``solver``.
+        regularization or constraints, are specified by the ``solver`` in
+        the constructor.
 
         Parameters
         ----------
@@ -830,27 +800,12 @@ class _ParametricContinuousMixin:
             ``inputs[i][:, j]`` corresponds to the snapshot
             ``states[i][:, j]``.
             May be a two-dimensional array if `m=1` (scalar input).
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization.
-            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization.
 
         Returns
         -------
         self
         """
-        if solver is None and regularizer is not None:
-            solver = regularizer  # pragma: no cover
-        return super().fit(
-            parameters=parameters,
-            states=states,
-            lhs=ddts,
-            inputs=inputs,
-            solver=solver,
-        )
+        return super().fit(parameters, states, ddts, inputs=inputs)
 
     def rhs(self, t, parameter, state, input_func=None):
         r"""Evaluate the right-hand side of the model by applying each operator
@@ -1047,11 +1002,20 @@ class _InterpolatedModel(_ParametricModel):
     ----------
     operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
+    solver : :mod:`opinf.lstsq` object or float > 0 or None
+        Solver for the least-squares regression. Defaults:
+
+        * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
+            without regularization.
+        * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
+            scalar Tikhonov regularization.
     InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
 
-            >>> interpolator = InterpolatorClass(data_points, data_values)
-            >>> interpolator_evaluation = interpolator(new_data_point)
+        .. code-block:: python
+
+           >>> interpolator = InterpolatorClass(data_points, data_values)
+           >>> interpolator_evaluation = interpolator(new_data_point)
 
         This can be, e.g., a class from ``scipy.interpolate``.
         If ``None`` (default), use ``scipy.interpolate.CubicSpline``
@@ -1064,9 +1028,9 @@ class _InterpolatedModel(_ParametricModel):
         """Parent of ModelClass that has a callable ``fit()`` method."""
         return self.ModelClass.__bases__[-1]
 
-    def __init__(self, operators, InterpolatorClass=None):
+    def __init__(self, operators, solver=None, InterpolatorClass=None):
         """Define the model structure and set the interpolator class."""
-        _ParametricModel.__init__(self, operators)
+        _ParametricModel.__init__(self, operators, solver=solver)
         self.set_interpolator(InterpolatorClass)
         self._submodels = None
         self._training_parameters = None
@@ -1177,7 +1141,7 @@ class _InterpolatedModel(_ParametricModel):
             "_extract_operators() not used by this class"
         )
 
-    def _fit_solver(self, parameters, states, lhs, inputs=None, solver=None):
+    def _fit_solver(self, parameters, states, lhs, inputs=None):
         """Construct a solver for the operator inference least-squares
         regression.
         """
@@ -1186,10 +1150,7 @@ class _InterpolatedModel(_ParametricModel):
             states_,
             lhs_,
             inputs_,
-            solver_,
-        ) = self._process_fit_arguments(
-            parameters, states, lhs, inputs, solver=solver
-        )
+        ) = self._process_fit_arguments(parameters, states, lhs, inputs)
         n_datasets = len(parameters)
 
         # Distribute training data to individual OpInf problems.
@@ -1201,31 +1162,29 @@ class _InterpolatedModel(_ParametricModel):
                         op.entries[i] if op.entries is not None else None
                     )
                     for op in self.operators
-                ]
+                ],
+                solver=self.solver.copy(),
             )
             model_i._fit_solver(
                 states_[i],
                 lhs_[i],
                 inputs_[i],
-                copy.deepcopy(solver_),
             )
             nonparametric_models.append(model_i)
 
-        self.solvers_ = [mdl.solver_ for mdl in nonparametric_models]
+        self.solvers = [mdl.solver for mdl in nonparametric_models]
         self._submodels = nonparametric_models
         self._training_parameters = parameters_
 
-    def _evaluate_solver(self):
+    def refit(self):
         """Evaluate the least-squares solver and process the results."""
         if self._submodels is None:
-            raise RuntimeError(
-                "model solvers not set, call _fit_solver() first"
-            )
+            raise RuntimeError("model solvers not set, call fit() first")
 
         # Solve each independent subproblem.
         # TODO: parallelize?
         for model_i in self._submodels:
-            model_i._evaluate_solver()
+            model_i.refit()
 
         # Interpolate the resulting operators.
         for ell, op in enumerate(self.operators):
@@ -1279,7 +1238,7 @@ class _InterpolatedModel(_ParametricModel):
                     "cannot serialize InterpolatorClass "
                     f"'{InterpolatorClassName}', must pass in the class "
                     "when calling load()",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
                 suppress_warnings = True
 
@@ -1292,7 +1251,7 @@ class _InterpolatedModel(_ParametricModel):
             )
             with warnings.catch_warnings():
                 if suppress_warnings:
-                    warnings.simplefilter("ignore", errors.UsageWarning)
+                    warnings.simplefilter("ignore", errors.OpInfWarning)
                 for i, op in enumerate(self.operators):
                     op.save(hf.create_group(f"operator_{i}"))
 
@@ -1344,7 +1303,7 @@ class _InterpolatedModel(_ParametricModel):
                     warnings.warn(
                         f"InterpolatorClass={InterpolatorClassName} does not "
                         f"match loadfile InterpolatorClass '{SavedClassName}'",
-                        errors.UsageWarning,
+                        errors.OpInfWarning,
                     )
 
             # Load operators.

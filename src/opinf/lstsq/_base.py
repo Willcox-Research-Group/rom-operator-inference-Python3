@@ -3,18 +3,31 @@
 
 __all__ = [
     "lstsq_size",
+    "SolverTemplate",
     "PlainSolver",
 ]
 
+import os
 import abc
+import copy
+import types
+import warnings
 import numpy as np
 import scipy.linalg as la
 
+from .. import errors, utils
 
-def lstsq_size(modelform, r, m=0, affines=None):
-    """Calculate the number of columns in the operator matrix O in the Operator
-    Inference least-squares problem. This is also the number of columns in the
-    data matrix D.
+
+_require_trained = utils.requires2(
+    attr="data_matrix",
+    message="solver not trained, call fit()",
+)
+
+
+def lstsq_size(modelform, r, m=0, affines=None) -> int:
+    r"""Compute the number of columns in the operator matrix :math:`\Ohat` in
+    the Operator Inference least-squares problem. This is also the number of
+    columns in the data matrix :math:`\D`.
 
     Parameters
     ----------
@@ -69,166 +82,421 @@ def lstsq_size(modelform, r, m=0, affines=None):
     return sum(qq * rr for qq, rr in zip(qs, rs))
 
 
-class _BaseSolver(abc.ABC):
-    """Base class for solvers for the Operator Inference regression problem.
-    Child classes should receive and store hyperparameters in the constructor
-    (regularization scalars, truncation size, etc.).
+class SolverTemplate(abc.ABC):
+    r"""Template for solvers for the Operator Inference regression
+    :math:`\Z \approx \Ohat\D\trp` (or :math:`\D\Ohat\trp \approx \Z\trp`)
+    for the operator matrix :math:`\Ohat`.
+
+    Child classes formulate the regression, which may include regularization
+    terms and/or optimization constraints. Hyperparameters should be set in
+    the constructor (regularization terms, etc.).
     """
 
-    _LSTSQ_LABEL = ""
-
     def __init__(self):
-        self.__A = None
-        self.__B = None
+        self.__D = None
+        self.__Z = None
 
     # Properties: matrices ----------------------------------------------------
     @property
-    def A(self):
-        """Left-hand side data matrix."""
-        return self.__A
-
-    @A.setter
-    def A(self, A):
-        raise AttributeError("can't set attribute (call fit())")
+    def data_matrix(self) -> np.ndarray:
+        r""":math:`k \times d` data matrix :math:`\D`."""
+        return self.__D
 
     @property
-    def B(self):
-        """ "Right-hand side matrix B = [ b_1 | ... | b_r ]."""
-        return self.__B
-
-    @B.setter
-    def B(self, B):
-        raise AttributeError("can't set attribute (call fit())")
+    def lhs_matrix(self) -> np.ndarray:
+        r""":math:`r \times k` left-hand side data :math:`\Z`."""
+        return self.__Z
 
     # Properties: matrix dimensions -------------------------------------------
     @property
     def k(self) -> int:
-        """Number of equations in the least-squares problem
-        (number of rows of A).
+        r"""Number of equations in the least-squares problem
+        (number of rows of :math:`\D` and number of columns of :math:`\Z`).
         """
-        return self.A.shape[0] if self.A is not None else None
+        D = self.data_matrix
+        return D.shape[0] if D is not None else None
 
     @property
     def d(self) -> int:
-        """Number of unknowns to learn in each problem
-        (number of columns of A).
+        r"""Number of unknowns in each row of the operator matrix
+        (number of columns of :math:`\D` and :math:`\Ohat`).
         """
-        return self.A.shape[1] if self.A is not None else None
+        D = self.data_matrix
+        return D.shape[1] if D is not None else None
 
     @property
     def r(self) -> int:
-        """Number of independent least-squares problems
-        (number of columns of B).
+        r"""Number of operator matrix rows to learn
+        (number of rows of :math:`\Z` and :math:`\Ohat`)
         """
-        return self.B.shape[1] if self.B is not None else None
-
-    def _check_is_trained(self, attr=None):
-        """Raise an AttributeError if fit() has not been called."""
-        trained = (self.A is not None) and (self.B is not None)
-        if attr is not None:
-            trained *= hasattr(self, attr)
-        if not trained:
-            raise AttributeError("lstsq solver not trained (call fit())")
+        Z = self.lhs_matrix
+        return Z.shape[0] if Z is not None else None
 
     # String representation ---------------------------------------------------
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation: class name + dimensions."""
-        out = [f"Least-squares solver for {self._LSTSQ_LABEL}"]
-        if (self.A is not None) and (self.B is not None):
-            out.append(f"A: {self.A.shape}")
-            out.append(f"X: {self.d, self.r}")
-            out.append(f"B: {self.B.shape}")
+        out = [self.__class__.__name__]
+        if (self.data_matrix is not None) and (self.lhs_matrix is not None):
+            out.append(f"  Data matrix:     {self.data_matrix.shape}")
+            out.append(f"    Condition number: {self.cond():.4e}")
+            out.append(f"  LHS matrix:      {self.lhs_matrix.shape}")
+            out.append(f"  Operator matrix: {self.r, self.d}")
+        else:
+            out[0] += " (not trained)"
         return "\n".join(out)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Unique ID + string representation."""
-        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
-        return f"{uniqueID}\n{str(self)}"
+        return utils.str2repr(self)
+
+    @staticmethod
+    def _print_kwargs(opts: dict) -> str:
+        """Utility for printing routine options in __str__()."""
+        return ", ".join([f"{key}={repr(val)}" for key, val in opts.items()])
 
     # Main methods -----------------------------------------------------------
-    def fit(self, A, B):
-        """Verify dimensions and save A and B.
+    def fit(self, data_matrix, lhs_matrix):
+        r"""Verify dimensions and save the data matrices.
 
         Parameters
         ----------
-        A : (k, d) ndarray
-            The "left-hand side" matrix.
-        B : (k, r) ndarray
-            The "right-hand side" matrix B = [ b_1 | b_2 | ... | b_r ].
+        data_matrix : (k, d) ndarray
+            Data matrix :math:`\D`.
+        lhs_matrix : (r, k) ndarray
+            "Left-hand side" data matrix :math:`\Z` (not its transpose!).
+            If one-dimensional, assume :math:`r = 1`.
         """
-        # Validate and store B.
-        if A.ndim != 2:
-            raise ValueError("A must be two-dimensional")
-        if B.ndim == 1:
-            B = B.reshape((-1, 1))
-        if B.ndim != 2:
-            raise ValueError("B must be one- or two-dimensional")
-        if B.shape[0] != A.shape[0]:
-            raise ValueError("A.shape[0] != B.shape[0]")
+        # Verify dimensions.
+        if data_matrix.ndim != 2:
+            raise ValueError("data_matrix must be two-dimensional")
+        if lhs_matrix.ndim == 1:
+            lhs_matrix = lhs_matrix.reshape((1, -1))
+        if lhs_matrix.ndim != 2:
+            raise ValueError("lhs_matrix must be one- or two-dimensional")
+        if (k1 := lhs_matrix.shape[1]) != (k2 := data_matrix.shape[0]):
+            raise errors.DimensionalityError(
+                "data_matrix and lhs_matrix not aligned "
+                f"(lhs_matrix.shape[-1] = {k1} != {k2} = data_matrix.shape[0])"
+            )
 
-        self.__A = A
-        self.__B = B
+        self.__D = data_matrix
+        self.__Z = lhs_matrix
 
         return self
 
     @abc.abstractmethod
-    def predict(*args, **kwargs):  # pragma: no cover
-        """Solver the learning problem."""
-        raise NotImplementedError
-
-    # Post-processing --------------------------------------------------------
-    def cond(self):
-        """Calculate the 2-norm condition number of the data matrix A."""
-        self._check_is_trained()
-        return np.linalg.cond(self.A)
-
-    def misfit(self, X):
-        """Calculate the data misfit (residual) of the non-regularized problem
-        for each column of B = [ b_1 | ... | b_r ].
-
-        Parameters
-        ----------
-        X : (d, r) ndarray
-            Least-squares solution X = [ x_1 | ... | x_r ]; each column is the
-            solution to the subproblem with the corresponding column of B.
+    def predict(self) -> np.ndarray:  # pragma: no cover
+        r"""Solve the Operator Inference regression.
 
         Returns
         -------
-        resids : (r,) ndarray or float (r = 1)
-            Data misfits ||Ax_i - b_i||_2^2, i = 1, ..., r.
+        Ohat : (r, d) ndarray
+            Operator matrix :math:`\Ohat` (not its transpose!).
         """
-        self._check_is_trained()
-        if self.r == 1 and X.ndim == 1:
-            X = X.reshape((-1, 1))
-        if X.shape != (self.d, self.r):
-            raise ValueError(
-                f"X.shape = {X.shape} != " f"{(self.d, self.r)} = (d, r)"
-            )
-        resids = np.sum((self.A @ X - self.B) ** 2, axis=0)
-        return resids[0] if self.r == 1 else resids
+        raise NotImplementedError
 
+    # Post-processing --------------------------------------------------------
+    @_require_trained
+    def cond(self) -> float:
+        r"""Compute the :math:`2`-norm condition number of the data matrix
+        :math:`\D`.
 
-class PlainSolver(_BaseSolver):
-    """Solve the l2-norm ordinary least-squares problem without any
-    regularization, i.e.,
+        Returns
+        -------
+        conditionnumber : float
+        """
+        return np.linalg.cond(self.data_matrix)
 
-        min_{X} ||AX - B||_F^2.
+    @_require_trained
+    def residual(self, Ohat: np.ndarray):
+        r"""Compute the residual of the :math:`2`-norm regression objective for
+        each row of the given operator matrix.
 
-    The solution is calculated using scipy.linalg.lstsq().
-    """
+        Specifically, given a potential :math:`\Ohat`, compute
 
-    _LSTSQ_LABEL = "||AX - B||"
+        .. math::
+           \|\D\ohat_i - \z_i\|_2^2,
+           \quad i = 1, \ldots, r,
 
-    def __init__(self, options=None):
-        """Store keyword arguments for scipy.linalg.lstsq().
+        where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
+        :math:`\Ohat` and :math:`\Z`, respectively.
 
         Parameters
         ----------
-        options : dict
-            Keyword arguments for scipy.linalg.lstsq().
+        Ohat : (r, d) ndarray
+            Operator matrix :math:`\Ohat`.
+
+        Returns
+        -------
+        residuals : (r,) ndarray or float
+            :math:`2`-norm residuals for each row of the operator matrix.
+            If :math:`r = 1`, a float is returned.
         """
-        self.options = {} if options is None else options
+        if self.r == 1 and Ohat.ndim == 1:
+            Ohat = Ohat.reshape((1, -1))
+        if Ohat.shape != (shape := (self.r, self.d)):
+            raise errors.DimensionalityError(
+                f"Ohat.shape = {Ohat.shape} != {shape} = (r, d)"
+            )
+        resids = np.sum(
+            (self.data_matrix @ Ohat.T - self.lhs_matrix.T) ** 2,
+            axis=0,
+        )
+        return resids[0] if self.r == 1 else resids
+
+    # Persistence -------------------------------------------------------------
+    def save(self, savefile: str, overwrite: bool = False):  # pragma: no cover
+        """Serialize the solver, saving it in HDF5 format.
+        The model can be recovered with the :meth:`load()` class method.
+
+        Parameters
+        ----------
+        savefile : str
+            File to save to, with extension ``.h5`` (HDF5).
+        overwrite : bool
+            If ``True`` and the specified ``savefile`` already exists,
+            overwrite the file. If ``False`` (default) and the specified
+            ``savefile`` already exists, raise an error.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def load(cls, loadfile: str):  # pragma: no cover
+        """Load a serialized solver from an HDF5 file, created previously from
+        the :meth:`save()` method.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the model was stored via :meth:`save()`.
+
+        Returns
+        -------
+        solver : SolverTemplate
+            Loaded solver.
+        """
+        raise NotImplementedError
+
+    def _save_dict(self, hf, attr="options"):
+        """Helper method for serializing a dictionary in HDF5 format."""
+        options = hf.create_dataset(attr, shape=(0,))
+        for key, value in getattr(self, attr).items():
+            options.attrs[key] = "NULL" if value is None else value
+
+    @staticmethod
+    def _load_dict(hf, attr="options"):
+        """Helper method for loading a dictionary from HDF5 format. This
+        function is the inverse of :meth:`_save_dict()`."""
+        options = dict()
+        for key in hf[attr].attrs:
+            value = hf[attr].attrs[key]
+            options[key] = None if value == "NULL" else value
+        return options
+
+    def copy(self):
+        """Make a copy of the solver."""
+        return copy.deepcopy(self)
+
+    # Verification ------------------------------------------------------------
+    def verify(self, *, k: int = 200, d: int = 40, r: int = 5):
+        """Verify the solver.
+
+        Check :meth:`predict()`, :meth:`copy()`, :meth:`save()` and
+        :meth:`load()` if implemented, and :meth:`fit()` if the object is not
+        yet trained.
+        """
+        tempfile = "_solververification.h5"
+
+        def _make_copy(solver):
+            newsolver = solver.copy()
+            if (s2cls := newsolver.__class__) is not (scls := self.__class__):
+                raise errors.VerificationError(
+                    f"{scls.__name__}.copy() returned object "
+                    f"of type '{s2cls.__name__}'"
+                )
+            return newsolver
+
+        def _verify_predict(solver):
+            Ohat = solver.predict()
+            if (shape1 := Ohat.shape) != (shape2 := (r, d)):
+                raise errors.VerificationError(
+                    "predict() did not return array of shape (r, d) "
+                    f"(expected {shape2}, got {shape1})"
+                )
+            return Ohat
+
+        def _check_equality(obj1, obj2, Ohat1, operation):
+            if obj1.r != obj2.r or obj1.d != obj2.d or obj1.k != obj2.k:
+                raise errors.VerificationError(
+                    f"{operation} does not preserve problem dimensions"
+                )
+            if not np.all(obj2.predict() == Ohat1):
+                raise errors.VerificationError(
+                    f"{operation} does not preserve the result of predict()"
+                )
+
+        try:
+            # If not trained, make a copy and train it.
+            if self.data_matrix is None:
+                self2 = _make_copy(self)
+                D = np.random.random((k, d))
+                Z = np.random.random((r, k))
+                try:
+                    self2.fit(D, Z)
+                except Exception as ex:
+                    raise errors.VerificationError("fit() failed") from ex
+                if self2.data_matrix is not D:
+                    raise errors.VerificationError(
+                        "fit() should call SolverTemplate.fit()"
+                    )
+
+            else:
+                self2, k, d, r = self, self.k, self.d, self.r
+
+            # Check predict().
+            Ohat = _verify_predict(self2)
+            self3 = _make_copy(self2)
+            _check_equality(self2, self3, Ohat, "copy()")
+
+            print("fit() and predict() are consistent")
+
+            try:
+                self2.save(tempfile, overwrite=True)
+                self3 = self2.load(tempfile)
+                _check_equality(self2, self3, Ohat, "save()/load()")
+            except NotImplementedError:
+                print("save() and/or load() not implemented")
+        finally:
+            if os.path.isfile(tempfile):
+                os.remove(tempfile)
+
+
+class PlainSolver(SolverTemplate):
+    r"""Solve the :math:`2`-norm ordinary least-squares problem without any
+    regularization or constraints.
+
+    That is, solve
+
+    .. math::
+        \argmin_{\Ohat} \|\D\Ohat\trp - \Z\trp\|_F^2.
+
+    The solution is calculated using ``scipy.linalg.lstsq()``.
+
+    Parameters
+    ----------
+    cond : float or None
+        Cutoff for 'small' singular values of the data matrix.
+        See ``scipy.linalg.lstsq()``.
+    lapack_driver : str or None
+        Which LAPACK driver is used to solve the least-squares problem.
+        See ``scipy.linalg.lstsq()``.
+    """
+
+    def __init__(self, cond=None, lapack_driver=None):
+        """Store least-squares solver options."""
+        SolverTemplate.__init__(self)
+        self.__options = types.MappingProxyType(
+            dict(cond=cond, lapack_driver=lapack_driver)
+        )
+
+    @property
+    def options(self):
+        """Keyword arguments for ``scipy.linalg.lstsq()``."""
+        return self.__options
+
+    def __str__(self):
+        """String representation: dimensions + solver options."""
+        start = SolverTemplate.__str__(self)
+        kwargs = self._print_kwargs(self.options)
+        return start + f"\n  solver: scipy.linalg.lstsq({kwargs})"
+
+    # Main methods ------------------------------------------------------------
+    def fit(self, data_matrix, lhs_matrix):
+        r"""Verify dimensions and save the data matrices.
+
+        Parameters
+        ----------
+        data_matrix : (k, d) ndarray
+            Data matrix :math:`\D`.
+        lhs_matrix : (r, k) or (k,) ndarray
+            "Left-hand side" data matrix :math:`\Z` (not its transpose!).
+            If one-dimensional, assume :math:`r = 1`.
+        """
+        SolverTemplate.fit(self, data_matrix, lhs_matrix)
+        if self.k < self.d:
+            warnings.warn(
+                "least-squares system is underdetermined",
+                errors.OpInfWarning,
+                stacklevel=2,
+            )
+        return self
 
     def predict(self):
-        """Solve the least-squares problem."""
-        return la.lstsq(self.A, self.B, **self.options)[0]
+        r"""Solve the Operator Inference regression via
+        ``scipy.linalg.lstsq()``.
+
+        Returns
+        -------
+        Ohat : (r, d) ndarray
+            Operator matrix :math:`\Ohat` (not its transpose!).
+        """
+        results = la.lstsq(self.data_matrix, self.lhs_matrix.T, **self.options)
+        return results[0].T
+
+    # Persistence -------------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        """Serialize the solver, saving it in HDF5 format.
+        The model can be recovered with the :meth:`load()` class method.
+
+        Parameters
+        ----------
+        savefile : str
+            File to save to, with extension ``.h5`` (HDF5).
+        overwrite : bool
+            If ``True`` and the specified ``savefile`` already exists,
+            overwrite the file. If ``False`` (default) and the specified
+            ``savefile`` already exists, raise an error.
+        """
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            self._save_dict(hf, "options")
+            if self.data_matrix is not None:
+                hf.create_dataset("data_matrix", data=self.data_matrix)
+                hf.create_dataset("lhs_matrix", data=self.lhs_matrix)
+
+    @classmethod
+    def load(cls, loadfile: str):
+        """Load a serialized solver from an HDF5 file, created previously from
+        the :meth:`save()` method.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the model was stored via :meth:`save()`.
+
+        Returns
+        -------
+        solver : SolverTemplate
+            Loaded solver.
+        """
+        options = dict()
+        with utils.hdf5_loadhandle(loadfile) as hf:
+
+            options = cls._load_dict(hf, "options")
+            solver = cls(**options)
+
+            if "data_matrix" in hf:
+                D = hf["data_matrix"][:]
+                Z = hf["lhs_matrix"][:]
+                solver.fit(D, Z)
+
+        return solver
+
+    def copy(self):
+        """Make a copy of the solver."""
+        solver = PlainSolver(
+            cond=self.options["cond"],
+            lapack_driver=self.options["lapack_driver"],
+        )
+        if self.data_matrix is not None:
+            SolverTemplate.fit(solver, self.data_matrix, self.lhs_matrix)
+        return solver

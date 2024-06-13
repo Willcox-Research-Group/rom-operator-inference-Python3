@@ -71,7 +71,7 @@ class TransformerMulti:
         if (num_variables := len(tfs)) == 0:
             raise ValueError("at least one transformer required")
         elif num_variables == 1:
-            warnings.warn("only one variable detected", errors.UsageWarning)
+            warnings.warn("only one variable detected", errors.OpInfWarning)
 
         # Check inheritance and set default variable names.
         for i, tf in enumerate(tfs):
@@ -79,7 +79,7 @@ class TransformerMulti:
                 warnings.warn(
                     f"transformers[{i}] does not inherit from "
                     "TransformerTemplate, unexpected behavior may occur",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
             if tf.name is None:
                 tf.name = f"variable {i}"

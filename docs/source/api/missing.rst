@@ -85,3 +85,21 @@ ddt.ipynb
    ddt_uniform
    ddt_nonuniform
    ddt
+
+lstsq.ipynb
+-----------
+
+.. currentmodule:: opinf.lstsq
+
+.. autosummary::
+   :toctree: _autosummaries
+   :nosignatures:
+
+   lstsq_size
+   PlainSolver
+   SolverTemplate
+   L2Solver
+   L2DecoupledSolver
+   TikhonovSolver
+   TikhonovDecoupledSolver
+   TotalLeastSquaresSolver

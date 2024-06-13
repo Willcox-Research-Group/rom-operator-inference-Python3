@@ -334,7 +334,7 @@ class TestInterpolatedOperator:
             InterpolatorClass=_DummyInterpolator,
         )
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             op.save(target)
         assert wn[0].message.args[0] == (
             "cannot serialize InterpolatorClass "
@@ -366,7 +366,7 @@ class TestInterpolatedOperator:
             "use 'NotARealClass.load()'"
         )
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Dummy(mu, InterpolatorClass=_DummyInterpolator).save(
                 target, overwrite=True
             )
@@ -380,10 +380,10 @@ class TestInterpolatedOperator:
         self.Dummy.load(target, _DummyInterpolator)
 
         op1 = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
-        with pytest.warns(opinf.errors.UsageWarning):
+        with pytest.warns(opinf.errors.OpInfWarning):
             op1.save(target, overwrite=True)
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             op2 = self.Dummy.load(target, _DummyInterpolator2)
         assert wn[0].message.args[0] == (
             "InterpolatorClass=_DummyInterpolator2 does not match loadfile "

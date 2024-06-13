@@ -29,7 +29,7 @@ def test_hdf5_filehandle():
     os.remove(target)
 
     # Save mode without .h5 extension.
-    with pytest.warns(opinf.errors.UsageWarning) as wn:
+    with pytest.warns(opinf.errors.OpInfWarning) as wn:
         with subject(target[:-3], "save", True):
             pass
     assert len(wn) == 1
@@ -108,7 +108,7 @@ def test_hdf5_savehandle():
     os.remove(target)
 
     # Save mode without .h5 extension.
-    with pytest.warns(opinf.errors.UsageWarning) as wn:
+    with pytest.warns(opinf.errors.OpInfWarning) as wn:
         with subject(target[:-3], True):
             pass
     assert len(wn) == 1

@@ -76,7 +76,7 @@ class BasisMulti:
         if (num_variables := len(bs)) == 0:
             raise ValueError("at least one basis required")
         elif num_variables == 1:
-            warnings.warn("only one variable detected", errors.UsageWarning)
+            warnings.warn("only one variable detected", errors.OpInfWarning)
 
         # Check inheritance and set default variable names.
         for i, basis in enumerate(bs):
@@ -84,7 +84,7 @@ class BasisMulti:
                 warnings.warn(
                     f"bases[{i}] does not inherit from "
                     "BasisTemplate, unexpected behavior may occur",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
             if basis.name is None:
                 basis.name = f"variable {i}"

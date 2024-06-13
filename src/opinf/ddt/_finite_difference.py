@@ -948,7 +948,7 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
                 warnings.warn(
                     "time_domain is uniformly spaced, consider using "
                     "UniformFiniteDifferencer",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
         elif not all(np.ndim(tt) == 1 for tt in t):  # OK if several domains.
             raise ValueError("time_domain should be a one-dimensional array")

@@ -108,7 +108,7 @@ class TestPODBasis:
         assert basis.rightvecs is None
         assert np.all(basis.entries == Phi)
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             basis = self.Basis.from_svd(
                 Phi,
                 svals,
@@ -127,7 +127,7 @@ class TestPODBasis:
         basis = self.Basis(num_vectors=10)
 
         # Dimension selection criteria
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             basis._set_dimension_selection_criterion(
                 num_vectors=20,
                 residual_energy=0.01,
@@ -179,7 +179,7 @@ class TestPODBasis:
         assert basis.max_vectors == k
         assert basis.cumulative_energy == 1.11 / total
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             basis.reduced_state_dimension = k + 2
         assert wn[0].message.args[0] == (
             "selected reduced dimension exceeds number of stored vectors, "
@@ -249,7 +249,7 @@ class TestPODBasis:
 
         # Dense, unweighted.
         basis = self.Basis(num_vectors=r, max_vectors=k + 2, svdsolver="dense")
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             out = basis.fit(Q)
         assert wn[0].message.args[0] == (
             f"only {k} singular vectors can be extracted from ({n} x {k}) "
@@ -294,21 +294,21 @@ class TestPODBasis:
         assert basis.max_vectors == r + 1
         assert np.allclose(basis.entries.T @ basis.entries, Id)
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             basis.set_dimension(residual_energy=1e-2)
         assert wn[0].message.args[0] == (
             "residual energy is being estimated from only "
             f"{r + 1} singular values"
         )
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             basis.set_dimension(cumulative_energy=0.9)
         assert wn[0].message.args[0] == (
             "cumulative energy is being estimated from only "
             f"{r + 1} singular values"
         )
 
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             basis.set_dimension(projection_error=0.1)
         assert wn[0].message.args[0] == (
             "projection error is being estimated from only "

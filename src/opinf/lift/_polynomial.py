@@ -107,7 +107,7 @@ class PolynomialLifter(LifterTemplate):
         if len(ps) == 1 and ps[0] == 0:
             warnings.warn(
                 "q -> q^0 = 1 is not invertible",
-                errors.UsageWarning,
+                errors.OpInfWarning,
             )
 
         self.__orders = tuple(ps)

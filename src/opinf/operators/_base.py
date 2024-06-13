@@ -9,6 +9,7 @@ __all__ = [
 
 import abc
 import numpy as np
+import scipy.linalg as la
 import scipy.sparse as sparse
 
 from .. import errors, utils
@@ -194,7 +195,7 @@ class _NonparametricOperator(abc.ABC):
            def galerkin(self, Vr, Wr=None):
                '''Docstring'''
                return _NonparametricOperator.galerkin(self, Vr, Wr,
-                   lambda A, V, W:  # compute Galerkin projection of A.
+                   lambda A, V:  # right-hand side of projection
                )
 
         Parameters
@@ -204,8 +205,10 @@ class _NonparametricOperator(abc.ABC):
         Wr : (n, r) ndarray or None
             Basis for the test space. If ``None``, defaults to ``Vr``.
         func : callable
-            Function of the operator entries, Vr, and Wr that returns the
-            entries of the Galerkin projection of the operator.
+            Function computing the right side of the projection, i.e, the
+            result of substituting :math:`\q` with :math:`\Vr\qhat`.
+            For example, for linear operator :math:`\op_\ell(\q) = \A\q`,
+            ``func`` should return :math:`\A\Vr`.
 
         Returns
         -------
@@ -214,10 +217,18 @@ class _NonparametricOperator(abc.ABC):
         """
         if Wr is None:
             Wr = Vr
-        n, _ = Wr.shape
+        n, r = Wr.shape
         if self.entries.shape[0] != n:
             raise errors.DimensionalityError("basis and operator not aligned")
-        return self.__class__(func(self.entries, Vr, Wr))
+        if Vr.shape[1] != r:
+            raise errors.DimensionalityError(
+                "trial and test bases not aligned"
+            )
+
+        entries = Wr.T @ func(self.entries, Vr)
+        if not np.allclose((WrTVr := Wr.T @ Vr), np.eye(r)):
+            entries = la.solve(WrTVr, entries)
+        return self.__class__(entries)
 
     # Operator inference ------------------------------------------------------
     @staticmethod

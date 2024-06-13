@@ -9,6 +9,7 @@
 Model classes represent a set equations describing the dynamics of the model state.
 The user specifies the structure of the dynamics by providing a list of [operators](opinf.operators) to the constructor.
 Model dynamics are calibrated through a least-squares regression of available state and input data.
+Solvers for the least-squares problem are specified in the constructor.
 
 ```python
 import opinf
@@ -18,7 +19,8 @@ model = opinf.models.ContinuousModel(
     operators=[
         opinf.operators.LinearOperator(),
         opinf.operators.InputOperator(),
-    ]
+    ],
+    solver=opinf.lstsq.L2Solver(1e-6),
 )
 
 # Calibrate the model through Operator Inference.
@@ -113,6 +115,7 @@ Once the model operators are calibrated, nonparametric models may use the follow
 - `predict()`: Solve the model with given initial conditions and/or inputs.
 
 (sec-models-parametric)=
+
 ## Parametric Models
 
 A _parametric model_ is a model with at least one [parametric operator](sec-operators-parametric).

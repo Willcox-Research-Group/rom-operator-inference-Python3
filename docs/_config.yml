@@ -73,7 +73,7 @@ sphinx:
           "s": "\\mathbf{s}"                  # unprocessed state vector
           "Q": "\\mathbf{Q}"                  # state data
           "U": "\\mathbf{U}"                  # input data
-          "Z": "\\mathbf{Z}"                  # rhs data
+          "Z": "\\mathbf{Z}"                  # rhs regression data
           "Op": "\\mathbf{f}"                 # generic operator
           "Ophat": "\\hat{\\mathbf{f}}"       # generic reduced operator
           "c": "\\mathbf{c}"                  # constant operator
@@ -109,8 +109,9 @@ sphinx:
           "trp": "{^{\\mathsf{T}}}"           # transpose
           "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"    # time derivative
           "ddqhat": "\\frac{\\partial}{\\partial\\qhat}"    # d/dqhat
-          "mean": "\\operatorname{mean}"     # mean
+          "mean": "\\operatorname{mean}"      # mean
           "std": "\\operatorname{std}"        # standard deviation
+          "argmin": "\\operatorname{argmin}"  # argmin
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
     numfig_secnum_depth: 1              # Eq (1.1) instead of (1).
     numpydoc_class_members_toctree: false

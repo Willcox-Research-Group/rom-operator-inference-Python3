@@ -91,7 +91,7 @@ class _NonparametricModel(_Model):
 
     # Properties: operator inference ------------------------------------------
     @property
-    def operator_matrix_(self):
+    def operator_matrix(self):
         r""":math:`r \times d(r, m)` operator matrix, e.g.,
         :math:`\Ohat = [~\chat~~\Ahat~~\Hhat~~\Bhat~]`.
 
@@ -105,19 +105,6 @@ class _NonparametricModel(_Model):
                 for i in self._indices_of_operators_to_infer
             ]
         )
-
-    @property
-    def data_matrix_(self):
-        r""":math:`k \times d(r, m)` data matrix, e.g.,
-        :math:`\D = [~
-        \mathbf{1}~~
-        \widehat{\Q}\trp~~
-        (\widehat{\Q}\odot\widehat{\Q})\trp~~
-        \U\trp~]`.
-        """
-        if hasattr(self, "solver_"):
-            return self.solver_.A if (self.solver_ is not None) else None
-        raise AttributeError("data matrix not constructed (call fit())")
 
     @property
     def operator_matrix_dimension(self):
@@ -140,24 +127,13 @@ class _NonparametricModel(_Model):
         )
 
     # Fitting -----------------------------------------------------------------
-    def _process_fit_arguments(self, states, lhs, inputs, solver=None):
+    def _process_fit_arguments(self, states, lhs, inputs):
         """Prepare training data for Operator Inference by extracting
         dimensions, validating data sizes, and modifying the left-hand side
         data if there are any known operators.
         """
         # Clear non-intrusive operator data.
         self._clear()
-
-        # Fully intrusive case, no least-squares problem to solve.
-        if len(self._indices_of_operators_to_infer) == 0:
-            warnings.warn(
-                "all operators initialized intrusively, nothing to learn",
-                UserWarning,
-            )
-            return None, None, None, None
-
-        # Validate / process solver.
-        solver = self._check_solver(solver)
 
         def _check_valid_dimension0(dataset, label):
             """Dimension 0 must be r (state dimensions)."""
@@ -201,7 +177,7 @@ class _NonparametricModel(_Model):
         for i in self._indices_of_known_operators:
             lhs = lhs - self.operators[i].apply(states, inputs)
 
-        return states, lhs, inputs, solver
+        return states, lhs, inputs
 
     def _assemble_data_matrix(self, states, inputs):
         r"""Construct the Operator Inference data matrix :math:`\D`
@@ -259,34 +235,40 @@ class _NonparametricModel(_Model):
             self.operators[i].set_entries(Ohat[:, index:endex])
             index = endex
 
-    def _fit_solver(self, states, lhs, inputs=None, solver=None):
+    def _fit_solver(self, states, lhs, inputs=None):
         """Construct a solver object mapping the regularizer to solutions
         of the Operator Inference least-squares problem.
         """
-        states_, lhs_, inputs_, solver = self._process_fit_arguments(
-            states, lhs, inputs, solver=solver
-        )
-
-        # Fully intrusive case (nothing to learn).
-        if states_ is lhs_ is None:
-            self.solver_ = None
-            return
-
         # Set up non-intrusive learning.
+        states_, lhs_, inputs_ = self._process_fit_arguments(
+            states, lhs, inputs
+        )
         D = self._assemble_data_matrix(states_, inputs_)
-        self.solver_ = solver.fit(D, lhs_.T)
+        self.solver.fit(D, lhs_)
 
-    def _evaluate_solver(self):
-        """Evaluate the least-squares solver and process the results."""
+    def refit(self):
+        """Solve the Operator Inference regression using the data from the
+        last :meth:`fit()` call, then extract the inferred operators.
+
+        This method is useful for calibrating the model operators with
+        different ``solver`` hyperparameters without reprocessing any training
+        data. For example, if ``solver`` is an :class:`opinf.lstsq.L2Solver`,
+        changing its ``regularizer`` attribute and calling this method solves
+        the regression with the new regression value without re-factorizing the
+        data matrix.
+        """
         # Fully intrusive case (nothing to learn).
-        if self.solver_ is None:
-            return
+        if self._fully_intrusive:
+            warnings.warn(
+                "all operators initialized explicitly, nothing to learn",
+                errors.OpInfWarning,
+            )
+            return self
 
         # Execute non-intrusive learning.
-        OhatT = self.solver_.predict()
-        self._extract_operators(np.atleast_2d(OhatT.T))
+        self._extract_operators(np.atleast_2d(self.solver.predict()))
 
-    def fit(self, states, lhs, inputs=None, solver=None):
+    def fit(self, states, lhs, inputs=None):
         r"""Learn the model operators from data.
 
         The operators are inferred by solving the regression problem
@@ -315,7 +297,8 @@ class _NonparametricModel(_Model):
         See the :mod:`opinf.operators` module for more explanation.
 
         The strategy for solving the regression, as well as any additional
-        regularization or constraints, are specified by the ``solver``.
+        regularization or constraints, are specified by the ``solver`` set
+        in the constructor.
 
         Parameters
         ----------
@@ -332,20 +315,21 @@ class _NonparametricModel(_Model):
             Input training data. Each column ``inputs[:, j]`` corresponds
             to the snapshot ``states[:, j]``.
             May be a one-dimensional array if ``m=1`` (scalar input).
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
-              without regularization.
-            * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
-              scalar Tikhonov regularization.
 
         Returns
         -------
         self
         """
-        self._fit_solver(states, lhs, inputs, solver=solver)
-        self._evaluate_solver()
+        # Fully intrusive case (nothing to learn).
+        if self._fully_intrusive:
+            warnings.warn(
+                "all operators initialized explicitly, nothing to learn",
+                errors.OpInfWarning,
+            )
+            return self
+
+        self._fit_solver(states, lhs, inputs)
+        self.refit()
         return self
 
     # Model evaluation --------------------------------------------------------
@@ -446,6 +430,8 @@ class _NonparametricModel(_Model):
             )
             for i, op in enumerate(self.operators):
                 op.save(hf.create_group(f"operator_{i}"))
+            if self.solver is not None:
+                self.solver.save(hf.create_group("solver"))
 
     @classmethod
     def load(cls, loadfile: str):
@@ -503,6 +489,13 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
     ----------
     operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
+    solver : :mod:`opinf.lstsq` object or float > 0 or None
+        Solver for the least-squares regression. Defaults:
+
+        * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
+            without regularization.
+        * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
+            scalar Tikhonov regularization.
     """
 
     _LHS_ARGNAME = "forcing"
@@ -511,7 +504,7 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
     _INPUT_LABEL = None
     # TODO: disallow input terms?
 
-    def fit(self, states, forcing=None, *, solver=None, regularizer=None):
+    def fit(self, states, forcing=None):
         r"""Learn the model operators from data.
 
         The operators are inferred by solving the regression problem
@@ -548,23 +541,12 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
             Forcing training data. Each column ``forcing[:, j]``
             corresponds to the snapshot ``states[:, j]``.
             If ``None``, set ``forcing = 0``.
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * None: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization
-            * **float > 0**: :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization
 
         Returns
         -------
         self
         """
-        if solver is None and regularizer is not None:
-            solver = regularizer  # pragma: no cover
-        return _NonparametricModel.fit(
-            self, states, forcing, inputs=None, solver=solver
-        )
+        return _NonparametricModel.fit(self, states, forcing, inputs=None)
 
     def rhs(self, state):
         r"""Evaluate the right-hand side of the model by applying each operator
@@ -626,6 +608,13 @@ class DiscreteModel(_NonparametricModel):
     ----------
     operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
+    solver : :mod:`opinf.lstsq` object or float > 0 or None
+        Solver for the least-squares regression. Defaults:
+
+        * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
+            without regularization.
+        * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
+            scalar Tikhonov regularization.
     """
 
     _LHS_ARGNAME = "nextstates"
@@ -669,15 +658,7 @@ class DiscreteModel(_NonparametricModel):
             return states, nextstates, inputs
         return states, nextstates
 
-    def fit(
-        self,
-        states,
-        nextstates=None,
-        inputs=None,
-        solver=None,
-        *,
-        regularizer=None,
-    ):
+    def fit(self, states, nextstates=None, inputs=None):
         r"""Learn the model operators from data.
 
         The operators are inferred by solving the regression problem
@@ -720,13 +701,6 @@ class DiscreteModel(_NonparametricModel):
             Input training data. Each column ``inputs[:, j]`` corresponds
             to the snapshot ``states[:, j]``.
             May be a one-dimensional array if ``m=1`` (scalar input).
-        solver : lstsq Solver object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization.
-            * **float > 0**: :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization.
 
         Returns
         -------
@@ -737,11 +711,7 @@ class DiscreteModel(_NonparametricModel):
             states = states[:, :-1]
         if inputs is not None:
             inputs = inputs[..., : states.shape[1]]
-        if solver is None and regularizer is not None:
-            solver = regularizer  # pragma: no cover
-        return _NonparametricModel.fit(
-            self, states, nextstates, inputs=inputs, solver=solver
-        )
+        return _NonparametricModel.fit(self, states, nextstates, inputs=inputs)
 
     def rhs(self, state, input_=None):
         r"""Evaluate the right-hand side of the model by applying each operator
@@ -873,6 +843,13 @@ class ContinuousModel(_NonparametricModel):
     ----------
     operators : list of :mod:`opinf.operators` objects
         Operators comprising the terms of the model.
+    solver : :mod:`opinf.lstsq` object or float > 0 or None
+        Solver for the least-squares regression. Defaults:
+
+        * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
+            without regularization.
+        * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
+            scalar Tikhonov regularization.
     """
 
     _LHS_ARGNAME = "ddts"
@@ -880,7 +857,7 @@ class ContinuousModel(_NonparametricModel):
     _STATE_LABEL = "q(t)"
     _INPUT_LABEL = "u(t)"
 
-    def fit(self, states, ddts, inputs=None, solver=None, *, regularizer=None):
+    def fit(self, states, ddts, inputs=None):
         r"""Learn the model operators from data.
 
         The operators are inferred by solving the regression problem
@@ -923,23 +900,12 @@ class ContinuousModel(_NonparametricModel):
             Input training data. Each column ``inputs[:, j]`` corresponds
             to the snapshot ``states[:, j]``.
             May be a one-dimensional array if ``m=1`` (scalar input).
-        solver : :mod:`opinf.lstsq` object or float > 0 or None
-            Solver for the least-squares regression. Defaults:
-
-            * ``None``: :class:`opinf.lstsq.PlainSolver`,
-              SVD-based solve without regularization.
-            * **float > 0:** :class:`opinf.lstsq.L2Solver`,
-              SVD-based solve with scalar Tikhonov regularization.
 
         Returns
         -------
         self
         """
-        if solver is None and regularizer is not None:
-            solver = regularizer  # pragma: no cover
-        return _NonparametricModel.fit(
-            self, states, ddts, inputs=inputs, solver=solver
-        )
+        return _NonparametricModel.fit(self, states, ddts, inputs=inputs)
 
     def rhs(self, t, state, input_func=None):
         r"""Evaluate the right-hand side of the model by applying each operator
@@ -1113,6 +1079,14 @@ class _FrozenMixin:
             "_clear() is disabled for this class, "
             "call fit() on the parametric model object"
         )
+
+    @property
+    def solver(self):
+        return None
+
+    @solver.setter
+    def solver(self, solver):
+        pass
 
     @property
     def data_matrix_(self):

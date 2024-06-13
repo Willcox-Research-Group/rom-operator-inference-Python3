@@ -98,7 +98,7 @@ class ConstantOperator(_NonparametricOperator):
     @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
-        :math:`\chat = \Wr\trp\c`.
+        :math:`\chat = (\Wr\trp\Vr)^{-1}\Wr\trp\c`.
 
         Parameters
         ----------
@@ -112,9 +112,7 @@ class ConstantOperator(_NonparametricOperator):
         projected : :class:`opinf.operators.ConstantOperator`
             Projected operator.
         """
-        return _NonparametricOperator.galerkin(
-            self, Vr, Wr, lambda c, V, W: W.T @ c
-        )
+        return _NonparametricOperator.galerkin(self, Vr, Wr, lambda c, V: c)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -257,8 +255,7 @@ class LinearOperator(_NonparametricOperator):
     @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
-        :math:`\Ahat =
-        \Wr\trp\A\Vr`.
+        :math:`\Ahat = (\Wr\trp\Vr)^{-1}\Wr\trp\A\Vr`.
 
         Parameters
         ----------
@@ -273,7 +270,7 @@ class LinearOperator(_NonparametricOperator):
             Projected operator.
         """
         return _NonparametricOperator.galerkin(
-            self, Vr, Wr, lambda A, V, W: W.T @ A @ V
+            self, Vr, Wr, lambda A, V: A @ V
         )
 
     @staticmethod
@@ -451,7 +448,7 @@ class QuadraticOperator(_NonparametricOperator):
     @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the (Petrov-)Galerkin projection of the operator,
-        :math:`\Hhat = \Wr\trp\H(\Vr\otimes\Vr)`.
+        :math:`\Hhat = (\Wr\trp\Vr)^{-1}\Wr\trp\H[\Vr\otimes\Vr]`.
 
         Parameters
         ----------
@@ -466,10 +463,10 @@ class QuadraticOperator(_NonparametricOperator):
             Projected operator.
         """
 
-        def _project(H, V, W):
-            return W.T @ self.expand_entries(H) @ np.kron(V, V)
+        def _pg(H, V):
+            return self.expand_entries(H) @ np.kron(V, V)
 
-        return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
+        return _NonparametricOperator.galerkin(self, Vr, Wr, _pg)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -911,8 +908,7 @@ class CubicOperator(_NonparametricOperator):
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\widehat{\mathbf{G}} =
-        \Wr\trp\mathbf{G}
-        (\Vr\otimes\Vr\otimes\Vr)`.
+        (\Wr\trp\Vr)^{-1}\Wr\trp\mathbf{G}[\Vr\otimes\Vr\otimes\Vr]`.
 
         Parameters
         ----------
@@ -927,10 +923,10 @@ class CubicOperator(_NonparametricOperator):
             Projected operator.
         """
 
-        def _project(G, V, W):
-            return W.T @ self.expand_entries(G) @ np.kron(V, np.kron(V, V))
+        def _pg(G, V):
+            return self.expand_entries(G) @ np.kron(V, np.kron(V, V))
 
-        return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
+        return _NonparametricOperator.galerkin(self, Vr, Wr, _pg)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -1306,8 +1302,7 @@ class InputOperator(_NonparametricOperator, _InputMixin):
     @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
-        :math:`\Bhat =
-        \Wr\trp\B`.
+        :math:`\Bhat = (\Wr\trp\Vr)^{-1}\Wr\trp\B`.
 
         Parameters
         ----------
@@ -1321,9 +1316,7 @@ class InputOperator(_NonparametricOperator, _InputMixin):
         projected : :class:`opinf.operators.InputOperator`
             Projected operator.
         """
-        return _NonparametricOperator.galerkin(
-            self, Vr, Wr, lambda B, V, W: W.T @ B
-        )
+        return _NonparametricOperator.galerkin(self, Vr, Wr, lambda B, V: B)
 
     @staticmethod
     def datablock(states, inputs):
@@ -1501,8 +1494,7 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
         :math:`\widehat{\mathbf{N}} =
-        \Wr\trp\mathbf{N}
-        (\I_{m}\otimes\Vr)`.
+        (\Wr\trp\Vr)^{-1}\Wr\trp\mathbf{N}[\I_{m}\otimes\Vr]`.
 
         Parameters
         ----------
@@ -1517,13 +1509,12 @@ class StateInputOperator(_NonparametricOperator, _InputMixin):
             Projected operator.
         """
 
-        def _project(N, V, W):
+        def _pg(N, V):
             r, rm = N.shape
             m = rm // r
-            Id = np.eye(m)
-            return W.T @ N @ np.kron(Id, V)
+            return N @ np.kron(np.eye(m), V)
 
-        return _NonparametricOperator.galerkin(self, Vr, Wr, _project)
+        return _NonparametricOperator.galerkin(self, Vr, Wr, _pg)
 
     @staticmethod
     def datablock(states, inputs):

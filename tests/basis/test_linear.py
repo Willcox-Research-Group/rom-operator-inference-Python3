@@ -53,7 +53,7 @@ class TestLinearBasis:
 
         # Non-orthogonal basis.
         Vr = np.ones((n, r))
-        with pytest.warns(opinf.errors.UsageWarning) as wn:
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             basis = self.Basis(Vr)
         assert wn[0].message.args[0] == "basis not orthogonal"
         assert basis.full_state_dimension == n
@@ -221,7 +221,7 @@ class TestLinearBasis:
         w = np.random.random(n) + 0.5
         basis1 = self.Basis(Vr, w, check_orthogonality=False)
         basis1.save(target, overwrite=True)
-        with pytest.warns(opinf.errors.UsageWarning):
+        with pytest.warns(opinf.errors.OpInfWarning):
             basis2 = self.Basis.load(target)
         assert basis2 == basis1
 

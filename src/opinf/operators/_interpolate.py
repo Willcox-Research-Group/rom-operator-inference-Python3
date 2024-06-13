@@ -506,7 +506,7 @@ class _InterpolatedOperator(_ParametricOperator):
                     "cannot serialize InterpolatorClass "
                     f"'{InterpolatorClassName}', must pass in the class "
                     "when calling load()",
-                    errors.UsageWarning,
+                    errors.OpInfWarning,
                 )
 
             if self.training_parameters is not None:
@@ -565,7 +565,7 @@ class _InterpolatedOperator(_ParametricOperator):
                     warnings.warn(
                         f"InterpolatorClass={InterpolatorClassName} does not "
                         f"match loadfile InterpolatorClass '{SavedClassName}'",
-                        errors.UsageWarning,
+                        errors.OpInfWarning,
                     )
 
             return cls(

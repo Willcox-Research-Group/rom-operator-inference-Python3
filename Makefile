@@ -62,6 +62,7 @@ deploy_package: test
 	git checkout main
 	$(PIP) --upgrade build
 	$(PIP) --upgrade twine
+	$(REMOVE) dist/
 	$(PYTHON) -m build --sdist --wheel
 	$(PYTHON) -m twine check dist/*
 	$(PYTHON) -m twine upload dist/*

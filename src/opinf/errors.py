@@ -20,7 +20,7 @@ class VerificationError(RuntimeError):  # pragma: no cover
     pass
 
 
-class UsageWarning(UserWarning):  # pragma: no cover
+class OpInfWarning(UserWarning):  # pragma: no cover
     """Generic warning for package usage."""
 
     pass

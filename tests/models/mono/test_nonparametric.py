@@ -121,86 +121,25 @@ class TestNonparametricModel:
         assert firstline(self.Dummy("A")).startswith("<Dummy object at")
 
     # Properties: operator inference ------------------------------------------
-    def test_operator_matrix_(self, r=15, m=3):
-        """Test _NonparametricModel.operator_matrix_."""
+    def test_operator_matrix(self, r=15, m=3):
+        """Test _NonparametricModel.operator_matrix."""
         c, A, H, G, B, N = _get_operators("cAHGBN", r, m)
 
         model = self.Dummy("cA")
         model.state_dimension = r
         model.operators[:] = (c, A)
         D = np.column_stack([c.entries, A.entries])
-        assert np.all(model.operator_matrix_ == D)
+        assert np.all(model.operator_matrix == D)
 
         model.operators[:] = (H, B)
         model._has_inputs = True
         model.input_dimension = m
         D = np.column_stack([H.entries, B.entries])
-        assert np.all(model.operator_matrix_ == D)
+        assert np.all(model.operator_matrix == D)
 
         model.operators[:] = [G, N]
         D = np.column_stack([G.entries, N.entries])
-        assert np.all(model.operator_matrix_ == D)
-
-    def test_data_matrix_(self, k=500, m=20, r=10):
-        """Test _NonparametricModel.data_matrix_
-        (_assemble_data_matrix(), operator_matrix_dimension).
-        """
-        Q, Qdot, U = _get_data(r, k, m)
-
-        model = self.Dummy("cAH")
-        with pytest.raises(AttributeError) as ex:
-            D = model.data_matrix_
-        assert ex.value.args[0] == "data matrix not constructed (call fit())"
-        assert model.operator_matrix_dimension is None
-
-        model.operators = "A"
-        model._fit_solver(Q, Qdot, inputs=None)
-        D = model.data_matrix_
-        assert D.shape == (k, r)
-        assert np.all(D == Q.T)
-        assert model.operator_matrix_dimension == r
-
-        model.operators = "B"
-        model._fit_solver(Q, Qdot, inputs=U)
-        D = model.data_matrix_
-        assert D.shape == (k, m)
-        assert np.all(D == U.T)
-        assert model.operator_matrix_dimension == m
-
-        model.operators = "HG"
-        model._fit_solver(Q, Qdot, inputs=None)
-        Dtrue = np.column_stack([kron2c(Q).T, kron3c(Q).T])
-        D = model.data_matrix_
-        d = r * (r + 1) // 2 + r * (r + 1) * (r + 2) // 6
-        assert D.shape == (k, d)
-        assert np.allclose(D, Dtrue)
-        assert model.operator_matrix_dimension == d
-
-        model.operators = "c"
-        model._fit_solver(Q, Qdot, inputs=None)
-        D = model.data_matrix_
-        assert D.shape == (k, 1)
-        assert np.all(D == 1)
-        assert model.operator_matrix_dimension == 1
-
-        # Partially intrusive case.
-        c = opinf.operators.ConstantOperator(np.ones(r))
-        model.operators = ["A", c]
-        model._fit_solver(Q, Qdot, inputs=None)
-        D = model.data_matrix_
-        assert D.shape == (k, r)
-        assert np.all(D == Q.T)
-
-        # Fully intrusive case.
-        model.operators = _get_operators("cHB", r, m)
-
-        with pytest.warns(UserWarning) as wn:
-            model._fit_solver(Q, Qdot, inputs=U)
-        assert wn[0].message.args[0] == (
-            "all operators initialized intrusively, nothing to learn"
-        )
-
-        assert model.data_matrix_ is None
+        assert np.all(model.operator_matrix == D)
 
     # Fitting -----------------------------------------------------------------
     def test_process_fit_arguments(self, k=50, m=4, r=6):
@@ -245,48 +184,41 @@ class TestNonparametricModel:
 
         # With input.
         model.operators = "AB"
-        Q_, lhs_, U_, solver = model._process_fit_arguments(Q, lhs, U)
+        Q_, lhs_, U_ = model._process_fit_arguments(Q, lhs, U)
         assert model.state_dimension == r
         assert model.input_dimension == m
         assert Q_ is Q
         assert lhs_ is lhs
         assert U_ is U
-        assert isinstance(solver, opinf.lstsq.PlainSolver)
 
         # With a one-dimensional input.
         model = self.Dummy("cHB")
-        Q_, lhs_, inputs, solver = model._process_fit_arguments(
-            Q, lhs, U1d, solver=0
-        )
+        Q_, lhs_, inputs = model._process_fit_arguments(Q, lhs, U1d)
         assert model.state_dimension == r
         assert model.input_dimension == 1
         assert Q_ is Q
         assert lhs_ is lhs
         assert inputs.shape == (1, k)
         assert np.all(inputs[0] == U1d)
-        assert isinstance(solver, opinf.lstsq.PlainSolver)
 
         # Without input.
         model = self.Dummy("cA")
-        Q_, lhs_, inputs, solver = model._process_fit_arguments(
-            Q, lhs, None, solver=1
-        )
+        Q_, lhs_, inputs = model._process_fit_arguments(Q, lhs, None)
         assert model.state_dimension == r
         assert model.input_dimension == 0
         assert inputs is None
         assert Q_ is Q
         assert lhs_ is lhs
-        assert isinstance(solver, opinf.lstsq.L2Solver)
 
         # With known operators for A.
         model = self.Dummy(["c", A])
-        Q_, lhs_, _, _ = model._process_fit_arguments(Q, lhs, None)
+        Q_, lhs_, _ = model._process_fit_arguments(Q, lhs, None)
         assert np.allclose(lhs_, lhs - (A.entries @ Q))
 
         # With known operators for c and B.
         c_, B_ = _get_operators("cB", r, m)
         model = self.Dummy([c_, "A", B_])
-        Q_, lhs_, _, _ = model._process_fit_arguments(Q, lhs, U)
+        Q_, lhs_, _ = model._process_fit_arguments(Q, lhs, U)
         lhstrue = lhs - B_.entries @ U - np.outer(c_.entries, ones)
         assert np.allclose(lhs_, lhstrue)
 
@@ -297,20 +229,8 @@ class TestNonparametricModel:
         assert B1d.shape == (r, 1)
         model.operators = ["A", B1d]
         assert model.input_dimension == 1
-        Q_, lhs_, _, _ = model._process_fit_arguments(Q, lhs, U1d)
+        Q_, lhs_, _ = model._process_fit_arguments(Q, lhs, U1d)
         assert np.allclose(lhs_, lhs - np.outer(B1d.entries, ones))
-
-        # Fully intrusive.
-        model = self.Dummy([A, B])
-        with pytest.warns(UserWarning) as wn:
-            Q_, lhs_, _, _ = model._process_fit_arguments(Q, lhs, U)
-        assert wn[0].message.args[0] == (
-            "all operators initialized intrusively, nothing to learn"
-        )
-        assert Q_ is None
-        assert lhs_ is None
-        assert model.operators[0] is A
-        assert model.operators[1] is B
 
     def test_assemble_data_matrix(self, k=50, m=6, r=8):
         """Test _NonparametricModel._assemble_data_matrix()."""
@@ -391,7 +311,7 @@ class TestNonparametricModel:
         assert np.allclose(model.G_.entries, G)
         assert np.allclose(model.B_.entries, B)
 
-    def test_fit(self, k=50, m=4, r=6):
+    def test_fit(self, k=500, m=4, r=6):
         """Test _NonparametricModel.fit()."""
         # Get test data.
         Q, F, U = _get_data(r, k, m)
@@ -415,10 +335,9 @@ class TestNonparametricModel:
         with pytest.warns(UserWarning) as wn:
             model.fit(None, None, None)
         assert wn[0].message.args[0] == (
-            "all operators initialized intrusively, nothing to learn"
+            "all operators initialized explicitly, nothing to learn"
         )
 
-        assert model.solver_ is None
         modelA_ = model.A_
         assert modelA_.entries is not None
         assert modelA_.shape == (r, r)
@@ -940,11 +859,10 @@ class TestFrozenMixin:
         """Test _FrozenMixin.fit() and other disabled methods."""
         if ModelClass is None:
             ModelClass = self.Dummy
-        model = ModelClass("A")
+        model = ModelClass("A", solver=2)
 
-        # Test disabled data_matrix_ property.
-        assert model.data_matrix_ is None
-        model.solver_ = "A"
+        # Test disabled properties.
+        assert model.solver is None
         assert model.data_matrix_ is None
         assert model.operator_matrix_dimension is None
 

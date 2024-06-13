@@ -100,7 +100,7 @@ class LinearBasis(BasisTemplate):
             V, W = self.entries, self.weights
             Id = (V.T @ V) if W is None else (V.T @ W @ V)
             if not np.allclose(Id, np.eye(self.reduced_state_dimension)):
-                warnings.warn("basis not orthogonal", errors.UsageWarning)
+                warnings.warn("basis not orthogonal", errors.OpInfWarning)
 
     # Properties --------------------------------------------------------------
     @property
