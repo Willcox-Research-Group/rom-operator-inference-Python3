@@ -53,8 +53,14 @@ sphinx:
     bibtex_reference_style: label
     # bibtex_default_style: plain       # Citations as numbers.
     intersphinx_mapping:
+      matplotlib:
+        - "https://matplotlib.org/stable/"
+        - null
       numpy:
         - "https://numpy.org/doc/stable/"
+        - null
+      python:
+        - "https://docs.python.org/3/"
         - null
       scipy:
         - "https://docs.scipy.org/doc/scipy/"
