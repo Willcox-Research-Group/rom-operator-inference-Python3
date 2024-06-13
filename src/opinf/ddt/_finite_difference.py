@@ -920,8 +920,8 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
     """Time derivative estimation with finite differences for state snapshots
     that are **not** spaced uniformly in time.
 
-    This class essentially wraps ``np.gradient()``, which uses second-order
-    finite differences.
+    This class essentially wraps :func:`numpy.gradient()`, which uses
+    second-order finite differences.
 
     Parameters
     ----------

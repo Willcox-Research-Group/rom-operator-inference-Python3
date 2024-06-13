@@ -53,6 +53,9 @@ sphinx:
     bibtex_reference_style: label
     # bibtex_default_style: plain       # Citations as numbers.
     intersphinx_mapping:
+      numpy:
+        - "https://numpy.org/doc/stable/"
+        - null
       scipy:
         - "https://docs.scipy.org/doc/scipy/"
         - null

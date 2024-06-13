@@ -25,7 +25,7 @@ class LinearBasis(BasisTemplate):
 
     This class approximates high-dimensional states :math:`\q\in\RR^n` as a
     linear combination of :math:`r` basis vectors
-    :math:`\v_1,\ldots,\v_r\in\R^n`. The basis matrix
+    :math:`\v_1,\ldots,\v_r\in\RR^n`. The basis matrix
     :math:`\Vr = [~\v_1~~\cdots~~\v_r~]\in \RR^{n \times r}` and an (optional)
     weighting matrix :math:`\W\in\RR^{n \times n}` define the approximation.
 
