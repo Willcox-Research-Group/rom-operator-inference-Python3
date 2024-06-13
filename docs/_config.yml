@@ -55,6 +55,9 @@ sphinx:
       scipy:
         - "https://docs.scipy.org/doc/scipy/"
         - null
+      sklearn:
+        - "https://scikit-learn.org/stable/"
+        - null
     mathjax3_config:
       tex:
         macros:

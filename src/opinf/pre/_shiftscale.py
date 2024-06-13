@@ -77,7 +77,7 @@ def scale(states: np.ndarray, scale_to: tuple, scale_from: tuple = None):
        q' = \frac{q - a}{b - a}(b' - a') + a',
 
     where :math:`q` is the original variable and :math:`q'` is the transformed
-    variable. This follows ``sklearn.preprocessing.MinMaxScaler``.
+    variable. This follows :class:`sklearn.preprocessing.MinMaxScaler`.
 
     Parameters
     ----------

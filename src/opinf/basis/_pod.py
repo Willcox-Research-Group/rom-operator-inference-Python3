@@ -107,7 +107,7 @@ class PODBasis(LinearBasis):
         * ``"dense"`` (default): Use :func:`scipy.linalg.svd()` to
           compute the SVD. May be inefficient for very large state matrices.
         * ``"randomized"``: Compute an approximate SVD with a randomized
-          approach via ``sklearn.utils.extmath.randomized_svd()``.
+          approach via :func:`sklearn.utils.extmath.randomized_svd()`.
           May be more efficient but less accurate for very large state
           matrices. **NOTE**: it is highly recommended to set ``max_vectors``
           to limit the number of computed singular vectors. In this case,
