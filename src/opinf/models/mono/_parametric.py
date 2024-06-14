@@ -211,14 +211,6 @@ class _ParametricModel(_Model):
         # Clear non-intrusive operator data.
         self._clear()
 
-        # Fully intrusive case, no least-squares problem to solve.
-        if len(self._indices_of_operators_to_infer) == 0:
-            warnings.warn(
-                "all operators initialized intrusively, nothing to learn",
-                errors.OpInfWarning,
-            )
-            return None, None, None, None
-
         # Process parameters.
         parameters = np.array(parameters)
         self._set_parameter_dimension_from_data(parameters)
@@ -303,7 +295,7 @@ class _ParametricModel(_Model):
 
         # Set up non-intrusive learning.
         D = self._assemble_data_matrix(parameters_, states_, inputs_)
-        self.solver.fit(D, np.hstack(lhs_).T)
+        self.solver.fit(D, np.hstack(lhs_))
 
     def _extract_operators(self, Ohat):
         """Unpack the operator matrix and populate operator entries."""
@@ -320,17 +312,15 @@ class _ParametricModel(_Model):
         the regression with the new regression value without re-factorizing the
         data matrix.
         """
-        # Fully intrusive case (nothing to learn).
         if self._fully_intrusive:
             warnings.warn(
                 "all operators initialized explicitly, nothing to learn",
-                UserWarning,
+                errors.OpInfWarning,
             )
             return self
 
         # Execute non-intrusive learning.
-        OhatT = self.solver.predict()
-        self._extract_operators(np.atleast_2d(OhatT.T))
+        self._extract_operators(np.atleast_2d(self.solver.predict()))
 
     def fit(self, parameters, states, lhs, inputs=None):
         r"""Learn the model operators from data.

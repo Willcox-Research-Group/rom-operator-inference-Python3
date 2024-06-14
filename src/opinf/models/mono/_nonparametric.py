@@ -86,8 +86,7 @@ class _NonparametricModel(_Model):
 
     def __repr__(self):
         """Unique ID + string representation."""
-        uniqueID = f"<{self.__class__.__name__} object at {hex(id(self))}>"
-        return f"{uniqueID}\n{str(self)}"
+        return utils.str2repr(self)
 
     # Properties: operator inference ------------------------------------------
     @property
@@ -104,26 +103,6 @@ class _NonparametricModel(_Model):
                 self.operators[i].entries
                 for i in self._indices_of_operators_to_infer
             ]
-        )
-
-    @property
-    def operator_matrix_dimension(self):
-        r"""Number of columns :math:`d(r, m)` of the operator matrix
-        :math:`\Ohat` and the data matrix :math:`\D`,
-        i.e., the number of unknowns in the Operator Inference regression
-        problem for each system mode.
-        Always ``None`` if ``state_dimension`` or ``input_dimension``
-        are not set.
-        """
-        if self.state_dimension is None or (
-            self._has_inputs and self.input_dimension is None
-        ):
-            return None
-        return sum(
-            self.operators[i].operator_dimension(
-                self.state_dimension, self.input_dimension
-            )
-            for i in self._indices_of_operators_to_infer
         )
 
     # Fitting -----------------------------------------------------------------
@@ -353,11 +332,10 @@ class _NonparametricModel(_Model):
 
         Returns
         -------
-        evaluation : (r,) ndarray
+        out : (r,) ndarray
             Evaluation of the right-hand side of the model.
         """
-        state = np.atleast_1d(state)
-        out = np.zeros(state.shape, dtype=float)
+        out = np.zeros_like(state)
         for op in self.operators:
             out += op.apply(state, input_)
         return out
@@ -386,7 +364,7 @@ class _NonparametricModel(_Model):
             State Jacobian of the right-hand side of the model.
         """
         r = self.state_dimension
-        out = np.zeros((r, r), dtype=float)
+        out = np.zeros_like(state, shape=(r, r))
         for op in self.operators:
             out += op.jacobian(state, input_)
         return out
@@ -1015,10 +993,10 @@ class ContinuousModel(_NonparametricModel):
             raise ValueError("time 't' must be one-dimensional")
         nt = t.shape[0]
 
-        # Interpret control input argument `input_func`.
+        # Interpret control input argument.
         if self._has_inputs:
             if not callable(input_func):
-                # input_func must be (m, nt) ndarray. Interploate -> callable.
+                # input_func must be (m, nt) ndarray. Interpolate -> callable.
                 U = np.atleast_2d(input_func)
                 if U.shape != (self.input_dimension, nt):
                     raise ValueError(
@@ -1029,15 +1007,19 @@ class ContinuousModel(_NonparametricModel):
 
             # Check dimension of input_func() outputs.
             _tmp = input_func(t[0])
-            _shape = _tmp.shape if isinstance(_tmp, np.ndarray) else None
-            if self.input_dimension == 1:
-                if not (np.isscalar(_tmp) or _shape == (1,)):
-                    raise ValueError(
-                        "input_func() must return ndarray"
-                        " of shape (m,) = (1,) or scalar"
-                    )
-            elif _shape != (self.input_dimension,):
-                raise ValueError(
+            if self.input_dimension == 1 and np.isscalar(_tmp):
+                original_input_func = input_func
+
+                def input_func(t):
+                    """Wrap outputs of input_func() as an array."""
+                    return np.array([original_input_func(t)])
+
+                _tmp = input_func(t[0])
+
+            if not isinstance(_tmp, np.ndarray) or _tmp.shape != (
+                self.input_dimension,
+            ):
+                raise errors.DimensionalityError(
                     "input_func() must return ndarray"
                     f" of shape (m,) = ({self.input_dimension},)"
                 )
@@ -1086,14 +1068,6 @@ class _FrozenMixin:
     @solver.setter
     def solver(self, solver):
         pass
-
-    @property
-    def data_matrix_(self):
-        return None
-
-    @property
-    def operator_matrix_dimension(self):
-        return None
 
     def fit(*args, **kwargs):
         raise NotImplementedError(

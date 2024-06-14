@@ -94,7 +94,7 @@ class _Model(abc.ABC):
                 raise TypeError(
                     f"invalid operator of type '{op.__class__.__name__}'"
                 )
-            if op.entries is None:
+            if op.entries is None:  # NOTE: needs to be more specific.
                 toinfer.append(i)
             else:
                 known.append(i)
@@ -160,6 +160,7 @@ class _Model(abc.ABC):
         """Ensure all operators with initialized entries have the same
         state dimension (``shape[0]``).
         """
+        # NOTE: can't use op.entries as criteria for
         rs = {op.state_dimension for op in ops if op.entries is not None}
         if len(rs) > 1:
             raise errors.DimensionalityError(
@@ -195,6 +196,7 @@ class _Model(abc.ABC):
         inputops = [op for op in ops if _operators.has_inputs(op)]
         if len(inputops) == 0:
             return 0
+        # NOTE: needs to be more specific, don't rely on entries.
         ms = {op.input_dimension for op in inputops if op.entries is not None}
         if len(ms) > 1:
             raise errors.DimensionalityError(
@@ -220,7 +222,7 @@ class _Model(abc.ABC):
             for op in self.operators:
                 if (
                     _operators.has_inputs(op)
-                    and op.entries is not None
+                    and op.entries is not None  # NOTE: can't rely on entries.
                     and op.input_dimension != m
                 ):
                     raise AttributeError(
@@ -321,7 +323,7 @@ class _Model(abc.ABC):
             [
                 (
                     old_op.galerkin(Vr, Wr)
-                    if old_op.entries is not None
+                    if old_op.entries is not None  # NOTE: can't do this!
                     else old_op.copy()
                 )
                 for old_op in self.operators
