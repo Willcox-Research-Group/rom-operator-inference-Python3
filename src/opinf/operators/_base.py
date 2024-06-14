@@ -5,11 +5,12 @@ __all__ = [
     "InputMixin",
     "has_inputs",
     "OperatorTemplate",
-    "OpInfOperator",
     "is_nonparametric",
+    "OpInfOperator",
+    "is_uncalibrated",
     "ParametricOperatorTemplate",
-    "ParametricOpInfOperator",
     "is_parametric",
+    "ParametricOpInfOperator",
 ]
 
 import os
@@ -441,6 +442,11 @@ class OperatorTemplate(abc.ABC):
                 os.remove(tempfile)
 
 
+def is_nonparametric(obj) -> bool:
+    """Return ``True`` if ``obj`` is a nonparametric operator object."""
+    return isinstance(obj, OperatorTemplate)
+
+
 class OpInfOperator(OperatorTemplate):
     r"""Template for nonparametric operators that can be calibrated through
     Operator Inference.
@@ -805,15 +811,6 @@ class OpInfOperator(OperatorTemplate):
             OperatorTemplate.verify(self, plot=plot, k=k, ntests=ntests)
 
 
-def is_nonparametric(obj) -> bool:
-    """Return ``True`` if ``obj`` is a nonparametric operator object."""
-    return isinstance(obj, OperatorTemplate)
-
-
-def is_inferrable(obj) -> bool:
-    return isinstance(obj, OpInfOperator) and obj.entries is None
-
-
 # Parametric operators ========================================================
 class ParametricOperatorTemplate(abc.ABC):
 
@@ -1020,6 +1017,11 @@ class ParametricOperatorTemplate(abc.ABC):
         raise NotImplementedError
 
 
+def is_parametric(obj) -> bool:
+    """Return ``True`` if ``obj`` is a parametric operator object."""
+    return isinstance(obj, ParametricOperatorTemplate)
+
+
 class ParametricOpInfOperator(ParametricOperatorTemplate):
     r"""Base class for operators that depend on external parameters, i.e.,
     :math:`\Ophat_\ell(\qhat,\u;\bfmu) = \Ohat_\ell(\bfmu)\d_\ell(\qhat,\u)`.
@@ -1036,22 +1038,7 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
     True
     """
 
-    # Meta properties ---------------------------------------------------------
-    # Must be specified by child classes.
-    _OperatorClass = NotImplemented
-
-    @property
-    def OperatorClass(self):
-        """Nonparametric :mod:`opinf.operators` class that represents
-        this parametric operator evaluated at a particular parameter value.
-
-        Examples
-        --------
-        >>> Op = MyParametricOperator(init_args).evaluate(parameter_value)
-        >>> isinstance(Op, MyParametricOperator.OperatorClass)
-        True
-        """
-        return self._OperatorClass
+    # TODO: pull entries property back into this class as in OpInfOperator.
 
     # Initialization ----------------------------------------------------------
     def __init__(self):
@@ -1088,12 +1075,6 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
             raise ValueError(f"{prefix} shapes inconsistent")
 
     # Properties --------------------------------------------------------------
-    @property
-    @abc.abstractmethod
-    def state_dimension(self) -> int:  # pragma: no cover
-        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
-        raise NotImplementedError
-
     @property
     def parameter_dimension(self) -> int:
         r"""Dimension of the parameters :math:`\bfmu` that the operator acts
@@ -1142,6 +1123,8 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
         raise NotImplementedError
 
 
-def is_parametric(obj) -> bool:
-    """Return ``True`` if ``obj`` is a parametric operator object."""
-    return isinstance(obj, ParametricOpInfOperator)
+def is_uncalibrated(obj) -> bool:
+    return (
+        isinstance(obj, (OpInfOperator, ParametricOpInfOperator))
+        and obj.entries is None
+    )
