@@ -6,6 +6,7 @@ import h5py
 import pytest
 import numpy as np
 import scipy.linalg as la
+import matplotlib.pyplot as plt
 
 import opinf
 
@@ -13,27 +14,333 @@ import opinf
 _module = opinf.operators._base
 
 
-def test_requires_entries():
-    """Test _requires_entries(), a decorator."""
-
-    class Dummy:
-        def __init__(self):
-            self.entries = None
-
-        @opinf.utils.requires("entries")
-        def required(self):
-            return self.entries + 1
-
-    dummy = Dummy()
-    with pytest.raises(AttributeError) as ex:
-        dummy.required()
-    assert ex.value.args[0] == "required attribute 'entries' not set"
-
-    dummy.entries = 0
-    assert dummy.required() == 1
-
-
 # Nonparametric operators =====================================================
+class TestOperatorTemplate:
+    """Test operators._base.OperatorTemplate."""
+
+    Operator = _module.OperatorTemplate
+
+    def test_verify(self, r=10, m=4):
+        """Test verify()."""
+
+        class Dummy(self.Operator):
+            """Instantiable version of OperatorTemplate."""
+
+            def __init__(self, state_dimension=r):
+                self.__r = state_dimension
+
+            @property
+            def state_dimension(self):
+                return self.__r
+
+            def apply(self, state, input_=None):
+                return state
+
+        class InputDummy(Dummy, _module._InputMixin):
+            """Instantiable version of OperatorTemplate with inputs."""
+
+            def __init__(self, state_dimension=r, input_dimension=m):
+                Dummy.__init__(self, state_dimension)
+                self.__m = input_dimension
+
+            @property
+            def input_dimension(self):
+                return self.__m
+
+        op = Dummy()
+        op.verify()
+
+        op = InputDummy()
+        op.verify()
+
+        def _single(DummyClass, message):
+            dummy = DummyClass()
+            with pytest.raises(opinf.errors.VerificationError) as ex:
+                dummy.verify()
+            assert ex.value.args[0] == message
+
+        # Verification failures for apply().
+
+        class Dummy1(Dummy):
+            def __init__(self):
+                super().__init__("one hundred")
+
+        class Dummy1I(InputDummy):
+            def __init__(self):
+                super().__init__(10, -5)
+
+        class Dummy2(Dummy):
+            def apply(self, state, input_=None):
+                return state[:-1]
+
+        class Dummy2I(Dummy2, InputDummy):
+            pass
+
+        class Dummy3(Dummy):
+            def apply(self, state, input_=None):
+                if state.ndim == 1:
+                    return state
+                return state[:, :-1]
+
+        class Dummy3I(Dummy3, InputDummy):
+            pass
+
+        _single(
+            Dummy1,
+            "state_dimension must be a positive integer "
+            "(current value: 'one hundred', of type 'str')",
+        )
+
+        _single(
+            Dummy1I,
+            "input_dimension must be a positive integer "
+            "(current value: -5, of type 'int')",
+        )
+
+        _single(
+            Dummy2,
+            "apply(q, u) must return array of shape (state_dimension,) when "
+            "q.shape = (state_dimension,) and u = None",
+        )
+
+        _single(
+            Dummy2I,
+            "apply(q, u) must return array of shape (state_dimension,) when "
+            "q.shape = (state_dimension,) and u.shape = (input_dimension,)",
+        )
+
+        _single(
+            Dummy3,
+            "apply(Q, U) must return array of shape (state_dimension, k) when "
+            "Q.shape = (state_dimension, k) and U = None",
+        )
+
+        _single(
+            Dummy3I,
+            "apply(Q, U) must return array of shape (state_dimension, k) "
+            "when Q.shape = (state_dimension, k) "
+            "and U.shape = (input_dimension, k)",
+        )
+
+        # Verification failures for jacobian().
+
+        class Dummy4(Dummy):
+            def jacobian(self, state, input_=None):
+                return state
+
+        class Dummy4I(Dummy4, InputDummy):
+            pass
+
+        _single(
+            Dummy4,
+            "jacobian(q, u) must return array of shape "
+            "(state_dimension, state_dimension) when "
+            "q.shape = (state_dimension,) and u = None",
+        )
+
+        _single(
+            Dummy4I,
+            "jacobian(q, u) must return array of shape "
+            "(state_dimension, state_dimension) when "
+            "q.shape = (state_dimension,) and u.shape = (input_dimension,)",
+        )
+
+        # Correct usage of jacobian().
+
+        class Dummy5(Dummy):
+            def jacobian(self, state, input_=None):
+                return np.eye(self.state_dimension)
+
+        dummy = Dummy5()
+        dummy.verify(plot=False)
+
+        interactive = plt.isinteractive()
+        plt.ion()
+        dummy.verify(plot=True)
+        fig = plt.gcf()
+        assert len(fig.axes) == 1
+        plt.close(fig)
+
+        if not interactive:
+            plt.ioff()
+
+        # Verification failures for galerkin().
+
+        class Dummy6(Dummy):
+            def galerkin(self, Vr, Wr=None):
+                return [self]
+
+        class Dummy7(Dummy):
+            def galerkin(self, Vr, Wr=None):
+                r = Vr.shape[1]
+                return self.__class__(r + 1)
+
+        class Dummy8(InputDummy):
+            def galerkin(self, Vr, Wr=None):
+                return self.__class__(
+                    Vr.shape[1],
+                    self.input_dimension - 1,
+                )
+
+        class Dummy9(Dummy):
+            def galerkin(self, Vr, Wr=None):
+                return self.__class__(Vr.shape[1])
+
+            def apply(self, state, input_=None):
+                return np.random.random(state.shape)
+
+        class Dummy10(Dummy):
+            def __init__(self, sdim=r, Vr=None, Wr=None, A=None):
+                if Vr is not None:
+                    sdim = Vr.shape[1]
+                super().__init__(sdim)
+                self.Vr = Vr
+                self.Wr = Wr
+                if A is None:
+                    A = np.random.random((sdim, sdim))
+                self.A = A
+
+            def apply(self, state, input_=None):
+                if (Vr := self.Vr) is (Wr := self.Wr) is None:
+                    return self.A @ state
+                if Wr is not None:
+                    return la.solve(Wr.T @ Vr, Wr.T @ self.A @ Vr @ state)
+                return np.random.random(state.shape)
+
+            def galerkin(self, Vr, Wr=None):
+                return self.__class__(self.state_dimension, Vr, Wr, self.A)
+
+        _single(Dummy6, "type(self.galerkin()) is not type(self)")
+        _single(Dummy7, "galerkin(Vr, Wr).state_dimension != Vr.shape[1]")
+
+        _single(
+            Dummy8,
+            "self.galerkin(Vr, Wr).input_dimension != self.input_dimension",
+        )
+
+        _single(
+            Dummy9,
+            "op2.apply(qr, u) "
+            "!= inv(Wr.T @ Vr) @ Wr.T @ self.apply(Vr @ qr, u) "
+            "where op2 = self.galerkin(Vr, Wr)",
+        )
+
+        _single(
+            Dummy10,
+            "op2.apply(qr, u) != Vr.T @ self.apply(Vr @ qr, u) "
+            "where op2 = self.galerkin(Vr) and Vr.T @ Vr = I",
+        )
+
+        # Correct usage for galerkin().
+
+        class Dummy11(Dummy):
+            def galerkin(self, Vr, Wr=None):
+                return self.__class__(Vr.shape[1])
+
+        Dummy11(1).verify()
+        Dummy11(r).verify()
+
+        # Verification failures for copy().
+
+        class Dummy12(Dummy):
+            def copy(self):
+                return self
+
+        class Dummy13(Dummy):
+            def copy(self):
+                return [self]
+
+        class Dummy14(Dummy):
+            def copy(self):
+                return self.__class__(self.state_dimension + 1)
+
+        class Dummy15(InputDummy):
+            def copy(self):
+                return self.__class__(
+                    self.state_dimension,
+                    self.input_dimension - 1,
+                )
+
+        class Dummy16(Dummy):
+            def apply(self, state, input_=None):
+                return np.random.random(state.shape)
+
+            def copy(self):
+                return self.__class__(self.state_dimension)
+
+        _single(Dummy12, "self.copy() is self")
+        _single(Dummy13, "type(self.copy()) is not type(self)")
+        _single(Dummy14, "self.copy().state_dimension != self.state_dimension")
+        _single(Dummy15, "self.copy().input_dimension != self.input_dimension")
+
+        _single(
+            Dummy16,
+            "self.copy().apply() not consistent with self.apply()",
+        )
+
+        class Dummy17(Dummy):
+            def save(self, savefile, overwrite=False):
+                return
+
+            @classmethod
+            def load(cls, loadfile):
+                return [100]
+
+        class Dummy18(Dummy):
+            def save(self, savefile, overwrite=False):
+                Dummy18.rr = self.state_dimension
+
+            @classmethod
+            def load(cls, loadfile):
+                return cls(cls.rr + 1)
+
+        class Dummy19(InputDummy):
+            def save(self, savefile, overwrite=False):
+                Dummy19.rr = self.state_dimension
+                Dummy19.mm = self.input_dimension
+
+            @classmethod
+            def load(cls, loadfile):
+                return cls(cls.rr, cls.mm - 1)
+
+        class Dummy20(Dummy):
+            def __init__(self, sdim=r, A=None):
+                super().__init__(sdim)
+                if A is None:
+                    A = np.random.random((sdim, sdim))
+                self.A = A
+
+            def apply(self, state, input_=None):
+                return self.A @ state
+
+            def save(self, savefile, overwrite=False):
+                Dummy20.rr = self.state_dimension
+                Dummy20.AA = self.A
+
+            @classmethod
+            def load(cls, loadfile):
+                return cls(cls.rr, cls.AA + 1)
+
+        class Dummy21(Dummy):
+            def save(self, savefile, overwrite=False):
+                Dummy21.rr = self.state_dimension
+
+            @classmethod
+            def load(cls, loadfile):
+                return cls(cls.rr)
+
+        _single(Dummy17, "save()/load() does not preserve object type")
+        _single(Dummy18, "save()/load() does not preserve state_dimension")
+        _single(Dummy19, "save()/load() does not preserve input_dimension")
+
+        _single(
+            Dummy20,
+            "save()/load() does not preserve the result of apply()",
+        )
+
+        Dummy21().verify()
+
+
 class TestNonparametricOperator:
     """Test operators._base._NonparametricOperator."""
 

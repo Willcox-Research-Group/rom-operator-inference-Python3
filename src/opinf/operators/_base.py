@@ -2,17 +2,405 @@
 """Abstract base classes for operators."""
 
 __all__ = [
+    "OperatorTemplate",
     "is_nonparametric",
     "has_inputs",
     "is_parametric",
 ]
 
+import os
 import abc
+import copy
 import numpy as np
 import scipy.linalg as la
 import scipy.sparse as sparse
+import matplotlib.pyplot as plt
 
 from .. import errors, utils
+
+
+class OperatorTemplate(abc.ABC):
+    r"""Template for general-purpose operators.
+
+    In this package, an "operator" is a function
+    :math:`\Ophat_{\ell}: \RR^n \times \RR^m \to \RR^n` that acts on a state
+    vector :math:`\qhat\in\RR^n` and (optionally) an input vector
+    :math:`\u\in\RR^m`.
+
+    Models are defined as the sum of several operators,
+    for example, an :class:`opinf.models.ContinuousModel` object represents a
+    system of ordinary differential equations:
+
+    .. math ..
+       \ddt\qhat(t)
+       = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t)).
+
+    Notes
+    -----
+    This class can be used for custom nonparametric model terms that are not
+    learnable with Operator Inference.
+    For parametric model terms, see :class:`ParametricOperatorTemplate.
+    For model terms that can be learned with Operator Inference, see
+    :class:`OpInfOperatorTemplate` or :class:`ParametricOpInfOperatorTemplate`.
+    """
+
+    # Properties --------------------------------------------------------------
+    @property
+    def state_dimension(self):  # pragma: no cover
+        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
+        return NotImplemented
+
+    # Evaluation --------------------------------------------------------------
+    @abc.abstractmethod
+    def apply(self, state, input_=None):  # pragma: no cover
+        """Apply the operator mapping to the given state / input.
+
+        Parameters
+        ----------
+        state : (r,) or (r, k) ndarray
+            State vector or matrix of state vectors.
+        input_ : (m,) or (m, k) ndarray or None
+            Input vector or matrix of input vectors.
+
+        Returns
+        -------
+        out : (r,) or (r, k) ndarray
+            Application of the operator to the state / input, with the same
+            number of dimensions as ``state`` and (if provided) ``input_``.
+        """
+        raise NotImplementedError
+
+    def jacobian(self, state, input_=None):
+        r"""Construct the state Jacobian of the operator.
+
+        If :math:`[\![\q]\!]_{i}` denotes the :math:`i`-th entry of a vector
+        :math:`\q`, then the entries of the state Jacobian are given by
+
+        .. math::
+           [\![\ddqhat\Ophat(\qhat,\u)]\!]_{i,j}
+           = \frac{\partial}{\partial[\![\qhat]\!]_j}
+           [\![\Ophat(\qhat,\u)]\!]_i.
+
+        Parameters
+        ----------
+        state : (r,) ndarray
+            State vector.
+        input_ : (m,) ndarray or float or None
+            Input vector.
+
+        Returns
+        -------
+        jac : (r, r) ndarray
+            State Jacobian.
+        """
+        raise NotImplementedError
+
+    # Dimensionality reduction ------------------------------------------------
+    def galerkin(self, Vr, Wr=None):
+        r"""Get the (Petrov-)Galerkin projection of this operator.
+
+        Consider an operator :math:`\Op(\q,\u)`, where :math:`\q\in\RR^n`
+        is the state and :math:`\u\in\RR^m` is the input.
+        Given a *trial basis* :math:`\Vr\in\RR^{n\times r}` and a *test basis*
+        :math:`\Wr\in\RR^{n\times r}`, the Petrov-Galerkin projection of
+        :math:`\Op` is the operator :math:`\Ophat:\RR^r\times\RR^m\to\RR^r`
+        defined by
+
+        .. math::
+           \Ophat(\qhat, \u) = (\Wr\trp\Vr)^{-1}\Wr\trp\Op(\Vr\qhat, \u)
+
+        where :math:`\qhat\in\RR^n` approximates the original state via
+        :math:`\q \approx \Vr\qhat`.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        op : operator
+            New object of the same class as ``self`` whose ``state_dimension``
+            attribute equals ``r``. If this operator acts on inputs, the
+            ``input_dimension`` attribute of the new operator should be
+            ``self.input_dimension``.
+        """
+        raise NotImplementedError
+
+    # Model persistence -------------------------------------------------------
+    def copy(self):
+        """Return a copy of the operator."""
+        return copy.deepcopy(self)
+
+    def save(self, savefile: str, overwrite: bool = False) -> None:
+        """Save the operator to an HDF5 file.
+
+        Parameters
+        ----------
+        savefile : str
+            Path of the file to save the basis in.
+        overwrite : bool
+            If ``True``, overwrite the file if it already exists. If ``False``
+            (default), raise a ``FileExistsError`` if the file already exists.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def load(cls, loadfile: str):  # pragma: no cover
+        """Load an operator from an HDF5 file.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the operator was stored via :meth:`save()`.
+        """
+        raise NotImplementedError
+
+    # Verification ------------------------------------------------------------
+    def verify(self, plot=False, *, k=10, ntests=4):
+        """Verify consistency between dimension properties and required
+        methods.
+
+        This method verifies :meth:`apply()` and, if implemented,
+        :meth:`jacobian()`, :meth:`galerkin()`, :meth:`copy()`,
+        :meth:`save()`, and :meth:`load()`.
+
+        Parameters
+        ----------
+        plot : bool
+            If ``True``, plot the relative errors of the finite difference
+            check for :meth:`jacobian()` as a function of the perturbation
+            size.
+            If ``False`` (default), print a report of the relative errors.
+            Nothing is plotted or printed if :meth:`jacobian()` is not
+            implemented.
+
+        Notes
+        -----
+        This method does **not** verify the correctness of :meth:`apply()`,
+        only that it returns an output with the expected shape. However,
+        if :meth:`jacobian()` is implemented, a finite difference check is
+        applied to check that :meth:`apply()` and :meth:`jacobian()` are
+        consistent.
+        """
+        # Verify dimensions exist and are valid.
+        if not isinstance((r := self.state_dimension), int) or r <= 0:
+            raise errors.VerificationError(
+                "state_dimension must be a positive integer "
+                f"(current value: {repr(r)}, of type '{type(r).__name__}')"
+            )
+
+        if hasinputs := has_inputs(self):
+            if not isinstance((m := self.input_dimension), int) or m <= 0:
+                raise errors.VerificationError(
+                    "input_dimension must be a positive integer "
+                    f"(current value: {repr(m)}, of type '{type(r).__name__}')"
+                )
+        else:
+            m = 0
+
+        # Verify apply() - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        Q = np.random.random((r, k))
+        q = Q[:, 0]
+        U, u = None, None
+        if hasinputs:
+            U = np.random.random((m, k))
+            u = U[:, 0]
+
+        out = self.apply(q, u)
+        if not isinstance(out, np.ndarray) or out.shape != (r,):
+            _message = [
+                "apply(q, u) must return array of shape (state_dimension,)",
+                "when q.shape = (state_dimension,)",
+                "and u = None",
+            ]
+            if hasinputs:
+                _message[-1] = "and u.shape = (input_dimension,)"
+            raise errors.VerificationError(" ".join(_message))
+
+        out = self.apply(Q, U)
+        if not isinstance(out, np.ndarray) or out.shape != (r, k):
+            _message = [
+                "apply(Q, U) must return array of shape (state_dimension, k)",
+                "when Q.shape = (state_dimension, k)",
+                "and U = None",
+            ]
+            if hasinputs:
+                _message[-1] = "and U.shape = (input_dimension, k)"
+            raise errors.VerificationError(" ".join(_message))
+
+        # Report successes.
+        def _report_isconsistent(method):
+            _message = f"{method} is consistent with state_dimension"
+            if hasinputs:
+                _message += " and input_dimension"
+            print(_message)
+
+        _report_isconsistent("apply()")
+
+        # Verify jacobian() - - - - - - - - - - - - - - - - - - - - - - - - - -
+        def _gradient(f, x, h=1e-8):
+            """Estimate the Jacobian of f:R^n -> R^m at x using perturbations
+            of magnitude h.
+            """
+            E = np.eye((n := x.size))
+            return np.array([(f(x + h * E[i]) - f(x)) / h for i in range(n)]).T
+
+        def _finite_difference_check(f, df, x, hs=None):
+            """Compare analytical and numerical derivatives."""
+            dfx = df(x)
+            if hs is None:
+                hs = np.logspace(-10, -1, 10)[::-1]
+            return hs, np.array(
+                [la.norm(_gradient(f, x, h) - dfx) / la.norm(dfx) for h in hs]
+            )
+
+        try:
+            out = self.jacobian(q, u)
+        except NotImplementedError:
+            print("jacobian() not implemented")
+        else:
+            if not isinstance(out, np.ndarray) or out.shape != (r, r):
+                _message = [
+                    "jacobian(q, u) must return array",
+                    "of shape (state_dimension, state_dimension)",
+                    "when q.shape = (state_dimension,)",
+                    "and u = None",
+                ]
+                if hasinputs:
+                    _message[-1] = "and u.shape = (input_dimension,)"
+                raise errors.VerificationError(" ".join(_message))
+
+            _report_isconsistent("jacobian()")
+
+            # Finite difference check.
+            hs, diffs = _finite_difference_check(
+                lambda x: self.apply(x, u),
+                lambda x: self.jacobian(x, u),
+                np.random.standard_normal(r),
+            )
+            if plot:
+                plt.loglog(hs, diffs, ".-", markersize=5, linewidth=0.5)
+            else:
+                print(
+                    "apply()/jacobian() finite difference relative errors",
+                    "----------------------------------------------------",
+                    sep="\n",
+                )
+                for h, err in zip(hs, diffs):
+                    print(f"h = {h:.2e}\terror = {err:.4e}")
+
+        # Verify galerkin() - - - - - - - - - - - - - - - - - - - - - - - - - -
+        def _orth(n, k):
+            """Get an n x k matrix with orthonormal columns."""
+            return la.qr(np.random.standard_normal((n, k)), mode="economic")[0]
+
+        if r > 1:
+            rnew = r // 2
+            Vr = _orth(r, rnew)
+            Wr = _orth(r, rnew)
+            try:
+                out = self.galerkin(Vr, Wr)
+            except NotImplementedError:
+                print("galerkin() not implemented")
+            else:
+                if out.__class__ is not self.__class__:
+                    raise errors.VerificationError(
+                        "type(self.galerkin()) is not type(self)"
+                    )
+                if out.state_dimension != rnew:
+                    raise errors.VerificationError(
+                        "galerkin(Vr, Wr).state_dimension != Vr.shape[1]"
+                    )
+                if hasinputs and out.input_dimension != m:
+                    raise errors.VerificationError(
+                        "self.galerkin(Vr, Wr).input_dimension "
+                        "!= self.input_dimension"
+                    )
+                WrTVr_LU = la.lu_factor(Wr.T @ Vr)
+                for _ in range(ntests):
+                    qr = np.random.random(rnew)
+                    full = la.lu_solve(WrTVr_LU, Wr.T @ self.apply(Vr @ qr, u))
+                    reduced = out.apply(qr, u)
+                    if not np.allclose(reduced, full):
+                        raise errors.VerificationError(
+                            "op2.apply(qr, u) != "
+                            "inv(Wr.T @ Vr) @ Wr.T @ self.apply(Vr @ qr, u) "
+                            "where op2 = self.galerkin(Vr, Wr)"
+                        )
+                out = self.galerkin(Vr)
+                for _ in range(ntests):
+                    qr = np.random.random(rnew)
+                    full = Vr.T @ self.apply(Vr @ qr, u)
+                    reduced = out.apply(qr, u)
+                    if not np.allclose(reduced, full):
+                        raise errors.VerificationError(
+                            "op2.apply(qr, u) != "
+                            "Vr.T @ self.apply(Vr @ qr, u) "
+                            "where op2 = self.galerkin(Vr) and Vr.T @ Vr = I"
+                        )
+                print("galerkin() is consistent with apply()")
+        else:
+            print("cannot test galerkin() when state_dimension = 1")
+
+        # Verify copy() - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        out = self.copy()
+        if out is self:
+            raise errors.VerificationError("self.copy() is self")
+        if out.__class__ is not self.__class__:
+            raise errors.VerificationError(
+                "type(self.copy()) is not type(self)"
+            )
+        if out.state_dimension != r:
+            raise errors.VerificationError(
+                "self.copy().state_dimension != self.state_dimension"
+            )
+        if hasinputs and out.input_dimension != m:
+            raise errors.VerificationError(
+                "self.copy().input_dimension != self.input_dimension"
+            )
+        _report_isconsistent("copy()")
+        for _ in range(ntests):
+            q = np.random.random(r)
+            if not np.allclose(out.apply(q, u), self.apply(q, u)):
+                raise errors.VerificationError(
+                    "self.copy().apply() not consistent with self.apply()"
+                )
+        print("copy() preserves the results of apply()")
+
+        # Verify save()/load() - - - - - - - - - - - - - - - - - - - - - - - -
+        tempfile = "_operatorverification.h5"
+        try:
+            self.save(tempfile)
+            out = self.load(tempfile)
+        except NotImplementedError:
+            print("save() and/or load() not implemented")
+        else:
+            if out.__class__ is not self.__class__:
+                raise errors.VerificationError(
+                    "save()/load() does not preserve object type"
+                )
+            if out.state_dimension != r:
+                raise errors.VerificationError(
+                    "save()/load() does not preserve state_dimension"
+                )
+            if hasinputs and out.input_dimension != m:
+                raise errors.VerificationError(
+                    "save()/load() does not preserve input_dimension"
+                )
+            _report_isconsistent("save()/load()")
+            for _ in range(ntests):
+                q = np.random.random(r)
+                if not np.allclose(out.apply(q, u), self.apply(q, u)):
+                    raise errors.VerificationError(
+                        "save()/load() does not preserve the result of apply()"
+                    )
+            print("save()/load() preserves the results of apply()")
+
+            if os.path.isfile(tempfile):  # pragma: no cover
+                os.remove(tempfile)
 
 
 # Nonparametric operators =====================================================
@@ -337,6 +725,7 @@ class _NonparametricOperator(abc.ABC):
 
 
 # Mixin for operators acting on inputs ----------------------------------------
+# TODO: rename InputMixin and place at the top.
 class _InputMixin(abc.ABC):
     """Mixin for operator classes whose ``apply()`` method acts on
     the ``input_`` argument.
