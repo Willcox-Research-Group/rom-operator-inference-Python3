@@ -391,17 +391,17 @@ class TestOperatorTemplate:
         Dummy21().verify()
 
 
-class TestOpInfOperatorTemplate:
-    """Test operators._base.OpInfOperatorTemplate."""
+class TestOpInfOperator:
+    """Test operators._base.OpInfOperator."""
 
-    class Dummy(_module.OpInfOperatorTemplate):
-        """Instantiable version of OpInfOperatorTemplate."""
+    class Dummy(_module.OpInfOperator):
+        """Instantiable version of OpInfOperator."""
 
         def apply(*args, **kwargs):
             return -1
 
         def galerkin(*args, **kwargs):
-            return _module.OpInfOperatorTemplate.galerkin(*args, **kwargs)
+            return _module.OpInfOperator.galerkin(*args, **kwargs)
 
         def datablock(*args, **kwargs):
             pass
@@ -410,13 +410,13 @@ class TestOpInfOperatorTemplate:
             pass
 
     class Dummy2(Dummy):
-        """A distinct instantiable version of OpInfOperatorTemplate."""
+        """A distinct instantiable version of OpInfOperator."""
 
         pass
 
     # Initialization ----------------------------------------------------------
     def test_init(self):
-        """Test OpInfOperatorTemplate.__init__()."""
+        """Test OpInfOperator.__init__()."""
         op = self.Dummy()
         assert op.entries is None
 
@@ -432,8 +432,8 @@ class TestOpInfOperatorTemplate:
         assert op.jacobian(None, None) == 0
 
     def test_validate_entries(self):
-        """Test OpInfOperatorTemplate._validate_entries()."""
-        func = _module.OpInfOperatorTemplate._validate_entries
+        """Test OpInfOperator._validate_entries()."""
+        func = _module.OpInfOperator._validate_entries
         with pytest.raises(TypeError) as ex:
             func([1, 2, 3, 4])
         assert ex.value.args[0] == (
@@ -457,7 +457,7 @@ class TestOpInfOperatorTemplate:
 
     # Properties --------------------------------------------------------------
     def test_entries(self):
-        """Test OpInfOperatorTemplate.entries and shape()."""
+        """Test OpInfOperator.entries and shape()."""
         op = self.Dummy()
         assert op.shape is None
 
@@ -478,7 +478,7 @@ class TestOpInfOperatorTemplate:
 
     # Magic methods -----------------------------------------------------------
     def test_getitem(self):
-        """Test OpInfOperatorTemplate.__getitem__()."""
+        """Test OpInfOperator.__getitem__()."""
         op = self.Dummy()
         assert op[0, 1, 3:] is None
 
@@ -488,7 +488,7 @@ class TestOpInfOperatorTemplate:
             assert np.all(op[s] == A[s])
 
     def test_eq(self):
-        """Test OpInfOperatorTemplate.__eq__()."""
+        """Test OpInfOperator.__eq__()."""
         op1 = self.Dummy()
         op2 = self.Dummy2()
         assert op1 != op2
@@ -511,7 +511,7 @@ class TestOpInfOperatorTemplate:
         assert op1 == op2
 
     def test_add(self, r=3):
-        """Test OpInfOperatorTemplate.__add__()."""
+        """Test OpInfOperator.__add__()."""
         op1 = self.Dummy(np.random.random((r, r)))
 
         # Try with invalid type.
@@ -527,7 +527,7 @@ class TestOpInfOperatorTemplate:
 
     # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=10, r=3):
-        """Test OpInfOperatorTemplate.galerkin()."""
+        """Test OpInfOperator.galerkin()."""
         Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
         Wr = la.qr(np.random.random((n, r)), mode="economic")[0]
         A = np.random.random((n, n))
@@ -559,7 +559,7 @@ class TestOpInfOperatorTemplate:
 
     # Model persistence -------------------------------------------------------
     def test_copy(self):
-        """Test OpInfOperatorTemplate.copy()."""
+        """Test OpInfOperator.copy()."""
         op1 = self.Dummy()
         op1.set_entries(np.random.random((4, 4)))
         op2 = op1.copy()
@@ -568,7 +568,7 @@ class TestOpInfOperatorTemplate:
         assert op2 == op1
 
     def test_save(self, target="_baseoperatorsavetest.h5"):
-        """Test OpInfOperatorTemplate.save()."""
+        """Test OpInfOperator.save()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
@@ -596,7 +596,7 @@ class TestOpInfOperatorTemplate:
         os.remove(target)
 
     def test_load(self, target="_baseoperatorloadtest.h5"):
-        """Test OpInfOperatorTemplate.load()."""
+        """Test OpInfOperator.load()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
@@ -633,22 +633,22 @@ class TestOpInfOperatorTemplate:
 def test_is_nonparametric():
     """Test operators._base.is_nonparametric()."""
 
-    op = TestOpInfOperatorTemplate.Dummy()
+    op = TestOpInfOperator.Dummy()
     assert opinf.operators.is_nonparametric(op)
     assert not opinf.operators.is_nonparametric(10)
 
 
 # Parametric operators ========================================================
-class TestParametricOperator:
-    """Test operators._base._ParametricOperator."""
+class TestParametricOpInfOperator:
+    """Test operators._base.ParametricOpInfOperator."""
 
-    class Dummy(_module._ParametricOperator):
-        """Instantiable versino of _ParametricOperator."""
+    class Dummy(_module.ParametricOpInfOperator):
+        """Instantiable version of ParametricOpInfOperator."""
 
-        _OperatorClass = TestOpInfOperatorTemplate.Dummy
+        _OperatorClass = TestOpInfOperator.Dummy
 
         def __init__(self):
-            _module._ParametricOperator.__init__(self)
+            _module.ParametricOpInfOperator.__init__(self)
 
         def _clear(self):
             pass
@@ -683,7 +683,7 @@ class TestParametricOperator:
             pass
 
     def test_set_parameter_dimension_from_data(self):
-        """Test _ParametricOperator._set_parameter_dimension_from_data()."""
+        """Test _set_parameter_dimension_from_data()."""
         op = self.Dummy()
         assert op.parameter_dimension is None
 
@@ -705,7 +705,7 @@ class TestParametricOperator:
         )
 
     def test_check_shape_consistency(self):
-        """Test _ParametricOperator._check_shape_consistency()."""
+        """Test _check_shape_consistency()."""
         arrays = [np.random.random((2, 3)), np.random.random((3, 2))]
         with pytest.raises(ValueError) as ex:
             self.Dummy._check_shape_consistency(arrays, "array")
@@ -715,7 +715,7 @@ class TestParametricOperator:
         self.Dummy._check_shape_consistency(arrays, "array")
 
     def test_check_parametervalue_dimension(self, p=3):
-        """Test _ParametricOperator._check_parametervalue_dimension()."""
+        """Test _check_parametervalue_dimension()."""
         op = self.Dummy()
 
         with pytest.raises(RuntimeError) as ex:
@@ -732,16 +732,16 @@ class TestParametricOperator:
         op._check_parametervalue_dimension(np.empty(p))
 
     def test_apply(self):
-        """Test _ParametricOperator.apply()."""
+        """Test apply()."""
         assert self.Dummy().apply(None, None, None) == -1
 
     def test_jacobian(self):
-        """Test _ParametricOperator.jacobian()."""
+        """Test jacobian()."""
         assert self.Dummy().jacobian(None, None, None) == 0
 
 
 def test_is_parametric():
     """Test operators._base.is_parametric()."""
-    op = TestParametricOperator.Dummy()
+    op = TestParametricOpInfOperator.Dummy()
     assert opinf.operators.is_parametric(op)
     assert not opinf.operators.is_nonparametric(-1)

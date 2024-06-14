@@ -5,8 +5,10 @@ __all__ = [
     "InputMixin",
     "has_inputs",
     "OperatorTemplate",
-    "OpInfOperatorTemplate",
+    "OpInfOperator",
     "is_nonparametric",
+    "ParametricOperatorTemplate",
+    "ParametricOpInfOperator",
     "is_parametric",
 ]
 
@@ -62,7 +64,7 @@ class OperatorTemplate(abc.ABC):
     learnable with Operator Inference.
     For parametric model terms, see :class:`ParametricOperatorTemplate.
     For model terms that can be learned with Operator Inference, see
-    :class:`OpInfOperatorTemplate` or :class:`ParametricOpInfOperatorTemplate`.
+    :class:`OpInfOperator` or :class:`ParametricOpInfOperator`.
     """
 
     # Properties --------------------------------------------------------------
@@ -439,7 +441,7 @@ class OperatorTemplate(abc.ABC):
                 os.remove(tempfile)
 
 
-class OpInfOperatorTemplate(OperatorTemplate):
+class OpInfOperator(OperatorTemplate):
     r"""Template for nonparametric operators that can be calibrated through
     Operator Inference.
 
@@ -474,7 +476,7 @@ class OpInfOperatorTemplate(OperatorTemplate):
       Operator Inference), see :class:`OperatorTemplate`.
     * If the operator entries :math:`\Ohat_{\ell}` depend on one or more
       external parameters, it is called a *parametric operator*.
-      See :class:`ParametricOpInfOperatorTemplate`.
+      See :class:`ParametricOpInfOperator`.
     """
 
     # Initialization ----------------------------------------------------------
@@ -809,7 +811,7 @@ def is_nonparametric(obj) -> bool:
 
 
 def is_inferrable(obj) -> bool:
-    return isinstance(obj, OpInfOperatorTemplate) and obj.entries is None
+    return isinstance(obj, OpInfOperator) and obj.entries is None
 
 
 # Parametric operators ========================================================
@@ -1018,19 +1020,19 @@ class ParametricOperatorTemplate(abc.ABC):
         raise NotImplementedError
 
 
-class _ParametricOperator(ParametricOperatorTemplate):
+class ParametricOpInfOperator(ParametricOperatorTemplate):
     r"""Base class for operators that depend on external parameters, i.e.,
     :math:`\Ophat_\ell(\qhat,\u;\bfmu) = \Ohat_\ell(\bfmu)\d_\ell(\qhat,\u)`.
 
     Evaluating a ``_ParametricOpertor`` at a specific parameter value
     results in an object that inherits from
-    :class:`opinf.operators.OpInfOperatorTemplate`.
+    :class:`opinf.operators.OpInfOperator`.
 
     Examples
     --------
     >>> parametric_operator = MyParametricOperator(init_args)
     >>> nonparametric_operator = parametric_operator.evaluate(parameter_value)
-    >>> isinstance(nonparametric_operator, OpInfOperatorTemplate)
+    >>> isinstance(nonparametric_operator, OpInfOperator)
     True
     """
 
@@ -1142,4 +1144,4 @@ class _ParametricOperator(ParametricOperatorTemplate):
 
 def is_parametric(obj) -> bool:
     """Return ``True`` if ``obj`` is a parametric operator object."""
-    return isinstance(obj, _ParametricOperator)
+    return isinstance(obj, ParametricOpInfOperator)

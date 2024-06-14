@@ -17,8 +17,8 @@ _predictvalue = 13
 
 
 # Dummy classes ===============================================================
-class DummyOpInfOperator(opinf.operators.OpInfOperatorTemplate):
-    """Instantiable version of OpInfOperatorTemplate."""
+class DummyOpInfOperator(opinf.operators.OpInfOperator):
+    """Instantiable version of OpInfOperator."""
 
     def apply(*args, **kwargs):  # pragma: no cover
         return _applyvalue
@@ -40,13 +40,13 @@ class DummyOpInfOperator2(DummyOpInfOperator):
     """Another OpInfOperator (since duplicates not allowed)."""
 
 
-class DummyParametricOperator(opinf.operators._base._ParametricOperator):
+class DummyParametricOperator(opinf.operators.ParametricOpInfOperator):
     """Instantiable version of ParametricOperator."""
 
     _OperatorClass = DummyOpInfOperator
 
     def __init__(self, entries=None):
-        opinf.operators._base._ParametricOperator.__init__(self)
+        opinf.operators.ParametricOpInfOperator.__init__(self)
         self.entries = entries
 
     def _clear(*args, **kwargs):  # pragma: no cover

@@ -79,7 +79,7 @@ class _ParametricModel(_Model):
             op,
             (
                 _operators.OperatorTemplate,
-                _operators._base._ParametricOperator,
+                _operators.ParametricOperatorTemplate,
             ),
         )
 

@@ -18,7 +18,7 @@ import scipy.linalg as la
 import scipy.interpolate as spinterp
 
 from .. import errors, utils
-from ._base import _ParametricOperator, InputMixin
+from ._base import ParametricOpInfOperator, InputMixin
 from ._nonparametric import (
     ConstantOperator,
     LinearOperator,
@@ -30,7 +30,7 @@ from ._nonparametric import (
 
 
 # Base class ==================================================================
-class _InterpolatedOperator(_ParametricOperator):
+class _InterpolatedOperator(ParametricOpInfOperator):
     r"""Base class for parametric operators where the parameter dependence
     is handled with element-wise interpolation.
 
@@ -48,7 +48,7 @@ class _InterpolatedOperator(_ParametricOperator):
     where :math:`\Ohat_\ell^{(i)} = \Ohat_\ell(\bfmu_i)` for each
     :math:`i=1,\ldots,s`.
 
-    Parent class: :class:`opinf.operators._base._ParametricOperator`
+    Parent class: :class:`opinf.operators.ParametricOpInfOperator`
 
     Child classes:
 
@@ -96,7 +96,7 @@ class _InterpolatedOperator(_ParametricOperator):
         """Set attributes and, if training parameters and entries are given,
         construct the elementwise operator interpolator.
         """
-        _ParametricOperator.__init__(self)
+        ParametricOpInfOperator.__init__(self)
 
         self.__parameters = None
         self.__entries = None

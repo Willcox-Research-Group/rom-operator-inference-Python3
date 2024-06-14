@@ -19,8 +19,8 @@ _d = 8
 _Dblock = np.random.random((4, _d))
 
 
-class _DummyOperator(opinf.operators.OpInfOperatorTemplate):
-    """Instantiable version of OpInfOperatorTemplate."""
+class _DummyOperator(opinf.operators.OpInfOperator):
+    """Instantiable version of OpInfOperator."""
 
     def apply(*args, **kwargs):
         return -1
@@ -406,7 +406,7 @@ def test_publics():
         op = OpClass()
         assert issubclass(
             op.OperatorClass,
-            opinf.operators.OpInfOperatorTemplate,
+            opinf.operators.OpInfOperator,
         )
 
 
