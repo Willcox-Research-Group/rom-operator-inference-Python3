@@ -372,6 +372,8 @@ class TestPlainSolver:
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
 
+        os.remove(outfile)
+
     def test_copy(self, k=18, d=10, r=4):
         """Test copy()."""
         solver = self.Solver(lapack_driver="gelsy")

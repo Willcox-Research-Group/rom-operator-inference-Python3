@@ -46,7 +46,7 @@ class TotalLeastSquaresSolver(SolverTemplate):
     Parameters
     ----------
     lapack_driver : str
-        LAPACK routine for computing the SVD. See ``scipy.linalg.svd()``.
+        LAPACK routine for computing the SVD. See :func:`scipy.linalg.svd()`.
     """
 
     def __init__(self, lapack_driver: str = "gesdd"):
@@ -58,7 +58,7 @@ class TotalLeastSquaresSolver(SolverTemplate):
     # Properties --------------------------------------------------------------
     @property
     def options(self):
-        """Keyword arguments for ``scipy.linalg.svd()``."""
+        """Keyword arguments for :func:`scipy.linalg.svd()`."""
         return self.__options
 
     def __str__(self):

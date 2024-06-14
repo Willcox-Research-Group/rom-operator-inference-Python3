@@ -492,10 +492,10 @@ class SteadyModel(_NonparametricModel):  # pragma: no cover
     solver : :mod:`opinf.lstsq` object or float > 0 or None
         Solver for the least-squares regression. Defaults:
 
-        * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
-            without regularization.
-        * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
-            scalar Tikhonov regularization.
+        * ``None``: :class:`opinf.lstsq.PlainSolver`.
+          SVD-based solve without regularization.
+        * float > 0: :class:`opinf.lstsq.L2Solver`.
+          SVD-based solve with scalar Tikhonov regularization.
     """
 
     _LHS_ARGNAME = "forcing"
@@ -611,10 +611,10 @@ class DiscreteModel(_NonparametricModel):
     solver : :mod:`opinf.lstsq` object or float > 0 or None
         Solver for the least-squares regression. Defaults:
 
-        * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
-            without regularization.
-        * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
-            scalar Tikhonov regularization.
+        * ``None``: :class:`opinf.lstsq.PlainSolver`.
+          SVD-based solve without regularization.
+        * float > 0: :class:`opinf.lstsq.L2Solver`.
+          SVD-based solve with scalar Tikhonov regularization.
     """
 
     _LHS_ARGNAME = "nextstates"
@@ -846,10 +846,10 @@ class ContinuousModel(_NonparametricModel):
     solver : :mod:`opinf.lstsq` object or float > 0 or None
         Solver for the least-squares regression. Defaults:
 
-        * ``None``: :class:`opinf.lstsq.PlainSolver`, SVD-based solve
-            without regularization.
-        * float > 0: :class:`opinf.lstsq.L2Solver`, SVD-based solve with
-            scalar Tikhonov regularization.
+        * ``None``: :class:`opinf.lstsq.PlainSolver`.
+          SVD-based solve without regularization.
+        * float > 0: :class:`opinf.lstsq.L2Solver`.
+          SVD-based solve with scalar Tikhonov regularization.
     """
 
     _LHS_ARGNAME = "ddts"
@@ -961,7 +961,7 @@ class ContinuousModel(_NonparametricModel):
 
     def predict(self, state0, t, input_func=None, **options):
         """Solve the system of ordinary differential equations.
-        This method wraps ``scipy.integrate.solve_ivp()``.
+        This method wraps :func:`scipy.integrate.solve_ivp()`.
 
         Parameters
         ----------
@@ -974,8 +974,7 @@ class ContinuousModel(_NonparametricModel):
             times ``t``. If given as an array, cubic spline interpolation on
             the known data points is used as needed.
         options
-            Arguments for ``scipy.integrate.solve_ivp()``,
-            See https://docs.scipy.org/doc/scipy/reference/integrate.html.
+            Arguments for :func:`scipy.integrate.solve_ivp()`.
             Common options:
 
             * **method : str** ODE solver for the model.

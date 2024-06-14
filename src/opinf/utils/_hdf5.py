@@ -18,7 +18,7 @@ class _hdf5_filehandle:
 
     Parameters
     ----------
-    filename : str of h5py File/Group handle
+    filename : str or h5py File/Group handle
         * str : Name of the file to interact with.
         * h5py File/Group handle : handle to part of an already open HDF5 file.
     mode : str
@@ -77,7 +77,7 @@ class hdf5_savehandle(_hdf5_filehandle):
 
     Parameters
     ----------
-    savefile : str of h5py File/Group handle
+    savefile : str or h5py File/Group handle
         * str : Name of the file to save to.
         * h5py File/Group handle : handle to part of an already open HDF5 file
           to save data to.
@@ -100,7 +100,7 @@ class hdf5_loadhandle(_hdf5_filehandle):
 
     Parameters
     ----------
-    loadfile : str of h5py File/Group handle
+    loadfile : str or h5py File/Group handle
         * str : Name of the file to read from.
         * h5py File/Group handle : handle to part of an already open HDF5 file
           to read data from.

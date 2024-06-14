@@ -14,12 +14,13 @@ repository:
 
 # GitHub buttons and other web options.
 html:
+  extra_css: ["_static/properties.css"]
+  favicon: images/favicon.svg
   home_page_in_navbar: false
   use_edit_page_button: false
   use_issues_button: true
   use_multitoc_numbering: false
   use_repository_button: true
-  favicon: images/favicon.svg
 
 # Notebooks execution configuration for build.
 # See https://jupyterbook.org/content/execute.html
@@ -51,11 +52,22 @@ sphinx:
     autosummary_generate: true          # Turn on sphinx.ext.autosummary.
     bibtex_reference_style: label
     # bibtex_default_style: plain       # Citations as numbers.
-    # intersphinx_mapping: {
-    #   "python": ("https://docs.python.org/3", None),
-    #   "numpy": ("https://numpy.org/devdocs", None),
-    #   "matplotlib": ("https://matplotlib.org/stable", None),
-    # }
+    intersphinx_mapping:
+      matplotlib:
+        - "https://matplotlib.org/stable/"
+        - null
+      numpy:
+        - "https://numpy.org/doc/stable/"
+        - null
+      python:
+        - "https://docs.python.org/3/"
+        - null
+      scipy:
+        - "https://docs.scipy.org/doc/scipy/"
+        - null
+      sklearn:
+        - "https://scikit-learn.org/stable/"
+        - null
     mathjax3_config:
       tex:
         macros:
@@ -125,6 +137,7 @@ sphinx:
     - sphinx_design
     - sphinx.ext.autodoc
     - sphinx.ext.autosummary
+    - sphinx.ext.intersphinx
     - sphinx.ext.napoleon
     - sphinx.ext.viewcode
     - sphinxcontrib.mermaid
