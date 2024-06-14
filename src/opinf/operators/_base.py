@@ -50,6 +50,14 @@ class OperatorTemplate(abc.ABC):
         r"""Dimension of the state :math:`\qhat` that the operator acts on."""
         return NotImplemented
 
+    def __str__(self):
+        """String representation: class name + dimensions."""
+        out = [self.__class__.__name__]
+        out.append(f"state_dimension: {self.state_dimension}")
+        if has_inputs(self):
+            out.append(f"input_dimension: {self.input_dimension}")
+        return "\n  ".join(out)
+
     # Evaluation --------------------------------------------------------------
     @abc.abstractmethod
     def apply(self, state, input_=None):  # pragma: no cover
@@ -448,8 +456,8 @@ class _NonparametricOperator(abc.ABC):
     # Properties --------------------------------------------------------------
     @property
     def entries(self):
-        r"""
-        Discrete representation of the operator, the matrix :math:`\Ohat`.
+        r"""Discrete representation of the operator,
+        the matrix :math:`\Ohat`.
         """
         return self.__entries
 

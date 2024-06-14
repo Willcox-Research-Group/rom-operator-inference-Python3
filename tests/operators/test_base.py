@@ -20,6 +20,44 @@ class TestOperatorTemplate:
 
     Operator = _module.OperatorTemplate
 
+    def test_str(self, r=11, m=3):
+        """Test __str__()."""
+
+        class Dummy(self.Operator):
+            """Instantiable version of OperatorTemplate."""
+
+            def __init__(self, state_dimension=r):
+                self.__r = state_dimension
+
+            @property
+            def state_dimension(self):
+                return self.__r
+
+            def apply(self, state, input_=None):
+                return state
+
+        class InputDummy(Dummy, _module._InputMixin):
+            """Instantiable version of OperatorTemplate with inputs."""
+
+            def __init__(self, state_dimension=r, input_dimension=m):
+                Dummy.__init__(self, state_dimension)
+                self.__m = input_dimension
+
+            @property
+            def input_dimension(self):
+                return self.__m
+
+        def _test(DummyClass):
+            dummystr = str(DummyClass())
+            assert dummystr.startswith(DummyClass.__name__)
+            for line in (lines := dummystr.split("\n")[1:]):
+                assert line.startswith("  ")
+            assert lines[0].endswith(f"{r}")
+            return lines
+
+        _test(Dummy)
+        assert _test(InputDummy)[-1].endswith(f"{m}")
+
     def test_verify(self, r=10, m=4):
         """Test verify()."""
 

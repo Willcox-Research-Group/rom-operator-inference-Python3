@@ -131,7 +131,7 @@ class TestInterpolatedOperator:
         assert np.all(op.training_parameters == mu[:, 0])
         assert len(op) == s
 
-        entries = np.random.random((s, r, r))
+        entries = np.random.standard_normal((s, r, r))
         op = self.Dummy(mu, entries)
         assert len(op) == s
 
