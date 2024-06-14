@@ -1,6 +1,6 @@
 # operators/_interpolate.py
-"""Classes for parametric operators where the parametric dependence is handled
-with element-wise interpolation.
+"""Classes for OpInf parametric operators where the parametric dependence is
+handled with element-wise interpolation.
 """
 
 __all__ = [

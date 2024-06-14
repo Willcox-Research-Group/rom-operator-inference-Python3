@@ -78,7 +78,7 @@ class _ParametricModel(_Model):
         return isinstance(
             op,
             (
-                _operators._base._NonparametricOperator,
+                _operators.OperatorTemplate,
                 _operators._base._ParametricOperator,
             ),
         )

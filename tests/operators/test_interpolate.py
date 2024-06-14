@@ -19,16 +19,8 @@ _d = 8
 _Dblock = np.random.random((4, _d))
 
 
-class _DummyOperator(opinf.operators._base._NonparametricOperator):
-    """Instantiable version of _NonparametricOperator."""
-
-    def set_entries(*args, **kwargs):
-        opinf.operators._base._NonparametricOperator.set_entries(
-            *args, **kwargs
-        )
-
-    def _str(*args, **kwargs):
-        pass
+class _DummyOperator(opinf.operators.OpInfOperatorTemplate):
+    """Instantiable version of OpInfOperatorTemplate."""
 
     def apply(*args, **kwargs):
         return -1
@@ -414,7 +406,7 @@ def test_publics():
         op = OpClass()
         assert issubclass(
             op.OperatorClass,
-            opinf.operators._base._NonparametricOperator,
+            opinf.operators.OpInfOperatorTemplate,
         )
 
 

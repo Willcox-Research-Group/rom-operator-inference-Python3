@@ -21,8 +21,7 @@ Reduced-order models based on Operator Inference are systems of [ordinary differ
 $$
 \begin{aligned}
    \ddt\qhat(t)
-   = \sum_{\ell=1}^{n_\textrm{terms}}
-   \Ophat_{\ell}(\qhat(t),\u(t))
+   = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t))
 \end{aligned}
 $$ (eq:operators:model)
 

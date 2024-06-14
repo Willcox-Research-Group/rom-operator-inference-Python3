@@ -5,6 +5,7 @@ __all__ = [
     "InputMixin",
     "has_inputs",
     "OperatorTemplate",
+    "OpInfOperatorTemplate",
     "is_nonparametric",
     "is_parametric",
 ]
@@ -51,7 +52,7 @@ class OperatorTemplate(abc.ABC):
     for example, an :class:`opinf.models.ContinuousModel` object represents a
     system of ordinary differential equations:
 
-    .. math ..
+    .. math::
        \ddt\qhat(t)
        = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t)).
 
@@ -438,17 +439,42 @@ class OperatorTemplate(abc.ABC):
                 os.remove(tempfile)
 
 
-class _NonparametricOperator(abc.ABC):
-    """Base class for operators that do not depend on external parameters.
+class OpInfOperatorTemplate(OperatorTemplate):
+    r"""Template for nonparametric operators that can be calibrated through
+    Operator Inference.
 
-    Child classes:
+    In this package, an "operator" is a function
+    :math:`\Ophat_{\ell}: \RR^n \times \RR^m \to \RR^n` that acts on a state
+    vector :math:`\qhat\in\RR^n` and (optionally) an input vector
+    :math:`\u\in\RR^m`.
 
-    * :class:`opinf.operators.ConstantOperator`
-    * :class:`opinf.operators.LinearOperator`
-    * :class:`opinf.operators.QuadraticOperator`
-    * :class:`opinf.operators.CubicOperator`
-    * :class:`opinf.operators.InputOperator`
-    * :class:`opinf.operators.StateInputOperator`
+    Models are defined as the sum of several operators,
+    for example, an :class:`opinf.models.ContinuousModel` object represents a
+    system of ordinary differential equations:
+
+    .. math::
+       \ddt\qhat(t)
+       = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t)).
+
+    Operator Inference calibrates operators that can be written as the product
+    of a matrix and some known (possibly nonlinear) function of the state
+    and/or input:
+
+    .. math::
+       \Ophat_{\ell}(\qhat, \u)
+       = \Ohat_{\ell}\d(\qhat, \u),
+
+    where :math:`\Ohat_{\ell}\in\RR^{r\times d}` is a constant matrix, called
+    the *operator entries*, and :math:`\d_{\ell}:\RR^r\times\RR^m\to\RR^d`.
+
+    Notes
+    -----
+    * To define operators with a more general structure than
+      :math:`\Ohat_{\ell}\d(\qhat, \u)` (but which cannot be calibrated via
+      Operator Inference), see :class:`OperatorTemplate`.
+    * If the operator entries :math:`\Ohat_{\ell}` depend on one or more
+      external parameters, it is called a *parametric operator*.
+      See :class:`ParametricOpInfOperatorTemplate`.
     """
 
     # Initialization ----------------------------------------------------------
@@ -474,7 +500,6 @@ class _NonparametricOperator(abc.ABC):
         elif np.any(np.isinf(entries)):
             raise ValueError("operator entries must not be Inf")
 
-    @abc.abstractmethod
     def set_entries(self, entries):
         """Set the ``entries`` attribute."""
         self.__entries = entries
@@ -530,14 +555,13 @@ class _NonparametricOperator(abc.ABC):
 
     def __add__(self, other):
         """Nonparametric operators are linear in their entries."""
-        if not isinstance(other, self.__class__):
+        if (ocls := other.__class__) is not (scls := self.__class__):
             raise TypeError(
-                f"can't add object of type '{other.__class__.__name__}' "
-                f"to object of type '{self.__class__.__name__}'"
+                f"can't add object of type '{ocls.__name__}' "
+                f"to object of type '{scls.__name__}'"
             )
-        return self.__class__(self.entries + other.entries)
+        return scls(self.entries + other.entries)
 
-    @abc.abstractmethod
     def _str(self, statestr, inputstr):  # pragma: no cover
         """String representation of the operator, used when printing out the
         structure of a model.
@@ -555,26 +579,9 @@ class _NonparametricOperator(abc.ABC):
             String representation of the operator acting on the state/input,
             e.g., ``"Aq(t)"`` or ``"Bu(t)"`` or ``"H[q(t) ⊗ q(t)]"``.
         """
-        raise NotImplementedError
+        return f"f({statestr}, {inputstr})"
 
     # Evaluation --------------------------------------------------------------
-    @abc.abstractmethod
-    def apply(self, state, input_=None):  # pragma: no cover
-        """Apply the operator mapping to the given state / input.
-
-        Parameters
-        ----------
-        state : (r,) ndarray
-            State vector.
-        input_ : (m,) ndarray or float or None
-            Input vector.
-
-        Returns
-        -------
-        (r,) ndarray
-        """
-        raise NotImplementedError
-
     @utils.requires("entries")
     def jacobian(self, state, input_=None):  # pragma: no cover
         r"""Construct the state Jacobian of the operator.
@@ -616,9 +623,7 @@ class _NonparametricOperator(abc.ABC):
            @utils.requires("entries")
            def galerkin(self, Vr, Wr=None):
                '''Docstring'''
-               return _NonparametricOperator.galerkin(self, Vr, Wr,
-                   lambda A, V:  # right-hand side of projection
-               )
+               return super().galerkin(Vr, Wr, lambda A, V: <TODO>)
 
         Parameters
         ----------
@@ -627,9 +632,10 @@ class _NonparametricOperator(abc.ABC):
         Wr : (n, r) ndarray or None
             Basis for the test space. If ``None``, defaults to ``Vr``.
         func : callable
-            Function computing the right side of the projection, i.e, the
-            result of substituting :math:`\q` with :math:`\Vr\qhat`.
-            For example, for linear operator :math:`\op_\ell(\q) = \A\q`,
+            Function that accepts the operator ``entries`` and the trial
+            basis ``Vr`` and computes the right side of the projection,
+            i.e, the result of substituting :math:`\q` with :math:`\Vr\qhat`.
+            For example, for linear operator :math:`\Op_\ell(\q) = \A\q`,
             ``func`` should return :math:`\A\Vr`.
 
         Returns
@@ -678,7 +684,7 @@ class _NonparametricOperator(abc.ABC):
         and ``inputs`` is the (optional) input matrix
         :math:`[~\u_0~~\cdots~~\u_{k-1}~]`.
 
-        Child classes should implement this method as a ``@staticmethod``.
+        Child classes should decorate this method with ``@staticmethod``.
 
         Parameters
         ----------
@@ -701,7 +707,7 @@ class _NonparametricOperator(abc.ABC):
     def operator_dimension(r: int, m: int = None) -> int:  # pragma: no cover
         r"""Column dimension of the operator entries.
 
-        Child classes should implement this method as a @staticmethod.
+        Child classes should decorate this method with ``@staticmethod``.
 
         Parameters
         ----------
@@ -757,10 +763,53 @@ class _NonparametricOperator(abc.ABC):
                 )
             return cls(hf["entries"][:] if "entries" in hf else None)
 
+    # Verification ------------------------------------------------------------
+    def verify(
+        self,
+        plot: bool = False,
+        *,
+        k: int = 10,
+        ntests: int = 4,
+    ) -> None:
+        """Verify consistency between dimension properties and required
+        methods.
+
+        This method verifies :meth:`apply()` and, if implemented,
+        :meth:`jacobian()`, :meth:`galerkin()`, :meth:`copy()`,
+        :meth:`save()`, and :meth:`load()`.
+        If the :attr:`entries` are not set, no checks are made.
+
+        Parameters
+        ----------
+        plot : bool
+            If ``True``, plot the relative errors of the finite difference
+            check for :meth:`jacobian()` as a function of the perturbation
+            size.
+            If ``False`` (default), print a report of the relative errors.
+            Nothing is plotted or printed if :meth:`jacobian()` is not
+            implemented.
+
+        Notes
+        -----
+        This method does **not** verify the correctness of :meth:`apply()`,
+        only that it returns an output with the expected shape. However,
+        if :meth:`jacobian()` is implemented, a finite difference check is
+        applied to check that :meth:`apply()` and :meth:`jacobian()` are
+        consistent.
+        """
+        if self.entries is None:
+            print("entries is None, cannot verify implementation")
+        else:
+            OperatorTemplate.verify(plot=plot, k=k, ntests=ntests)
+
 
 def is_nonparametric(obj) -> bool:
     """Return ``True`` if ``obj`` is a nonparametric operator object."""
-    return isinstance(obj, _NonparametricOperator)
+    return isinstance(obj, OperatorTemplate)
+
+
+def is_inferrable(obj) -> bool:
+    return isinstance(obj, OpInfOperatorTemplate) and obj.entries is None
 
 
 # Parametric operators ========================================================
@@ -974,19 +1023,15 @@ class _ParametricOperator(ParametricOperatorTemplate):
     :math:`\Ophat_\ell(\qhat,\u;\bfmu) = \Ohat_\ell(\bfmu)\d_\ell(\qhat,\u)`.
 
     Evaluating a ``_ParametricOpertor`` at a specific parameter value
-    results in a :class:`opinf.operators._base._NonparametricOperator`.
+    results in an object that inherits from
+    :class:`opinf.operators.OpInfOperatorTemplate`.
 
     Examples
     --------
     >>> parametric_operator = MyParametricOperator(init_args)
     >>> nonparametric_operator = parametric_operator.evaluate(parameter_value)
-    >>> isinstance(nonparametric_operator, _NonparametricOperator)
+    >>> isinstance(nonparametric_operator, OpInfOperatorTemplate)
     True
-
-    Child classes:
-
-    * :class:`opinf.operators._interpolate._InterpolatedOperator`
-    * ``_AffineOperator`` (TODO)
     """
 
     # Meta properties ---------------------------------------------------------

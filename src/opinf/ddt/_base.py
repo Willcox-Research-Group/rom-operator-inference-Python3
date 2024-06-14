@@ -235,7 +235,7 @@ class DerivativeEstimatorTemplate(abc.ABC):
                 estimation_errors[test[0]].append(err)
 
         if plot:
-            fig, ax = plt.subplots(1, 1)
+            _, ax = plt.subplots(1, 1)
             for test in self.__tests:
                 name = test[0]
                 ax.loglog(

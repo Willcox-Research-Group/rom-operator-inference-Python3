@@ -391,14 +391,14 @@ class TestOperatorTemplate:
         Dummy21().verify()
 
 
-class TestNonparametricOperator:
-    """Test operators._base._NonparametricOperator."""
+class TestOpInfOperatorTemplate:
+    """Test operators._base.OpInfOperatorTemplate."""
 
-    class Dummy(_module._NonparametricOperator):
-        """Instantiable version of _NonparametricOperator."""
+    class Dummy(_module.OpInfOperatorTemplate):
+        """Instantiable version of OpInfOperatorTemplate."""
 
         def set_entries(*args, **kwargs):
-            _module._NonparametricOperator.set_entries(*args, **kwargs)
+            _module.OpInfOperatorTemplate.set_entries(*args, **kwargs)
 
         def _str(*args, **kwargs):
             pass
@@ -407,7 +407,7 @@ class TestNonparametricOperator:
             return -1
 
         def galerkin(*args, **kwargs):
-            return _module._NonparametricOperator.galerkin(*args, **kwargs)
+            return _module.OpInfOperatorTemplate.galerkin(*args, **kwargs)
 
         def datablock(*args, **kwargs):
             pass
@@ -416,13 +416,13 @@ class TestNonparametricOperator:
             pass
 
     class Dummy2(Dummy):
-        """A distinct instantiable version of _NonparametricOperator."""
+        """A distinct instantiable version of OpInfOperatorTemplate."""
 
         pass
 
     # Initialization ----------------------------------------------------------
     def test_init(self):
-        """Test _NonparametricOperator.__init__()."""
+        """Test OpInfOperatorTemplate.__init__()."""
         op = self.Dummy()
         assert op.entries is None
 
@@ -438,8 +438,8 @@ class TestNonparametricOperator:
         assert op.jacobian(None, None) == 0
 
     def test_validate_entries(self):
-        """Test _NonparametricOperator._validate_entries()."""
-        func = _module._NonparametricOperator._validate_entries
+        """Test OpInfOperatorTemplate._validate_entries()."""
+        func = _module.OpInfOperatorTemplate._validate_entries
         with pytest.raises(TypeError) as ex:
             func([1, 2, 3, 4])
         assert ex.value.args[0] == (
@@ -463,7 +463,7 @@ class TestNonparametricOperator:
 
     # Properties --------------------------------------------------------------
     def test_entries(self):
-        """Test _NonparametricOperator.entries and shape()."""
+        """Test OpInfOperatorTemplate.entries and shape()."""
         op = self.Dummy()
         assert op.shape is None
 
@@ -483,7 +483,7 @@ class TestNonparametricOperator:
 
     # Magic methods -----------------------------------------------------------
     def test_getitem(self):
-        """Test _NonparametricOperator.__getitem__()."""
+        """Test OpInfOperatorTemplate.__getitem__()."""
         op = self.Dummy()
         assert op[0, 1, 3:] is None
 
@@ -493,7 +493,7 @@ class TestNonparametricOperator:
             assert np.all(op[s] == A[s])
 
     def test_eq(self):
-        """Test _NonparametricOperator.__eq__()."""
+        """Test OpInfOperatorTemplate.__eq__()."""
         op1 = self.Dummy()
         op2 = self.Dummy2()
         assert op1 != op2
@@ -516,7 +516,7 @@ class TestNonparametricOperator:
         assert op1 == op2
 
     def test_add(self, r=3):
-        """Test _NonparametricOperator.__add__()."""
+        """Test OpInfOperatorTemplate.__add__()."""
         op1 = self.Dummy(np.random.random((r, r)))
 
         # Try with invalid type.
@@ -532,7 +532,7 @@ class TestNonparametricOperator:
 
     # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=10, r=3):
-        """Test _NonparametricOperator.galerkin()."""
+        """Test OpInfOperatorTemplate.galerkin()."""
         Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
         Wr = la.qr(np.random.random((n, r)), mode="economic")[0]
         A = np.random.random((n, n))
@@ -564,7 +564,7 @@ class TestNonparametricOperator:
 
     # Model persistence -------------------------------------------------------
     def test_copy(self):
-        """Test _NonparametricOperator.copy()."""
+        """Test OpInfOperatorTemplate.copy()."""
         op1 = self.Dummy()
         op1.set_entries(np.random.random((4, 4)))
         op2 = op1.copy()
@@ -573,7 +573,7 @@ class TestNonparametricOperator:
         assert op2 == op1
 
     def test_save(self, target="_baseoperatorsavetest.h5"):
-        """Test _NonparametricOperator.save()."""
+        """Test OpInfOperatorTemplate.save()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
@@ -601,7 +601,7 @@ class TestNonparametricOperator:
         os.remove(target)
 
     def test_load(self, target="_baseoperatorloadtest.h5"):
-        """Test _NonparametricOperator.load()."""
+        """Test OpInfOperatorTemplate.load()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
@@ -630,7 +630,7 @@ class TestNonparametricOperator:
 def test_is_nonparametric():
     """Test operators._base.is_nonparametric()."""
 
-    op = TestNonparametricOperator.Dummy()
+    op = TestOpInfOperatorTemplate.Dummy()
     assert opinf.operators.is_nonparametric(op)
     assert not opinf.operators.is_nonparametric(10)
 
@@ -642,7 +642,7 @@ class TestParametricOperator:
     class Dummy(_module._ParametricOperator):
         """Instantiable versino of _ParametricOperator."""
 
-        _OperatorClass = TestNonparametricOperator.Dummy
+        _OperatorClass = TestOpInfOperatorTemplate.Dummy
 
         def __init__(self):
             _module._ParametricOperator.__init__(self)

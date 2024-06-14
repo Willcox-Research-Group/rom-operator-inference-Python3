@@ -1,5 +1,5 @@
 # operators/_nonparametric.py
-"""Classes for operators with no external parameter dependencies."""
+"""Classes for OpInf operators with no external parameter dependencies."""
 
 __all__ = [
     "ConstantOperator",
@@ -16,11 +16,11 @@ import scipy.linalg as la
 import scipy.special as special
 
 from .. import utils
-from ._base import _NonparametricOperator, InputMixin
+from ._base import OpInfOperatorTemplate, InputMixin
 
 
 # No dependence on state or input =============================================
-class ConstantOperator(_NonparametricOperator):
+class ConstantOperator(OpInfOperatorTemplate):
     r"""Constant operator :math:`\Ophat_{\ell}(\qhat,\u) = \chat \in \RR^{r}`.
 
     Parameters
@@ -66,7 +66,7 @@ class ConstantOperator(_NonparametricOperator):
                     "ConstantOperator entries must be one-dimensional"
                 )
 
-        _NonparametricOperator.set_entries(self, entries)
+        OpInfOperatorTemplate.set_entries(self, entries)
 
     @utils.requires("entries")
     def apply(self, state=None, input_=None):
@@ -112,7 +112,7 @@ class ConstantOperator(_NonparametricOperator):
         projected : :class:`opinf.operators.ConstantOperator`
             Projected operator.
         """
-        return _NonparametricOperator.galerkin(self, Vr, Wr, lambda c, V: c)
+        return OpInfOperatorTemplate.galerkin(self, Vr, Wr, lambda c, V: c)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -165,7 +165,7 @@ class ConstantOperator(_NonparametricOperator):
 
 
 # Dependent on state but not on input =========================================
-class LinearOperator(_NonparametricOperator):
+class LinearOperator(OpInfOperatorTemplate):
     r"""Linear state operator :math:`\Ophat_{\ell}(\qhat,\u) = \Ahat\qhat`
     where :math:`\Ahat \in \RR^{r \times r}`.
 
@@ -210,7 +210,7 @@ class LinearOperator(_NonparametricOperator):
         if entries.shape[0] != entries.shape[1]:
             raise ValueError("LinearOperator entries must be square (r x r)")
 
-        _NonparametricOperator.set_entries(self, entries)
+        OpInfOperatorTemplate.set_entries(self, entries)
 
     @utils.requires("entries")
     def apply(self, state, input_=None):
@@ -269,9 +269,7 @@ class LinearOperator(_NonparametricOperator):
         projected : :class:`opinf.operators.LinearOperator`
             Projected operator.
         """
-        return _NonparametricOperator.galerkin(
-            self, Vr, Wr, lambda A, V: A @ V
-        )
+        return OpInfOperatorTemplate.galerkin(self, Vr, Wr, lambda A, V: A @ V)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -323,7 +321,7 @@ class LinearOperator(_NonparametricOperator):
         return r
 
 
-class QuadraticOperator(_NonparametricOperator):
+class QuadraticOperator(OpInfOperatorTemplate):
     r"""Quadratic state operator
     :math:`\Ophat_{\ell}(\qhat,\u) = \Hhat[\qhat\otimes\qhat]`
     where :math:`\Hhat\in\RR^{r \times r^{2}}`.
@@ -359,7 +357,7 @@ class QuadraticOperator(_NonparametricOperator):
         """Delete operator ``entries`` and related attributes."""
         self._mask = None
         self._prejac = None
-        _NonparametricOperator._clear(self)
+        OpInfOperatorTemplate._clear(self)
 
     def _precompute_jacobian_jit(self):
         """Compute (just in time) the pre-Jacobian tensor Jt such that
@@ -399,7 +397,7 @@ class QuadraticOperator(_NonparametricOperator):
         self._mask = self.ckron_indices(r)
         self._prejac = None
 
-        _NonparametricOperator.set_entries(self, entries)
+        OpInfOperatorTemplate.set_entries(self, entries)
 
     @utils.requires("entries")
     def apply(self, state, input_=None):
@@ -466,7 +464,7 @@ class QuadraticOperator(_NonparametricOperator):
         def _pg(H, V):
             return self.expand_entries(H) @ np.kron(V, V)
 
-        return _NonparametricOperator.galerkin(self, Vr, Wr, _pg)
+        return OpInfOperatorTemplate.galerkin(self, Vr, Wr, _pg)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -779,7 +777,7 @@ class QuadraticOperator(_NonparametricOperator):
         return H
 
 
-class CubicOperator(_NonparametricOperator):
+class CubicOperator(OpInfOperatorTemplate):
     r"""Cubic state operator
     :math:`\Ophat_{\ell}(\qhat,\u) = \Ghat[\qhat\otimes\qhat\otimes\qhat]`
     where :math:`\Ghat\in\RR^{r \times r^{3}}`.
@@ -815,7 +813,7 @@ class CubicOperator(_NonparametricOperator):
         """Delete operator ``entries`` and related attributes."""
         self._mask = None
         self._prejac = None
-        _NonparametricOperator._clear(self)
+        OpInfOperatorTemplate._clear(self)
 
     def _precompute_jacobian_jit(self):
         """Compute (just in time) the pre-Jacobian tensor Jt such that
@@ -853,7 +851,7 @@ class CubicOperator(_NonparametricOperator):
         self._mask = self.ckron_indices(r)
         self._prejac = None
 
-        _NonparametricOperator.set_entries(self, entries)
+        OpInfOperatorTemplate.set_entries(self, entries)
 
     @utils.requires("entries")
     def apply(self, state, input_=None):
@@ -926,7 +924,7 @@ class CubicOperator(_NonparametricOperator):
         def _pg(G, V):
             return self.expand_entries(G) @ np.kron(V, np.kron(V, V))
 
-        return _NonparametricOperator.galerkin(self, Vr, Wr, _pg)
+        return OpInfOperatorTemplate.galerkin(self, Vr, Wr, _pg)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -1221,7 +1219,7 @@ class CubicOperator(_NonparametricOperator):
 
 
 # Dependent on input but not on state =========================================
-class InputOperator(_NonparametricOperator, InputMixin):
+class InputOperator(OpInfOperatorTemplate, InputMixin):
     r"""Linear input operator :math:`\Ophat_{\ell}(\qhat,\u) = \Bhat\u`
     where :math:`\Bhat \in \RR^{r \times m}`.
 
@@ -1272,7 +1270,7 @@ class InputOperator(_NonparametricOperator, InputMixin):
         if entries.ndim != 2:
             raise ValueError("InputOperator entries must be two-dimensional")
 
-        _NonparametricOperator.set_entries(self, entries)
+        OpInfOperatorTemplate.set_entries(self, entries)
 
     @utils.requires("entries")
     def apply(self, state, input_):
@@ -1316,7 +1314,7 @@ class InputOperator(_NonparametricOperator, InputMixin):
         projected : :class:`opinf.operators.InputOperator`
             Projected operator.
         """
-        return _NonparametricOperator.galerkin(self, Vr, Wr, lambda B, V: B)
+        return OpInfOperatorTemplate.galerkin(self, Vr, Wr, lambda B, V: B)
 
     @staticmethod
     def datablock(states, inputs):
@@ -1369,7 +1367,7 @@ class InputOperator(_NonparametricOperator, InputMixin):
 
 
 # Dependent on both state and input ===========================================
-class StateInputOperator(_NonparametricOperator, InputMixin):
+class StateInputOperator(OpInfOperatorTemplate, InputMixin):
     r"""Linear state / input interaction operator
     :math:`\Ophat_{\ell}(\qhat,\u) = \Nhat[\u\otimes\qhat]`
     where :math:`\Nhat \in \RR^{r \times rm}`.
@@ -1427,7 +1425,7 @@ class StateInputOperator(_NonparametricOperator, InputMixin):
         if rm != r * m:
             raise ValueError("invalid StateInputOperator entries dimensions")
 
-        _NonparametricOperator.set_entries(self, entries)
+        OpInfOperatorTemplate.set_entries(self, entries)
 
     @utils.requires("entries")
     def apply(self, state, input_):
@@ -1514,7 +1512,7 @@ class StateInputOperator(_NonparametricOperator, InputMixin):
             m = rm // r
             return N @ np.kron(np.eye(m), V)
 
-        return _NonparametricOperator.galerkin(self, Vr, Wr, _pg)
+        return OpInfOperatorTemplate.galerkin(self, Vr, Wr, _pg)
 
     @staticmethod
     def datablock(states, inputs):
