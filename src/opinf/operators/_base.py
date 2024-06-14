@@ -20,7 +20,7 @@ from .. import errors, utils
 
 
 class OperatorTemplate(abc.ABC):
-    r"""Template for general-purpose operators.
+    r"""Template for general operators.
 
     In this package, an "operator" is a function
     :math:`\Ophat_{\ell}: \RR^n \times \RR^m \to \RR^n` that acts on a state
@@ -46,11 +46,11 @@ class OperatorTemplate(abc.ABC):
 
     # Properties --------------------------------------------------------------
     @property
-    def state_dimension(self):  # pragma: no cover
+    def state_dimension(self) -> int:  # pragma: no cover
         r"""Dimension of the state :math:`\qhat` that the operator acts on."""
         return NotImplemented
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation: class name + dimensions."""
         out = [self.__class__.__name__]
         out.append(f"state_dimension: {self.state_dimension}")
@@ -60,7 +60,7 @@ class OperatorTemplate(abc.ABC):
 
     # Evaluation --------------------------------------------------------------
     @abc.abstractmethod
-    def apply(self, state, input_=None):  # pragma: no cover
+    def apply(self, state: np.ndarray, input_=None) -> np.ndarray:
         """Apply the operator mapping to the given state / input.
 
         Parameters
@@ -76,9 +76,9 @@ class OperatorTemplate(abc.ABC):
             Application of the operator to the state / input, with the same
             number of dimensions as ``state`` and (if provided) ``input_``.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
-    def jacobian(self, state, input_=None):
+    def jacobian(self, state: np.ndarray, input_=None) -> np.ndarray:
         r"""Construct the state Jacobian of the operator.
 
         If :math:`[\![\q]\!]_{i}` denotes the :math:`i`-th entry of a vector
@@ -104,7 +104,7 @@ class OperatorTemplate(abc.ABC):
         raise NotImplementedError
 
     # Dimensionality reduction ------------------------------------------------
-    def galerkin(self, Vr, Wr=None):
+    def galerkin(self, Vr: np.ndarray, Wr=None):
         r"""Get the (Petrov-)Galerkin projection of this operator.
 
         Consider an operator :math:`\Op(\q,\u)`, where :math:`\q\in\RR^n`
@@ -167,7 +167,13 @@ class OperatorTemplate(abc.ABC):
         raise NotImplementedError
 
     # Verification ------------------------------------------------------------
-    def verify(self, plot=False, *, k=10, ntests=4):
+    def verify(
+        self,
+        plot: bool = False,
+        *,
+        k: int = 10,
+        ntests: int = 4,
+    ) -> None:
         """Verify consistency between dimension properties and required
         methods.
 
@@ -754,7 +760,210 @@ class _InputMixin(abc.ABC):
 
 
 # Parametric operators ========================================================
-class _ParametricOperator(abc.ABC):
+class ParametricOperatorTemplate(abc.ABC):
+
+    # Meta properties ---------------------------------------------------------
+    _OperatorClass = NotImplemented
+
+    @property
+    def OperatorClass(self):
+        """Nonparametric :mod:`opinf.operators` class that represents
+        this parametric operator evaluated at a particular parameter value.
+
+        Examples
+        --------
+        >>> Op = MyParametricOperator(init_args).evaluate(parameter_value)
+        >>> isinstance(Op, MyParametricOperator.OperatorClass)
+        True
+        """
+        return self._OperatorClass
+
+    # Properties --------------------------------------------------------------
+    @property
+    def state_dimension(self) -> int:  # pragma: no cover
+        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
+        return NotImplemented
+
+    @property
+    def parameter_dimension(self) -> int:
+        r"""Dimension of the parameters :math:`\bfmu` that the operator acts
+        on.
+        """
+        return NotImplemented
+
+    def __str__(self) -> str:
+        """String representation: class name + dimensions."""
+        out = [self.__class__.__name__]
+        out.append(f"state_dimension:     {self.state_dimension}")
+        if has_inputs(self):
+            out.append(f"input_dimension:     {self.input_dimension}")
+        out.append(f"parameter_dimension: {self.parameter_dimension}")
+        return "\n  ".join(out)
+
+    # Evaluation --------------------------------------------------------------
+    @abc.abstractmethod
+    def evaluate(self, parameter):  # pragma: no cover
+        r"""Evaluate the operator at the given parameter value,
+        resulting in a nonparametric operator of type ``OperatorClass``.
+
+        Parameters
+        ----------
+        parameter : (p,) ndarray or float
+            Parameter value :math:`\bfmu` at which to evalute the operator.
+
+        Returns
+        -------
+        evaluated_operator : nonparametric operator.
+            Nonparametric operator corresponding to the parameter value.
+            This should be an instance of :class:`OperatorTemplate` (or
+            a class that inherits from it).
+        """
+        raise NotImplementedError
+
+    def apply(self, parameter, state, input_):
+        r"""Apply the operator to the given state and input
+        at the specified parameter value, :math:`\Ophat_\ell(\qhat,\u;\bfmu)`.
+
+        Parameters
+        ----------
+        parameter : (p,) ndarray or float
+            Parameter value.
+        state : (r,) ndarray
+            State vector.
+        input_ : (m,) ndarray or float or None
+            Input vector.
+
+        Returns
+        -------
+        (r,) ndarray
+
+        Notes
+        -----
+        For repeated calls with the same parameter value, use
+        :meth:`evaluate()` to first get the nonparametric operator
+        corresponding to the parameter value.
+
+        .. code-block::
+
+           # Instead of this...
+           >>> values = [parametric_operator.apply(parameter, q, u)
+           ...           for q, u in zip(list_of_states, list_of_inputs)]
+           # ...it is faster to do this.
+           >>> operator_at_parameter = parametric_operator.evaluate(parameter)
+           >>> values = [operator_at_parameter.apply(q, u)
+           ...           for q, u in zip(list_of_states, list_of_inputs)]
+        """
+        return self.evaluate(parameter).apply(state, input_)
+
+    def jacobian(self, parameter, state, input_=None):
+        r"""Construct the state Jacobian of the operator,
+        :math:`\ddqhat\Ophat_\ell(\qhat,\u;\bfmu)`.
+
+        If :math:`[\![\q]\!]_{i}` denotes the entry :math:`i` of a vector
+        :math:`\q`, then the entries of the state Jacobian are given by
+
+        .. math::
+           [\![\ddqhat\Ophat_\ell(\qhat,\u;\bfmu)]\!]_{i,j}
+           = \frac{\partial}{\partial[\![\qhat]\!]_j}
+           [\![\Ophat_\ell(\qhat,\u;\bfmu)]\!]_i.
+
+        Parameters
+        ----------
+        parameter : (p,) ndarray or float
+            Parameter value.
+        state : (r,) ndarray
+            State vector.
+        input_ : (m,) ndarray or float or None
+            Input vector.
+
+        Returns
+        -------
+        jac : (r, r) ndarray
+            State Jacobian.
+
+        Notes
+        -----
+        For repeated calls with the same parameter value, use
+        :meth:`evaluate()` to first get the nonparametric operator
+        corresponding to the parameter value.
+
+        .. code-block::
+
+           # Instead of this...
+           >>> values = [parametric_operator.jacobian(parameter, q, u)
+           ...           for q, u in zip(list_of_states, list_of_inputs)]
+           # ...it is faster to do this.
+           >>> operator_at_parameter = parametric_operator.evaluate(parameter)
+           >>> values = [operator_at_parameter.jacobian(q, u)
+           ...           for q, u in zip(list_of_states, list_of_inputs)]
+        """
+        return self.evaluate(parameter).jacobian(state, input_)
+
+    # Dimensionality reduction ------------------------------------------------
+    def galerkin(self, Vr, Wr=None):  # pragma: no cover
+        r"""Get the (Petrov-)Galerkin projection of this operator.
+
+        Consider an operator :math:`\Op(\q,\u)`, where :math:`\q\in\RR^n`
+        is the state and :math:`\u\in\RR^m` is the input.
+        Given a *trial basis* :math:`\Vr\in\RR^{n\times r}` and a *test basis*
+        :math:`\Wr\in\RR^{n\times r}`, the Petrov-Galerkin projection of
+        :math:`\Op` is the operator :math:`\Ophat:\RR^r\times\RR^m\to\RR^r`
+        defined by
+
+        .. math::
+           \Ophat(\qhat, \u) = (\Wr\trp\Vr)^{-1}\Wr\trp\Op(\Vr\qhat, \u)
+
+        where :math:`\qhat\in\RR^n` approximates the original state via
+        :math:`\q \approx \Vr\qhat`.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        op : operator
+            New object of the same class as ``self`` whose ``state_dimension``
+            attribute equals ``r``. If this operator acts on inputs, the
+            ``input_dimension`` attribute of the new operator should be
+            ``self.input_dimension``.
+        """
+        raise NotImplementedError
+
+    # Model persistence -------------------------------------------------------
+    def copy(self):
+        """Return a copy of the operator."""
+        return copy.deepcopy(self)
+
+    def save(self, savefile: str, overwrite: bool = False) -> None:
+        """Save the operator to an HDF5 file.
+
+        Parameters
+        ----------
+        savefile : str
+            Path of the file to save the basis in.
+        overwrite : bool
+            If ``True``, overwrite the file if it already exists. If ``False``
+            (default), raise a ``FileExistsError`` if the file already exists.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def load(cls, loadfile: str):  # pragma: no cover
+        """Load an operator from an HDF5 file.
+
+        Parameters
+        ----------
+        loadfile : str
+            Path to the file where the operator was stored via :meth:`save()`.
+        """
+        raise NotImplementedError
+
+
+class _ParametricOperator(ParametricOperatorTemplate):
     r"""Base class for operators that depend on external parameters, i.e.,
     :math:`\Ophat_\ell(\qhat,\u;\bfmu) = \Ohat_\ell(\bfmu)\d_\ell(\qhat,\u)`.
 
@@ -801,7 +1010,7 @@ class _ParametricOperator(abc.ABC):
         """Reset the operator to its post-constructor state."""
         raise NotImplementedError
 
-    def _set_parameter_dimension_from_data(self, parameters):
+    def _set_parameter_dimension_from_data(self, parameters) -> None:
         """Extract and save the dimension of the parameter space from a set of
         parameter values.
 
@@ -819,7 +1028,7 @@ class _ParametricOperator(abc.ABC):
 
     # Verification ------------------------------------------------------------
     @staticmethod
-    def _check_shape_consistency(iterable, prefix: str):
+    def _check_shape_consistency(iterable, prefix: str) -> None:
         """Ensure that each array in `iterable` has the same shape."""
         shape = np.shape(iterable[0])
         if any(np.shape(A) != shape for A in iterable):
@@ -834,8 +1043,8 @@ class _ParametricOperator(abc.ABC):
 
     @property
     def parameter_dimension(self) -> int:
-        r"""
-        Dimension of the parameters :math:`\bfmu` that the operator acts on.
+        r"""Dimension of the parameters :math:`\bfmu` that the operator acts
+        on.
         """
         return self.__p
 
@@ -854,122 +1063,6 @@ class _ParametricOperator(abc.ABC):
             raise RuntimeError("parameter_dimension not set")
         if np.atleast_1d(parameter).shape[0] != pdim:
             raise ValueError(f"expected parameter of shape ({pdim:d},)")
-
-    @abc.abstractmethod
-    def evaluate(self, parameter):  # pragma: no cover
-        r"""Evaluate the operator at the given parameter value,
-        resulting in a nonparametric operator of type ``OperatorClass``.
-
-        Parameters
-        ----------
-        parameter : (p,) ndarray or float
-            Parameter value :math:`\bfmu` at which to evalute the operator.
-
-        Returns
-        -------
-        evaluated_operator : {mod}`opinf.operators` nonparametric operator.
-            Nonparametric operator corresponding to the parameter value.
-        """
-        raise NotImplementedError
-
-    def apply(self, parameter, state, input_):
-        r"""Apply the operator to the given state and input
-        at the specified parameter value,
-        :math:`\Ophat_\ell(\qhat,\u;\bfmu)`.
-
-        Parameters
-        ----------
-        parameter : (p,) ndarray or float
-            Parameter value.
-        state : (r,) ndarray
-            State vector.
-        input_ : (m,) ndarray or float or None
-            Input vector.
-
-        Returns
-        -------
-        (r,) ndarray
-
-        Notes
-        -----
-        For repeated ``apply()`` calls with the same parameter value, use
-        :meth:`evaluate` to first get the nonparametric operator
-        corresponding to the parameter value.
-
-        .. code-block::
-
-           # Instead of this...
-           >>> values = [parametric_operator.apply(parameter, q, input_)
-           ...           for q in list_of_states]
-           # ...it is faster to do this.
-           >>> operator_at_parameter = parametric_operator.evaluate(parameter)
-           >>> values = [operator_at_parameter.apply(q, input_)
-           ...           for q in list_of_states]
-        """
-        return self.evaluate(parameter).apply(state, input_)
-
-    def jacobian(self, parameter, state, input_=None):
-        r"""Construct the state Jacobian of the operator,
-        :math:`\ddqhat\Ophat_\ell(\qhat,\u;\bfmu)`.
-
-        If :math:`[\![\q]\!]_{i}` denotes the entry :math:`i` of a vector
-        :math:`\q`, then the entries of the state Jacobian are given by
-
-        .. math::
-           [\![\ddqhat\Ophat_\ell(\qhat,\u;\bfmu)]\!]_{i,j}
-           = \frac{\partial}{\partial[\![\qhat]\!]_j}
-           [\![\Ophat_\ell(\qhat,\u;\bfmu)]\!]_i.
-
-        Parameters
-        ----------
-        parameter : (p,) ndarray or float
-            Parameter value.
-        state : (r,) ndarray
-            State vector.
-        input_ : (m,) ndarray or float or None
-            Input vector.
-
-        Returns
-        -------
-        jac : (r, r) ndarray
-            State Jacobian.
-
-        Notes
-        -----
-        For repeated ``jacobian()`` calls with the same parameter value, use
-        :meth:`evaluate` to first get the nonparametric operator
-        corresponding to the parameter value.
-
-        .. code-block::
-
-           # Instead of this...
-           >>> values = [parametric_operator.jacobian(parameter, q, input_)
-           ...           for q in list_of_states]
-           # ...it is faster to do this.
-           >>> operator_at_parameter = parametric_operator.evaluate(parameter)
-           >>> values = [operator_at_parameter.jacobian(q, input_)
-           ...           for q in list_of_states]
-        """
-        return self.evaluate(parameter).jacobian(state, input_)
-
-    # Dimensionality reduction ------------------------------------------------
-    @abc.abstractmethod
-    def galerkin(self, Vr, Wr=None):  # pragma: no cover
-        r"""Get the (Petrov-)Galerkin projection of this operator.
-
-        Parameters
-        ----------
-        Vr : (n, r) ndarray
-            Basis for the trial space.
-        Wr : (n, r) ndarray or None
-            Basis for the test space. If ``None``, defaults to ``Vr``.
-
-        Returns
-        -------
-        op : operator
-            New object of the same class as ``self``.
-        """
-        raise NotImplementedError
 
     # Operator inference ------------------------------------------------------
     @abc.abstractmethod
@@ -993,51 +1086,6 @@ class _ParametricOperator(abc.ABC):
     @abc.abstractmethod
     def operator_dimension(self, r, m):  # pragma: no cover
         """Number of columns in the operator matrix."""
-        raise NotImplementedError
-
-    # Model persistence -------------------------------------------------------
-    @abc.abstractmethod
-    def copy(self):  # pragma: no cover
-        """Return a copy of the operator."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def save(
-        self,
-        savefile: str,
-        overwrite: bool = False,
-    ) -> None:  # pragma: no cover
-        """Save the operator to an HDF5 file.
-
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the basis in.
-        overwrite : bool
-            If ``True``, overwrite the file if it already exists. If ``False``
-            (default), raise a ``FileExistsError`` if the file already exists.
-        """
-        raise NotImplementedError
-
-    @classmethod
-    @abc.abstractmethod
-    def load(cls, loadfile: str):  # pragma: no cover
-        """Load a parametric operator from an HDF5 file.
-
-        Some classes may require more arguments for operator attributes that
-        cannot be serialized. Child classes should implement this method as a
-        ``@classmethod``.
-
-        Parameters
-        ----------
-        loadfile : str
-            Path to the file where the operator was stored via :meth:`save()`.
-
-        Returns
-        -------
-        op : _Operator
-            Initialized operator object.
-        """
         raise NotImplementedError
 
 
