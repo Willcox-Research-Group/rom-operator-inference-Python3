@@ -501,7 +501,7 @@ class OpInfOperatorTemplate(OperatorTemplate):
             raise ValueError("operator entries must not be Inf")
 
     def set_entries(self, entries):
-        """Set the ``entries`` attribute."""
+        """Set the :attr:`entries` attribute."""
         self.__entries = entries
 
     # Properties --------------------------------------------------------------
@@ -800,7 +800,7 @@ class OpInfOperatorTemplate(OperatorTemplate):
         if self.entries is None:
             print("entries is None, cannot verify implementation")
         else:
-            OperatorTemplate.verify(plot=plot, k=k, ntests=ntests)
+            OperatorTemplate.verify(self, plot=plot, k=k, ntests=ntests)
 
 
 def is_nonparametric(obj) -> bool:
@@ -840,7 +840,7 @@ class ParametricOperatorTemplate(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def parameter_dimension(self) -> int:
+    def parameter_dimension(self) -> int:  # pragma: no cover
         r"""Dimension of the parameters :math:`\bfmu` that the operator acts
         on.
         """

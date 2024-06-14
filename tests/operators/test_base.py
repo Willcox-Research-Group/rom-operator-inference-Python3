@@ -397,12 +397,6 @@ class TestOpInfOperatorTemplate:
     class Dummy(_module.OpInfOperatorTemplate):
         """Instantiable version of OpInfOperatorTemplate."""
 
-        def set_entries(*args, **kwargs):
-            _module.OpInfOperatorTemplate.set_entries(*args, **kwargs)
-
-        def _str(*args, **kwargs):
-            pass
-
         def apply(*args, **kwargs):
             return -1
 
@@ -470,6 +464,7 @@ class TestOpInfOperatorTemplate:
         A = np.random.random((8, 6))
         op.set_entries(A)
         assert op.entries is A
+        assert op.state_dimension == 8
         assert op.shape == A.shape
         del op.entries
         assert op.entries is None
@@ -625,6 +620,14 @@ class TestOpInfOperatorTemplate:
         )
 
         os.remove(target)
+
+    def test_verify(self):
+        op = self.Dummy()
+        op.verify()
+
+        op.set_entries(np.random.random((8, 6)))
+        with pytest.raises(opinf.errors.VerificationError):
+            op.verify()
 
 
 def test_is_nonparametric():
