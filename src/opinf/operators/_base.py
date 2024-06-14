@@ -2,9 +2,10 @@
 """Abstract base classes for operators."""
 
 __all__ = [
+    "InputMixin",
+    "has_inputs",
     "OperatorTemplate",
     "is_nonparametric",
-    "has_inputs",
     "is_parametric",
 ]
 
@@ -19,6 +20,25 @@ import matplotlib.pyplot as plt
 from .. import errors, utils
 
 
+class InputMixin(abc.ABC):
+    """Mixin for operators whose ``apply()`` method acts on the ``input_``."""
+
+    @property
+    @abc.abstractmethod
+    def input_dimension(self) -> int:  # pragma: no cover
+        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        raise NotImplementedError
+
+
+def has_inputs(obj) -> bool:
+    r"""Return ``True`` if ``obj`` is an operator object whose ``apply()``
+    method acts on the ``input_`` argument, i.e.,
+    :math:`\Ophat_{\ell}(\qhat,\u)` depends on :math:`\u`.
+    """
+    return isinstance(obj, InputMixin)
+
+
+# Nonparametric operators =====================================================
 class OperatorTemplate(abc.ABC):
     r"""Template for general operators.
 
@@ -46,9 +66,10 @@ class OperatorTemplate(abc.ABC):
 
     # Properties --------------------------------------------------------------
     @property
+    @abc.abstractmethod
     def state_dimension(self) -> int:  # pragma: no cover
         r"""Dimension of the state :math:`\qhat` that the operator acts on."""
-        return NotImplemented
+        raise NotImplementedError
 
     def __str__(self) -> str:
         """String representation: class name + dimensions."""
@@ -417,7 +438,6 @@ class OperatorTemplate(abc.ABC):
                 os.remove(tempfile)
 
 
-# Nonparametric operators =====================================================
 class _NonparametricOperator(abc.ABC):
     """Base class for operators that do not depend on external parameters.
 
@@ -738,25 +758,9 @@ class _NonparametricOperator(abc.ABC):
             return cls(hf["entries"][:] if "entries" in hf else None)
 
 
-# Mixin for operators acting on inputs ----------------------------------------
-# TODO: rename InputMixin and place at the top.
-class _InputMixin(abc.ABC):
-    """Mixin for operator classes whose ``apply()`` method acts on
-    the ``input_`` argument.
-
-    Child classes:
-
-    * :class:`opinf.operators.InputOperator`
-    * :class:`opinf.operators.StateInputOperator`
-    * :class:`opinf.operators.InterpolatedInputOperator`
-    * :class:`opinf.operators.InterpolatedStateInputOperator`
-    """
-
-    @property
-    @abc.abstractmethod
-    def input_dimension(self) -> int:  # pragma: no cover
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
-        raise NotImplementedError
+def is_nonparametric(obj) -> bool:
+    """Return ``True`` if ``obj`` is a nonparametric operator object."""
+    return isinstance(obj, _NonparametricOperator)
 
 
 # Parametric operators ========================================================
@@ -780,16 +784,18 @@ class ParametricOperatorTemplate(abc.ABC):
 
     # Properties --------------------------------------------------------------
     @property
+    @abc.abstractmethod
     def state_dimension(self) -> int:  # pragma: no cover
         r"""Dimension of the state :math:`\qhat` that the operator acts on."""
-        return NotImplemented
+        raise NotImplementedError
 
     @property
+    @abc.abstractmethod
     def parameter_dimension(self) -> int:
         r"""Dimension of the parameters :math:`\bfmu` that the operator acts
         on.
         """
-        return NotImplemented
+        raise NotImplementedError
 
     def __str__(self) -> str:
         """String representation: class name + dimensions."""
@@ -1087,20 +1093,6 @@ class _ParametricOperator(ParametricOperatorTemplate):
     def operator_dimension(self, r, m):  # pragma: no cover
         """Number of columns in the operator matrix."""
         raise NotImplementedError
-
-
-# Utilities ===================================================================
-def is_nonparametric(obj) -> bool:
-    """Return ``True`` if ``obj`` is a nonparametric operator object."""
-    return isinstance(obj, _NonparametricOperator)
-
-
-def has_inputs(obj) -> bool:
-    r"""Return ``True`` if ``obj`` is an operator object whose ``apply()``
-    method acts on the ``input_`` argument, i.e.,
-    :math:`\Ophat_{\ell}(\qhat,\u)` depends on :math:`\u`.
-    """
-    return isinstance(obj, _InputMixin)
 
 
 def is_parametric(obj) -> bool:

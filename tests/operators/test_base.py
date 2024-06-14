@@ -14,6 +14,18 @@ import opinf
 _module = opinf.operators._base
 
 
+def test_has_inputs():
+    """Test operators._base.has_inputs()."""
+
+    class Dummy(_module.InputMixin):
+        def input_dimension(self):
+            return -1
+
+    op = Dummy()
+    assert opinf.operators.has_inputs(op)
+    assert not opinf.operators.has_inputs(5)
+
+
 # Nonparametric operators =====================================================
 class TestOperatorTemplate:
     """Test operators._base.OperatorTemplate."""
@@ -36,7 +48,7 @@ class TestOperatorTemplate:
             def apply(self, state, input_=None):
                 return state
 
-        class InputDummy(Dummy, _module._InputMixin):
+        class InputDummy(Dummy, _module.InputMixin):
             """Instantiable version of OperatorTemplate with inputs."""
 
             def __init__(self, state_dimension=r, input_dimension=m):
@@ -74,7 +86,7 @@ class TestOperatorTemplate:
             def apply(self, state, input_=None):
                 return state
 
-        class InputDummy(Dummy, _module._InputMixin):
+        class InputDummy(Dummy, _module.InputMixin):
             """Instantiable version of OperatorTemplate with inputs."""
 
             def __init__(self, state_dimension=r, input_dimension=m):
@@ -615,6 +627,14 @@ class TestNonparametricOperator:
         os.remove(target)
 
 
+def test_is_nonparametric():
+    """Test operators._base.is_nonparametric()."""
+
+    op = TestNonparametricOperator.Dummy()
+    assert opinf.operators.is_nonparametric(op)
+    assert not opinf.operators.is_nonparametric(10)
+
+
 # Parametric operators ========================================================
 class TestParametricOperator:
     """Test operators._base._ParametricOperator."""
@@ -715,27 +735,6 @@ class TestParametricOperator:
     def test_jacobian(self):
         """Test _ParametricOperator.jacobian()."""
         assert self.Dummy().jacobian(None, None, None) == 0
-
-
-# Utilities ===================================================================
-def test_is_nonparametric():
-    """Test operators._base.is_nonparametric()."""
-
-    op = TestNonparametricOperator.Dummy()
-    assert opinf.operators.is_nonparametric(op)
-    assert not opinf.operators.is_nonparametric(10)
-
-
-def test_has_inputs():
-    """Test operators._base.has_inputs()."""
-
-    class Dummy(_module._InputMixin):
-        def input_dimension(self):
-            return -1
-
-    op = Dummy()
-    assert opinf.operators.has_inputs(op)
-    assert not opinf.operators.has_inputs(5)
 
 
 def test_is_parametric():

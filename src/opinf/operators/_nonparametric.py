@@ -16,7 +16,7 @@ import scipy.linalg as la
 import scipy.special as special
 
 from .. import utils
-from ._base import _NonparametricOperator, _InputMixin
+from ._base import _NonparametricOperator, InputMixin
 
 
 # No dependence on state or input =============================================
@@ -1221,7 +1221,7 @@ class CubicOperator(_NonparametricOperator):
 
 
 # Dependent on input but not on state =========================================
-class InputOperator(_NonparametricOperator, _InputMixin):
+class InputOperator(_NonparametricOperator, InputMixin):
     r"""Linear input operator :math:`\Ophat_{\ell}(\qhat,\u) = \Bhat\u`
     where :math:`\Bhat \in \RR^{r \times m}`.
 
@@ -1369,7 +1369,7 @@ class InputOperator(_NonparametricOperator, _InputMixin):
 
 
 # Dependent on both state and input ===========================================
-class StateInputOperator(_NonparametricOperator, _InputMixin):
+class StateInputOperator(_NonparametricOperator, InputMixin):
     r"""Linear state / input interaction operator
     :math:`\Ophat_{\ell}(\qhat,\u) = \Nhat[\u\otimes\qhat]`
     where :math:`\Nhat \in \RR^{r \times rm}`.
