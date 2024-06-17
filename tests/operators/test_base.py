@@ -260,7 +260,12 @@ class TestOperatorTemplate:
             def galerkin(self, Vr, Wr=None):
                 return self.__class__(self.state_dimension, Vr, Wr, self.A)
 
-        _single(Dummy6, "type(self.galerkin()) is not type(self)")
+        _single(
+            Dummy6,
+            "galerkin() must return object "
+            "whose class inherits from OperatorTemplate",
+        )
+
         _single(Dummy7, "galerkin(Vr, Wr).state_dimension != Vr.shape[1]")
 
         _single(

@@ -154,8 +154,8 @@ class OperatorTemplate(abc.ABC):
 
         Returns
         -------
-        op : operator
-            New object of the same class as ``self`` whose ``state_dimension``
+        op : :class:`OperatorTemplate`
+            New operator object whose ``state_dimension``
             attribute equals ``r``. If this operator acts on inputs, the
             ``input_dimension`` attribute of the new operator should be
             ``self.input_dimension``.
@@ -345,9 +345,10 @@ class OperatorTemplate(abc.ABC):
             except NotImplementedError:
                 print("galerkin() not implemented")
             else:
-                if out.__class__ is not self.__class__:
+                if not isinstance(out, OperatorTemplate):
                     raise errors.VerificationError(
-                        "type(self.galerkin()) is not type(self)"
+                        "galerkin() must return object "
+                        "whose class inherits from OperatorTemplate"
                     )
                 if out.state_dimension != rnew:
                     raise errors.VerificationError(
