@@ -16,6 +16,7 @@ __all__ = [
 import os
 import abc
 import copy
+import types
 import numpy as np
 import scipy.linalg as la
 import scipy.sparse as sparse
@@ -322,7 +323,9 @@ class OperatorTemplate(abc.ABC):
         except NotImplementedError:
             print("jacobian() not implemented")
         else:
-            if not isinstance(out, np.ndarray) or out.shape != (r, r):
+            if np.isscalar(out) and out == 0:
+                print("jacobian() = 0")
+            elif not isinstance(out, np.ndarray) or out.shape != (r, r):
                 _message = [
                     "jacobian(q, u) must return array",
                     "of shape (state_dimension, state_dimension)",
@@ -332,25 +335,25 @@ class OperatorTemplate(abc.ABC):
                 if hasinputs:
                     _message[-1] = "and u.shape = (input_dimension,)"
                 raise errors.VerificationError(" ".join(_message))
-
-            _report_isconsistent("jacobian()")
-
-            # Finite difference check.
-            hs, diffs = _finite_difference_check(
-                lambda x: self.apply(x, u),
-                lambda x: self.jacobian(x, u),
-                np.random.standard_normal(r),
-            )
-            if plot:
-                plt.loglog(hs, diffs, ".-", markersize=5, linewidth=0.5)
             else:
-                print(
-                    "apply()/jacobian() finite difference relative errors",
-                    "----------------------------------------------------",
-                    sep="\n",
+                _report_isconsistent("jacobian()")
+
+                # Finite difference check.
+                hs, diffs = _finite_difference_check(
+                    lambda x: self.apply(x, u),
+                    lambda x: self.jacobian(x, u),
+                    np.random.standard_normal(r),
                 )
-                for h, err in zip(hs, diffs):
-                    print(f"h = {h:.2e}\terror = {err:.4e}")
+                if plot:
+                    plt.loglog(hs, diffs, ".-", markersize=5, linewidth=0.5)
+                else:
+                    print(
+                        "jacobian() finite difference relative errors",
+                        "  ------------------------------------------",
+                        sep="\n",
+                    )
+                    for h, err in zip(hs, diffs):
+                        print(f"  h = {h:.2e}\terror = {err:.4e}")
 
         # Verify galerkin() - - - - - - - - - - - - - - - - - - - - - - - - - -
         def _orth(n, k):
@@ -672,7 +675,29 @@ class OpInfOperator(OperatorTemplate):
     # Operator inference ------------------------------------------------------
     @staticmethod
     @abc.abstractmethod
-    def datablock(states, inputs=None):  # pragma: no cover
+    def operator_dimension(r: int, m: int = None) -> int:  # pragma: no cover
+        r"""Column dimension of the operator entries.
+
+        Child classes should decorate this method with ``@staticmethod``.
+
+        Parameters
+        ----------
+        r : int
+            State dimension.
+        m : int or None
+            Input dimension.
+
+        Returns
+        -------
+        d : int
+            Number of columns in the operator entries matrix.
+            This is also the number of rows in the data matrix block.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def datablock(states: np.ndarray, inputs=None) -> np.ndarray:
         r"""Construct the data matrix block corresponding to the operator.
 
         For a nonparametric operator
@@ -711,28 +736,7 @@ class OpInfOperator(OperatorTemplate):
         block : (d, k) or (d,) ndarray
             Data matrix block. Here, :math:`d` is ``entries.shape[1]``.
         """
-        raise NotImplementedError
-
-    @staticmethod
-    @abc.abstractmethod
-    def operator_dimension(r: int, m: int = None) -> int:  # pragma: no cover
-        r"""Column dimension of the operator entries.
-
-        Child classes should decorate this method with ``@staticmethod``.
-
-        Parameters
-        ----------
-        r : int
-            State dimension.
-        m : int or None
-            Input dimension.
-
-        Returns
-        -------
-        Number of columns in the operator entries.
-        This is also the number of rows in the data matrix block.
-        """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Model persistence -------------------------------------------------------
     def copy(self):
@@ -781,6 +785,8 @@ class OpInfOperator(OperatorTemplate):
         *,
         k: int = 10,
         ntests: int = 4,
+        r: int = 6,
+        m: int = 3,
     ) -> None:
         """Verify consistency between dimension properties and required
         methods.
@@ -808,10 +814,38 @@ class OpInfOperator(OperatorTemplate):
         applied to check that :meth:`apply()` and :meth:`jacobian()` are
         consistent.
         """
+        # Verify operator_dimension() - - - - - - - - - - - - - - - - - - - - -
+        if not isinstance(self.operator_dimension, types.FunctionType):
+            raise errors.VerificationError(
+                "operator_dimension() must have @staticmethod decorator"
+            )
+        d = self.operator_dimension(r, m)
+        if not isinstance(d, int) or d <= 0:
+            raise errors.VerificationError(
+                "operator_dimension() must return a positive integer"
+            )
+
+        # Verify datablock() - - - - - - - - - - - - - - - - - - - - - - - - -
+        if not isinstance(self.datablock, types.FunctionType):
+            raise errors.VerificationError(
+                "datablock() must have @staticmethod decorator"
+            )
+        Dt = self.datablock(np.random.random((r, k)), np.random.random((m, k)))
+        if not isinstance(Dt, np.ndarray) or Dt.ndim != 2:
+            raise errors.VerificationError(
+                "datablock() must return a two-dimensional array"
+            )
+        if Dt.shape != (d, k):
+            raise errors.VerificationError(
+                "datablock().shape[0] != operator_dimension()"
+            )
+        print("operator_dimension() is consistent with datablock()")
+
+        # Verify instance methods - - - - - - - - - - - - - - - - - - - - - - -
         if self.entries is None:
-            print("entries is None, cannot verify implementation")
-        else:
-            OperatorTemplate.verify(self, plot=plot, k=k, ntests=ntests)
+            return print("cannot verify apply() when entries=None")
+
+        OperatorTemplate.verify(self, plot=plot, k=k, ntests=ntests)
 
 
 # Parametric operators ========================================================

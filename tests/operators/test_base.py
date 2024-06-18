@@ -33,7 +33,7 @@ class TestOperatorTemplate:
     Operator = _module.OperatorTemplate
 
     def test_str(self, r=11, m=3):
-        """Test __str__()."""
+        """Test __str__() and _str()."""
 
         class Dummy(self.Operator):
             """Instantiable version of OperatorTemplate."""
@@ -69,6 +69,8 @@ class TestOperatorTemplate:
 
         _test(Dummy)
         assert _test(InputDummy)[-1].endswith(f"{m}")
+
+        assert Dummy._str("q", "u") == "f(q, u)"
 
     def test_verify(self, r=10, m=4):
         """Test verify()."""
@@ -624,12 +626,71 @@ class TestOpInfOperator:
         os.remove(target)
 
     def test_verify(self):
-        op = self.Dummy()
+        """Test verify()."""
+
+        def _single(DummyClass, message):
+            dummy = DummyClass()
+            with pytest.raises(opinf.errors.VerificationError) as ex:
+                dummy.verify()
+            assert ex.value.args[0] == message
+
+        class Dummy3(self.Dummy):
+            @staticmethod
+            def operator_dimension(r=None, m=None):
+                return "three"
+
+        _single(
+            self.Dummy,
+            "operator_dimension() must have @staticmethod decorator",
+        )
+
+        _single(
+            Dummy3,
+            "operator_dimension() must return a positive integer",
+        )
+
+        class Dummy4(self.Dummy):
+            @staticmethod
+            def operator_dimension(r=None, m=None):
+                return 2 * r
+
+        class Dummy5(Dummy4):
+            @staticmethod
+            def datablock(states, inputs=None):
+                return 10
+
+        class Dummy6(Dummy4):
+            @staticmethod
+            def datablock(states, inputs=None):
+                return 2 * states
+
+        _single(
+            Dummy4,
+            "datablock() must have @staticmethod decorator",
+        )
+
+        _single(
+            Dummy5,
+            "datablock() must return a two-dimensional array",
+        )
+
+        _single(
+            Dummy6,
+            "datablock().shape[0] != operator_dimension()",
+        )
+
+        class Dummy7(Dummy4):
+            @staticmethod
+            def datablock(states, inputs=None):
+                return np.vstack((states, 2 * states))
+
+        op = Dummy7()
         op.verify()
 
         op.set_entries(np.random.random((8, 6)))
-        with pytest.raises(opinf.errors.VerificationError):
+        with pytest.raises(opinf.errors.VerificationError) as ex:
             op.verify()
+        assert ex.value.args[0].startswith("apply(q, u) must return array")
 
 
 def test_is_nonparametric():
@@ -747,3 +808,33 @@ def test_is_parametric():
     op = TestParametricOpInfOperator.Dummy()
     assert opinf.operators.is_parametric(op)
     assert not opinf.operators.is_nonparametric(-1)
+
+
+def test_is_uncalibrated():
+    """Test operators._base.is_uncalibrated()."""
+
+    func = opinf.operators.is_uncalibrated
+
+    class Dummy(opinf.operators.OperatorTemplate):
+        """Instantiable version of OperatorTemplate."""
+
+        def __init__(self, state_dimension):
+            self.__r = state_dimension
+
+        @property
+        def state_dimension(self):
+            return self.__r
+
+        def apply(self, state, input_=None):
+            return state
+
+    op = Dummy(10)
+    assert not func(op)
+
+    op = TestOpInfOperator.Dummy()
+    assert func(op)
+    op.set_entries(np.zeros((5, 5)))
+    assert not func(op)
+
+    # op = TestParametricOpInfOperator.Dummy()
+    # assert func(op)
