@@ -23,14 +23,7 @@ from ... import operators as _operators
 
 # Base classes ================================================================
 class _ParametricModel(_Model):
-    r"""Base class for parametric monolithic models.
-
-    Parent class: :class:`opinf.models.mono._base._Model`
-
-    Child classes:
-
-    * :class:`opinf.models.mono._parametric._InterpolatedModel`
-    """
+    """Base class for parametric monolithic models."""
 
     _ModelClass = NotImplemented  # Must be specified by child classes.
 
@@ -58,8 +51,7 @@ class _ParametricModel(_Model):
     @property
     def ModelClass(self):
         """Nonparametric model class that represents this parametric model
-        when evaluated at a particular parameter value, a subclass of
-        :class:`opinf.models.mono._base._Model`.
+        when evaluated at a particular parameter value.
 
         Examples
         --------
@@ -1362,7 +1354,8 @@ class InterpolatedDiscreteModel(_ParametricDiscreteMixin, _InterpolatedModel):
 
 
 class InterpolatedContinuousModel(
-    _ParametricContinuousMixin, _InterpolatedModel
+    _ParametricContinuousMixin,
+    _InterpolatedModel,
 ):
     r"""Parametric system of ordinary differential equations
     :math:`\ddt\qhat(t; \bfmu) = \fhat(\qhat(t; \bfmu), \u(t); \bfmu)` where

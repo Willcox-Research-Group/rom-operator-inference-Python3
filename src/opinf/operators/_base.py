@@ -7,10 +7,10 @@ __all__ = [
     "OperatorTemplate",
     "is_nonparametric",
     "OpInfOperator",
-    "is_uncalibrated",
     "ParametricOperatorTemplate",
     "is_parametric",
     "ParametricOpInfOperator",
+    "is_uncalibrated",
 ]
 
 import os
@@ -26,7 +26,12 @@ from .. import errors, utils
 
 
 class InputMixin(abc.ABC):
-    """Mixin for operators whose ``apply()`` method acts on the ``input_``."""
+    r"""Mixin for operators whose ``apply()`` method acts on the input
+    :math:`\u`.
+
+    Operators that do not inherit from this Mixin do not have an
+    ``input_dimension`` attribute, which indicates :math:`m = 0`.
+    """
 
     @property
     @abc.abstractmethod
@@ -1186,6 +1191,7 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
 
 
 def is_uncalibrated(obj) -> bool:
+    """Return ``True`` if ``obj`` is an OpInf operator with empty entries."""
     return (
         isinstance(obj, (OpInfOperator, ParametricOpInfOperator))
         and obj.entries is None

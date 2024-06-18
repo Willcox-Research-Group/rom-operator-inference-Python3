@@ -92,10 +92,11 @@ operators.ipynb
 .. currentmodule:: opinf.operators
 
 .. autosummary::
-   :totctree: _autosummaries
+   :toctree: _autosummaries
    :nosignatures:
 
    OperatorTemplate
+   InputMixin
    OpInfOperator
    ConstantOperator
    LinearOperator
