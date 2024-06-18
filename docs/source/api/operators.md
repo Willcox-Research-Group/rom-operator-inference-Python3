@@ -2,47 +2,87 @@
 
 ```{eval-rst}
 .. automodule:: opinf.operators
+
+.. currentmodule:: opinf.operators
+
+**Nonparametric Operators**
+
+.. autosummary::
+   :toctree: _autosummaries
+   :nosignatures:
+
+   OperatorTemplate
+   OpInfOperator
+   ConstantOperator
+   LinearOperator
+   QuadraticOperator
+   CubicOperator
+   InputOperator
+   StateInputOperator
+
+**Parametric Operators**
+
+.. autosummary::
+   :toctree: _autosummaries
+   :nosignatures:
+
+   ParametricOperatorTemplate
+   ParametricOpInfOperator
+   InterpolatedConstantOperator
+   InterpolatedLinearOperator
+   InterpolatedQuadraticOperator
+   InterpolatedCubicOperator
+   InterpolatedInputOperator
+   InterpolatedStateInputOperator
 ```
 
-<!--
-:::{admonition} Summary
-Operators defined in {mod}`opinf.operators` are the building blocks for the dynamical systems models defined in {mod}`opinf.models`.
-There are a few different types of operators:
+:::{admonition} Overview
+:class: note
 
-- [Nonparametric operators](sec-operators-nonparametric) do not depend on external parameters, while [parametric operators](sec-operators-parametric) have a dependence on
-- Monolithic operators are designed for dense systems; multilithic operators are designed for systems with sparse block structure.
+- Operator classes defined in {mod}`opinf.operators` represent the individual terms in a dynamic model equation.
+  - [`apply()`](OperatorTemplate.apply) applies the operator to given state and input vectors.
+  - [`jacobian()`](OperatorTemplate.apply) constructs the derivative of the operator with respect to the state at given state and input vectors.
+- Operators that can be written as the product of a matrix and a known vector-valued function can be calibrated through a data-driven inference problem.
+  - [`operator_dimension()`](OpInfOperator.operator_dimension) defines the size of the operator entries matrix for given state and input dimensions.
+  - [`datablock()`](OpInfOperator.datablock) uses state and input snapshots to construct a block of the data matrix for the inference problem.
+- A list of operator objects is passed to the constructor of {mod}`opinf.models` classes.
+- [Nonparametric operators](sec-operators-nonparametric) do not depend on external parameters, while [parametric operators](sec-operators-parametric) have a dependence on one or more external parameters.
 :::
--->
 
-## Overview
+<!-- - Monolithic operators are designed for dense systems; multilithic operators are designed for systems with sparse block structure. -->
 
-Reduced-order models based on Operator Inference are systems of [ordinary differential equations](opinf.models.ContinuousModel) (or [discrete-time difference equations](opinf.models.DiscreteModel)) that can be written as
+## Operators
+
+Models based on Operator Inference are systems of [ordinary differential equations](opinf.models.ContinuousModel) (or [discrete-time difference equations](opinf.models.DiscreteModel)) that can be written as a sum of terms,
 
 $$
 \begin{aligned}
    \ddt\qhat(t)
-   = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t))
+   = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t)),
 \end{aligned}
 $$ (eq:operators:model)
 
-where each $\Ophat_{\ell}:\RR^{r}\times\RR^{m}\to\RR^{r}$ is a vector-valued function that is polynomial with respect to the reduced state $\qhat\in\RR^{n}$ and the input $\u\in\RR^{m}$.
-Such functions, which we refer to as *operators*, can be represented by a matrix-vector product
+where each $\Ophat_{\ell}:\RR^{r}\times\RR^{m}\to\RR^{r}$ is a vector-valued function of the reduced state $\qhat\in\RR^{r}$ and the input $\u\in\RR^{m}$.
+We call these functions *operators* on this page.
+
+Operator Inference calibrates operators that can be written as the product of a matrix $\Ohat\in\RR^{r \times d}$ and a known (possibly nonlinear) vector-valued function $\d_{\ell}:\RR^{r}\times\RR^{m}\to\RR^{d}$,
 
 $$
 \begin{aligned}
-    \Ophat_{\ell}(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)
+    \Ophat_{\ell}(\qhat,\u)
+    = \Ohat_{\ell}\d_{\ell}(\qhat,\u).
 \end{aligned}
 $$
 
-for some data-dependent vector $\d_{\ell}:\RR^{r}\times\RR^{m}\to\RR^{d}$ and constant matrix $\Ohat_{\ell}\in\RR^{r\times d}$.
-The goal of Operator Inference is to learn---using only data---the *operator entries* $\Ohat_\ell$ for each operator in the reduced-order model.
+We call these ``OpInf operators'' on this page.
+The goal of Operator Inference is to learn each *operator entries* matrix $\Ohat_\ell$ for each OpInf operator in the model.
 
-The classes in this module represent different types of operators that can used in defining the structure of an Operator Inference reduced-order model.
+This module defines classes for various types of operators.
 
 :::{admonition} Example
 :class: tip
 
-To construct a linear time-invariant (LTI) system
+To represent a linear time-invariant (LTI) system
 
 $$
 \begin{align}
@@ -88,38 +128,19 @@ LTI_model = opinf.models.ContinuousModel(
 (sec-operators-nonparametric)=
 ## Nonparametric Operators
 
-A _nonparametric_ operator $\Ophat_{\ell}(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)$ is one where the entries matrix $\Ohat_\ell$ is constant.
+A _nonparametric_ operator is a function of the state and input only.
+For OpInf operators $\Ophat_{\ell}(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)$, this means the entries matrix $\Ohat_\ell$ is constant.
+See [Parametric Operators](sec-operators-parametric) for operators that also depend on one or more external parameters.
 
-```{eval-rst}
-.. currentmodule:: opinf.operators
-
-.. autosummary::
-    :toctree: _autosummaries
-    :nosignatures:
-
-    ConstantOperator
-    LinearOperator
-    QuadraticOperator
-    CubicOperator
-    InputOperator
-    StateInputOperator
-```
-
-<!-- These operator classes are used in models where the state is monolithic, meaning the system does not exhibit a block sparsity structure. -->
-
-<!-- ### Nonparametric Multilithic Operators
-
-:::{admonition} TODO
-Multilithic classes
-::: -->
+Nonparametric operator classes inherit from {class}`OperatorTemplate`.
 
 Nonparametric operators can be instantiated without arguments.
-If the operator entries are known, they can be passed into the constructor or set later with the `set_entries()` method.
-The entries are stored as the `entries` attribute and can be accessed with slicing operations `[:]`.
+If the operator entries are known, they can be passed into the constructor or set later with [`set_entries()`](OpInfOperator.set_entries).
+The entries are stored as the [`entries`](OpInfOperator.entries) attribute and can be accessed with slicing operations `[:]`.
 
-In a reduced-order model, there are two ways to determine the operator entries:
+There are two ways to determine the operator entries:
 
-- Learn the entries from data (nonintrusive Operator Inference), or
+- Learn the entries from data (non-intrusive Operator Inference), or
 - Shrink an existing high-dimensional operator (intrusive Galerkin projection).
 
 Once the entries are set, the following methods are used to compute the action
@@ -303,6 +324,196 @@ The intrusive Galerkin projection has $\Nhat = \Vr\trp\N(\I_m\otimes\Vr)$.
 :::
 
 Every operator class has a `galerkin()` method that performs intrusive projection.
+
+### Custom Nonparametric Operators
+
+New nonparametric operators can be defined by inheriting from {class}`OperatorTemplate` or, for operators that can be calibrated through Operator Inference, {class}`OpInfOperator`.
+Once implemented, the [`verify()`](OperatorTemplate.verify) method may be used to test for consistency between [`apply()`](OperatorTemplate.apply) and the other methods outlined below.
+
+```python
+class MyOperator(opinf.operators.OperatorTemplate):
+    """Custom non-OpInf nonparametric operator."""
+
+    # Constructor -------------------------------------------------------------
+    def __init__(self, args_and_kwargs):
+        """Construct the operator and set the state_dimension."""
+        raise NotImplementedError
+
+    # Required properties and methods -----------------------------------------
+    @property
+    def state_dimension(self):
+        """Dimension of the state that the operator acts on."""
+        return NotImplemented
+
+    def apply(self, state, input_=None):
+        """Apply the operator to the given state / input."""
+        raise NotImplementedError
+
+    # Optional methods --------------------------------------------------------
+    def jacobian(self, state, input_=None):
+        """Construct the state Jacobian of the operator."""
+        raise NotImplementedError
+
+    def galerkin(self, Vr: np.ndarray, Wr=None):
+        """Get the (Petrov-)Galerkin projection of this operator."""
+        raise NotImplementedError
+
+    def save(self, savefile, overwrite=False):
+        """Save the operator to an HDF5 file."""
+        raise NotImplementedError
+
+    @classmethod
+    def load(cls, loadfile):
+        """Load an operator from an HDF5 file."""
+        raise NotImplementedError
+
+    def copy(self):
+        """Make a copy of the operator.
+        If not implemented, copy.deepcopy() is used.
+        """
+        raise NotImplementedError
+```
+
+See {class}`OperatorTemplate` for details on the arguments for each method.
+
+```python
+class MyOpInfOperator(opinf.operators.OpInfOperator):
+    """Custom nonparametric OpInf operator."""
+
+    # Required methods --------------------------------------------------------
+    @opinf.utils.requires("entries")
+    def apply(self, state=None, input_=None):
+        """Apply the operator to the given state / input."""
+        raise NotImplementedError
+
+    @staticmethod
+    def datablock(states, inputs=None):
+        """Return the data matrix block corresponding to the operator."""
+        raise NotImplementedError
+
+    @staticmethod
+    def operator_dimension(r=None, m=None):
+        """Column dimension of the operator entries matrix."""
+        raise NotImplementedError
+
+    # Optional methods --------------------------------------------------------
+    @opinf.utils.requires("entries")
+    def jacobian(self, state, input_=None):
+        """Construct the state Jacobian of the operator.
+        NOTE: If this method is omitted it is assumed that the Jacobian is
+        zero, implying that the operator does not depend on the state.
+        """
+        raise NotImplementedError
+
+    def galerkin(self, Vr, Wr=None):
+        """Get the (Petrov-)Galerkin projection of this operator."""
+        raise NotImplementedError
+```
+
+See {class}`OpInfOperator` for details on the arguments for each method.
+
+:::{admonition} Developer Notes
+:class: note
+
+- If the operator depends on the input $\u$, the class should also inherit from {class}`InputMixin` and set the [`input_dimension`](InputMixin.input_dimension) attribute.
+- The [`jacobian()`](OperatorTemplate.jacobian) method is optional, but {mod}`opinf.models` objects have a `jacobian()` method that calls `jacobian()` for each of its operators. In an {class}`opinf.models.ContinuousModel`, the Jacobian is required for various time integration strategies used in [`predict()`](opinf.models.ContinuousModel.predict).
+- The [`galerkin()`](OperatorTemplate.galerkin) method is optional, but {mod}`opinf.models` objects have a `galerkin()` method that calls `galerkin()` for each of its operators.
+- The [`save()`](OperatorTemplate.save) and [`load()`](OperatorTemplate.load) methods should be implemented using {func}`opinf.utils.hdf5_savehandle()` and {func}`opinf.utils.hdf5_loadhandle()`, respectively.
+:::
+
+#### Example: Hadamard Product with a Fixed Vector
+
+Consider the operator $\Ophat_{\ell}(\qhat, \u) = \qhat \ast \hat{\s}$, where $\hat{\s}\in\RR^{r}$ is a constant vector and $\ast$ denotes the [Hadamard (elementwise) product](https://en.wikipedia.org/wiki/Hadamard_product_(matrices)) (`*` in NumPy).
+To implement an operator for this class, we first calculate its state Jacobian and determine the operator produced by (Petrov--)Galerkin projection.
+
+Let $\qhat = [~\hat{q}_1~~\cdots~~\hat{q}_r~]\trp$ and $\hat{\s} = [~\hat{s}_1~~\cdots~~\hat{s}_r~]\trp$, i.e., the $i$-th entry of $\Ophat_{\ell}(\qhat, \u)$ is $\hat{q}_i\hat{s}_i$.
+Then the $(i,j)$-th entry of the Jacobian is
+
+$$
+\begin{aligned}
+    \frac{\partial}{\partial \hat{\q}_j}\left[\hat{q}_i\hat{s}_i\right]
+    = \begin{cases}
+        \hat{s}_i & \textrm{if}~i = j,
+        \\
+        0 & \textrm{else}.
+    \end{cases}
+\end{aligned}
+$$
+
+That is, $\ddqhat\Ophat_{\ell}(\qhat, \u) = \operatorname{diag}(\hat{\s}).$
+
+Now consider a version of this operator with a large state dimension, $\Op_{\ell}(\q, \u) = \q \ast \s$ for $\q,\s\in\mathbb{R}^{n}$.
+For basis matrices $\Vr,\Wr\in\mathbb{R}^{n \times r}$, the Petrov-Galerkin projection of $\Op_{\ell}$ is given by
+
+$$
+\begin{aligned}
+    \Ophat_{\ell}(\qhat, \u)
+    = (\Wr\trp\Vr)^{-1}\Wr\trp\Op_{\ell}(\Vr\qhat, \u)
+    = (\Wr\trp\Vr)^{-1}\Wr\trp((\Vr\qhat)\ast\s).
+\end{aligned}
+$$
+
+It turns out that this product can be written as a matrix-vector product $\Ahat\qhat$ where $\Ahat$ depends on $\Vr$ and $\s$.
+Therefore, `galerkin()` should return a {class}`LinearOperator` with entries matrix $\Ahat$.
+
+The following class inherits from {class}`OperatorTemplate`, stores $\hat{\s}$ and sets the state dimension $r$ in the constructor, and implements the methods outlined the inheritance template.
+
+```python
+class HadamardOperator(opinf.operators.OperatorTemplate):
+    """Custom non-OpInf nonparametric operator for the Hadamard product."""
+
+    # Constructor -------------------------------------------------------------
+    def __init__(self, s):
+        """Construct the operator and set the state_dimension."""
+        self.svector = np.array(s)
+        self._jac = np.diag(self.svector)
+
+    # Required properties and methods -----------------------------------------
+    @property
+    def state_dimension(self):
+        """Dimension of the state that the operator acts on."""
+        return self.svector.shape[0]
+
+    def apply(self, state, input_=None):
+        """Apply the operator to the given state / input."""
+        svec = self.svector
+        if state.ndim == 2:
+            svec = svec.reshape((self.state_dimension, 1))
+        return state * svec
+
+    # Optional methods --------------------------------------------------------
+    def jacobian(self, state, input_=None):
+        """Construct the state Jacobian of the operator."""
+        return self._jac
+
+    def galerkin(self, Vr, Wr=None):
+        """Get the (Petrov-)Galerkin projection of this operator."""
+        if Wr is None:
+            Wr = Vr
+        n = self.state_dimension
+        r = Vr.shape[1]
+
+        M = la.khatri_rao(V.T, np.eye(n)).T
+        Ahat = Wr.T @ M.reshape((n, r, n)) @ self.svector
+        if not np.allclose((WrTVr := Wr.T @ Vr), np.eye(r)):
+            Ahat = la.solve(WrTVr, entries)
+        return opinf.operators.LinearOperator(Ahat)
+
+    def save(self, savefile, overwrite=False):
+        """Save the operator to an HDF5 file."""
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            hf.create_dataset("svector", data=self.svector)
+
+    @classmethod
+    def load(cls, loadfile):
+        """Load an operator from an HDF5 file."""
+        with utils.hdf5_loadhandle(loadfile) as hf:
+            return cls(hf["svector"][:])
+
+    def copy(self):
+        """Make a copy of the operator."""
+        return self.__class__(self.svector)
+```
 
 (sec-operators-parametric)=
 ## Parametric Operators
