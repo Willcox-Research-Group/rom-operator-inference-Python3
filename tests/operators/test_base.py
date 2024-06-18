@@ -405,9 +405,6 @@ class TestOpInfOperator:
         def apply(*args, **kwargs):
             return -1
 
-        def galerkin(*args, **kwargs):
-            return _module.OpInfOperator.galerkin(*args, **kwargs)
-
         def datablock(*args, **kwargs):
             pass
 
@@ -532,20 +529,20 @@ class TestOpInfOperator:
 
     # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=10, r=3):
-        """Test OpInfOperator.galerkin()."""
+        """Test OpInfOperator._galerkin()."""
         Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
         Wr = la.qr(np.random.random((n, r)), mode="economic")[0]
         A = np.random.random((n, n))
         op = self.Dummy(A)
         c = np.random.random(n)
 
-        op_ = op.galerkin(Vr, Vr, lambda x, y: c)
+        op_ = op._galerkin(Vr, Vr, lambda x, y: c)
         assert isinstance(op_, op.__class__)
         assert op_ is not op
         assert op_.shape == (r,)
         assert np.all(op_.entries == Vr.T @ c)
 
-        op_ = op.galerkin(Vr, Wr, lambda x, y: c)
+        op_ = op._galerkin(Vr, Wr, lambda x, y: c)
         assert isinstance(op_, op.__class__)
         assert op_ is not op
         assert op_.shape == (r,)
@@ -553,13 +550,13 @@ class TestOpInfOperator:
 
         Wr_bad = np.random.random((n, r - 1))
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            op.galerkin(Vr, Wr_bad, None)
+            op._galerkin(Vr, Wr_bad, None)
         assert ex.value.args[0] == "trial and test bases not aligned"
 
         A = np.random.random((n - 1, r + 1))
         op = self.Dummy(A)
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            op.galerkin(Vr, None, None)
+            op._galerkin(Vr, None, None)
         assert ex.value.args[0] == "basis and operator not aligned"
 
     # Model persistence -------------------------------------------------------

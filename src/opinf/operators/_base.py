@@ -44,11 +44,11 @@ def has_inputs(obj) -> bool:
 
 # Nonparametric operators =====================================================
 class OperatorTemplate(abc.ABC):
-    r"""Template for general operators.
+    r"""Template for general operators :math:`\Ophat_{\ell}(\qhat,\u).`
 
     In this package, an "operator" is a function
-    :math:`\Ophat_{\ell}: \RR^n \times \RR^m \to \RR^n` that acts on a state
-    vector :math:`\qhat\in\RR^n` and (optionally) an input vector
+    :math:`\Ophat_{\ell}: \RR^r \times \RR^m \to \RR^r` that acts on a state
+    vector :math:`\qhat\in\RR^r` and (optionally) an input vector
     :math:`\u\in\RR^m`.
 
     Models are defined as the sum of several operators,
@@ -63,7 +63,7 @@ class OperatorTemplate(abc.ABC):
     -----
     This class can be used for custom nonparametric model terms that are not
     learnable with Operator Inference.
-    For parametric model terms, see :class:`ParametricOperatorTemplate.
+    For parametric model terms, see :class:`ParametricOperatorTemplate`.
     For model terms that can be learned with Operator Inference, see
     :class:`OpInfOperator` or :class:`ParametricOpInfOperator`.
     """
@@ -82,6 +82,26 @@ class OperatorTemplate(abc.ABC):
         if has_inputs(self):
             out.append(f"input_dimension: {self.input_dimension}")
         return "\n  ".join(out)
+
+    @staticmethod
+    def _str(statestr, inputstr=None):
+        """String representation of the operator, used when printing out the
+        structure of a model.
+
+        Parameters
+        ----------
+        statestr : str
+            String representation of the state, e.g., ``"q(t)"`` or ``"q_j"``.
+        inputstr : str
+            String representation of the input, e.g., ``"u(t)"`` or ``"u_j"``.
+
+        Returns
+        -------
+        opstr : str
+            String representation of the operator acting on the state/input,
+            e.g., ``"Aq(t)"`` or ``"Bu(t)"`` or ``"H[q(t) ⊗ q(t)]"``.
+        """
+        return f"f({statestr}, {inputstr})"
 
     # Evaluation --------------------------------------------------------------
     @abc.abstractmethod
@@ -107,7 +127,8 @@ class OperatorTemplate(abc.ABC):
         r"""Construct the state Jacobian of the operator.
 
         If :math:`[\![\q]\!]_{i}` denotes the :math:`i`-th entry of a vector
-        :math:`\q`, then the entries of the state Jacobian are given by
+        :math:`\q`, then the :math:`(i,j)`-th entry of the state Jacobian is
+        given by
 
         .. math::
            [\![\ddqhat\Ophat(\qhat,\u)]\!]_{i,j}
@@ -164,7 +185,7 @@ class OperatorTemplate(abc.ABC):
 
     # Model persistence -------------------------------------------------------
     def copy(self):
-        """Return a copy of the operator."""
+        """Return a copy of the operator using :func:`copy.deepcopy()`."""
         return copy.deepcopy(self)
 
     def save(self, savefile: str, overwrite: bool = False) -> None:
@@ -450,11 +471,12 @@ def is_nonparametric(obj) -> bool:
 
 class OpInfOperator(OperatorTemplate):
     r"""Template for nonparametric operators that can be calibrated through
-    Operator Inference.
+    Operator Inference, i.e.,
+    :math:`\Ophat_{\ell}(\qhat, \u) = \Ohat_{\ell}\d(\qhat, \u)`.
 
     In this package, an "operator" is a function
-    :math:`\Ophat_{\ell}: \RR^n \times \RR^m \to \RR^n` that acts on a state
-    vector :math:`\qhat\in\RR^n` and (optionally) an input vector
+    :math:`\Ophat_{\ell}: \RR^r \times \RR^m \to \RR^r` that acts on a state
+    vector :math:`\qhat\in\RR^r` and (optionally) an input vector
     :math:`\u\in\RR^m`.
 
     Models are defined as the sum of several operators,
@@ -479,8 +501,7 @@ class OpInfOperator(OperatorTemplate):
     Notes
     -----
     * To define operators with a more general structure than
-      :math:`\Ohat_{\ell}\d(\qhat, \u)` (but which cannot be calibrated via
-      Operator Inference), see :class:`OperatorTemplate`.
+      :math:`\Ohat_{\ell}\d(\qhat, \u),` see :class:`OperatorTemplate`.
     * If the operator entries :math:`\Ohat_{\ell}` depend on one or more
       external parameters, it is called a *parametric operator*.
       See :class:`ParametricOpInfOperator`.
@@ -571,32 +592,14 @@ class OpInfOperator(OperatorTemplate):
             )
         return scls(self.entries + other.entries)
 
-    def _str(self, statestr, inputstr):  # pragma: no cover
-        """String representation of the operator, used when printing out the
-        structure of a model.
-
-        Parameters
-        ----------
-        statestr : str
-            String representation of the state, e.g., ``"q(t)"`` or ``"q_j"``.
-        inputstr : str
-            String representation of the input, e.g., ``"u(t)"`` or ``"u_j"``.
-
-        Returns
-        -------
-        opstr : str
-            String representation of the operator acting on the state/input,
-            e.g., ``"Aq(t)"`` or ``"Bu(t)"`` or ``"H[q(t) ⊗ q(t)]"``.
-        """
-        return f"f({statestr}, {inputstr})"
-
     # Evaluation --------------------------------------------------------------
     @utils.requires("entries")
     def jacobian(self, state, input_=None):  # pragma: no cover
         r"""Construct the state Jacobian of the operator.
 
-        If :math:`[\![\q]\!]_{i}` denotes the entry :math:`i` of a vector
-        :math:`\q`, then the entries of the state Jacobian are given by
+        If :math:`[\![\q]\!]_{i}` denotes the :math:`i`-th entry of a vector
+        :math:`\q`, then the :math:`(i,j)`-th entry of the state Jacobian is
+        given by
 
         .. math::
            [\![\ddqhat\Ophat(\qhat,\u)]\!]_{i,j}
@@ -621,8 +624,7 @@ class OpInfOperator(OperatorTemplate):
         return 0
 
     # Dimensionality reduction ------------------------------------------------
-    @abc.abstractmethod
-    def galerkin(self, Vr, Wr, func):
+    def _galerkin(self, Vr, Wr, func):
         r"""Get the (Petrov-)Galerkin projection of this operator.
 
         Subclasses may implement this function as follows:
@@ -632,7 +634,7 @@ class OpInfOperator(OperatorTemplate):
            @utils.requires("entries")
            def galerkin(self, Vr, Wr=None):
                '''Docstring'''
-               return super().galerkin(Vr, Wr, lambda A, V: <TODO>)
+               return self._galerkin(Vr, Wr, lambda A, V: <TODO>)
 
         Parameters
         ----------
@@ -814,6 +816,31 @@ class OpInfOperator(OperatorTemplate):
 
 # Parametric operators ========================================================
 class ParametricOperatorTemplate(abc.ABC):
+    r"""Template for general operators that depend on external parameters,
+    :math:`\Ophat_{\ell}(\qhat,\u;\bfmu).`
+
+    In this package, a parametric "operator" is a function
+    :math:`\Ophat_{\ell}: \RR^n \times \RR^m \times \RR^p \to \RR^n` that acts
+    on a state vector :math:`\qhat\in\RR^n`, an (optional) input vector
+    :math:`\u\in\RR^m`, and a parameter vector :math:`\bfmu\in\RR^p`.
+
+    Models are defined as the sum of several operators,
+    for example, an :class:`opinf.models.ContinuousModel` object represents a
+    system of ordinary differential equations:
+
+    .. math::
+       \ddt\qhat(t)
+       = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t)).
+
+    Notes
+    -----
+    This class can be used for custom nonparametric model terms that are not
+    learnable with Operator Inference.
+    For nonparametric model terms, see :class:`OperatorTemplate`.
+    For model terms that can be learned with Operator Inference, see
+    :class:`OpInfOperator` or :class:`ParametricOpInfOperator`.
+
+    """
 
     # Meta properties ---------------------------------------------------------
     _OperatorClass = NotImplemented

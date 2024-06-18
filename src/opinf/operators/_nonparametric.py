@@ -112,7 +112,7 @@ class ConstantOperator(OpInfOperator):
         projected : :class:`opinf.operators.ConstantOperator`
             Projected operator.
         """
-        return OpInfOperator.galerkin(self, Vr, Wr, lambda c, V: c)
+        return self._galerkin(Vr, Wr, lambda c, V: c)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -269,7 +269,7 @@ class LinearOperator(OpInfOperator):
         projected : :class:`opinf.operators.LinearOperator`
             Projected operator.
         """
-        return OpInfOperator.galerkin(self, Vr, Wr, lambda A, V: A @ V)
+        return self._galerkin(Vr, Wr, lambda A, V: A @ V)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -464,7 +464,7 @@ class QuadraticOperator(OpInfOperator):
         def _pg(H, V):
             return self.expand_entries(H) @ np.kron(V, V)
 
-        return OpInfOperator.galerkin(self, Vr, Wr, _pg)
+        return self._galerkin(Vr, Wr, _pg)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -924,7 +924,7 @@ class CubicOperator(OpInfOperator):
         def _pg(G, V):
             return self.expand_entries(G) @ np.kron(V, np.kron(V, V))
 
-        return OpInfOperator.galerkin(self, Vr, Wr, _pg)
+        return self._galerkin(Vr, Wr, _pg)
 
     @staticmethod
     def datablock(states, inputs=None):
@@ -1314,7 +1314,7 @@ class InputOperator(OpInfOperator, InputMixin):
         projected : :class:`opinf.operators.InputOperator`
             Projected operator.
         """
-        return OpInfOperator.galerkin(self, Vr, Wr, lambda B, V: B)
+        return self._galerkin(Vr, Wr, lambda B, V: B)
 
     @staticmethod
     def datablock(states, inputs):
@@ -1512,7 +1512,7 @@ class StateInputOperator(OpInfOperator, InputMixin):
             m = rm // r
             return N @ np.kron(np.eye(m), V)
 
-        return OpInfOperator.galerkin(self, Vr, Wr, _pg)
+        return self._galerkin(Vr, Wr, _pg)
 
     @staticmethod
     def datablock(states, inputs):
