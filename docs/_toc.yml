@@ -44,7 +44,6 @@ parts:
     maxdepth: 1
     chapters:
     - file: source/contributing/how_to_contribute.md
-    - file: source/contributing/code_anatomy.md
     - file: source/contributing/testing.md
     - file: source/contributing/documentation.md
     - file: source/contributing/notation.md
