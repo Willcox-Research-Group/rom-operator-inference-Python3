@@ -32,7 +32,7 @@ parts:
     - file: source/api/pre.ipynb
     - file: source/api/basis.ipynb
     - file: source/api/ddt.ipynb
-    - file: source/api/operators.md
+    - file: source/api/operators.ipynb
     - file: source/api/lstsq.ipynb
     - file: source/api/models.md
     - file: source/api/roms.md

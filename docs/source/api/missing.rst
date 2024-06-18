@@ -86,6 +86,36 @@ ddt.ipynb
    ddt_nonuniform
    ddt
 
+operators.ipynb
+---------------
+
+.. currentmodule:: opinf.operators
+
+.. autosummary::
+   :totctree: _autosummaries
+   :nosignatures:
+
+   OperatorTemplate
+   OpInfOperator
+   ConstantOperator
+   LinearOperator
+   QuadraticOperator
+   CubicOperator
+   InputOperator
+   StateInputOperator
+   ParametricOperatorTemplate
+   ParametricOpInfOperator
+   InterpolatedConstantOperator
+   InterpolatedLinearOperator
+   InterpolatedQuadraticOperator
+   InterpolatedCubicOperator
+   InterpolatedInputOperator
+   InterpolatedStateInputOperator
+   has_inputs
+   is_nonparametric
+   is_parametric
+   is_uncalibrated
+
 lstsq.ipynb
 -----------
 
