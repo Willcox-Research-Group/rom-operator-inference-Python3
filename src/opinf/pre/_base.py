@@ -9,7 +9,7 @@ import abc
 import numpy as np
 import scipy.linalg as la
 
-from .. import errors, ddt
+from .. import errors, ddt, utils
 
 
 class TransformerTemplate(abc.ABC):
@@ -58,7 +58,19 @@ class TransformerTemplate(abc.ABC):
         """Set the state variable name."""
         self.__name = str(label) if label is not None else None
 
-    # Convenience methods -----------------------------------------------------
+    def __str__(self) -> str:
+        """String representation: scaling type + centering bool."""
+        out = [self.__class__.__name__]
+        if self.state_dimension is not None:
+            out.append(f"(state dimension n = {self.state_dimension:d})")
+        else:
+            out.append("(call fit() or fit_transform() to train)")
+        return " ".join(out)
+
+    def __repr__(self) -> str:
+        """Unique ID + string representation."""
+        return utils.str2repr(self)
+
     def _check_shape(self, Q):
         """Verify the shape of the snapshot set Q."""
         if (n := self.state_dimension) is not None and (n2 := Q.shape[0]) != n:
@@ -193,8 +205,8 @@ class TransformerTemplate(abc.ABC):
           states and the transformed states, then verfies that the relative
           difference between
           ``transform_ddts(opinf.ddt.ddt(states, t))`` and
-          ``opinf.ddt.ddt(transform(states), t)`` is less than ``tol``.
-          If this check fails, consider using a finer time mesh.
+          ``opinf.ddt.ddt(transform(states), t)`` is less than ``tol``, where
+          ``t = numpy.linspace(0, 0.1, 20)``.
 
         Parameters
         ----------

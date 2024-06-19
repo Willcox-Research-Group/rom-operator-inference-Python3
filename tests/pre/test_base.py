@@ -21,40 +21,47 @@ class TestTransformerTemplate:
             return states if inplace else states.copy()
 
     def test_name(self):
-        """Test TransformerTemplate.__init__(), name."""
-        mixin = self.Dummy()
-        assert mixin.name is None
+        """Test __init__(), name."""
+        tf = self.Dummy()
+        assert tf.name is None
 
         s1 = "the name"
-        mixin = self.Dummy(name=s1)
-        assert mixin.name == s1
+        tf = self.Dummy(name=s1)
+        assert tf.name == s1
 
         s2 = "new name"
-        mixin.name = s2
-        assert mixin.name == s2
+        tf.name = s2
+        assert tf.name == s2
 
-        mixin.name = None
-        assert mixin.name is None
+        tf.name = None
+        assert tf.name is None
 
     def test_state_dimension(self):
-        """Test TransformerTemplate.state_dimension."""
-        mixin = self.Dummy()
-        assert mixin.state_dimension is None
-        mixin.state_dimension = 10.0
-        n = mixin.state_dimension
+        """Test state_dimension."""
+        tf = self.Dummy()
+        assert tf.state_dimension is None
+        tf.state_dimension = 10.0
+        n = tf.state_dimension
         assert isinstance(n, int)
-        assert mixin.state_dimension == n
-        mixin.state_dimension = None
-        assert mixin.state_dimension is None
+        assert tf.state_dimension == n
+        tf.state_dimension = None
+        assert tf.state_dimension is None
+
+    def test_str(self):
+        """Lightly test __str__()."""
+        tf = self.Dummy()
+        str(tf)
+        tf.state_dimension = 10
+        assert str(tf) in repr(tf)
 
     def test_fit(self):
-        """Test TransformerTemplate.fit()."""
+        """Test fit()."""
         tf = self.Dummy()
         out = tf.fit(np.random.random((2, 5)))
         assert out is tf
 
     def test_verify(self, n=30):
-        """Test TransformerTemplate.verify()."""
+        """Test verify()."""
         dummy = self.Dummy()
 
         with pytest.raises(AttributeError) as ex:
