@@ -30,6 +30,11 @@ class TestLifterTemplate:
         assert self.Dummy.lift(Q) is Q
         assert self.Dummy.unlift(Q) is Q
 
+    def test_str(self):
+        """Lightly test __str__() and __repr__()."""
+        out = repr(self.Dummy())
+        assert out.count("\n") == 1
+
     def test_verify(self, n=12, k=18):
         """Coverage tests for verify()."""
         Q = np.random.random((n, k))
