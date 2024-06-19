@@ -49,4 +49,4 @@ In the code, low-dimensional quantities ends with an underscore (e.g., `state` i
 | $\Hhat$ | `H_` | $r \times \frac{r(r+1)}{2}$ | Compact reduced-order matricized quadratic state tensor |
 | $\Ghat$ | `G_` | $r \times \frac{r(r+1)(r+2)}{6}$ | Compact reduced-order matricized quadratic state tensor |
 | $\Bhat$ | `B_` | $r \times m$ | Reduced-order input matrix |
-| $Nhat$ | `N_` | $r \times rm$ | Bilinear state-input matrix |
+| $\Nhat$ | `N_` | $r \times rm$ | Bilinear state-input matrix |

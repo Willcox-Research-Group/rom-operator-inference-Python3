@@ -57,9 +57,9 @@ class PODBasis(LinearBasis):
     Here, :math:`\Q\in\mathbb{R}^{n\times k}` is a collection of states,
     the only argument of :meth:`fit`.
 
-    The POD basis entries :math:`\Vr = \bfPhi_{:,:r}\in\RR^{n\times r}`
-    are always orthogonal, i.e., :math:`\Vr\trp\Vr = \I`. If a weight matrix
-    :math:`\W` is specified, a weighted SVD is computed so that
+    The POD basis entries matrix :math:`\Vr = \bfPhi_{:,:r}\in\RR^{n\times r}`
+    always has orthonormal columns, i.e., :math:`\Vr\trp\Vr = \I`. If a weight
+    matrix :math:`\W` is specified, a weighted SVD is computed so that
     :math:`\Vr\trp\W\Vr = \I`.
 
     The number of left singular vectors :math:`r` is the dimension of the
@@ -507,7 +507,8 @@ class PODBasis(LinearBasis):
         projection_error : float
             Choose :math:`r` as the smallest integer such that
             :math:`\|\Q - \Vr\Vr\trp\Q\|_F \big/ \|\Q\|_F`
-            is less than or equal to ``projection_error``.
+            is less than or equal to ``projection_error``, where :math:`\Q`
+            is the matrix of training snapshots.
         """
         self._set_dimension_selection_criterion(
             num_vectors=num_vectors,
@@ -611,28 +612,28 @@ class PODBasis(LinearBasis):
     def plot_svdval_decay(
         self,
         threshold=None,
-        right=None,
-        ax=None,
+        right: int = None,
+        ax: plt.Axes = None,
         **options,
     ):
         """Plot the normalized singular value decay.
 
         Parameters
         ----------
-        threshold : float or list[floats] or None
+        threshold : float or list[float] or None
             Cutoff value(s) to mark on the plot.
         right : int or None
             Maximum singular value index to plot (``plt.xlim(right=right)``).
-        ax : plt.Axes or None
-            Matplotlib Axes to plot on.
+        ax : matplotlib.Axes or None
+            Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
         options : dict
-            Additional arguments to pass to ``plt.semilogy()``.
+            Options to pass to :func:`matplotlib.pyplot.semilogy()`.
 
         Returns
         -------
-        ax : plt.Axes
-            Matplotlib Axes for the plot.
+        ax : matplotlib.Axes
+            Axes for the plot.
         """
         kwargs = dict(threshold=threshold, plot=True, right=right, ax=ax)
         kwargs.update(options)
@@ -641,11 +642,12 @@ class PODBasis(LinearBasis):
     def plot_cumulative_energy(
         self,
         threshold=None,
-        right=None,
-        ax=None,
+        right: int = None,
+        ax: plt.Axes = None,
         **options,
     ):
-        r"""Plot the cumulative singular value energy.
+        r"""Plot the cumulative singular value energy and a function of the
+        basis size.
 
         The cumulative energy of :math:`r` singular values is defined by
 
@@ -656,20 +658,20 @@ class PODBasis(LinearBasis):
 
         Parameters
         ----------
-        threshold : float or list[floats] or None
+        threshold : float or list[float] or None
             Threshold energy value(s) to mark on the plot.
         right : int or None
             Maximum singular value index to plot (``plt.xlim(right=right)``).
-        ax : plt.Axes or None
-            Matplotlib Axes to plot on.
+        ax : matplotlib.Axes or None
+            Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
         kwargs : dict
-            Additional arguments to pass to ``plt.semilogy()``.
+            Options to pass to :func:`matplotlib.pyplot.semilogy()`.
 
         Returns
         -------
-        ax : plt.Axes
-            Matplotlib Axes for the plot.
+        ax : matplotlib.Axes
+            Axes for the plot.
         """
         kwargs = dict(threshold=threshold, plot=True, right=right, ax=ax)
         kwargs.update(options)
@@ -678,11 +680,12 @@ class PODBasis(LinearBasis):
     def plot_residual_energy(
         self,
         threshold=None,
-        right=None,
-        ax=None,
+        right: int = None,
+        ax: plt.Axes = None,
         **options,
     ):
-        r"""Plot the residual singular value energy.
+        r"""Plot the residual singular value energy as a function of the basis
+        size.
 
         The residual energy of :math:`r` singular values is defined by
 
@@ -697,27 +700,86 @@ class PODBasis(LinearBasis):
 
         Parameters
         ----------
-        threshold : float or list[floats] or None
+        threshold : float or list[float] or None
             Cutoff value(s) to mark on the plot.
         right : int or None
             Maximum singular value index to plot (``plt.xlim(right=right)``).
-        ax : plt.Axes or None
-            Matplotlib Axes to plot on.
+        ax : matplotlib.Axes or None
+            Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
         options : dict
-            Additional arguments to pass to ``plt.semilogy()``.
+            Options to pass to :func:`matplotlib.pyplot.semilogy()`.
 
         Returns
         -------
-        ax : plt.Axes
-            Matplotlib Axes for the plot.
+        ax : matplotlib.Axes
+            Axes for the plot.
         """
         kwargs = dict(threshold=threshold, plot=True, right=right, ax=ax)
         kwargs.update(options)
         return self._plot_single(residual_energy, **kwargs)
 
+    def plot_projection_error(
+        self,
+        threshold=None,
+        right: int = None,
+        ax: plt.Axes = None,
+        **options,
+    ):
+        r"""Plot the relative projection error of the training snapshots as a
+        function of the basis size.
+
+        The relative projection error for the rank-:math:`r` POD basis
+        corresponding to the training snapshot matrix
+        :math:`\Q\in\RR^{n\times k}` is defined by
+
+        .. math::
+           \rho_r = \frac{\|\Q - \Vr\Vr\trp\Q\|_{F}}{\|\Q\|_{F}},
+
+        where :math:`\Vr\in\RR^{n \times r}` are the basis entries.
+        This method plots :math:`\rho_r` as a function of :math:`r`;
+        :math:`\rho_r` is calculated via the singular values:
+
+        .. math::
+           \rho_r
+            = \sqrt{\frac{\sum_{j = r + 1}^{\ell}\sigma_{j}^{2}}{
+            \sum_{j=1}^{\ell}\sigma_{j}^{2}}}
+
+        Parameters
+        ----------
+        threshold : float or list[float] or None
+            Cutoff value(s) to mark on the plot.
+        right : int or None
+            Maximum singular value index to plot (``plt.xlim(right=right)``).
+        ax : matplotlib.Axes or None
+            Axes to plot on.
+            If ``None`` (default), a new single-axes figure is created.
+        options : dict
+            Options to pass to :func:`matplotlib.pyplot.semilogy()`.
+
+        Returns
+        -------
+        ax : matplotlib.Axes
+            Axes for the plot.
+
+        Notes
+        -----
+        This method shows the projection error of the training snapshots.
+        See :meth:`projection_error()` to calculate the projection error for an
+        arbitrary snapshot or collection of snapshots.
+        """
+        kwargs = dict(
+            threshold=threshold,
+            plot=True,
+            right=right,
+            ax=ax,
+            sqrt=True,
+        )
+        kwargs.update(options)
+        return self._plot_single(residual_energy, **kwargs)
+
     @requires_svdvals
-    def plot_energy(self, right=None):
+    def plot_energy(self, right: int = None):
         """Plot the normalized singular values and the cumulative and residual
         energies.
 
@@ -807,9 +869,10 @@ class PODBasis(LinearBasis):
         Parameters
         ----------
         loadfile : str
-            Path to the file where the basis was stored via :meth:`save`.
+            Path to the file where the basis was stored via :meth:`save()`.
         max_vectors : int or None
-            Maximum number of POD vectors to load. If None (default), load all.
+            Maximum number of POD vectors to load.
+            If ``None`` (default), load all stored vectors.
 
         Returns
         -------
@@ -877,12 +940,12 @@ def pod_basis(
         :math:`r` for ``svdsolver="randomized"``.
     rightvecs : (k, r) ndarray
         First :math:`r` **right** singular vectors, as columns.
-        **NOTE**: only returned if ``return_rightvecs=True``.
+        **Only returned** if ``return_rightvecs=True``.
 
     Notes
     -----
     See :class:`PODBasis` for the mathematical definition of POD and for
-    details on other constructor arguments.
+    details on other function arguments.
     """
     # If no criteria given, use the maximum dimension based on the states.
     criteria = {
@@ -917,8 +980,8 @@ def svdval_decay(
     singular_values,
     threshold: float = 1e-8,
     plot: bool = True,
-    right=None,
-    ax=None,
+    right: int = None,
+    ax: plt.Axes = None,
     **kwargs,
 ):
     """Count the number of **normalized** singular values that are greater than
@@ -929,22 +992,22 @@ def svdval_decay(
     singular_values : (n,) ndarray
         Singular values of a snapshot matrix, e.g.,
         ``scipy.linalg.svdvals(states)``.
-    threshold : float or list[floats]
+    threshold : float or list[float]
         Cutoff value(s) for the singular values.
     plot : bool
         If ``True``, plot the singular values and the cutoff value(s) against
         the singular value index.
     right : int or None
         Maximum singular value index to plot (``plt.xlim(right=right)``).
-    ax : plt.Axes or None
+    ax : matplotlib.Axes or None
         Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
     kwargs : dict
-        Options to pass to ``plt.semilogy()``
+        Options to pass to :func:`matplotlib.pyplot.semilogy()`.
 
     Returns
     -------
-    ranks : int or list(int)
+    ranks : int or list[int]
         Number of singular values greater than the cutoff value(s).
     """
     singular_values = np.sort(singular_values)[::-1]
@@ -1016,8 +1079,8 @@ def cumulative_energy(
     singular_values,
     threshold: float = 0.9999,
     plot: bool = True,
-    right=None,
-    ax=None,
+    right: int = None,
+    ax: plt.Axes = None,
     **kwargs,
 ):
     r"""Compute the number of singular values needed to surpass a given
@@ -1036,22 +1099,22 @@ def cumulative_energy(
     singular_values : (n,) ndarray
         Singular values of a snapshot matrix, e.g.,
         ``scipy.linalg.svdvals(states)``.
-    threshold : float or list(float)
+    threshold : float or list[float]
         Energy capture threshold(s). Default is 99.99%.
     plot : bool
         If ``True``, plot the cumulative energy and the capture threshold(s)
         against the singular value index (linear scale).
     right : int or None
         Maximum singular value index to plot (``plt.xlim(right=right)``).
-    ax : plt.Axes or None
+    ax : matplotlib.Axes or None
         Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
     kwargs : dict
-        Options to pass to ``plt.plot()``
+        Options to pass to :func:`matplotlib.pyplot.plot()`.
 
     Returns
     -------
-    ranks : int or list(int)
+    ranks : int or list[int]
         Number of singular values required to capture the specified energy.
     """
     # Calculate the cumulative energy.
@@ -1123,8 +1186,9 @@ def residual_energy(
     singular_values,
     threshold: float = 1e-6,
     plot: bool = True,
-    right=None,
-    ax=None,
+    right: int = None,
+    ax: plt.Axes = None,
+    sqrt: bool = False,
     **kwargs,
 ):
     r"""Compute the number of singular values needed such that the residual
@@ -1147,18 +1211,21 @@ def residual_energy(
     singular_values : (n,) ndarray
         Singular values of a snapshot matrix, e.g.,
         ``scipy.linalg.svdvals(states)``.
-    threshold : float or list[floats]
+    threshold : float or list[float]
         Energy residual threshold(s). Default is 10^-6.
     plot : bool
         If ``True``, plot the residual energy and the threshold(s)
         against the singular value index.
     right : int or None
         Maximum singular value index to plot (``plt.xlim(right=right)``).
-    ax : plt.Axes or None
+    ax : matplotlib.Axes or None
         Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
+    sqrt : bool
+        If ``True``, square root the residual energies to get the projection
+        error of the training snapshots.
     kwargs : dict
-        Options to pass to ``plt.semilogy()``
+        Options to pass to :func:`matplotlib.pyplot.semilogy()`.
 
     Returns
     -------
@@ -1170,6 +1237,8 @@ def residual_energy(
     svdvals2 = np.sort(singular_values)[::-1] ** 2
     res_energy = 1 - (np.cumsum(svdvals2) / np.sum(svdvals2))
     res_energy = np.concatenate(([1], res_energy))
+    if sqrt:
+        res_energy = np.sqrt(res_energy)
 
     # Determine the points when the residual energy dips under the threshold.
     if threshold:
@@ -1227,8 +1296,11 @@ def residual_energy(
                 )
 
         ax.set_ylim(ylim)
-        ax.set_xlabel(r"Singular value index")
-        ax.set_ylabel(r"Residual energy")
+        ax.set_xlabel("Singular value index")
+        if sqrt:
+            ax.set_ylabel("Relative projection error")
+        else:
+            ax.set_ylabel("Residual energy")
 
     if threshold:
         return ranks[0] if one_threshold else ranks

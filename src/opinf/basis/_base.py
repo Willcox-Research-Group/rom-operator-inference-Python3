@@ -168,7 +168,7 @@ class BasisTemplate(abc.ABC):
         projection defined by :meth:`project()`.
         If ``state`` is one-dimensional then :math:`||\cdot||` is the vector
         2-norm. If ``state`` is two-dimensional then :math:`||\cdot||` is the
-        Frobenius norm.
+        matrix Frobenius norm.
 
         Parameters
         ----------
