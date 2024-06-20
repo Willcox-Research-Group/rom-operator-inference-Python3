@@ -13,16 +13,7 @@ In the code, low-dimensional quantities ends with an underscore (e.g., `state` i
 | $k$ | `k` | Number of state snapshots, i.e., the number of training points |
 | $s$ | `s` | Number of parameter samples for parametric training |
 | $p$ | `p` | Dimension of the parameter space |
-| $d$ | `d` | Number of columns of the data matrix $\D$ |
-
-<!-- | <img src="./img/notation/eq04.svg"> | `l` | Dimension of the output **y** | -->
-
-<!-- ### Scalars
-
-| Symbol | Code | Description |
-| :----: | :--- | :---------- |
-| $n_{t}$ | `nt`  | Number of time steps in a simulation |
-| $\mu$ | `µ` | Scalar parameter (_p_ = 1). | -->
+| $d$ | `d` | Number of columns of an operator entries matrix $\Ohat$ |
 
 ## Vectors
 
@@ -40,9 +31,6 @@ In the code, low-dimensional quantities ends with an underscore (e.g., `state` i
 | $\qhat\,\widehat{\otimes}\,\qhat\widehat{\otimes}\,\qhat$ | `utils.kron3c(q_)` | $\frac{r(r+1)(r+2)}{6}$ | Compact cubic Kronecker product of reduced state |
 | $\v_{j}$ | `vj` | $n$ | $j$th basis vector, i.e., column $j$ of $\Vr$ |
 
-<!-- | **y**  | `y`             | Output vector | -->
-<!-- | **y_ROM**, **y~** | `y_ROM`      | Approximation to **y** produced by ROM | -->
-
 ## Matrices
 
 | Symbol | Code | Shape | Description |
@@ -59,8 +47,6 @@ In the code, low-dimensional quantities ends with an underscore (e.g., `state` i
 | $\boldsymbol{\Gamma}$ | `regularizer` | $d(r,m) \times d(r,m)$ | Tikhonov regularization matrix |
 | $\Ahat$ | `A_` | $r \times r$ | Reduced-order linear state matrix |
 | $\Hhat$ | `H_` | $r \times \frac{r(r+1)}{2}$ | Compact reduced-order matricized quadratic state tensor |
-| $\widehat{\mathbf{G}}$ | `G_` | $r \times \frac{r(r+1)(r+2)}{6}$ | Compact reduced-order matricized quadratic state tensor |
+| $\Ghat$ | `G_` | $r \times \frac{r(r+1)(r+2)}{6}$ | Compact reduced-order matricized quadratic state tensor |
 | $\Bhat$ | `B_` | $r \times m$ | Reduced-order input matrix |
-
-<!-- | $\widehat{\mathbf{C}}$ | `C_` | $\ell \times r$ | Reduced-order output matrix | -->
-<!-- | $\widehat{\mathbf{N}}$ | `N_` | $r \times rm$ | Bilinear state-input matrix | -->
+| $\Nhat$ | `N_` | $r \times rm$ | Bilinear state-input matrix |

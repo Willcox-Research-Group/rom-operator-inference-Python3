@@ -10,8 +10,8 @@ DynamicState = namedtuple("DynamicState", ["time", "state", "derivative"])
 
 
 def _difference_data(t):
-    Y = np.row_stack(
-        (
+    Y = np.array(
+        [
             t,
             t**2 / 2,
             t**3 / 3,
@@ -19,10 +19,10 @@ def _difference_data(t):
             np.exp(t),
             1 / (t + 1),
             t + t**2 / 2 + t**3 / 3 + np.sin(t) - np.exp(t),
-        )
+        ]
     )
-    dY = np.row_stack(
-        (
+    dY = np.array(
+        [
             np.ones_like(t),
             t,
             t**2,
@@ -30,7 +30,7 @@ def _difference_data(t):
             np.exp(t),
             -1 / (t + 1) ** 2,
             1 + t + t**2 + np.cos(t) - np.exp(t),
-        )
+        ]
     )
     return DynamicState(t, Y, dY)
 

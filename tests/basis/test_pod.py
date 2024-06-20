@@ -343,6 +343,10 @@ class TestPODBasis:
         assert isinstance(ax, plt.Axes)
         plt.close(ax.figure)
 
+        ax = basis.plot_projection_error(threshold=5e-1, right=(n - 3))
+        assert isinstance(ax, plt.Axes)
+        plt.close(ax.figure)
+
         basis.plot_energy()
         plt.close("all")
 

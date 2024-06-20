@@ -94,7 +94,7 @@ class _Model(abc.ABC):
                 raise TypeError(
                     f"invalid operator of type '{op.__class__.__name__}'"
                 )
-            if op.entries is None:
+            if _operators.is_uncalibrated(op):
                 toinfer.append(i)
             else:
                 known.append(i)
@@ -157,10 +157,14 @@ class _Model(abc.ABC):
     # Properties: dimensions --------------------------------------------------
     @staticmethod
     def _check_state_dimension_consistency(ops):
-        """Ensure all operators with initialized entries have the same
-        state dimension (``shape[0]``).
+        """Ensure all operators have the same state dimension, except for
+        inferrable operators whose entries have not been set.
         """
-        rs = {op.state_dimension for op in ops if op.entries is not None}
+        rs = {
+            op.state_dimension
+            for op in ops
+            if not _operators.is_uncalibrated(op)
+        }
         if len(rs) > 1:
             raise errors.DimensionalityError(
                 "operators not aligned "
@@ -195,7 +199,11 @@ class _Model(abc.ABC):
         inputops = [op for op in ops if _operators.has_inputs(op)]
         if len(inputops) == 0:
             return 0
-        ms = {op.input_dimension for op in inputops if op.entries is not None}
+        ms = {
+            op.input_dimension
+            for op in inputops
+            if not _operators.is_uncalibrated(op)
+        }
         if len(ms) > 1:
             raise errors.DimensionalityError(
                 "input operators not aligned "
@@ -220,7 +228,7 @@ class _Model(abc.ABC):
             for op in self.operators:
                 if (
                     _operators.has_inputs(op)
-                    and op.entries is not None
+                    and not _operators.is_uncalibrated(op)
                     and op.input_dimension != m
                 ):
                     raise AttributeError(
@@ -317,12 +325,13 @@ class _Model(abc.ABC):
         reduced_model : Model
             Reduced-order model obtained from (Petrov-)Galerkin projection.
         """
+        # TODO: preserve the _to_infer indices?
         return self.__class__(
             [
                 (
-                    old_op.galerkin(Vr, Wr)
-                    if old_op.entries is not None
-                    else old_op.copy()
+                    old_op.copy()
+                    if _operators.is_uncalibrated(old_op)
+                    else old_op.galerkin(Vr, Wr)
                 )
                 for old_op in self.operators
             ]
@@ -338,7 +347,7 @@ class _Model(abc.ABC):
             warnings.warn(
                 f"argument '{argname}' should be None, "
                 "argument will be ignored",
-                UserWarning,
+                errors.OpInfWarning,
             )
 
     def _check_is_trained(self):

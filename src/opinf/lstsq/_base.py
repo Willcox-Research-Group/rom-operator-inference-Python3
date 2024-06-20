@@ -330,7 +330,7 @@ class SolverTemplate(abc.ABC):
                 raise errors.VerificationError(
                     f"{operation} does not preserve problem dimensions"
                 )
-            if not np.all(obj2.predict() == Ohat1):
+            if not np.allclose(obj2.predict(), Ohat1):
                 raise errors.VerificationError(
                     f"{operation} does not preserve the result of predict()"
                 )

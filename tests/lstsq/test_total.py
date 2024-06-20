@@ -18,8 +18,13 @@ class TestTotalLeastSquaresSolver:
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))
         solver = self.Solver()
+        solver.verify()
         out = solver.fit(D, Z)
         assert out is solver
+        repr(solver)
+        assert isinstance(solver.augcond, float)
+        assert isinstance(solver.error, float)
+        solver.verify()
 
     def test_predict(self, k=15, d=7, r=5):
         """Test predict()."""

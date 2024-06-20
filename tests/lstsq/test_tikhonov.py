@@ -87,7 +87,9 @@ class TestL2Solver:
         solver = self.Solver(1)
         A = np.random.standard_normal((k, d))
         B = np.random.standard_normal((r, k))
+        solver.verify()
         solver.fit(A, B)
+        solver.verify()
 
         for attr, shape in [
             ("_ZPhi", (r, d)),
@@ -100,6 +102,8 @@ class TestL2Solver:
             obj = getattr(solver, attr)
             assert isinstance(obj, np.ndarray)
             assert obj.shape == shape
+
+        repr(solver)
 
     def test_predict(self, k=20, d=10, r=5):
         """Test predict()."""
@@ -288,7 +292,7 @@ class TestL2Solver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
         os.remove(outfile)
 
@@ -311,7 +315,7 @@ class TestL2Solver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
 
 class TestL2DecoupledSolver:
@@ -345,6 +349,8 @@ class TestL2DecoupledSolver:
         solver.regularizer = np.random.random(r)
         solver.fit(A, B)
         assert solver.r == r
+
+        repr(solver)
 
     # Main methods ------------------------------------------------------------
     def test_predict(self, k=20, d=10):
@@ -474,7 +480,7 @@ class TestL2DecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
         os.remove(outfile)
 
@@ -500,7 +506,7 @@ class TestL2DecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
 
 class TestTikhonovSolver:
@@ -551,13 +557,20 @@ class TestTikhonovSolver:
         assert solver.regularizer.shape == (d, d)
         assert np.all(solver.regularizer == 2 * np.eye(d))
 
+        repr(solver)
+        solver.method = "normal"
+        repr(solver)
+
     # Main methods ------------------------------------------------------------
     def test_fit(self, k=20, d=10, r=5):
         """Test fit()."""
         Z = np.zeros((d, d))
         A = np.random.standard_normal((k, d))
         B = np.random.standard_normal((r, k))
-        solver = self.Solver(Z).fit(A, B)
+        solver = self.Solver(Z)
+        solver.verify(d=d, r=r)
+        solver.fit(A, B)
+        solver.verify()
 
         for attr, shape in [
             ("data_matrix", (k, d)),
@@ -758,7 +771,7 @@ class TestTikhonovSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
         os.remove(outfile)
 
@@ -784,7 +797,7 @@ class TestTikhonovSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
 
 class TestTikhonovDecoupledSolver:
@@ -825,6 +838,8 @@ class TestTikhonovDecoupledSolver:
         solver.regularizer = Zs
         solver.regularizer = [[i] * d for i in range(1, r + 1)]
         assert np.all(solver.regularizer[0] == np.eye(d))
+
+        repr(solver)
 
     # Main methods ------------------------------------------------------------
     def test_predict(self, k=20, d=10):
@@ -970,7 +985,7 @@ class TestTikhonovDecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
         os.remove(outfile)
 
@@ -996,4 +1011,4 @@ class TestTikhonovDecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())

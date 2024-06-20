@@ -427,10 +427,6 @@ class ShiftScaleTransformer(TransformerTemplate):
             out.append("(call fit() or fit_transform() to train)")
         return " ".join(out)
 
-    def __repr__(self) -> str:
-        """Unique ID + string representation."""
-        return utils.str2repr(self)
-
     # Main routines -----------------------------------------------------------
     def _is_trained(self) -> bool:
         """Return True if transform() and inverse_transform() are ready."""

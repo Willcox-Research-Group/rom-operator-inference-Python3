@@ -3,3 +3,4 @@
 
 from ._base import *
 from ._finite_difference import *
+from ._interpolation import *

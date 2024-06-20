@@ -12,7 +12,7 @@ import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
 
-from .. import errors
+from .. import errors, utils
 
 
 class DerivativeEstimatorTemplate(abc.ABC):
@@ -76,7 +76,9 @@ class DerivativeEstimatorTemplate(abc.ABC):
     # Constructor -------------------------------------------------------------
     def __init__(self, time_domain):
         """Set the time domain."""
-        self.time_domain = time_domain
+        if not isinstance(time_domain, np.ndarray) or time_domain.ndim != 1:
+            raise ValueError("time_domain must be a one-dimensional array")
+        self.__t = time_domain
 
     # Properties --------------------------------------------------------------
     @property
@@ -84,12 +86,35 @@ class DerivativeEstimatorTemplate(abc.ABC):
         """Time domain of the snapshot data, a (k,) ndarray."""
         return self.__t
 
-    @time_domain.setter
-    def time_domain(self, t):
-        """Set the time domain."""
-        self.__t = t
+    def __str__(self):
+        """String representation: class name, time domain."""
+        out = [self.__class__.__name__]
+        t = self.time_domain
+        out.append(f"time_domain: {t.size} entries in [{t.min()}, {t.max()}]")
+        return "\n  ".join(out)
+
+    def __repr__(self):
+        """Unique ID + string representation."""
+        return utils.str2repr(self)
 
     # Main routine ------------------------------------------------------------
+    def _check_dimensions(self, states, inputs, check_against_time=True):
+        """Check dimensions and alignment of the state and inputs."""
+        if states.ndim != 2:
+            raise errors.DimensionalityError("states must be two-dimensional")
+        if check_against_time and states.shape[-1] != self.time_domain.size:
+            raise errors.DimensionalityError(
+                "states not aligned with time_domain"
+            )
+        if inputs is not None:
+            if inputs.ndim == 1:
+                inputs = inputs.reshape((1, -1))
+            if inputs.shape[1] != states.shape[1]:
+                raise errors.DimensionalityError(
+                    "states and inputs not aligned"
+                )
+        return states, inputs
+
     @abc.abstractmethod
     def estimate(self, states, inputs=None):
         """Estimate the first time derivatives of the states.
@@ -214,9 +239,9 @@ class DerivativeEstimatorTemplate(abc.ABC):
         for dt in dts:
             # Construct test cases.
             t = 1 + (dt * t_base)
-            Q = np.row_stack([test[1](t) for test in self.__tests])
-            dQdt = np.row_stack([test[2](t) for test in self.__tests])
-            self.time_domain = t
+            Q = np.array([test[1](t) for test in self.__tests])
+            dQdt = np.array([test[2](t) for test in self.__tests])
+            self.__t = t
 
             # Call the derivative estimator.
             Q_est, dQdt_est = self.estimate(Q, None)
@@ -235,7 +260,7 @@ class DerivativeEstimatorTemplate(abc.ABC):
                 estimation_errors[test[0]].append(err)
 
         if plot:
-            fig, ax = plt.subplots(1, 1)
+            _, ax = plt.subplots(1, 1)
             for test in self.__tests:
                 name = test[0]
                 ax.loglog(
@@ -265,6 +290,6 @@ class DerivativeEstimatorTemplate(abc.ABC):
                 for dt, err in zip(dts, estimation_errors[name]):
                     print(f"dt = {dt:.1e}:\terror = {err:.4e}")
 
-        self.time_domain = time_domain  # Restore original time domain.
+        self.__t = time_domain  # Restore original time domain.
         if return_errors:
             return estimation_errors

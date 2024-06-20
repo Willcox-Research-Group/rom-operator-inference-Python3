@@ -5,7 +5,7 @@ Before you begin, please review our [Code of Conduct](https://github.com/Willcox
 
 :::{admonition} Summary
 
-- Changes to the [source code](./code_anatomy.md) must be accompanied with updates to corresponding [unit tests](./testing.md) and [documentation](./documentation.md).
+- Changes to the source code must be accompanied with updates to corresponding [unit tests](./testing.md) and [documentation](./documentation.md).
 - Use `tox` to run tests while developing:
   - `tox -e style` checks that source code and tests follow the style guide.
   - `tox` (without arguments) executes all unit tests.
@@ -112,8 +112,9 @@ They should be written as Jupyter notebooks and placed in `docs/content/tutorial
 
 The GitHub repository is organized as follows.
 
-- [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) contains the actual package code, see the [Source Code Guide](./code_anatomy.md).
-- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/). The file structure of `tests/` should mirror the file structure of `src/opinf/`. See [Testing Source Code](./testing.md).
+- [`src/opinf/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/src/opinf) contains the actual package code.
+- [`tests/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/tests) contains tests to be run with [`pytest`](https://docs.pytest.org/en/7.0.x/) (via `tox`).
+  The file structure of `tests/` should mirror the file structure of `src/opinf/`. See [Testing Source Code](./testing.md).
 - [`docs/`](https://github.com/Willcox-Research-Group/rom-operator-inference-Python3/tree/main/docs) contains documentation (including this page!). See [Documentation](./documentation.md).
 
 ## Acceptance Standards

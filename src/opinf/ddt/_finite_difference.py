@@ -835,45 +835,39 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
     def __init__(self, time_domain, scheme="ord4"):
         """Store the time domain and set the finite difference scheme."""
         DerivativeEstimatorTemplate.__init__(self, time_domain)
-        self.scheme = scheme
+
+        # Check for uniform spacing.
+        diffs = np.diff(time_domain)
+        if not np.allclose(diffs, diffs[0]):
+            raise ValueError("time domain must be uniformly spaced")
+
+        # Set the finite difference scheme.
+        if not callable(scheme):
+            if scheme not in self._schemes:
+                raise ValueError(
+                    f"invalid finite difference scheme '{scheme}'"
+                )
+            scheme = self._schemes[scheme]
+        self.__scheme = scheme
 
     # Properties --------------------------------------------------------------
-    @DerivativeEstimatorTemplate.time_domain.setter
-    def time_domain(self, t):
-        """Set the time domain---ensuring it is uniform---and the time step."""
-        if np.isscalar(t[0]):
-            # Case 1: the time domain is a one-dimensional array.
-            diffs = np.diff(t)
-            if not np.allclose(diffs, diffs[0]):
-                raise ValueError("time domain must be uniformly spaced")
-            self.__dt = diffs[0]
-        elif all(np.ndim(tt) == 1 for tt in t):
-            # Case 2: there are several time domains (multiple trajectories).
-            for tt in t:
-                self.time_domain = tt  # Check that each has uniform spacing.
-            self.__dt = None
-        else:
-            raise ValueError("time_domain should be a one-dimensional array")
-        DerivativeEstimatorTemplate.time_domain.fset(self, t)
-
     @property
     def dt(self):
         """Time step."""
-        return self.__dt
+        t = self.time_domain
+        return t[1] - t[0]
 
     @property
     def scheme(self):
         """Finite difference engine."""
         return self.__scheme
 
-    @scheme.setter
-    def scheme(self, f):
-        """Set the finite difference scheme."""
-        if not callable(f):
-            if f not in self._schemes:
-                raise ValueError(f"invalid finite difference scheme '{f}'")
-            f = self._schemes[f]
-        self.__scheme = f
+    def __str__(self):
+        """String representation: class name, time domain."""
+        head = DerivativeEstimatorTemplate.__str__(self)
+        tail = [f"time step: {self.dt:.2e}"]
+        tail.append(f"finite difference scheme: {self.scheme.__name__}()")
+        return f"{head}\n  " + "\n  ".join(tail)
 
     # Main routine ------------------------------------------------------------
     def estimate(self, states, inputs=None):
@@ -900,19 +894,7 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
             Inputs corresponding to ``_states``, if applicable.
             **Only returned** if ``inputs`` is provided.
         """
-        if self.dt is None:
-            raise RuntimeError("dt is None")
-
-        if states.ndim != 2:
-            raise errors.DimensionalityError("states must be two-dimensional")
-        if inputs is not None:
-            if inputs.ndim == 1:
-                inputs = inputs.reshape((1, -1))
-            if inputs.shape[1] != states.shape[1]:
-                raise errors.DimensionalityError(
-                    "states and inputs not aligned"
-                )
-
+        states, inputs = self._check_dimensions(states, inputs, False)
         return self.scheme(states, self.dt, inputs)
 
 
@@ -933,26 +915,21 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
 
     def __init__(self, time_domain):
         """Set the time domain."""
-        self.__check_uniformity = True
         DerivativeEstimatorTemplate.__init__(self, time_domain)
 
-    # Properties --------------------------------------------------------------
-    @DerivativeEstimatorTemplate.time_domain.setter
-    def time_domain(self, t):
-        """Set the time domain. Raise a warning if it is uniform."""
-        if np.isscalar(t[0]):
-            # Case 1: the time domain is a one-dimensional array.
-            if self.__check_uniformity and np.allclose(
-                diffs := np.diff(t), diffs[0]
-            ):
-                warnings.warn(
-                    "time_domain is uniformly spaced, consider using "
-                    "UniformFiniteDifferencer",
-                    errors.OpInfWarning,
-                )
-        elif not all(np.ndim(tt) == 1 for tt in t):  # OK if several domains.
-            raise ValueError("time_domain should be a one-dimensional array")
-        DerivativeEstimatorTemplate.time_domain.fset(self, t)
+        # Warn if time_domain in not uniform.
+        if np.allclose(diffs := np.diff(time_domain), diffs[0]):
+            warnings.warn(
+                "time_domain is uniformly spaced, consider using "
+                "UniformFiniteDifferencer",
+                errors.OpInfWarning,
+            )
+
+    def __str__(self):
+        """String representation: class name, time domain."""
+        head = DerivativeEstimatorTemplate.__str__(self)
+        tail = "finite difference engine: np.gradient(edge_order=2)"
+        return f"{head}\n  {tail}"
 
     # Main routine ------------------------------------------------------------
     def estimate(self, states, inputs=None):
@@ -976,20 +953,7 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
             Inputs corresponding to ``_states``, if applicable.
             **Only returned** if ``inputs`` is provided.
         """
-        # Check dimensions.
-        if states.ndim != 2:
-            raise errors.DimensionalityError("states must be two-dimensional")
-        if states.shape[-1] != self.time_domain.size:
-            raise errors.DimensionalityError(
-                "states not aligned with time_domain"
-            )
-        if inputs is not None:
-            if inputs.ndim == 1:
-                inputs = inputs.reshape((1, -1))
-            if inputs.shape[1] != self.time_domain.size:
-                raise errors.DimensionalityError(
-                    "inputs not aligned with time_domain"
-                )
+        states, inputs = self._check_dimensions(states, inputs)
 
         # Do the computation.
         ddts = np.gradient(states, self.time_domain, edge_order=2, axis=-1)
@@ -997,29 +961,6 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
         if inputs is not None:
             return states, ddts, inputs
         return states, ddts
-
-    # Verification ------------------------------------------------------------
-    def verify(self, plot: bool = False):
-        """Verify that :meth:`estimate()` is consistent in the sense that the
-        all outputs have the same number of columns and test the accuracy of
-        the results on a few test problems.
-
-        Parameters
-        ----------
-        plot : bool
-            If ``True``, plot the relative errors of the derivative estimation
-            errors as a function of the time step.
-            If ``False`` (default), print a report of the relative errors.
-
-        Returns
-        -------
-        errors : dict
-            Estimation errors for each test case.
-            Time steps are listed as ``errors[dts]``.
-        """
-        self.__check_uniformity = False
-        DerivativeEstimatorTemplate.verify(self, plot=plot)
-        self.__check_uniformity = True
 
 
 # Old API =====================================================================

@@ -17,11 +17,8 @@ _predictvalue = 13
 
 
 # Dummy classes ===============================================================
-class DummyNonparametricOperator(opinf.operators._base._NonparametricOperator):
-    """Instantiable version of _NonparametricOperator"""
-
-    def _str(*args, **kwargs):  # pragma: no cover
-        pass
+class DummyOpInfOperator(opinf.operators.OpInfOperator):
+    """Instantiable version of OpInfOperator."""
 
     def apply(*args, **kwargs):  # pragma: no cover
         return _applyvalue
@@ -38,21 +35,18 @@ class DummyNonparametricOperator(opinf.operators._base._NonparametricOperator):
     def operator_dimension(*args, **kwargs):  # pragma: no cover
         pass
 
-    def set_entries(self, entries):  # pragma: no cover
-        opinf.operators._base._NonparametricOperator.set_entries(self, entries)
+
+class DummyOpInfOperator2(DummyOpInfOperator):
+    """Another OpInfOperator (since duplicates not allowed)."""
 
 
-class DummyNonparametricOperator2(DummyNonparametricOperator):
-    """Another NonparametricOperator (since duplicates not allowed)."""
-
-
-class DummyParametricOperator(opinf.operators._base._ParametricOperator):
+class DummyParametricOperator(opinf.operators.ParametricOpInfOperator):
     """Instantiable version of ParametricOperator."""
 
-    _OperatorClass = DummyNonparametricOperator
+    _OperatorClass = DummyOpInfOperator
 
     def __init__(self, entries=None):
-        opinf.operators._base._ParametricOperator.__init__(self)
+        opinf.operators.ParametricOpInfOperator.__init__(self)
         self.entries = entries
 
     def _clear(*args, **kwargs):  # pragma: no cover
@@ -90,7 +84,7 @@ class DummyParametricOperator(opinf.operators._base._ParametricOperator):
 class DummyParametricOperator2(DummyParametricOperator):
     """Another ParametricOperator with a different OperatorClass."""
 
-    _OperatorClass = DummyNonparametricOperator2
+    _OperatorClass = DummyOpInfOperator2
 
 
 class DummyInterpolatedOperator(
@@ -123,7 +117,7 @@ class TestParametricModel:
 
     def test_check_operator_types_unique(self):
         """Test _ParametricModel._check_operator_types_unique()."""
-        operators = [DummyParametricOperator(), DummyNonparametricOperator()]
+        operators = [DummyParametricOperator(), DummyOpInfOperator()]
 
         with pytest.raises(ValueError) as ex:
             self.Dummy._check_operator_types_unique(operators)
@@ -131,7 +125,7 @@ class TestParametricModel:
             "duplicate type in list of operators to infer"
         )
 
-        operators = [DummyParametricOperator(), DummyNonparametricOperator()]
+        operators = [DummyParametricOperator(), DummyOpInfOperator()]
 
         with pytest.raises(ValueError) as ex:
             self.Dummy._check_operator_types_unique(operators)
@@ -144,7 +138,7 @@ class TestParametricModel:
 
     def test_set_operators(self):
         """Test _ParametricModel.operators.fset()."""
-        operators = [DummyNonparametricOperator()]
+        operators = [DummyOpInfOperator()]
 
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Dummy(operators)
@@ -172,10 +166,10 @@ class TestParametricModel:
         op2 = DummyParametricOperator2()
         model = self.Dummy([op1, op2])
 
-        op = model._get_operator_of_type(DummyNonparametricOperator)
+        op = model._get_operator_of_type(DummyOpInfOperator)
         assert op is op1
 
-        op = model._get_operator_of_type(DummyNonparametricOperator2)
+        op = model._get_operator_of_type(DummyOpInfOperator2)
         assert op is op2
 
         op = model._get_operator_of_type(float)
@@ -183,7 +177,7 @@ class TestParametricModel:
 
     def test_check_parameter_dimension_consistency(self, s=3):
         """Test _check_parameter_dimension_consistency()."""
-        op = DummyNonparametricOperator()
+        op = DummyOpInfOperator()
         p = self.Dummy._check_parameter_dimension_consistency([op])
         assert p is None
 
@@ -205,7 +199,7 @@ class TestParametricModel:
     def test_parameter_dimension(self, s=3, p=4):
         """Test _ParametricModel.parameter_dimension."""
         op = DummyParametricOperator()
-        model = self.Dummy([op, DummyNonparametricOperator2()])
+        model = self.Dummy([op, DummyOpInfOperator2()])
 
         model._set_parameter_dimension_from_data(np.empty((s, p)))
         assert model.parameter_dimension == p
@@ -289,12 +283,8 @@ class TestParametricModel:
         model_evaluated = model.evaluate(None)
         assert isinstance(model_evaluated, DummyNonparametricModel)
         assert len(model_evaluated.operators) == 2
-        assert isinstance(
-            model_evaluated.operators[0], DummyNonparametricOperator
-        )
-        assert isinstance(
-            model_evaluated.operators[1], DummyNonparametricOperator2
-        )
+        assert isinstance(model_evaluated.operators[0], DummyOpInfOperator)
+        assert isinstance(model_evaluated.operators[1], DummyOpInfOperator2)
         assert model_evaluated.state_dimension == r
 
     def test_rhs(self, r=2):
@@ -332,7 +322,7 @@ class TestInterpolatedModel:
         """Test _InterpolatedModel._from_models()."""
         mu = np.sort(np.random.random(2))
         model1 = DummyNonparametricModel(
-            [DummyNonparametricOperator2(np.random.random(r))]
+            [DummyOpInfOperator2(np.random.random(r))]
         )
 
         # Wrong type of model.
@@ -345,7 +335,7 @@ class TestInterpolatedModel:
 
         # Inconsistent number of operators.
         model2 = DummyNonparametricModel(
-            [DummyNonparametricOperator(), DummyNonparametricOperator2()]
+            [DummyOpInfOperator(), DummyOpInfOperator2()]
         )
         with pytest.raises(ValueError) as ex:
             self.Dummy._from_models(mu, [model1, model2])
@@ -355,7 +345,7 @@ class TestInterpolatedModel:
 
         # Inconsistent operator types.
         model2 = DummyNonparametricModel(
-            [DummyNonparametricOperator(np.random.random(r))]
+            [DummyOpInfOperator(np.random.random(r))]
         )
         with pytest.raises(ValueError) as ex:
             self.Dummy._from_models(mu, [model1, model2])

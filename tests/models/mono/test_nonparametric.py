@@ -253,7 +253,6 @@ class TestNonparametricModel:
                 model.input_dimension = m
             D = model._assemble_data_matrix(Q_, U)
             assert D.shape == (k, d)
-            assert model.operator_matrix_dimension == d
 
         # Spot check.
         model.operators = "cG"
@@ -333,10 +332,18 @@ class TestNonparametricModel:
         model.input_dimension = m
 
         with pytest.warns(UserWarning) as wn:
-            model.fit(None, None, None)
+            out = model.fit(None, None, None)
         assert wn[0].message.args[0] == (
             "all operators initialized explicitly, nothing to learn"
         )
+        assert out is model
+
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            out = model.refit()
+        assert wn[0].message.args[0] == (
+            "all operators initialized explicitly, nothing to learn"
+        )
+        assert out is model
 
         modelA_ = model.A_
         assert modelA_.entries is not None
@@ -382,23 +389,6 @@ class TestNonparametricModel:
             assert out.shape == Y_.shape
             assert np.allclose(out, Y_)
 
-        # Special case: r = 1, q is a scalar.
-        model = self.Dummy(_get_operators("A", 1))
-        a = model.operators[0].entries[0]
-        assert model.state_dimension == 1
-        for _ in range(ntrials):
-            q_ = np.random.random()
-            y_ = a * q_
-            out = model.rhs(q_)
-            assert out.shape == y_.shape
-            assert np.allclose(out, y_)
-
-            Q_ = np.random.random(k)
-            Y_ = a[0] * Q_
-            out = model.rhs(Q_, U)
-            assert out.shape == Y_.shape
-            assert np.allclose(out, Y_)
-
     def test_jacobian(self, r=5, m=2, ntrials=10):
         """Test _NonparametricModel.jacobian()."""
         c_, A_, B_ = _get_operators("cAB", r, m)
@@ -409,13 +399,6 @@ class TestNonparametricModel:
             out = model.jacobian(q_)
             assert out.shape == (r, r)
             assert np.allclose(out, A_.entries)
-
-        # Special case: r = 1, q a scalar.
-        model = self.Dummy(_get_operators("A", 1))
-        q_ = np.random.random()
-        out = model.jacobian(q_)
-        assert out.shape == (1, 1)
-        assert out[0, 0] == model.operators[0].entries[0, 0]
 
     # Model persistence -------------------------------------------------------
     def test_save(self, m=2, r=3, target="_savemodeltest.h5"):
@@ -786,28 +769,27 @@ class TestContinuousModel:
 
         # Try to predict with badly-shaped continuous inputs.
         model = _trainedmodel(self.ModelClass, "cAHB", r, m)
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model.predict(q0, t, lambda t: np.ones(m - 1))
         assert ex.value.args[0] == (
             f"input_func() must return ndarray of shape (m,) = {(m,)}"
         )
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model.predict(q0, t, lambda t: 1)
         assert ex.value.args[0] == (
             f"input_func() must return ndarray of shape (m,) = {(m,)}"
         )
 
         model = _trainedmodel(self.ModelClass, "cAHB", r, m=1)
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model.predict(q0, t, input_func)
         assert ex.value.args[0] == (
-            "input_func() must return ndarray "
-            "of shape (m,) = (1,) or scalar"
+            "input_func() must return ndarray of shape (m,) = (1,)"
         )
 
         # Try to predict with continuous inputs with bad return type
         model = _trainedmodel(self.ModelClass, "cAHB", r, m)
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model.predict(q0, t, lambda t: set([5]))
         assert ex.value.args[0] == (
             f"input_func() must return ndarray of shape (m,) = {(m,)}"
@@ -863,8 +845,6 @@ class TestFrozenMixin:
 
         # Test disabled properties.
         assert model.solver is None
-        assert model.data_matrix_ is None
-        assert model.operator_matrix_dimension is None
 
         # Test disabled fit().
         with pytest.raises(NotImplementedError) as ex:

@@ -1,6 +1,6 @@
 # operators/_interpolate.py
-"""Classes for parametric operators where the parametric dependence is handled
-with element-wise interpolation.
+"""Classes for OpInf parametric operators where the parametric dependence is
+handled with element-wise interpolation.
 """
 
 __all__ = [
@@ -18,7 +18,7 @@ import scipy.linalg as la
 import scipy.interpolate as spinterp
 
 from .. import errors, utils
-from ._base import _ParametricOperator, _InputMixin
+from ._base import ParametricOpInfOperator, InputMixin
 from ._nonparametric import (
     ConstantOperator,
     LinearOperator,
@@ -30,7 +30,7 @@ from ._nonparametric import (
 
 
 # Base class ==================================================================
-class _InterpolatedOperator(_ParametricOperator):
+class _InterpolatedOperator(ParametricOpInfOperator):
     r"""Base class for parametric operators where the parameter dependence
     is handled with element-wise interpolation.
 
@@ -48,7 +48,7 @@ class _InterpolatedOperator(_ParametricOperator):
     where :math:`\Ohat_\ell^{(i)} = \Ohat_\ell(\bfmu_i)` for each
     :math:`i=1,\ldots,s`.
 
-    Parent class: :class:`opinf.operators._base._ParametricOperator`
+    Parent class: :class:`opinf.operators.ParametricOpInfOperator`
 
     Child classes:
 
@@ -96,7 +96,7 @@ class _InterpolatedOperator(_ParametricOperator):
         """Set attributes and, if training parameters and entries are given,
         construct the elementwise operator interpolator.
         """
-        _ParametricOperator.__init__(self)
+        ParametricOpInfOperator.__init__(self)
 
         self.__parameters = None
         self.__entries = None
@@ -773,7 +773,7 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
     _OperatorClass = CubicOperator
 
 
-class InterpolatedInputOperator(_InterpolatedOperator, _InputMixin):
+class InterpolatedInputOperator(_InterpolatedOperator, InputMixin):
     r"""Parametric input operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Bhat(\bfmu)\u`
     where :math:`\Bhat(\bfmu) \in \RR^{r \times m}` and
@@ -827,7 +827,7 @@ class InterpolatedInputOperator(_InterpolatedOperator, _InputMixin):
         return None if self.entries is None else self.shape[1]
 
 
-class InterpolatedStateInputOperator(_InterpolatedOperator, _InputMixin):
+class InterpolatedStateInputOperator(_InterpolatedOperator, InputMixin):
     r"""Parametric state-input operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Nhat(\bfmu)[\u\otimes\qhat]`
     where :math:`\Nhat(\bfmu) \in \RR^{r \times rm}` and

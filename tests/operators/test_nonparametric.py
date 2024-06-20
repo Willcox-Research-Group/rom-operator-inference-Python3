@@ -11,47 +11,60 @@ import opinf
 _module = opinf.operators._nonparametric
 
 
-def _test_galerkin(op, shape, n, m, r, ntrials):
-    Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
-    Wr = np.random.random((n, r))
+class _TestNonparametricOperator:
 
-    op_ = op.galerkin(Vr)
-    assert isinstance(op_, op.__class__)
-    assert op_.shape == shape
-    for _ in range(ntrials):
-        q_ = np.random.random(r)
-        u = np.random.random(m)
-        full = Vr.T @ op.apply(Vr @ q_, u)
-        reduced = op_.apply(q_, u)
-        assert np.allclose(reduced, full)
+    Operator = NotImplemented
 
-    op_ = op.galerkin(Vr, Wr)
-    assert isinstance(op_, op.__class__)
-    assert op_.shape == shape
-    for _ in range(ntrials):
-        q_ = np.random.random(r)
-        u = np.random.random(m)
-        full = la.solve(Wr.T @ Vr, Wr.T @ op.apply(Vr @ q_, u))
-        reduced = op_.apply(q_, u)
-        assert np.allclose(reduced, full)
+    def test_galerkin(self, op, shape, n, m, r, ntrials):
+        """Test galerkin()."""
+        Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
+        Wr = np.random.random((n, r))
+
+        op_ = op.galerkin(Vr)
+        assert isinstance(op_, op.__class__)
+        assert op_.shape == shape
+        for _ in range(ntrials):
+            q_ = np.random.random(r)
+            u = np.random.random(m)
+            full = Vr.T @ op.apply(Vr @ q_, u)
+            reduced = op_.apply(q_, u)
+            assert np.allclose(reduced, full)
+
+        op_ = op.galerkin(Vr, Wr)
+        assert isinstance(op_, op.__class__)
+        assert op_.shape == shape
+        for _ in range(ntrials):
+            q_ = np.random.random(r)
+            u = np.random.random(m)
+            full = la.solve(Wr.T @ Vr, Wr.T @ op.apply(Vr @ q_, u))
+            reduced = op_.apply(q_, u)
+            assert np.allclose(reduced, full)
+
+    def test_verify(self, shape=None):
+        """Call verify()."""
+        op = self.Operator()
+        op.verify()
+
+        op.set_entries(np.random.random(shape))
+        op.verify()
 
 
 # No dependence on state or input =============================================
-class TestConstantOperator:
+class TestConstantOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.ConstantOperator."""
 
-    _OpClass = _module.ConstantOperator
+    Operator = _module.ConstantOperator
 
     def test_str(self):
-        """Test ConstantOperator._str()."""
-        op = self._OpClass()
+        """Test _str()."""
+        op = self.Operator()
         assert op._str() == "c"
         assert op._str("q_j") == "c"
         assert op._str("q(t)", "u(t)") == "c"
 
     def test_set_entries(self):
-        """Test ConstantOperator.set_entries()."""
-        op = self._OpClass()
+        """Test set_entries()."""
+        op = self.Operator()
 
         # Too many dimensions.
         cbad = np.arange(12).reshape((4, 3))
@@ -85,8 +98,8 @@ class TestConstantOperator:
         assert op.entries[0] == c
 
     def test_apply(self, k=20):
-        """Test ConstantOperator.apply()/__call__()."""
-        op = self._OpClass()
+        """Test apply()/__call__()."""
+        op = self.Operator()
 
         def _test_single(r):
             c = np.random.random(r)
@@ -121,14 +134,14 @@ class TestConstantOperator:
         assert np.all(out == c)
 
     def test_galerkin(self, n=10, r=3, ntrials=10):
-        """Test ConstantOperator.galerkin()."""
+        """Test galerkin()."""
         c = np.random.random(n)
-        op = self._OpClass(c)
-        _test_galerkin(op, (r,), n, 2, r, ntrials)
+        op = self.Operator(c)
+        super().test_galerkin(op, (r,), n, 2, r, ntrials)
 
     def test_datablock(self, k=20):
-        """Test ConstantOperator.datablock()."""
-        op = self._OpClass()
+        """Test datablock()."""
+        op = self.Operator()
         ones = np.ones((1, k))
 
         def _test_single(out):
@@ -140,27 +153,31 @@ class TestConstantOperator:
         _test_single(op.datablock(np.random.random(k)))
 
     def test_operator_dimension(self):
-        """Test ConstantOperator.operator_dimension()."""
-        assert self._OpClass.operator_dimension() == 1
-        assert self._OpClass.operator_dimension(4) == 1
-        assert self._OpClass.operator_dimension(1, 6) == 1
+        """Test operator_dimension()."""
+        assert self.Operator.operator_dimension() == 1
+        assert self.Operator.operator_dimension(4) == 1
+        assert self.Operator.operator_dimension(1, 6) == 1
+
+    def test_verify(self):
+        """Call verify()."""
+        super().test_verify((10,))
 
 
 # Dependent on state but not on input =========================================
-class TestLinearOperator:
+class TestLinearOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.LinearOperator."""
 
-    _OpClass = _module.LinearOperator
+    Operator = _module.LinearOperator
 
     def test_str(self):
-        """Test LinearOperator._str()."""
-        op = self._OpClass()
+        """Test _str()."""
+        op = self.Operator()
         assert op._str("q_j") == "Aq_j"
         assert op._str("q(t)", "u(t)") == "Aq(t)"
 
     def test_set_entries(self):
-        """Test LinearOperator.set_entries()."""
-        op = self._OpClass()
+        """Test set_entries()."""
+        op = self.Operator()
 
         # Too many dimensions.
         Abad = np.arange(12).reshape((2, 2, 3))
@@ -192,8 +209,8 @@ class TestLinearOperator:
         assert op[0, 0] == a
 
     def test_apply(self, k=20):
-        """Test LinearOperator.apply()/__call__()."""
-        op = self._OpClass()
+        """Test apply()/__call__()."""
+        op = self.Operator()
 
         def _test_single(r):
             A = np.random.random((r, r))
@@ -224,21 +241,21 @@ class TestLinearOperator:
         assert np.allclose(out, A * Q)
 
     def test_jacobian(self, r=9):
-        """Test LinearOperator.jacobian()."""
+        """Test jacobian()."""
         A = np.random.random((r, r))
-        op = self._OpClass(A)
+        op = self.Operator(A)
         jac = op.jacobian(np.random.random(r))
         assert jac.shape == A.shape
         assert np.all(jac == A)
 
     def test_galerkin(self, n=10, r=3, ntrials=10):
-        """Test LinearOperator.galerkin()."""
-        op = self._OpClass(np.random.random((n, n)))
-        _test_galerkin(op, (r, r), n, 2, r, ntrials)
+        """Test galerkin()."""
+        op = self.Operator(np.random.random((n, n)))
+        super().test_galerkin(op, (r, r), n, 2, r, ntrials)
 
     def test_datablock(self, m=3, k=20, r=10):
-        """Test LinearOperator.datablock()."""
-        op = self._OpClass()
+        """Test datablock()."""
+        op = self.Operator()
         state_ = np.random.random((r, k))
         input_ = np.random.random((m, k))
 
@@ -252,25 +269,29 @@ class TestLinearOperator:
         assert np.all(block[0] == state_)
 
     def test_operator_dimension(self):
-        """Test LinearOperator.operator_dimension()."""
-        assert self._OpClass.operator_dimension(2) == 2
-        assert self._OpClass.operator_dimension(4, 6) == 4
+        """Test operator_dimension()."""
+        assert self.Operator.operator_dimension(2) == 2
+        assert self.Operator.operator_dimension(4, 6) == 4
+
+    def test_verify(self):
+        """Call verify()."""
+        super().test_verify((10, 10))
 
 
-class TestQuadraticOperator:
+class TestQuadraticOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.QuadraticOperator."""
 
-    _OpClass = _module.QuadraticOperator
+    Operator = _module.QuadraticOperator
 
     def test_str(self):
-        """Test QuadraticOperator._str()."""
-        op = self._OpClass()
+        """Test _str()."""
+        op = self.Operator()
         assert op._str("q_j") == "H[q_j ⊗ q_j]"
         assert op._str("q(t)", "u(t)") == "H[q(t) ⊗ q(t)]"
 
     def test_set_entries(self, r=4):
-        """Test QuadraticOperator.set_entries()."""
-        op = self._OpClass()
+        """Test set_entries()."""
+        op = self.Operator()
 
         # Too many dimensions.
         Hbad = np.arange(16).reshape((2, 2, 2, 2))
@@ -297,7 +318,7 @@ class TestQuadraticOperator:
 
         # Full operator, compressed internally.
         H = np.random.random((r, r**2))
-        H_ = self._OpClass.compress_entries(H)
+        H_ = self.Operator.compress_entries(H)
         op.set_entries(H)
         r2_ = r * (r + 1) // 2
         assert op.state_dimension == r
@@ -325,8 +346,8 @@ class TestQuadraticOperator:
         assert op.shape is None
 
     def test_apply(self, k=10, ntrials=10):
-        """Test QuadraticOperator.apply()/__call__()."""
-        op = self._OpClass()
+        """Test apply()/__call__()."""
+        op = self.Operator()
 
         def _test_single(r):
             H = np.random.random((r, r**2))
@@ -367,9 +388,9 @@ class TestQuadraticOperator:
             assert np.allclose(evalgot, evaltrue)
 
     def test_jacobian(self, r=5, ntrials=10):
-        """Test QuadraticOperator.jacobian()."""
+        """Test jacobian()."""
         H = np.random.random((r, r**2))
-        op = self._OpClass(H)
+        op = self.Operator(H)
         assert op._prejac is None
 
         # r > 1
@@ -392,13 +413,13 @@ class TestQuadraticOperator:
             assert np.isclose(jac[0, 0], jac_true)
 
     def test_galerkin(self, n=10, r=3, ntrials=10):
-        """Test QuadraticOperator.galerkin()."""
-        op = self._OpClass(np.random.random((n, n**2)))
-        _test_galerkin(op, (r, r * (r + 1) // 2), n, 2, r, ntrials)
+        """Test galerkin()."""
+        op = self.Operator(np.random.random((n, n**2)))
+        super().test_galerkin(op, (r, r * (r + 1) // 2), n, 2, r, ntrials)
 
     def test_datablock(self, k=20, r=10):
-        """Test QuadraticOperator.datablock()."""
-        op = self._OpClass()
+        """Test datablock()."""
+        op = self.Operator()
         state_ = np.random.random((r, k))
         r2_ = r * (r + 1) // 2
 
@@ -421,13 +442,13 @@ class TestQuadraticOperator:
         assert np.allclose(mult, evald)
 
     def test_operator_dimension(self):
-        """Test QuadraticOperator.operator_dimension()."""
-        assert self._OpClass.operator_dimension(1) == 1
-        assert self._OpClass.operator_dimension(3) == 6
-        assert self._OpClass.operator_dimension(5, 7) == 15
+        """Test operator_dimension()."""
+        assert self.Operator.operator_dimension(1) == 1
+        assert self.Operator.operator_dimension(3) == 6
+        assert self.Operator.operator_dimension(5, 7) == 15
 
     def test_ckron(self, n_tests=20):
-        """Test QuadraticOperator.ckron()."""
+        """Test ckron()."""
 
         def _check(q, q2):
             for i in range(len(q)):
@@ -438,21 +459,21 @@ class TestQuadraticOperator:
 
         for r in np.random.randint(2, 10, n_tests):
             q = np.random.random(r)
-            q2 = self._OpClass.ckron(q)
+            q2 = self.Operator.ckron(q)
             r2 = r * (r + 1) // 2
             assert q2.shape == (r2,)
             _check(q, q2)
 
             k = np.random.randint(1, 10)
             Q = np.random.random((r, k))
-            Q2 = self._OpClass.ckron(Q)
+            Q2 = self.Operator.ckron(Q)
             assert Q2.shape == (r2, k)
             _check(Q, Q2)
 
     def test_ckron_indices(self, n_tests=20):
-        """Test QuadraticOperator.ckron_indices()."""
+        """Test ckron_indices()."""
         # Manufactured test.
-        mask = self._OpClass.ckron_indices(4)
+        mask = self.Operator.ckron_indices(4)
         assert np.all(
             mask
             == np.array(
@@ -471,36 +492,36 @@ class TestQuadraticOperator:
                 dtype=int,
             )
         )
-        submask = self._OpClass.ckron_indices(3)
+        submask = self.Operator.ckron_indices(3)
         assert np.allclose(submask, mask[: submask.shape[0]])
 
         # Random test.
         for _ in range(n_tests):
             r = np.random.randint(2, 10)
             _r2 = r * (r + 1) // 2
-            mask = self._OpClass.ckron_indices(r)
+            mask = self.Operator.ckron_indices(r)
             assert mask.shape == (_r2, 2)
             assert mask.sum(axis=0)[0] == sum(i * (i + 1) for i in range(r))
             q = np.random.random(r)
             assert np.allclose(
-                np.prod(q[mask], axis=1), self._OpClass.ckron(q)
+                np.prod(q[mask], axis=1), self.Operator.ckron(q)
             )
 
     def test_compress_entries(self, n_tests=20):
-        """Test QuadraticOperator.compress_entries()."""
+        """Test compress_entries()."""
         # Try with bad second dimension.
         r = 5
         r2bad = r**2 + 1
         H = np.empty((r, r2bad))
         with pytest.raises(ValueError) as ex:
-            self._OpClass.compress_entries(H)
+            self.Operator.compress_entries(H)
         assert ex.value.args[0] == (
             f"invalid shape (a, r2) = {(r, r2bad)} "
             "with r2 not a perfect square"
         )
 
         # One-dimensional H (r = 1).
-        Hc = self._OpClass.compress_entries([5])
+        Hc = self.Operator.compress_entries([5])
         assert Hc.shape == (1, 1)
         assert Hc[0, 0] == 5
 
@@ -510,37 +531,37 @@ class TestQuadraticOperator:
             a = np.random.randint(2, 10)
             H = np.random.random((a, r**2))
             r2 = r * (r + 1) // 2
-            Hc = self._OpClass.compress_entries(H)
+            Hc = self.Operator.compress_entries(H)
             assert Hc.shape == (a, r2)
 
             # Check that Hc(q^2) == H(q ⊗ q).
             for _ in range(5):
                 q = np.random.random(r)
                 Hq2 = H @ np.kron(q, q)
-                assert np.allclose(Hq2, Hc @ self._OpClass.ckron(q))
+                assert np.allclose(Hq2, Hc @ self.Operator.ckron(q))
 
             # Check that expand_entries() and compress_quadrati()
             # are inverses up to symmetry.
-            H2 = self._OpClass.expand_entries(Hc)
+            H2 = self.Operator.expand_entries(Hc)
             Ht = H.reshape((a, r, r))
             H2sym = np.reshape([(Hti + Hti.T) / 2 for Hti in Ht], H.shape)
             assert np.allclose(H2, H2sym)
 
     def test_expand_entries(self, n_tests=20):
-        """Test QuadraticOperator.expand_entries()."""
+        """Test expand_entries()."""
         # Try with bad second dimension.
         r = 5
         r2bad = (r * (r + 1) // 2) + 1
         Hc = np.empty((r, r2bad))
         with pytest.raises(ValueError) as ex:
-            self._OpClass.expand_entries(Hc)
+            self.Operator.expand_entries(Hc)
         assert ex.value.args[0] == (
             f"invalid shape (a, r2) = {(r, r2bad)} "
             "with r2 != r(r+1)/2 for any integer r"
         )
 
         # One-dimensional H (r = 1).
-        H = self._OpClass.expand_entries([5])
+        H = self.Operator.expand_entries([5])
         assert H.shape == (1, 1)
         assert H[0, 0] == 5
 
@@ -549,34 +570,38 @@ class TestQuadraticOperator:
             # Check dimensions.
             a = np.random.randint(2, 10)
             Hc = np.random.random((a, r * (r + 1) // 2))
-            H = self._OpClass.expand_entries(Hc)
+            H = self.Operator.expand_entries(Hc)
             assert H.shape == (a, r**2)
 
             # Check that Hc(q^2) == H(q ⊗ q).
             for _ in range(5):
                 q = np.random.random(r)
                 Hq2 = H @ np.kron(q, q)
-                assert np.allclose(Hq2, Hc @ self._OpClass.ckron(q))
+                assert np.allclose(Hq2, Hc @ self.Operator.ckron(q))
 
             # Check that expand_entries() and compress_entries() are inverses.
-            Hc2 = self._OpClass.compress_entries(H)
+            Hc2 = self.Operator.compress_entries(H)
             assert np.allclose(Hc2, Hc)
 
+    def test_verify(self):
+        """Call verify()."""
+        super().test_verify((10, 55))
 
-class TestCubicOperator:
+
+class TestCubicOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.CubicOperator."""
 
-    _OpClass = _module.CubicOperator
+    Operator = _module.CubicOperator
 
     def test_str(self):
-        """Test CubicOperator._str()."""
-        op = self._OpClass()
+        """Test _str()."""
+        op = self.Operator()
         assert op._str("q_j") == "G[q_j ⊗ q_j ⊗ q_j]"
         assert op._str("q(t)", "u(t)") == "G[q(t) ⊗ q(t) ⊗ q(t)]"
 
     def test_set_entries(self, r=4):
-        """Test CubicOperator.set_entries()."""
-        op = self._OpClass()
+        """Test set_entries()."""
+        op = self.Operator()
 
         # Too many dimensions.
         Gbad = np.arange(4).reshape((1, 2, 1, 2))
@@ -600,7 +625,7 @@ class TestCubicOperator:
 
         # Full operator, compressed internally.
         G = np.random.random((r, r**3))
-        G_ = self._OpClass.compress_entries(G)
+        G_ = self.Operator.compress_entries(G)
         op.set_entries(G)
         r3_ = r * (r + 1) * (r + 2) // 6
         assert op.shape == (r, r3_)
@@ -623,8 +648,8 @@ class TestCubicOperator:
         assert op._prejac is None
 
     def test_apply(self, k=20, ntrials=10):
-        """Test CubicOperator.apply()/__call__()."""
-        op = self._OpClass()
+        """Test apply()/__call__()."""
+        op = self.Operator()
 
         def _test_single(r):
             G = np.random.random((r, r**3))
@@ -664,9 +689,9 @@ class TestCubicOperator:
             assert np.allclose(evalgot, evaltrue)
 
     def test_jacobian(self, r=5, ntrials=10):
-        """Test CubicOperator.jacobian()."""
+        """Test jacobian()."""
         G = np.random.random((r, r**3))
-        op = self._OpClass(G)
+        op = self.Operator(G)
         assert op._prejac is None
 
         Id = np.eye(r)
@@ -693,13 +718,15 @@ class TestCubicOperator:
             assert np.isclose(jac[0, 0], jac_true)
 
     def test_galerkin(self, n=5, r=2, ntrials=10):
-        """Test CubicOperator.galerkin()."""
-        op = self._OpClass(np.random.random((n, n**3)))
-        _test_galerkin(op, (r, r * (r + 1) * (r + 2) // 6), n, 2, r, ntrials)
+        """Test galerkin()."""
+        op = self.Operator(np.random.random((n, n**3)))
+        super().test_galerkin(
+            op, (r, r * (r + 1) * (r + 2) // 6), n, 2, r, ntrials
+        )
 
     def test_datablock(self, k=20, r=10):
-        """Test CubicOperator.datablock()."""
-        op = self._OpClass()
+        """Test datablock()."""
+        op = self.Operator()
         state_ = np.random.random((r, k))
         r3_ = r * (r + 1) * (r + 2) // 6
 
@@ -723,13 +750,13 @@ class TestCubicOperator:
         assert np.allclose(mult, evald)
 
     def test_operator_dimension(self):
-        """Test CubicOperator.operator_dimension()."""
-        assert self._OpClass.operator_dimension(1) == 1
-        assert self._OpClass.operator_dimension(3) == 10
-        assert self._OpClass.operator_dimension(5, 2) == 35
+        """Test operator_dimension()."""
+        assert self.Operator.operator_dimension(1) == 1
+        assert self.Operator.operator_dimension(3) == 10
+        assert self.Operator.operator_dimension(5, 2) == 35
 
     def test_ckron(self, n_tests=20):
-        """Test CubicOperator.ckron()."""
+        """Test ckron()."""
 
         def _check(q, q3):
             for i in range(len(q)):
@@ -743,26 +770,26 @@ class TestCubicOperator:
                         * (i + 3)
                         // 6
                     ],
-                    q[i] * TestQuadraticOperator._OpClass.ckron(q[: i + 1]),
+                    q[i] * TestQuadraticOperator.Operator.ckron(q[: i + 1]),
                 )
 
         for r in np.random.randint(2, 10, n_tests):
             q = np.random.random(r)
-            q3 = self._OpClass.ckron(q)
+            q3 = self.Operator.ckron(q)
             r3 = r * (r + 1) * (r + 2) // 6
             assert q3.shape == (r3,)
             _check(q, q3)
 
             k = np.random.randint(1, 10)
             Q = np.random.random((r, k))
-            Q3 = self._OpClass.ckron(Q)
+            Q3 = self.Operator.ckron(Q)
             assert Q3.shape == (r3, k)
             _check(Q, Q3)
 
     def test_ckron_indices(self, n_tests=20):
-        """Test CubicOperator.ckron_indices()."""
+        """Test ckron_indices()."""
         # Manufactured test.
-        mask = self._OpClass.ckron_indices(2)
+        mask = self.Operator.ckron_indices(2)
         assert np.all(
             mask
             == np.array(
@@ -774,30 +801,30 @@ class TestCubicOperator:
         # Random tests.
         for _ in range(n_tests):
             r = np.random.randint(2, 10)
-            mask = self._OpClass.ckron_indices(r)
+            mask = self.Operator.ckron_indices(r)
             _r3 = r * (r + 1) * (r + 2) // 6
-            mask = self._OpClass.ckron_indices(r)
+            mask = self.Operator.ckron_indices(r)
             assert mask.shape == (_r3, 3)
             q = np.random.random(r)
             assert np.allclose(
-                np.prod(q[mask], axis=1), self._OpClass.ckron(q)
+                np.prod(q[mask], axis=1), self.Operator.ckron(q)
             )
 
     def test_compress_entries(self, n_tests=20):
-        """Test QuadraticOperator.compress_entries()."""
+        """Test compress_entries()."""
         # Try with bad second dimension.
         r = 5
         r3bad = r**3 + 1
         G = np.empty((r, r3bad))
         with pytest.raises(ValueError) as ex:
-            self._OpClass.compress_entries(G)
+            self.Operator.compress_entries(G)
         assert ex.value.args[0] == (
             f"invalid shape (a, r3) = {(r, r3bad)} "
             "with r3 not a perfect cube"
         )
 
         # One-dimensional G (r = 1).
-        Gc = self._OpClass.compress_entries([6])
+        Gc = self.Operator.compress_entries([6])
         assert Gc.shape == (1, 1)
         assert Gc[0, 0] == 6
 
@@ -807,30 +834,30 @@ class TestCubicOperator:
             a = np.random.randint(2, 10)
             G = np.random.random((a, r**3))
             r2 = r * (r + 1) * (r + 2) // 6
-            Gc = self._OpClass.compress_entries(G)
+            Gc = self.Operator.compress_entries(G)
             assert Gc.shape == (a, r2)
 
             # Check that Gc(q^3) == G(q ⊗ q ⊗ q).
             for _ in range(5):
                 q = np.random.random(r)
                 Gq3 = G @ np.kron(q, np.kron(q, q))
-                assert np.allclose(Gq3, Gc @ self._OpClass.ckron(q))
+                assert np.allclose(Gq3, Gc @ self.Operator.ckron(q))
 
     def test_expand_entries(self, n_tests=20):
-        """Test CubicOperator.expand_entries()."""
+        """Test expand_entries()."""
         # Try with bad second dimension.
         r = 5
         r3bad = (r * (r + 1) * (r + 2) // 6) + 1
         Gc = np.empty((r, r3bad))
         with pytest.raises(ValueError) as ex:
-            self._OpClass.expand_entries(Gc)
+            self.Operator.expand_entries(Gc)
         assert ex.value.args[0] == (
             f"invalid shape (a, r3) = {(r, r3bad)} "
             "with r3 != r(r+1)(r+2)/6 for any integer r"
         )
 
         # One-dimensional G (r = 1).
-        G = self._OpClass.expand_entries([5])
+        G = self.Operator.expand_entries([5])
         assert G.shape == (1, 1)
         assert G[0, 0] == 5
 
@@ -839,43 +866,47 @@ class TestCubicOperator:
             # Check dimensions.
             a = np.random.randint(2, 10)
             Gc = np.random.random((a, r * (r + 1) * (r + 2) // 6))
-            G = self._OpClass.expand_entries(Gc)
+            G = self.Operator.expand_entries(Gc)
             assert G.shape == (a, r**3)
 
             # Check that Gc[q^3] == G[q ⊗ q ⊗ q].
             for _ in range(5):
                 q = np.random.random(r)
                 Gq3 = G @ np.kron(q, np.kron(q, q))
-                assert np.allclose(Gq3, Gc @ self._OpClass.ckron(q))
+                assert np.allclose(Gq3, Gc @ self.Operator.ckron(q))
 
             # Check that expand_entries() and compress_entries() are inverses.
-            Gc2 = self._OpClass.compress_entries(G)
+            Gc2 = self.Operator.compress_entries(G)
             assert np.allclose(Gc2, Gc)
+
+    def test_verify(self):
+        """Call verify()."""
+        super().test_verify((8, 120))
 
 
 # Dependent on input but not on state =========================================
-class TestInputOperator:
+class TestInputOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.InputOperator."""
 
-    _OpClass = _module.InputOperator
+    Operator = _module.InputOperator
 
     def test_input_dimension(self):
-        """Test InputOperator.input_dimension()."""
-        op = self._OpClass()
+        """Test input_dimension()."""
+        op = self.Operator()
         assert op.input_dimension is None
         for m in np.random.randint(1, 10, 5):
-            op = self._OpClass(np.random.random((3, m)))
+            op = self.Operator(np.random.random((3, m)))
             assert op.input_dimension == m
 
     def test_str(self):
-        """Test InputOperator._str()."""
-        op = self._OpClass()
+        """Test _str()."""
+        op = self.Operator()
         assert op._str("q_j", "u_j") == "Bu_j"
         assert op._str(None, "u(t)") == "Bu(t)"
 
     def test_set_entries(self):
-        """Test InputOperator.set_entries()."""
-        op = self._OpClass()
+        """Test set_entries()."""
+        op = self.Operator()
 
         # Too many dimensions.
         Bbad = np.arange(12).reshape((2, 2, 3))
@@ -911,8 +942,8 @@ class TestInputOperator:
         assert op[0, 0] == b
 
     def test_apply(self, k=20):
-        """Test InputOperator.apply()/__call__()."""
-        op = self._OpClass()
+        """Test apply()/__call__()."""
+        op = self.Operator()
 
         def _test_single(r, m):
             B = np.random.random((r, m))
@@ -970,13 +1001,13 @@ class TestInputOperator:
         assert np.allclose(out, np.column_stack([B * u for u in U]))
 
     def test_galerkin(self, n=10, r=4, m=3, ntrials=10):
-        """Test InputOperator.galerkin()."""
-        op = self._OpClass(np.random.random((n, m)))
-        _test_galerkin(op, (r, m), n, m, r, ntrials)
+        """Test galerkin()."""
+        op = self.Operator(np.random.random((n, m)))
+        super().test_galerkin(op, (r, m), n, m, r, ntrials)
 
     def test_datablock(self, m=3, k=20, r=10):
-        """Test InputOperator.datablock()."""
-        op = self._OpClass()
+        """Test datablock()."""
+        op = self.Operator()
         state_ = np.random.random((r, k))
         input_ = np.random.random((m, k))
 
@@ -990,35 +1021,39 @@ class TestInputOperator:
         assert np.all(block[0] == input_)
 
     def test_operator_dimension(self):
-        """Test InputOperator.operator_dimension()."""
-        assert self._OpClass.operator_dimension(1, 3) == 3
-        assert self._OpClass.operator_dimension(3, 8) == 8
-        assert self._OpClass.operator_dimension(5, 2) == 2
+        """Test operator_dimension()."""
+        assert self.Operator.operator_dimension(1, 3) == 3
+        assert self.Operator.operator_dimension(3, 8) == 8
+        assert self.Operator.operator_dimension(5, 2) == 2
+
+    def test_verify(self):
+        """Call verify()."""
+        super().test_verify((6, 4))
 
 
 # Dependent on state and input ================================================
-class TestStateInputOperator:
+class TestStateInputOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.StateInputOperator."""
 
-    _OpClass = _module.StateInputOperator
+    Operator = _module.StateInputOperator
 
     def test_input_dimension(self):
-        """Test StateInputOperator.input_dimension()."""
-        op = self._OpClass()
+        """Test input_dimension()."""
+        op = self.Operator()
         assert op.input_dimension is None
         for m in np.random.randint(1, 10, 5):
-            op = self._OpClass(np.random.random((3, 3 * m)))
+            op = self.Operator(np.random.random((3, 3 * m)))
             assert op.input_dimension == m
 
     def test_str(self):
-        """Test StateInputOperator._str()."""
-        op = self._OpClass()
+        """Test _str()."""
+        op = self.Operator()
         assert op._str("q_j", "u_j") == "N[u_j ⊗ q_j]"
         assert op._str("q(t)", "u(t)") == "N[u(t) ⊗ q(t)]"
 
     def test_set_entries(self):
-        """Test StateInputOperator.set_entries()."""
-        op = self._OpClass()
+        """Test set_entries()."""
+        op = self.Operator()
 
         # Too many dimensions.
         Nbad = np.arange(12).reshape((2, 2, 3))
@@ -1051,8 +1086,8 @@ class TestStateInputOperator:
         assert op.input_dimension == 1
 
     def test_apply(self, k=20):
-        """Test StateInputOperator.apply()/__call__()."""
-        op = self._OpClass()
+        """Test apply()/__call__()."""
+        op = self.Operator()
 
         def _test_single(r, m):
             N = np.random.random((r, r * m))
@@ -1115,10 +1150,10 @@ class TestStateInputOperator:
         )
 
     def test_jacobian(self, r=9, m=4, ntrials=10):
-        """Test StateInputOperator.jacobian()."""
+        """Test jacobian()."""
         Ns = [np.random.random((r, r)) for _ in range(m)]
         N = np.hstack(Ns)
-        op = self._OpClass(N)
+        op = self.Operator(N)
 
         with pytest.raises(ValueError) as ex:
             op.jacobian(np.random.random(r), np.random.random(m - 1))
@@ -1166,13 +1201,13 @@ class TestStateInputOperator:
             assert np.isclose(jac[0, 0], jac_true)
 
     def test_galerkin(self, n=10, r=4, m=3, ntrials=10):
-        """Test StateInputOperator.galerkin()."""
-        op = self._OpClass(np.random.random((n, n * m)))
-        _test_galerkin(op, (r, r * m), n, m, r, ntrials)
+        """Test galerkin()."""
+        op = self.Operator(np.random.random((n, n * m)))
+        super().test_galerkin(op, (r, r * m), n, m, r, ntrials)
 
     def test_datablock(self, m=3, k=20, r=10):
-        """Test StateInputOperator.datablock()."""
-        op = self._OpClass()
+        """Test datablock()."""
+        op = self.Operator()
         state_ = np.random.random((r, k))
         input_ = np.random.random((m, k))
         rm = r * m
@@ -1217,7 +1252,11 @@ class TestStateInputOperator:
         assert np.allclose(mult, evald)
 
     def test_operator_dimension(self):
-        """Test StateInputOperator.operator_dimension()."""
-        assert self._OpClass.operator_dimension(1, 2) == 2
-        assert self._OpClass.operator_dimension(3, 6) == 18
-        assert self._OpClass.operator_dimension(5, 2) == 10
+        """Test operator_dimension()."""
+        assert self.Operator.operator_dimension(1, 2) == 2
+        assert self.Operator.operator_dimension(3, 6) == 18
+        assert self.Operator.operator_dimension(5, 2) == 10
+
+    def test_verify(self):
+        """Call verify()."""
+        super().test_verify((7, 14))

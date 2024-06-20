@@ -6,6 +6,7 @@ import h5py
 import pytest
 import numpy as np
 import scipy.linalg as la
+import matplotlib.pyplot as plt
 
 import opinf
 
@@ -13,44 +14,398 @@ import opinf
 _module = opinf.operators._base
 
 
-def test_requires_entries():
-    """Test _requires_entries(), a decorator."""
+def test_has_inputs():
+    """Test operators._base.has_inputs()."""
 
-    class Dummy:
-        def __init__(self):
-            self.entries = None
+    class Dummy(_module.InputMixin):
+        def input_dimension(self):
+            return -1
 
-        @opinf.utils.requires("entries")
-        def required(self):
-            return self.entries + 1
-
-    dummy = Dummy()
-    with pytest.raises(AttributeError) as ex:
-        dummy.required()
-    assert ex.value.args[0] == "required attribute 'entries' not set"
-
-    dummy.entries = 0
-    assert dummy.required() == 1
+    op = Dummy()
+    assert opinf.operators.has_inputs(op)
+    assert not opinf.operators.has_inputs(5)
 
 
 # Nonparametric operators =====================================================
-class TestNonparametricOperator:
-    """Test operators._base._NonparametricOperator."""
+class TestOperatorTemplate:
+    """Test operators._base.OperatorTemplate."""
 
-    class Dummy(_module._NonparametricOperator):
-        """Instantiable version of _NonparametricOperator."""
+    Operator = _module.OperatorTemplate
 
-        def set_entries(*args, **kwargs):
-            _module._NonparametricOperator.set_entries(*args, **kwargs)
+    def test_str(self, r=11, m=3):
+        """Test __str__() and _str()."""
 
-        def _str(*args, **kwargs):
+        class Dummy(self.Operator):
+            """Instantiable version of OperatorTemplate."""
+
+            def __init__(self, state_dimension=r):
+                self.__r = state_dimension
+
+            @property
+            def state_dimension(self):
+                return self.__r
+
+            def apply(self, state, input_=None):
+                return state
+
+        class InputDummy(Dummy, _module.InputMixin):
+            """Instantiable version of OperatorTemplate with inputs."""
+
+            def __init__(self, state_dimension=r, input_dimension=m):
+                Dummy.__init__(self, state_dimension)
+                self.__m = input_dimension
+
+            @property
+            def input_dimension(self):
+                return self.__m
+
+        def _test(DummyClass):
+            dummystr = str(DummyClass())
+            assert dummystr.startswith(DummyClass.__name__)
+            for line in (lines := dummystr.split("\n")[1:]):
+                assert line.startswith("  ")
+            assert lines[0].endswith(f"{r}")
+            return lines
+
+        _test(Dummy)
+        assert _test(InputDummy)[-1].endswith(f"{m}")
+
+        assert Dummy._str("q", "u") == "f(q, u)"
+
+    def test_verify(self, r=10, m=4):
+        """Test verify()."""
+
+        class Dummy(self.Operator):
+            """Instantiable version of OperatorTemplate."""
+
+            def __init__(self, state_dimension=r):
+                self.__r = state_dimension
+
+            @property
+            def state_dimension(self):
+                return self.__r
+
+            def apply(self, state, input_=None):
+                return state
+
+        class InputDummy(Dummy, _module.InputMixin):
+            """Instantiable version of OperatorTemplate with inputs."""
+
+            def __init__(self, state_dimension=r, input_dimension=m):
+                Dummy.__init__(self, state_dimension)
+                self.__m = input_dimension
+
+            @property
+            def input_dimension(self):
+                return self.__m
+
+        op = Dummy()
+        op.verify()
+
+        op = InputDummy()
+        op.verify()
+
+        def _single(DummyClass, message):
+            dummy = DummyClass()
+            with pytest.raises(opinf.errors.VerificationError) as ex:
+                dummy.verify()
+            assert ex.value.args[0] == message
+
+        # Verification failures for apply().
+
+        class Dummy1(Dummy):
+            def __init__(self):
+                super().__init__("one hundred")
+
+        class Dummy1I(InputDummy):
+            def __init__(self):
+                super().__init__(10, -5)
+
+        class Dummy2(Dummy):
+            def apply(self, state, input_=None):
+                return state[:-1]
+
+        class Dummy2I(Dummy2, InputDummy):
             pass
+
+        class Dummy3(Dummy):
+            def apply(self, state, input_=None):
+                if state.ndim == 1:
+                    return state
+                return state[:, :-1]
+
+        class Dummy3I(Dummy3, InputDummy):
+            pass
+
+        _single(
+            Dummy1,
+            "state_dimension must be a positive integer "
+            "(current value: 'one hundred', of type 'str')",
+        )
+
+        _single(
+            Dummy1I,
+            "input_dimension must be a positive integer "
+            "(current value: -5, of type 'int')",
+        )
+
+        _single(
+            Dummy2,
+            "apply(q, u) must return array of shape (state_dimension,) when "
+            "q.shape = (state_dimension,) and u = None",
+        )
+
+        _single(
+            Dummy2I,
+            "apply(q, u) must return array of shape (state_dimension,) when "
+            "q.shape = (state_dimension,) and u.shape = (input_dimension,)",
+        )
+
+        _single(
+            Dummy3,
+            "apply(Q, U) must return array of shape (state_dimension, k) when "
+            "Q.shape = (state_dimension, k) and U = None",
+        )
+
+        _single(
+            Dummy3I,
+            "apply(Q, U) must return array of shape (state_dimension, k) "
+            "when Q.shape = (state_dimension, k) "
+            "and U.shape = (input_dimension, k)",
+        )
+
+        # Verification failures for jacobian().
+
+        class Dummy4(Dummy):
+            def jacobian(self, state, input_=None):
+                return state
+
+        class Dummy4I(Dummy4, InputDummy):
+            pass
+
+        _single(
+            Dummy4,
+            "jacobian(q, u) must return array of shape "
+            "(state_dimension, state_dimension) when "
+            "q.shape = (state_dimension,) and u = None",
+        )
+
+        _single(
+            Dummy4I,
+            "jacobian(q, u) must return array of shape "
+            "(state_dimension, state_dimension) when "
+            "q.shape = (state_dimension,) and u.shape = (input_dimension,)",
+        )
+
+        # Correct usage of jacobian().
+
+        class Dummy5(Dummy):
+            def jacobian(self, state, input_=None):
+                return np.eye(self.state_dimension)
+
+        dummy = Dummy5()
+        dummy.verify(plot=False)
+
+        interactive = plt.isinteractive()
+        plt.ion()
+        dummy.verify(plot=True)
+        fig = plt.gcf()
+        assert len(fig.axes) == 1
+        plt.close(fig)
+
+        if not interactive:
+            plt.ioff()
+
+        # Verification failures for galerkin().
+
+        class Dummy6(Dummy):
+            def galerkin(self, Vr, Wr=None):
+                return [self]
+
+        class Dummy7(Dummy):
+            def galerkin(self, Vr, Wr=None):
+                r = Vr.shape[1]
+                return self.__class__(r + 1)
+
+        class Dummy8(InputDummy):
+            def galerkin(self, Vr, Wr=None):
+                return self.__class__(
+                    Vr.shape[1],
+                    self.input_dimension - 1,
+                )
+
+        class Dummy9(Dummy):
+            def galerkin(self, Vr, Wr=None):
+                return self.__class__(Vr.shape[1])
+
+            def apply(self, state, input_=None):
+                return np.random.random(state.shape)
+
+        class Dummy10(Dummy):
+            def __init__(self, sdim=r, Vr=None, Wr=None, A=None):
+                if Vr is not None:
+                    sdim = Vr.shape[1]
+                super().__init__(sdim)
+                self.Vr = Vr
+                self.Wr = Wr
+                if A is None:
+                    A = np.random.random((sdim, sdim))
+                self.A = A
+
+            def apply(self, state, input_=None):
+                if (Vr := self.Vr) is (Wr := self.Wr) is None:
+                    return self.A @ state
+                if Wr is not None:
+                    return la.solve(Wr.T @ Vr, Wr.T @ self.A @ Vr @ state)
+                return np.random.random(state.shape)
+
+            def galerkin(self, Vr, Wr=None):
+                return self.__class__(self.state_dimension, Vr, Wr, self.A)
+
+        _single(
+            Dummy6,
+            "galerkin() must return object "
+            "whose class inherits from OperatorTemplate",
+        )
+
+        _single(Dummy7, "galerkin(Vr, Wr).state_dimension != Vr.shape[1]")
+
+        _single(
+            Dummy8,
+            "self.galerkin(Vr, Wr).input_dimension != self.input_dimension",
+        )
+
+        _single(
+            Dummy9,
+            "op2.apply(qr, u) "
+            "!= inv(Wr.T @ Vr) @ Wr.T @ self.apply(Vr @ qr, u) "
+            "where op2 = self.galerkin(Vr, Wr)",
+        )
+
+        _single(
+            Dummy10,
+            "op2.apply(qr, u) != Vr.T @ self.apply(Vr @ qr, u) "
+            "where op2 = self.galerkin(Vr) and Vr.T @ Vr = I",
+        )
+
+        # Correct usage for galerkin().
+
+        class Dummy11(Dummy):
+            def galerkin(self, Vr, Wr=None):
+                return self.__class__(Vr.shape[1])
+
+        Dummy11(1).verify()
+        Dummy11(r).verify()
+
+        # Verification failures for copy().
+
+        class Dummy12(Dummy):
+            def copy(self):
+                return self
+
+        class Dummy13(Dummy):
+            def copy(self):
+                return [self]
+
+        class Dummy14(Dummy):
+            def copy(self):
+                return self.__class__(self.state_dimension + 1)
+
+        class Dummy15(InputDummy):
+            def copy(self):
+                return self.__class__(
+                    self.state_dimension,
+                    self.input_dimension - 1,
+                )
+
+        class Dummy16(Dummy):
+            def apply(self, state, input_=None):
+                return np.random.random(state.shape)
+
+            def copy(self):
+                return self.__class__(self.state_dimension)
+
+        _single(Dummy12, "self.copy() is self")
+        _single(Dummy13, "type(self.copy()) is not type(self)")
+        _single(Dummy14, "self.copy().state_dimension != self.state_dimension")
+        _single(Dummy15, "self.copy().input_dimension != self.input_dimension")
+
+        _single(
+            Dummy16,
+            "self.copy().apply() not consistent with self.apply()",
+        )
+
+        class Dummy17(Dummy):
+            def save(self, savefile, overwrite=False):
+                return
+
+            @classmethod
+            def load(cls, loadfile):
+                return [100]
+
+        class Dummy18(Dummy):
+            def save(self, savefile, overwrite=False):
+                Dummy18.rr = self.state_dimension
+
+            @classmethod
+            def load(cls, loadfile):
+                return cls(cls.rr + 1)
+
+        class Dummy19(InputDummy):
+            def save(self, savefile, overwrite=False):
+                Dummy19.rr = self.state_dimension
+                Dummy19.mm = self.input_dimension
+
+            @classmethod
+            def load(cls, loadfile):
+                return cls(cls.rr, cls.mm - 1)
+
+        class Dummy20(Dummy):
+            def __init__(self, sdim=r, A=None):
+                super().__init__(sdim)
+                if A is None:
+                    A = np.random.random((sdim, sdim))
+                self.A = A
+
+            def apply(self, state, input_=None):
+                return self.A @ state
+
+            def save(self, savefile, overwrite=False):
+                Dummy20.rr = self.state_dimension
+                Dummy20.AA = self.A
+
+            @classmethod
+            def load(cls, loadfile):
+                return cls(cls.rr, cls.AA + 1)
+
+        class Dummy21(Dummy):
+            def save(self, savefile, overwrite=False):
+                Dummy21.rr = self.state_dimension
+
+            @classmethod
+            def load(cls, loadfile):
+                return cls(cls.rr)
+
+        _single(Dummy17, "save()/load() does not preserve object type")
+        _single(Dummy18, "save()/load() does not preserve state_dimension")
+        _single(Dummy19, "save()/load() does not preserve input_dimension")
+
+        _single(
+            Dummy20,
+            "save()/load() does not preserve the result of apply()",
+        )
+
+        Dummy21().verify()
+
+
+class TestOpInfOperator:
+    """Test operators._base.OpInfOperator."""
+
+    class Dummy(_module.OpInfOperator):
+        """Instantiable version of OpInfOperator."""
 
         def apply(*args, **kwargs):
             return -1
-
-        def galerkin(*args, **kwargs):
-            return _module._NonparametricOperator.galerkin(*args, **kwargs)
 
         def datablock(*args, **kwargs):
             pass
@@ -59,13 +414,13 @@ class TestNonparametricOperator:
             pass
 
     class Dummy2(Dummy):
-        """A distinct instantiable version of _NonparametricOperator."""
+        """A distinct instantiable version of OpInfOperator."""
 
         pass
 
     # Initialization ----------------------------------------------------------
     def test_init(self):
-        """Test _NonparametricOperator.__init__()."""
+        """Test OpInfOperator.__init__()."""
         op = self.Dummy()
         assert op.entries is None
 
@@ -81,8 +436,8 @@ class TestNonparametricOperator:
         assert op.jacobian(None, None) == 0
 
     def test_validate_entries(self):
-        """Test _NonparametricOperator._validate_entries()."""
-        func = _module._NonparametricOperator._validate_entries
+        """Test OpInfOperator._validate_entries()."""
+        func = _module.OpInfOperator._validate_entries
         with pytest.raises(TypeError) as ex:
             func([1, 2, 3, 4])
         assert ex.value.args[0] == (
@@ -106,13 +461,14 @@ class TestNonparametricOperator:
 
     # Properties --------------------------------------------------------------
     def test_entries(self):
-        """Test _NonparametricOperator.entries and shape()."""
+        """Test OpInfOperator.entries and shape()."""
         op = self.Dummy()
         assert op.shape is None
 
         A = np.random.random((8, 6))
         op.set_entries(A)
         assert op.entries is A
+        assert op.state_dimension == 8
         assert op.shape == A.shape
         del op.entries
         assert op.entries is None
@@ -126,7 +482,7 @@ class TestNonparametricOperator:
 
     # Magic methods -----------------------------------------------------------
     def test_getitem(self):
-        """Test _NonparametricOperator.__getitem__()."""
+        """Test OpInfOperator.__getitem__()."""
         op = self.Dummy()
         assert op[0, 1, 3:] is None
 
@@ -136,7 +492,7 @@ class TestNonparametricOperator:
             assert np.all(op[s] == A[s])
 
     def test_eq(self):
-        """Test _NonparametricOperator.__eq__()."""
+        """Test OpInfOperator.__eq__()."""
         op1 = self.Dummy()
         op2 = self.Dummy2()
         assert op1 != op2
@@ -159,7 +515,7 @@ class TestNonparametricOperator:
         assert op1 == op2
 
     def test_add(self, r=3):
-        """Test _NonparametricOperator.__add__()."""
+        """Test OpInfOperator.__add__()."""
         op1 = self.Dummy(np.random.random((r, r)))
 
         # Try with invalid type.
@@ -175,20 +531,20 @@ class TestNonparametricOperator:
 
     # Dimensionality reduction ------------------------------------------------
     def test_galerkin(self, n=10, r=3):
-        """Test _NonparametricOperator.galerkin()."""
+        """Test OpInfOperator._galerkin()."""
         Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
         Wr = la.qr(np.random.random((n, r)), mode="economic")[0]
         A = np.random.random((n, n))
         op = self.Dummy(A)
         c = np.random.random(n)
 
-        op_ = op.galerkin(Vr, Vr, lambda x, y: c)
+        op_ = op._galerkin(Vr, Vr, lambda x, y: c)
         assert isinstance(op_, op.__class__)
         assert op_ is not op
         assert op_.shape == (r,)
         assert np.all(op_.entries == Vr.T @ c)
 
-        op_ = op.galerkin(Vr, Wr, lambda x, y: c)
+        op_ = op._galerkin(Vr, Wr, lambda x, y: c)
         assert isinstance(op_, op.__class__)
         assert op_ is not op
         assert op_.shape == (r,)
@@ -196,18 +552,18 @@ class TestNonparametricOperator:
 
         Wr_bad = np.random.random((n, r - 1))
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            op.galerkin(Vr, Wr_bad, None)
+            op._galerkin(Vr, Wr_bad, None)
         assert ex.value.args[0] == "trial and test bases not aligned"
 
         A = np.random.random((n - 1, r + 1))
         op = self.Dummy(A)
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            op.galerkin(Vr, None, None)
+            op._galerkin(Vr, None, None)
         assert ex.value.args[0] == "basis and operator not aligned"
 
     # Model persistence -------------------------------------------------------
     def test_copy(self):
-        """Test _NonparametricOperator.copy()."""
+        """Test OpInfOperator.copy()."""
         op1 = self.Dummy()
         op1.set_entries(np.random.random((4, 4)))
         op2 = op1.copy()
@@ -216,7 +572,7 @@ class TestNonparametricOperator:
         assert op2 == op1
 
     def test_save(self, target="_baseoperatorsavetest.h5"):
-        """Test _NonparametricOperator.save()."""
+        """Test OpInfOperator.save()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
@@ -244,7 +600,7 @@ class TestNonparametricOperator:
         os.remove(target)
 
     def test_load(self, target="_baseoperatorloadtest.h5"):
-        """Test _NonparametricOperator.load()."""
+        """Test OpInfOperator.load()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
@@ -269,18 +625,93 @@ class TestNonparametricOperator:
 
         os.remove(target)
 
+    def test_verify(self):
+        """Test verify()."""
+
+        def _single(DummyClass, message):
+            dummy = DummyClass()
+            with pytest.raises(opinf.errors.VerificationError) as ex:
+                dummy.verify()
+            assert ex.value.args[0] == message
+
+        class Dummy3(self.Dummy):
+            @staticmethod
+            def operator_dimension(r=None, m=None):
+                return "three"
+
+        _single(
+            self.Dummy,
+            "operator_dimension() must have @staticmethod decorator",
+        )
+
+        _single(
+            Dummy3,
+            "operator_dimension() must return a positive integer",
+        )
+
+        class Dummy4(self.Dummy):
+            @staticmethod
+            def operator_dimension(r=None, m=None):
+                return 2 * r
+
+        class Dummy5(Dummy4):
+            @staticmethod
+            def datablock(states, inputs=None):
+                return 10
+
+        class Dummy6(Dummy4):
+            @staticmethod
+            def datablock(states, inputs=None):
+                return 2 * states
+
+        _single(
+            Dummy4,
+            "datablock() must have @staticmethod decorator",
+        )
+
+        _single(
+            Dummy5,
+            "datablock() must return a two-dimensional array",
+        )
+
+        _single(
+            Dummy6,
+            "datablock().shape[0] != operator_dimension()",
+        )
+
+        class Dummy7(Dummy4):
+            @staticmethod
+            def datablock(states, inputs=None):
+                return np.vstack((states, 2 * states))
+
+        op = Dummy7()
+        op.verify()
+
+        op.set_entries(np.random.random((8, 6)))
+        with pytest.raises(opinf.errors.VerificationError) as ex:
+            op.verify()
+        assert ex.value.args[0].startswith("apply(q, u) must return array")
+
+
+def test_is_nonparametric():
+    """Test operators._base.is_nonparametric()."""
+
+    op = TestOpInfOperator.Dummy()
+    assert opinf.operators.is_nonparametric(op)
+    assert not opinf.operators.is_nonparametric(10)
+
 
 # Parametric operators ========================================================
-class TestParametricOperator:
-    """Test operators._base._ParametricOperator."""
+class TestParametricOpInfOperator:
+    """Test operators._base.ParametricOpInfOperator."""
 
-    class Dummy(_module._ParametricOperator):
-        """Instantiable versino of _ParametricOperator."""
+    class Dummy(_module.ParametricOpInfOperator):
+        """Instantiable version of ParametricOpInfOperator."""
 
-        _OperatorClass = TestNonparametricOperator.Dummy
+        _OperatorClass = TestOpInfOperator.Dummy
 
         def __init__(self):
-            _module._ParametricOperator.__init__(self)
+            _module.ParametricOpInfOperator.__init__(self)
 
         def _clear(self):
             pass
@@ -315,7 +746,7 @@ class TestParametricOperator:
             pass
 
     def test_set_parameter_dimension_from_data(self):
-        """Test _ParametricOperator._set_parameter_dimension_from_data()."""
+        """Test _set_parameter_dimension_from_data()."""
         op = self.Dummy()
         assert op.parameter_dimension is None
 
@@ -337,7 +768,7 @@ class TestParametricOperator:
         )
 
     def test_check_shape_consistency(self):
-        """Test _ParametricOperator._check_shape_consistency()."""
+        """Test _check_shape_consistency()."""
         arrays = [np.random.random((2, 3)), np.random.random((3, 2))]
         with pytest.raises(ValueError) as ex:
             self.Dummy._check_shape_consistency(arrays, "array")
@@ -347,7 +778,7 @@ class TestParametricOperator:
         self.Dummy._check_shape_consistency(arrays, "array")
 
     def test_check_parametervalue_dimension(self, p=3):
-        """Test _ParametricOperator._check_parametervalue_dimension()."""
+        """Test _check_parametervalue_dimension()."""
         op = self.Dummy()
 
         with pytest.raises(RuntimeError) as ex:
@@ -364,37 +795,46 @@ class TestParametricOperator:
         op._check_parametervalue_dimension(np.empty(p))
 
     def test_apply(self):
-        """Test _ParametricOperator.apply()."""
+        """Test apply()."""
         assert self.Dummy().apply(None, None, None) == -1
 
     def test_jacobian(self):
-        """Test _ParametricOperator.jacobian()."""
+        """Test jacobian()."""
         assert self.Dummy().jacobian(None, None, None) == 0
-
-
-# Utilities ===================================================================
-def test_is_nonparametric():
-    """Test operators._base.is_nonparametric()."""
-
-    op = TestNonparametricOperator.Dummy()
-    assert opinf.operators.is_nonparametric(op)
-    assert not opinf.operators.is_nonparametric(10)
-
-
-def test_has_inputs():
-    """Test operators._base.has_inputs()."""
-
-    class Dummy(_module._InputMixin):
-        def input_dimension(self):
-            return -1
-
-    op = Dummy()
-    assert opinf.operators.has_inputs(op)
-    assert not opinf.operators.has_inputs(5)
 
 
 def test_is_parametric():
     """Test operators._base.is_parametric()."""
-    op = TestParametricOperator.Dummy()
+    op = TestParametricOpInfOperator.Dummy()
     assert opinf.operators.is_parametric(op)
     assert not opinf.operators.is_nonparametric(-1)
+
+
+def test_is_uncalibrated():
+    """Test operators._base.is_uncalibrated()."""
+
+    func = opinf.operators.is_uncalibrated
+
+    class Dummy(opinf.operators.OperatorTemplate):
+        """Instantiable version of OperatorTemplate."""
+
+        def __init__(self, state_dimension):
+            self.__r = state_dimension
+
+        @property
+        def state_dimension(self):
+            return self.__r
+
+        def apply(self, state, input_=None):
+            return state
+
+    op = Dummy(10)
+    assert not func(op)
+
+    op = TestOpInfOperator.Dummy()
+    assert func(op)
+    op.set_entries(np.zeros((5, 5)))
+    assert not func(op)
+
+    # op = TestParametricOpInfOperator.Dummy()
+    # assert func(op)

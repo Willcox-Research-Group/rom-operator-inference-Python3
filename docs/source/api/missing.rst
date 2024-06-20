@@ -61,9 +61,10 @@ ddt.ipynb
    :toctree: _autosummaries
    :nosignatures:
 
+   DerivativeEstimatorTemplate
    UniformFiniteDifferencer
    NonuniformFiniteDifferencer
-   DerivativeEstimatorTemplate
+   InterpolationDerivativeEstimator
    fwd1
    fwd2
    fwd3
@@ -85,6 +86,37 @@ ddt.ipynb
    ddt_uniform
    ddt_nonuniform
    ddt
+
+operators.ipynb
+---------------
+
+.. currentmodule:: opinf.operators
+
+.. autosummary::
+   :toctree: _autosummaries
+   :nosignatures:
+
+   OperatorTemplate
+   InputMixin
+   OpInfOperator
+   ConstantOperator
+   LinearOperator
+   QuadraticOperator
+   CubicOperator
+   InputOperator
+   StateInputOperator
+   ParametricOperatorTemplate
+   ParametricOpInfOperator
+   InterpolatedConstantOperator
+   InterpolatedLinearOperator
+   InterpolatedQuadraticOperator
+   InterpolatedCubicOperator
+   InterpolatedInputOperator
+   InterpolatedStateInputOperator
+   has_inputs
+   is_nonparametric
+   is_parametric
+   is_uncalibrated
 
 lstsq.ipynb
 -----------

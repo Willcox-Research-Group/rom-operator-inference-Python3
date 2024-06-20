@@ -9,7 +9,8 @@ __all__ = [
 ]
 
 import numpy as np
-from scipy import linalg as la
+import scipy.linalg as la
+import scipy.integrate as spintegrate
 
 
 def _absolute_and_relative_error(Qtrue, Qapprox, norm):
@@ -213,7 +214,8 @@ def Lp_error(Qtrue, Qapprox, t=None, p=2):
             raise ValueError("Qtrue not aligned with time t")
 
         def pnorm(Z):
-            return (np.trapz(np.sum(np.abs(Z) ** p, axis=0), t)) ** (1 / p)
+            Zpnorm = np.sum(np.abs(Z) ** p, axis=0)
+            return spintegrate.trapezoid(Zpnorm, t) ** (1 / p)
 
     else:  # p == np.inf
 

@@ -9,7 +9,7 @@ import abc
 import numpy as np
 import scipy.linalg as la
 
-from .. import errors, ddt
+from .. import errors, ddt, utils
 
 
 class LifterTemplate(abc.ABC):
@@ -22,6 +22,14 @@ class LifterTemplate(abc.ABC):
 
     See :class:`QuadraticLifter` for an example.
     """
+
+    def __str__(self):
+        """String representation: class name."""
+        return self.__class__.__name__
+
+    def __repr__(self):
+        """Unique ID + string representation."""
+        return utils.str2repr(self)
 
     @staticmethod
     @abc.abstractmethod

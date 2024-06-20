@@ -314,6 +314,8 @@ class TestPlainSolver:
         out = solver.fit(D, Z)
         assert out is solver
 
+        repr(solver)
+
     def test_predict(self, k=20, d=11, r=3):
         """Test predict()."""
         # Set up and manually solve a least-squares problem.

@@ -19,16 +19,8 @@ _d = 8
 _Dblock = np.random.random((4, _d))
 
 
-class _DummyOperator(opinf.operators._base._NonparametricOperator):
-    """Instantiable version of _NonparametricOperator."""
-
-    def set_entries(*args, **kwargs):
-        opinf.operators._base._NonparametricOperator.set_entries(
-            *args, **kwargs
-        )
-
-    def _str(*args, **kwargs):
-        pass
+class _DummyOperator(opinf.operators.OpInfOperator):
+    """Instantiable version of OpInfOperator."""
 
     def apply(*args, **kwargs):
         return -1
@@ -131,7 +123,7 @@ class TestInterpolatedOperator:
         assert np.all(op.training_parameters == mu[:, 0])
         assert len(op) == s
 
-        entries = np.random.random((s, r, r))
+        entries = np.random.standard_normal((s, r, r))
         op = self.Dummy(mu, entries)
         assert len(op) == s
 
@@ -414,7 +406,7 @@ def test_publics():
         op = OpClass()
         assert issubclass(
             op.OperatorClass,
-            opinf.operators._base._NonparametricOperator,
+            opinf.operators.OpInfOperator,
         )
 
 
