@@ -16,6 +16,8 @@ Added public templates to `opinf.operators`:
 
 Also added `opinf.ddt.InterpolationDerivativeEstimator` and made various improvements to the API documentation.
 
+Also made various updates for compatibility with [NumPy 2.0.0](https://numpy.org/doc/stable/release/2.0.0-notes.html).
+
 ## Version 0.5.5
 
 Changes to the `opinf.lstsq` API and improvements to the documentation.

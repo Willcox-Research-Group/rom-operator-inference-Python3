@@ -292,7 +292,7 @@ class TestL2Solver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
         os.remove(outfile)
 
@@ -315,7 +315,7 @@ class TestL2Solver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
 
 class TestL2DecoupledSolver:
@@ -480,7 +480,7 @@ class TestL2DecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
         os.remove(outfile)
 
@@ -506,7 +506,7 @@ class TestL2DecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
 
 class TestTikhonovSolver:
@@ -771,7 +771,7 @@ class TestTikhonovSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
         os.remove(outfile)
 
@@ -797,7 +797,7 @@ class TestTikhonovSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
 
 class TestTikhonovDecoupledSolver:
@@ -985,7 +985,7 @@ class TestTikhonovDecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())
 
         os.remove(outfile)
 
@@ -1011,4 +1011,4 @@ class TestTikhonovDecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.allclose(solver2.predict(), solver.predict())

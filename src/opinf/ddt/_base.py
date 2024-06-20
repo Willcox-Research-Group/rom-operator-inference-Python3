@@ -239,8 +239,8 @@ class DerivativeEstimatorTemplate(abc.ABC):
         for dt in dts:
             # Construct test cases.
             t = 1 + (dt * t_base)
-            Q = np.row_stack([test[1](t) for test in self.__tests])
-            dQdt = np.row_stack([test[2](t) for test in self.__tests])
+            Q = np.array([test[1](t) for test in self.__tests])
+            dQdt = np.array([test[2](t) for test in self.__tests])
             self.__t = t
 
             # Call the derivative estimator.
