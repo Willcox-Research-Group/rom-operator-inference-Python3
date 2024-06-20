@@ -57,14 +57,8 @@ class TestUniformFiniteDifferencer:
         with pytest.raises(ValueError) as ex:
             self.Diff(t3)
         assert ex.value.args[0] == (
-            "time_domain should be a one-dimensional array"
+            "time_domain must be a one-dimensional array"
         )
-
-        # Multiple time domains (for handling multiple data trajectories).
-        ts = [t + i for i in range(3)]
-        differ = self.Diff(ts)
-        assert differ.time_domain is ts
-        assert differ.dt is None
 
         # Bad scheme.
         with pytest.raises(ValueError) as ex:
@@ -91,12 +85,6 @@ class TestUniformFiniteDifferencer:
         """
         t = np.linspace(0, 1, k)
 
-        # Coverage for error messages.
-        differ = self.Diff([t, t, t])
-        with pytest.raises(RuntimeError) as ex:
-            differ.estimate(None)
-        assert ex.value.args[0] == "dt is None"
-
         differ = self.Diff(t)
         Q = np.random.random(k)
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
@@ -113,7 +101,7 @@ class TestUniformFiniteDifferencer:
         differ.estimate(Q, U[0])
 
         # Test all schemes.
-        for name, _ in self.Diff._schemes.items():
+        for name in self.Diff._schemes.keys():
             differ = self.Diff(t, scheme=name)
             errors = differ.verify(plot=False, return_errors=True)
             for label, results in errors.items():
@@ -149,13 +137,8 @@ class TestNonuniformFiniteDifferencer:
         with pytest.raises(ValueError) as ex:
             self.Diff(t3)
         assert ex.value.args[0] == (
-            "time_domain should be a one-dimensional array"
+            "time_domain must be a one-dimensional array"
         )
-
-        # Multiple time domains (for handling multiple data trajectories).
-        ts = [t + i for i in range(3)]
-        differ = self.Diff(ts)
-        assert differ.time_domain is ts
 
     def test_estimate(self, r=3, k=100, m=4):
         """Use verify() to test estimate()."""
@@ -176,7 +159,7 @@ class TestNonuniformFiniteDifferencer:
         U = np.random.random((m, k))
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             differ.estimate(Q, U[:, :-1])
-        assert ex.value.args[0] == "inputs not aligned with time_domain"
+        assert ex.value.args[0] == "states and inputs not aligned"
 
         # One-dimensional inputs.
         differ.estimate(Q, U[0])

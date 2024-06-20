@@ -61,9 +61,10 @@ ddt.ipynb
    :toctree: _autosummaries
    :nosignatures:
 
+   DerivativeEstimatorTemplate
    UniformFiniteDifferencer
    NonuniformFiniteDifferencer
-   DerivativeEstimatorTemplate
+   InterpolationDerivativeEstimator
    fwd1
    fwd2
    fwd3
