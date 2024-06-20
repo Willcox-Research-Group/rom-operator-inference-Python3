@@ -5,6 +5,17 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+## Version 0.5.6
+
+Added public templates to `opinf.operators`:
+
+- `OperatorTemplate` for general nonparametric operators.
+- `OpInfOperator` for nonparametric operators that can be learned through Operator Inference (operator matrix times data vector structure).
+- `ParametricOperatorTemplate` for general parametric operators.
+- `ParametricOpInfOperator` for parametric operators that can be learned through Operator Inference.
+
+Also added `opinf.ddt.InterpolationDerivativeEstimator` and made various improvements to the API documentation.
+
 ## Version 0.5.5
 
 Changes to the `opinf.lstsq` API and improvements to the documentation.
