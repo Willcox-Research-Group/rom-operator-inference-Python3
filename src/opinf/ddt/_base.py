@@ -12,7 +12,7 @@ import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
 
-from .. import errors
+from .. import errors, utils
 
 
 class DerivativeEstimatorTemplate(abc.ABC):
@@ -85,6 +85,17 @@ class DerivativeEstimatorTemplate(abc.ABC):
     def time_domain(self):
         """Time domain of the snapshot data, a (k,) ndarray."""
         return self.__t
+
+    def __str__(self):
+        """String representation: class name, time domain."""
+        out = [self.__class__.__name__]
+        t = self.time_domain
+        out.append(f"time_domain: {t.size} entries in [{t.min()}, {t.max()}]")
+        return "\n  ".join(out)
+
+    def __repr__(self):
+        """Unique ID + string representation."""
+        return utils.str2repr(self)
 
     # Main routine ------------------------------------------------------------
     def _check_dimensions(self, states, inputs, check_against_time=True):

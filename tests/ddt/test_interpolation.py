@@ -41,6 +41,7 @@ class TestInterpolationDerivativeEstimator:
         assert "axis" in est.options
         assert est.options["axis"] == 1
         assert est.new_time_domain.shape == t.shape
+        repr(est)
 
     def test_estimate(self, r=5, m=3, k=20):
         """Use verify() to test estimate()."""

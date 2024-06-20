@@ -79,6 +79,8 @@ class TestUniformFiniteDifferencer:
             differ = self.Diff(t, scheme=name)
             assert differ.scheme is func
 
+        repr(differ)
+
     def test_estimate(self, r=3, k=100, m=2):
         """Use verify() to validate estimate()
         for all registered difference schemes.
@@ -131,6 +133,7 @@ class TestNonuniformFiniteDifferencer:
         t = t**2
         differ = self.Diff(t)
         assert differ.time_domain is t
+        repr(differ)
 
         # Too many dimensions.
         t3 = np.sort(np.random.random((3, 3, 3)))

@@ -100,6 +100,26 @@ class InterpolationDerivativeEstimator(DerivativeEstimatorTemplate):
         self.__options = types.MappingProxyType(options)
 
     # Properties --------------------------------------------------------------
+    def __str__(self):
+        """String representation: class name, time domain."""
+        head = DerivativeEstimatorTemplate.__str__(self)
+        options = ", ".join(
+            [
+                f"{key}={repr(value)}"
+                for key, value in self.options.items()
+                if key != "axis"
+            ]
+        )
+        tail = [
+            f"InterpolatorClass: {self.InterpolatorClass.__name__}({options})"
+        ]
+        if (t2 := self.new_time_domain) is not None:
+            tail.append(
+                f"new_time_domain: {t2.size} entries "
+                f"in [{t2.min()}, {t2.max()}]"
+            )
+        return f"{head}\n  " + "\n  ".join(tail)
+
     @property
     def InterpolatorClass(self):
         """One-dimensional differentiable interpolator class."""
