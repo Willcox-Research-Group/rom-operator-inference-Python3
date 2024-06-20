@@ -36,11 +36,11 @@ class InterpolationDerivativeEstimator(DerivativeEstimatorTemplate):
 
         The following strings are also accepted.
 
-        * `"cubic"` (default): use :class:`scipy.interpolate.CubicSpline`.
-        * `"akima"`: use :class:`scipy.interpolate.Akima`. This is a local
-          interpolation method and is more resitant to outliers than
-          :class:`scipy.interpolate.CubicSpline`. However, it is not
-          recommended if the time points are not uniformly spaced.
+        * ``"cubic"`` (default): use :class:`scipy.interpolate.CubicSpline`.
+        * ``"akima"``: use :class:`scipy.interpolate.Akima1DInterpolator`.
+          This is a local interpolation method and is more resitant to
+          outliers than :class:`scipy.interpolate.CubicSpline`. However, it is
+          not recommended if the time points are not uniformly spaced.
     new_time_domain : (k',) ndarray or None
         If given, evaluate the interpolator at these points to generate new
         state snapshots and corresponding time derivatives. If input snapshots
