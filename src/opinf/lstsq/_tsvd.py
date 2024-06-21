@@ -27,7 +27,7 @@ class TruncatedSVDSolver(SolverTemplate):
     :math:`\D` for a given :math:`d' \le \operatorname{rank}(\D)`, i.e.,
 
     .. math ::
-       \tilde{D}
+       \tilde{\D}
        = \argmin_{\D' \in \RR^{k \times d}}\|\D' - \D\|_{F}
        \quad\textrm{such that}\quad
        \operatorname{rank}(\D') = d'.
@@ -126,7 +126,6 @@ class TruncatedSVDSolver(SolverTemplate):
 
         Phi, svals, PsiT = la.svd(self.data_matrix, **self.options)
         self._svals = svals
-        self._Phi = Phi
         self._ZPhi = self.lhs_matrix @ Phi
         self._SinvPsiT = PsiT / svals.reshape((-1, 1))
 
