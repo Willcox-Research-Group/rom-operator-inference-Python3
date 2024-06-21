@@ -269,10 +269,10 @@ class _Model(abc.ABC):
             else:
                 raise ValueError("if a scalar, solver must be nonnegative")
 
-        # Light validation: must be instance w/ fit(), predict().
+        # Light validation: must be instance w/ fit(), solve().
         if isinstance(solver, type):
             raise TypeError("solver must be an instance, not a class")
-        for mtd in "fit", "predict":
+        for mtd in "fit", "solve":
             if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
                 warnings.warn(
                     f"solver should have a '{mtd}()' method",

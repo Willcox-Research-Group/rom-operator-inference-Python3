@@ -253,9 +253,7 @@ class TestModel:
             model.solver = []
         assert len(wn) == 2
         assert wn[0].message.args[0] == "solver should have a 'fit()' method"
-        assert wn[1].message.args[0] == (
-            "solver should have a 'predict()' method"
-        )
+        assert wn[1].message.args[0] == "solver should have a 'solve()' method"
 
         model.solver = 0
         assert isinstance(model.solver, opinf.lstsq.PlainSolver)

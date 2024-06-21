@@ -15,27 +15,34 @@ from ._base import SolverTemplate, _require_trained
 
 
 class TruncatedSVDSolver(SolverTemplate):
-    r"""Solve the Frobenius-norm ordinary least-squares problem with
-    truncated singular value decomposition.
+    r"""Solve the Frobenius-norm ordinary least-squares problem with a
+    low-rank best approximation of the data matrix.
 
-    That is, approximately solve
-
-    .. math::
-       \argmin_{\Ohat}\|\D\Ohat\trp - \Z\trp\|_F^2
-
-    by taking the singular value decomposition (SVD) of the data matrix
-    :math:`\D` and truncating it to a specified number of modes :math:`n`.
-
-    If :math:`\D = \bfPhi\bfSigma\bfPsi\trp`, then defining
+    That is, solve
 
     .. math::
-       \bfPhi' = \bfPhi_{:n, :}
-       \quad
-       \bfSigma' = \bfSigma_{:n, :n}
-       \quad
-       \bfPsi' = \bfPsi_{:n, :},
+       \argmin_{\Ohat}\|\tilde{\D}\Ohat\trp - \Z\trp\|_{F}^{2}
 
-    the solution is given by
+    where :math:`\tilde{\D}` is the best rank-:math:`d'` approximation of
+    :math:`\D` for a given :math:`d' \le \operatorname{rank}(\D)`, i.e.,
+
+    .. math ::
+       \tilde{D}
+       = \argmin_{\D' \in \RR^{k \times d}}\|\D' - \D\|_{F}
+       \quad\textrm{such that}\quad
+       \operatorname{rank}(\D') = d'.
+
+    If :math:`\D = \bfPhi\bfSigma\bfPsi\trp` is the singular value
+    decomposition of :math:\D`, then defining
+
+    .. math::
+       \bfPhi' = \bfPhi_{:d', :}
+       \quad
+       \bfSigma' = \bfSigma_{:d', :d'}
+       \quad
+       \bfPsi' = \bfPsi_{:d', :},
+
+    the solution to this problem is given by
     :math:`\Ohat\trp = \bfPsi'(\bfSigma')^{-1}(\bfPhi')\trp\Z\trp` (i.e.,
     :math:`\Ohat = \Z\bfPhi'(\bfSigma')^{-1}(\bfPsi')\trp`).
 
@@ -113,14 +120,15 @@ class TruncatedSVDSolver(SolverTemplate):
         return f"{start}\n  " + "\n  ".join(out)
 
     # Main methods ------------------------------------------------------------
-    def fit(self, data_matrix, lhs_matrix):
+    def fit(self, data_matrix: np.ndarray, lhs_matrix: np.ndarray):
         """Save data matrices and prepare to solve the regression problem."""
         SolverTemplate.fit(self, data_matrix, lhs_matrix)
 
         Phi, svals, PsiT = la.svd(self.data_matrix, **self.options)
         self._svals = svals
+        self._Phi = Phi
         self._ZPhi = self.lhs_matrix @ Phi
-        self._PsiT = PsiT
+        self._SinvPsiT = PsiT / svals.reshape((-1, 1))
 
         # Reset num_svdmodes.
         d = self._ZPhi.shape[1]
@@ -140,29 +148,28 @@ class TruncatedSVDSolver(SolverTemplate):
         return self
 
     @_require_trained
-    def solve(self):
+    def solve(self) -> np.ndarray:
         r"""Solve the Operator Inference regression.
 
         Returns
         -------
-        Ohat : (r, d) or (d,) ndarray
+        Ohat : (r, d) ndarray
             Operator matrix :math:`\Ohat` (not its transpose!).
-            If :math:`r = 1`, a one-dimensional array is returned.
         """
         n = self.num_svdmodes
-        Ohat = (self._ZPhi[:, :n] * (1 / self._svals[:n])) @ self._PsiT[:n, :]
-        return np.ravel(Ohat) if self.r == 1 else Ohat
+        Ohat = self._ZPhi[:, :n] @ self._SinvPsiT[:n, :]
+        return Ohat
 
     # Post-processing ---------------------------------------------------------
     @_require_trained
-    def tcond(self):
-        r"""Compute the effective :math:`2`-norm condition number of the data
-        matrix :math:`\D` using only the retained SVD modes.
+    def tcond(self) -> float:
+        r"""Compute the :math:`2`-norm condition number of :math:`\tilde{\D}`,
+        the low-rank approximation to :math:`\D` from the truncated SVD.
         """
         return self._svals[0] / self._svals[self.num_svdmodes - 1]
 
     # Persistence -------------------------------------------------------------
-    def save(self, savefile, overwrite=False):
+    def save(self, savefile: str, overwrite: bool = False):
         """Serialize the solver, saving it in HDF5 format.
         The model can be recovered with the :meth:`load()` class method.
 
@@ -181,7 +188,7 @@ class TruncatedSVDSolver(SolverTemplate):
             if self.data_matrix is not None:
                 hf.create_dataset("data_matrix", data=self.data_matrix)
                 hf.create_dataset("lhs_matrix", data=self.lhs_matrix)
-                for attr in ("_svals", "_ZPhi", "_PsiT"):
+                for attr in ("_svals", "_ZPhi", "_SinvPsiT"):
                     hf.create_dataset(attr, data=getattr(self, attr))
 
     @classmethod
@@ -207,7 +214,7 @@ class TruncatedSVDSolver(SolverTemplate):
                 D = hf["data_matrix"][:]
                 Z = hf["lhs_matrix"][:]
                 SolverTemplate.fit(solver, D, Z)
-                for attr in ("_svals", "_ZPhi", "_PsiT"):
+                for attr in ("_svals", "_ZPhi", "_SinvPsiT"):
                     setattr(solver, attr, hf[attr][:])
         return solver
 
@@ -219,7 +226,6 @@ class TruncatedSVDSolver(SolverTemplate):
         )
         if self.data_matrix is not None:
             SolverTemplate.fit(solver, self.data_matrix, self.lhs_matrix)
-            solver._svals = self._svals
-            solver._ZPhi = self._ZPhi
-            solver._PsiT = self._PsiT
+            for attr in ("_svals", "_ZPhi", "_SinvPsiT"):
+                setattr(solver, attr, getattr(self, attr))
         return solver

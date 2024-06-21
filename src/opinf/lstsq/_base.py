@@ -151,7 +151,7 @@ class SolverTemplate(abc.ABC):
         return ", ".join([f"{key}={repr(val)}" for key, val in opts.items()])
 
     # Main methods -----------------------------------------------------------
-    def fit(self, data_matrix, lhs_matrix):
+    def fit(self, data_matrix: np.ndarray, lhs_matrix: np.ndarray):
         r"""Verify dimensions and save the data matrices.
 
         Parameters
@@ -204,7 +204,7 @@ class SolverTemplate(abc.ABC):
         return np.linalg.cond(self.data_matrix)
 
     @_require_trained
-    def residual(self, Ohat: np.ndarray):
+    def residual(self, Ohat: np.ndarray) -> np.ndarray:
         r"""Compute the residual of the :math:`2`-norm regression objective for
         each row of the given operator matrix.
 
@@ -420,7 +420,7 @@ class PlainSolver(SolverTemplate):
         return results[0].T
 
     # Persistence -------------------------------------------------------------
-    def save(self, savefile, overwrite=False):
+    def save(self, savefile: str, overwrite: bool = False):
         """Serialize the solver, saving it in HDF5 format.
         The model can be recovered with the :meth:`load()` class method.
 
