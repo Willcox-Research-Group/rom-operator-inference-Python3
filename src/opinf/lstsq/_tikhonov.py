@@ -135,7 +135,6 @@ class _BaseRegularizedSolver(SolverTemplate):
         solver : _BaseRegularizedSolver
             Loaded solver.
         """
-        options = dict()
         with utils.hdf5_loadhandle(loadfile) as hf:
 
             reg = hf["regularizer"][:]
@@ -199,7 +198,8 @@ class L2Solver(_BaseRegularizedSolver):
     regularizer : float
         Scalar :math:`L_2` regularization constant.
     lapack_driver : str
-        LAPACK routine for computing the SVD. See :func:`scipy.linalg.svd()`.
+        LAPACK routine for computing the singular value decomposition.
+        See :func:`scipy.linalg.svd()`.
     """
 
     def __init__(self, regularizer, lapack_driver: str = "gesdd"):
@@ -229,7 +229,9 @@ class L2Solver(_BaseRegularizedSolver):
 
     @property
     def options(self):
-        """Keyword arguments for :func:`scipy.linalg.svd()`."""
+        """Keyword arguments for :func:`scipy.linalg.svd()`.
+        These cannot be changed after instantiation.
+        """
         return self.__options
 
     def __str__(self):
@@ -247,7 +249,7 @@ class L2Solver(_BaseRegularizedSolver):
         ----------
         data_matrix : (k, d) ndarray
             Data matrix :math:`\D`.
-        lhs_matrix : (r, k) ndarray
+        lhs_matrix : (r, k) or (k,) ndarray
             "Left-hand side" data matrix :math:`\Z` (not its transpose!).
             If one-dimensional, assume :math:`r = 1`.
         """
@@ -266,15 +268,12 @@ class L2Solver(_BaseRegularizedSolver):
 
         Returns
         -------
-        Ohat : (r, d) or (d,) ndarray
+        Ohat : (r, d) ndarray
             Operator matrix :math:`\Ohat` (not its transpose!).
-            If :math:`r = 1`, a one-dimensional array is returned.
         """
         svals = self._svals.reshape((-1, 1))
         svals_inv = svals / (svals**2 + self.regularizer**2)
-        Ohat = (self._ZPhi * svals_inv.T) @ self._PsiT
-
-        return np.ravel(Ohat) if self.r == 1 else Ohat
+        return (self._ZPhi * svals_inv.T) @ self._PsiT
 
     # Post-processing ---------------------------------------------------------
     @_require_trained
@@ -298,7 +297,7 @@ class L2Solver(_BaseRegularizedSolver):
         return np.sqrt(svals2.max() / svals2.min())
 
     @_require_trained
-    def regresidual(self, Ohat):
+    def regresidual(self, Ohat: np.ndarray) -> np.ndarray:
         r"""Compute the residual of the regularized regression objective for
         each row of the given operator matrix.
 
@@ -318,9 +317,8 @@ class L2Solver(_BaseRegularizedSolver):
 
         Returns
         -------
-        residuals : (r,) ndarray or float
+        residuals : (r,) ndarray
             :math:`2`-norm residuals for each row of the operator matrix.
-            If :math:`r = 1`, a float is returned.
         """
         residual = self.residual(Ohat)
         return residual + (self.regularizer**2 * np.sum(Ohat**2, axis=-1))
@@ -402,7 +400,8 @@ class L2DecoupledSolver(L2Solver):
         Scalar :math:`L_2` regularization constants, one for each row
         of the operator matrix.
     lapack_driver : str
-        LAPACK routine for computing the SVD. See :func:`scipy.linalg.svd()`.
+        LAPACK routine for computing the singular value decomposition.
+        See :func:`scipy.linalg.svd()`.
     """
 
     # Properties --------------------------------------------------------------
@@ -440,7 +439,7 @@ class L2DecoupledSolver(L2Solver):
         ----------
         data_matrix : (k, d) ndarray
             Data matrix :math:`\D`.
-        lhs_matrix : (r, k) ndarray
+        lhs_matrix : (r, k) or (k,) ndarray
             "Left-hand side" data matrix :math:`\Z` (not its transpose!).
             If one-dimensional, assume :math:`r = 1`.
         """
@@ -484,9 +483,8 @@ class L2DecoupledSolver(L2Solver):
 
         Returns
         -------
-        residuals : (r,) ndarray or float
+        residuals : (r,) ndarray
             :math:`2`-norm residuals for each row of the operator matrix.
-            If :math:`r = 1`, a float is returned.
         """
         return L2Solver.regresidual(self, Ohat)
 
@@ -558,9 +556,7 @@ class TikhonovSolver(_BaseRegularizedSolver):
         _BaseRegularizedSolver.__init__(self)
         self.regularizer = regularizer
         self.method = method
-        self.__options = types.MappingProxyType(
-            dict(cond=cond, lapack_driver=lapack_driver)
-        )
+        self.__options = dict(cond=cond, lapack_driver=lapack_driver)
 
     # Properties --------------------------------------------------------------
     @property
@@ -632,9 +628,8 @@ class TikhonovSolver(_BaseRegularizedSolver):
         ----------
         data_matrix : (k, d) ndarray
             Data matrix :math:`\D`.
-        lhs_matrix : (r, k) ndarray
+        lhs_matrix : (r, k) or (k,) ndarray
             "Left-hand side" data matrix :math:`\Z` (not its transpose!).
-            If one-dimensional, assume :math:`r = 1`.
         """
         _BaseRegularizedSolver.fit(self, data_matrix, lhs_matrix)
         self._check_regularizer_shape()
@@ -655,9 +650,8 @@ class TikhonovSolver(_BaseRegularizedSolver):
 
         Returns
         -------
-        Ohat : (r, d) or (d,) ndarray
+        Ohat : (r, d) ndarray
             Operator matrix :math:`\Ohat` (not its transpose!).
-            If :math:`r = 1`, a one-dimensional array is returned.
         """
         if self.method == "lstsq":
             DPad = np.vstack((self.data_matrix, self.regularizer))
@@ -665,8 +659,7 @@ class TikhonovSolver(_BaseRegularizedSolver):
         elif self.method == "normal":
             regD = self._DtD + (self.regularizer.T @ self.regularizer)
             Ohat = la.solve(regD, self._DtZt, assume_a="pos").T
-
-        return np.ravel(Ohat) if self.r == 1 else Ohat
+        return Ohat
 
     # Post-processing ---------------------------------------------------------
     @_require_trained
@@ -682,7 +675,7 @@ class TikhonovSolver(_BaseRegularizedSolver):
         return np.linalg.cond(np.vstack((self.data_matrix, self.regularizer)))
 
     @_require_trained
-    def regresidual(self, Ohat):
+    def regresidual(self, Ohat: np.ndarray) -> np.ndarray:
         r"""Compute the residual of the regularized regression objective for
         each row of the given operator matrix.
 
@@ -702,9 +695,8 @@ class TikhonovSolver(_BaseRegularizedSolver):
 
         Returns
         -------
-        residuals : (r,) ndarray or float
+        residuals : (r,) ndarray
             :math:`2`-norm residuals for each row of the operator matrix.
-            If :math:`r = 1`, a float is returned.
         """
         residual = self.residual(Ohat)
         return residual + np.sum((self.regularizer @ Ohat.T) ** 2, axis=0)
@@ -861,9 +853,8 @@ class TikhonovDecoupledSolver(TikhonovSolver):
 
         Returns
         -------
-        Ohat : (r, d) or (d,) ndarray
+        Ohat : (r, d) ndarray
             Operator matrix :math:`\Ohat` (not its transpose!).
-            If :math:`r = 1`, a one-dimensional array is returned.
         """
         Ohat = np.empty((self.r, self.d))
 
@@ -875,7 +866,6 @@ class TikhonovDecoupledSolver(TikhonovSolver):
             elif self.method == "normal":
                 regD = self._DtD + Gamma.T @ Gamma
                 Ohat[i] = la.solve(regD, self._DtZt[:, i], assume_a="pos")
-
         return Ohat
 
     # Post-processing ---------------------------------------------------------
@@ -918,9 +908,8 @@ class TikhonovDecoupledSolver(TikhonovSolver):
 
         Returns
         -------
-        residuals : (r,) ndarray or float
+        residuals : (r,) ndarray
             :math:`2`-norm residuals for each row of the operator matrix.
-            If :math:`r = 1`, a float is returned.
         """
         residual = self.residual(Ohat)
         rg = [np.sum((G @ oi) ** 2) for G, oi in zip(self.regularizer, Ohat)]

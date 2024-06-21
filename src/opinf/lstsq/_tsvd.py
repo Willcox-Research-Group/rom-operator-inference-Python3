@@ -76,11 +76,11 @@ class TruncatedSVDSolver(SolverTemplate):
             raise TypeError("num_svdmodes must be an integer")
 
         if self.data_matrix is not None:
-            k = self.max_modes
+            d = self.max_modes
             if nmodes <= 0:
-                nmodes = k + nmodes
-            if nmodes > k:
-                raise ValueError(f"only {k} SVD modes available")
+                nmodes = d + nmodes
+            if nmodes > d:
+                raise ValueError(f"only {d} SVD modes available")
         self.__nmodes = nmodes
 
     @property
@@ -104,12 +104,12 @@ class TruncatedSVDSolver(SolverTemplate):
             out.append(
                 f"using {self.num_svdmodes} of {self.max_modes} SVD modes"
             )
-            startlines = start.split("\n")
-            startlines.insert(
-                3,
+            lines = start.split("\n")
+            lines.insert(
+                4,
                 f"    New condition number: {self.tcond():.4e}",
             )
-            start = "\n".join(startlines)
+            start = "\n".join(lines)
         return f"{start}\n  " + "\n  ".join(out)
 
     # Main methods ------------------------------------------------------------
@@ -123,18 +123,18 @@ class TruncatedSVDSolver(SolverTemplate):
         self._PsiT = PsiT
 
         # Reset num_svdmodes.
-        k = self._ZPhi.shape[1]
+        d = self._ZPhi.shape[1]
         if (n := self.num_svdmodes) is None:
-            n = k
+            n = d
         if n <= 0:
-            n = k + n
-        if n > k:
+            n = d + n
+        if n > d:
             warnings.warn(
-                f"only {k} SVD modes available, "
-                f"setting num_svdmodes=k (was {n})",
+                f"only {d} SVD modes available, "
+                f"setting num_svdmodes={d} (was {n})",
                 errors.OpInfWarning,
             )
-            n = k
+            n = d
         self.__nmodes = n
 
         return self

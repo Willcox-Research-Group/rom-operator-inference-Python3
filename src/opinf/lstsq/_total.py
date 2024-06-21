@@ -83,13 +83,9 @@ class TotalLeastSquaresSolver(SolverTemplate):
         ----------
         data_matrix : (k, d) ndarray
             Data matrix :math:`\D`.
-        lhs_matrix : (r, k) ndarray
+        lhs_matrix : (r, k) or (k,) ndarray
             "Left-hand side" data matrix :math:`\Z` (not its transpose!).
             If one-dimensional, assume :math:`r = 1`.
-
-        Returns
-        -------
-        self
         """
         SolverTemplate.fit(self, data_matrix, lhs_matrix)
 

@@ -87,7 +87,6 @@ class TestL2Solver:
         solver = self.Solver(1)
         A = np.random.standard_normal((k, d))
         B = np.random.standard_normal((r, k))
-        solver.verify()
         solver.fit(A, B)
         solver.verify()
 
@@ -246,9 +245,10 @@ class TestL2Solver:
         for reg in [0] + np.random.uniform(0, 10, ntests).tolist():
             solver.regularizer = reg
             residual = solver.regresidual(x)
-            assert isinstance(residual, float)
+            assert isinstance(residual, np.ndarray)
+            assert residual.shape == (1,)
             ans = np.linalg.norm(A @ x - b) ** 2 + np.linalg.norm(reg * x) ** 2
-            assert np.isclose(residual, ans)
+            assert np.isclose(residual[0], ans)
 
     # Persistence -------------------------------------------------------------
     def test_save(self, k=9, d=4, r=3, outfile="_l2solversavetest.h5"):
@@ -568,9 +568,7 @@ class TestTikhonovSolver:
         A = np.random.standard_normal((k, d))
         B = np.random.standard_normal((r, k))
         solver = self.Solver(Z)
-        solver.verify(d=d, r=r)
         solver.fit(A, B)
-        solver.verify()
 
         for attr, shape in [
             ("data_matrix", (k, d)),
@@ -594,7 +592,9 @@ class TestTikhonovSolver:
         Z = np.zeros((d, d))
         Id = np.eye(d)
         solver1D = self.Solver(Z).fit(A, b)
+        solver1D.verify()
         solver2D = self.Solver(Z).fit(A, B)
+        solver2D.verify()
 
         for method in ["normal", "lstsq"]:
             # Test without regularization, b.ndim = 1.
@@ -721,9 +721,10 @@ class TestTikhonovSolver:
             P = np.random.uniform(1, 10, d)
             solver.regularizer = P
             residual = solver.regresidual(x)
-            assert isinstance(residual, float)
+            assert isinstance(residual, np.ndarray)
+            assert residual.shape == (1,)
             ans = np.linalg.norm(A @ x - b) ** 2 + np.linalg.norm(P * x) ** 2
-            assert np.isclose(residual, ans)
+            assert np.isclose(residual[0], ans)
 
     # Persistence -------------------------------------------------------------
     def test_save(self, k=9, d=4, r=3, outfile="_l2decoupledsavetest.h5"):

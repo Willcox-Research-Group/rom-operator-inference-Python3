@@ -3,6 +3,7 @@
 
 import pytest
 import numpy as np
+import scipy.linalg as la
 
 import opinf
 
@@ -40,7 +41,9 @@ class TestTotalLeastSquaresSolver:
         assert solver.num_svdmodes == nn
         assert solver.max_modes == n
         repr(solver)
-        solver.verify()
+
+        solver.num_svdmodes = -4
+        assert solver.num_svdmodes == n - 4
 
         with pytest.raises(ValueError) as ex:
             solver.num_svdmodes = n * 2
@@ -58,10 +61,32 @@ class TestTotalLeastSquaresSolver:
 
         assert solver.tcond() < solver.cond()
 
+        solver = self.Solver(1).fit(D, Z)
+        assert solver.tcond() == 1
+
+        solver = self.Solver(nn := 2 * (k + d))
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            solver.fit(D, Z)
+        assert wn[0].message.args[0] == (
+            f"only {n} SVD modes available, "
+            f"setting num_svdmodes={n} (was {nn})"
+        )
+
+        assert np.isclose(solver.tcond(), solver.cond())
+
     def test_predict(self, k=15, d=7, r=5):
-        """Test predict()."""
+        """Test predict() via verify()."""
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))
         solver = self.Solver(min(D.shape) - 2).fit(D, Z)
+        solver.verify()
+
+        Ohat_true = la.lstsq(D, Z.T)[0].T
+        resid_true = la.norm(solver.residual(Ohat_true))
         Ohat = solver.predict()
-        assert Ohat.shape == (r, d)
+        resid = la.norm(solver.residual(Ohat))
+        assert resid > resid_true
+
+        solver = self.Solver(None).fit(D, Z)
+        Ohat = solver.predict()
+        assert np.allclose(Ohat, Ohat_true)
