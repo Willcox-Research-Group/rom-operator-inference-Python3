@@ -263,7 +263,7 @@ class L2Solver(_BaseRegularizedSolver):
         return self
 
     @_require_trained
-    def predict(self):
+    def solve(self):
         r"""Solve the Operator Inference regression.
 
         Returns
@@ -645,7 +645,7 @@ class TikhonovSolver(_BaseRegularizedSolver):
         return self
 
     @_require_trained
-    def predict(self):
+    def solve(self):
         r"""Solve the Operator Inference regression.
 
         Returns
@@ -848,7 +848,7 @@ class TikhonovDecoupledSolver(TikhonovSolver):
 
     # Main methods ------------------------------------------------------------
     @_require_trained
-    def predict(self):
+    def solve(self):
         r"""Solve the Operator Inference regression.
 
         Returns

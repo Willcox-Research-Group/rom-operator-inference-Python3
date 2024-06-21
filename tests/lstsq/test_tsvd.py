@@ -74,8 +74,8 @@ class TestTotalLeastSquaresSolver:
 
         assert np.isclose(solver.tcond(), solver.cond())
 
-    def test_predict(self, k=15, d=7, r=5):
-        """Test predict() via verify()."""
+    def test_solve(self, k=15, d=7, r=5):
+        """Test solve() via verify()."""
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))
         solver = self.Solver(min(D.shape) - 2).fit(D, Z)
@@ -83,10 +83,10 @@ class TestTotalLeastSquaresSolver:
 
         Ohat_true = la.lstsq(D, Z.T)[0].T
         resid_true = la.norm(solver.residual(Ohat_true))
-        Ohat = solver.predict()
+        Ohat = solver.solve()
         resid = la.norm(solver.residual(Ohat))
         assert resid > resid_true
 
         solver = self.Solver(None).fit(D, Z)
-        Ohat = solver.predict()
+        Ohat = solver.solve()
         assert np.allclose(Ohat, Ohat_true)

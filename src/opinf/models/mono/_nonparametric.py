@@ -245,7 +245,7 @@ class _NonparametricModel(_Model):
             return self
 
         # Execute non-intrusive learning.
-        self._extract_operators(np.atleast_2d(self.solver.predict()))
+        self._extract_operators(self.solver.solve())
 
     def fit(self, states, lhs, inputs=None):
         r"""Learn the model operators from data.

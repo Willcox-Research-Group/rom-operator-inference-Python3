@@ -107,7 +107,7 @@ class TotalLeastSquaresSolver(SolverTemplate):
         return self
 
     @_require_trained
-    def predict(self):
+    def solve(self):
         r"""Return the total least-squares solution to the Operator Inference
         regression.
 

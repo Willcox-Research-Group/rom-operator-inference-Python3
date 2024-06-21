@@ -106,8 +106,8 @@ class TruncatedSVDSolver(SolverTemplate):
             )
             lines = start.split("\n")
             lines.insert(
-                4,
-                f"    New condition number: {self.tcond():.4e}",
+                3,
+                f"    Truncation condition number: {self.tcond():.4e}",
             )
             start = "\n".join(lines)
         return f"{start}\n  " + "\n  ".join(out)
@@ -140,7 +140,7 @@ class TruncatedSVDSolver(SolverTemplate):
         return self
 
     @_require_trained
-    def predict(self):
+    def solve(self):
         r"""Solve the Operator Inference regression.
 
         Returns

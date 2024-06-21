@@ -16,7 +16,7 @@ class TestBaseRegularizedSolver:
     class Dummy(opinf.lstsq._tikhonov._BaseRegularizedSolver):
         """Instantiable version of _BaseRegularizedSolver."""
 
-        def predict(*args, **kwargs):
+        def solve(*args, **kwargs):
             pass
 
         @property
@@ -104,17 +104,17 @@ class TestL2Solver:
 
         repr(solver)
 
-    def test_predict(self, k=20, d=10, r=5):
-        """Test predict()."""
+    def test_solve(self, k=20, d=10, r=5):
+        """Test solve()."""
         solver1D = self.Solver(0)
         solver2D = self.Solver(0)
         A = np.random.random((k, d))
         B = np.random.random((r, k))
         b = B[0, :]
 
-        # Try predicting before fitting.
+        # Try solving before fitting.
         with pytest.raises(AttributeError) as ex:
-            solver1D.predict()
+            solver1D.solve()
         assert ex.value.args[0] == "solver not trained, call fit()"
 
         # Fit the solvers.
@@ -123,12 +123,12 @@ class TestL2Solver:
 
         # Test without regularization, b.ndim = 1.
         x1 = la.lstsq(A, b)[0]
-        x2 = solver1D.predict()
+        x2 = solver1D.solve()
         assert np.allclose(x1, x2)
 
         # Test without regularization, b.ndim = 2.
         X1 = la.lstsq(A, B.T)[0].T
-        X2 = solver2D.predict()
+        X2 = solver2D.solve()
         assert np.allclose(X1, X2)
 
         # Test with regularization, b.ndim = 1.
@@ -136,14 +136,14 @@ class TestL2Solver:
         bpad = np.concatenate((b, np.zeros(d)))
         x1 = la.lstsq(Apad, bpad)[0]
         solver1D.regularizer = 1
-        x2 = solver1D.predict()
+        x2 = solver1D.solve()
         assert np.allclose(x1, x2)
 
         # Test with regularization, b.ndim = 2.
         Bpad = np.concatenate((B.T, np.zeros((d, r))))
         X1 = la.lstsq(Apad, Bpad)[0].T
         solver2D.regularizer = 1
-        X2 = solver2D.predict()
+        X2 = solver2D.solve()
         assert np.allclose(X1, X2)
 
     # Post-processing ---------------------------------------------------------
@@ -292,7 +292,7 @@ class TestL2Solver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.allclose(solver2.predict(), solver.predict())
+        assert np.allclose(solver2.solve(), solver.solve())
 
         os.remove(outfile)
 
@@ -315,7 +315,7 @@ class TestL2Solver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.allclose(solver2.predict(), solver.predict())
+        assert np.allclose(solver2.solve(), solver.solve())
 
 
 class TestL2DecoupledSolver:
@@ -353,8 +353,8 @@ class TestL2DecoupledSolver:
         repr(solver)
 
     # Main methods ------------------------------------------------------------
-    def test_predict(self, k=20, d=10):
-        """Test predict()."""
+    def test_solve(self, k=20, d=10):
+        """Test solve()."""
         regularizers = np.array([0, 1, 3, 5])
         r = len(regularizers)
         A = np.random.random((k, d))
@@ -367,7 +367,7 @@ class TestL2DecoupledSolver:
         X1 = np.array(
             [la.lstsq(Apad, Bpad[:, i])[0] for i, Apad in enumerate(Apads)]
         )
-        X2 = solver.predict()
+        X2 = solver.solve()
         assert np.allclose(X1, X2)
 
     # Post-processing ---------------------------------------------------------
@@ -480,7 +480,7 @@ class TestL2DecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.allclose(solver2.predict(), solver.predict())
+        assert np.allclose(solver2.solve(), solver.solve())
 
         os.remove(outfile)
 
@@ -506,7 +506,7 @@ class TestL2DecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.allclose(solver2.predict(), solver.predict())
+        assert np.allclose(solver2.solve(), solver.solve())
 
 
 class TestTikhonovSolver:
@@ -582,8 +582,8 @@ class TestTikhonovSolver:
             assert isinstance(obj, np.ndarray)
             assert obj.shape == shape
 
-    def test_predict(self, k=40, d=15, r=5):
-        """Test predict()."""
+    def test_solve(self, k=40, d=15, r=5):
+        """Test solve()."""
         A = np.random.random((k, d))
         B = np.random.random((r, k))
         Bpad = np.concatenate((B.T, np.zeros((d, r))))
@@ -601,27 +601,27 @@ class TestTikhonovSolver:
             solver1D.method = method
             solver1D.regularizer = Z
             x1 = la.lstsq(A, b)[0]
-            x2 = solver1D.predict()
+            x2 = solver1D.solve()
             assert np.allclose(x1, x2)
 
             # Test without regularization, b.ndim = 2.
             solver2D.method = method
             solver2D.regularizer = Z
             X1 = la.lstsq(A, B.T)[0].T
-            X2 = solver2D.predict()
+            X2 = solver2D.solve()
             assert np.allclose(X1, X2)
 
             # Test with regularization, b.ndim = 1.
             solver1D.regularizer = Id
             Apad = np.vstack((A, Id))
             x1 = la.lstsq(Apad, bpad)[0]
-            x2 = solver1D.predict()
+            x2 = solver1D.solve()
             assert np.allclose(x1, x2)
 
             # Test with regularization, b.ndim = 2.
             solver2D.regularizer = Id
             X1 = la.lstsq(Apad, Bpad)[0].T
-            X2 = solver2D.predict()
+            X2 = solver2D.solve()
             assert np.allclose(X1, X2)
 
         # Test SVD method with a severely ill-conditioned system.
@@ -636,7 +636,7 @@ class TestTikhonovSolver:
         # No regularization.
         solver2D = self.Solver(Z, method="lstsq").fit(A, B)
         X1 = la.lstsq(A, B.T)[0].T
-        X2 = solver2D.predict()
+        X2 = solver2D.solve()
         assert np.allclose(X1, X2)
 
         # Some regularization.
@@ -644,7 +644,7 @@ class TestTikhonovSolver:
         Apad = np.vstack((A, Id))
         Bpad = np.concatenate((B.T, np.zeros((d, r))))
         X1 = la.lstsq(Apad, Bpad)[0].T
-        X2 = solver2D.predict()
+        X2 = solver2D.solve()
         assert np.allclose(X1, X2)
 
     # Post-processing ---------------------------------------------------------
@@ -772,7 +772,7 @@ class TestTikhonovSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.allclose(solver2.predict(), solver.predict())
+        assert np.allclose(solver2.solve(), solver.solve())
 
         os.remove(outfile)
 
@@ -798,7 +798,7 @@ class TestTikhonovSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.allclose(solver2.predict(), solver.predict())
+        assert np.allclose(solver2.solve(), solver.solve())
 
 
 class TestTikhonovDecoupledSolver:
@@ -843,8 +843,8 @@ class TestTikhonovDecoupledSolver:
         repr(solver)
 
     # Main methods ------------------------------------------------------------
-    def test_predict(self, k=20, d=10):
-        """Test lstsq._tikhonov.TikhonovDecoupledSolver.predict()."""
+    def test_solve(self, k=20, d=10):
+        """Test lstsq._tikhonov.TikhonovDecoupledSolver.solve()."""
         Z = np.zeros(d)
         Ps = [np.eye(d), np.full(d, 2)]
         r = len(Ps)
@@ -852,9 +852,9 @@ class TestTikhonovDecoupledSolver:
         B = np.random.random((r, k))
         solver = self.Solver(Ps)
 
-        # Try predicting before fitting.
+        # Try solving before fitting.
         with pytest.raises(AttributeError) as ex:
-            solver.predict()
+            solver.solve()
         assert ex.value.args[0] == "solver not trained, call fit()"
         solver.fit(A, B)
 
@@ -864,7 +864,7 @@ class TestTikhonovDecoupledSolver:
         xx1 = la.lstsq(Apad1, Bpad[:, 0])[0]
         xx2 = la.lstsq(Apad2, Bpad[:, 1])[0]
         X1 = np.array([xx1, xx2])
-        X2 = solver.predict()
+        X2 = solver.solve()
         assert np.allclose(X1, X2)
 
         # Test with a severely ill-conditioned system.
@@ -880,7 +880,7 @@ class TestTikhonovDecoupledSolver:
         solver = self.Solver([Z] * r).fit(A, B)
         Z = np.zeros(d)
         X1 = la.lstsq(A, B.T)[0].T
-        X2 = solver.predict()
+        X2 = solver.solve()
         assert np.allclose(X1, X2)
 
         # Some regularization.
@@ -893,7 +893,7 @@ class TestTikhonovDecoupledSolver:
             xx1 = la.lstsq(Apad1, Bpad[:, 0])[0]
             xx2 = la.lstsq(Apad2, Bpad[:, 1])[0]
             X1 = np.array([xx1, xx2])
-            X2 = solver.predict()
+            X2 = solver.solve()
             assert np.allclose(X1, X2)
 
     # Post-processing ---------------------------------------------------------
@@ -986,7 +986,7 @@ class TestTikhonovDecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.allclose(solver2.predict(), solver.predict())
+        assert np.allclose(solver2.solve(), solver.solve())
 
         os.remove(outfile)
 
@@ -1012,4 +1012,4 @@ class TestTikhonovDecoupledSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.allclose(solver2.predict(), solver.predict())
+        assert np.allclose(solver2.solve(), solver.solve())

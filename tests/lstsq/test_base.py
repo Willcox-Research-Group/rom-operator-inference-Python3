@@ -47,7 +47,7 @@ class TestSolverTemplate:
     class Dummy(opinf.lstsq._base.SolverTemplate):
         """Instantiable version of SolverTemplate."""
 
-        def predict(self):
+        def solve(self):
             return np.ones((self.r, self.d))
 
     def test_properties(self):
@@ -240,10 +240,10 @@ class TestSolverTemplate:
         _single(Dummy2, "Dummy2.copy() returned object of type 'int'")
 
         class Dummy5(self.Dummy):
-            def predict(self):
+            def solve(self):
                 return np.empty((1, 1))
 
-        _single(Dummy5, "predict() did not return array of shape (r, d)")
+        _single(Dummy5, "solve() did not return array of shape (r, d)")
 
         class Dummy6(self.Dummy):
             def copy(self):
@@ -255,10 +255,10 @@ class TestSolverTemplate:
         _single(Dummy6, "copy() does not preserve problem dimensions")
 
         class Dummy7(self.Dummy):
-            def predict(self):
+            def solve(self):
                 return np.random.random((self.r, self.d))
 
-        _single(Dummy7, "copy() does not preserve the result of predict()")
+        _single(Dummy7, "copy() does not preserve the result of solve()")
 
         class Dummy8(self.Dummy):
             def save(self, savefile, overwrite=False):
@@ -309,8 +309,8 @@ class TestPlainSolver:
 
         repr(solver)
 
-    def test_predict(self, k=20, d=11, r=3):
-        """Test predict()."""
+    def test_solve(self, k=20, d=11, r=3):
+        """Test solve()."""
         # Set up and manually solve a least-squares problem.
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))
@@ -319,7 +319,7 @@ class TestPlainSolver:
 
         # Check the least-squares solution.
         solver = self.Solver().fit(D, Z)
-        Ohat = solver.predict()
+        Ohat = solver.solve()
         assert np.allclose(Ohat, Ohat_true)
 
     def test_save(self, k=6, d=4, r=2, outfile="_plainsolversavetest.h5"):

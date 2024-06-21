@@ -181,7 +181,7 @@ class SolverTemplate(abc.ABC):
         return self
 
     @abc.abstractmethod
-    def predict(self) -> np.ndarray:  # pragma: no cover
+    def solve(self) -> np.ndarray:  # pragma: no cover
         r"""Solve the Operator Inference regression.
 
         Returns
@@ -295,12 +295,12 @@ class SolverTemplate(abc.ABC):
     def verify(self):
         """Verify the solver.
 
-        If the solver is already trained, check :meth:`predict()`,
+        If the solver is already trained, check :meth:`solve()`,
         :meth:`copy()`, and (if implemented) :meth:`save()` and :meth:`load()`.
         If the solver is not trained, do nothing.
         """
         if self.data_matrix is None:
-            return print("cannot verify predict() before calling fit()")
+            return print("cannot verify solve() before calling fit()")
 
         tempfile = "_solververification.h5"
 
@@ -318,24 +318,24 @@ class SolverTemplate(abc.ABC):
                 raise errors.VerificationError(
                     f"{operation} does not preserve problem dimensions"
                 )
-            if not np.allclose(obj2.predict(), Ohat1):
+            if not np.allclose(obj2.solve(), Ohat1):
                 raise errors.VerificationError(
-                    f"{operation} does not preserve the result of predict()"
+                    f"{operation} does not preserve the result of solve()"
                 )
 
         try:
-            # Verify predict().
-            Ohat = self.predict()
+            # Verify solve().
+            Ohat = self.solve()
             if (shape1 := Ohat.shape) != (shape2 := (self.r, self.d)):
                 raise errors.VerificationError(
-                    "predict() did not return array of shape (r, d) "
+                    "solve() did not return array of shape (r, d) "
                     f"(expected {shape2}, got {shape1})"
                 )
 
             # Verify copy().
             self2 = _make_copy(self)
             _check_equality(self, self2, Ohat, "copy()")
-            print("predict() is consistent with problem dimensions")
+            print("solve() is consistent with problem dimensions")
 
             # Verify save()/load().
             try:
@@ -407,7 +407,7 @@ class PlainSolver(SolverTemplate):
             )
         return self
 
-    def predict(self):
+    def solve(self):
         r"""Solve the Operator Inference regression via
         :func:`scipy.linalg.lstsq()`.
 
