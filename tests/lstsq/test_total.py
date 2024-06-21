@@ -26,18 +26,17 @@ class TestTotalLeastSquaresSolver:
         assert isinstance(solver.error, float)
         solver.verify()
 
-    def test_predict(self, k=15, d=7, r=5):
-        """Test predict()."""
+    def test_solve(self, k=15, d=7, r=5):
+        """Test solve() via verify()."""
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))
         solver = self.Solver().fit(D, Z)
-        Ohat = solver.predict()
-        assert Ohat.shape == (r, d)
+        solver.verify()
 
         # One-dimensional accuracy test.
         z = Z[0]
         solver.fit(D, z)
-        ohat_TLS = solver.predict()
+        ohat_TLS = solver.solve()
         DtD = D.T @ D
         minsval = la.svdvals(np.column_stack((D, z))).min()
         A = la.solve(DtD - minsval**2 * np.eye(d), DtD, assume_a="sym")
@@ -85,7 +84,7 @@ class TestTotalLeastSquaresSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.all(solver2.solve() == solver.solve())
 
         os.remove(outfile)
 
@@ -107,4 +106,4 @@ class TestTotalLeastSquaresSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
-        assert np.all(solver2.predict() == solver.predict())
+        assert np.all(solver2.solve() == solver.solve())

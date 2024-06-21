@@ -10,7 +10,6 @@ __all__ = [
 import os
 import abc
 import copy
-import types
 import warnings
 import numpy as np
 import scipy.linalg as la
@@ -113,24 +112,21 @@ class SolverTemplate(abc.ABC):
         r"""Number of equations in the least-squares problem
         (number of rows of :math:`\D` and number of columns of :math:`\Z`).
         """
-        D = self.data_matrix
-        return D.shape[0] if D is not None else None
+        return D.shape[0] if (D := self.data_matrix) is not None else None
 
     @property
     def d(self) -> int:
         r"""Number of unknowns in each row of the operator matrix
         (number of columns of :math:`\D` and :math:`\Ohat`).
         """
-        D = self.data_matrix
-        return D.shape[1] if D is not None else None
+        return D.shape[1] if (D := self.data_matrix) is not None else None
 
     @property
     def r(self) -> int:
         r"""Number of operator matrix rows to learn
         (number of rows of :math:`\Z` and :math:`\Ohat`)
         """
-        Z = self.lhs_matrix
-        return Z.shape[0] if Z is not None else None
+        return Z.shape[0] if (Z := self.lhs_matrix) is not None else None
 
     # String representation ---------------------------------------------------
     def __str__(self) -> str:
@@ -155,14 +151,14 @@ class SolverTemplate(abc.ABC):
         return ", ".join([f"{key}={repr(val)}" for key, val in opts.items()])
 
     # Main methods -----------------------------------------------------------
-    def fit(self, data_matrix, lhs_matrix):
+    def fit(self, data_matrix: np.ndarray, lhs_matrix: np.ndarray):
         r"""Verify dimensions and save the data matrices.
 
         Parameters
         ----------
         data_matrix : (k, d) ndarray
             Data matrix :math:`\D`.
-        lhs_matrix : (r, k) ndarray
+        lhs_matrix : (r, k) or (k,) ndarray
             "Left-hand side" data matrix :math:`\Z` (not its transpose!).
             If one-dimensional, assume :math:`r = 1`.
         """
@@ -185,7 +181,7 @@ class SolverTemplate(abc.ABC):
         return self
 
     @abc.abstractmethod
-    def predict(self) -> np.ndarray:  # pragma: no cover
+    def solve(self) -> np.ndarray:  # pragma: no cover
         r"""Solve the Operator Inference regression.
 
         Returns
@@ -208,7 +204,7 @@ class SolverTemplate(abc.ABC):
         return np.linalg.cond(self.data_matrix)
 
     @_require_trained
-    def residual(self, Ohat: np.ndarray):
+    def residual(self, Ohat: np.ndarray) -> np.ndarray:
         r"""Compute the residual of the :math:`2`-norm regression objective for
         each row of the given operator matrix.
 
@@ -228,9 +224,8 @@ class SolverTemplate(abc.ABC):
 
         Returns
         -------
-        residuals : (r,) ndarray or float
+        residuals : (r,) ndarray
             :math:`2`-norm residuals for each row of the operator matrix.
-            If :math:`r = 1`, a float is returned.
         """
         if self.r == 1 and Ohat.ndim == 1:
             Ohat = Ohat.reshape((1, -1))
@@ -238,11 +233,10 @@ class SolverTemplate(abc.ABC):
             raise errors.DimensionalityError(
                 f"Ohat.shape = {Ohat.shape} != {shape} = (r, d)"
             )
-        resids = np.sum(
+        return np.sum(
             (self.data_matrix @ Ohat.T - self.lhs_matrix.T) ** 2,
             axis=0,
         )
-        return resids[0] if self.r == 1 else resids
 
     # Persistence -------------------------------------------------------------
     def save(self, savefile: str, overwrite: bool = False):  # pragma: no cover
@@ -298,13 +292,16 @@ class SolverTemplate(abc.ABC):
         return copy.deepcopy(self)
 
     # Verification ------------------------------------------------------------
-    def verify(self, *, k: int = 200, d: int = 40, r: int = 5):
+    def verify(self):
         """Verify the solver.
 
-        Check :meth:`predict()`, :meth:`copy()`, :meth:`save()` and
-        :meth:`load()` if implemented, and :meth:`fit()` if the object is not
-        yet trained.
+        If the solver is already trained, check :meth:`solve()`,
+        :meth:`copy()`, and (if implemented) :meth:`save()` and :meth:`load()`.
+        If the solver is not trained, do nothing.
         """
+        if self.data_matrix is None:
+            return print("cannot verify solve() before calling fit()")
+
         tempfile = "_solververification.h5"
 
         def _make_copy(solver):
@@ -316,50 +313,31 @@ class SolverTemplate(abc.ABC):
                 )
             return newsolver
 
-        def _verify_predict(solver):
-            Ohat = solver.predict()
-            if (shape1 := Ohat.shape) != (shape2 := (r, d)):
-                raise errors.VerificationError(
-                    "predict() did not return array of shape (r, d) "
-                    f"(expected {shape2}, got {shape1})"
-                )
-            return Ohat
-
         def _check_equality(obj1, obj2, Ohat1, operation):
             if obj1.r != obj2.r or obj1.d != obj2.d or obj1.k != obj2.k:
                 raise errors.VerificationError(
                     f"{operation} does not preserve problem dimensions"
                 )
-            if not np.allclose(obj2.predict(), Ohat1):
+            if not np.allclose(obj2.solve(), Ohat1):
                 raise errors.VerificationError(
-                    f"{operation} does not preserve the result of predict()"
+                    f"{operation} does not preserve the result of solve()"
                 )
 
         try:
-            # If not trained, make a copy and train it.
-            if self.data_matrix is None:
-                self2 = _make_copy(self)
-                D = np.random.random((k, d))
-                Z = np.random.random((r, k))
-                try:
-                    self2.fit(D, Z)
-                except Exception as ex:
-                    raise errors.VerificationError("fit() failed") from ex
-                if self2.data_matrix is not D:
-                    raise errors.VerificationError(
-                        "fit() should call SolverTemplate.fit()"
-                    )
+            # Verify solve().
+            Ohat = self.solve()
+            if (shape1 := Ohat.shape) != (shape2 := (self.r, self.d)):
+                raise errors.VerificationError(
+                    "solve() did not return array of shape (r, d) "
+                    f"(expected {shape2}, got {shape1})"
+                )
 
-            else:
-                self2, k, d, r = self, self.k, self.d, self.r
+            # Verify copy().
+            self2 = _make_copy(self)
+            _check_equality(self, self2, Ohat, "copy()")
+            print("solve() is consistent with problem dimensions")
 
-            # Check predict().
-            Ohat = _verify_predict(self2)
-            self3 = _make_copy(self2)
-            _check_equality(self2, self3, Ohat, "copy()")
-
-            print("fit() and predict() are consistent")
-
+            # Verify save()/load().
             try:
                 self2.save(tempfile, overwrite=True)
                 self3 = self2.load(tempfile)
@@ -395,9 +373,7 @@ class PlainSolver(SolverTemplate):
     def __init__(self, cond=None, lapack_driver=None):
         """Store least-squares solver options."""
         SolverTemplate.__init__(self)
-        self.__options = types.MappingProxyType(
-            dict(cond=cond, lapack_driver=lapack_driver)
-        )
+        self.__options = dict(cond=cond, lapack_driver=lapack_driver)
 
     @property
     def options(self):
@@ -431,7 +407,7 @@ class PlainSolver(SolverTemplate):
             )
         return self
 
-    def predict(self):
+    def solve(self):
         r"""Solve the Operator Inference regression via
         :func:`scipy.linalg.lstsq()`.
 
@@ -444,7 +420,7 @@ class PlainSolver(SolverTemplate):
         return results[0].T
 
     # Persistence -------------------------------------------------------------
-    def save(self, savefile, overwrite=False):
+    def save(self, savefile: str, overwrite: bool = False):
         """Serialize the solver, saving it in HDF5 format.
         The model can be recovered with the :meth:`load()` class method.
 
@@ -493,7 +469,7 @@ class PlainSolver(SolverTemplate):
 
     def copy(self):
         """Make a copy of the solver."""
-        solver = PlainSolver(
+        solver = self.__class__(
             cond=self.options["cond"],
             lapack_driver=self.options["lapack_driver"],
         )

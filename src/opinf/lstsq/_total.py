@@ -57,11 +57,11 @@ class TotalLeastSquaresSolver(SolverTemplate):
 
     # Properties --------------------------------------------------------------
     @property
-    def options(self):
+    def options(self) -> dict:
         """Keyword arguments for :func:`scipy.linalg.svd()`."""
         return self.__options
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation: dimensions + solver options."""
         start = SolverTemplate.__str__(self)
         if self.data_matrix is not None:
@@ -75,7 +75,7 @@ class TotalLeastSquaresSolver(SolverTemplate):
         return start + f"\n  SVD solver: scipy.linalg.svd({kwargs})"
 
     # Main methods ------------------------------------------------------------
-    def fit(self, data_matrix, lhs_matrix):
+    def fit(self, data_matrix: np.ndarray, lhs_matrix: np.ndarray):
         r"""Verify dimensions, compute the singular value decomposition of
         the data matrix, and solve the problem.
 
@@ -83,13 +83,9 @@ class TotalLeastSquaresSolver(SolverTemplate):
         ----------
         data_matrix : (k, d) ndarray
             Data matrix :math:`\D`.
-        lhs_matrix : (r, k) ndarray
+        lhs_matrix : (r, k) or (k,) ndarray
             "Left-hand side" data matrix :math:`\Z` (not its transpose!).
             If one-dimensional, assume :math:`r = 1`.
-
-        Returns
-        -------
-        self
         """
         SolverTemplate.fit(self, data_matrix, lhs_matrix)
 
@@ -111,7 +107,7 @@ class TotalLeastSquaresSolver(SolverTemplate):
         return self
 
     @_require_trained
-    def predict(self):
+    def solve(self) -> np.ndarray:
         r"""Return the total least-squares solution to the Operator Inference
         regression.
 
@@ -140,7 +136,7 @@ class TotalLeastSquaresSolver(SolverTemplate):
         return self._norm_of_errors
 
     # Persistence -------------------------------------------------------------
-    def save(self, savefile, overwrite=False):
+    def save(self, savefile: str, overwrite: bool = False):
         """Serialize the solver, saving it in HDF5 format.
         The model can be recovered with the :meth:`load()` class method.
 

@@ -134,4 +134,5 @@ lstsq.ipynb
    L2DecoupledSolver
    TikhonovSolver
    TikhonovDecoupledSolver
+   TruncatedSVDSolver
    TotalLeastSquaresSolver

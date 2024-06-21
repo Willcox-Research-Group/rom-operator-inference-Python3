@@ -5,6 +5,16 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+## Version 0.5.7
+
+Updates to `opinf.lstsq`:
+
+- New `TruncatedSVDSolver` class.
+- `predict()` has been renamed `solve()` for `opinf.lstsq` solver classes to not clash with `predict()` from `opinf.roms` / `opinf.models` classes.
+- `solve()` always returns a two-dimensional array, even if $r = 1$.
+
+Various small improvements to tests and documentation.
+
 ## Version 0.5.6
 
 Added public templates to `opinf.operators`:
@@ -14,9 +24,7 @@ Added public templates to `opinf.operators`:
 - `ParametricOperatorTemplate` for general parametric operators.
 - `ParametricOpInfOperator` for parametric operators that can be learned through Operator Inference.
 
-Also added `opinf.ddt.InterpolationDerivativeEstimator` and made various improvements to the API documentation.
-
-Also made various updates for compatibility with [NumPy 2.0.0](https://numpy.org/doc/stable/release/2.0.0-notes.html).
+Also added a new `opinf.ddt.InterpolationDerivativeEstimator` class and made various small changes for compatibility with [NumPy 2.0.0](https://numpy.org/doc/stable/release/2.0.0-notes.html).
 
 ## Version 0.5.5
 
