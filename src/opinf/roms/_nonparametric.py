@@ -7,17 +7,19 @@ __all__ = [
 
 import warnings
 
-from .. import errors, models, utils
+from .. import errors, lift, pre, basis as _basis, ddt, models, utils
 
 
 class ROM:
-    """Nonparametric reduced-order model class.
+    r"""Nonparametric reduced-order model.
 
     This class connects classes from the various submodules to form a complete
     reduced-order modeling workflow.
 
-    High-dimensional data -> transformed / preprocessed data -> compressed data
-    -> low-dimensional model.
+    High-dimensional data
+    :math:`\to` transformed / preprocessed data
+    :math:`\to` compressed data
+    :math:`\to` low-dimensional model.
 
     Parameters
     ----------
@@ -44,11 +46,68 @@ class ROM:
         ddt_estimator=None,
     ):
         """Store each argument as an attribute."""
-        # TODO: verify each argument here.
+        # Verify and store the model.
+        if not isinstance(
+            model,
+            (models.ContinuousModel, models.DiscreteModel),
+        ):
+            raise TypeError("invalid model type")
         self.__model = model
+
+        # Verify and store the lifter.
+        if not (lifter is None or isinstance(lifter, lift.LifterTemplate)):
+            warnings.warn(
+                "lifter not derived from LifterTemplate, "
+                "unexpected behavior may occur",
+                errors.OpInfWarning,
+            )
         self.__lifter = lifter
+
+        # Verify and store the transformer.
+        if not (
+            transformer is None
+            or isinstance(
+                transformer,
+                (pre.TransformerTemplate, pre.TransformerMulti),
+            )
+        ):
+            warnings.warn(
+                "transformer not derived from TransformerTemplate "
+                "or TransformerMulti, unexpected behavior may occur",
+                errors.OpInfWarning,
+            )
         self.__transformer = transformer
+
+        # Verify and store the basis.
+        if not (
+            basis is None
+            or isinstance(
+                basis,
+                (_basis.BasisTemplate, _basis.BasisMulti),
+            )
+        ):
+            warnings.warn(
+                "basis not derived from BasisTemplate or BasisMulti, "
+                "unexpected behavior may occur",
+                errors.OpInfWarning,
+            )
         self.__basis = basis
+
+        # Verify and store the ddt estimator.
+        if not (
+            ddt_estimator is None
+            or isinstance(ddt_estimator, ddt.DerivativeEstimatorTemplate)
+        ):
+            warnings.warn(
+                "ddt_estimator not derived from DerivativeEstimatorTemplate, "
+                "unexpected behavior may occur",
+                errors.OpInfWarning,
+            )
+        if ddt_estimator is not None and not self.iscontinuous:
+            warnings.warn(
+                "ddt_estimator ignored for discrete models",
+                errors.OpInfWarning,
+            )
         self.__ddter = ddt_estimator
 
     # Properties --------------------------------------------------------------
