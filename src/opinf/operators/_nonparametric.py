@@ -50,6 +50,16 @@ class ConstantOperator(OpInfOperator):
         r"""Operator vector :math:`\chat`."""
         return OpInfOperator.entries.fget(self)
 
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
     @property
     def shape(self):
         r"""Shape :math:`(r,)` of the operator vector :math:`\chat`."""
@@ -206,6 +216,16 @@ class LinearOperator(OpInfOperator):
     def entries(self):
         r"""Operator matrix :math:`\Ahat`."""
         return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
 
     @property
     def shape(self):
@@ -394,6 +414,16 @@ class QuadraticOperator(OpInfOperator):
         matrix :math:`\Hhat`.
         """
         return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
 
     @property
     def shape(self):
@@ -872,6 +902,16 @@ class CubicOperator(OpInfOperator):
         """
         return OpInfOperator.entries.fget(self)
 
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
     @property
     def shape(self):
         r"""Shape :math:`(r, r(r+1)(r+2)/6)` of the internal representation
@@ -1316,6 +1356,16 @@ class InputOperator(OpInfOperator, InputMixin):
         r"""Operator matrix :math:`\Bhat`."""
         return OpInfOperator.entries.fget(self)
 
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
     @property
     def shape(self):
         r"""Shape :math:`(r, m)` of the operator matrix :math:`\Bhat`."""
@@ -1479,6 +1529,16 @@ class StateInputOperator(OpInfOperator, InputMixin):
     def entries(self):
         r"""Operator matrix :math:`\Nhat`."""
         return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
 
     @property
     def shape(self):

@@ -45,8 +45,10 @@ class _TestNonparametricOperator:
         op = self.Operator()
         op.verify()
 
-        op.set_entries(np.random.random(shape))
+        op.entries = np.random.random(shape)
         op.verify()
+        del op.entries
+        assert op.entries is None
 
 
 # No dependence on state or input =============================================

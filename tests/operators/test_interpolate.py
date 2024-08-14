@@ -103,7 +103,6 @@ class TestInterpolatedOperator:
         assert op.training_parameters is None
         assert op.parameter_dimension is None
         assert op.state_dimension is None
-        assert len(op) == 0
 
         mu_bad = np.empty((s, p, p))
         with pytest.raises(ValueError) as ex:
@@ -115,17 +114,14 @@ class TestInterpolatedOperator:
         mu = np.empty((s, p))
         op.set_training_parameters(mu)
         assert np.all(op.training_parameters == mu)
-        assert len(op) == s
         assert op.state_dimension is None
         assert op.interpolator is None
 
         op.set_training_parameters(mu[:, 0])
         assert np.all(op.training_parameters == mu[:, 0])
-        assert len(op) == s
 
         entries = np.random.standard_normal((s, r, r))
         op = self.Dummy(mu, entries)
-        assert len(op) == s
 
         with pytest.raises(AttributeError) as ex:
             op.set_training_parameters(mu)

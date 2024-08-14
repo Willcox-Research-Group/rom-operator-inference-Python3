@@ -34,39 +34,31 @@ class _InterpolatedOperator(ParametricOpInfOperator):
     r"""Base class for parametric operators where the parameter dependence
     is handled with element-wise interpolation.
 
-    For a set of training parameter values :math:`\{\bfmu_i\}_{i=1}^{s}`,
+    For a set of training parameter values :math:`\{\bfmu_i\}_{i=0}^{s-1}`,
     this type of operator is given by
     :math:`\Ophat_\ell(\qhat, \u, \bfmu) = \Ohat_\ell(\bfmu)\d(\qhat, \u)`
-    where :math:`\Ohat_{\ell}(\bfmu)` is calculated by interpolating
-    operator entries that correspond to each parameter value:
+    where :math:`\Ohat_{\ell}(\bfmu)` is calculated by interpolating the
+    operator matrix entries that correspond to each parameter value:
 
     .. math::
        \Ohat_{\ell}(\bfmu)
         = \textrm{interpolate}(
-       (\bfmu_1,\Ohat_{\ell}^{(1)}),\ldots,(\Ohat_{\ell}^{(s)}\bfmu_s);\bfmu),
+       (\bfmu_0,\Ohat_{\ell}^{(0)}),
+       \ldots,(\Ohat_{\ell}^{(s-1)}\bfmu_{s-1});\bfmu),
 
     where :math:`\Ohat_\ell^{(i)} = \Ohat_\ell(\bfmu_i)` for each
-    :math:`i=1,\ldots,s`.
+    :math:`i=0,\ldots,s-1`.
 
     Parent class: :class:`opinf.operators.ParametricOpInfOperator`
-
-    Child classes:
-
-    * :class:`opinf.operators.InterpolatedConstantOperator`
-    * :class:`opinf.operators.InterpolatedLinearOperator`
-    * :class:`opinf.operators.InterpolatedQuadraticOperator`
-    * :class:`opinf.operators.InterpolatedCubicOperator`
-    * :class:`opinf.operators.InterpolatedInputOperator`
-    * :class:`opinf.operators.InterpolatedStateInputOperator`
 
     Parameters
     ----------
     training_parameters : list of s scalars or (p,) 1D ndarrays
-        Parameter values for which the operator entries are known
+        Parameter values for which the operator matrix is known
         or will be inferred from data. If not provided in the constructor,
         use :meth:`set_training_parameters` later.
     entries : list of s ndarrays, or None
-        Operator entries corresponding to the ``training_parameters``.
+        Operator matrices corresponding to the ``training_parameters``.
         If not provided in the constructor, use :meth:`set_entries` later.
     InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
@@ -94,12 +86,11 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         fromblock=False,
     ):
         """Set attributes and, if training parameters and entries are given,
-        construct the elementwise operator interpolator.
+        construct the elementwise operator matrix interpolator.
         """
         ParametricOpInfOperator.__init__(self)
 
         self.__parameters = None
-        self.__entries = None
         self.__interpolator = None
         self.__InterpolatorClass = InterpolatorClass
 
@@ -146,13 +137,15 @@ class _InterpolatedOperator(ParametricOpInfOperator):
 
     def _clear(self) -> None:
         """Reset the operator to its post-constructor state without entries."""
-        self.__entries = None
+        ParametricOpInfOperator._clear(self)
         self.__interpolator = None
 
     # Properties --------------------------------------------------------------
     @property
     def training_parameters(self):
-        """Parameter values for which the operator entries are known."""
+        """Parameter values where the operator matrix is known
+        or will be inferred from data.
+        """
         return self.__parameters
 
     @training_parameters.setter
@@ -166,7 +159,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         Parameters
         ----------
         training_parameters : list of s scalars or (p,) 1D ndarrays
-            Parameter values for which the operator entries are known
+            Parameter values for which the operator matrix is known
             or will be inferred from data.
         """
         if self.__interpolator is not None:
@@ -183,35 +176,34 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         parameters = np.array(training_parameters)
         if parameters.ndim not in (1, 2):
             raise ValueError("parameter values must be scalars or 1D arrays")
-        self._set_parameter_dimension_from_data(parameters)
+        self._set_parameter_dimension_from_values(parameters)
         self.__parameters = parameters
 
     @property
-    def entries(self):
-        """Operator entries corresponding to the training parameters values,
-        i.e., ``entries[i]`` are the operator entries corresponding to the
+    def entries(self) -> np.ndarray:
+        """Operator matrices corresponding to the training parameters values,
+        i.e., ``entries[i]`` is the operator matrix corresponding to the
         parameter value ``training_parameters[i]``.
         """
-        return self.__entries
+        return ParametricOpInfOperator.entries.fget(self)
 
     @entries.setter
     def entries(self, entries):
-        """Set the operator entries."""
-        self.set_entries(entries)
+        """Set the operator matrices."""
+        ParametricOpInfOperator.entries.fset(self, entries)
 
     @entries.deleter
     def entries(self):
         """Reset the ``entries`` attribute."""
-        self._clear()
+        ParametricOpInfOperator.entries.fdel(self)
 
     def set_entries(self, entries, fromblock: bool = False) -> None:
-        r"""Set the operator entries, the matrices
-        :math:`\Ohat_{\ell}^{(1)},\ldots,\Ohat_{\ell}^{(s)}`.
+        r"""Set the operator matrices at the training parameter values.
 
         Parameters
         ----------
         entries : list of s (r, d) ndarrays, or (r, sd) ndarray
-            Operator entries, either as a list of arrays
+            Operator matrices, either as a list of arrays
             (``fromblock=False``, default)
             or as a horizontal concatenatation of arrays (``fromblock=True``).
         fromblock : bool
@@ -242,22 +234,11 @@ class _InterpolatedOperator(ParametricOpInfOperator):
                 f"!= len(entries) = {n_arrays}"
             )
 
-        self.__entries = np.array(
-            [self.OperatorClass(A).entries for A in entries]
+        ParametricOpInfOperator.set_entries(
+            self,
+            np.array([self.OperatorClass(A).entries for A in entries]),
         )
         self.set_interpolator(self.__InterpolatorClass)
-
-    @property
-    def state_dimension(self) -> int:
-        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
-        return None if self.entries is None else self.entries[0].shape[0]
-
-    @property
-    def shape(self) -> tuple:
-        """Shape of the operator entries matrix when evaluated
-        at a parameter value.
-        """
-        return None if self.entries is None else self.entries[0].shape
 
     # Interpolation -----------------------------------------------------------
     @property
@@ -268,7 +249,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         return self.__interpolator
 
     def set_interpolator(self, InterpolatorClass):
-        """Construct the interpolator for the operator entries.
+        """Construct the interpolator for the operator matrix.
 
         Parameters
         ----------
@@ -296,14 +277,8 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         self.__InterpolatorClass = InterpolatorClass
 
     # Magic methods -----------------------------------------------------------
-    def __len__(self) -> int:
-        """Length: number of training data points for the interpolation."""
-        if self.training_parameters is None:
-            return 0
-        return len(self.training_parameters)
-
     def __eq__(self, other) -> bool:
-        """Test whether the training parameters and operator entries of two
+        """Test whether the training parameters and operator matrices of two
         _InterpolatedOperator objects are the same.
         """
         if not isinstance(other, self.__class__):
@@ -367,14 +342,14 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         .. math::
            \f_\ell(\q,\u;\bfmu)
            = \textrm{interpolate}(
-           (\bfmu_1,\f_{\ell}^{(1)}(\q,\u)),\ldots,
-           (\bfmu_s,\f_{\ell}^{(s)}(\q,\u)); \bfmu),
+           (\bfmu_0,\f_{\ell}^{(0)}(\q,\u)),\ldots,
+           (\bfmu_{s-1},\f_{\ell}^{(s-1)}(\q,\u)); \bfmu),
 
         where
 
         * :math:`\q\in\RR^n` is the full-order state,
         * :math:`\u\in\RR^m` is the input,
-        * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+        * :math:`\bfmu_0,\ldots,\bfmu_{s-1}\in\RR^p`
           are the (fixed) training parameter values,
         * :math:`\f_{\ell}^{(i)}(\q,\u) = \f_{\ell}(\q,\u;\bfmu_i)`
           is the operators evaluated at the :math:`i`-th training parameter
@@ -389,8 +364,8 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         .. math::
            \fhat_{\ell}(\qhat,\u;\bfmu)
            = \textrm{interpolate}(
-           (\bfmu_1,\Wr\trp\f_{\ell}^{(1)}(\Vr\qhat,\u)),\ldots,
-           (\bfmu_s,\Wr\trp\f_{\ell}^{(s)}(\Vr\qhat,\u)); \bfmu),
+           (\bfmu_0,\Wr\trp\f_{\ell}^{(0)}(\Vr\qhat,\u)),\ldots,
+           (\bfmu_{s-1},\Wr\trp\f_{\ell}^{(s-1)}(\Vr\qhat,\u)); \bfmu),
 
         Here, :math:`\qhat\in\RR^r` is the reduced-order state, which enables
         the low-dimensional state approximation :math:`\q = \Vr\qhat`.
@@ -421,7 +396,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
 
     # Operator inference ------------------------------------------------------
     @classmethod
-    def datablock(cls, states, inputs=None):
+    def datablock(cls, states, inputs=None) -> np.ndarray:
         r"""Return the data matrix block corresponding to the operator.
 
         For interpolated operators, this is a block diagonal matrix where the
@@ -454,8 +429,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
 
     @classmethod
     def operator_dimension(cls, s: int, r: int, m: int) -> int:
-        r"""Number of columns `sd` in the concatenated operator matrix
-        :math:`[~\Ohat_{\ell}^{(1)}~~\cdots~~\Ohat_{\ell}^{(s)}~]`.
+        r"""Number of columns in the concatenated operator matrix.
 
         Parameters
         ----------
@@ -480,6 +454,9 @@ class _InterpolatedOperator(ParametricOpInfOperator):
 
     def save(self, savefile: str, overwrite: bool = False) -> None:
         """Save the operator to an HDF5 file.
+
+        If the :attr:`InterpolatorClass` is not from :mod:`scipy.interpolate`,
+        it must be passed to :meth:`load()` when recovering the operator.
 
         Parameters
         ----------
@@ -524,7 +501,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         ----------
         loadfile : str
             Path to the file where the operator was stored via :meth:`save()`.
-        InterpolatorClass : type
+        InterpolatorClass : type or None
             Class for the elementwise interpolation. Must obey the syntax
 
                >>> interpolator = InterpolatorClass(data_points, data_values)
@@ -535,7 +512,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
 
         Returns
         -------
-        op : _Operator
+        op : _InterpolatedOperator
             Initialized operator object.
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
@@ -588,25 +565,25 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
 
     .. math::
        \chat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\chat^{(1)}),\ldots,(\bfmu_s,\chat^{(s)}); \bfmu)
+       (\bfmu_0,\chat^{(0)}),\ldots,(\bfmu_{s-1},\chat^{(s-1)}); \bfmu)
 
     Here,
 
-    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+    * :math:`\bfmu_0,\ldots,\bfmu_{s-1}\in\RR^p`
       are the (fixed) training parameter values, and
     * :math:`\chat^{(i)} = \chat(\bfmu_i) \in \RR^r`
-      are the operator entries evaluated at the training parameter values.
+      is the operator vector evaluated at the training parameter values.
 
     See :class:`opinf.operators.ConstantOperator`.
 
     Parameters
     ----------
     training_parameters : list of s scalars or (p,) 1D ndarrays
-        Parameter values for which the operator entries are known
-        or will be inferred from data. If not provided in the constructor,
+        Parameter values for which the operator vector is known or
+        will be inferred from data. If not provided in the constructor,
         use :meth:`set_training_parameters` later.
     entries : list of s ndarrays, or None
-        Operator entries corresponding to the ``training_parameters``.
+        Operator vectors corresponding to the ``training_parameters``.
         If not provided in the constructor, use :meth:`set_entries` later.
     InterpolatorClass : type or None
         Class for the elementwise interpolation. Must obey the syntax
@@ -636,14 +613,14 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
 
     .. math::
        \Ahat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\Ahat^{(1)}),\ldots,(\bfmu_s,\Ahat^{(s)}); \bfmu)
+       (\bfmu_0,\Ahat^{(0)}),\ldots,(\bfmu_{s-1},\Ahat^{(s-1)}); \bfmu)
 
     Here,
 
-    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+    * :math:`\bfmu_0,\ldots,\bfmu_{s-1}\in\RR^p`
       are the (fixed) training parameter values, and
     * :math:`\Ahat^{(i)} = \Ahat(\bfmu_i) \in \RR^{r \times r}`
-      are the operator entries evaluated at the training parameter values.
+      is the operator matrix for the :math:`i`th training parameter value.
 
     See :class:`opinf.operators.LinearOperator`
 
@@ -684,11 +661,11 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
 
     .. math::
        \Hhat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\Hhat^{(1)}),\ldots,(\bfmu_s,\Hhat^{(s)}); \bfmu)
+       (\bfmu_0,\Hhat^{(0)}),\ldots,(\bfmu_{s-1},\Hhat^{(s-1)}); \bfmu)
 
     Here,
 
-    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+    * :math:`\bfmu_0,\ldots,\bfmu_{s-1}\in\RR^p`
       are the (fixed) training parameter values, and
     * :math:`\Hhat^{(i)} = \Hhat(\bfmu_i) \in \RR^{r \times r^2}`
       are the operator entries evaluated at the training parameter values.
@@ -733,11 +710,11 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
 
     .. math::
        \Ghat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\Ghat^{(1)}),\ldots,(\bfmu_s,\Ghat^{(s)}); \bfmu)
+       (\bfmu_0,\Ghat^{(0)}),\ldots,(\bfmu_{s-1},\Ghat^{(s-1)}); \bfmu)
 
     Here,
 
-    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+    * :math:`\bfmu_0,\ldots,\bfmu_{s-1}\in\RR^p`
       are the (fixed) training parameter values, and
     * :math:`\Ghat^{(i)} = \Ghat(\bfmu_i) \in \RR^{r \times r^3}`
       are the operator entries evaluated at the training parameter values.
@@ -781,11 +758,11 @@ class InterpolatedInputOperator(_InterpolatedOperator, InputMixin):
 
     .. math::
        \Bhat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\Bhat^{(1)}),\ldots,(\bfmu_s,\Bhat^{(s)}); \bfmu)
+       (\bfmu_0,\Bhat^{(0)}),\ldots,(\bfmu_{s-1},\Bhat^{(s-1)}); \bfmu)
 
     Here,
 
-    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+    * :math:`\bfmu_0,\ldots,\bfmu_{s-1}\in\RR^p`
       are the (fixed) training parameter values, and
     * :math:`\Bhat^{(i)} = \Bhat(\bfmu_i) \in \RR^{r \times m}`
       are the operator entries evaluated at the training parameter values.
@@ -835,11 +812,11 @@ class InterpolatedStateInputOperator(_InterpolatedOperator, InputMixin):
 
     .. math::
        \Nhat(\bfmu) = \textrm{interpolate}(
-       (\bfmu_1,\Nhat^{(1)}),\ldots,(\bfmu_s,\Nhat^{(s)}); \bfmu)
+       (\bfmu_0,\Nhat^{(0)}),\ldots,(\bfmu_{s-1},\Nhat^{(s-1)}); \bfmu)
 
     Here,
 
-    * :math:`\bfmu_1,\ldots,\bfmu_s\in\RR^p`
+    * :math:`\bfmu_0,\ldots,\bfmu_{s-1}\in\RR^p`
       are the (fixed) training parameter values, and
     * :math:`\Nhat^{(i)} = \Nhat(\bfmu_i) \in \RR^{r \times rm}`
       are the operator entries evaluated at the training parameter values.
