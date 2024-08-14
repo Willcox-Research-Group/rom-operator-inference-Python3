@@ -275,7 +275,7 @@ class TestInterpolatedOperator:
         mu = np.random.random((s, p))
         states = np.random.random((s, r, k))
         op = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
-        block = op.datablock(states, states)
+        block = op.datablock(mu, states, states)
         assert block.shape == (s * _Dblock.shape[0], s * _Dblock.shape[1])
         assert np.all(block == la.block_diag(*[_Dblock for _ in range(s)]))
 

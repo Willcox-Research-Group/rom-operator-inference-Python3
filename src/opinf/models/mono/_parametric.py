@@ -178,7 +178,7 @@ class _ParametricModel(_Model):
                     )
         self.__p = p
 
-    def _set_parameter_dimension_from_data(self, parameters):
+    def _set_parameter_dimension_from_values(self, parameters):
         """Extract and save the dimension of the parameter space from a set of
         parameter values.
 
@@ -205,7 +205,7 @@ class _ParametricModel(_Model):
 
         # Process parameters.
         parameters = np.array(parameters)
-        self._set_parameter_dimension_from_data(parameters)
+        self._set_parameter_dimension_from_values(parameters)
         n_datasets = len(parameters)
 
         def _check_valid_dimension0(dataset, label):

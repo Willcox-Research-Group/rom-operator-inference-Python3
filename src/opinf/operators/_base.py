@@ -1281,11 +1281,13 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
 
     # Operator inference ------------------------------------------------------
     @abc.abstractmethod
-    def operator_dimension(self, r: int, m: int = None) -> int:
+    def operator_dimension(self, s: int, r: int, m: int = None) -> int:
         r"""Number of columns in the total operator matrix.
 
         Parameters
         ----------
+        s : int
+            Number of training parameter values.
         r : int
             State dimension.
         m : int or None
@@ -1300,11 +1302,13 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
         raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
-    def datablock(self, states, inputs=None):
+    def datablock(self, parameters, states, inputs=None):
         r"""Return the data matrix block corresponding to the operator.
 
         Parameters
         ----------
+        parameters : (s, p) ndarray
+            Traning parameter values :math:`\bfmu_{0},\ldots,\bfmu_{s-1}`.
         states : list of s (r, k_i) ndarrays
             State snapshots for each of the :math:`s` training parameter
             values.
@@ -1313,9 +1317,9 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
 
         Returns
         -------
-        block : (d, K) ndarray
+        block : (D, K) ndarray
             Data block for the parametric operator.
-            Here, :math:`d` is the total operator matrix dimension and
+            Here, :math:`D` is the total operator matrix dimension and
             :math:`K = \sum_{i=0}^{s-1}k_i`, the total number of state
             snapshots.
         """

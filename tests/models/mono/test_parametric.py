@@ -41,18 +41,19 @@ class DummyOpInfOperator2(DummyOpInfOperator):
 
 
 class DummyParametricOperator(opinf.operators.ParametricOpInfOperator):
-    """Instantiable version of ParametricOperator."""
+    """Instantiable version of ParametricOpInfOperator."""
 
     _OperatorClass = DummyOpInfOperator
 
     def __init__(self, entries=None):
-        opinf.operators.ParametricOpInfOperator.__init__(self)
-        self.entries = entries
+        super().__init__()
+        if entries is not None:
+            self.set_entries(entries)
 
-    def _clear(*args, **kwargs):  # pragma: no cover
-        pass
+    def set_entries(self, entries):
+        super().set_entries(entries)
 
-    def copy(*args, **kwargs):  # pragma: no cover
+    def operator_dimension(*args, **kwargs):  # pragma: no cover
         pass
 
     def datablock(*args, **kwargs):  # pragma: no cover
@@ -61,24 +62,17 @@ class DummyParametricOperator(opinf.operators.ParametricOpInfOperator):
     def evaluate(self, *args, **kwargs):  # pragma: no cover
         return self._OperatorClass(self.entries)
 
-    def galerkin(*args, **kwargs):  # pragma: no cover
-        pass
+    # def galerkin(*args, **kwargs):  # pragma: no cover
+    #     pass
 
-    def load(*args, **kwargs):  # pragma: no cover
-        pass
+    # def copy(*args, **kwargs):  # pragma: no cover
+    #     pass
 
-    def operator_dimension(*args, **kwargs):  # pragma: no cover
-        pass
+    # def load(*args, **kwargs):  # pragma: no cover
+    #     pass
 
-    def save(*args, **kwargs):  # pragma: no cover
-        pass
-
-    def shape(*args, **kwargs):  # pragma: no cover
-        pass
-
-    @property
-    def state_dimension(self):  # pragma: no cover
-        return self.entries.shape[0]
+    # def save(*args, **kwargs):  # pragma: no cover
+    #     pass
 
 
 class DummyParametricOperator2(DummyParametricOperator):
@@ -182,12 +176,12 @@ class TestParametricModel:
         assert p is None
 
         op1 = DummyParametricOperator()
-        op1._set_parameter_dimension_from_data(np.empty((s, 10)))
+        op1._set_parameter_dimension_from_values(np.empty((s, 10)))
         p = self.Dummy._check_parameter_dimension_consistency([op1])
         assert p == 10
 
         op2 = DummyParametricOperator2()
-        op2._set_parameter_dimension_from_data(np.empty((s, 20)))
+        op2._set_parameter_dimension_from_values(np.empty((s, 20)))
 
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             self.Dummy._check_parameter_dimension_consistency([op1, op2])
@@ -201,13 +195,13 @@ class TestParametricModel:
         op = DummyParametricOperator()
         model = self.Dummy([op, DummyOpInfOperator2()])
 
-        model._set_parameter_dimension_from_data(np.empty((s, p)))
+        model._set_parameter_dimension_from_values(np.empty((s, p)))
         assert model.parameter_dimension == p
 
         model.parameter_dimension = 10
         assert model.parameter_dimension == 10
 
-        op._set_parameter_dimension_from_data(np.empty((s, 20)))
+        op._set_parameter_dimension_from_values(np.empty((s, 20)))
 
         with pytest.raises(AttributeError) as ex:
             model.parameter_dimension = 15
@@ -219,11 +213,11 @@ class TestParametricModel:
         assert model.parameter_dimension == 20
 
         model = self.Dummy(DummyParametricOperator())
-        model._set_parameter_dimension_from_data(np.empty(s))
+        model._set_parameter_dimension_from_values(np.empty(s))
         assert model.parameter_dimension == 1
 
         with pytest.raises(ValueError) as ex:
-            model._set_parameter_dimension_from_data(np.empty((s, s, s)))
+            model._set_parameter_dimension_from_values(np.empty((s, s, s)))
         assert ex.value.args[0] == (
             "parameter values must be scalars or 1D arrays"
         )

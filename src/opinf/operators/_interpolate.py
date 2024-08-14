@@ -396,7 +396,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
 
     # Operator inference ------------------------------------------------------
     @classmethod
-    def datablock(cls, states, inputs=None) -> np.ndarray:
+    def datablock(cls, parameters, states, inputs=None) -> np.ndarray:
         r"""Return the data matrix block corresponding to the operator.
 
         For interpolated operators, this is a block diagonal matrix where the
@@ -406,6 +406,8 @@ class _InterpolatedOperator(ParametricOpInfOperator):
 
         Parameters
         ----------
+        parameters : (s, p) ndarray
+            Traning parameter values :math:`\bfmu_{0},\ldots,\bfmu_{s-1}`.
         states : list of s (r, k) or (k,) ndarrays
             State snapshots for each of the `s` training parameter values.
             If each snapshot matrix is 1D, it is assumed that :math:`r = 1`.
@@ -420,6 +422,8 @@ class _InterpolatedOperator(ParametricOpInfOperator):
             of rows in the data block corresponding to a single training
             parameter value.
         """
+        if not issubclass(cls, InputMixin):
+            inputs = [None] * len(parameters)
         return la.block_diag(
             *[
                 cls._OperatorClass.datablock(Q, U)
