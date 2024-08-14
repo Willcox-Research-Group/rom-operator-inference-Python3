@@ -107,6 +107,12 @@ operators.ipynb
    StateInputOperator
    ParametricOperatorTemplate
    ParametricOpInfOperator
+   AffineConstantOperator
+   AffineLinearOperator
+   AffineQuadraticOperator
+   AffineCubicOperator
+   AffineInputOperator
+   AffineStateInputOperator
    InterpolatedConstantOperator
    InterpolatedLinearOperator
    InterpolatedQuadraticOperator
