@@ -177,6 +177,8 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         if parameters.ndim not in (1, 2):
             raise ValueError("parameter values must be scalars or 1D arrays")
         self._set_parameter_dimension_from_values(parameters)
+        if parameters.ndim == 2 and parameters.shape[-1] == 1:
+            parameters = parameters.ravel()
         self.__parameters = parameters
 
     @property
@@ -262,17 +264,21 @@ class _InterpolatedOperator(ParametricOpInfOperator):
             This can be, e.g., a class from :mod:`scipy.interpolate`.
         """
         if self.entries is not None:
+            params = self.training_parameters
+            entries = self.entries
+
             # Default interpolator classes.
             if InterpolatorClass is None:
-                if (dim := self.training_parameters.ndim) == 1:
+                if (dim := params.ndim) == 1:
                     InterpolatorClass = spinterp.CubicSpline
+                    paramsort = np.argsort(params)
+                    params = params[paramsort]
+                    entries = self.entries[paramsort]
                 elif dim == 2:
                     InterpolatorClass = spinterp.LinearNDInterpolator
 
-            self.__interpolator = InterpolatorClass(
-                self.training_parameters,
-                self.entries,
-            )
+            # Do the interpolation.
+            self.__interpolator = InterpolatorClass(params, entries)
 
         self.__InterpolatorClass = InterpolatorClass
 
@@ -313,6 +319,21 @@ class _InterpolatedOperator(ParametricOpInfOperator):
             return np.allclose(self.entries, other.entries)
         return True
 
+    def __str__(self):
+        lines = ParametricOpInfOperator.__str__(self).split("\n")
+
+        nparams = "None"
+        if (params := self.training_parameters) is not None:
+            nparams = len(params)
+        lines.insert(-1, f"  training parameters: {nparams}")
+
+        ICname = "None"
+        if (IC := self.__InterpolatorClass) is not None:
+            ICname = IC.__name__
+        lines.insert(-1, f"  type(interpolator):  {ICname}")
+
+        return "\n".join(lines)
+
     # Evaluation --------------------------------------------------------------
     @utils.requires("entries")
     def evaluate(self, parameter):
@@ -330,6 +351,8 @@ class _InterpolatedOperator(ParametricOpInfOperator):
             Nonparametric operator corresponding to the parameter value.
         """
         self._check_parametervalue_dimension(parameter)
+        if self.parameter_dimension == 1 and not np.isscalar(parameter):
+            parameter = parameter[0]
         return self.OperatorClass(self.interpolator(parameter))
 
     # Dimensionality reduction ------------------------------------------------
@@ -459,7 +482,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
     def save(self, savefile: str, overwrite: bool = False) -> None:
         """Save the operator to an HDF5 file.
 
-        If the :attr:`InterpolatorClass` is not from :mod:`scipy.interpolate`,
+        If the :attr:`interpolator` is not from :mod:`scipy.interpolate`,
         it must be passed to :meth:`load()` when recovering the operator.
 
         Parameters
@@ -624,7 +647,7 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
     * :math:`\bfmu_0,\ldots,\bfmu_{s-1}\in\RR^p`
       are the (fixed) training parameter values, and
     * :math:`\Ahat^{(i)} = \Ahat(\bfmu_i) \in \RR^{r \times r}`
-      is the operator matrix for the :math:`i`th training parameter value.
+      is the operator matrix for training parameter value :math:`\bfmu_i`.
 
     See :class:`opinf.operators.LinearOperator`
 

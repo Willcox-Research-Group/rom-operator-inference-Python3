@@ -42,7 +42,7 @@ class _AffineOperator(ParametricOpInfOperator):
     where each :math:`\theta_{\ell}^{(a)}:\RR^{p}\to\RR` is a scalar-valued
     function of the parameter vector, each
     :math:`\Ohat_{\ell}^{(a)}\in\RR^{r\times d}` is a constant matrix, and
-    :math:`\d:\RR^{r}\times\RR^{m}\to\RR^{d}`.
+    :math:`\d:\RR^{r}\times\RR^{m}\to\RR^{d}.`
 
     Parent class: :class:`opinf.operators.ParametricOpInfOperator`
 
@@ -51,10 +51,10 @@ class _AffineOperator(ParametricOpInfOperator):
     coefficient_functions : iterable of callables
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
-        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
-        :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}.`
         If not provided in the constructor, use :meth:`set_entries` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -87,14 +87,14 @@ class _AffineOperator(ParametricOpInfOperator):
     def coefficient_functions(self) -> tuple:
         r"""Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
-        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
         """
         return self.__thetas
 
     @property
     def entries(self) -> np.ndarray:
         r"""Operator matrices for each term of the affine expansion, i.e.,
-        :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}.`
         """
         return ParametricOpInfOperator.entries.fget(self)
 
@@ -108,7 +108,7 @@ class _AffineOperator(ParametricOpInfOperator):
 
     @property
     def nterms(self):
-        """Number of terms :math:`A` in the affine expansion."""
+        r"""Number of terms :math:`A_{\ell}` in the affine expansion."""
         return len(self.coefficient_functions)
 
     def set_entries(self, entries, fromblock: bool = False) -> None:
@@ -159,9 +159,11 @@ class _AffineOperator(ParametricOpInfOperator):
 
         Returns
         -------
-        op : :mod:`opinf.operators` operator of type ``OperatorClass``.
+        op : :mod:`opinf.operators` operator of type :attr:`OperatorClass`
             Nonparametric operator corresponding to the parameter value.
         """
+        if self.parameter_dimension is None:
+            self._set_parameter_dimension_from_values([parameter])
         self._check_parametervalue_dimension(parameter)
         entries = np.sum(
             [
@@ -189,7 +191,7 @@ class _AffineOperator(ParametricOpInfOperator):
         * :math:`\q\in\RR^n` is the full-order state,
         * :math:`\u\in\RR^m` is the input,
         * :math:`\bfmu\in\RR^p` is the parameter vector, and
-        * each :math:`\Op_{\ell}^{(a)}\!(\q,\u) is a nonparametric operator.
+        * each :math:`\Op_{\ell}^{(a)}\!(\q,\u)` is a nonparametric operator.
 
         Given a *trial basis* :math:`\Vr\in\RR^{n\times r}` and a *test basis*
         :math:`\Wr\in\RR^{n\times r}`, the corresponding *intrusive projection*
@@ -204,9 +206,9 @@ class _AffineOperator(ParametricOpInfOperator):
 
         where :math:`\Ophat_{\ell}^{(a)}\!(\qhat, \u)
         = (\Wr\trp\Vr)^{-1}\Wr\trp\Op_{\ell}^{(a)}\!(\V\qhat, \u)`
-        is the intrusive projection of :math:`\Op_{\ell}^{(a)}`.
+        is the intrusive projection of :math:`\Op_{\ell}^{(a)}.`
         Here, :math:`\qhat\in\RR^r` is the reduced-order state, which enables
-        the low-dimensional state approximation :math:`\q = \Vr\qhat`.
+        the low-dimensional state approximation :math:`\q = \Vr\qhat.`
         If :math:`\Wr = \Vr`, the result is called a *Galerkin projection*.
         If :math:`\Wr \neq \Vr`, it is called a *Petrov-Galerkin projection*.
 
@@ -233,7 +235,12 @@ class _AffineOperator(ParametricOpInfOperator):
 
     # Operator inference ------------------------------------------------------
     def operator_dimension(self, s: int, r: int, m: int) -> int:
-        """Number of columns in the concatenated operator matrix.
+        r"""Number of columns in the concatenated operator matrix.
+
+        For affine operators, this is :math:`A_{\ell}\cdot d(r,m)`,
+        where :math:`A_{\ell}` is the number of terms in the affine expansion
+        and :math:`d(r,m)` is the dimension of the function
+        :math:`\d(\qhat,\u)`.
 
         Parameters
         ----------
@@ -249,73 +256,64 @@ class _AffineOperator(ParametricOpInfOperator):
     def datablock(self, parameters, states, inputs=None) -> np.ndarray:
         r"""Return the data matrix block corresponding to the operator.
 
-        For affine operators
-        :math:`\Ophat(\qhat,\u;\bfmu) = \Ohat(\bfmu)\d(\qhat,\u)` with
-        :math:`\Ohat(\bfmu)\in\RR^{r\times d}` and `\d(\qhat,\u)\in\RR^{r}`,
-        this is the block matrix
+        For affine operators :math:`\Ophat_{\ell}(\qhat,\u;\bfmu)
+        = \Ohat_{\ell}(\bfmu)\d_{\ell}(\qhat,\u)` with
+        :math:`\Ohat_{\ell}(\bfmu)\in\RR^{r\times d}` and
+        :math:`\d_{\ell}(\qhat,\u)\in\RR^{d}`, this is the block matrix
 
         .. math::
-           \D\trp
+           \D_{\ell}\trp
            = \left[\begin{array}{ccc}
-               \theta_{\ell}^{(0)}\!(\bfmu_{0})\d(\Qhat_{0},\U_{0})
+               \theta_{\ell}^{(0)}\!(\bfmu_{0})\,
+               \d_{\ell}(\Qhat_{0},\U_{0})
                & \cdots &
-               \theta_{\ell}^{(0)}\!(\bfmu_{s-1})\d(\Qhat_{0},\U_{s-1})
+               \theta_{\ell}^{(0)}\!(\bfmu_{s-1})\,
+               \d_{\ell}(\Qhat_{s-1},\U_{s-1})
                \\ \vdots & & \vdots \\
-               \theta_{\ell}^{(A_{\ell})}\!(\bfmu_{0})\d(\Qhat_{0},\U_{0})
+               \theta_{\ell}^{(A_{\ell})}\!(\bfmu_{0})\,
+               \d_{\ell}(\Qhat_{0},\U_{0})
                & \cdots &
-               \theta_{\ell}^{(A_{\ell})}\!(\bfmu_{s-1})\d(\Qhat_{0},\U_{s-1})
+               \theta_{\ell}^{(A_{\ell})}\!(\bfmu_{s-1})\,
+               \d_{\ell}(\Qhat_{s-1},\U_{s-1})
            \end{array}\right]
            \in \RR^{A_{\ell}d \times \sum_{i=0}^{s-1}k_i}
 
-        where :math:`\Qhat_{i}\in\RR^{r \times k_i}` is the collection of state
-        snapshots for training parameter :math:`\bfmu_i\in\RR^{p}` and
-        :math:`\U_{i}\in\RR^{m \times k_i}` are the corresponding inputs,
-        :math:`i = 0, \ldots, s-1`, where :math:`s` is the number of training
-        parameter values. The notation :math:`\d(\Qhat_{i},\U_{i})` is
-        shorthand for the matrix
+        where :math:`\Qhat_{i} =
+        [~\qhat_{i,0}~~\cdots~~\qhat_{i,k_i-1}] \in \RR^{r \times k_i}`
+        and :math:`\U_{i} =
+        [~\u_{i,0}~~\cdots~~\u_{i,k_i-1}] \in \RR^{m\times k_i}`
+        are the state snapshots and inputs corresponding to training parameter
+        value :math:`\bfmu_i\in\RR^{p}`, :math:`i = 0, \ldots, s-1`, where
+        :math:`s` is the number of training parameter values. The notation
+        :math:`\d_{\ell}(\Qhat_{i},\U_{i})` is shorthand for the matrix
 
         .. math::
            \d(\Qhat_{i},\U_{i})
-           = \left[\begin{array}{ccc}\
-               \d(\qhat_{i,0},\u_{i,0})
+           = \left[\begin{array}{ccc}
+               \d_{\ell}(\qhat_{i,0},\u_{i,0})
                & \cdots &
-               \d(\qhat_{i,k_i-1},\u_{i,k_i-1})
-           end{array}\right]
-           \in \RR^{d \times k_i},
-
-        where
-
-        .. math::
-           \Qhat_{i}
-           &= \left[\begin{array}{ccc}\
-               \qhat_{i,0} & \cdots & \qhat_{i,k_i-1}
-           end{array}\right]
-           \in \RR^{r \times k_i},
-           \\
-           \U_{i}
-           &= \left[\begin{array}{ccc}\
-               \u_{i,0} & \cdots & \u_{i,k_i-1}
-           end{array}\right]
-           \in \RR^{m \times k_i}.
+               \d_{\ell}(\qhat_{i,k_i-1},\u_{i,k_i-1})
+           \end{array}\right]
+           \in \RR^{d \times k_i}.
 
         Parameters
         ----------
         parameters : (s, p) ndarray
-            Traning parameter values :math:`\bfmu_{0},\ldots,\bfmu_{s-1}`.
+            Traning parameter values :math:`\bfmu_{0},\ldots,\bfmu_{s-1}.`
         states : list of s (r, k) ndarrays
             State snapshots for each of the :math:`s` training parameter
-            values, i.e., :math:`\Qhat_{0},\ldots,\Qhat_{s-1}`.
+            values, i.e., :math:`\Qhat_{0},\ldots,\Qhat_{s-1}.`
         inputs : list of s (m, k)-or-(k,) ndarrays or None
             Inputs corresponding to the state snapshots, i.e.,
-            :math:`\U_{0},\ldots,\U_{s-1}`.
-            If each input matrix is 1D, it is assumed that :math:`m = 1`.
+            :math:`\U_{0},\ldots,\U_{s-1}.`
+            If each input matrix is 1D, it is assumed that :math:`m = 1.`
 
         Returns
         -------
-        block : (sd, sk) ndarray
-            Data block for the interpolated operator. Here, `d` is the number
-            of rows in the data block corresponding to a single training
-            parameter value.
+        block : (D, K) ndarray
+            Data block for the affine operator. Here,
+            :math:`D = A_{\ell}d(r,m)` and :math:`K = \sum_{i=0}^{s-1}k_i`
+            is the total number of snapshots.
         """
         if not isinstance(self, InputMixin):
             inputs = [None] * len(parameters)
@@ -396,9 +394,11 @@ class AffineConstantOperator(_AffineOperator):
     r"""Affine-parametric constant operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu)
     = \chat_{\ell}(\bfmu)
-    = \sum_{a=0}^{A_{\ell}-1}\theta_\ell^{(a)}\!(\bfmu)\chat_{\ell}^{(a)}`.
+    = \sum_{a=0}^{A_{\ell}-1}\theta_\ell^{(a)}\!(\bfmu)\,\chat_{\ell}^{(a)}.`
 
-    Here, each :math:`\chat_{\ell}^{(a)} \in \RR^r` is a constant vector,
+    Here, each :math:`\theta_\ell^{(a)}:\RR^{p}\to\RR` is a scalar-valued
+    function of the parameter vector
+    and each :math:`\chat_{\ell}^{(a)} \in \RR^r` is a constant vector,
     see :class:`opinf.operators.ConstantOperator`.
 
     Parameters
@@ -406,10 +406,10 @@ class AffineConstantOperator(_AffineOperator):
     coefficient_functions : list of callables
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
-        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
-        :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}.`
         If not provided in the constructor, use :meth:`set_entries` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -424,10 +424,12 @@ class AffineLinearOperator(_AffineOperator):
     r"""Affine-parametric linear operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu)
     = \Ahat_{\ell}(\bfmu)\qhat = \left(
-    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\Ahat_{\ell}^{(a)}
-    \right)\qhat`.
+    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\,\Ahat_{\ell}^{(a)}
+    \right)\qhat.`
 
-    Here, each :math:`\Ahat_{\ell}^{(a)} \in \RR^{r\times r}` is a constant
+    Here, each :math:`\theta_\ell^{(a)}:\RR^{p}\to\RR` is a scalar-valued
+    function of the parameter vector
+    and each :math:`\Ahat_{\ell}^{(a)} \in \RR^{r\times r}` is a constant
     matrix, see :class:`opinf.operators.LinearOperator`.
 
     Parameters
@@ -435,10 +437,10 @@ class AffineLinearOperator(_AffineOperator):
     coefficient_functions : list of callables
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
-        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
-        :math:`\Ahat_{\ell}^{(0)},\ldots,\Ahat_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\Ahat_{\ell}^{(0)},\ldots,\Ahat_{\ell}^{(A_{\ell}-1)}.`
         If not provided in the constructor, use :meth:`set_entries` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -453,10 +455,12 @@ class AffineQuadraticOperator(_AffineOperator):
     r"""Affine-parametric quadratic operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu)
     = \Hhat_{\ell}(\bfmu)[\qhat\otimes\qhat] = \left(
-    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\Hhat_{\ell}^{(a)}
-    \right)[\qhat\otimes\qhat]`.
+    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\,\Hhat_{\ell}^{(a)}
+    \right)[\qhat\otimes\qhat].`
 
-    Here, each :math:`\Hhat_{\ell}^{(a)} \in \RR^{r\times r^2}` is a constant
+    Here, each :math:`\theta_\ell^{(a)}:\RR^{p}\to\RR` is a scalar-valued
+    function of the parameter vector
+    and each :math:`\Hhat_{\ell}^{(a)} \in \RR^{r\times r^2}` is a constant
     matrix, see :class:`opinf.operators.QuadraticOperator`.
 
     Parameters
@@ -464,10 +468,10 @@ class AffineQuadraticOperator(_AffineOperator):
     coefficient_functions : list of callables
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
-        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
-        :math:`\Hhat_{\ell}^{(0)},\ldots,\Hhat_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\Hhat_{\ell}^{(0)},\ldots,\Hhat_{\ell}^{(A_{\ell}-1)}.`
         If not provided in the constructor, use :meth:`set_entries` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -482,10 +486,12 @@ class AffineCubicOperator(_AffineOperator):
     r"""Affine-parametric cubic operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu)
     = \Ghat_{\ell}(\bfmu)[\qhat\otimes\qhat\otimes\qhat] = \left(
-    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\Ghat_{\ell}^{(a)}
-    \right)[\qhat\otimes\qhat\otimes\qhat]`.
+    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\,\Ghat_{\ell}^{(a)}
+    \right)[\qhat\otimes\qhat\otimes\qhat].`
 
-    Here, each :math:`\Ghat_{\ell}^{(a)} \in \RR^{r\times r^3}` is a constant
+    Here, each :math:`\theta_\ell^{(a)}:\RR^{p}\to\RR` is a scalar-valued
+    function of the parameter vector
+    and each :math:`\Ghat_{\ell}^{(a)} \in \RR^{r\times r^3}` is a constant
     matrix, see :class:`opinf.operators.CubicOperator`.
 
     Parameters
@@ -493,10 +499,10 @@ class AffineCubicOperator(_AffineOperator):
     coefficient_functions : list of callables
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
-        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
-        :math:`\Ghat_{\ell}^{(0)},\ldots,\Ghat_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\Ghat_{\ell}^{(0)},\ldots,\Ghat_{\ell}^{(A_{\ell}-1)}.`
         If not provided in the constructor, use :meth:`set_entries` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -511,10 +517,12 @@ class AffineInputOperator(_AffineOperator, InputMixin):
     r"""Affine-parametric input operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu)
     = \Bhat_{\ell}(\bfmu)\u = \left(
-    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\Bhat_{\ell}^{(a)}
-    \right)\u`.
+    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\,\Bhat_{\ell}^{(a)}
+    \right)\u.`
 
-    Here, each :math:`\Bhat_{\ell}^{(a)} \in \RR^{r\times m}` is a constant
+    Here, each :math:`\theta_\ell^{(a)}:\RR^{p}\to\RR` is a scalar-valued
+    function of the parameter vector
+    and each :math:`\Bhat_{\ell}^{(a)} \in \RR^{r\times m}` is a constant
     matrix, see :class:`opinf.operators.InputOperator`.
 
     Parameters
@@ -522,10 +530,10 @@ class AffineInputOperator(_AffineOperator, InputMixin):
     coefficient_functions : list of callables
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
-        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
-        :math:`\Bhat_{\ell}^{(0)},\ldots,\Bhat_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\Bhat_{\ell}^{(0)},\ldots,\Bhat_{\ell}^{(A_{\ell}-1)}.`
         If not provided in the constructor, use :meth:`set_entries` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
@@ -545,10 +553,12 @@ class AffineStateInputOperator(_AffineOperator, InputMixin):
     r"""Affine-parametric state-input operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu)
     = \Nhat_{\ell}(\bfmu)\qhat = \left(
-    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\Nhat_{\ell}^{(a)}
-    \right)[\u\otimes\qhat]`.
+    \sum_{a=0}^{A_{\ell}-1}\theta_{\ell}^{(a)}\!(\bfmu)\,\Nhat_{\ell}^{(a)}
+    \right)[\u\otimes\qhat].`
 
-    Here, each :math:`\Nhat_{\ell}^{(a)} \in \RR^{r\times rm}` is a constant
+    Here, each :math:`\theta_\ell^{(a)}:\RR^{p}\to\RR` is a scalar-valued
+    function of the parameter vector
+    and each :math:`\Nhat_{\ell}^{(a)} \in \RR^{r\times rm}` is a constant
     matrix, see :class:`opinf.operators.StateInputOperator`.
 
     Parameters
@@ -556,10 +566,10 @@ class AffineStateInputOperator(_AffineOperator, InputMixin):
     coefficient_functions : list of callables
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
-        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
-        :math:`\Nhat_{\ell}^{(0)},\ldots,\Nhat_{\ell}^{(A_{\ell}-1)}`.
+        :math:`\Nhat_{\ell}^{(0)},\ldots,\Nhat_{\ell}^{(A_{\ell}-1)}.`
         If not provided in the constructor, use :meth:`set_entries` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation

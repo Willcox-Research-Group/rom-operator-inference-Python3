@@ -862,21 +862,21 @@ class OpInfOperator(OperatorTemplate):
 
 # Parametric operators ========================================================
 class ParametricOperatorTemplate(abc.ABC):
-    r"""Template for general operators that depend on external parameters,
+    r"""Template for operators that depend on external parameters,
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu).`
 
     In this package, a parametric "operator" is a function
-    :math:`\Ophat_{\ell}: \RR^n \times \RR^m \times \RR^p \to \RR^n` that acts
-    on a state vector :math:`\qhat\in\RR^n`, an (optional) input vector
+    :math:`\Ophat_{\ell}: \RR^r \times \RR^m \times \RR^p \to \RR^r` that acts
+    on a state vector :math:`\qhat\in\RR^r`, an (optional) input vector
     :math:`\u\in\RR^m`, and a parameter vector :math:`\bfmu\in\RR^p`.
 
-    Models are defined as the sum of several operators,
-    for example, an :class:`opinf.models.ContinuousModel` object represents a
-    system of ordinary differential equations:
+    Parametric models are defined as the sum of several operators, at least
+    one of which is parametric.
+    For example, a system of ODEs:
 
     .. math::
-       \ddt\qhat(t)
-       = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t)).
+       \ddt\qhat(t;\bfmu)
+       = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t);\bfmu).
 
     Notes
     -----
@@ -885,7 +885,6 @@ class ParametricOperatorTemplate(abc.ABC):
     For nonparametric model terms, see :class:`OperatorTemplate`.
     For model terms that can be learned with Operator Inference, see
     :class:`OpInfOperator` or :class:`ParametricOpInfOperator`.
-
     """
 
     # Meta properties ---------------------------------------------------------
@@ -945,7 +944,7 @@ class ParametricOperatorTemplate(abc.ABC):
     @abc.abstractmethod
     def evaluate(self, parameter):
         r"""Evaluate the operator at the given parameter value,
-        resulting in a nonparametric operator of type ``OperatorClass``.
+        resulting in a nonparametric operator of type :attr`OperatorClass`.
 
         Parameters
         ----------
@@ -1173,19 +1172,9 @@ def is_parametric(obj) -> bool:
 
 
 class ParametricOpInfOperator(ParametricOperatorTemplate):
-    r"""Base class for operators that depend on external parameters, i.e.,
+    r"""Template for operators that depend on external parameters, and which
+    can be calibrated through operator inference, i.e.,
     :math:`\Ophat_\ell(\qhat,\u;\bfmu) = \Ohat_\ell(\bfmu)\d_\ell(\qhat,\u)`.
-
-    Evaluating a ``_ParametricOpInfOperator`` at a specific parameter value
-    results in an object that inherits from
-    :class:`opinf.operators.OpInfOperator`.
-
-    Examples
-    --------
-    >>> parametric_operator = MyParametricOperator(init_args)
-    >>> nonparametric_operator = parametric_operator.evaluate(parameter_value)
-    >>> isinstance(nonparametric_operator, OpInfOperator)
-    True
     """
 
     # Initialization ----------------------------------------------------------
@@ -1232,8 +1221,8 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
 
     @property
     def parameter_dimension(self) -> int:
-        r"""Dimension of the parameters :math:`\bfmu` that the operator acts
-        on.
+        r"""Dimension :math:`p` of the parameter vector :math:`\bfmu` that the
+        operator matrix depends on.
         """
         return self.__p
 
