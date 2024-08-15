@@ -2,8 +2,8 @@
 """Parametric monolithic dynamical systems models."""
 
 __all__ = [
-    # "ParametricDiscreteModel",
-    # "ParametricContinuousModel",
+    "ParametricDiscreteModel",
+    "ParametricContinuousModel",
     "InterpolatedDiscreteModel",
     "InterpolatedContinuousModel",
 ]
@@ -264,16 +264,26 @@ class _ParametricModel(_Model):
 
         # Subtract known operator evaluations from the LHS.
         for ell in self._indices_of_known_operators:
+            op = self.operators[ell]
+            _isparametric = _operators.is_parametric(op)
             for i, lhsi in enumerate(lhs):
-                lhs[i] = lhsi - self.operators[ell].apply(
-                    parameters[i], states[i], inputs[i]
-                )
+                _args = [states[i], inputs[i]]
+                if _isparametric:
+                    _args.insert(0, parameters[i])
+                lhs[i] = lhsi - op.apply(*_args)
 
         return parameters, states, lhs, inputs
 
     def _assemble_data_matrix(self, parameters, states, inputs):
         """Assemble the data matrix for operator inference."""
-        raise NotImplementedError("future release")
+        blocks = []
+        for i in self._indices_of_operators_to_infer:
+            op = self.operators[i]
+            if not _operators.is_parametric(op):
+                blocks.append(np.hstack(states).T)
+            else:
+                blocks.append(op.datablock(parameters, states, inputs).T)
+        return np.hstack(blocks)
 
     def _fit_solver(self, parameters, states, lhs, inputs=None):
         """Construct a solver for the operator inference least-squares
@@ -288,10 +298,24 @@ class _ParametricModel(_Model):
         # Set up non-intrusive learning.
         D = self._assemble_data_matrix(parameters_, states_, inputs_)
         self.solver.fit(D, np.hstack(lhs_))
+        self.__s = len(parameters_)
 
     def _extract_operators(self, Ohat):
         """Unpack the operator matrix and populate operator entries."""
-        raise NotImplementedError("future release")
+        index = 0
+        for i in self._indices_of_operators_to_infer:
+            op = self.operators[i]
+            if _operators.is_parametric(op):
+                endex = index + op.operator_dimension(
+                    self.__s, self.state_dimension, self.input_dimension
+                )
+                op.set_entries(Ohat[:, index:endex], fromblock=True)
+            else:
+                endex = index + op.operator_dimension(
+                    self.state_dimension, self.input_dimension
+                )
+                op.set_entries(Ohat[:, index:endex])
+            index = endex
 
     def refit(self):
         """Solve the Operator Inference regression using the data from the
@@ -398,7 +422,10 @@ class _ParametricModel(_Model):
             Nonparametric model of type ``ModelClass``.
         """
         return self.ModelClass(
-            [op.evaluate(parameter) for op in self.operators]
+            [
+                op.evaluate(parameter) if _operators.is_parametric(op) else op
+                for op in self.operators
+            ]
         )
 
     def rhs(self, parameter, *args, **kwargs):
@@ -973,7 +1000,7 @@ class ParametricContinuousModel(_ParametricContinuousMixin, _ParametricModel):
     pass
 
 
-# Special case: fully interpolation-based models ==============================
+# Special case: completely interpolation-based models =========================
 class _InterpolatedModel(_ParametricModel):
     """Base class for parametric monolithic models where all operators MUST be
     interpolation-based parametric operators. In this special case, the

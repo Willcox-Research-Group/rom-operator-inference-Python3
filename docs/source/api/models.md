@@ -2,6 +2,28 @@
 
 ```{eval-rst}
 .. automodule:: opinf.models
+
+.. currentmodule:: opinf.models
+
+**Nonparametric Models**
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    ContinuousModel
+    DiscreteModel
+
+**Parametric Models**
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    AffineContinuousModel
+    AffineDiscreteModel
+    InterpolatedContinuousModel
+    InterpolatedDiscreteModel
 ```
 
 :::{admonition} Overview
@@ -55,7 +77,6 @@ A _nonparametric_ model is comprised exclusively of [nonparametric operators](se
 .. currentmodule:: opinf.models
 
 .. autosummary::
-    :toctree: _autosummaries
     :nosignatures:
 
     ContinuousModel
@@ -123,6 +144,16 @@ A _parametric model_ is a model with at least one [parametric operator](sec-oper
 Parametric models are similar to nonparametric models: they are initialized with a list of operators, use `fit()` to calibrate operator entries, and `predict()` to solve the model.
 In addition, parametric models have an `evaluate()` method that returns a nonparametric model at a fixed parameter value.
 
+```{eval-rst}
+.. currentmodule:: opinf.models
+
+.. autosummary::
+   :nosignatures:
+
+   ParametricContinuousModel
+   ParametricDiscreteModel
+```
+
 ### Interpolated Models
 
 Interpolated models consist exclusively of [interpolated operators](sec-operators-interpolated).
@@ -131,7 +162,6 @@ Interpolated models consist exclusively of [interpolated operators](sec-operator
 .. currentmodule:: opinf.models
 
 .. autosummary::
-    :toctree: _autosummaries
     :nosignatures:
 
     InterpolatedContinuousModel
