@@ -6,6 +6,7 @@ import h5py
 import pytest
 import numpy as np
 import scipy.linalg as la
+import scipy.sparse as sparse
 import matplotlib.pyplot as plt
 
 import opinf
@@ -437,6 +438,11 @@ class TestOpInfOperator:
         assert ex.value.args[0] == (
             "operator entries must be NumPy or scipy.sparse array"
         )
+
+        A = sparse.dok_array((3, 4), dtype=np.float64)
+        A[1, 2] = 2
+        A[0, 1] = -1
+        func(A)
 
         A = np.arange(12, dtype=float).reshape((4, 3)).T
         A[0, 0] = np.nan

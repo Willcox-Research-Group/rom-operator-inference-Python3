@@ -534,7 +534,9 @@ class OpInfOperator(OperatorTemplate):
     @staticmethod
     def _validate_entries(entries):
         """Ensure argument is a NumPy array and screen for NaN, Inf entries."""
-        if not (isinstance(entries, np.ndarray) or sparse.issparse(entries)):
+        if sparse.issparse(entries):
+            return
+        if not isinstance(entries, np.ndarray):
             raise TypeError(
                 "operator entries must be NumPy or scipy.sparse array"
             )

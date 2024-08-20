@@ -144,7 +144,7 @@ class _AffineOperator(ParametricOpInfOperator):
 
         ParametricOpInfOperator.set_entries(
             self,
-            np.array([self.OperatorClass(A).entries for A in entries]),
+            [self.OperatorClass(A).entries for A in entries],
         )
 
     # Evaluation --------------------------------------------------------------
@@ -165,12 +165,11 @@ class _AffineOperator(ParametricOpInfOperator):
         if self.parameter_dimension is None:
             self._set_parameter_dimension_from_values([parameter])
         self._check_parametervalue_dimension(parameter)
-        entries = np.sum(
+        entries = sum(
             [
                 theta(parameter) * A
                 for theta, A in zip(self.coefficient_functions, self.entries)
-            ],
-            axis=0,
+            ]
         )
         return self.OperatorClass(entries)
 
