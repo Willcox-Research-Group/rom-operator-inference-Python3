@@ -20,8 +20,8 @@
     :toctree: _autosummaries
     :nosignatures:
 
-    AffineContinuousModel
-    AffineDiscreteModel
+    ParametricContinuousModel
+    ParametricDiscreteModel
     InterpolatedContinuousModel
     InterpolatedDiscreteModel
 ```

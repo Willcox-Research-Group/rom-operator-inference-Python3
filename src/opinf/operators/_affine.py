@@ -48,10 +48,12 @@ class _AffineOperator(ParametricOpInfOperator):
 
     Parameters
     ----------
-    coefficient_functions : iterable of callables
+    coefficient_functions : (iterable of callables) or int
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
         :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
+        If an integer :math:`p` is provided, set :math:`A_{\ell} = p` and
+        define :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_i`.
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
         :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}.`
@@ -60,6 +62,40 @@ class _AffineOperator(ParametricOpInfOperator):
         If ``True``, interpret ``entries`` as a horizontal concatenation
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
+
+    Warnings
+    --------
+    A common choice for the ``coefficient_functions`` is for the :math:`i`-th
+    coefficient function to return the :math:`i`-th component of the parameter
+    vector, i.e., :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_{i}`. The following
+    implementation for this choice results in a subtle but serious error:
+
+    .. code-block:: python
+
+       coefficient_functions = [lambda mu: mu[i] for i in range(nterms)]
+
+    Due to the late binding behavior of closures in Python, the ``lambda``
+    functions do not capture the value of the variable ``i`` at each iteration.
+    When any of the ``lambda`` functions are called, they use the value of
+    ``i`` at the time of the call, which, after the loop, is always
+    ``nterms - 1``. To avoid this issue, use ``coefficient_functions=p`` in the
+    constructor, where ``p`` is the dimension of the parameter vector. For
+    related scenarios, avoid this pitfall by writing `lambda` function with
+    the index given explicitly, or by using a function factory.
+
+    .. code-block:: python
+
+       coefficient_functions = [
+           lambda mu: mu[0],
+           lambda mu: mu[1],
+           lambda mu: mu[2],
+           # ...
+       ]
+
+       # Alternatively, define a function factory.
+       def coeff_function(i : int):
+           return lambda mu: mu[i]
+       coefficient_functions = [coeff_function(i) for i in range(nterms)]
     """
 
     # Initialization ----------------------------------------------------------
@@ -67,10 +103,22 @@ class _AffineOperator(ParametricOpInfOperator):
         self,
         coefficient_functions,
         entries=None,
-        fromblock=False,
+        fromblock: bool = False,
     ):
         """Set coefficient functions and (if given) operator matrices."""
         ParametricOpInfOperator.__init__(self)
+
+        # Shortcut: theta[i](mu) = mu[i].
+        if isinstance(coefficient_functions, int):
+            self.parameter_dimension = coefficient_functions
+
+            def componentgetter(i: int):
+                """Make a function that returns the i-th value of its input."""
+                return lambda mu: mu[i]
+
+            coefficient_functions = [
+                componentgetter(i) for i in range(self.parameter_dimension)
+            ]
 
         # Ensure that the coefficient functions are callable.
         if any(not callable(theta) for theta in coefficient_functions):
@@ -92,7 +140,7 @@ class _AffineOperator(ParametricOpInfOperator):
         return self.__thetas
 
     @property
-    def entries(self) -> np.ndarray:
+    def entries(self) -> list:
         r"""Operator matrices for each term of the affine expansion, i.e.,
         :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}.`
         """
@@ -402,10 +450,12 @@ class AffineConstantOperator(_AffineOperator):
 
     Parameters
     ----------
-    coefficient_functions : list of callables
+    coefficient_functions : (iterable of callables) or int
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
         :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
+        If an integer :math:`p` is provided, set :math:`A_{\ell} = p` and
+        define :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_i`.
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
         :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}.`
@@ -414,6 +464,40 @@ class AffineConstantOperator(_AffineOperator):
         If ``True``, interpret ``entries`` as a horizontal concatenation
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
+
+    Warnings
+    --------
+    A common choice for the ``coefficient_functions`` is for the :math:`i`-th
+    coefficient function to return the :math:`i`-th component of the parameter
+    vector, i.e., :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_{i}`. The following
+    implementation for this choice results in a subtle but serious error:
+
+    .. code-block:: python
+
+       coefficient_functions = [lambda mu: mu[i] for i in range(nterms)]
+
+    Due to the late binding behavior of closures in Python, the ``lambda``
+    functions do not capture the value of the variable ``i`` at each iteration.
+    When any of the ``lambda`` functions are called, they use the value of
+    ``i`` at the time of the call, which, after the loop, is always
+    ``nterms - 1``. To avoid this issue, use ``coefficient_functions=p`` in the
+    constructor, where ``p`` is the dimension of the parameter vector. For
+    related scenarios, avoid this pitfall by writing `lambda` function with
+    the index given explicitly, or by using a function factory.
+
+    .. code-block:: python
+
+       coefficient_functions = [
+           lambda mu: mu[0],
+           lambda mu: mu[1],
+           lambda mu: mu[2],
+           # ...
+       ]
+
+       # Alternatively, define a function factory.
+       def coeff_function(i : int):
+           return lambda mu: mu[i]
+       coefficient_functions = [coeff_function(i) for i in range(nterms)]
     """
 
     _OperatorClass = ConstantOperator
@@ -433,10 +517,12 @@ class AffineLinearOperator(_AffineOperator):
 
     Parameters
     ----------
-    coefficient_functions : list of callables
+    coefficient_functions : (iterable of callables) or int
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
         :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
+        If an integer :math:`p` is provided, set :math:`A_{\ell} = p` and
+        define :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_i`.
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
         :math:`\Ahat_{\ell}^{(0)},\ldots,\Ahat_{\ell}^{(A_{\ell}-1)}.`
@@ -445,6 +531,40 @@ class AffineLinearOperator(_AffineOperator):
         If ``True``, interpret ``entries`` as a horizontal concatenation
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
+
+    Warnings
+    --------
+    A common choice for the ``coefficient_functions`` is for the :math:`i`-th
+    coefficient function to return the :math:`i`-th component of the parameter
+    vector, i.e., :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_{i}`. The following
+    implementation for this choice results in a subtle but serious error:
+
+    .. code-block:: python
+
+       coefficient_functions = [lambda mu: mu[i] for i in range(nterms)]
+
+    Due to the late binding behavior of closures in Python, the ``lambda``
+    functions do not capture the value of the variable ``i`` at each iteration.
+    When any of the ``lambda`` functions are called, they use the value of
+    ``i`` at the time of the call, which, after the loop, is always
+    ``nterms - 1``. To avoid this issue, use ``coefficient_functions=p`` in the
+    constructor, where ``p`` is the dimension of the parameter vector. For
+    related scenarios, avoid this pitfall by writing `lambda` function with
+    the index given explicitly, or by using a function factory.
+
+    .. code-block:: python
+
+       coefficient_functions = [
+           lambda mu: mu[0],
+           lambda mu: mu[1],
+           lambda mu: mu[2],
+           # ...
+       ]
+
+       # Alternatively, define a function factory.
+       def coeff_function(i : int):
+           return lambda mu: mu[i]
+       coefficient_functions = [coeff_function(i) for i in range(nterms)]
     """
 
     _OperatorClass = LinearOperator
@@ -464,10 +584,12 @@ class AffineQuadraticOperator(_AffineOperator):
 
     Parameters
     ----------
-    coefficient_functions : list of callables
+    coefficient_functions : (iterable of callables) or int
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
         :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
+        If an integer :math:`p` is provided, set :math:`A_{\ell} = p` and
+        define :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_i`.
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
         :math:`\Hhat_{\ell}^{(0)},\ldots,\Hhat_{\ell}^{(A_{\ell}-1)}.`
@@ -476,6 +598,40 @@ class AffineQuadraticOperator(_AffineOperator):
         If ``True``, interpret ``entries`` as a horizontal concatenation
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
+
+    Warnings
+    --------
+    A common choice for the ``coefficient_functions`` is for the :math:`i`-th
+    coefficient function to return the :math:`i`-th component of the parameter
+    vector, i.e., :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_{i}`. The following
+    implementation for this choice results in a subtle but serious error:
+
+    .. code-block:: python
+
+       coefficient_functions = [lambda mu: mu[i] for i in range(nterms)]
+
+    Due to the late binding behavior of closures in Python, the ``lambda``
+    functions do not capture the value of the variable ``i`` at each iteration.
+    When any of the ``lambda`` functions are called, they use the value of
+    ``i`` at the time of the call, which, after the loop, is always
+    ``nterms - 1``. To avoid this issue, use ``coefficient_functions=p`` in the
+    constructor, where ``p`` is the dimension of the parameter vector. For
+    related scenarios, avoid this pitfall by writing `lambda` function with
+    the index given explicitly, or by using a function factory.
+
+    .. code-block:: python
+
+       coefficient_functions = [
+           lambda mu: mu[0],
+           lambda mu: mu[1],
+           lambda mu: mu[2],
+           # ...
+       ]
+
+       # Alternatively, define a function factory.
+       def coeff_function(i : int):
+           return lambda mu: mu[i]
+       coefficient_functions = [coeff_function(i) for i in range(nterms)]
     """
 
     _OperatorClass = QuadraticOperator
@@ -495,10 +651,12 @@ class AffineCubicOperator(_AffineOperator):
 
     Parameters
     ----------
-    coefficient_functions : list of callables
+    coefficient_functions : (iterable of callables) or int
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
         :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
+        If an integer :math:`p` is provided, set :math:`A_{\ell} = p` and
+        define :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_i`.
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
         :math:`\Ghat_{\ell}^{(0)},\ldots,\Ghat_{\ell}^{(A_{\ell}-1)}.`
@@ -507,6 +665,40 @@ class AffineCubicOperator(_AffineOperator):
         If ``True``, interpret ``entries`` as a horizontal concatenation
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
+
+    Warnings
+    --------
+    A common choice for the ``coefficient_functions`` is for the :math:`i`-th
+    coefficient function to return the :math:`i`-th component of the parameter
+    vector, i.e., :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_{i}`. The following
+    implementation for this choice results in a subtle but serious error:
+
+    .. code-block:: python
+
+       coefficient_functions = [lambda mu: mu[i] for i in range(nterms)]
+
+    Due to the late binding behavior of closures in Python, the ``lambda``
+    functions do not capture the value of the variable ``i`` at each iteration.
+    When any of the ``lambda`` functions are called, they use the value of
+    ``i`` at the time of the call, which, after the loop, is always
+    ``nterms - 1``. To avoid this issue, use ``coefficient_functions=p`` in the
+    constructor, where ``p`` is the dimension of the parameter vector. For
+    related scenarios, avoid this pitfall by writing `lambda` function with
+    the index given explicitly, or by using a function factory.
+
+    .. code-block:: python
+
+       coefficient_functions = [
+           lambda mu: mu[0],
+           lambda mu: mu[1],
+           lambda mu: mu[2],
+           # ...
+       ]
+
+       # Alternatively, define a function factory.
+       def coeff_function(i : int):
+           return lambda mu: mu[i]
+       coefficient_functions = [coeff_function(i) for i in range(nterms)]
     """
 
     _OperatorClass = CubicOperator
@@ -526,10 +718,12 @@ class AffineInputOperator(_AffineOperator, InputMixin):
 
     Parameters
     ----------
-    coefficient_functions : list of callables
+    coefficient_functions : (iterable of callables) or int
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
         :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
+        If an integer :math:`p` is provided, set :math:`A_{\ell} = p` and
+        define :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_i`.
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
         :math:`\Bhat_{\ell}^{(0)},\ldots,\Bhat_{\ell}^{(A_{\ell}-1)}.`
@@ -538,6 +732,40 @@ class AffineInputOperator(_AffineOperator, InputMixin):
         If ``True``, interpret ``entries`` as a horizontal concatenation
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
+
+    Warnings
+    --------
+    A common choice for the ``coefficient_functions`` is for the :math:`i`-th
+    coefficient function to return the :math:`i`-th component of the parameter
+    vector, i.e., :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_{i}`. The following
+    implementation for this choice results in a subtle but serious error:
+
+    .. code-block:: python
+
+       coefficient_functions = [lambda mu: mu[i] for i in range(nterms)]
+
+    Due to the late binding behavior of closures in Python, the ``lambda``
+    functions do not capture the value of the variable ``i`` at each iteration.
+    When any of the ``lambda`` functions are called, they use the value of
+    ``i`` at the time of the call, which, after the loop, is always
+    ``nterms - 1``. To avoid this issue, use ``coefficient_functions=p`` in the
+    constructor, where ``p`` is the dimension of the parameter vector. For
+    related scenarios, avoid this pitfall by writing `lambda` function with
+    the index given explicitly, or by using a function factory.
+
+    .. code-block:: python
+
+       coefficient_functions = [
+           lambda mu: mu[0],
+           lambda mu: mu[1],
+           lambda mu: mu[2],
+           # ...
+       ]
+
+       # Alternatively, define a function factory.
+       def coeff_function(i : int):
+           return lambda mu: mu[i]
+       coefficient_functions = [coeff_function(i) for i in range(nterms)]
     """
 
     _OperatorClass = InputOperator
@@ -562,10 +790,12 @@ class AffineStateInputOperator(_AffineOperator, InputMixin):
 
     Parameters
     ----------
-    coefficient_functions : list of callables
+    coefficient_functions : (iterable of callables) or int
         Scalar-valued coefficient functions for each term of the affine
         expansion, i.e.,
         :math:`\theta_{\ell}^{(0)},\ldots,\theta_{\ell}^{(A_{\ell}-1)}.`
+        If an integer :math:`p` is provided, set :math:`A_{\ell} = p` and
+        define :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_i`.
     entries : list of ndarrays, or None
         Operator matrices for each term of the affine expansion, i.e.,
         :math:`\Nhat_{\ell}^{(0)},\ldots,\Nhat_{\ell}^{(A_{\ell}-1)}.`
@@ -574,6 +804,40 @@ class AffineStateInputOperator(_AffineOperator, InputMixin):
         If ``True``, interpret ``entries`` as a horizontal concatenation
         of arrays; if ``False`` (default), interpret ``entries`` as a list
         of arrays.
+
+    Warnings
+    --------
+    A common choice for the ``coefficient_functions`` is for the :math:`i`-th
+    coefficient function to return the :math:`i`-th component of the parameter
+    vector, i.e., :math:`\theta_{\ell}^{(i)}\!(\bfmu) = \mu_{i}`. The following
+    implementation for this choice results in a subtle but serious error:
+
+    .. code-block:: python
+
+       coefficient_functions = [lambda mu: mu[i] for i in range(nterms)]
+
+    Due to the late binding behavior of closures in Python, the ``lambda``
+    functions do not capture the value of the variable ``i`` at each iteration.
+    When any of the ``lambda`` functions are called, they use the value of
+    ``i`` at the time of the call, which, after the loop, is always
+    ``nterms - 1``. To avoid this issue, use ``coefficient_functions=p`` in the
+    constructor, where ``p`` is the dimension of the parameter vector. For
+    related scenarios, avoid this pitfall by writing `lambda` function with
+    the index given explicitly, or by using a function factory.
+
+    .. code-block:: python
+
+       coefficient_functions = [
+           lambda mu: mu[0],
+           lambda mu: mu[1],
+           lambda mu: mu[2],
+           # ...
+       ]
+
+       # Alternatively, define a function factory.
+       def coeff_function(i : int):
+           return lambda mu: mu[i]
+       coefficient_functions = [coeff_function(i) for i in range(nterms)]
     """
 
     _OperatorClass = StateInputOperator

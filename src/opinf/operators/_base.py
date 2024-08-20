@@ -1228,6 +1228,15 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
         """
         return self.__p
 
+    @parameter_dimension.setter
+    def parameter_dimension(self, p):
+        """Set :attr:`parameter_dimension`.
+        Only allowed if :attr:`parameter_dimension` is currently ``None``.
+        """
+        if self.__p is not None:
+            raise AttributeError("can't set property 'parameter_dimension'")
+        self.__p = int(p)
+
     @property
     def shape(self) -> tuple:
         """Shape of the operator matrix when evaluated
