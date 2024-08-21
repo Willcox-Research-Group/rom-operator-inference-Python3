@@ -22,6 +22,8 @@ class _TestAffineOperator:
         (lambda mu: mu[1] * mu[2] ** 2),
     ]
 
+    p = 3
+
     @abc.abstractmethod
     def entries_shape(self, r, m):
         raise NotImplementedError
@@ -64,6 +66,20 @@ class _TestAffineOperator:
         arrays = [np.random.random(shape) for _ in range(ncoeffs)]
 
         op = self.OpClass(self.thetas)
+        with pytest.raises(ValueError) as ex:
+            op.set_entries(np.random.random((2, 3, 2)), fromblock=True)
+        assert ex.value.args[0] == (
+            "entries must be a 1- or 2-dimensional ndarray "
+            "when fromblock=True"
+        )
+        with pytest.raises(ValueError) as ex:
+            op.set_entries(arrays[:-1])
+        assert ex.value.args[0] == (
+            f"{ncoeffs} = len(coefficient_functions) "
+            f"!= len(entries) = {ncoeffs - 1}"
+        )
+
+        op = self.OpClass(self.thetas)
         assert op.entries is None
         op.set_entries(arrays)
         for i in range(ncoeffs):
@@ -72,6 +88,27 @@ class _TestAffineOperator:
         op = self.OpClass(self.thetas, arrays)
         for i in range(ncoeffs):
             assert np.all(op.entries[i] == arrays[i])
+
+        op = self.OpClass(self.thetas, np.hstack(arrays), fromblock=True)
+        for i in range(ncoeffs):
+            assert np.all(op.entries[i] == arrays[i])
+
+    def test_evaluate(self, r=9, m=4):
+        """Test evaluate()."""
+        ncoeffs = len(self.thetas)
+        shape = self.entries_shape(r, m)
+        arrays = [np.random.random(shape) for _ in range(ncoeffs)]
+        op = self.OpClass(self.thetas, arrays)
+
+        mu = np.random.random(self.p)
+        op_mu = op.evaluate(mu)
+        assert isinstance(op_mu, op.OperatorClass)
+        assert op_mu.entries.shape == arrays[0].shape
+        Amu = np.sum(
+            [theta(mu) * A for theta, A in zip(self.thetas, arrays)],
+            axis=0,
+        )
+        assert np.allclose(op_mu.entries, Amu)
 
 
 # Test public classes =========================================================

@@ -1251,16 +1251,6 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
         """
         return self.__entries
 
-    @entries.setter
-    def entries(self, entries):
-        """Set the arrays defining the operator matrix."""
-        self.set_entries(entries)
-
-    @entries.deleter
-    def entries(self):
-        """Reset the ``entries`` attribute."""
-        self._clear()
-
     @abc.abstractmethod
     def set_entries(self, entries, fromblock: bool = False) -> None:
         r"""Set the arrays that define the operator matrix as a function of

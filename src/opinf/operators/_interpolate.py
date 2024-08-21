@@ -189,16 +189,6 @@ class _InterpolatedOperator(ParametricOpInfOperator):
         """
         return ParametricOpInfOperator.entries.fget(self)
 
-    @entries.setter
-    def entries(self, entries):
-        """Set the operator matrices."""
-        ParametricOpInfOperator.entries.fset(self, entries)
-
-    @entries.deleter
-    def entries(self):
-        """Reset the ``entries`` attribute."""
-        ParametricOpInfOperator.entries.fdel(self)
-
     def set_entries(self, entries, fromblock: bool = False) -> None:
         r"""Set the operator matrices at the training parameter values.
 

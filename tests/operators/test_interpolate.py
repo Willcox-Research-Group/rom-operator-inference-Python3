@@ -139,7 +139,7 @@ class TestInterpolatedOperator:
         # Try without training_parameters set.
         op = self.Dummy()
         with pytest.raises(AttributeError) as ex:
-            op.entries = entries
+            op.set_entries(entries)
         assert ex.value.args[0] == (
             "training_parameters have not been set, "
             "call set_training_parameters() first"
@@ -182,7 +182,7 @@ class TestInterpolatedOperator:
         )
 
         # Test deletion.
-        del op.entries
+        op._clear()
         assert op.entries is None
         assert op.interpolator is None
         assert op.shape is None

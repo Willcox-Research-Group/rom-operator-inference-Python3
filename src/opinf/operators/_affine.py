@@ -146,14 +146,6 @@ class _AffineOperator(ParametricOpInfOperator):
         """
         return ParametricOpInfOperator.entries.fget(self)
 
-    @entries.setter
-    def entries(self, entries):
-        ParametricOpInfOperator.entries.fset(self, entries)
-
-    @entries.deleter
-    def entries(self):
-        ParametricOpInfOperator.entries.fdel(self)
-
     @property
     def nterms(self):
         r"""Number of terms :math:`A_{\ell}` in the affine expansion."""
@@ -176,7 +168,9 @@ class _AffineOperator(ParametricOpInfOperator):
         # Extract / verify the entries.
         nterms = self.nterms
         if fromblock:
-            if entries.ndim not in (1, 2):
+            if not isinstance(entries, np.ndarray) or (
+                entries.ndim not in (1, 2)
+            ):
                 raise ValueError(
                     "entries must be a 1- or 2-dimensional ndarray "
                     "when fromblock=True"
