@@ -174,7 +174,7 @@ def save_sparray(group: h5py.Group, arr: sparse.sparray) -> None:
       (np.int32(4), np.int32(1))    123.456
     """
     if not sparse.issparse(arr):
-        raise TypeError("first arg must be a scipy.sparse array")
+        raise TypeError("second arg must be a scipy.sparse array")
 
     # Convert to COO format and save data attributes.
     A = arr.tocoo()
@@ -234,7 +234,7 @@ def load_sparray(group: h5py.Group) -> sparse.sparray:
     """
     A = sparse.coo_matrix(
         (group["data"], (group["row"], group["col"])),
-        group.attrs["shape"],
+        shape=group.attrs["shape"],
     )
     arrtype = str(group.attrs["arrtype"])
     return getattr(A, f"to{arrtype}")()
