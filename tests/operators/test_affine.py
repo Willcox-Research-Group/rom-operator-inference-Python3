@@ -1,9 +1,12 @@
 # operators/test_affine.py
 """Tests for operators._affine."""
 
+import os
 import abc
 import pytest
 import numpy as np
+import scipy.linalg as la
+import scipy.sparse as sparse
 
 import opinf
 
@@ -109,6 +112,108 @@ class _TestAffineOperator:
             axis=0,
         )
         assert np.allclose(op_mu.entries, Amu)
+
+    def test_galerkin(self, r=9, m=4):
+        """Test galerkin()."""
+        ncoeffs = len(self.thetas)
+        shape = self.entries_shape(r, m)
+        arrays = [np.random.random(shape) for _ in range(ncoeffs)]
+        op = self.OpClass(self.thetas, arrays)
+
+        Vr = la.qr(np.random.random((r, r // 2)), mode="economic")[0]
+        Wr = la.qr(np.random.random((r, r // 2)), mode="economic")[0]
+        for testbasis in (None, Wr):
+            newop = op.galerkin(Vr, testbasis)
+            assert isinstance(newop, self.OpClass)
+            assert newop.state_dimension == r // 2
+
+    def test_opinf(self, s=10, k=15, r=11, m=3):
+        """Test operator_dimension() and datablock()."""
+        ncoeffs = len(self.thetas)
+        shape = self.entries_shape(r, m)
+        arrays = [np.random.random(shape) for _ in range(ncoeffs)]
+        op = self.OpClass(self.thetas, arrays)
+
+        parameters = [np.random.random(self.p) for _ in range(s)]
+        states = np.random.random((s, r, k))
+        inputs = np.random.random((s, m, k))
+
+        block = op.datablock(parameters, states, inputs)
+        dim = op.operator_dimension(s, r, m)
+        assert block.shape[0] == dim
+        assert block.shape[1] == s * k
+
+    def test_copysaveload(self, r=10, m=2, target="_affinesavetest.h5"):
+        """Test copy(), save(), and load()."""
+        ncoeffs = len(self.thetas)
+        shape = self.entries_shape(r, m)
+        arrays = [np.random.random(shape) for _ in range(ncoeffs)]
+
+        def sparsearray(A):
+            B = A.copy()
+            B[B < 0.9] = 0
+            B = np.atleast_2d(B)
+            if B.shape[0] == 1:
+                B = B.T
+            return sparse.csr_array(B)
+
+        sparrays = [sparsearray(A) for A in arrays]
+
+        def _checksame(original, copied):
+            assert copied is not original
+            assert isinstance(copied, self.OpClass)
+            if original.entries is None:
+                assert copied.entries is None
+            elif isinstance(original.entries[0], np.ndarray):
+                for i, Ai in enumerate(copied.entries):
+                    assert isinstance(Ai, np.ndarray)
+                    assert np.all(Ai == original.entries[i])
+            elif sparse.issparse(original.entries[0]):
+                for i, Ai in enumerate(copied.entries):
+                    assert sparse.issparse(Ai)
+                    assert (Ai - original.entries[i]).sum() == 0
+            if (p := original.parameter_dimension) is not None:
+                assert copied.parameter_dimension == p
+
+        # Test copy() without entries set.
+        op = self.OpClass(self.thetas)
+        _checksame(op, op.copy())
+
+        op.parameter_dimension = self.p
+        _checksame(op, op.copy())
+
+        # Test copy() with entries set.
+        op.set_entries(arrays)
+        _checksame(op, op.copy())
+
+        op.set_entries(sparrays)
+        _checksame(op, op.copy())
+
+        # Test save() and load() together.
+
+        def _checkload(original):
+            if os.path.isfile(target):
+                os.remove(target)
+            original.save(target)
+            copied = self.OpClass.load(target, original.coefficient_functions)
+            return _checksame(original, copied)
+
+        # Test save()/load() without entries set.
+        op = self.OpClass(self.thetas)
+        _checkload(op)
+
+        op.parameter_dimension = self.p
+        _checkload(op)
+
+        # Test save()/load() with entries set.
+        op.set_entries(arrays)
+        _checkload(op)
+
+        op.set_entries(sparrays)
+        _checkload(op)
+
+        if os.path.isfile(target):
+            os.remove(target)
 
 
 # Test public classes =========================================================

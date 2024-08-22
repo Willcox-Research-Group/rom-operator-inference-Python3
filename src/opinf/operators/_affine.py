@@ -12,7 +12,9 @@ __all__ = [
     "AffineStateInputOperator",
 ]
 
+import h5py
 import numpy as np
+import scipy.sparse as sparse
 
 from .. import utils
 from ._base import ParametricOpInfOperator, InputMixin
@@ -291,6 +293,11 @@ class _AffineOperator(ParametricOpInfOperator):
             State dimension.
         m : int or None
             Input dimension.
+
+        Returns
+        -------
+        d : int
+            Number of columns in the concatenated operator matrix.
         """
         return self.nterms * self.OperatorClass.operator_dimension(r, m)
 
@@ -373,11 +380,17 @@ class _AffineOperator(ParametricOpInfOperator):
         """Return a copy of the operator. Only the operator matrices are
         copied, not the coefficient functions.
         """
-        return self.__class__(
+        As = None
+        if self.entries is not None:
+            As = [A.copy() for A in self.entries]
+        op = self.__class__(
             coefficient_functions=self.coefficient_functions,
-            entries=self.entries.copy() if self.entries is not None else None,
+            entries=As,
             fromblock=False,
         )
+        if self.parameter_dimension is not None:
+            op.parameter_dimension = self.parameter_dimension
+        return op
 
     def save(self, savefile: str, overwrite: bool = False) -> None:
         """Save the operator to an HDF5 file.
@@ -396,8 +409,16 @@ class _AffineOperator(ParametricOpInfOperator):
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["class"] = self.__class__.__name__
+            if (p := self.parameter_dimension) is not None:
+                meta.attrs["parameter_dimension"] = p
             if self.entries is not None:
-                hf.create_dataset("entries", data=self.entries)
+                group = hf.create_group("entries")
+                for i, Ai in enumerate(self.entries):
+                    name = f"A{i:d}"
+                    if sparse.issparse(Ai):
+                        utils.save_sparray(group.create_group(name), Ai)
+                    else:
+                        group.create_dataset(name, data=Ai)
 
     @classmethod
     def load(cls, loadfile: str, coefficient_functions):
@@ -423,11 +444,26 @@ class _AffineOperator(ParametricOpInfOperator):
                     f"object, use '{ClassName}.load()'"
                 )
 
-            return cls(
+            entries = None
+            if "entries" in hf:
+                entries = []
+                group = hf["entries"]
+                for i in range(len(group)):
+                    obj = group[f"A{i:d}"]
+                    if isinstance(obj, h5py.Dataset):
+                        entries.append(obj[:])
+                    else:
+                        entries.append(utils.load_sparray(obj))
+
+            op = cls(
                 coefficient_functions=coefficient_functions,
-                entries=(hf["entries"][:] if "entries" in hf else None),
+                entries=entries,
                 fromblock=False,
             )
+
+            if (key := "parameter_dimension") in hf["meta"].attrs:
+                op.parameter_dimension = int(hf["meta"].attrs[key])
+            return op
 
 
 # Public affine operator classes ==============================================
