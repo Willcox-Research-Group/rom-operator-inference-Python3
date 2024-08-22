@@ -13,6 +13,7 @@ __all__ = [
 import itertools
 import numpy as np
 import scipy.linalg as la
+import scipy.sparse as sparse
 import scipy.special as special
 
 from .. import utils
@@ -73,7 +74,9 @@ class ConstantOperator(OpInfOperator):
         entries : (r,) ndarray
             Operator vector :math:`\chat`.
         """
-        if np.isscalar(entries):
+        if sparse.issparse(entries):
+            entries = entries.toarray()
+        elif np.isscalar(entries):
             entries = np.atleast_1d(entries)
         self._validate_entries(entries)
 
@@ -240,7 +243,10 @@ class LinearOperator(OpInfOperator):
         entries : (r, r) ndarray
             Operator matrix :math:`\Ahat`.
         """
-        if np.isscalar(entries) or np.shape(entries) == (1,):
+        if sparse.issparse(entries):
+            if not isinstance(entries, sparse.csr_array):
+                entries = entries.tocsr()
+        elif np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
         self._validate_entries(entries)
 
