@@ -211,3 +211,5 @@ def test_saveload_sparray(n=100, target="_saveloadsparraytest.h5"):
 
     diff = np.abs((A - B).data)
     assert np.allclose(diff, 0)
+
+    os.remove(target)
