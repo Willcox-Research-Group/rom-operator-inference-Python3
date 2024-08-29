@@ -154,7 +154,7 @@ class _TestAffineOperator:
 
         mu = np.random.random(self.p)
         op_mu = op.evaluate(mu)
-        assert isinstance(op_mu, op.OperatorClass)
+        assert isinstance(op_mu, op._OperatorClass)
         assert op_mu.entries.shape == arrays[0].shape
         Amu = np.sum(
             [theta(mu) * A for theta, A in zip(self.thetas1, arrays)],
@@ -349,6 +349,21 @@ class TestAffineStateInputOperator(_TestAffineOperator):
         assert op.input_dimension is None
         op.set_entries(Ns)
         assert op.input_dimension == m
+
+
+def test_publics():
+    """Ensure all public AffineOperator classes can be instantiated."""
+    for OpClassName in _submodule.__all__:
+        OpClass = getattr(_module, OpClassName)
+        if not isinstance(OpClass, type) or not issubclass(
+            OpClass, _submodule._AffineOperator
+        ):
+            continue
+        op = OpClass(_TestAffineOperator.thetas1)
+        assert issubclass(
+            op._OperatorClass,
+            opinf.operators.OpInfOperator,
+        )
 
 
 def test_is_affine():

@@ -407,7 +407,7 @@ def test_publics():
             continue
         op = OpClass()
         assert issubclass(
-            op.OperatorClass,
+            op._OperatorClass,
             opinf.operators.OpInfOperator,
         )
 

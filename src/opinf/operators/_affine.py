@@ -224,7 +224,7 @@ class _AffineOperator(ParametricOpInfOperator):
 
         ParametricOpInfOperator.set_entries(
             self,
-            [self.OperatorClass(A).entries for A in entries],
+            [self._OperatorClass(A).entries for A in entries],
         )
 
     def __str__(self):
@@ -244,7 +244,7 @@ class _AffineOperator(ParametricOpInfOperator):
 
         Returns
         -------
-        op : :mod:`opinf.operators` operator of type :attr:`OperatorClass`
+        op : nonparametric :mod:`opinf.operators` operator
             Nonparametric operator corresponding to the parameter value.
         """
         if self.parameter_dimension is None:
@@ -252,7 +252,7 @@ class _AffineOperator(ParametricOpInfOperator):
         self._check_parametervalue_dimension(parameter)
         thetamus = self.coeffs(parameter)
         entries = sum([tm * A for tm, A in zip(thetamus, self.entries)])
-        return self.OperatorClass(entries)
+        return self._OperatorClass(entries)
 
     # Dimensionality reduction ------------------------------------------------
     @utils.requires("entries")
@@ -308,7 +308,7 @@ class _AffineOperator(ParametricOpInfOperator):
             coeffs=self.coeffs,
             nterms=self.nterms,
             entries=[
-                self.OperatorClass(A).galerkin(Vr, Wr).entries
+                self._OperatorClass(A).galerkin(Vr, Wr).entries
                 for A in self.entries
             ],
             fromblock=False,
@@ -337,7 +337,7 @@ class _AffineOperator(ParametricOpInfOperator):
         d : int
             Number of columns in the concatenated operator matrix.
         """
-        return self.nterms * self.OperatorClass.operator_dimension(r, m)
+        return self.nterms * self._OperatorClass.operator_dimension(r, m)
 
     def datablock(self, parameters, states, inputs=None) -> np.ndarray:
         r"""Return the data matrix block corresponding to the operator.
@@ -405,7 +405,7 @@ class _AffineOperator(ParametricOpInfOperator):
             inputs = [None] * len(parameters)
         blockcolumns = []
         for mu, Q, U in zip(parameters, states, inputs):
-            Di = self.OperatorClass.datablock(Q, U)
+            Di = self._OperatorClass.datablock(Q, U)
             theta_mus = self.coeffs(mu)
             blockcolumns.append(np.vstack([theta * Di for theta in theta_mus]))
         return np.hstack(blockcolumns)

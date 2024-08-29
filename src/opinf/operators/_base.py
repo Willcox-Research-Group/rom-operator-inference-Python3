@@ -5,12 +5,9 @@ __all__ = [
     "InputMixin",
     "has_inputs",
     "OperatorTemplate",
-    "is_nonparametric",
     "OpInfOperator",
     "ParametricOperatorTemplate",
-    "is_parametric",
     "ParametricOpInfOperator",
-    "is_uncalibrated",
 ]
 
 import os
@@ -889,21 +886,8 @@ class ParametricOperatorTemplate(abc.ABC):
     :class:`OpInfOperator` or :class:`ParametricOpInfOperator`.
     """
 
-    # Meta properties ---------------------------------------------------------
+    # Nonparametric operator class that this parametric operator evaluates to.
     _OperatorClass = NotImplemented
-
-    @property
-    def OperatorClass(self):
-        """Nonparametric :mod:`opinf.operators` class that represents
-        this parametric operator evaluated at a particular parameter value.
-
-        Examples
-        --------
-        >>> Op = MyParametricOperator(init_args).evaluate(parameter_value)
-        >>> isinstance(Op, MyParametricOperator.OperatorClass)
-        True
-        """
-        return self._OperatorClass
 
     # Properties --------------------------------------------------------------
     @property
@@ -946,7 +930,7 @@ class ParametricOperatorTemplate(abc.ABC):
     @abc.abstractmethod
     def evaluate(self, parameter):
         r"""Evaluate the operator at the given parameter value,
-        resulting in a nonparametric operator of type :attr`OperatorClass`.
+        resulting in a nonparametric operator.
 
         Parameters
         ----------
@@ -955,7 +939,7 @@ class ParametricOperatorTemplate(abc.ABC):
 
         Returns
         -------
-        evaluated_operator : nonparametric operator
+        op : nonparametric :mod:`opinf.operators` operator
             Nonparametric operator corresponding to the parameter value.
             This should be an instance of :class:`OperatorTemplate` (or
             a class that inherits from it).
@@ -1115,6 +1099,12 @@ class ParametricOperatorTemplate(abc.ABC):
             If ``None`` (default), draw test parameter entries from the
             standard Normal distribution.
         """
+        # Check the _OperatorClass.
+        if not issubclass(self._OperatorClass, OperatorTemplate):
+            raise errors.VerificationError(
+                "_OperatorClass must be a nonparametric operator type"
+            )
+
         # Verify dimensions exist and are valid.
         if not isinstance((r := self.state_dimension), int) or r <= 0:
             raise errors.VerificationError(
@@ -1141,11 +1131,11 @@ class ParametricOperatorTemplate(abc.ABC):
         op_evaluated = self.evaluate(testparam)
         if not isinstance(op_evaluated, self._OperatorClass):
             raise errors.VerificationError(
-                "evaluate() must return instance of type OperatorClass"
+                "evaluate() must return instance of type _OperatorClass"
             )
         if not is_nonparametric(op_evaluated):
             raise errors.VerificationError(
-                "OperatorClass must be a nonparametric operator type"
+                "_OperatorClass must be a nonparametric operator type"
             )
 
         if op_evaluated.state_dimension != self.state_dimension:

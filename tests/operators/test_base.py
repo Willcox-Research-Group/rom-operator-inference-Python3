@@ -697,8 +697,8 @@ def test_is_nonparametric():
     """Test operators._base.is_nonparametric()."""
 
     op = TestOpInfOperator.Dummy()
-    assert opinf.operators.is_nonparametric(op)
-    assert not opinf.operators.is_nonparametric(10)
+    assert _module.is_nonparametric(op)
+    assert not _module.is_nonparametric(10)
 
 
 # Parametric operators ========================================================
@@ -725,7 +725,7 @@ class TestParametricOperatorTemplate:
             return self.__p
 
         def evaluate(self, parameter):
-            return self.OperatorClass(self.state_dimension)
+            return self._OperatorClass(self.state_dimension)
 
     def test_check_parametervalue_dimension(self, r=8, p=3):
         """Test _check_parametervalue_dimension()."""
@@ -791,7 +791,7 @@ class TestParametricOpInfOperator:
 
         def evaluate(self, parameter):
             self._check_parametervalue_dimension(parameter)
-            op = self.OperatorClass()
+            op = self._OperatorClass()
             op.set_entries(self.entries[0])
             return op
 
@@ -848,14 +848,14 @@ class TestParametricOpInfOperator:
 def test_is_parametric():
     """Test operators._base.is_parametric()."""
     op = TestParametricOpInfOperator.Dummy()
-    assert opinf.operators.is_parametric(op)
-    assert not opinf.operators.is_nonparametric(-1)
+    assert _module.is_parametric(op)
+    assert not _module.is_parametric(100)
 
 
 def test_is_uncalibrated():
     """Test operators._base.is_uncalibrated()."""
 
-    func = opinf.operators.is_uncalibrated
+    func = _module.is_uncalibrated
 
     class Dummy(opinf.operators.OperatorTemplate):
         """Instantiable version of OperatorTemplate."""

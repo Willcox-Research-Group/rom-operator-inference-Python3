@@ -111,9 +111,8 @@ class _InterpOperator(ParametricOpInfOperator):
 
         Parameters
         ----------
-        operators : list of :mod:`opinf.operators` objects
-            Operators to interpolate. Must be of class ``OperatorClass``
-            and have ``entries`` set.
+        operators : list of nonparametric :mod:`opinf.operators` operators
+            Operators to interpolate with ``entries`` already set.
         """
         # Check everything is initialized.
         for op in operators:
@@ -228,7 +227,7 @@ class _InterpOperator(ParametricOpInfOperator):
 
         ParametricOpInfOperator.set_entries(
             self,
-            np.array([self.OperatorClass(A).entries for A in entries]),
+            np.array([self._OperatorClass(A).entries for A in entries]),
         )
         self.set_interpolator(self.__InterpolatorClass)
 
@@ -327,8 +326,7 @@ class _InterpOperator(ParametricOpInfOperator):
     # Evaluation --------------------------------------------------------------
     @utils.requires("entries")
     def evaluate(self, parameter):
-        r"""Evaluate the operator at the given parameter value,
-        :math:`\Ophat_{\ell}(\cdot,\cdot;\bfmu)`.
+        r"""Evaluate the operator at the given parameter value.
 
         Parameters
         ----------
@@ -337,13 +335,13 @@ class _InterpOperator(ParametricOpInfOperator):
 
         Returns
         -------
-        op : :mod:`opinf.operators` operator of type ``OperatorClass``.
+        op : nonparametric :mod:`opinf.operators` operator
             Nonparametric operator corresponding to the parameter value.
         """
         self._check_parametervalue_dimension(parameter)
         if self.parameter_dimension == 1 and not np.isscalar(parameter):
             parameter = parameter[0]
-        return self.OperatorClass(self.interpolator(parameter))
+        return self._OperatorClass(self.interpolator(parameter))
 
     # Dimensionality reduction ------------------------------------------------
     @utils.requires("entries")
@@ -400,7 +398,7 @@ class _InterpOperator(ParametricOpInfOperator):
         return self.__class__(
             training_parameters=self.training_parameters,
             entries=[
-                self.OperatorClass(A).galerkin(Vr, Wr).entries
+                self._OperatorClass(A).galerkin(Vr, Wr).entries
                 for A in self.entries
             ],
             InterpolatorClass=self.__InterpolatorClass,

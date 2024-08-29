@@ -18,7 +18,30 @@ from ._nonparametric import (
     _FrozenContinuousModel,
 )
 from ... import errors, utils
-from ... import operators as _operators
+from ...operators import (
+    OperatorTemplate,
+    ParametricOperatorTemplate,
+    InterpConstantOperator,
+    InterpLinearOperator,
+    InterpQuadraticOperator,
+    InterpCubicOperator,
+    InterpInputOperator,
+    InterpStateInputOperator,
+    _utils as oputils,
+)
+
+
+_operator_name2class = {
+    OpClass.__name__: OpClass
+    for OpClass in (
+        InterpConstantOperator,
+        InterpLinearOperator,
+        InterpQuadraticOperator,
+        InterpCubicOperator,
+        InterpInputOperator,
+        InterpStateInputOperator,
+    )
+}
 
 
 # Base classes ================================================================
@@ -70,8 +93,8 @@ class _ParametricModel(_Model):
         return isinstance(
             op,
             (
-                _operators.OperatorTemplate,
-                _operators.ParametricOperatorTemplate,
+                OperatorTemplate,
+                ParametricOperatorTemplate,
             ),
         )
 
@@ -81,7 +104,7 @@ class _ParametricModel(_Model):
         of operation (e.g., two constant operators).
         """
         OpClasses = {
-            (op.OperatorClass if _operators.is_parametric(op) else type(op))
+            (op._OperatorClass if oputils.is_parametric(op) else type(op))
             for op in ops
         }
         if len(OpClasses) != len(ops):
@@ -92,9 +115,9 @@ class _ParametricModel(_Model):
         operator class ``OpClass``.
         """
         for op in self.operators:
-            if (
-                _operators.is_parametric(op) and op.OperatorClass is OpClass
-            ) or (_operators.is_nonparametric(op) and isinstance(op, OpClass)):
+            if oputils.is_parametric(op) and op._OperatorClass is OpClass:
+                return op
+            if oputils.is_nonparametric(op) and isinstance(op, OpClass):
                 return op
 
     @property
@@ -109,7 +132,7 @@ class _ParametricModel(_Model):
 
         # Check at least one operator is parametric.
         parametric_operators = [
-            op for op in self.operators if _operators.is_parametric(op)
+            op for op in self.operators if oputils.is_parametric(op)
         ]
         if len(parametric_operators) == 0:
             warnings.warn(
@@ -121,9 +144,7 @@ class _ParametricModel(_Model):
         # Check that not every operator is interpolated.
         if not isinstance(self, _InterpolatedModel):
             interpolated_operators = [
-                op
-                for op in self.operators
-                if _operators._interpolate.is_interpolated(op)
+                op for op in self.operators if oputils.is_interpolated(op)
             ]
             if len(interpolated_operators) == len(self.operators):
                 warnings.warn(
@@ -147,8 +168,7 @@ class _ParametricModel(_Model):
         ps = {
             op.parameter_dimension
             for op in ops
-            if _operators.is_parametric(op)
-            and op.parameter_dimension is not None
+            if oputils.is_parametric(op) and op.parameter_dimension is not None
         }
         if len(ps) > 1:
             raise errors.DimensionalityError(
@@ -169,7 +189,7 @@ class _ParametricModel(_Model):
         """
         if self.operators is not None:
             for op in self.operators:
-                if _operators.is_nonparametric(op):
+                if oputils.is_nonparametric(op):
                     continue
                 if (opp := op.parameter_dimension) is not None and opp != p:
                     raise AttributeError(
@@ -265,7 +285,7 @@ class _ParametricModel(_Model):
         # Subtract known operator evaluations from the LHS.
         for ell in self._indices_of_known_operators:
             op = self.operators[ell]
-            _isparametric = _operators.is_parametric(op)
+            _isparametric = oputils.is_parametric(op)
             for i, lhsi in enumerate(lhs):
                 _args = [states[i], inputs[i]]
                 if _isparametric:
@@ -279,7 +299,7 @@ class _ParametricModel(_Model):
         blocks = []
         for i in self._indices_of_operators_to_infer:
             op = self.operators[i]
-            if not _operators.is_parametric(op):
+            if not oputils.is_parametric(op):
                 blocks.append(np.hstack(states).T)
             else:
                 blocks.append(op.datablock(parameters, states, inputs).T)
@@ -305,7 +325,7 @@ class _ParametricModel(_Model):
         index = 0
         for i in self._indices_of_operators_to_infer:
             op = self.operators[i]
-            if _operators.is_parametric(op):
+            if oputils.is_parametric(op):
                 endex = index + op.operator_dimension(
                     self.__s, self.state_dimension, self.input_dimension
                 )
@@ -423,7 +443,7 @@ class _ParametricModel(_Model):
         """
         return self.ModelClass(
             [
-                op.evaluate(parameter) if _operators.is_parametric(op) else op
+                op.evaluate(parameter) if oputils.is_parametric(op) else op
                 for op in self.operators
             ]
         )
@@ -1089,9 +1109,7 @@ class _InterpolatedModel(_ParametricModel):
         # Extract the operators from the individual models.
         return cls(
             operators=[
-                _operators._interpolate.nonparametric_to_interpolated(
-                    OpClass
-                )._from_operators(
+                oputils.nonparametric_to_interpolated(OpClass)._from_operators(
                     training_parameters=parameters,
                     operators=[mdl.operators[ell] for mdl in models],
                     InterpolatorClass=InterpolatorClass,
@@ -1124,17 +1142,17 @@ class _InterpolatedModel(_ParametricModel):
 
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = {
-        "c": _operators.InterpConstantOperator,
-        "A": _operators.InterpLinearOperator,
-        "H": _operators.InterpQuadraticOperator,
-        "G": _operators.InterpCubicOperator,
-        "B": _operators.InterpInputOperator,
-        "N": _operators.InterpStateInputOperator,
+        "c": InterpConstantOperator,
+        "A": InterpLinearOperator,
+        "H": InterpQuadraticOperator,
+        "G": InterpCubicOperator,
+        "B": InterpInputOperator,
+        "N": InterpStateInputOperator,
     }
 
     def _isvalidoperator(self, op):
         """Only interpolated parametric operators are allowed."""
-        return _operators._interpolate.is_interpolated(op)
+        return oputils.is_interpolated(op)
 
     # Fitting -----------------------------------------------------------------
     def _assemble_data_matrix(self, *args, **kwargs):  # pragma: no cover
@@ -1166,7 +1184,7 @@ class _InterpolatedModel(_ParametricModel):
         for i in range(n_datasets):
             model_i = self._ModelFitClass(
                 operators=[
-                    op.OperatorClass(
+                    op._OperatorClass(
                         op.entries[i] if op.entries is not None else None
                     )
                     for op in self.operators
@@ -1320,7 +1338,7 @@ class _InterpolatedModel(_ParametricModel):
                 gp = hf[f"operator_{i}"]
                 OpClassName = gp["meta"].attrs["class"]
                 ops.append(
-                    getattr(_operators, OpClassName).load(
+                    _operator_name2class[OpClassName].load(
                         gp, InterpolatorClass
                     )
                 )
