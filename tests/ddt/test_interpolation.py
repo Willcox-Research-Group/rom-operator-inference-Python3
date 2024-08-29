@@ -11,10 +11,10 @@ import opinf
 _module = opinf.ddt._interpolation
 
 
-class TestInterpolationDerivativeEstimator:
-    """Test opinf.ddt.InterpolationDerivativeEstimator."""
+class TestInterpDerivativeEstimator:
+    """Test opinf.ddt.InterpDerivativeEstimator."""
 
-    Estimator = _module.InterpolationDerivativeEstimator
+    Estimator = _module.InterpDerivativeEstimator
 
     def test_init(self, k=100):
         """Test __init__() and properties."""

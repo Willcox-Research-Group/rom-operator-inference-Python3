@@ -64,7 +64,7 @@ ddt.ipynb
    DerivativeEstimatorTemplate
    UniformFiniteDifferencer
    NonuniformFiniteDifferencer
-   InterpolationDerivativeEstimator
+   InterpDerivativeEstimator
    fwd1
    fwd2
    fwd3

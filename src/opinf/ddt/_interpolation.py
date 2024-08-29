@@ -2,7 +2,7 @@
 """Time derivative estimators based on interpolation."""
 
 __all__ = [
-    "InterpolationDerivativeEstimator",
+    "InterpDerivativeEstimator",
 ]
 
 
@@ -15,7 +15,7 @@ from .. import errors
 from ._base import DerivativeEstimatorTemplate
 
 
-class InterpolationDerivativeEstimator(DerivativeEstimatorTemplate):
+class InterpDerivativeEstimator(DerivativeEstimatorTemplate):
     r"""Time derivative estimator based on interpolation.
 
     For a set of (compressed) snapshots
@@ -41,6 +41,9 @@ class InterpolationDerivativeEstimator(DerivativeEstimatorTemplate):
           This is a local interpolation method and is more resitant to
           outliers than :class:`scipy.interpolate.CubicSpline`. However, it is
           not recommended if the time points are not uniformly spaced.
+        * ``"pchip"``: use :class:`scipy.interpolate.PchipInterpolator`.
+          The interpolator preserves monotonicity in the interpolation data
+          and does not overshoot if the data is not smooth.
     new_time_domain : (k',) ndarray or None
         If given, evaluate the interpolator at these points to generate new
         state snapshots and corresponding time derivatives. If input snapshots
@@ -54,8 +57,9 @@ class InterpolationDerivativeEstimator(DerivativeEstimatorTemplate):
 
     _interpolators = types.MappingProxyType(
         {
-            "cubic": interp.CubicSpline,
             "akima": interp.Akima1DInterpolator,
+            "cubic": interp.CubicSpline,
+            "pchip": interp.PchipInterpolator,
         }
     )
 
