@@ -104,6 +104,8 @@ class _TestAffineOperator:
         mu = np.random.random(p)
         assert np.array_equal(op.coeffs(mu), mu)
 
+        assert repr(op).count(f"expansion terms:     {p}") == 1
+
     def test_entries(self, r=10, m=3):
         """Test set_entries() and entries property."""
         ncoeffs = len(self.thetas1)

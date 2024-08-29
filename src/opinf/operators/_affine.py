@@ -162,7 +162,7 @@ class _AffineOperator(ParametricOpInfOperator):
 
         This method represents the vector-valued function
         :math:`\boldsymbol{\theta}_{\ell} : \RR^{p} \to \RR^{A_{\ell}}`
-        given by :math:`\boldsymbol{\theta}_{\ell}(\bmfu) = [~
+        given by :math:`\boldsymbol{\theta}_{\ell}(\bfmu) = [~
         \theta_{\ell}^{(0)}~~\cdots~~\theta_{\ell}^{(A_{\ell}-1)}~]\trp.`
 
         Parameters
@@ -226,6 +226,11 @@ class _AffineOperator(ParametricOpInfOperator):
             self,
             [self.OperatorClass(A).entries for A in entries],
         )
+
+    def __str__(self):
+        lines = ParametricOpInfOperator.__str__(self).split("\n")
+        lines.insert(-1, f"  expansion terms:     {self.nterms}")
+        return "\n".join(lines)
 
     # Evaluation --------------------------------------------------------------
     @utils.requires("entries")
@@ -524,8 +529,8 @@ class AffineConstantOperator(_AffineOperator):
           using ``coeffs=lambda mu: mu``, except the parameter dimension is
           also captured and ``nterms`` is not required.
     entries : list of ndarrays, or None
-        Operator matrices for each term of the affine expansion, i.e.,
-        :math:`\Ohat_{\ell}^{(0)},\ldots,\Ohat_{\ell}^{(A_{\ell}-1)}.`
+        Operator vectors for each term of the affine expansion, i.e.,
+        :math:`\chat_{\ell}^{(0)},\ldots,\chat_{\ell}^{(A_{\ell}-1)}.`
         If not provided in the constructor, use :meth:`set_entries` later.
     fromblock : bool
         If ``True``, interpret ``entries`` as a horizontal concatenation
