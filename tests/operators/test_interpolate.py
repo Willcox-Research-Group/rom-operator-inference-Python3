@@ -9,6 +9,7 @@ import scipy.linalg as la
 import scipy.interpolate as interp
 
 import opinf
+import opinf.operators._utils as oputils
 
 from . import _get_operator_entries
 
@@ -213,6 +214,8 @@ class TestInterpOperator:
         op.set_interpolator(_DummyInterpolator2)
         assert isinstance(op.interpolator, _DummyInterpolator2)
 
+        assert isinstance(repr(op), str)
+
     def test_eq(self, s=4, p=3, r=2):
         """Test _InterpOperator.__eq__()."""
         op1 = self.Dummy()
@@ -261,6 +264,18 @@ class TestInterpOperator:
         entries = np.random.random((s, r, r))
         op.set_entries(entries)
         op_evaluated = op.evaluate(mu[0])
+        assert isinstance(op_evaluated, self.Dummy._OperatorClass)
+        assert op_evaluated.entries.shape == (r, r)
+        assert np.all(op_evaluated.entries == entries[0])
+
+        # Scalar parameters.
+        op = self.Dummy(
+            mu[:, 0],
+            entries=entries,
+            InterpolatorClass=_DummyInterpolator,
+            fromblock=False,
+        )
+        op_evaluated = op.evaluate(np.array([[mu[0, 0]]]))
         assert isinstance(op_evaluated, self.Dummy._OperatorClass)
         assert op_evaluated.entries.shape == (r, r)
         assert np.all(op_evaluated.entries == entries[0])
@@ -445,10 +460,10 @@ def test_1Doperators(r=10, m=3, s=5):
             interp.PchipInterpolator,
         ]:
             op = OpClass(params, InterpolatorClass=InterpolatorClass)
-            if opinf.operators.has_inputs(op):
+            if oputils.has_inputs(op):
                 assert op.input_dimension is None
             op.set_entries(entries)
-            if opinf.operators.has_inputs(op):
+            if oputils.has_inputs(op):
                 assert op.input_dimension == m
             op_evaluated = op.evaluate(mu_new)
             assert isinstance(op_evaluated, OpClass._OperatorClass)

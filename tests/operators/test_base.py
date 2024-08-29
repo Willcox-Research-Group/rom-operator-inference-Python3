@@ -17,14 +17,15 @@ _module = opinf.operators._base
 
 def test_has_inputs():
     """Test operators._base.has_inputs()."""
+    has_inputs = opinf.operators._base.has_inputs
 
     class Dummy(_module.InputMixin):
         def input_dimension(self):
             return -1
 
     op = Dummy()
-    assert opinf.operators.has_inputs(op)
-    assert not opinf.operators.has_inputs(5)
+    assert has_inputs(op)
+    assert not has_inputs(5)
 
 
 # Nonparametric operators =====================================================
@@ -801,6 +802,24 @@ class TestParametricOpInfOperator:
         def datablock(self, states, inputs=None):
             K = sum([Q.shape[-1] for Q in states])
             return np.random.random(4, K)
+
+    def test_parameter_dimension(self):
+        """Test parameter_dimension and its setter."""
+        op = self.Dummy()
+
+        with pytest.raises(ValueError) as ex:
+            op.parameter_dimension = -40
+        assert ex.value.args[0] == (
+            "parameter_dimension must be a positive integer"
+        )
+
+        op.parameter_dimension = 100
+
+        with pytest.raises(AttributeError) as ex:
+            op.parameter_dimension = 10
+        assert ex.value.args[0] == (
+            "can't set property 'parameter_dimension' twice"
+        )
 
     def test_set_parameter_dimension_from_values(self):
         """Test _set_parameter_dimension_from_values()."""

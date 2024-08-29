@@ -3,7 +3,6 @@
 
 __all__ = [
     "InputMixin",
-    "has_inputs",
     "OperatorTemplate",
     "OpInfOperator",
     "ParametricOperatorTemplate",
@@ -1224,8 +1223,12 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
         Only allowed if :attr:`parameter_dimension` is currently ``None``.
         """
         if self.__p is not None:
-            raise AttributeError("can't set property 'parameter_dimension'")
-        self.__p = int(p)
+            raise AttributeError(
+                "can't set property 'parameter_dimension' twice"
+            )
+        if not isinstance(p, int) or p < 1:
+            raise ValueError("parameter_dimension must be a positive integer")
+        self.__p = p
 
     @property
     def shape(self) -> tuple:
