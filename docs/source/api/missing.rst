@@ -119,10 +119,6 @@ operators.ipynb
    InterpCubicOperator
    InterpInputOperator
    InterpStateInputOperator
-   has_inputs
-   is_nonparametric
-   is_parametric
-   is_uncalibrated
 
 lstsq.ipynb
 -----------

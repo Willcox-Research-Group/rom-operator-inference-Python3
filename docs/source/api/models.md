@@ -156,7 +156,7 @@ In addition, parametric models have an `evaluate()` method that returns a nonpar
 
 ### Interpolated Models
 
-Interpolated models consist exclusively of [interpolated operators](sec-operators-interpolated).
+Interpolated models consist exclusively of [interpolatory operators](sec-operators-interpolated).
 
 ```{eval-rst}
 .. currentmodule:: opinf.models
@@ -173,12 +173,12 @@ The `operators` constructor argument for these classes can also be a string that
 
 | Character | {mod}`opinf.operators` class |
 | :-------- | :------------------------------- |
-| `'c'` | {class}`opinf.operators.InterpolatedConstantOperator` |
-| `'A'` | {class}`opinf.operators.InterpolatedLinearOperator` |
-| `'H'` | {class}`opinf.operators.InterpolatedQuadraticOperator` |
-| `'G'` | {class}`opinf.operators.InterpolatedCubicOperator` |
-| `'B'` | {class}`opinf.operators.InterpolatedInputOperator` |
-| `'N'` | {class}`opinf.operators.InterpolatedStateInputOperator` |
+| `'c'` | {class}`opinf.operators.InterpConstantOperator` |
+| `'A'` | {class}`opinf.operators.InterpLinearOperator` |
+| `'H'` | {class}`opinf.operators.InterpQuadraticOperator` |
+| `'G'` | {class}`opinf.operators.InterpCubicOperator` |
+| `'B'` | {class}`opinf.operators.InterpInputOperator` |
+| `'N'` | {class}`opinf.operators.InterpStateInputOperator` |
 
 ```python
 import opinf
@@ -186,8 +186,8 @@ import opinf
 # Initialize the model with a list of operator objects.
 model = opinf.models.InterpolatedContinuousModel(
     operators=[
-        opinf.operators.InterpolatedCubicOperator(),
-        opinf.operators.InterpolatedStateInputOperator(),
+        opinf.operators.InterpCubicOperator(),
+        opinf.operators.InterpStateInputOperator(),
     ]
 )
 
