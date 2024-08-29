@@ -113,12 +113,12 @@ operators.ipynb
    AffineCubicOperator
    AffineInputOperator
    AffineStateInputOperator
-   InterpolatedConstantOperator
-   InterpolatedLinearOperator
-   InterpolatedQuadraticOperator
-   InterpolatedCubicOperator
-   InterpolatedInputOperator
-   InterpolatedStateInputOperator
+   InterpConstantOperator
+   InterpLinearOperator
+   InterpQuadraticOperator
+   InterpCubicOperator
+   InterpInputOperator
+   InterpStateInputOperator
    has_inputs
    is_nonparametric
    is_parametric

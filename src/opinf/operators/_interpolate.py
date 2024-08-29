@@ -4,12 +4,12 @@ handled with element-wise interpolation.
 """
 
 __all__ = [
-    "InterpolatedConstantOperator",
-    "InterpolatedLinearOperator",
-    "InterpolatedQuadraticOperator",
-    "InterpolatedCubicOperator",
-    "InterpolatedInputOperator",
-    "InterpolatedStateInputOperator",
+    "InterpConstantOperator",
+    "InterpLinearOperator",
+    "InterpQuadraticOperator",
+    "InterpCubicOperator",
+    "InterpInputOperator",
+    "InterpStateInputOperator",
 ]
 
 import warnings
@@ -30,7 +30,7 @@ from ._nonparametric import (
 
 
 # Base class ==================================================================
-class _InterpolatedOperator(ParametricOpInfOperator):
+class _InterpOperator(ParametricOpInfOperator):
     r"""Base class for parametric operators where the parameter dependence
     is handled with element-wise interpolation.
 
@@ -275,7 +275,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
     # Magic methods -----------------------------------------------------------
     def __eq__(self, other) -> bool:
         """Test whether the training parameters and operator matrices of two
-        _InterpolatedOperator objects are the same.
+        _InterpOperator objects are the same.
         """
         if not isinstance(other, self.__class__):
             return False
@@ -529,7 +529,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
 
         Returns
         -------
-        op : _InterpolatedOperator
+        op : _InterpOperator
             Initialized operator object.
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
@@ -575,7 +575,7 @@ class _InterpolatedOperator(ParametricOpInfOperator):
 
 
 # Public interpolated operator classes ========================================
-class InterpolatedConstantOperator(_InterpolatedOperator):
+class InterpConstantOperator(_InterpOperator):
     r"""Parametric constant operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \chat(\bfmu) \in \RR^r`
     where the parametric dependence is handled with elementwise interpolation.
@@ -622,7 +622,7 @@ class InterpolatedConstantOperator(_InterpolatedOperator):
     _OperatorClass = ConstantOperator
 
 
-class InterpolatedLinearOperator(_InterpolatedOperator):
+class InterpLinearOperator(_InterpOperator):
     r"""Parametric linear operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Ahat(\bfmu)\qhat`
     where :math:`\Ahat(\bfmu) \in \RR^{r \times r}` and
@@ -670,7 +670,7 @@ class InterpolatedLinearOperator(_InterpolatedOperator):
     _OperatorClass = LinearOperator
 
 
-class InterpolatedQuadraticOperator(_InterpolatedOperator):
+class InterpQuadraticOperator(_InterpOperator):
     r"""Parametric quadratic operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Hhat(\bfmu)[\qhat\otimes\qhat]`
     where :math:`\Ahat(\bfmu) \in \RR^{r \times r^2}` and
@@ -718,7 +718,7 @@ class InterpolatedQuadraticOperator(_InterpolatedOperator):
     _OperatorClass = QuadraticOperator
 
 
-class InterpolatedCubicOperator(_InterpolatedOperator):
+class InterpCubicOperator(_InterpOperator):
     r"""Parametric cubic operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu)
     = \Ghat(\bfmu)[\qhat\otimes\qhat\otimes\qhat]`
@@ -767,7 +767,7 @@ class InterpolatedCubicOperator(_InterpolatedOperator):
     _OperatorClass = CubicOperator
 
 
-class InterpolatedInputOperator(_InterpolatedOperator, InputMixin):
+class InterpInputOperator(_InterpOperator, InputMixin):
     r"""Parametric input operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Bhat(\bfmu)\u`
     where :math:`\Bhat(\bfmu) \in \RR^{r \times m}` and
@@ -821,7 +821,7 @@ class InterpolatedInputOperator(_InterpolatedOperator, InputMixin):
         return None if self.entries is None else self.shape[1]
 
 
-class InterpolatedStateInputOperator(_InterpolatedOperator, InputMixin):
+class InterpStateInputOperator(_InterpOperator, InputMixin):
     r"""Parametric state-input operator
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu) = \Nhat(\bfmu)[\u\otimes\qhat]`
     where :math:`\Nhat(\bfmu) \in \RR^{r \times rm}` and
@@ -880,7 +880,7 @@ class InterpolatedStateInputOperator(_InterpolatedOperator, InputMixin):
 # Utilities ===================================================================
 def is_interpolated(obj) -> bool:
     """Return ``True`` if ``obj`` is a interpolated operator object."""
-    return isinstance(obj, _InterpolatedOperator)
+    return isinstance(obj, _InterpOperator)
 
 
 def nonparametric_to_interpolated(OpClass: type) -> type:
@@ -888,14 +888,153 @@ def nonparametric_to_interpolated(OpClass: type) -> type:
     operator class.
 
     """
-    for InterpolatedClassName in __all__:
-        InterpolatedClass = eval(InterpolatedClassName)
-        if not isinstance(InterpolatedClass, type) or not issubclass(
-            InterpolatedClass, _InterpolatedOperator
+    for InterpClassName in __all__:
+        InterpClass = eval(InterpClassName)
+        if not isinstance(InterpClass, type) or not issubclass(
+            InterpClass, _InterpOperator
         ):  # pragma: no cover
             continue
-        if InterpolatedClass._OperatorClass is OpClass:
-            return InterpolatedClass
+        if InterpClass._OperatorClass is OpClass:
+            return InterpClass
     raise TypeError(
-        f"_InterpolatedOperator for class '{OpClass.__name__}' not found"
+        f"_InterpOperator for class '{OpClass.__name__}' not found"
     )
+
+
+# Deprecations ================================================================
+class InterpolatedConstantOperator(InterpConstantOperator):
+    def __init__(
+        self,
+        training_parameters=None,
+        entries=None,
+        InterpolatorClass: type = None,
+        fromblock=False,
+    ):
+        warnings.warn(
+            "InterpolatedConstantOperator has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpConstantOperator",
+            DeprecationWarning,
+        )
+        InterpConstantOperator.__init__(
+            self,
+            training_parameters=training_parameters,
+            entries=entries,
+            InterpolatorClass=InterpolatorClass,
+            fromblock=fromblock,
+        )
+
+
+class InterpolatedLinearOperator(InterpLinearOperator):
+    def __init__(
+        self,
+        training_parameters=None,
+        entries=None,
+        InterpolatorClass: type = None,
+        fromblock=False,
+    ):
+        warnings.warn(
+            "InterpolatedLinearOperator has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpLinearOperator",
+            DeprecationWarning,
+        )
+        InterpLinearOperator.__init__(
+            self,
+            training_parameters=training_parameters,
+            entries=entries,
+            InterpolatorClass=InterpolatorClass,
+            fromblock=fromblock,
+        )
+
+
+class InterpolatedQuadraticOperator(InterpQuadraticOperator):
+    def __init__(
+        self,
+        training_parameters=None,
+        entries=None,
+        InterpolatorClass: type = None,
+        fromblock=False,
+    ):
+        warnings.warn(
+            "InterpolatedQuadraticOperator has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpQuadraticOperator",
+            DeprecationWarning,
+        )
+        InterpQuadraticOperator.__init__(
+            self,
+            training_parameters=training_parameters,
+            entries=entries,
+            InterpolatorClass=InterpolatorClass,
+            fromblock=fromblock,
+        )
+
+
+class InterpolatedCubicOperator(InterpCubicOperator):
+    def __init__(
+        self,
+        training_parameters=None,
+        entries=None,
+        InterpolatorClass: type = None,
+        fromblock=False,
+    ):
+        warnings.warn(
+            "InterpolatedCubicOperator has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpCubicOperator",
+            DeprecationWarning,
+        )
+        InterpCubicOperator.__init__(
+            self,
+            training_parameters=training_parameters,
+            entries=entries,
+            InterpolatorClass=InterpolatorClass,
+            fromblock=fromblock,
+        )
+
+
+class InterpolatedInputOperator(InterpInputOperator):
+    def __init__(
+        self,
+        training_parameters=None,
+        entries=None,
+        InterpolatorClass: type = None,
+        fromblock=False,
+    ):
+        warnings.warn(
+            "InterpolatedInputOperator has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpInputOperator",
+            DeprecationWarning,
+        )
+        InterpInputOperator.__init__(
+            self,
+            training_parameters=training_parameters,
+            entries=entries,
+            InterpolatorClass=InterpolatorClass,
+            fromblock=fromblock,
+        )
+
+
+class InterpolatedStateInputOperator(InterpStateInputOperator):
+    def __init__(
+        self,
+        training_parameters=None,
+        entries=None,
+        InterpolatorClass: type = None,
+        fromblock=False,
+    ):
+        warnings.warn(
+            "InterpolatedStateInputOperator has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpStateInputOperator",
+            DeprecationWarning,
+        )
+        InterpStateInputOperator.__init__(
+            self,
+            training_parameters=training_parameters,
+            entries=entries,
+            InterpolatorClass=InterpolatorClass,
+            fromblock=fromblock,
+        )

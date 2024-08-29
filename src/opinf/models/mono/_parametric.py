@@ -1124,12 +1124,12 @@ class _InterpolatedModel(_ParametricModel):
 
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = {
-        "c": _operators.InterpolatedConstantOperator,
-        "A": _operators.InterpolatedLinearOperator,
-        "H": _operators.InterpolatedQuadraticOperator,
-        "G": _operators.InterpolatedCubicOperator,
-        "B": _operators.InterpolatedInputOperator,
-        "N": _operators.InterpolatedStateInputOperator,
+        "c": _operators.InterpConstantOperator,
+        "A": _operators.InterpLinearOperator,
+        "H": _operators.InterpQuadraticOperator,
+        "G": _operators.InterpCubicOperator,
+        "B": _operators.InterpInputOperator,
+        "N": _operators.InterpStateInputOperator,
     }
 
     def _isvalidoperator(self, op):

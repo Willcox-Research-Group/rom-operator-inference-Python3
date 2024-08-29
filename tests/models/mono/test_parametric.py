@@ -81,9 +81,7 @@ class DummyParametricOperator2(DummyParametricOperator):
     _OperatorClass = DummyOpInfOperator2
 
 
-class DummyInterpolatedOperator(
-    opinf.operators._interpolate._InterpolatedOperator
-):
+class DummyInterpOperator(opinf.operators._interpolate._InterpOperator):
     pass
 
 
@@ -141,7 +139,7 @@ class TestParametricModel:
             "consider using a nonparametric model class"
         )
 
-        operators = [DummyInterpolatedOperator()]
+        operators = [DummyInterpOperator()]
 
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
             self.Dummy(operators)
@@ -320,7 +318,7 @@ class TestInterpolatedModel:
         )
 
         # Wrong type of model.
-        model2 = self.Dummy([opinf.operators.InterpolatedCubicOperator()])
+        model2 = self.Dummy([opinf.operators.InterpCubicOperator()])
         with pytest.raises(TypeError) as ex:
             self.Dummy._from_models(mu, [model2, model1])
         assert ex.value.args[0] == (
@@ -356,7 +354,7 @@ class TestInterpolatedModel:
         assert len(model.operators) == 1
         assert isinstance(
             model.operators[0],
-            opinf.operators.InterpolatedConstantOperator,
+            opinf.operators.InterpConstantOperator,
         )
 
     def test_set_interpolator(self, s=10, p=2, r=2):
@@ -364,12 +362,12 @@ class TestInterpolatedModel:
 
         mu = np.random.random((s, p))
         operators = [
-            opinf.operators.InterpolatedConstantOperator(
+            opinf.operators.InterpConstantOperator(
                 training_parameters=mu,
                 entries=np.random.random((s, r)),
                 InterpolatorClass=interp.NearestNDInterpolator,
             ),
-            opinf.operators.InterpolatedLinearOperator(
+            opinf.operators.InterpLinearOperator(
                 training_parameters=mu,
                 entries=np.random.random((s, r, r)),
                 InterpolatorClass=interp.NearestNDInterpolator,
@@ -398,8 +396,8 @@ class TestInterpolatedModel:
     def test_fit_solver(self, s=10, r=3, k=20):
         """Test _InterpolatedModel._fit_solver()."""
         operators = [
-            opinf.operators.InterpolatedConstantOperator(),
-            opinf.operators.InterpolatedLinearOperator(),
+            opinf.operators.InterpConstantOperator(),
+            opinf.operators.InterpLinearOperator(),
         ]
         params = np.sort(np.random.random(s))
         states = np.random.random((s, r, k))
@@ -428,8 +426,8 @@ class TestInterpolatedModel:
     def test_refit(self, s=10, r=3, k=15):
         """Test _InterpolatedModel.refit()."""
         operators = [
-            opinf.operators.InterpolatedConstantOperator(),
-            opinf.operators.InterpolatedLinearOperator(),
+            opinf.operators.InterpConstantOperator(),
+            opinf.operators.InterpLinearOperator(),
         ]
         params = np.sort(np.random.random(s))
         states = np.random.random((s, r, k))
@@ -459,8 +457,8 @@ class TestInterpolatedModel:
 
         model = self.Dummy(
             [
-                opinf.operators.InterpolatedConstantOperator(),
-                opinf.operators.InterpolatedLinearOperator(),
+                opinf.operators.InterpConstantOperator(),
+                opinf.operators.InterpLinearOperator(),
             ]
         )
         model.save(target)
@@ -489,8 +487,8 @@ class TestInterpolatedModel:
             os.remove(target)
 
         operators = [
-            opinf.operators.InterpolatedConstantOperator(),
-            opinf.operators.InterpolatedLinearOperator(),
+            opinf.operators.InterpConstantOperator(),
+            opinf.operators.InterpLinearOperator(),
         ]
         model = self.Dummy(operators, InterpolatorClass=float)
 
@@ -540,18 +538,18 @@ class TestInterpolatedModel:
 
         model1 = self.Dummy(
             [
-                opinf.operators.InterpolatedConstantOperator(),
-                opinf.operators.InterpolatedLinearOperator(),
+                opinf.operators.InterpConstantOperator(),
+                opinf.operators.InterpLinearOperator(),
             ]
         )
 
         mu = np.random.random((s, p))
         model2 = self.Dummy(
             [
-                opinf.operators.InterpolatedConstantOperator(
+                opinf.operators.InterpConstantOperator(
                     mu, entries=np.random.random((s, r))
                 ),
-                opinf.operators.InterpolatedLinearOperator(
+                opinf.operators.InterpLinearOperator(
                     mu, entries=np.random.random((s, r, r))
                 ),
             ],
@@ -590,7 +588,7 @@ class TestInterpolatedDiscreteModel:
         params = np.sort(np.random.random(s))
         state = np.random.random(r)
         model = self.ModelClass(
-            opinf.operators.InterpolatedLinearOperator(
+            opinf.operators.InterpLinearOperator(
                 params, np.random.random((s, r, r))
             )
         )
@@ -600,7 +598,7 @@ class TestInterpolatedDiscreteModel:
 
         input_ = np.random.random(m)
         model = self.ModelClass(
-            opinf.operators.InterpolatedInputOperator(
+            opinf.operators.InterpInputOperator(
                 params, np.random.random((s, r, m))
             )
         )
@@ -613,7 +611,7 @@ class TestInterpolatedDiscreteModel:
         params = np.sort(np.random.random(s))
         state = np.random.random(r)
         model = self.ModelClass(
-            opinf.operators.InterpolatedLinearOperator(
+            opinf.operators.InterpLinearOperator(
                 params, np.random.random((s, r, r))
             )
         )
@@ -623,7 +621,7 @@ class TestInterpolatedDiscreteModel:
 
         input_ = np.random.random(m)
         model = self.ModelClass(
-            opinf.operators.InterpolatedInputOperator(
+            opinf.operators.InterpInputOperator(
                 params, np.random.random((s, r, m))
             )
         )
@@ -636,9 +634,7 @@ class TestInterpolatedDiscreteModel:
         params = np.sort(np.random.random(s))
         state0 = np.random.random(r)
         model = self.ModelClass(
-            opinf.operators.InterpolatedLinearOperator(
-                params, np.zeros((s, r, r))
-            )
+            opinf.operators.InterpLinearOperator(params, np.zeros((s, r, r)))
         )
         out = model.predict(params[2], state0, niters)
         assert isinstance(out, np.ndarray)
@@ -648,9 +644,7 @@ class TestInterpolatedDiscreteModel:
 
         inputs = np.random.random((m, niters))
         model = self.ModelClass(
-            opinf.operators.InterpolatedInputOperator(
-                params, np.zeros((s, r, m))
-            )
+            opinf.operators.InterpInputOperator(params, np.zeros((s, r, m)))
         )
         out = model.predict(params[-2], state0, niters, inputs)
         assert isinstance(out, np.ndarray)
@@ -684,7 +678,7 @@ class TestInterpolatedContinuousModel:
         params = np.sort(np.random.random(s))
         state = np.random.random(r)
         model = self.ModelClass(
-            opinf.operators.InterpolatedLinearOperator(
+            opinf.operators.InterpLinearOperator(
                 params, np.random.random((s, r, r))
             )
         )
@@ -696,7 +690,7 @@ class TestInterpolatedContinuousModel:
             return np.random.random(m)
 
         model = self.ModelClass(
-            opinf.operators.InterpolatedInputOperator(
+            opinf.operators.InterpInputOperator(
                 params, np.random.random((s, r, m))
             )
         )
@@ -709,7 +703,7 @@ class TestInterpolatedContinuousModel:
         params = np.sort(np.random.random(s))
         state = np.random.random(r)
         model = self.ModelClass(
-            opinf.operators.InterpolatedLinearOperator(
+            opinf.operators.InterpLinearOperator(
                 params, np.random.random((s, r, r))
             )
         )
@@ -721,7 +715,7 @@ class TestInterpolatedContinuousModel:
             return np.random.random(m)
 
         model = self.ModelClass(
-            opinf.operators.InterpolatedInputOperator(
+            opinf.operators.InterpInputOperator(
                 params, np.random.random((s, r, m))
             )
         )
@@ -735,9 +729,7 @@ class TestInterpolatedContinuousModel:
         state0 = np.random.random(r)
         t = np.linspace(0, 1, k)
         model = self.ModelClass(
-            opinf.operators.InterpolatedLinearOperator(
-                params, np.zeros((s, r, r))
-            )
+            opinf.operators.InterpLinearOperator(params, np.zeros((s, r, r)))
         )
         out = model.predict(params[2], state0, t)
         assert isinstance(out, np.ndarray)
@@ -749,9 +741,7 @@ class TestInterpolatedContinuousModel:
             return np.random.random(m)
 
         model = self.ModelClass(
-            opinf.operators.InterpolatedInputOperator(
-                params, np.zeros((s, r, m))
-            )
+            opinf.operators.InterpInputOperator(params, np.zeros((s, r, m)))
         )
         out = model.predict(params[-2], state0, t, input_func)
         assert isinstance(out, np.ndarray)
@@ -762,7 +752,7 @@ class TestInterpolatedContinuousModel:
 
 def test_publics():
     """Ensure all public ParametricModel classes can be instantiated."""
-    operators = [opinf.operators.InterpolatedConstantOperator()]
+    operators = [opinf.operators.InterpConstantOperator()]
     for ModelClassName in _module.__all__:
         ModelClass = getattr(_module, ModelClassName)
         if not isinstance(ModelClass, type) or not issubclass(

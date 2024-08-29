@@ -56,16 +56,16 @@ class _DummyInterpolator2(_DummyInterpolator):
     pass
 
 
-class TestInterpolatedOperator:
-    """Test operators._interpolate._InterpolatedOperator."""
+class TestInterpOperator:
+    """Test operators._interpolate._InterpOperator."""
 
-    class Dummy(_module._InterpolatedOperator):
-        """Instantiable version of _InterpolatedOperator."""
+    class Dummy(_module._InterpOperator):
+        """Instantiable version of _InterpOperator."""
 
         _OperatorClass = _DummyOperator
 
     def test_from_operators(self, s=7, p=2, r=5):
-        """Test _InterpolatedOperator._from_operators()."""
+        """Test _InterpOperator._from_operators()."""
         mu = np.random.random((s, p))
 
         with pytest.raises(TypeError) as ex:
@@ -96,7 +96,7 @@ class TestInterpolatedOperator:
         assert isinstance(op.interpolator, _DummyInterpolator)
 
     def test_set_training_parameters(self, s=10, p=2, r=4):
-        """Test _InterpolatedOperator.set_training_parameters(),
+        """Test _InterpOperator.set_training_parameters(),
         the training_parameter property, and __len__().
         """
         op = self.Dummy()
@@ -116,9 +116,15 @@ class TestInterpolatedOperator:
         assert np.all(op.training_parameters == mu)
         assert op.state_dimension is None
         assert op.interpolator is None
+        assert op.parameter_dimension == p
 
         op.set_training_parameters(mu[:, 0])
         assert np.all(op.training_parameters == mu[:, 0])
+        assert op.parameter_dimension == 1
+
+        op.set_training_parameters(mu[:, 0].reshape((-1, 1)))
+        assert np.all(op.training_parameters == mu[:, 0])
+        assert op.parameter_dimension == 1
 
         entries = np.random.standard_normal((s, r, r))
         op = self.Dummy(mu, entries)
@@ -130,7 +136,7 @@ class TestInterpolatedOperator:
         )
 
     def test_set_entries(self, s=5, p=3, r=4):
-        """Test _InterpolatedOperator.set_entries(), _clear(), and the
+        """Test _InterpOperator.set_entries(), _clear(), and the
         the entries and shape properties.
         """
         mu = np.random.random((s, p))
@@ -189,7 +195,7 @@ class TestInterpolatedOperator:
         assert op.state_dimension is None
 
     def test_set_interpolator(self, s=4, p=2, r=5):
-        """Test _InterpolatedOperator.set_interpolator() and the
+        """Test _InterpOperator.set_interpolator() and the
         interpolator property.
         """
         op = self.Dummy()
@@ -208,7 +214,7 @@ class TestInterpolatedOperator:
         assert isinstance(op.interpolator, _DummyInterpolator2)
 
     def test_eq(self, s=4, p=3, r=2):
-        """Test _InterpolatedOperator.__eq__()."""
+        """Test _InterpOperator.__eq__()."""
         op1 = self.Dummy()
         op2 = self.Dummy()
         assert op1 == op2
@@ -245,7 +251,7 @@ class TestInterpolatedOperator:
         assert op1 == op2
 
     def test_evaluate(self, s=3, p=5, r=4):
-        """Test _InterpolatedOperator.evaluate()."""
+        """Test _InterpOperator.evaluate()."""
         mu = np.random.random((s, p))
         op = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
 
@@ -260,7 +266,7 @@ class TestInterpolatedOperator:
         assert np.all(op_evaluated.entries == entries[0])
 
     def test_galerkin(self, s=5, p=2, n=10, r=4):
-        """Test _InterpolatedOperator.galerkin()."""
+        """Test _InterpOperator.galerkin()."""
         Vr = np.empty((n, r))
         mu = np.random.random((s, p))
         entries = np.random.random((s, n, n))
@@ -271,7 +277,7 @@ class TestInterpolatedOperator:
         assert np.all(op_reduced.entries == entries)
 
     def test_datablock(self, s=4, p=2, r=2, k=3):
-        """Test _InterpolatedOperator.datablock()."""
+        """Test _InterpOperator.datablock()."""
         mu = np.random.random((s, p))
         states = np.random.random((s, r, k))
         op = self.Dummy(mu, InterpolatorClass=_DummyInterpolator)
@@ -280,11 +286,11 @@ class TestInterpolatedOperator:
         assert np.all(block == la.block_diag(*[_Dblock for _ in range(s)]))
 
     def test_operator_dimension(self, s=3):
-        """Test _InterpolatedOperator.operator_dimension()."""
+        """Test _InterpOperator.operator_dimension()."""
         assert self.Dummy.operator_dimension(s, None, None) == _d * s
 
     def test_copy(self, s=4, p=2, r=5):
-        """Test _InterpolatedOperator.copy()."""
+        """Test _InterpOperator.copy()."""
         op1 = self.Dummy()
         op2 = op1.copy()
         assert op2 is not op1
@@ -313,7 +319,7 @@ class TestInterpolatedOperator:
         assert isinstance(op2.interpolator, _DummyInterpolator2)
 
     def test_save(self, s=5, p=2, r=3, target="_interpolatedopsavetest.h5"):
-        """Lightly test _InterpolatedOperator.save()."""
+        """Lightly test _InterpOperator.save()."""
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
@@ -336,7 +342,7 @@ class TestInterpolatedOperator:
         os.remove(target)
 
     def test_load(self, s=15, p=3, r=3, target="_interpolatedoploadtest.h5"):
-        """Test _InterpolatedOperator.load()."""
+        """Test _InterpOperator.load()."""
         if os.path.isfile(target):
             os.remove(target)
 
@@ -390,13 +396,13 @@ class TestInterpolatedOperator:
 
 
 def test_publics():
-    """Ensure all public InterpolatedOperator classes can be instantiated
+    """Ensure all public InterpOperator classes can be instantiated
     without arguments.
     """
     for OpClassName in _module.__all__:
         OpClass = getattr(_module, OpClassName)
         if not isinstance(OpClass, type) or not issubclass(
-            OpClass, _module._InterpolatedOperator
+            OpClass, _module._InterpOperator
         ):
             continue
         op = OpClass()
@@ -407,7 +413,7 @@ def test_publics():
 
 
 def test_1Doperators(r=10, m=3, s=5):
-    """Test InterpolatedOperator classes with using all 1D interpolators
+    """Test InterpOperator classes with using all 1D interpolators
     from scipy.interpolate.
     """
     InterpolatorClass = interp.CubicSpline
@@ -420,12 +426,12 @@ def test_1Doperators(r=10, m=3, s=5):
     mu_new = 0.314159
 
     for OpClass, Ohat in [
-        (_module.InterpolatedConstantOperator, c),
-        (_module.InterpolatedLinearOperator, A),
-        (_module.InterpolatedQuadraticOperator, H),
-        (_module.InterpolatedCubicOperator, G),
-        (_module.InterpolatedInputOperator, B),
-        (_module.InterpolatedStateInputOperator, N),
+        (_module.InterpConstantOperator, c),
+        (_module.InterpLinearOperator, A),
+        (_module.InterpQuadraticOperator, H),
+        (_module.InterpCubicOperator, G),
+        (_module.InterpInputOperator, B),
+        (_module.InterpStateInputOperator, N),
     ]:
         entries = [
             Ohat + p**2 + np.random.standard_normal(Ohat.shape) / 20
@@ -461,7 +467,7 @@ def test_1Doperators(r=10, m=3, s=5):
 
 def test_is_interpolated():
     """Test operators._interpolate.is_interpolated()."""
-    op = TestInterpolatedOperator.Dummy()
+    op = TestInterpOperator.Dummy()
     assert _module.is_interpolated(op)
     assert not _module.is_interpolated(-1)
 
@@ -471,11 +477,24 @@ def test_nonparametric_to_interpolated():
 
     with pytest.raises(TypeError) as ex:
         _module.nonparametric_to_interpolated(float)
-    assert ex.value.args[0] == (
-        "_InterpolatedOperator for class 'float' not found"
-    )
+    assert ex.value.args[0] == ("_InterpOperator for class 'float' not found")
 
     OpClass = _module.nonparametric_to_interpolated(
         opinf.operators.QuadraticOperator
     )
-    assert OpClass is opinf.operators.InterpolatedQuadraticOperator
+    assert OpClass is opinf.operators.InterpQuadraticOperator
+
+
+def test_deprecations():
+    """Ensure deprecated classes still work."""
+    for OpClass in [
+        _module.InterpolatedConstantOperator,
+        _module.InterpolatedLinearOperator,
+        _module.InterpolatedQuadraticOperator,
+        _module.InterpolatedCubicOperator,
+        _module.InterpolatedInputOperator,
+        _module.InterpolatedStateInputOperator,
+    ]:
+        with pytest.warns(DeprecationWarning) as wn:
+            OpClass()
+        assert len(wn) == 1
