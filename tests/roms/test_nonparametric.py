@@ -42,7 +42,10 @@ class TestROM:
         # Model error.
         with pytest.raises(TypeError) as ex:
             self.ROM(10)
-        assert ex.value.args[0] == "invalid model type"
+        assert ex.value.args[0] == (
+            "'model' must be a models.ContinuousModel "
+            "or models.DiscreteModel instance"
+        )
 
         # Warnings for other arguments.
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
@@ -73,11 +76,12 @@ class TestROM:
 
         # Given ddt_estimator with non-continuous model.
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            self.ROM(args["model2"], ddt_estimator=args["ddt_estimator"])
+            rom = self.ROM(args["model2"], ddt_estimator=args["ddt_estimator"])
         assert len(wn) == 1
         assert wn[0].message.args[0] == (
             "ddt_estimator ignored for discrete models"
         )
+        assert rom.ddt_estimator is None
 
         # Correct usage.
         rom = self.ROM(
