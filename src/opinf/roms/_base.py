@@ -167,9 +167,9 @@ class _BaseROM(abc.ABC):
 
         Parameters
         ----------
-        states : (n, ...) ndarray
+        states : (n,) or (n, k) ndarray
             State snapshots in the original state space.
-        lhs : (n, ...) ndarray or None
+        lhs : (n,) or (n, k) ndarray or None
             Left-hand side regression data.
 
             - If the model is time continuous, these are the time derivatives
@@ -182,18 +182,21 @@ class _BaseROM(abc.ABC):
 
         Returns
         -------
-        states_encoded : (r, ...) ndarray
+        states_encoded : (r,) or (r, k) ndarray
             Low-dimensional representation of ``states``
             in the latent reduced state space.
-        lhs_encoded : (r, ...) ndarray
+        lhs_encoded : (r,) or (r, k) ndarray
             Low-dimensional representation of ``lhs``
             in the latent reduced state space.
             **Only returned** if ``lhs`` is not ``None``.
         """
         # Lifting.
         if self.lifter is not None:
-            if self._iscontinuous and lhs is not None:
-                lhs = self.lifter.lift_ddts(lhs)
+            if lhs is not None:
+                if self._iscontinuous:
+                    lhs = self.lifter.lift_ddts(states, lhs)
+                else:
+                    lhs = self.lifter.lift(lhs)
             states = self.lifter.lift(states)
 
         # Preprocessing.
@@ -204,12 +207,12 @@ class _BaseROM(abc.ABC):
                     inplace=inplace,
                 )
             else:
-                states = self.tranformer.tranform(states, inplace=inplace)
+                states = self.transformer.transform(states, inplace=inplace)
             if lhs is not None:
                 if self._iscontinuous:
                     lhs = self.transformer.transform_ddts(lhs, inplace=inplace)
                 else:
-                    lhs = self.transformer.tranform(lhs, inplace=inplace)
+                    lhs = self.transformer.transform(lhs, inplace=inplace)
 
         # Dimensionality reduction.
         if self.basis is not None:
