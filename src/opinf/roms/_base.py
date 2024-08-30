@@ -7,7 +7,8 @@ import abc
 import warnings
 
 from .. import errors, utils
-from .. import lift, pre, basis as _basis, ddt, models
+from .. import lift, pre, basis as _basis, ddt
+from ..models import _utils as modutils
 
 
 class _BaseROM(abc.ABC):
@@ -77,7 +78,7 @@ class _BaseROM(abc.ABC):
         self.__basis = basis
 
         # Verify ddt_estimator.
-        if ddt_estimator is not None and not self.iscontinuous:
+        if ddt_estimator is not None and not self._iscontinuous:
             warnings.warn(
                 "ddt_estimator ignored for discrete models",
                 errors.OpInfWarning,
@@ -121,14 +122,11 @@ class _BaseROM(abc.ABC):
         return self.__model
 
     @property
-    def iscontinuous(self):
+    def _iscontinuous(self):
         """``True`` if the model is time continuous (semi-discrete),
         ``False`` if the model if fully discrete.
         """
-        return isinstance(
-            self.model,
-            (models.ContinuousModel, models.ParametricContinuousModel),
-        )
+        return modutils.is_continuous(self.model)
 
     # Printing ----------------------------------------------------------------
     def __str__(self):
@@ -194,7 +192,7 @@ class _BaseROM(abc.ABC):
         """
         # Lifting.
         if self.lifter is not None:
-            if self.iscontinuous and lhs is not None:
+            if self._iscontinuous and lhs is not None:
                 lhs = self.lifter.lift_ddts(lhs)
             states = self.lifter.lift(states)
 
@@ -208,7 +206,7 @@ class _BaseROM(abc.ABC):
             else:
                 states = self.tranformer.tranform(states, inplace=inplace)
             if lhs is not None:
-                if self.iscontinuous:
+                if self._iscontinuous:
                     lhs = self.transformer.transform_ddts(lhs, inplace=inplace)
                 else:
                     lhs = self.transformer.tranform(lhs, inplace=inplace)
