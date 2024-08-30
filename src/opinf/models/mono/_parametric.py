@@ -248,7 +248,7 @@ class _ParametricModel(_Model):
             inputs = [np.atleast_2d(U) for U in inputs]
             if not self.input_dimension:
                 self.input_dimension = inputs[0].shape[0]
-            _check_valid_dimension0(lhs, self._LHS_ARGNAME)
+            _check_valid_dimension0(inputs, "inputs")
             for i, subset in enumerate(inputs):
                 if (dim := subset.shape[0]) != (m := self.input_dimension):
                     raise errors.DimensionalityError(

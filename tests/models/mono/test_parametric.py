@@ -152,10 +152,9 @@ class _TestParametricModel:
         params = np.random.random((s, p))
         states = [np.ones((r, k)) for _ in range(s)]
         lhs = [np.ones((r, k)) for _ in range(s)]
+        inputs = [np.empty((m, k)) for _ in range(s)]
 
-        op = opinf.operators.AffineLinearOperator(p)
-        if isinstance(self, _TestInterpolatedModel):
-            op = opinf.operators.InterpLinearOperator()
+        op = self._get_single_operator()
         model = self.Model([op])
 
         # Invalid parameters.
@@ -165,12 +164,31 @@ class _TestParametricModel:
             "'parameters' must be a sequence of scalars or 1D arrays"
         )
 
-        # Inconsistent number of parameter values.
+        # Inconsistent number of datasets across arguments.
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(params, states[1:], None, None)
         assert ex.value.args[0] == (
             f"len(states) = {s-1} != {s} = len(parameters)"
         )
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            model._process_fit_arguments(params, states, lhs[:-1], None)
+        assert ex.value.args[0] == (
+            f"len({self.Model._ModelClass._LHS_ARGNAME}) = {s-1} "
+            f"!= {s} = len(parameters)"
+        )
+        model._has_inputs = True
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            model._process_fit_arguments(params, states, lhs, inputs[1:])
+        assert ex.value.args[0] == (
+            f"len(inputs) = {s-1} != {s} = len(parameters)"
+        )
+        inputs1D = np.empty((s - 1, k))
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            model._process_fit_arguments(params, states, lhs, inputs1D)
+        assert ex.value.args[0] == (
+            f"len(inputs) = {s-1} != {s} = len(parameters)"
+        )
+        model._has_inputs = False
 
         # Inconsistent state dimension.
         states[1] = np.empty((r - 1, k))
@@ -189,7 +207,6 @@ class _TestParametricModel:
 
         # Inconsistent input dimension.
         states[1] = np.empty((r, k))
-        inputs = [np.empty((m, k)) for _ in range(s)]
         inputs[1] = np.empty((m - 1, k))
         model._has_inputs = True
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
