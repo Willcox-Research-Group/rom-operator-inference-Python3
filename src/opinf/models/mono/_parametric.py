@@ -71,20 +71,6 @@ class _ParametricModel(_Model):
         """String representation of input, e.g., "u(t)"."""
         return self._ModelClass._INPUT_LABEL
 
-    @property
-    def ModelClass(self):
-        """Nonparametric model class that represents this parametric model
-        when evaluated at a particular parameter value.
-
-        Examples
-        --------
-        >>> model = MyParametricModel(init_args).fit(fit_args)
-        >>> model_evaluated = model.evaluate(parameter_value)
-        >>> type(model_evaluated) is MyParametricModel.ModelClass
-        True
-        """
-        return self._ModelClass
-
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = dict()
 
@@ -152,22 +138,20 @@ class _ParametricModel(_Model):
                     "consider using an InterpolatedModel class",
                     errors.OpInfWarning,
                 )
-        self.__p = self._check_parameter_dimension_consistency(self.operators)
-
-    def _clear(self):
-        """Reset the entries of the non-intrusive operators and the
-        state, input, and parameter dimensions.
-        """
-        _Model._clear(self)
-        self.__p = self._check_parameter_dimension_consistency(self.operators)
+        self._synchronize_parameter_dimensions()
 
     # Properties: dimensions --------------------------------------------------
-    @staticmethod
-    def _check_parameter_dimension_consistency(ops):
-        """Ensure all operators have the same parameter dimension."""
+    @property
+    def parameter_dimension(self):
+        r"""Dimension :math:`p` of a parameter vector :math:`\bfmu`."""
+        return self.__p
+
+    def _synchronize_parameter_dimensions(self, newdim=None):
+        """Synchronize the parameter_dimension attribute for each operator."""
+        # Get any non-None parameter dimensions and check for uniqueness.
         ps = {
             op.parameter_dimension
-            for op in ops
+            for op in self.operators
             if oputils.is_parametric(op) and op.parameter_dimension is not None
         }
         if len(ps) > 1:
@@ -175,44 +159,29 @@ class _ParametricModel(_Model):
                 "operators not aligned "
                 "(parameter_dimension must be the same for all operators)"
             )
-        return ps.pop() if len(ps) == 1 else None
+        p = ps.pop() if len(ps) == 1 else None
 
-    @property
-    def parameter_dimension(self):
-        """Dimension :math:`p` of the parameters."""
-        return self.__p
+        # Check operator parameter_dimension matches new parameter_dimension.
+        if newdim is not None:
+            if p is None:
+                p = newdim
+            if p != newdim:
+                raise errors.DimensionalityError(
+                    f"{p} = each operator.parameter_dimension != "
+                    f"parameter dimension = {newdim}"
+                )
 
-    @parameter_dimension.setter
-    def parameter_dimension(self, p):
-        """Set the parameter dimension. Not allowed if any
-        existing operators have ``parameter_dimension != p``.
-        """
-        if self.operators is not None:
+        # Ensure all parametric operators have the same parameter_dimension.
+        if p is not None:
             for op in self.operators:
-                if oputils.is_nonparametric(op):
-                    continue
-                if (opp := op.parameter_dimension) is not None and opp != p:
-                    raise AttributeError(
-                        "can't set attribute "
-                        f"(existing operators have p = {self.__p})"
-                    )
+                if (
+                    oputils.is_parametric(op)
+                    and op.parameter_dimension is None
+                ):
+                    op.parameter_dimension = p
+
+        # Set the model's parameter_dimension to the same as the operators.
         self.__p = p
-
-    def _set_parameter_dimension_from_values(self, parameters):
-        """Extract and save the dimension of the parameter space from a set of
-        parameter values.
-
-        Parameters
-        ----------
-        parameters : (s, p) or (p,) ndarray
-            Parameter value(s).
-        """
-        if (dim := len(shape := np.shape(parameters))) == 1:
-            self.parameter_dimension = 1
-        elif dim == 2:
-            self.parameter_dimension = shape[1]
-        else:
-            raise ValueError("parameter values must be scalars or 1D arrays")
 
     # Fitting -----------------------------------------------------------------
     def _process_fit_arguments(self, parameters, states, lhs, inputs):
@@ -224,8 +193,15 @@ class _ParametricModel(_Model):
         self._clear()
 
         # Process parameters.
-        parameters = np.array(parameters)
-        self._set_parameter_dimension_from_values(parameters)
+        if (dim := len(shape := np.shape(parameters))) == 1:
+            p = 1
+        elif dim == 2:
+            p = shape[1]
+        else:
+            raise errors.DimensionalityError(
+                "'parameters' must be a sequence of scalars or 1D arrays"
+            )
+        self._synchronize_parameter_dimensions(p)
         n_datasets = len(parameters)
 
         def _check_valid_dimension0(dataset, label):
@@ -300,9 +276,12 @@ class _ParametricModel(_Model):
         for i in self._indices_of_operators_to_infer:
             op = self.operators[i]
             if not oputils.is_parametric(op):
-                blocks.append(np.hstack(states).T)
+                block = np.hstack(
+                    [op.datablock(Q, U) for Q, U in zip(states, inputs)]
+                )
             else:
-                blocks.append(op.datablock(parameters, states, inputs).T)
+                block = op.datablock(parameters, states, inputs)
+            blocks.append(block.T)
         return np.hstack(blocks)
 
     def _fit_solver(self, parameters, states, lhs, inputs=None):
@@ -314,6 +293,11 @@ class _ParametricModel(_Model):
             lhs_,
             inputs_,
         ) = self._process_fit_arguments(parameters, states, lhs, inputs)
+
+        # Set training_parameters for interpolatory operators.
+        for op in self.operators:
+            if oputils.is_interpolated(op):
+                op.set_training_parameters(parameters_)
 
         # Set up non-intrusive learning.
         D = self._assemble_data_matrix(parameters_, states_, inputs_)
@@ -357,6 +341,7 @@ class _ParametricModel(_Model):
 
         # Execute non-intrusive learning.
         self._extract_operators(self.solver.solve())
+        return self
 
     def fit(self, parameters, states, lhs, inputs=None):
         r"""Learn the model operators from data.
@@ -392,7 +377,7 @@ class _ParametricModel(_Model):
 
         Parameters
         ----------
-        parameters : list of s scalars or (p,) 1D ndarrays
+        parameters : list of s (floats or (p,) ndarrays)
             Parameter values for which training data are available.
         states : list of s (r, k) ndarrays
             Snapshot training data. Each array ``states[i]`` is the data
@@ -424,8 +409,7 @@ class _ParametricModel(_Model):
             return self
 
         self._fit_solver(parameters, states, lhs, inputs)
-        self.refit()
-        return self
+        return self.refit()
 
     # Parametric evaluation ---------------------------------------------------
     def evaluate(self, parameter):
@@ -441,7 +425,7 @@ class _ParametricModel(_Model):
         model : _NonparametricModel
             Nonparametric model of type ``ModelClass``.
         """
-        return self.ModelClass(
+        return self._ModelClass(
             [
                 op.evaluate(parameter) if oputils.is_parametric(op) else op
                 for op in self.operators
@@ -1054,7 +1038,7 @@ class _InterpolatedModel(_ParametricModel):
     @property
     def _ModelFitClass(self):
         """Parent of ModelClass that has a callable ``fit()`` method."""
-        return self.ModelClass.__bases__[-1]
+        return self._ModelClass.__bases__[-1]
 
     def __init__(self, operators, solver=None, InterpolatorClass=None):
         """Define the model structure and set the interpolator class."""
@@ -1084,15 +1068,9 @@ class _InterpolatedModel(_ParametricModel):
             for one-dimensional parameters and
             :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         """
-        # Check for consistency in the models.
+        # Check for consistency in the model operators.
         opclasses = [type(op) for op in models[0].operators]
-        ModelFitClass = cls._ModelClass.__bases__[-1]
         for mdl in models:
-            # Model class.
-            if not isinstance(mdl, ModelFitClass):
-                raise TypeError(
-                    f"expected models of type '{ModelFitClass.__name__}'"
-                )
             # Operator count and type.
             if len(mdl.operators) != len(opclasses):
                 raise ValueError(
@@ -1209,8 +1187,8 @@ class _InterpolatedModel(_ParametricModel):
 
         # Solve each independent subproblem.
         # TODO: parallelize?
-        for model_i in self._submodels:
-            model_i.refit()
+        for submodel in self._submodels:
+            submodel.refit()
 
         # Interpolate the resulting operators.
         for ell, op in enumerate(self.operators):
@@ -1219,8 +1197,6 @@ class _InterpolatedModel(_ParametricModel):
             op.set_entries(
                 [mdl.operators[ell].entries for mdl in self._submodels]
             )
-
-        # self.__InterpolatorClass = type(self.operators[0].interpolator)
 
         return self
 

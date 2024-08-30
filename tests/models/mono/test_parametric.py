@@ -10,223 +10,160 @@ import scipy.interpolate as interp
 import opinf
 
 
-_module = opinf.models.mono._parametric
-_applyvalue = 7
-_jacvalue = 11
-_predictvalue = 13
+_module = opinf.models
 
 
-# Dummy classes ===============================================================
-class DummyOpInfOperator(opinf.operators.OpInfOperator):
-    """Instantiable version of OpInfOperator."""
-
-    def apply(*args, **kwargs):  # pragma: no cover
-        return _applyvalue
-
-    def jacobian(*args, **kwargs):
-        return _jacvalue
-
-    def datablock(*args, **kwargs):  # pragma: no cover
-        pass
-
-    def galerkin(*args, **kwargs):  # pragma: no cover
-        pass
-
-    def operator_dimension(*args, **kwargs):  # pragma: no cover
-        pass
-
-
-class DummyOpInfOperator2(DummyOpInfOperator):
-    """Another OpInfOperator (since duplicates not allowed)."""
-
-
-class DummyParametricOperator(opinf.operators.ParametricOpInfOperator):
-    """Instantiable version of ParametricOpInfOperator."""
-
-    _OperatorClass = DummyOpInfOperator
-
-    def __init__(self, entries=None):
-        super().__init__()
-        if entries is not None:
-            self.set_entries(entries)
-
-    def set_entries(self, entries):
-        super().set_entries(entries)
-
-    def operator_dimension(*args, **kwargs):  # pragma: no cover
-        pass
-
-    def datablock(*args, **kwargs):  # pragma: no cover
-        pass
-
-    def evaluate(self, *args, **kwargs):  # pragma: no cover
-        return self._OperatorClass(self.entries)
-
-    # def galerkin(*args, **kwargs):  # pragma: no cover
-    #     pass
-
-    # def copy(*args, **kwargs):  # pragma: no cover
-    #     pass
-
-    # def load(*args, **kwargs):  # pragma: no cover
-    #     pass
-
-    # def save(*args, **kwargs):  # pragma: no cover
-    #     pass
-
-
-class DummyParametricOperator2(DummyParametricOperator):
-    """Another ParametricOperator with a different OperatorClass."""
-
-    _OperatorClass = DummyOpInfOperator2
-
-
-class DummyInterpOperator(opinf.operators._interpolate._InterpOperator):
-    pass
-
-
-class DummyNonparametricModel(
-    opinf.models.mono._nonparametric._NonparametricModel
-):
-    """Instantiable version of _NonparametricModel."""
-
-    _LHS_ARGNAME = "mylhs"
-
-    def predict(*args, **kwargs):
-        return _predictvalue
-
-
-class DummyNonparametricModel2(DummyNonparametricModel):
-    pass
-
-
-# Tests =======================================================================
-class TestParametricModel:
+# Parametric models ===========================================================
+class _TestParametricModel:
     """Test models.mono._parametric._ParametricModel."""
 
-    class Dummy(_module._ParametricModel):
-        _ModelClass = DummyNonparametricModel
+    Model = NotImplemented
+    _iscontinuous = NotImplemented
 
-    def test_check_operator_types_unique(self):
-        """Test _ParametricModel._check_operator_types_unique()."""
-        operators = [DummyParametricOperator(), DummyOpInfOperator()]
+    def _get_single_operator(self, p=4):
+        """Get a single uncalibrated operator."""
+        return opinf.operators.AffineLinearOperator(p)
+
+    def _get_parametric_operators(self, p, r, m=0):
+        """Get calibrated constant + linear + input affine operators."""
+        op1 = opinf.operators.AffineConstantOperator(
+            coeffs=p,
+            entries=[np.random.random(r) for _ in range(p)],
+        )
+        op2 = opinf.operators.AffineLinearOperator(
+            coeffs=p,
+            entries=[np.random.random((r, r)) for _ in range(p)],
+        )
+        operators = [op1, op2]
+        if m > 0:
+            op3 = opinf.operators.AffineInputOperator(
+                coeffs=p,
+                entries=[np.random.random((r, m)) for _ in range(p)],
+            )
+            operators.append(op3)
+        return operators, np.random.random(p)
+
+    def test_check_operator_types_unique(self, p=2):
+        """Test _check_operator_types_unique()."""
+        operators = [
+            opinf.operators.AffineLinearOperator(p),
+            opinf.operators.LinearOperator(),
+        ]
 
         with pytest.raises(ValueError) as ex:
-            self.Dummy._check_operator_types_unique(operators)
+            self.Model._check_operator_types_unique(operators)
         assert ex.value.args[0] == (
             "duplicate type in list of operators to infer"
         )
 
-        operators = [DummyParametricOperator(), DummyOpInfOperator()]
+        operators[1] = opinf.operators.ConstantOperator()
+        self.Model._check_operator_types_unique(operators)
 
-        with pytest.raises(ValueError) as ex:
-            self.Dummy._check_operator_types_unique(operators)
-        assert ex.value.args[0] == (
-            "duplicate type in list of operators to infer"
-        )
-
-        operators = [DummyParametricOperator(), DummyParametricOperator2()]
-        self.Dummy._check_operator_types_unique(operators)
-
-    def test_set_operators(self):
-        """Test _ParametricModel.operators.fset()."""
-        operators = [DummyOpInfOperator()]
+    def test_set_operators(self, p=3):
+        """Test operators.fset()."""
+        operators = [opinf.operators.LinearOperator()]
 
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            self.Dummy(operators)
+            self.Model(operators)
         assert wn[0].message.args[0] == (
             "no parametric operators detected, "
             "consider using a nonparametric model class"
         )
 
-        operators = [DummyInterpOperator()]
-
+        operators = [opinf.operators.InterpLinearOperator()]
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            self.Dummy(operators)
+            self.Model(operators)
         assert wn[0].message.args[0] == (
             "all operators interpolatory, "
             "consider using an InterpolatedModel class"
         )
 
-        operators = [DummyParametricOperator(), DummyParametricOperator2()]
-        model = self.Dummy(operators)
-        assert model.parameter_dimension is None
+        # Several operators provided.
+        operators = [
+            opinf.operators.ConstantOperator(),
+            opinf.operators.AffineLinearOperator(p),
+        ]
+        model = self.Model(operators)
+        assert len(model.operators) == 2
+        for modelop, op in zip(model.operators, operators):
+            assert modelop is op
 
-    def test_get_operator_of_type(self):
-        """Test _ParametricModel._get_operator_of_type()."""
-        op1 = DummyParametricOperator()
-        op2 = DummyParametricOperator2()
-        model = self.Dummy([op1, op2])
+        # Single operator provided
+        model = self.Model(operators[1])
+        assert len(model.operators) == 1
+        assert model.operators[0] is operators[1]
 
-        op = model._get_operator_of_type(DummyOpInfOperator)
-        assert op is op1
+    def test_get_operator_of_type(self, p=2):
+        """Test _get_operator_of_type()."""
+        operators = [
+            opinf.operators.ConstantOperator(),
+            opinf.operators.AffineLinearOperator(p),
+        ]
+        model = self.Model(operators)
 
-        op = model._get_operator_of_type(DummyOpInfOperator2)
-        assert op is op2
+        op = model._get_operator_of_type(opinf.operators.ConstantOperator)
+        assert op is operators[0]
+
+        op = model._get_operator_of_type(opinf.operators.LinearOperator)
+        assert op is operators[1]
 
         op = model._get_operator_of_type(float)
         assert op is None
 
-    def test_check_parameter_dimension_consistency(self, s=3):
-        """Test _check_parameter_dimension_consistency()."""
-        op = DummyOpInfOperator()
-        p = self.Dummy._check_parameter_dimension_consistency([op])
-        assert p is None
+    def test_parameter_dimension(self, p=4):
+        """Test parameter_dimension and _synchronize_parameter_dimensions()."""
+        op0 = opinf.operators.ConstantOperator()
+        op1 = opinf.operators.AffineLinearOperator(np.sin, nterms=p)
+        model = self.Model([op0, op1])
+        assert model.parameter_dimension is None
 
-        op1 = DummyParametricOperator()
-        op1._set_parameter_dimension_from_values(np.empty((s, 10)))
-        p = self.Dummy._check_parameter_dimension_consistency([op1])
-        assert p == 10
+        op1.parameter_dimension = p
+        model._synchronize_parameter_dimensions()
+        assert model.parameter_dimension == p
 
-        op2 = DummyParametricOperator2()
-        op2._set_parameter_dimension_from_values(np.empty((s, 20)))
+        op1 = opinf.operators.AffineLinearOperator(np.sin, nterms=p)
+        op2 = opinf.operators.AffineInputOperator(p)
+        assert op1.parameter_dimension is None
+        model = self.Model([op0, op1, op2])
+        assert op1.parameter_dimension == p
+        assert model.parameter_dimension == p
 
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            self.Dummy._check_parameter_dimension_consistency([op1, op2])
+            model._synchronize_parameter_dimensions(p + 2)
+        assert ex.value.args[0] == (
+            f"{p} = each operator.parameter_dimension "
+            f"!= parameter dimension = {p + 2}"
+        )
+        assert model.parameter_dimension == p
+        assert op1.parameter_dimension == p
+        assert op2.parameter_dimension == p
+
+        op1 = opinf.operators.AffineLinearOperator(p)
+        op2 = opinf.operators.AffineInputOperator(p + 1)
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            self.Model([op0, op1, op2])
         assert ex.value.args[0] == (
             "operators not aligned "
             "(parameter_dimension must be the same for all operators)"
         )
 
-    def test_parameter_dimension(self, s=3, p=4):
-        """Test _ParametricModel.parameter_dimension."""
-        op = DummyParametricOperator()
-        model = self.Dummy([op, DummyOpInfOperator2()])
+    def test_process_fit_arguments(self, s=10, p=2, m=4, r=3, k=10):
+        """Test _process_fit_arguments()."""
+        params = np.random.random((s, p))
+        states = [np.ones((r, k)) for _ in range(s)]
+        lhs = [np.ones((r, k)) for _ in range(s)]
 
-        model._set_parameter_dimension_from_values(np.empty((s, p)))
-        assert model.parameter_dimension == p
+        op = opinf.operators.AffineLinearOperator(p)
+        if isinstance(self, _TestInterpolatedModel):
+            op = opinf.operators.InterpLinearOperator()
+        model = self.Model([op])
 
-        model.parameter_dimension = 10
-        assert model.parameter_dimension == 10
-
-        op._set_parameter_dimension_from_values(np.empty((s, 20)))
-
-        with pytest.raises(AttributeError) as ex:
-            model.parameter_dimension = 15
+        # Invalid parameters.
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            model._process_fit_arguments(np.empty((3, 3, 3)), None, None, None)
         assert ex.value.args[0] == (
-            "can't set attribute (existing operators have p = 10)"
+            "'parameters' must be a sequence of scalars or 1D arrays"
         )
-
-        model.parameter_dimension = 20
-        assert model.parameter_dimension == 20
-
-        model = self.Dummy(DummyParametricOperator())
-        model._set_parameter_dimension_from_values(np.empty(s))
-        assert model.parameter_dimension == 1
-
-        with pytest.raises(ValueError) as ex:
-            model._set_parameter_dimension_from_values(np.empty((s, s, s)))
-        assert ex.value.args[0] == (
-            "parameter values must be scalars or 1D arrays"
-        )
-
-    def test_process_fit_arguments(self, s=5, p=2, m=4, r=3, k=10):
-        """Test _ParametricModel._process_fit_arguments()."""
-        op = DummyParametricOperator()
-        model = self.Dummy([op])
-        params = np.empty((s, p))
-        states = [np.empty((r, k)) for _ in range(s)]
-        lhs = [np.empty((r, k)) for _ in range(s)]
 
         # Inconsistent number of parameter values.
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
@@ -246,7 +183,8 @@ class TestParametricModel:
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(params, states, lhs, None)
         assert ex.value.args[0] == (
-            f"mylhs[1].shape[-1] = {k} != {k-1} = states[1].shape[-1]"
+            f"{model._LHS_ARGNAME}[1].shape[-1] = {k} "
+            f"!= {k-1} = states[1].shape[-1]"
         )
 
         # Inconsistent input dimension.
@@ -259,103 +197,417 @@ class TestParametricModel:
         assert ex.value.args[0] == f"inputs[1].shape[0] = {m-1} != {m} = m"
 
         # Correct usage, partially intrusive
-        op2 = DummyParametricOperator2(np.random.random((r, r)))
-        model = self.Dummy([op, op2])
+        op2 = opinf.operators.AffineConstantOperator(
+            p,
+            entries=[np.random.random(r) for _ in range(p)],
+        )
+        if isinstance(self, _TestInterpolatedModel):
+            op2 = opinf.operators.InterpConstantOperator(
+                training_parameters=params,
+                entries=[np.zeros(r) for _ in range(s)],
+            )
+
+        model = self.Model([op, op2])
         model._process_fit_arguments(params, states, lhs, None)
 
         model._has_inputs = True
         inputs[1] = np.empty((m, k))
         model._process_fit_arguments(params, states, lhs, inputs)
 
-    def test_evaluate(self, r=4):
-        """Test _ParametricModel.evaluate()."""
-        op1 = DummyParametricOperator(np.random.random((r, r)))
-        op2 = DummyParametricOperator2(np.random.random((r, r)))
-        model = self.Dummy([op1, op2])
-        model_evaluated = model.evaluate(None)
-        assert isinstance(model_evaluated, DummyNonparametricModel)
-        assert len(model_evaluated.operators) == 2
-        assert isinstance(model_evaluated.operators[0], DummyOpInfOperator)
-        assert isinstance(model_evaluated.operators[1], DummyOpInfOperator2)
-        assert model_evaluated.state_dimension == r
+    def test_fit(self, s=10, p=3, m=2, r=4, k=20):
+        """Test fit() and refit() (but not all intermediate steps)."""
+        params = np.random.random((s, p))
+        states = [np.ones((r, k)) for _ in range(s)]
+        lhs = [np.ones((r, k)) for _ in range(s)]
+        inputs = [np.ones((m, k)) for _ in range(s)]
 
-    def test_rhs(self, r=2):
-        """Test _ParametricModel.rhs()."""
-        op1 = DummyParametricOperator(np.random.random((r, r)))
-        op2 = DummyParametricOperator2(np.random.random((r, r)))
-        model = self.Dummy([op1, op2])
-        assert model.state_dimension == r
-        assert model.rhs(np.empty(r), None, None) == 2 * _applyvalue
+        operators, _ = self._get_parametric_operators(p, r, m)
 
-    def test_jacobian(self, r=3):
-        """Test _ParametricModel.jacobian()."""
-        op1 = DummyParametricOperator(np.random.random((r, r)))
-        op2 = DummyParametricOperator2(np.random.random((r, r)))
-        model = self.Dummy([op1, op2])
-        assert model.state_dimension == r
-        assert np.all(model.jacobian(np.empty(r), None, None) == 2 * _jacvalue)
+        # Fully intrusive case.
+        model = self.Model(operators)
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            out = model.fit(params, states, lhs, inputs)
+        assert len(wn) == 1
+        assert wn[0].message.args[0] == (
+            "all operators initialized explicitly, nothing to learn"
+        )
+        assert out is model
 
-    def test_predict(self, r=4):
-        """Test _ParametricModel.predict()."""
-        op1 = DummyParametricOperator(np.random.random((r, r)))
-        op2 = DummyParametricOperator2(np.random.random((r, r)))
-        model = self.Dummy([op1, op2])
-        assert model.state_dimension == r
-        assert model.predict(None) == _predictvalue
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            out = model.refit()
+        assert len(wn) == 1
+        assert wn[0].message.args[0] == (
+            "all operators initialized explicitly, nothing to learn"
+        )
+        assert out is model
+
+        # One affine operator.
+        model = self.Model([opinf.operators.AffineLinearOperator(p)])
+        out = model.fit(params, states, lhs)
+        assert out is model
+        for op in model.operators:
+            assert op.parameter_dimension == p
+            assert op.entries is not None
+
+        # Multiple affine operators.
+        model = self.Model(
+            [
+                opinf.operators.AffineLinearOperator(p),
+                opinf.operators.AffineInputOperator(p),
+            ]
+        )
+        out = model.fit(params, states, lhs, inputs)  # BUG
+        assert out is model
+        for op in model.operators:
+            assert op.parameter_dimension == p
+            assert op.entries is not None
+
+        # Mix of affine and interpolatory operators.
+        model = self.Model(
+            [
+                opinf.operators.AffineLinearOperator(p),
+                opinf.operators.InterpInputOperator(),
+            ]
+        )
+        out = model.fit(params, states, lhs, inputs)
+        assert out is model
+        for op in model.operators:
+            assert op.parameter_dimension == p
+            assert op.entries is not None
+
+        # Mix of nonparametric, affine, and interpolatory operators.
+        model = self.Model(
+            [
+                opinf.operators.ConstantOperator(),
+                opinf.operators.AffineLinearOperator(p),
+                opinf.operators.InterpInputOperator(),
+            ]
+        )
+        out = model.fit(params, states, lhs, inputs)
+        assert out is model
+        assert model.operators[0].entries is not None
+        for op in model.operators[1:]:
+            assert op.parameter_dimension == p
+            assert op.entries is not None
+
+    def test_evaluate(self, p=8, r=4, m=2):
+        """Test evaluate()."""
+        operators, testparam = self._get_parametric_operators(p, r, m)
+
+        # Some operators not populated.
+        model = self.Model([self._get_single_operator()])
+        with pytest.raises(AttributeError):
+            model.evaluate(testparam)
+
+        # Test with and without input operators.
+        for ops in operators[:-1], operators:
+            model = self.Model(ops)
+            model_evaluated = model.evaluate(testparam)
+            assert isinstance(model_evaluated, self.Model._ModelClass)
+            assert len(model_evaluated.operators) == len(model.operators)
+            assert model_evaluated.state_dimension == r
+            for pop, op in zip(model.operators, model_evaluated.operators):
+                pop_evaluated = pop.evaluate(testparam)
+                assert isinstance(op, pop_evaluated.__class__)
+                assert np.array_equal(op.entries, pop_evaluated.entries)
+        assert model_evaluated.input_dimension == model.input_dimension
+
+    def test_rhs(self, p=7, r=2, m=4):
+        """Lightly test rhs()."""
+        operators, testparam = self._get_parametric_operators(p, r, m)
+        teststate = np.random.random(r)
+        args = [testparam, teststate]
+        if self._iscontinuous:
+            args.insert(0, np.random.random())  # time argument
+
+            def testinput(t):
+                return np.random.random(m)
+
+        else:
+            testinput = np.random.random(m)
+
+        # Some operators not populated.
+        model = self.Model([self._get_single_operator()])
+        with pytest.raises(AttributeError):
+            model.rhs(*args)
+
+        # Without inputs.
+        model = self.Model(operators[:-1])
+        out = model.rhs(*args)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,)
+
+        # With inputs.
+        args.append(testinput)
+        model = self.Model(operators)
+        out = model.rhs(*args)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r,)
+
+    def test_jacobian(self, p=9, r=3, m=2):
+        """Lightly test jacobian()."""
+        operators, testparam = self._get_parametric_operators(p, r, m)
+        teststate = np.random.random(r)
+        args = [testparam, teststate]
+        if self._iscontinuous:
+            args.insert(0, np.random.random())  # time argument
+
+            def testinput(t):
+                return np.random.random(m)
+
+        else:
+            testinput = np.random.random(m)
+
+        # Some operators not populated.
+        model = self.Model([self._get_single_operator()])
+        with pytest.raises(AttributeError):
+            model.jacobian(*args)
+
+        # Without inputs.
+        model = self.Model(operators[:-1])
+        out = model.jacobian(*args)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, r)
+
+        # With inputs.
+        args.append(testinput)
+        model = self.Model(operators)
+        out = model.jacobian(*args)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, r)
 
 
-class TestInterpolatedModel:
+class TestParametricDiscreteModel(_TestParametricModel):
+    """Test opinf.models.ParametricDiscreteModel."""
+
+    Model = _module.ParametricDiscreteModel
+    _iscontinuous = False
+
+    def test_predict(self, p=5, r=3, m=2, niters=10):
+        """Lightly test InterpolatedDiscreteModel.predict()."""
+        testparam = np.random.random(p)
+        state0 = np.random.random(r)
+
+        model = self.Model(
+            opinf.operators.AffineLinearOperator(
+                p,
+                entries=np.zeros((p, r, r)),
+            )
+        )
+        out = model.predict(testparam, state0, niters)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, niters)
+        assert np.all(out[:, 0] == state0)
+        assert np.all(out[:, 1:] == 0)
+
+        inputs = np.random.random((m, niters))
+        model = self.Model(
+            opinf.operators.AffineInputOperator(
+                p,
+                entries=np.zeros((p, r, m)),
+            )
+        )
+        out = model.predict(testparam, state0, niters, inputs)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, niters)
+        assert np.all(out[:, 0] == state0)
+        assert np.all(out[:, 1:] == 0)
+
+
+class TestParametricContinuousModel(_TestParametricModel):
+    """Test opinf.models.ParametricContinuousModel."""
+
+    Model = _module.ParametricContinuousModel
+    _iscontinuous = True
+
+    def test_predict(self, p=4, r=4, m=2, k=40):
+        """Lightly test predict()."""
+        testparam = np.random.random(p)
+        state0 = np.random.random(r)
+        t = np.linspace(0, 1, k)
+
+        model = self.Model(
+            opinf.operators.AffineLinearOperator(
+                p,
+                entries=np.zeros((p, r, r)),
+            )
+        )
+        out = model.predict(testparam, state0, t)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, k)
+        for j in range(k):
+            assert np.allclose(out[:, j], state0)
+
+        def input_func(t):
+            return np.random.random(m)
+
+        model = self.Model(
+            opinf.operators.AffineInputOperator(
+                p,
+                entries=np.zeros((p, r, m)),
+            )
+        )
+        out = model.predict(testparam, state0, t, input_func)
+        assert isinstance(out, np.ndarray)
+        assert out.shape == (r, k)
+        for j in range(k):
+            assert np.allclose(out[:, j], state0)
+
+
+# Interpolatotry models =======================================================
+class _TestInterpolatedModel(_TestParametricModel):
     """Test models.mono._parametric._InterpolatedModel."""
 
-    class Dummy(_module._InterpolatedModel):
-        _ModelClass = DummyNonparametricModel2
+    def _get_single_operator(self):
+        """Get a single uncalibrated operator."""
+        return opinf.operators.InterpLinearOperator()
 
-    def test_from_models(self, r=4):
-        """Test _InterpolatedModel._from_models()."""
-        mu = np.sort(np.random.random(2))
-        model1 = DummyNonparametricModel(
-            [DummyOpInfOperator2(np.random.random(r))]
+    def _get_parametric_operators(self, s, r, m=0):
+        """Get calibrated constant + linear + input affine operators."""
+        params = np.sort(np.random.random(s))
+        op1 = opinf.operators.InterpConstantOperator(
+            params,
+            entries=[np.random.random(r) for _ in range(s)],
         )
+        op2 = opinf.operators.InterpLinearOperator(
+            params,
+            entries=[np.random.random((r, r)) for _ in range(s)],
+        )
+        operators = [op1, op2]
+        if m > 0:
+            op3 = opinf.operators.InterpInputOperator(
+                params,
+                entries=[np.random.random((r, m)) for _ in range(s)],
+            )
+            operators.append(op3)
+        return operators, (params[-1] + params[0]) / 2
 
-        # Wrong type of model.
-        model2 = self.Dummy([opinf.operators.InterpCubicOperator()])
+    def test_set_operators(self):
+        """Test operators.fset()."""
+        operators = [opinf.operators.LinearOperator()]
+
         with pytest.raises(TypeError) as ex:
-            self.Dummy._from_models(mu, [model2, model1])
+            self.Model(operators)
+        assert ex.value.args[0] == "invalid operator of type 'LinearOperator'"
+
+        # Several operators provided.
+        operators = [
+            opinf.operators.InterpConstantOperator(),
+            opinf.operators.InterpLinearOperator(),
+        ]
+        model = self.Model(operators)
+        assert len(model.operators) == 2
+        for modelop, op in zip(model.operators, operators):
+            assert modelop is op
+
+        # Single operator provided
+        model = self.Model(operators[1])
+        assert len(model.operators) == 1
+        assert model.operators[0] is operators[1]
+
+    def test_get_operator_of_type(self):
+        """Test _get_operator_of_type()."""
+        operators = [
+            opinf.operators.InterpConstantOperator(),
+            opinf.operators.InterpLinearOperator(),
+        ]
+        model = self.Model(operators)
+
+        op = model._get_operator_of_type(opinf.operators.ConstantOperator)
+        assert op is operators[0]
+
+        op = model._get_operator_of_type(opinf.operators.LinearOperator)
+        assert op is operators[1]
+
+        op = model._get_operator_of_type(float)
+        assert op is None
+
+    def test_parameter_dimension(self, p=4):
+        """Test parameter_dimension and _synchronize_parameter_dimensions()."""
+        op1 = opinf.operators.InterpLinearOperator()
+        assert op1.parameter_dimension is None
+        model = self.Model([op1])
+        assert model.parameter_dimension is None
+
+        op1.parameter_dimension = p
+        model._synchronize_parameter_dimensions()
+        assert model.parameter_dimension == p
+
+        op1 = opinf.operators.InterpLinearOperator()
+        op2 = opinf.operators.InterpInputOperator()
+        op2.parameter_dimension = p
+        assert op1.parameter_dimension is None
+        model = self.Model([op1, op2])
+        assert op1.parameter_dimension == p
+        assert op2.parameter_dimension == p
+        assert model.parameter_dimension == p
+
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            model._synchronize_parameter_dimensions(p + 2)
         assert ex.value.args[0] == (
-            "expected models of type 'DummyNonparametricModel'"
+            f"{p} = each operator.parameter_dimension "
+            f"!= parameter dimension = {p + 2}"
         )
+        assert model.parameter_dimension == p
+        assert op1.parameter_dimension == p
+        assert op2.parameter_dimension == p
+
+        op1 = opinf.operators.InterpLinearOperator()
+        op2 = opinf.operators.InterpInputOperator()
+        op1.parameter_dimension = p
+        op2.parameter_dimension = p + 1
+        with pytest.raises(opinf.errors.DimensionalityError) as ex:
+            self.Model([op1, op2])
+        assert ex.value.args[0] == (
+            "operators not aligned "
+            "(parameter_dimension must be the same for all operators)"
+        )
+
+    def test_from_models(self, s=10, r=4, m=2):
+        """Test _InterpolatedModel._from_models()."""
+        operators = [
+            [
+                opinf.operators.ConstantOperator(np.random.random(r)),
+                opinf.operators.LinearOperator(np.random.random((r, r))),
+                opinf.operators.InputOperator(np.random.random((r, m))),
+            ]
+            for _ in range(s)
+        ]
+        mu = np.sort(np.random.random(s))
 
         # Inconsistent number of operators.
-        model2 = DummyNonparametricModel(
-            [DummyOpInfOperator(), DummyOpInfOperator2()]
-        )
+        model1 = self.Model._ModelClass(operators[0])
+        model2 = self.Model._ModelClass(operators[1][:-1])
         with pytest.raises(ValueError) as ex:
-            self.Dummy._from_models(mu, [model1, model2])
+            self.Model._from_models(mu, [model1, model2])
         assert ex.value.args[0] == (
             "models not aligned (inconsistent number of operators)"
         )
 
         # Inconsistent operator types.
-        model2 = DummyNonparametricModel(
-            [DummyOpInfOperator(np.random.random(r))]
-        )
+        model1 = self.Model._ModelClass(operators[0][1:])
+        model2 = self.Model._ModelClass(operators[1][:-1])
         with pytest.raises(ValueError) as ex:
-            self.Dummy._from_models(mu, [model1, model2])
+            self.Model._from_models(mu, [model1, model2])
         assert ex.value.args[0] == (
             "models not aligned (inconsistent operator types)"
         )
 
         # Correct usage
-        OpClass = opinf.operators.ConstantOperator
-        model1 = DummyNonparametricModel([OpClass(np.random.random(r))])
-        model2 = DummyNonparametricModel([OpClass(np.random.random(r))])
-        model = self.Dummy._from_models(mu, [model1, model2])
-        assert isinstance(model, self.Dummy)
-        assert len(model.operators) == 1
+        models = [self.Model._ModelClass(ops) for ops in operators]
+        model = self.Model._from_models(mu, models)
+        assert isinstance(model, self.Model)
+        assert len(model.operators) == 3
         assert isinstance(
             model.operators[0],
             opinf.operators.InterpConstantOperator,
         )
+
+        # Check the interpolation is as expected.
+        testparam = np.random.random()
+        IClass = type(model.operators[0].interpolator)
+        c00 = IClass(mu, [ops[0][0] for ops in operators])
+        assert c00(testparam) == model.evaluate(testparam).operators[0][0]
 
     def test_set_interpolator(self, s=10, p=2, r=2):
         """Test _InterpolatedModel._set_interpolator()."""
@@ -374,11 +626,11 @@ class TestInterpolatedModel:
             ),
         ]
 
-        model = self.Dummy(operators)
+        model = self.Model(operators)
         for op in operators:
             assert isinstance(op.interpolator, interp.NearestNDInterpolator)
 
-        model = self.Dummy(
+        model = self.Model(
             operators,
             InterpolatorClass=interp.LinearNDInterpolator,
         )
@@ -403,7 +655,7 @@ class TestInterpolatedModel:
         states = np.random.random((s, r, k))
         lhs = np.random.random((s, r, k))
 
-        model = self.Dummy(operators)
+        model = self.Model(operators)
         model._fit_solver(params, states, lhs)
 
         assert hasattr(model, "solvers")
@@ -414,7 +666,10 @@ class TestInterpolatedModel:
         assert hasattr(model, "_submodels")
         assert len(model._submodels) == s
         for mdl in model._submodels:
-            assert isinstance(mdl, DummyNonparametricModel)
+            assert isinstance(
+                mdl,
+                opinf.models.mono._nonparametric._NonparametricModel,
+            )
             assert len(mdl.operators) == len(operators)
             for op in mdl.operators:
                 assert op.entries is None
@@ -433,7 +688,7 @@ class TestInterpolatedModel:
         states = np.random.random((s, r, k))
         lhs = np.random.random((s, r, k))
 
-        model = self.Dummy(operators)
+        model = self.Model(operators)
 
         with pytest.raises(RuntimeError) as ex:
             model.refit()
@@ -445,7 +700,10 @@ class TestInterpolatedModel:
         assert hasattr(model, "_submodels")
         assert len(model._submodels) == s
         for mdl in model._submodels:
-            assert isinstance(mdl, DummyNonparametricModel)
+            assert isinstance(
+                mdl,
+                opinf.models.mono._nonparametric._NonparametricModel,
+            )
             assert len(mdl.operators) == len(operators)
             for op in mdl.operators:
                 assert op.entries is not None
@@ -455,7 +713,7 @@ class TestInterpolatedModel:
         if os.path.isfile(target):
             os.remove(target)
 
-        model = self.Dummy(
+        model = self.Model(
             [
                 opinf.operators.InterpConstantOperator(),
                 opinf.operators.InterpLinearOperator(),
@@ -490,26 +748,26 @@ class TestInterpolatedModel:
             opinf.operators.InterpConstantOperator(),
             opinf.operators.InterpLinearOperator(),
         ]
-        model = self.Dummy(operators, InterpolatorClass=float)
+        model = self.Model(operators, InterpolatorClass=float)
 
         with pytest.warns(opinf.errors.OpInfWarning):
             model.save(target)
 
         with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
-            self.Dummy.load(target)
+            self.Model.load(target)
         assert ex.value.args[0] == (
             f"unknown InterpolatorClass 'float', call load({target}, float)"
         )
-        self.Dummy.load(target, float)
+        self.Model.load(target, float)
 
-        model1 = self.Dummy(
+        model1 = self.Model(
             operators,
             InterpolatorClass=interp.NearestNDInterpolator,
         )
         model1.save(target, overwrite=True)
 
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            model2 = self.Dummy.load(target, float)
+            model2 = self.Model.load(target, float)
         assert wn[0].message.args[0] == (
             "InterpolatorClass=float does not match loadfile "
             "InterpolatorClass 'NearestNDInterpolator'"
@@ -517,10 +775,10 @@ class TestInterpolatedModel:
         model2.set_interpolator(interp.NearestNDInterpolator)
         assert model2 == model1
 
-        model2 = self.Dummy.load(target)
+        model2 = self.Model.load(target)
         assert model2 == model1
 
-        model1 = self.Dummy(
+        model1 = self.Model(
             "AB",
             InterpolatorClass=interp.NearestNDInterpolator,
         )
@@ -528,7 +786,7 @@ class TestInterpolatedModel:
         model1.input_dimension = 4
         model1.save(target, overwrite=True)
 
-        model2 = self.Dummy.load(target)
+        model2 = self.Model.load(target)
         assert model2 == model1
 
         os.remove(target)
@@ -536,7 +794,7 @@ class TestInterpolatedModel:
     def test_copy(self, s=10, p=2, r=3):
         """Test _InterpolatedModel._copy()."""
 
-        model1 = self.Dummy(
+        model1 = self.Model(
             [
                 opinf.operators.InterpConstantOperator(),
                 opinf.operators.InterpLinearOperator(),
@@ -544,7 +802,7 @@ class TestInterpolatedModel:
         )
 
         mu = np.random.random((s, p))
-        model2 = self.Dummy(
+        model2 = self.Model(
             [
                 opinf.operators.InterpConstantOperator(
                     mu, entries=np.random.random((s, r))
@@ -558,15 +816,16 @@ class TestInterpolatedModel:
 
         for model in (model1, model2):
             model_copied = model.copy()
-            assert isinstance(model_copied, self.Dummy)
+            assert isinstance(model_copied, self.Model)
             assert model_copied is not model
             assert model_copied == model
 
 
-class TestInterpolatedDiscreteModel:
+class TestInterpolatedDiscreteModel(_TestInterpolatedModel):
     """Test models.mono._parametric.InterpolatedDiscreteModel."""
 
-    ModelClass = _module.InterpolatedDiscreteModel
+    Model = _module.InterpolatedDiscreteModel
+    _iscontinuous = False
 
     def test_fit(self, s=10, p=2, r=3, m=2, k=20):
         """Lightly test InterpolatedDiscreteModel.fit()."""
@@ -575,65 +834,19 @@ class TestInterpolatedDiscreteModel:
         nextstates = np.random.random((s, r, k))
         inputs = np.random.random((s, m, k))
 
-        model = self.ModelClass("A")
+        model = self.Model("A")
         out = model.fit(params, states)
         assert out is model
 
-        model = self.ModelClass("AB")
+        model = self.Model("AB")
         out = model.fit(params, states, nextstates, inputs)
         assert out is model
-
-    def test_rhs(self, s=10, r=3, m=2):
-        """Lightly test InterpolatedDiscreteModel.rhs()."""
-        params = np.sort(np.random.random(s))
-        state = np.random.random(r)
-        model = self.ModelClass(
-            opinf.operators.InterpLinearOperator(
-                params, np.random.random((s, r, r))
-            )
-        )
-        out = model.rhs(params[2], state)
-        assert isinstance(out, np.ndarray)
-        assert out.shape == (r,)
-
-        input_ = np.random.random(m)
-        model = self.ModelClass(
-            opinf.operators.InterpInputOperator(
-                params, np.random.random((s, r, m))
-            )
-        )
-        out = model.rhs(params[-2], state, input_)
-        assert isinstance(out, np.ndarray)
-        assert out.shape == (r,)
-
-    def test_jacobian(self, s=9, r=2, m=3):
-        """Lightly test InterpolatedDiscreteModel.jacobian()."""
-        params = np.sort(np.random.random(s))
-        state = np.random.random(r)
-        model = self.ModelClass(
-            opinf.operators.InterpLinearOperator(
-                params, np.random.random((s, r, r))
-            )
-        )
-        out = model.jacobian(params[2], state)
-        assert isinstance(out, np.ndarray)
-        assert out.shape == (r, r)
-
-        input_ = np.random.random(m)
-        model = self.ModelClass(
-            opinf.operators.InterpInputOperator(
-                params, np.random.random((s, r, m))
-            )
-        )
-        out = model.jacobian(params[-2], state, input_)
-        assert isinstance(out, np.ndarray)
-        assert out.shape == (r, r)
 
     def test_predict(self, s=11, r=4, m=2, niters=10):
         """Lightly test InterpolatedDiscreteModel.predict()."""
         params = np.sort(np.random.random(s))
         state0 = np.random.random(r)
-        model = self.ModelClass(
+        model = self.Model(
             opinf.operators.InterpLinearOperator(params, np.zeros((s, r, r)))
         )
         out = model.predict(params[2], state0, niters)
@@ -643,7 +856,7 @@ class TestInterpolatedDiscreteModel:
         assert np.all(out[:, 1:] == 0)
 
         inputs = np.random.random((m, niters))
-        model = self.ModelClass(
+        model = self.Model(
             opinf.operators.InterpInputOperator(params, np.zeros((s, r, m)))
         )
         out = model.predict(params[-2], state0, niters, inputs)
@@ -653,10 +866,11 @@ class TestInterpolatedDiscreteModel:
         assert np.all(out[:, 1:] == 0)
 
 
-class TestInterpolatedContinuousModel:
+class TestInterpolatedContinuousModel(_TestInterpolatedModel):
     """Test models.mono._parametric.InterpolatedContinuousModel."""
 
-    ModelClass = _module.InterpolatedContinuousModel
+    Model = _module.InterpolatedContinuousModel
+    _iscontinuous = True
 
     def test_fit(self, s=10, p=2, r=3, m=2, k=20):
         """Test InterpolatedContinuousModel.fit()."""
@@ -665,70 +879,20 @@ class TestInterpolatedContinuousModel:
         ddts = np.random.random((s, r, k))
         inputs = np.random.random((s, m, k))
 
-        model = self.ModelClass("A")
+        model = self.Model("A")
         out = model.fit(params, states, ddts)
         assert out is model
 
-        model = self.ModelClass("AB")
+        model = self.Model("AB")
         out = model.fit(params, states, ddts, inputs)
         assert out is model
-
-    def test_rhs(self, s=10, r=3, m=2):
-        """Lightly test InterpolatedContinuousModel.rhs()."""
-        params = np.sort(np.random.random(s))
-        state = np.random.random(r)
-        model = self.ModelClass(
-            opinf.operators.InterpLinearOperator(
-                params, np.random.random((s, r, r))
-            )
-        )
-        out = model.rhs(None, params[2], state)
-        assert isinstance(out, np.ndarray)
-        assert out.shape == (r,)
-
-        def input_func(t):
-            return np.random.random(m)
-
-        model = self.ModelClass(
-            opinf.operators.InterpInputOperator(
-                params, np.random.random((s, r, m))
-            )
-        )
-        out = model.rhs(np.pi, params[-2], state, input_func)
-        assert isinstance(out, np.ndarray)
-        assert out.shape == (r,)
-
-    def test_jacobian(self, s=9, r=2, m=3):
-        """Lightly test InterpolatedContinuousModel.jacobian()."""
-        params = np.sort(np.random.random(s))
-        state = np.random.random(r)
-        model = self.ModelClass(
-            opinf.operators.InterpLinearOperator(
-                params, np.random.random((s, r, r))
-            )
-        )
-        out = model.jacobian(None, params[2], state)
-        assert isinstance(out, np.ndarray)
-        assert out.shape == (r, r)
-
-        def input_func(t):
-            return np.random.random(m)
-
-        model = self.ModelClass(
-            opinf.operators.InterpInputOperator(
-                params, np.random.random((s, r, m))
-            )
-        )
-        out = model.jacobian(np.pi, params[-2], state, input_func)
-        assert isinstance(out, np.ndarray)
-        assert out.shape == (r, r)
 
     def test_predict(self, s=11, r=4, m=2, k=40):
         """Lightly test InterpolatedContinuousModel.predict()."""
         params = np.sort(np.random.random(s))
         state0 = np.random.random(r)
         t = np.linspace(0, 1, k)
-        model = self.ModelClass(
+        model = self.Model(
             opinf.operators.InterpLinearOperator(params, np.zeros((s, r, r)))
         )
         out = model.predict(params[2], state0, t)
@@ -740,7 +904,7 @@ class TestInterpolatedContinuousModel:
         def input_func(t):
             return np.random.random(m)
 
-        model = self.ModelClass(
+        model = self.Model(
             opinf.operators.InterpInputOperator(params, np.zeros((s, r, m)))
         )
         out = model.predict(params[-2], state0, t, input_func)
@@ -748,19 +912,3 @@ class TestInterpolatedContinuousModel:
         assert out.shape == (r, k)
         for j in range(k):
             assert np.allclose(out[:, j], state0)
-
-
-def test_publics():
-    """Ensure all public ParametricModel classes can be instantiated."""
-    operators = [opinf.operators.InterpConstantOperator()]
-    for ModelClassName in _module.__all__:
-        ModelClass = getattr(_module, ModelClassName)
-        if not isinstance(ModelClass, type) or not issubclass(
-            ModelClass, _module._ParametricModel
-        ):  # pragma: no cover
-            continue
-        model = ModelClass(operators)
-        assert issubclass(
-            model.ModelClass,
-            opinf.models.mono._nonparametric._NonparametricModel,
-        )

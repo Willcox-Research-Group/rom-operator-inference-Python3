@@ -192,6 +192,12 @@ class _TestAffineOperator:
         assert block.shape[0] == dim
         assert block.shape[1] == s * k
 
+        # One-dimensional inputs.
+        block = op.datablock(parameters, states, np.random.random((s, k)))
+        dim = op.operator_dimension(s, r, 1)
+        assert block.shape[0] == dim
+        assert block.shape[1] == s * k
+
     def test_copysaveload(self, r=10, m=2, target="_affinesavetest.h5"):
         """Test copy(), save(), and load()."""
         ncoeffs = len(self.thetas1)
