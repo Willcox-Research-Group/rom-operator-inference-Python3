@@ -4,6 +4,9 @@
 __all__ = [
     "ParametricDiscreteModel",
     "ParametricContinuousModel",
+    "InterpDiscreteModel",
+    "InterpContinuousModel",
+    # Deprecations:
     "InterpolatedDiscreteModel",
     "InterpolatedContinuousModel",
 ]
@@ -128,14 +131,14 @@ class _ParametricModel(_Model):
             )
 
         # Check that not every operator is interpolated.
-        if not isinstance(self, _InterpolatedModel):
+        if not isinstance(self, _InterpModel):
             interpolated_operators = [
                 op for op in self.operators if oputils.is_interpolated(op)
             ]
             if len(interpolated_operators) == len(self.operators):
                 warnings.warn(
                     "all operators interpolatory, "
-                    "consider using an InterpolatedModel class",
+                    "consider using an InterpModel class",
                     errors.OpInfWarning,
                 )
         self._synchronize_parameter_dimensions()
@@ -1005,7 +1008,7 @@ class ParametricContinuousModel(_ParametricContinuousMixin, _ParametricModel):
 
 
 # Special case: completely interpolation-based models =========================
-class _InterpolatedModel(_ParametricModel):
+class _InterpModel(_ParametricModel):
     """Base class for parametric monolithic models where all operators MUST be
     interpolation-based parametric operators. In this special case, the
     inference problems completely decouple by training parameter.
@@ -1338,7 +1341,7 @@ class _InterpolatedModel(_ParametricModel):
         )
 
 
-class InterpolatedDiscreteModel(_ParametricDiscreteMixin, _InterpolatedModel):
+class InterpDiscreteModel(_ParametricDiscreteMixin, _InterpModel):
     r"""Parametric discrete dynamical system model
     :math:`\qhat(\bfmu)_{j+1} = \fhat(\qhat(\bfmu)_{j}, \u_{j}; \bfmu)`
     where the parametric dependence is handled by elementwise interpolation.
@@ -1374,9 +1377,9 @@ class InterpolatedDiscreteModel(_ParametricDiscreteMixin, _InterpolatedModel):
     pass
 
 
-class InterpolatedContinuousModel(
+class InterpContinuousModel(
     _ParametricContinuousMixin,
-    _InterpolatedModel,
+    _InterpModel,
 ):
     r"""Parametric system of ordinary differential equations
     :math:`\ddt\qhat(t; \bfmu) = \fhat(\qhat(t; \bfmu), \u(t); \bfmu)` where
@@ -1409,3 +1412,36 @@ class InterpolatedContinuousModel(
     """
 
     pass
+
+
+# Deprecations ================================================================
+class InterpolatedDiscreteModel(InterpDiscreteModel):
+    def __init__(self, operators, solver=None, InterpolatorClass=None):
+        warnings.warn(
+            "InterpolatedDiscreteModel has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpDiscreteModel",
+            DeprecationWarning,
+        )
+        InterpDiscreteModel.__init__(
+            self,
+            operators=operators,
+            solver=solver,
+            InterpolatorClass=InterpolatorClass,
+        )
+
+
+class InterpolatedContinuousModel(InterpContinuousModel):
+    def __init__(self, operators, solver=None, InterpolatorClass=None):
+        warnings.warn(
+            "InterpolatedContinuousModel has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpContinuousModel",
+            DeprecationWarning,
+        )
+        InterpContinuousModel.__init__(
+            self,
+            operators=operators,
+            solver=solver,
+            InterpolatorClass=InterpolatorClass,
+        )

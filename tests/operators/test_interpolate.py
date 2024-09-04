@@ -14,7 +14,8 @@ import opinf.operators._utils as oputils
 from . import _get_operator_entries
 
 
-_module = opinf.operators._interpolate
+_module = opinf.operators
+_submodule = _module._interpolate
 
 _d = 8
 _Dblock = np.random.random((4, _d))
@@ -60,7 +61,7 @@ class _DummyInterpolator2(_DummyInterpolator):
 class TestInterpOperator:
     """Test operators._interpolate._InterpOperator."""
 
-    class Dummy(_module._InterpOperator):
+    class Dummy(_submodule._InterpOperator):
         """Instantiable version of _InterpOperator."""
 
         _OperatorClass = _DummyOperator
@@ -414,10 +415,13 @@ def test_publics():
     """Ensure all public InterpOperator classes can be instantiated
     without arguments.
     """
-    for OpClassName in _module.__all__:
+    for OpClassName in _submodule.__all__:
+        if "Interpolated" in OpClassName:
+            # Skip deprecations
+            continue
         OpClass = getattr(_module, OpClassName)
         if not isinstance(OpClass, type) or not issubclass(
-            OpClass, _module._InterpOperator
+            OpClass, _submodule._InterpOperator
         ):
             continue
         op = OpClass()
@@ -483,18 +487,18 @@ def test_1Doperators(r=10, m=3, s=5):
 def test_is_interpolated():
     """Test operators._interpolate.is_interpolated()."""
     op = TestInterpOperator.Dummy()
-    assert _module.is_interpolated(op)
-    assert not _module.is_interpolated(-1)
+    assert _submodule.is_interpolated(op)
+    assert not _submodule.is_interpolated(-1)
 
 
 def test_nonparametric_to_interpolated():
     """Test operators._interpolate.nonparametric_to_interpolated()."""
 
     with pytest.raises(TypeError) as ex:
-        _module.nonparametric_to_interpolated(float)
+        _submodule.nonparametric_to_interpolated(float)
     assert ex.value.args[0] == ("_InterpOperator for class 'float' not found")
 
-    OpClass = _module.nonparametric_to_interpolated(
+    OpClass = _submodule.nonparametric_to_interpolated(
         opinf.operators.QuadraticOperator
     )
     assert OpClass is opinf.operators.InterpQuadraticOperator

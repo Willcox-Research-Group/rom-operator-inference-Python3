@@ -10,6 +10,13 @@ __all__ = [
     "InterpCubicOperator",
     "InterpInputOperator",
     "InterpStateInputOperator",
+    # Deprecations:
+    "InterpolatedConstantOperator",
+    "InterpolatedLinearOperator",
+    "InterpolatedQuadraticOperator",
+    "InterpolatedCubicOperator",
+    "InterpolatedInputOperator",
+    "InterpolatedStateInputOperator",
 ]
 
 import warnings

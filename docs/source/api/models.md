@@ -22,8 +22,8 @@
 
     ParametricContinuousModel
     ParametricDiscreteModel
-    InterpolatedContinuousModel
-    InterpolatedDiscreteModel
+    InterpContinuousModel
+    InterpDiscreteModel
 ```
 
 :::{admonition} Overview
@@ -154,9 +154,9 @@ In addition, parametric models have an `evaluate()` method that returns a nonpar
    ParametricDiscreteModel
 ```
 
-### Interpolated Models
+### Interpolatory Models
 
-Interpolated models consist exclusively of [interpolatory operators](sec-operators-interpolated).
+Interpolatory models consist exclusively of [interpolatory operators](sec-operators-interpolated).
 
 ```{eval-rst}
 .. currentmodule:: opinf.models
@@ -164,8 +164,8 @@ Interpolated models consist exclusively of [interpolatory operators](sec-operato
 .. autosummary::
     :nosignatures:
 
-    InterpolatedContinuousModel
-    InterpolatedDiscreteModel
+    InterpContinuousModel
+    InterpDiscreteModel
 ```
 
 :::{tip}
@@ -184,7 +184,7 @@ The `operators` constructor argument for these classes can also be a string that
 import opinf
 
 # Initialize the model with a list of operator objects.
-model = opinf.models.InterpolatedContinuousModel(
+model = opinf.models.InterpContinuousModel(
     operators=[
         opinf.operators.InterpCubicOperator(),
         opinf.operators.InterpStateInputOperator(),
@@ -192,7 +192,7 @@ model = opinf.models.InterpolatedContinuousModel(
 )
 
 # Equivalently, initialize the model with a string.
-model = opinf.models.InterpolatedContinuousModel(operators="GN")
+model = opinf.models.InterpContinuousModel(operators="GN")
 ```
 
 :::

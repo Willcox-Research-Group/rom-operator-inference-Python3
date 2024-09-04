@@ -2,7 +2,7 @@
 """Nonparametric monolithic dynamical systems models."""
 
 __all__ = [
-    "SteadyModel",
+    # "SteadyModel",
     "DiscreteModel",
     "ContinuousModel",
 ]

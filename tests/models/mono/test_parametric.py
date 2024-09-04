@@ -75,7 +75,7 @@ class _TestParametricModel:
             self.Model(operators)
         assert wn[0].message.args[0] == (
             "all operators interpolatory, "
-            "consider using an InterpolatedModel class"
+            "consider using an InterpModel class"
         )
 
         # Several operators provided.
@@ -218,7 +218,7 @@ class _TestParametricModel:
             p,
             entries=[np.random.random(r) for _ in range(p)],
         )
-        if isinstance(self, _TestInterpolatedModel):
+        if isinstance(self, _TestInterpModel):
             op2 = opinf.operators.InterpConstantOperator(
                 training_parameters=params,
                 entries=[np.zeros(r) for _ in range(s)],
@@ -401,7 +401,7 @@ class TestParametricDiscreteModel(_TestParametricModel):
     _iscontinuous = False
 
     def test_predict(self, p=5, r=3, m=2, niters=10):
-        """Lightly test InterpolatedDiscreteModel.predict()."""
+        """Lightly test InterpDiscreteModel.predict()."""
         testparam = np.random.random(p)
         state0 = np.random.random(r)
 
@@ -472,8 +472,8 @@ class TestParametricContinuousModel(_TestParametricModel):
 
 
 # Interpolatotry models =======================================================
-class _TestInterpolatedModel(_TestParametricModel):
-    """Test models.mono._parametric._InterpolatedModel."""
+class _TestInterpModel(_TestParametricModel):
+    """Test models.mono._parametric._InterpModel."""
 
     def _get_single_operator(self):
         """Get a single uncalibrated operator."""
@@ -581,7 +581,7 @@ class _TestInterpolatedModel(_TestParametricModel):
         )
 
     def test_from_models(self, s=10, r=4, m=2):
-        """Test _InterpolatedModel._from_models()."""
+        """Test _InterpModel._from_models()."""
         operators = [
             [
                 opinf.operators.ConstantOperator(np.random.random(r)),
@@ -627,7 +627,7 @@ class _TestInterpolatedModel(_TestParametricModel):
         assert c00(testparam) == model.evaluate(testparam).operators[0][0]
 
     def test_set_interpolator(self, s=10, p=2, r=2):
-        """Test _InterpolatedModel._set_interpolator()."""
+        """Test _InterpModel._set_interpolator()."""
 
         mu = np.random.random((s, p))
         operators = [
@@ -663,7 +663,7 @@ class _TestInterpolatedModel(_TestParametricModel):
             assert isinstance(op.interpolator, interp.NearestNDInterpolator)
 
     def test_fit_solver(self, s=10, r=3, k=20):
-        """Test _InterpolatedModel._fit_solver()."""
+        """Test _InterpModel._fit_solver()."""
         operators = [
             opinf.operators.InterpConstantOperator(),
             opinf.operators.InterpLinearOperator(),
@@ -696,7 +696,7 @@ class _TestInterpolatedModel(_TestParametricModel):
         assert np.all(model._training_parameters == params)
 
     def test_refit(self, s=10, r=3, k=15):
-        """Test _InterpolatedModel.refit()."""
+        """Test _InterpModel.refit()."""
         operators = [
             opinf.operators.InterpConstantOperator(),
             opinf.operators.InterpLinearOperator(),
@@ -726,7 +726,7 @@ class _TestInterpolatedModel(_TestParametricModel):
                 assert op.entries is not None
 
     def test_save(self, target="_interpmodelsavetest.h5"):
-        """Test _InterpolatedModel._save()."""
+        """Test _InterpModel._save()."""
         if os.path.isfile(target):
             os.remove(target)
 
@@ -757,7 +757,7 @@ class _TestInterpolatedModel(_TestParametricModel):
         os.remove(target)
 
     def test_load(self, target="_interpmodelloadtest.h5"):
-        """Test _InterpolatedModel._load()."""
+        """Test _InterpModel._load()."""
         if os.path.isfile(target):
             os.remove(target)
 
@@ -809,7 +809,7 @@ class _TestInterpolatedModel(_TestParametricModel):
         os.remove(target)
 
     def test_copy(self, s=10, p=2, r=3):
-        """Test _InterpolatedModel._copy()."""
+        """Test _InterpModel._copy()."""
 
         model1 = self.Model(
             [
@@ -838,14 +838,14 @@ class _TestInterpolatedModel(_TestParametricModel):
             assert model_copied == model
 
 
-class TestInterpolatedDiscreteModel(_TestInterpolatedModel):
-    """Test models.mono._parametric.InterpolatedDiscreteModel."""
+class TestInterpDiscreteModel(_TestInterpModel):
+    """Test models.mono._parametric.InterpDiscreteModel."""
 
-    Model = _module.InterpolatedDiscreteModel
+    Model = _module.InterpDiscreteModel
     _iscontinuous = False
 
     def test_fit(self, s=10, p=2, r=3, m=2, k=20):
-        """Lightly test InterpolatedDiscreteModel.fit()."""
+        """Lightly test InterpDiscreteModel.fit()."""
         params = np.random.random((s, p))
         states = np.random.random((s, r, k))
         nextstates = np.random.random((s, r, k))
@@ -860,7 +860,7 @@ class TestInterpolatedDiscreteModel(_TestInterpolatedModel):
         assert out is model
 
     def test_predict(self, s=11, r=4, m=2, niters=10):
-        """Lightly test InterpolatedDiscreteModel.predict()."""
+        """Lightly test InterpDiscreteModel.predict()."""
         params = np.sort(np.random.random(s))
         state0 = np.random.random(r)
         model = self.Model(
@@ -883,14 +883,14 @@ class TestInterpolatedDiscreteModel(_TestInterpolatedModel):
         assert np.all(out[:, 1:] == 0)
 
 
-class TestInterpolatedContinuousModel(_TestInterpolatedModel):
-    """Test models.mono._parametric.InterpolatedContinuousModel."""
+class TestInterpContinuousModel(_TestInterpModel):
+    """Test models.mono._parametric.InterpContinuousModel."""
 
-    Model = _module.InterpolatedContinuousModel
+    Model = _module.InterpContinuousModel
     _iscontinuous = True
 
     def test_fit(self, s=10, p=2, r=3, m=2, k=20):
-        """Test InterpolatedContinuousModel.fit()."""
+        """Test InterpContinuousModel.fit()."""
         params = np.random.random((s, p))
         states = np.random.random((s, r, k))
         ddts = np.random.random((s, r, k))
@@ -905,7 +905,7 @@ class TestInterpolatedContinuousModel(_TestInterpolatedModel):
         assert out is model
 
     def test_predict(self, s=11, r=4, m=2, k=40):
-        """Lightly test InterpolatedContinuousModel.predict()."""
+        """Lightly test InterpContinuousModel.predict()."""
         params = np.sort(np.random.random(s))
         state0 = np.random.random(r)
         t = np.linspace(0, 1, k)
@@ -929,3 +929,15 @@ class TestInterpolatedContinuousModel(_TestInterpolatedModel):
         assert out.shape == (r, k)
         for j in range(k):
             assert np.allclose(out[:, j], state0)
+
+
+# Deprecations models =========================================================
+def test_deprecations():
+    """Ensure deprecated classes still work."""
+    for ModelClass in [
+        _module.InterpolatedContinuousModel,
+        _module.InterpolatedDiscreteModel,
+    ]:
+        with pytest.warns(DeprecationWarning) as wn:
+            ModelClass("A")
+        assert len(wn) == 1
