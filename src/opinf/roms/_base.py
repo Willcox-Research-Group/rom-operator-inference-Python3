@@ -78,7 +78,7 @@ class _BaseROM(abc.ABC):
         self.__basis = basis
 
         # Verify ddt_estimator.
-        if ddt_estimator is not None and not self._iscontinuous:
+        if (ddt_estimator is not None) and not self._iscontinuous:
             warnings.warn(
                 "ddt_estimator ignored for discrete models",
                 errors.OpInfWarning,
@@ -226,7 +226,7 @@ class _BaseROM(abc.ABC):
             return states, lhs
         return states
 
-    def decode(self, states_encoded):
+    def decode(self, states_encoded, locs=None):
         """Map low-dimensional data to the original state space.
 
         Parameters
@@ -234,20 +234,29 @@ class _BaseROM(abc.ABC):
         states_encoded : (r, ...) ndarray
             Low-dimensional state or states
             in the latent reduced state space.
+        locs : slice or (p,) ndarray of integers or None
+            If given, return the decoded state at only the p specified
+            locations (indices) described by ``locs``.
 
         Returns
         -------
         states_decoded : (n, ...) ndarray
             Version of ``states_compressed`` in the original state space.
         """
+        inplace = False
         # Reverse dimensionality reduction.
         states = states_encoded
         if self.basis is not None:
-            states = self.basis.decompress(states)
+            inplace = True
+            states = self.basis.decompress(states, locs=locs)
 
         # Reverse preprocessing.
         if self.transformer is not None:
-            states = self.transformer.inverse_transform(states, inplace=True)
+            states = self.transformer.inverse_transform(
+                states,
+                inplace=inplace,
+                locs=locs,
+            )
 
         # Reverse lifting.
         if self.lifter is not None:
@@ -284,7 +293,9 @@ class _BaseROM(abc.ABC):
     @abc.abstractmethod
     def fit(self, *args, **kwargs):
         """Calibrate the model to the data."""
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def predict(self, *args, **kwargs):
         """Evaluate the model."""
+        raise NotImplementedError  # pragma: no cover

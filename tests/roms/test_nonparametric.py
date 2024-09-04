@@ -41,6 +41,7 @@ class TestROM(_TestBaseROM):
         # Other arguments.
         super().test_init()
 
+    # DONE TO HERE.
     def test_fit(self):
         """Test fit()."""
         raise NotImplementedError

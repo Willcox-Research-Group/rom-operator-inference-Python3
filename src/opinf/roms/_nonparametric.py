@@ -24,15 +24,18 @@ class ROM(_BaseROM):
 
     Parameters
     ----------
-    model : opinf.models.ContinuousModel or opinf.models.DiscreteModel
-        System model.
-    lifter : opinf.lift.LifterTemplate or None
+    model : :mod:`opinf.models` object
+        Nonparametric system model, an instance of one of the following:
+
+        * :class:`opinf.models.ContinuousModel`
+        * :class:`opinf.models.DiscreteModel`
+    lifter : :mod:`opinf.lift` object or None
         Lifting transformation.
-    transformer : opinf.pre.TransformerTemplate or None
+    transformer : :mod:`opinf.pre` object or None
         Preprocesser.
-    basis : opinf.basis.BasisTemplate
+    basis : :mod:`opinf.basis` object or None
         Dimensionality reducer.
-    ddt_estimator : opinf.ddt.DerivativeEstimatorTemplate
+    ddt_estimator : :mod:`opinf.ddt` object or None
         Time derivative estimator.
         Ignored if ``model`` is not time continuous.
     """
@@ -117,7 +120,7 @@ class ROM(_BaseROM):
             states, lhs = reduced
 
         # If needed, estimate time derivatives.
-        if self.iscontinuous:
+        if self._iscontinuous:
             if lhs is None:
                 if self.ddt_estimator is None:
                     raise ValueError(
@@ -137,7 +140,7 @@ class ROM(_BaseROM):
 
         # Calibrate the model.
         kwargs = dict(inputs=inputs)
-        if self.iscontinuous:
+        if self._iscontinuous:
             self.model.fit(states, lhs, **kwargs)
         else:
             if lhs is not None:
