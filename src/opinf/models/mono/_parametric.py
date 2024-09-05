@@ -398,7 +398,7 @@ class _ParametricModel(_Model):
             Input training data. Each array ``inputs[i]`` is the data
             corresponding to parameter value ``parameters[i]``; each column
             ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
-            May be a two-dimensional array if `m=1` (scalar input).
+            May be a two-dimensional array if :math:`m=1` (scalar input).
 
         Returns
         -------
@@ -607,7 +607,7 @@ class _ParametricDiscreteMixin:
             Input training data. Each array ``inputs[i]`` is the data
             corresponding to parameter value ``parameters[i]``; each column
             ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
-            May be a two-dimensional array if `m=1` (scalar input).
+            May be a two-dimensional array if :math:`m=1` (scalar input).
 
         Returns
         -------
@@ -815,7 +815,8 @@ class _ParametricContinuousMixin:
             corresponding to parameter value ``parameters[i]``; each column
             ``inputs[i][:, j]`` corresponds to the snapshot
             ``states[i][:, j]``.
-            May be a two-dimensional array if `m=1` (scalar input).
+            May be a two-dimensional array if :math:`m=1` (scalar input).
+            Only required if one or more model operators depend on inputs.
 
         Returns
         -------

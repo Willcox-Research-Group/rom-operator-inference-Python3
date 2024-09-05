@@ -5,10 +5,8 @@ __all__ = [
     "ROM",
 ]
 
-import warnings
-
+from ..models import _utils as modutils
 from ._base import _BaseROM
-from .. import errors, models
 
 
 class ROM(_BaseROM):
@@ -50,16 +48,8 @@ class ROM(_BaseROM):
         ddt_estimator=None,
     ):
         """Store each argument as an attribute."""
-        # Verify model.
-        if not isinstance(
-            model,
-            (models.ContinuousModel, models.DiscreteModel),
-        ):
-            raise TypeError(
-                "'model' must be a "
-                "models.ContinuousModel or models.DiscreteModel instance"
-            )
-
+        if not modutils.is_nonparametric(model):
+            raise TypeError("'model' must be a nonparametric model instance")
         super().__init__(model, lifter, transformer, basis, ddt_estimator)
 
     def __str__(self):
@@ -72,30 +62,43 @@ class ROM(_BaseROM):
         states,
         lhs=None,
         inputs=None,
-        inplace: bool = False,
         fit_transformer: bool = True,
         fit_basis: bool = True,
     ):
-        """Calibrate the model to the data.
+        """Calibrate the model to training data.
 
         Parameters
         ----------
-        states : (n, k) ndarray
-            State snapshots in the original state space.
-        lhs : (n, k) ndarray or None
-            Left-hand side regression data.
+        states : list of s (n, k_i) ndarrays
+            State snapshots in the original state space. Each array
+            ``states[i]`` is data corresponding to a different trajectory;
+            each column ``states[i][:, j]`` is one snapshot.
+            If there is only one trajectory of training data (s = 1),
+            ``states`` may be an (n, k) ndarray. In this case, it is assumed
+            that ``lhs`` and ``inputs`` (if given) are arrays, not a sequence
+            of arrays.
+        lhs : list of s (n, k_i) ndarrays or None
+            Left-hand side regression data. Each array ``lhs[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``lhs[i][:, j]`` corresponds to the snapshot ``states[i][:, j]``.
 
             - If the model is time continuous, these are the time derivatives
               of the state snapshots.
             - If the model is fully discrete, these are the "next states"
               corresponding to the state snapshots.
-        inplace : bool
-            If ``True``, modify the ``states`` and ``lhs`` in-place in the
-            preprocessing transformation (if applicable).
+
+            If ``None``, these are estimated using :attr:`ddt_estimator`
+            (time continuous) or extracted from ``states`` (fully discrete).
+        inputs : list of s (m, k_i) ndarrays or None
+            Input training data. Each array ``inputs[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
+            May be a two-dimensional array if :math:`m=1` (scalar input).
+            Only required if one or more model operators depend on inputs.
         fit_transformer : bool
-            If ``True`` (default), calibrate the high-to-low dimensional
-            mapping using the ``states``.
-            If ``False``, assume the transformer is already calibrated.
+            If ``True`` (default), calibrate the preprocessing transformation
+            using the ``states``. If ``False``, assume the transformer is
+            already calibrated.
         fit_basis : bool
             If ``True``, calibrate the high-to-low dimensional mapping
             using the ``states``.
@@ -105,63 +108,39 @@ class ROM(_BaseROM):
         -------
         self
         """
+        # Single trajectory case.
+        if states[0].ndim == 1:
+            states = [states]
+            if lhs is not None:
+                lhs = [lhs]
+            if inputs is not None:
+                inputs = [inputs]
 
-        # Express the states and the LHS in the latent state space.
-        reduced = self.encode(
-            states,
+        states, lhs, inputs = _BaseROM.fit(
+            self,
+            states=states,
             lhs=lhs,
-            inplace=inplace,
+            inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
         )
-        if lhs is None:
-            states = reduced
-        else:
-            states, lhs = reduced
-
-        # If needed, estimate time derivatives.
-        if self._iscontinuous:
-            if lhs is None:
-                if self.ddt_estimator is None:
-                    raise ValueError(
-                        "ddt_estimator required for time-continuous model "
-                        "and lhs=None"
-                    )
-                estimated = self.ddt_estimator.estimate(states, inputs)
-                if inputs is None:
-                    states, lhs = estimated
-                else:
-                    states, lhs, inputs = estimated
-            elif self.ddt_estimator is not None:
-                warnings.warn(
-                    "using provided time derivatives, ignoring ddt_estimator",
-                    errors.OpInfWarning,
-                )
-
-        # Calibrate the model.
-        kwargs = dict(inputs=inputs)
-        if self._iscontinuous:
-            self.model.fit(states, lhs, **kwargs)
-        else:
-            if lhs is not None:
-                kwargs["nextstates"] = lhs
-            self.model.fit(states, **kwargs)
-
+        self.model.fit(states, lhs, inputs)
         return self
 
     def predict(self, state0, *args, **kwargs):
         """Evaluate the reduced-order model.
 
-        Parameters are the same as the model's ``predict()`` method.
+        Arguments are the same as the ``predict()`` method of :attr:`model`.
 
         Parameters
         ----------
         state0 : (n,) ndarray
             Initial state, expressed in the original state space.
         *args : list
-            Other positional arguments to ``model.predict()``.
+            Other positional arguments to the ``predict()`` method of
+            :attr:`model`.
         **kwargs : dict
-            Keyword arguments to ``model.predict()``.
+            Keyword arguments to the ``predict()`` method of :attr:`model`.
 
         Returns
         -------

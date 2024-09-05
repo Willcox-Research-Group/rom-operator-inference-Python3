@@ -1,5 +1,5 @@
-# roms/test_nonparametric.py
-"""Tests for roms._nonparametric.py."""
+# roms/test_parametric.py
+"""Tests for roms._parametric.py."""
 
 import pytest
 
@@ -14,17 +14,19 @@ _module = opinf.roms
 class TestROM(_TestBaseROM):
     """Test roms.ROM."""
 
-    ROM = _module.ROM
+    ROM = _module.ParametricROM
     ModelClasses = (
-        opinf.models.ContinuousModel,
-        opinf.models.DiscreteModel,
+        opinf.models.ParametricContinuousModel,
+        opinf.models.ParametricDiscreteModel,
+        opinf.models.InterpContinuousModel,
+        opinf.models.InterpDiscreteModel,
     )
 
     def _get_models(self):
         """Return a list of valid model instantiations."""
         return [
-            opinf.models.ContinuousModel("A"),
-            opinf.models.DiscreteModel("AB"),
+            opinf.models.InterpContinuousModel("A"),
+            opinf.models.InterpDiscreteModel("AB"),
         ]
 
     def test_init(self):
@@ -34,7 +36,7 @@ class TestROM(_TestBaseROM):
         with pytest.raises(TypeError) as ex:
             self.ROM(10)
         assert ex.value.args[0] == (
-            "'model' must be a nonparametric model instance"
+            "'model' must be a parametric model instance"
         )
 
         # Other arguments.

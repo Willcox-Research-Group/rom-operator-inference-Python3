@@ -5,6 +5,7 @@ __all__ = []
 
 import abc
 import warnings
+import numpy as np
 
 from .. import errors, utils
 from .. import lift, pre, basis as _basis, ddt
@@ -291,9 +292,125 @@ class _BaseROM(abc.ABC):
 
     # Abstract methods --------------------------------------------------------
     @abc.abstractmethod
-    def fit(self, *args, **kwargs):
-        """Calibrate the model to the data."""
-        raise NotImplementedError  # pragma: no cover
+    def fit(
+        self,
+        states,
+        lhs,
+        inputs,
+        fit_transformer: bool,
+        fit_basis: bool,
+    ):
+        """Calibrate the model to training data.
+
+        Child classes should overwrite this method to include a call to
+        the ``fit()`` method of :attr:`model`.
+
+        Parameters
+        ----------
+        states : list of s (n, k_i) ndarrays
+            State snapshots in the original state space. Each array
+            ``states[i]`` is data for a single trajectory; each column
+            ``states[i][:, j]`` is one snapshot.
+        lhs : list of s (n, k_i) ndarrays or None
+            Left-hand side regression data. Each array ``lhs[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``lhs[i][:, j]`` corresponds to the snapshot ``states[i][:, j]``.
+
+            - If the model is time continuous, these are the time derivatives
+              of the state snapshots.
+            - If the model is fully discrete, these are the "next states"
+              corresponding to the state snapshots.
+
+            If ``None``, these are estimated using :attr:`ddt_estimator`
+            (time continuous) or extracted from ``states`` (fully discrete).
+        inputs : list of s (m, k_i) ndarrays or None
+            Input training data. Each array ``inputs[i]`` is the data
+            corresponding to parameter value ``parameters[i]``; each column
+            ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
+            May be a two-dimensional array if :math:`m=1` (scalar input).
+            Only required if one or more model operators depend on inputs.
+        fit_transformer : bool
+            If ``True``, calibrate the preprocessing transformation
+            using the ``states``. If ``False``, assume the transformer is
+            already calibrated.
+        fit_basis : bool
+            If ``True``, calibrate the high-to-low dimensional mapping
+            using the ``states``.
+            If ``False``, assume the basis is already calibrated.
+
+        Returns
+        -------
+        self
+        """
+        # Lifting.
+        if self.lifter is not None:
+            if lhs is not None:
+                if self._iscontinuous:
+                    lhs = [
+                        self.lifter.lift_ddts(Q, Z)
+                        for Q, Z in zip(states, lhs)
+                    ]
+                else:
+                    lhs = [self.lifter.lift(Z) for Z in lhs]
+            states = [self.lifter.lift(Q) for Q in states]
+
+        # Preprocessing.
+        if self.transformer is not None:
+            if fit_transformer:
+                self.transformer.fit(np.hstack(states))
+            states = [self.transformer.transform(Q) for Q in states]
+            if lhs is not None:
+                if self._iscontinuous:
+                    lhs = [self.transformer.transform_ddts(Z) for Z in lhs]
+                else:
+                    lhs = [self.transformer.transform(Z) for Z in lhs]
+        elif fit_transformer:
+            warnings.warn(
+                "fit_transformer=True ignored because transformer=None",
+                errors.OpInfWarning,
+            )
+
+        # Dimensionality reduction.
+        if self.basis is not None:
+            if fit_basis:
+                self.basis.fit(np.hstack(states))
+            states = [self.basis.compress(Q) for Q in states]
+            if lhs is not None:
+                lhs = [self.basis.compress(Z) for Z in lhs]
+        elif fit_basis:
+            warnings.warn(
+                "fit_basis=True ignored because basis=None",
+                errors.OpInfWarning,
+            )
+
+        # Time derivative estimation / discrete LHS
+        if lhs is None:
+            if self._iscontinuous:
+                if self.ddt_estimator is None:
+                    raise ValueError(
+                        "argument 'lhs' required when model is time-continuous"
+                        " and ddt_estimator=None"
+                    )
+                if inputs is None:
+                    states, lhs = zip(
+                        *[self.ddt_estimator.estimate(Q) for Q in states]
+                    )
+                else:
+                    states, lhs, inputs = zip(
+                        *[
+                            self.ddt_estimator.estimate(Q, U)
+                            for Q, U in zip(states, inputs)
+                        ]
+                    )
+            else:
+                lhs = [Q[:, 1:] for Q in states]
+                states = [Q[:, :-1] for Q in states]
+                if inputs is not None:
+                    inputs = [
+                        U[..., : Q.shape[1]] for Q, U in zip(states, inputs)
+                    ]
+
+        return states, lhs, inputs
 
     @abc.abstractmethod
     def predict(self, *args, **kwargs):
