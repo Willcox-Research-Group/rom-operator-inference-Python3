@@ -5,6 +5,8 @@ __all__ = [
     "ROM",
 ]
 
+import numpy as np
+
 from ..models import _utils as modutils
 from ._base import _BaseROM
 
@@ -124,7 +126,12 @@ class ROM(_BaseROM):
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
         )
-        self.model.fit(states, lhs, inputs)
+
+        # Concatentate trajectories.
+        if inputs is not None:
+            inputs = np.hstack(inputs)
+        self.model.fit(np.hstack(states), np.hstack(lhs), inputs)
+
         return self
 
     def predict(self, state0, *args, **kwargs):

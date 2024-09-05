@@ -348,7 +348,10 @@ class _InterpOperator(ParametricOpInfOperator):
         self._check_parametervalue_dimension(parameter)
         if self.parameter_dimension == 1 and not np.isscalar(parameter):
             parameter = parameter[0]
-        return self._OperatorClass(self.interpolator(parameter))
+        entries = self.interpolator(parameter)
+        if entries.ndim == 3:
+            entries = entries[0]
+        return self._OperatorClass(entries)
 
     # Dimensionality reduction ------------------------------------------------
     @utils.requires("entries")

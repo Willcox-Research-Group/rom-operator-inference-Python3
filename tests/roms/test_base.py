@@ -292,13 +292,3 @@ class _TestBaseROM(abc.ABC):
             # Lifter, transformer, and basis.
             a1, a2, a3 = self._get("lifter", "transformer", "basis")
             _check(self.ROM(model, lifter=a1, transformer=a2, basis=a3))
-
-    @abc.abstractmethod
-    def test_fit(self):
-        """Test fit()."""
-        raise NotImplementedError  # pragma: no cover
-
-    @abc.abstractmethod
-    def test_predict(self):
-        """Test predict()."""
-        raise NotImplementedError  # pragma: no cover

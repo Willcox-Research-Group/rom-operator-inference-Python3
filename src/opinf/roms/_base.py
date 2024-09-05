@@ -364,11 +364,6 @@ class _BaseROM(abc.ABC):
                     lhs = [self.transformer.transform_ddts(Z) for Z in lhs]
                 else:
                     lhs = [self.transformer.transform(Z) for Z in lhs]
-        elif fit_transformer:
-            warnings.warn(
-                "fit_transformer=True ignored because transformer=None",
-                errors.OpInfWarning,
-            )
 
         # Dimensionality reduction.
         if self.basis is not None:
@@ -377,11 +372,6 @@ class _BaseROM(abc.ABC):
             states = [self.basis.compress(Q) for Q in states]
             if lhs is not None:
                 lhs = [self.basis.compress(Z) for Z in lhs]
-        elif fit_basis:
-            warnings.warn(
-                "fit_basis=True ignored because basis=None",
-                errors.OpInfWarning,
-            )
 
         # Time derivative estimation / discrete LHS
         if lhs is None:
