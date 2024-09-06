@@ -16,7 +16,7 @@ The following class defines a context manager for timing blocks of code and logg
     :toctree: _autosummaries
     :nosignatures:
 
-    timed_block
+    TimedBlock
 ```
 
 ## Load/Save HDF5 Utilities

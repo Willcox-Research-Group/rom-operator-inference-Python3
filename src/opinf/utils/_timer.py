@@ -2,7 +2,7 @@
 """Context manager for timing blocks of code."""
 
 __all__ = [
-    "timed_block",
+    "TimedBlock",
 ]
 
 import os
@@ -11,11 +11,8 @@ import signal
 import logging
 
 
-class timed_block:
+class TimedBlock:
     r"""Context manager for timing a block of code and reporting the timing.
-
-    **WARNING**: this context manager may only function on Linux/Unix machines
-    (Windows is not supported).
 
     Parameters
     ----------
@@ -23,19 +20,34 @@ class timed_block:
         Message to log / print.
     timelimit : int
         Number of seconds to wait before raising an error.
-        Floats are rounded down to the nearest integer.
+        Floats are rounded down to an integer.
+
+    Warnings
+    --------
+    This context manager may only function on Linux/Unix machines
+    (Windows is not currently supported).
 
     Examples
     --------
     >>> import time
     >>> import opinf
 
-    >>> with opinf.utils.timed_block("This is a test"):
+    Without a time limit.
+
+    >>> with opinf.utils.TimedBlock():
     ...     # Code to be timed
     ...     time.sleep(2)
-    This is a test...done in 2.00 s.
+    Running code block...done in 2.00 s.
 
-    >>> with opinf.utils.timed_block("Another test", timelimit=3):
+    With a custom message.
+
+    >>> with opinf.utils.TimedBlock("This is a test"):
+    ...     time.sleep(3)
+    This is a test...done in 3.00 s.
+
+    With a time limit.
+
+    >>> with opinf.utils.TimedBlock("Another test", timelimit=3):
     ...     # Code to be timed and halted within the specified time limit.
     ...     i = 0
     ...     while True:
@@ -43,30 +55,33 @@ class timed_block:
     Another test...
     TimeoutError: TIMED OUT after 3.00s.
 
-    # Set up a logfile to record messages to.
-    >>> opinf.utils.timed_block.setup_logfile("log.log")
+    Set up a logfile to record messages to.
+
+    >>> opinf.utils.TimedBlock.setup_logfile("log.log")
     Logging to '/path/to/current/folder/log.log'
 
-    # timed_block() will now write to the log file as well as print to screen.
-    >>> with opinf.utils.timed_block("logfile test"):
+    ``TimedBlock()`` will now write to the log file as well as print to screen.
+
+    >>> with opinf.utils.TimedBlock("logfile test"):
     ...     time.sleep(1)
     logfile test...done in 1.00 s.
-
     >>> with open("log.log", "r") as infile:
-    ...    print(infile.read().strip())
+    ...     print(infile.read().strip())
     INFO:   logfile test...done in 1.001150 s.
 
-    # Turn off print statements (but keep logging).
-    >>> opinf.utils.timed_block.verbose = False
-    >>> with opinf.utils.timed_block("not printed to the screen"):
+    Turn off print statements (but keep logging).
+
+    >>> opinf.utils.TimedBlock.verbose = False
+    >>> with opinf.utils.TimedBlock("not printed to the screen"):
     ...     time.sleep(1)
     >>> with open("log.log", "r") as infile:
-    ...    print(infile.read().strip())
+    ...     print(infile.read().strip())
     INFO:   logfile test...done in 1.001150 s.
     INFO:   not printed to the screen...done in 1.002232 s.
 
-    # Capture the time elapsed for later use.
-    >>> with opinf.utils.timed_block("how long?") as timer:
+    Capture the time elapsed for later use.
+
+    >>> with opinf.utils.TimedBlock("how long?") as timer:
     ...     time.sleep(2)
     >>> timer.elapsed
     2.002866268157959
@@ -79,7 +94,11 @@ class timed_block:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    def __init__(self, message: str, timelimit: int = None):
+    def __init__(
+        self,
+        message: str = "Running code block",
+        timelimit: int = None,
+    ):
         """Store print/log message."""
         self.__front = "\n" if message.endswith("\n") else ""
         self.message = message.rstrip()
@@ -141,7 +160,7 @@ class timed_block:
 
     @classmethod
     def add_logfile(cls, logfile: str = "log.log") -> None:
-        """Instruct :class:`timed_block` to log messages to the ``logfile``.
+        """Instruct :class:`TimedBlock` to log messages to the ``logfile``.
 
         Parameters
         ----------
