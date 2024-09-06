@@ -54,10 +54,6 @@ class ROM(_BaseROM):
             raise TypeError("'model' must be a nonparametric model instance")
         super().__init__(model, lifter, transformer, basis, ddt_estimator)
 
-    def __str__(self):
-        """String representation."""
-        return f"Nonparametric {_BaseROM.__str__(self)}"
-
     # Training and evaluation -------------------------------------------------
     def fit(
         self,

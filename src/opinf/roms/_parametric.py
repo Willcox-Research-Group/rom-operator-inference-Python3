@@ -54,10 +54,6 @@ class ParametricROM(_BaseROM):
             raise TypeError("'model' must be a parametric model instance")
         super().__init__(model, lifter, transformer, basis, ddt_estimator)
 
-    def __str__(self):
-        """String representation."""
-        return f"Parametric {_BaseROM.__str__(self)}"
-
     # Training and evaluation -------------------------------------------------
     def fit(
         self,

@@ -133,10 +133,10 @@ class SolverTemplate(abc.ABC):
         """String representation: class name + dimensions."""
         out = [self.__class__.__name__]
         if (self.data_matrix is not None) and (self.lhs_matrix is not None):
-            out.append(f"  Data matrix:     {self.data_matrix.shape}")
-            out.append(f"    Condition number: {self.cond():.4e}")
-            out.append(f"  LHS matrix:      {self.lhs_matrix.shape}")
-            out.append(f"  Operator matrix: {self.r, self.d}")
+            out.append(f"  data_matrix:     {self.data_matrix.shape}")
+            out.append(f"    condition number: {self.cond():.4e}")
+            out.append(f"  lhs_matrix:      {self.lhs_matrix.shape}")
+            out.append(f"  solve().shape:   {self.r, self.d}")
         else:
             out[0] += " (not trained)"
         return "\n".join(out)

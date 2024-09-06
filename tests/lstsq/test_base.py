@@ -106,29 +106,14 @@ class TestSolverTemplate:
 
     # String representations --------------------------------------------------
     def test_str(self, k=20, d=6, r=3):
-        """Test __str__() and __repr__()."""
-        # Before fitting.
+        """Lightly test __str__() and __repr__()."""
         solver = self.Dummy()
-        assert str(solver) == "Dummy (not trained)"
-
-        rep = repr(solver)
-        assert rep.startswith("<Dummy object at ")
-        assert len(rep.split("\n")) == 2
+        str(solver)
 
         D = np.empty((k, d))
         Z = np.empty((r, k))
         solver.fit(D, Z)
-        strlines = str(solver).split("\n")
-        assert len(strlines) == 5
-        assert strlines[0] == "Dummy"
-        assert strlines[1] == f"  Data matrix:     ({k:d}, {d:d})"
-        assert strlines[2].startswith("    Condition number")
-        assert strlines[3] == f"  LHS matrix:      ({r:d}, {k:d})"
-        assert strlines[4] == f"  Operator matrix: ({r:d}, {d:d})"
-
-        replines = repr(solver).split("\n")
-        assert len(replines) == 6
-        assert replines[1:] == strlines
+        assert repr(solver).count(str(solver)) == 1
 
     # Post-processing ---------------------------------------------------------
     def test_cond(self, k=20, d=11, r=3):

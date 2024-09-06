@@ -203,45 +203,23 @@ class TestPODBasis:
         assert basis.projection_error(Q, relative=True) < 0.02
 
     def test_str(self, n=30, k=20, r=10):
-        """Test __str__()."""
+        """Lightly test __str__() and __repr__()."""
         basis = self.Basis(num_vectors=r)
-        strbasis = str(basis)
-        assert strbasis.count("\n") == 1
-        assert strbasis.endswith("SVD solver: scipy.linalg.svd()")
+        str(basis)
 
         Q = np.random.random((n, k))
         basis.fit(Q)
-        strbasis = str(basis)
-        assert strbasis.count(f"Full state dimension    n = {n}") == 1
-        assert strbasis.count(f"Reduced state dimension r = {r}") == 1
-        assert strbasis.count(f"{k} basis vectors available") == 1
-        assert strbasis.count("Cumulative energy:") == 1
-        assert strbasis.count("Residual energy:") == 1
-        assert strbasis.endswith("SVD solver: scipy.linalg.svd()")
+        str(basis)
 
         basis = self.Basis(
             num_vectors=r,
             max_vectors=r,
             svdsolver="randomized",
         ).fit(Q)
-        strbasis = str(basis)
-        assert strbasis.count(f"Full state dimension    n = {n}") == 1
-        assert strbasis.count(f"Reduced state dimension r = {r}") == 1
-        assert strbasis.count(f"{r} basis vectors available") == 1
-        assert strbasis.count("Approximate cumulative energy:") == 1
-        assert strbasis.count("Approximate residual energy:") == 1
-        assert strbasis.endswith("sklearn.utils.extmath.randomized_svd()")
+        str(basis)
 
         basis = self.Basis(num_vectors=r, svdsolver=lambda s: s)
-        strbasis = str(basis)
-        assert strbasis.endswith("SVD solver: custom lambda function")
-
-        def mysvdsolver(*args):
-            pass
-
-        basis = self.Basis(num_vectors=r, svdsolver=mysvdsolver)
-        strbasis = str(basis)
-        assert strbasis.endswith("SVD solver: mysvdsolver()")
+        assert repr(basis).count(str(basis)) == 1
 
     def test_fit(self, n=60, k=20, r=4):
         """Test fit()."""

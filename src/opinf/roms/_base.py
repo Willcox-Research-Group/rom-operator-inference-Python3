@@ -132,23 +132,19 @@ class _BaseROM(abc.ABC):
     # Printing ----------------------------------------------------------------
     def __str__(self):
         """String representation."""
-        lines = ["reduced-order model"]
-
-        def indent(text):
-            return "\n".join(f"  {line}" for line in text.rstrip().split("\n"))
-
+        lines = []
         for label, obj in [
-            ("Lifting", self.lifter),
-            ("Transformer", self.transformer),
-            ("Basis", self.basis),
-            ("Time derivative estimator", self.ddt_estimator),
-            ("Model", self.model),
+            ("lifter", self.lifter),
+            ("transformer", self.transformer),
+            ("basis", self.basis),
+            ("ddt_estimator", self.ddt_estimator),
+            ("model", self.model),
         ]:
             if obj is not None:
-                lines.append(f"{label}:")
-                lines.append(indent(str(obj)))
+                lines.append(f"{label}: {str(obj)}")
 
-        return "\n".join(lines)
+        body = "\n  ".join("\n".join(lines).split("\n"))
+        return f"{self.__class__.__name__}\n  {body}"
 
     def __repr__(self):
         """Repr: address + string representatation."""

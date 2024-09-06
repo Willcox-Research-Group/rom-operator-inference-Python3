@@ -90,20 +90,23 @@ class _NonparametricModel(_Model):
     # String representation ---------------------------------------------------
     def __str__(self):
         """String representation: structure of the model, dimensions, etc."""
-        # Build model structure.
-        out, terms = [], []
+        terms = [
+            op._str(self._STATE_LABEL, self._INPUT_LABEL)
+            for op in self.operators
+        ]
+
+        out = [
+            self.__class__.__name__,
+            f"structure: {self._LHS_LABEL} = " + " + ".join(terms),
+            f"state_dimension: {self.state_dimension}",
+            f"input_dimension: {self.input_dimension}",
+            "operators:",
+        ]
         for op in self.operators:
-            terms.append(op._str(self._STATE_LABEL, self._INPUT_LABEL))
-        structure = " + ".join(terms)
-        out.append(f"Model structure: {self._LHS_LABEL} = {structure}")
+            out.append("  " + "\n    ".join(str(op).split("\n")))
+        out.append("solver: " + "\n  ".join(str(self.solver).split("\n")))
 
-        # Report dimensions.
-        if self.state_dimension:
-            out.append(f"State dimension r = {self.state_dimension:d}")
-        if self.input_dimension:
-            out.append(f"Input dimension m = {self.input_dimension:d}")
-
-        return "\n".join(out)
+        return "\n  ".join(out)
 
     def __repr__(self):
         """Unique ID + string representation."""

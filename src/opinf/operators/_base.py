@@ -605,6 +605,10 @@ class OpInfOperator(OperatorTemplate):
             )
         return scls(self.entries + other.entries)
 
+    def __str__(self):
+        out = OperatorTemplate.__str__(self)
+        return out + f"\n  entries.shape:   {self.shape}"
+
     # Evaluation --------------------------------------------------------------
     @utils.requires("entries")
     def jacobian(self, state, input_=None) -> np.ndarray:  # pragma: no cover

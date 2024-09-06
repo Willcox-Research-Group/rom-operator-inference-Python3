@@ -236,9 +236,18 @@ class L2Solver(_BaseRegularizedSolver):
 
     def __str__(self):
         """String representation: dimensions + solver options."""
-        start = SolverTemplate.__str__(self)
         kwargs = self._print_kwargs(self.options)
-        return start + f"\n  SVD solver: scipy.linalg.svd({kwargs})"
+        if np.isscalar(self.regularizer):
+            regstr = f"{self.regularizer:.4e}"
+        else:
+            regstr = f"{self.regularizer.shape}"
+        return "\n  ".join(
+            [
+                SolverTemplate.__str__(self),
+                f"regularizer:     {regstr}",
+                f"SVD solver:      scipy.linalg.svd({kwargs})",
+            ]
+        )
 
     # Main methods ------------------------------------------------------------
     def fit(self, data_matrix: np.ndarray, lhs_matrix: np.ndarray):
@@ -566,11 +575,22 @@ class TikhonovSolver(_BaseRegularizedSolver):
 
     def __str__(self):
         """String representation: dimensions + solver options."""
-        s = SolverTemplate.__str__(self)
+        kwargs = self._print_kwargs(self.options)
+        if self.regularizer[0].ndim == 1:
+            regstr = f"     {self.regularizer.shape}"
+        else:
+            regstr = (
+                f"     {len(self.regularizer)} "
+                f"{self.regularizer[0].shape} ndarrays"
+            )
         if self.method == "lstsq":
             kwargs = self._print_kwargs(self.options)
-            return s + f"\n  solver ('lstsq'): scipy.linalg.lstsq({kwargs})"
-        return s + "\n  solver ('normal'): scipy.linalg.solve(assume_a='pos')"
+            spstr = f"solver ('lstsq'): scipy.linalg.lstsq({kwargs})"
+        else:
+            spstr = "solver ('normal'): scipy.linalg.solve(assume_a='pos')"
+        return "\n  ".join(
+            [SolverTemplate.__str__(self), f"regularizer: {regstr}", spstr]
+        )
 
     def _check_regularizer_shape(self):
         if (shape1 := self.regularizer.shape) != (shape2 := (self.d, self.d)):

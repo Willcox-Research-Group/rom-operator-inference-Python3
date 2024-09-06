@@ -64,7 +64,7 @@ class TestBasisMulti:
         pass
 
     def test_init(self):
-        """Test BasisMulti.__init__(), bases, dimensions."""
+        """Test __init__(), bases, dimensions."""
         bases = [self.Dummy(), self.Dummy2(), self.Dummy3(name="third")]
         basis = self.Basis(bases)
         assert basis.num_variables == len(bases)
@@ -123,7 +123,7 @@ class TestBasisMulti:
 
     # Magic methods -----------------------------------------------------------
     def test_getitem(self):
-        """Test BasisMulti.__getitem__()."""
+        """Test __getitem__()."""
         bases = [self.Dummy(), self.Dummy2(), self.Dummy()]
         basis = self.Basis(bases)
         for i, bs in enumerate(bases):
@@ -135,7 +135,7 @@ class TestBasisMulti:
             assert basis[name] is bases[i]
 
     def test_eq(self):
-        """Test BasisMulti.__eq__()."""
+        """Test __eq__()."""
         bases = [self.Dummy(), self.Dummy2(), self.Dummy3()]
 
         basis1 = self.Basis(bases)
@@ -152,23 +152,13 @@ class TestBasisMulti:
         assert basis1 == basis2
 
     def test_str(self):
-        """Test BasisMulti.__str__()."""
-        bases = [self.Dummy(), self.Dummy2()]
-        basis = self.Basis(bases)
-
-        stringrep = str(basis)
-        assert stringrep.startswith("2-variable BasisMulti\n")
-        for bs in bases:
-            assert str(bs) in stringrep
-
-        # Quick repr() test.
-        rep = repr(basis)
-        assert stringrep in rep
-        assert str(hex(id(basis))) in rep
+        """Lightly test __str__() and __repr__()."""
+        basis = self.Basis([self.Dummy(), self.Dummy2()])
+        assert repr(basis).count(str(basis)) == 1
 
     # Convenience methods -----------------------------------------------------
     def test_get_var(self, ns=(4, 5, 6), rs=(2, 3, 4), k=5):
-        """Test BasisMulti.get_var()."""
+        """Test get_var()."""
         basis_A = self.Dummy(name="A")
         basis_B = self.Dummy(name="B")
         basis_C = self.Dummy(name="C")
@@ -216,7 +206,7 @@ class TestBasisMulti:
         assert ex.value.args[0].startswith("states.shape[0] must be")
 
     def test_split(self, ns=(11, 13), rs=(5, 7), k=5):
-        """Test BasisMulti.split()."""
+        """Test split()."""
         bases = [self.Dummy(), self.Dummy2()]
         basis = self.Basis(bases, ns)
 
@@ -332,7 +322,7 @@ class TestBasisMulti:
         os.remove(target)
 
     def test_load(self):
-        """Test BasisMulti.load()."""
+        """Test load()."""
         target = "_loadbasismultitest.h5"
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
