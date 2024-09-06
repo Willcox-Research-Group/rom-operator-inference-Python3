@@ -68,6 +68,9 @@ sphinx:
       sklearn:
         - "https://scikit-learn.org/stable/"
         - null
+      pandas:
+        - "https://pandas.pydata.org/docs/"
+        - null
     mathjax3_config:
       tex:
         macros:
