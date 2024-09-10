@@ -162,6 +162,17 @@ class _TestAffineOperator:
         )
         assert np.allclose(op_mu.entries, Amu)
 
+        # Special case: scalar parameter A(mu) = mu A0.
+
+        def _check(newop):
+            op_mu = newop.evaluate(0.5)
+            assert isinstance(op_mu, newop._OperatorClass)
+            assert op_mu.entries.shape == arrays[0].shape
+            assert np.allclose(op_mu.entries, arrays[0] / 2)
+
+        _check(self.OpClass(lambda mu: mu, nterms=1, entries=[arrays[0]]))
+        _check(self.OpClass(1, entries=[arrays[0]]))
+
     def test_galerkin(self, r=9, m=4):
         """Test galerkin()."""
         ncoeffs = len(self.thetas1)
@@ -197,6 +208,17 @@ class _TestAffineOperator:
         dim = op.operator_dimension(s, r, 1)
         assert block.shape[0] == dim
         assert block.shape[1] == s * k
+
+        # Special case: scalar parameter A(mu) = mu A0.
+
+        def _check(newop):
+            block = newop.datablock(np.linspace(0, 1, s), states, inputs)
+            dim = newop.operator_dimension(1, r, m)
+            assert block.shape[0] == dim
+            assert block.shape[1] == s * k
+
+        _check(self.OpClass(lambda mu: mu, nterms=1, entries=[arrays[0]]))
+        _check(self.OpClass(1, entries=[arrays[0]]))
 
     def test_copysaveload(self, r=10, m=2, target="_affinesavetest.h5"):
         """Test copy(), save(), and load()."""

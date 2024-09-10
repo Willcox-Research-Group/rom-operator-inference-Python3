@@ -185,7 +185,7 @@ class _AffineOperator(ParametricOpInfOperator):
         return ParametricOpInfOperator.entries.fget(self)
 
     @property
-    def nterms(self):
+    def nterms(self) -> int:
         r"""Number of terms :math:`A_{\ell}` in the affine expansion."""
         return self.__nterms
 
@@ -227,7 +227,7 @@ class _AffineOperator(ParametricOpInfOperator):
             [self._OperatorClass(A).entries for A in entries],
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         lines = ParametricOpInfOperator.__str__(self).split("\n")
         lines.insert(-1, f"  expansion terms:     {self.nterms}")
         return "\n".join(lines)
@@ -250,8 +250,10 @@ class _AffineOperator(ParametricOpInfOperator):
         if self.parameter_dimension is None:
             self._set_parameter_dimension_from_values([parameter])
         self._check_parametervalue_dimension(parameter)
-        thetamus = self.coeffs(parameter)
-        entries = sum([tm * A for tm, A in zip(thetamus, self.entries)])
+        theta_mus = self.coeffs(parameter)
+        if self.nterms == 1 and np.isscalar(theta_mus):
+            theta_mus = [theta_mus]
+        entries = sum([tm * A for tm, A in zip(theta_mus, self.entries)])
         return self._OperatorClass(entries)
 
     # Dimensionality reduction ------------------------------------------------
@@ -407,6 +409,8 @@ class _AffineOperator(ParametricOpInfOperator):
         for mu, Q, U in zip(parameters, states, inputs):
             Di = self._OperatorClass.datablock(Q, U)
             theta_mus = self.coeffs(mu)
+            if self.nterms == 1 and np.isscalar(theta_mus):
+                theta_mus = [theta_mus]
             blockcolumns.append(np.vstack([theta * Di for theta in theta_mus]))
         return np.hstack(blockcolumns)
 
