@@ -4,8 +4,20 @@
 import os
 import time
 import pytest
+import platform
 
 import opinf
+
+
+SYSTEM = platform.system()
+
+
+def skipwindows(func):
+
+    def skip(self, *args, **kwargs):
+        pass
+
+    return skip if SYSTEM == "Windows" else func
 
 
 class MyException(Exception):
@@ -17,6 +29,7 @@ class TestTimedBlock:
 
     Timer = opinf.utils.TimedBlock
 
+    @skipwindows
     def test_standard(self, message="TimedBlock test, no timelimit"):
         # No time limit.
         with self.Timer() as obj:
@@ -29,6 +42,7 @@ class TestTimedBlock:
             pass
         assert obj.message == message
 
+    @skipwindows
     def test_timeout(self, message="TimedBlock test with problems"):
         # Time limit expires.
         with pytest.raises(TimeoutError) as ex:
@@ -42,6 +56,7 @@ class TestTimedBlock:
                 raise MyException("failure in the block")
         assert ex.value.args[0] == "failure in the block"
 
+    @skipwindows
     def test_log(
         self,
         message: str = "TimedBlock test with log",
