@@ -5,6 +5,28 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+## Version 0.5.8
+
+Support for affine-parametric problems:
+
+- Affine-parametric operator classes `AffineConstantOperator`, `AffineLinearOperator`, etc.
+- Parametric model classes `ParametricContinuousModel`, `ParametricDiscreteModel`.
+- `ParametricROM` class.
+- Updates to operator / model documentation.
+
+Renamed interpolatory operators / model classes from `Interpolated<Name>` to `Interp<Name>`.
+Old names are deprecated but not yet removed.
+
+Miscellaneous:
+
+- Reorganized and expanded tutorials.
+- Added and documented `opinf.utils.TimedBlock` context manager for quick timing of code blocks.
+- Updated structure for some unit tests.
+- Refactored interpolatory operators.
+- Standardized string representations, added `[Parametric]ROM.__str__()`.
+- Removed some public functions from `operators`, regrouped in `operators._utils`.
+- Removed some public functions from `models`, regrouped in `models._utils`.
+
 ## Version 0.5.7
 
 Updates to `opinf.lstsq`:
