@@ -106,6 +106,8 @@ class ROM(_BaseROM):
         -------
         self
         """
+        _BaseROM._check_fit_args(self, lhs=lhs, inputs=inputs)
+
         # Single trajectory case.
         if states[0].ndim == 1:
             states = [states]

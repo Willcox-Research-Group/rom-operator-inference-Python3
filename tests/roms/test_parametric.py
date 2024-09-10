@@ -62,6 +62,20 @@ class TestROM(_TestBaseROM):
         lhs = [np.zeros_like(Q) for Q in states]
         inputs = [np.ones((m, Q.shape[-1])) for Q in states]
 
+        rom = self.ROM(model=opinf.models.InterpContinuousModel("AB"))
+        with pytest.raises(ValueError) as ex:
+            rom.fit(parameters, states, inputs)
+        assert ex.value.args[0] == (
+            "argument 'inputs' required (model depends on external inputs)"
+        )
+
+        with pytest.raises(ValueError) as ex:
+            rom.fit(parameters, states, inputs=inputs)
+        assert ex.value.args[0] == (
+            "argument 'lhs' required when model is time-continuous"
+            " and ddt_estimator=None"
+        )
+
         def _fit(prom, withlhs=True):
             kwargs = dict(parameters=parameters, states=states)
             if withlhs:

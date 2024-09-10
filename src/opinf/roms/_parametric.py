@@ -105,6 +105,7 @@ class ParametricROM(_BaseROM):
         -------
         self
         """
+        _BaseROM._check_fit_args(self, lhs=lhs, inputs=inputs)
         states, lhs, inputs = _BaseROM.fit(
             self,
             states=states,

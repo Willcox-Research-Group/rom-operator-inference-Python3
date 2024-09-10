@@ -287,6 +287,23 @@ class _BaseROM(abc.ABC):
         return self.decode(self.encode(states))
 
     # Abstract methods --------------------------------------------------------
+    def _check_fit_args(self, lhs, inputs):
+        """Verify required arguments for :meth:`fit()`."""
+
+        # Make sure lhs is given if required.
+        if lhs is None and self._iscontinuous and self.ddt_estimator is None:
+            raise ValueError(
+                "argument 'lhs' required when model is time-continuous"
+                " and ddt_estimator=None"
+            )
+
+        # Make sure inputs are passed in correctly when requried.
+        if inputs is None and self.model._has_inputs:
+            raise ValueError(
+                "argument 'inputs' required (model depends on external inputs)"
+            )
+
+    # Training ----------------------------------------------------------------
     @abc.abstractmethod
     def fit(
         self,
@@ -372,11 +389,6 @@ class _BaseROM(abc.ABC):
         # Time derivative estimation / discrete LHS
         if lhs is None:
             if self._iscontinuous:
-                if self.ddt_estimator is None:
-                    raise ValueError(
-                        "argument 'lhs' required when model is time-continuous"
-                        " and ddt_estimator=None"
-                    )
                 if inputs is None:
                     states, lhs = zip(
                         *[self.ddt_estimator.estimate(Q) for Q in states]
