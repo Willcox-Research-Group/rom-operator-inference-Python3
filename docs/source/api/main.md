@@ -1,10 +1,8 @@
 # `opinf`
 
-The `opinf` package containts the following submodules.
+The `opinf` package contains the following submodules.
 
 ```{eval-rst}
-
-.. currentmodule:: opinf
 
 .. autosummary::
 
@@ -20,4 +18,4 @@ The `opinf` package containts the following submodules.
    opinf.utils
 ```
 
-The main namespace also contains the [`ROM`](opinf.roms.ROM) class from {mod}`opinf.roms`.
+The main namespace also contains the [`ROM`](opinf.roms.ROM) and [`ParametricROM`](opinf.roms.ParametricROM) classes from {mod}`opinf.roms`.
