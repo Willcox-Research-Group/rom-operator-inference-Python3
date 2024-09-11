@@ -3,14 +3,10 @@
 
 __all__ = [
     "InputMixin",
-    "has_inputs",
     "OperatorTemplate",
-    "is_nonparametric",
     "OpInfOperator",
     "ParametricOperatorTemplate",
-    "is_parametric",
     "ParametricOpInfOperator",
-    "is_uncalibrated",
 ]
 
 import os
@@ -35,9 +31,11 @@ class InputMixin(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def input_dimension(self) -> int:  # pragma: no cover
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
-        raise NotImplementedError
+    def input_dimension(self) -> int:
+        r"""Dimension :math:`m` of the input :math:`\u` that the operator
+        acts on.
+        """
+        raise NotImplementedError  # pragma: no cover
 
 
 def has_inputs(obj) -> bool:
@@ -77,9 +75,11 @@ class OperatorTemplate(abc.ABC):
     # Properties --------------------------------------------------------------
     @property
     @abc.abstractmethod
-    def state_dimension(self) -> int:  # pragma: no cover
-        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
-        raise NotImplementedError
+    def state_dimension(self) -> int:
+        r"""Dimension :math:`r` of the state :math:`\qhat` that the operator
+        acts on.
+        """
+        raise NotImplementedError  # pragma: no cover
 
     def __str__(self) -> str:
         """String representation: class name + dimensions."""
@@ -153,7 +153,7 @@ class OperatorTemplate(abc.ABC):
         jac : (r, r) ndarray
             State Jacobian.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Dimensionality reduction ------------------------------------------------
     def galerkin(self, Vr: np.ndarray, Wr=None):
@@ -175,9 +175,10 @@ class OperatorTemplate(abc.ABC):
         Parameters
         ----------
         Vr : (n, r) ndarray
-            Basis for the trial space.
+            Basis for the trial space :math:`\Vr`.
         Wr : (n, r) ndarray or None
-            Basis for the test space. If ``None``, defaults to ``Vr``.
+            Basis for the test space :math:`\Wr`.
+            If ``None`` (default), use ``Vr`` as the test basis.
 
         Returns
         -------
@@ -187,7 +188,7 @@ class OperatorTemplate(abc.ABC):
             ``input_dimension`` attribute of the new operator should be
             ``self.input_dimension``.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Model persistence -------------------------------------------------------
     def copy(self):
@@ -205,10 +206,10 @@ class OperatorTemplate(abc.ABC):
             If ``True``, overwrite the file if it already exists. If ``False``
             (default), raise a ``FileExistsError`` if the file already exists.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @classmethod
-    def load(cls, loadfile: str):  # pragma: no cover
+    def load(cls, loadfile: str):
         """Load an operator from an HDF5 file.
 
         Parameters
@@ -216,7 +217,7 @@ class OperatorTemplate(abc.ABC):
         loadfile : str
             Path to the file where the operator was stored via :meth:`save()`.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Verification ------------------------------------------------------------
     def verify(
@@ -529,7 +530,9 @@ class OpInfOperator(OperatorTemplate):
     @staticmethod
     def _validate_entries(entries):
         """Ensure argument is a NumPy array and screen for NaN, Inf entries."""
-        if not (isinstance(entries, np.ndarray) or sparse.issparse(entries)):
+        if sparse.issparse(entries):
+            return
+        if not isinstance(entries, np.ndarray):
             raise TypeError(
                 "operator entries must be NumPy or scipy.sparse array"
             )
@@ -538,13 +541,13 @@ class OpInfOperator(OperatorTemplate):
         elif np.any(np.isinf(entries)):
             raise ValueError("operator entries must not be Inf")
 
-    def set_entries(self, entries):
+    def set_entries(self, entries) -> None:
         """Set the :attr:`entries` attribute."""
         self.__entries = entries
 
     # Properties --------------------------------------------------------------
     @property
-    def entries(self):
+    def entries(self) -> np.ndarray:
         r"""Discrete representation of the operator,
         the matrix :math:`\Ohat`.
         """
@@ -561,13 +564,15 @@ class OpInfOperator(OperatorTemplate):
         self._clear()
 
     @property
-    def shape(self):
-        """Shape of the operator entries array."""
+    def shape(self) -> tuple:
+        """Shape of the operator matrix."""
         return None if self.entries is None else self.entries.shape
 
     @property
-    def state_dimension(self):
-        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
+    def state_dimension(self) -> int:
+        r"""Dimension :math:`r` of the state :math:`\qhat` that the operator
+        acts on.
+        """
         return None if self.entries is None else self.entries.shape[0]
 
     # Magic methods -----------------------------------------------------------
@@ -600,9 +605,13 @@ class OpInfOperator(OperatorTemplate):
             )
         return scls(self.entries + other.entries)
 
+    def __str__(self):
+        out = OperatorTemplate.__str__(self)
+        return out + f"\n  entries.shape:   {self.shape}"
+
     # Evaluation --------------------------------------------------------------
     @utils.requires("entries")
-    def jacobian(self, state, input_=None):  # pragma: no cover
+    def jacobian(self, state, input_=None) -> np.ndarray:  # pragma: no cover
         r"""Construct the state Jacobian of the operator.
 
         If :math:`[\![\q]\!]_{i}` denotes the :math:`i`-th entry of a vector
@@ -680,7 +689,7 @@ class OpInfOperator(OperatorTemplate):
     # Operator inference ------------------------------------------------------
     @staticmethod
     @abc.abstractmethod
-    def operator_dimension(r: int, m: int = None) -> int:  # pragma: no cover
+    def operator_dimension(r: int, m: int = None) -> int:
         r"""Column dimension of the operator entries.
 
         Child classes should decorate this method with ``@staticmethod``.
@@ -698,7 +707,7 @@ class OpInfOperator(OperatorTemplate):
             Number of columns in the operator entries matrix.
             This is also the number of rows in the data matrix block.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @staticmethod
     @abc.abstractmethod
@@ -855,21 +864,21 @@ class OpInfOperator(OperatorTemplate):
 
 # Parametric operators ========================================================
 class ParametricOperatorTemplate(abc.ABC):
-    r"""Template for general operators that depend on external parameters,
+    r"""Template for operators that depend on external parameters,
     :math:`\Ophat_{\ell}(\qhat,\u;\bfmu).`
 
     In this package, a parametric "operator" is a function
-    :math:`\Ophat_{\ell}: \RR^n \times \RR^m \times \RR^p \to \RR^n` that acts
-    on a state vector :math:`\qhat\in\RR^n`, an (optional) input vector
+    :math:`\Ophat_{\ell}: \RR^r \times \RR^m \times \RR^p \to \RR^r` that acts
+    on a state vector :math:`\qhat\in\RR^r`, an (optional) input vector
     :math:`\u\in\RR^m`, and a parameter vector :math:`\bfmu\in\RR^p`.
 
-    Models are defined as the sum of several operators,
-    for example, an :class:`opinf.models.ContinuousModel` object represents a
-    system of ordinary differential equations:
+    Parametric models are defined as the sum of several operators, at least
+    one of which is parametric.
+    For example, a system of ODEs:
 
     .. math::
-       \ddt\qhat(t)
-       = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t)).
+       \ddt\qhat(t;\bfmu)
+       = \sum_{\ell=1}^{n_\textrm{terms}}\Ophat_{\ell}(\qhat(t),\u(t);\bfmu).
 
     Notes
     -----
@@ -878,54 +887,53 @@ class ParametricOperatorTemplate(abc.ABC):
     For nonparametric model terms, see :class:`OperatorTemplate`.
     For model terms that can be learned with Operator Inference, see
     :class:`OpInfOperator` or :class:`ParametricOpInfOperator`.
-
     """
 
-    # Meta properties ---------------------------------------------------------
+    # Nonparametric operator class that this parametric operator evaluates to.
     _OperatorClass = NotImplemented
-
-    @property
-    def OperatorClass(self):
-        """Nonparametric :mod:`opinf.operators` class that represents
-        this parametric operator evaluated at a particular parameter value.
-
-        Examples
-        --------
-        >>> Op = MyParametricOperator(init_args).evaluate(parameter_value)
-        >>> isinstance(Op, MyParametricOperator.OperatorClass)
-        True
-        """
-        return self._OperatorClass
 
     # Properties --------------------------------------------------------------
     @property
     @abc.abstractmethod
-    def state_dimension(self) -> int:  # pragma: no cover
-        r"""Dimension of the state :math:`\qhat` that the operator acts on."""
-        raise NotImplementedError
+    def state_dimension(self) -> int:
+        r"""Dimension :math:`r` of the state :math:`\qhat` that the operator
+        acts on.
+        """
+        raise NotImplementedError  # pragma: no cover
 
     @property
     @abc.abstractmethod
-    def parameter_dimension(self) -> int:  # pragma: no cover
-        r"""Dimension of the parameters :math:`\bfmu` that the operator acts
-        on.
+    def parameter_dimension(self) -> int:
+        r"""Dimension :math:`p` of the parameter vector :math:`\bfmu` that the
+        operator matrix depends on.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __str__(self) -> str:
-        """String representation: class name + dimensions."""
+        """String representation: class name, dimensions, evaluation type."""
         out = [self.__class__.__name__]
         out.append(f"state_dimension:     {self.state_dimension}")
         if has_inputs(self):
             out.append(f"input_dimension:     {self.input_dimension}")
         out.append(f"parameter_dimension: {self.parameter_dimension}")
+        out.append(f"evaluate(parameter) -> {self._OperatorClass.__name__}")
         return "\n  ".join(out)
 
+    def __repr__(self) -> str:
+        return utils.str2repr(self)
+
     # Evaluation --------------------------------------------------------------
+    def _check_parametervalue_dimension(self, parameter):
+        """Ensure a new parameter value has the expected shape."""
+        if (pdim := self.parameter_dimension) is None:
+            raise RuntimeError("parameter_dimension not set")
+        if np.atleast_1d(parameter).shape[0] != pdim:
+            raise ValueError(f"expected parameter of shape ({pdim:d},)")
+
     @abc.abstractmethod
-    def evaluate(self, parameter):  # pragma: no cover
+    def evaluate(self, parameter):
         r"""Evaluate the operator at the given parameter value,
-        resulting in a nonparametric operator of type ``OperatorClass``.
+        resulting in a nonparametric operator.
 
         Parameters
         ----------
@@ -934,14 +942,14 @@ class ParametricOperatorTemplate(abc.ABC):
 
         Returns
         -------
-        evaluated_operator : nonparametric operator.
+        op : nonparametric :mod:`opinf.operators` operator
             Nonparametric operator corresponding to the parameter value.
             This should be an instance of :class:`OperatorTemplate` (or
             a class that inherits from it).
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
-    def apply(self, parameter, state, input_):
+    def apply(self, parameter, state, input_=None):
         r"""Apply the operator to the given state and input
         at the specified parameter value, :math:`\Ophat_\ell(\qhat,\u;\bfmu)`.
 
@@ -1021,7 +1029,7 @@ class ParametricOperatorTemplate(abc.ABC):
         return self.evaluate(parameter).jacobian(state, input_)
 
     # Dimensionality reduction ------------------------------------------------
-    def galerkin(self, Vr, Wr=None):  # pragma: no cover
+    def galerkin(self, Vr, Wr=None):
         r"""Get the (Petrov-)Galerkin projection of this operator.
 
         Consider an operator :math:`\Op(\q,\u)`, where :math:`\q\in\RR^n`
@@ -1052,12 +1060,12 @@ class ParametricOperatorTemplate(abc.ABC):
             ``input_dimension`` attribute of the new operator should be
             ``self.input_dimension``.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Model persistence -------------------------------------------------------
     def copy(self):
         """Return a copy of the operator."""
-        return copy.deepcopy(self)
+        return copy.deepcopy(self)  # pragma: no cover
 
     def save(self, savefile: str, overwrite: bool = False) -> None:
         """Save the operator to an HDF5 file.
@@ -1070,10 +1078,10 @@ class ParametricOperatorTemplate(abc.ABC):
             If ``True``, overwrite the file if it already exists. If ``False``
             (default), raise a ``FileExistsError`` if the file already exists.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @classmethod
-    def load(cls, loadfile: str):  # pragma: no cover
+    def load(cls, loadfile: str):
         """Load an operator from an HDF5 file.
 
         Parameters
@@ -1081,7 +1089,76 @@ class ParametricOperatorTemplate(abc.ABC):
         loadfile : str
             Path to the file where the operator was stored via :meth:`save()`.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
+
+    # Verification ------------------------------------------------------------
+    def verify(self, testparam=None):
+        """Verify dimension attributes and :meth:`evaluate()`.
+
+        Parameters
+        ----------
+        testparam : (p,) ndarray or None
+            Test parameter at which to evaluate the operator.
+            If ``None`` (default), draw test parameter entries from the
+            standard Normal distribution.
+        """
+        # Check the _OperatorClass.
+        if not issubclass(self._OperatorClass, OperatorTemplate):
+            raise errors.VerificationError(
+                "_OperatorClass must be a nonparametric operator type"
+            )
+
+        # Verify dimensions exist and are valid.
+        if not isinstance((r := self.state_dimension), int) or r <= 0:
+            raise errors.VerificationError(
+                "state_dimension must be a positive integer "
+                f"(current value: {repr(r)}, of type '{type(r).__name__}')"
+            )
+
+        if hasinputs := has_inputs(self):
+            if not isinstance((m := self.input_dimension), int) or m <= 0:
+                raise errors.VerificationError(
+                    "input_dimension must be a positive integer "
+                    f"(current value: {repr(m)}, of type '{type(r).__name__}')"
+                )
+        else:
+            m = 0
+
+        # Get a test parameter.
+        if testparam is None:
+            testparam = np.random.standard_normal(self.parameter_dimension)
+        if np.shape(testparam) != (self.parameter_dimension,):
+            raise ValueError("testparam.shape != (parameter_dimension,)")
+
+        # Evaluate the operator at the test parameter.
+        op_evaluated = self.evaluate(testparam)
+        if not isinstance(op_evaluated, self._OperatorClass):
+            raise errors.VerificationError(
+                "evaluate() must return instance of type _OperatorClass"
+            )
+        if not is_nonparametric(op_evaluated):
+            raise errors.VerificationError(
+                "_OperatorClass must be a nonparametric operator type"
+            )
+
+        if op_evaluated.state_dimension != self.state_dimension:
+            raise errors.VerificationError(
+                "result of evaluate() does not retain the state_dimension"
+            )
+        if hasinputs:
+            if not has_inputs(op_evaluated):
+                raise errors.VerificationError(
+                    "result of evaluate() should depend on inputs"
+                )
+            if op_evaluated.input_dimension != m:
+                raise errors.VerificationError(
+                    "result of evaluate() does not retain the input_dimension"
+                )
+        else:
+            if has_inputs(op_evaluated):
+                raise errors.VerificationError(
+                    "result of evaluate() should not depend on inputs"
+                )
 
 
 def is_parametric(obj) -> bool:
@@ -1090,36 +1167,24 @@ def is_parametric(obj) -> bool:
 
 
 class ParametricOpInfOperator(ParametricOperatorTemplate):
-    r"""Base class for operators that depend on external parameters, i.e.,
+    r"""Template for operators that depend on external parameters, and which
+    can be calibrated through operator inference, i.e.,
     :math:`\Ophat_\ell(\qhat,\u;\bfmu) = \Ohat_\ell(\bfmu)\d_\ell(\qhat,\u)`.
-
-    Evaluating a ``_ParametricOpertor`` at a specific parameter value
-    results in an object that inherits from
-    :class:`opinf.operators.OpInfOperator`.
-
-    Examples
-    --------
-    >>> parametric_operator = MyParametricOperator(init_args)
-    >>> nonparametric_operator = parametric_operator.evaluate(parameter_value)
-    >>> isinstance(nonparametric_operator, OpInfOperator)
-    True
     """
-
-    # TODO: pull entries property back into this class as in OpInfOperator.
 
     # Initialization ----------------------------------------------------------
     def __init__(self):
         """Initialize the parameter_dimension."""
-        self.__p = None
+        self._clear()
 
-    @abc.abstractmethod
-    def _clear(self) -> None:  # pragma: no cover
+    def _clear(self) -> None:
         """Reset the operator to its post-constructor state."""
-        raise NotImplementedError
+        self.__p = None
+        self.__entries = None
 
-    def _set_parameter_dimension_from_data(self, parameters) -> None:
+    def _set_parameter_dimension_from_values(self, parameters) -> None:
         """Extract and save the dimension of the parameter space from a set of
-        parameter values.
+        one or more parameter values.
 
         Parameters
         ----------
@@ -1143,51 +1208,109 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
 
     # Properties --------------------------------------------------------------
     @property
+    def state_dimension(self) -> int:
+        r"""Dimension :math:`r` of the state :math:`\qhat` that the operator
+        acts on.
+        """
+        return None if self.entries is None else self.entries[0].shape[0]
+
+    @property
     def parameter_dimension(self) -> int:
-        r"""Dimension of the parameters :math:`\bfmu` that the operator acts
-        on.
+        r"""Dimension :math:`p` of the parameter vector :math:`\bfmu` that the
+        operator matrix depends on.
         """
         return self.__p
 
+    @parameter_dimension.setter
+    def parameter_dimension(self, p):
+        """Set :attr:`parameter_dimension`.
+        Only allowed if :attr:`parameter_dimension` is currently ``None``.
+        """
+        if self.__p is not None:
+            raise AttributeError(
+                "can't set property 'parameter_dimension' twice"
+            )
+        if not isinstance(p, int) or p < 1:
+            raise ValueError("parameter_dimension must be a positive integer")
+        self.__p = p
+
     @property
-    @abc.abstractmethod
-    def shape(self) -> tuple:  # pragma: no cover
-        """Shape of the operator entries matrix when evaluated
+    def shape(self) -> tuple:
+        """Shape of the operator matrix when evaluated
         at a parameter value.
         """
-        raise NotImplementedError
+        return None if self.entries is None else self.entries[0].shape
 
-    # Evaluation --------------------------------------------------------------
-    def _check_parametervalue_dimension(self, parameter):
-        """Ensure a new parameter value has the expected shape."""
-        if (pdim := self.parameter_dimension) is None:
-            raise RuntimeError("parameter_dimension not set")
-        if np.atleast_1d(parameter).shape[0] != pdim:
-            raise ValueError(f"expected parameter of shape ({pdim:d},)")
+    @property
+    def entries(self):
+        r"""Arrays that define the operator matrix as a function of the
+        parameter vector.
+        """
+        return self.__entries
+
+    @abc.abstractmethod
+    def set_entries(self, entries, fromblock: bool = False) -> None:
+        r"""Set the arrays that define the operator matrix as a function of
+        the parameter vector.
+
+        Parameters
+        ----------
+        entries : list of s (r, d) ndarrays, or (r, sd) ndarray
+            Operator entries, either as a list of arrays
+            (``fromblock=False``, default)
+            or as a horizontal concatenatation of arrays (``fromblock=True``).
+        fromblock : bool
+            If ``True``, interpret ``entries`` as a horizontal concatenation
+            of arrays; if ``False`` (default), interpret ``entries`` as a list
+            of arrays.
+        """
+        self.__entries = entries
 
     # Operator inference ------------------------------------------------------
     @abc.abstractmethod
-    def datablock(self, states, inputs=None):  # pragma: no cover
+    def operator_dimension(self, s: int, r: int, m: int = None) -> int:
+        r"""Number of columns in the total operator matrix.
+
+        Parameters
+        ----------
+        s : int
+            Number of training parameter values.
+        r : int
+            State dimension.
+        m : int or None
+            Input dimension.
+
+        Returns
+        -------
+        d : int
+            Number of columns in the total operator entries matrix.
+            This is also the number of rows in the data matrix block.
+        """
+        raise NotImplementedError  # pragma: no cover
+
+    @abc.abstractmethod
+    def datablock(self, parameters, states, inputs=None):
         r"""Return the data matrix block corresponding to the operator.
 
         Parameters
         ----------
-        states : list of s (r, k) ndarrays
-            State snapshots for each of the `s` training parameter values.
-        inputs : list of s (m, k) ndarrays
+        parameters : (s, p) ndarray
+            Traning parameter values :math:`\bfmu_{0},\ldots,\bfmu_{s-1}`.
+        states : list of s (r, k_i) ndarrays
+            State snapshots for each of the :math:`s` training parameter
+            values.
+        inputs : list of s (m, k_i) ndarrays
             Inputs corresponding to the state snapshots.
 
         Returns
         -------
-        block : ndarray
+        block : (D, K) ndarray
             Data block for the parametric operator.
+            Here, :math:`D` is the total operator matrix dimension and
+            :math:`K = \sum_{i=0}^{s-1}k_i`, the total number of state
+            snapshots.
         """
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def operator_dimension(self, r, m):  # pragma: no cover
-        """Number of columns in the operator matrix."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 def is_uncalibrated(obj) -> bool:

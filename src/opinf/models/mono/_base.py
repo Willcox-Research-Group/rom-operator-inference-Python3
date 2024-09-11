@@ -8,7 +8,15 @@ import warnings
 import numpy as np
 
 from ... import errors, lstsq
-from ... import operators as _operators
+from ...operators import (
+    ConstantOperator,
+    LinearOperator,
+    QuadraticOperator,
+    CubicOperator,
+    InputOperator,
+    StateInputOperator,
+    _utils as oputils,
+)
 
 
 class _Model(abc.ABC):
@@ -94,11 +102,11 @@ class _Model(abc.ABC):
                 raise TypeError(
                     f"invalid operator of type '{op.__class__.__name__}'"
                 )
-            if _operators.is_uncalibrated(op):
+            if oputils.is_uncalibrated(op):
                 toinfer.append(i)
             else:
                 known.append(i)
-            if _operators.has_inputs(op):
+            if oputils.has_inputs(op):
                 self._has_inputs = True
         self._check_operator_types_unique([ops[i] for i in toinfer])
 
@@ -127,32 +135,32 @@ class _Model(abc.ABC):
     @property
     def c_(self):
         """:class:`opinf.operators.ConstantOperator` (or ``None``)."""
-        return self._get_operator_of_type(_operators.ConstantOperator)
+        return self._get_operator_of_type(ConstantOperator)
 
     @property
     def A_(self):
         """:class:`opinf.operators.LinearOperator` (or ``None``)."""
-        return self._get_operator_of_type(_operators.LinearOperator)
+        return self._get_operator_of_type(LinearOperator)
 
     @property
     def H_(self):
         """:class:`opinf.operators.QuadraticOperator` (or ``None``)."""
-        return self._get_operator_of_type(_operators.QuadraticOperator)
+        return self._get_operator_of_type(QuadraticOperator)
 
     @property
     def G_(self):
         """:class:`opinf.operators.CubicOperator` (or ``None``)."""
-        return self._get_operator_of_type(_operators.CubicOperator)
+        return self._get_operator_of_type(CubicOperator)
 
     @property
     def B_(self):
         """:class:`opinf.operators.InputOperator` (or ``None``)."""
-        return self._get_operator_of_type(_operators.InputOperator)
+        return self._get_operator_of_type(InputOperator)
 
     @property
     def N_(self):
         """:class:`opinf.operators.StateInputOperator` (or ``None``)."""
-        return self._get_operator_of_type(_operators.StateInputOperator)
+        return self._get_operator_of_type(StateInputOperator)
 
     # Properties: dimensions --------------------------------------------------
     @staticmethod
@@ -161,9 +169,7 @@ class _Model(abc.ABC):
         inferrable operators whose entries have not been set.
         """
         rs = {
-            op.state_dimension
-            for op in ops
-            if not _operators.is_uncalibrated(op)
+            op.state_dimension for op in ops if not oputils.is_uncalibrated(op)
         }
         if len(rs) > 1:
             raise errors.DimensionalityError(
@@ -196,13 +202,13 @@ class _Model(abc.ABC):
         """Ensure all *input* operators with initialized entries have the same
         ``input dimension``.
         """
-        inputops = [op for op in ops if _operators.has_inputs(op)]
+        inputops = [op for op in ops if oputils.has_inputs(op)]
         if len(inputops) == 0:
             return 0
         ms = {
             op.input_dimension
             for op in inputops
-            if not _operators.is_uncalibrated(op)
+            if not oputils.is_uncalibrated(op)
         }
         if len(ms) > 1:
             raise errors.DimensionalityError(
@@ -227,8 +233,8 @@ class _Model(abc.ABC):
         if self.__operators is not None:
             for op in self.operators:
                 if (
-                    _operators.has_inputs(op)
-                    and not _operators.is_uncalibrated(op)
+                    oputils.has_inputs(op)
+                    and not oputils.is_uncalibrated(op)
                     and op.input_dimension != m
                 ):
                     raise AttributeError(
@@ -330,7 +336,7 @@ class _Model(abc.ABC):
             [
                 (
                     old_op.copy()
-                    if _operators.is_uncalibrated(old_op)
+                    if oputils.is_uncalibrated(old_op)
                     else old_op.galerkin(Vr, Wr)
                 )
                 for old_op in self.operators

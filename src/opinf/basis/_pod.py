@@ -333,15 +333,15 @@ class PODBasis(LinearBasis):
 
         if (ce := self.cumulative_energy) is not None:
             if self.__energy_is_being_estimated:
-                out.append(f"Approximate cumulative energy: {ce:%}")
+                out.append(f"approximate cumulative energy: {ce:%}")
             else:
-                out.append(f"Cumulative energy: {ce:%}")
+                out.append(f"cumulative energy: {ce:%}")
 
         if (re := self.residual_energy) is not None:
             if self.__energy_is_being_estimated:
-                out.append(f"Approximate residual energy:   {re:.4e}")
+                out.append(f"approximate residual energy:   {re:.4e}")
             else:
-                out.append(f"Residual energy:   {re:.4e}")
+                out.append(f"residual energy:   {re:.4e}")
 
         if (mv := self.max_vectors) is not None:
             out.append(f"{mv:d} basis vectors available")

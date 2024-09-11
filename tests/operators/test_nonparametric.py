@@ -4,6 +4,7 @@
 import pytest
 import numpy as np
 import scipy.linalg as la
+import scipy.sparse as sparse
 
 import opinf
 
@@ -45,8 +46,10 @@ class _TestNonparametricOperator:
         op = self.Operator()
         op.verify()
 
-        op.set_entries(np.random.random(shape))
+        op.entries = np.random.random(shape)
         op.verify()
+        del op.entries
+        assert op.entries is None
 
 
 # No dependence on state or input =============================================
@@ -207,6 +210,15 @@ class TestLinearOperator(_TestNonparametricOperator):
         assert op.shape == (1, 1)
         assert op.state_dimension == 1
         assert op[0, 0] == a
+
+        # Sparse matrix.
+        A = np.random.random((100, 100))
+        A[A < 0.95] = 0
+        A = sparse.csr_matrix(A)
+        op.set_entries(A)
+        assert op.state_dimension == 100
+        assert op.shape == (100, 100)
+        assert sparse.issparse(op.entries)
 
     def test_apply(self, k=20):
         """Test apply()/__call__()."""

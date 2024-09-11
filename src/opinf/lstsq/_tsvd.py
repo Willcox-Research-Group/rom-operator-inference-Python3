@@ -33,7 +33,7 @@ class TruncatedSVDSolver(SolverTemplate):
        \operatorname{rank}(\D') = d'.
 
     If :math:`\D = \bfPhi\bfSigma\bfPsi\trp` is the singular value
-    decomposition of :math:\D`, then defining
+    decomposition of :math:`\D`, then defining
 
     .. math::
        \bfPhi' = \bfPhi_{:d', :}

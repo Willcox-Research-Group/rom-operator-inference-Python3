@@ -4,15 +4,19 @@
 __all__ = [
     "hdf5_savehandle",
     "hdf5_loadhandle",
+    "save_sparray",
+    "load_sparray",
 ]
 
 import os
 import h5py
 import warnings
+import scipy.sparse as sparse
 
 from .. import errors
 
 
+# File handle classes =========================================================
 class _hdf5_filehandle:
     """Get a handle to an open HDF5 file to read or write to.
 
@@ -122,3 +126,115 @@ class hdf5_loadhandle(_hdf5_filehandle):
             raise
         except Exception as ex:
             raise errors.LoadfileFormatError(ex.args[0]) from ex
+
+
+# Other tools =================================================================
+def save_sparray(group: h5py.Group, arr: sparse.sparray) -> None:
+    """Save a :mod:`scipy.sparse` matrix efficiently in an HDF5 group.
+
+    This method mimics the behavior of :meth:`scipy.sparse.save_npz()` but
+    for an open HDF5 file. See :func:`load_sparray()`.
+
+    Parameters
+    ----------
+    arr : scipy.sparse.sparray
+        Sparse SciPy array, in any sparse format.
+    group : h5py.Group
+        HDF5 group to save the sparse array to.
+
+    Examples
+    --------
+    >>> import h5py
+    >>> import scipy.sparse as sparse
+    >>> from opinf.utils import save_sparray, load_sparray
+
+    # Create a sparse array.
+    >>> A = sparse.dok_array((100, 100), dtype=float)
+    >>> A[0, 5] = 12
+    >>> A[4, 1] = 123.456
+    >>> A
+    <100x100 sparse array of type '<class 'numpy.float64'>'
+        with 2 stored elements in Dictionary Of Keys format>
+    >>> print(A)
+      (np.int32(0), np.int32(5))    12.0
+      (np.int32(4), np.int32(1))    123.456
+
+    # Save the sparse array to an HDF5 file.
+    >>> with h5py.File("myfile.h5", "w") as hf:
+    ...     save_sparray(hf.create_group("sparsearray"), A)
+
+    # Load the sparse array from the file.
+    >>> with h5py.File("myfile.h5", "r") as hf:
+    ...     B = load_sparray(hf["sparsearray"])
+    >>> B
+    <100x100 sparse array of type '<class 'numpy.float64'>'
+        with 2 stored elements in Dictionary Of Keys format>
+    >>> print(B)
+      (np.int32(0), np.int32(5))    12.0
+      (np.int32(4), np.int32(1))    123.456
+    """
+    if not sparse.issparse(arr):
+        raise TypeError("second arg must be a scipy.sparse array")
+
+    # Convert to COO format and save data attributes.
+    A = arr.tocoo()
+    group.create_dataset("data", data=A.data)
+    group.create_dataset("row", data=A.row)
+    group.create_dataset("col", data=A.col)
+    group.attrs["shape"] = A.shape
+    group.attrs["arrtype"] = type(arr).__name__[:3]
+
+
+def load_sparray(group: h5py.Group) -> sparse.sparray:
+    """Save a :mod:`scipy.sparse` matrix efficiently in an HDF5 group.
+
+    This method mimics the behavior of :meth:`scipy.sparse.load_npz()` but
+    for an open HDF5 file. See :func:`save_sparray()`.
+
+    Parameters
+    ----------
+    group : h5py.Group
+        HDF5 group create and save the sparse array to.
+
+    Returns
+    -------
+    arr : scipy.sparse.sparray
+        Sparse SciPy array, in the sparse format it was in before saving.
+
+    Examples
+    --------
+    >>> import h5py
+    >>> import scipy.sparse as sparse
+    >>> from opinf.utils import save_sparray, load_sparray
+
+    # Create a sparse array.
+    >>> A = sparse.dok_array((100, 100), dtype=float)
+    >>> A[0, 5] = 12
+    >>> A[4, 1] = 123.456
+    >>> A
+    <100x100 sparse array of type '<class 'numpy.float64'>'
+        with 2 stored elements in Dictionary Of Keys format>
+    >>> print(A)
+      (np.int32(0), np.int32(5))    12.0
+      (np.int32(4), np.int32(1))    123.456
+
+    # Save the sparse array to an HDF5 file.
+    >>> with h5py.File("myfile.h5", "w") as hf:
+    ...     save_sparray(hf.create_group("sparsearray"), A)
+
+    # Load the sparse array from the file.
+    >>> with h5py.File("myfile.h5", "r") as hf:
+    ...     B = load_sparray(hf["sparsearray"])
+    >>> B
+    <100x100 sparse array of type '<class 'numpy.float64'>'
+        with 2 stored elements in Dictionary Of Keys format>
+    >>> print(B)
+      (np.int32(0), np.int32(5))    12.0
+      (np.int32(4), np.int32(1))    123.456
+    """
+    A = sparse.coo_matrix(
+        (group["data"], (group["row"], group["col"])),
+        shape=group.attrs["shape"],
+    )
+    arrtype = str(group.attrs["arrtype"])
+    return getattr(A, f"to{arrtype}")()

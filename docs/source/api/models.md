@@ -2,6 +2,28 @@
 
 ```{eval-rst}
 .. automodule:: opinf.models
+
+.. currentmodule:: opinf.models
+
+**Nonparametric Models**
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    ContinuousModel
+    DiscreteModel
+
+**Parametric Models**
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    ParametricContinuousModel
+    ParametricDiscreteModel
+    InterpContinuousModel
+    InterpDiscreteModel
 ```
 
 :::{admonition} Overview
@@ -55,7 +77,6 @@ A _nonparametric_ model is comprised exclusively of [nonparametric operators](se
 .. currentmodule:: opinf.models
 
 .. autosummary::
-    :toctree: _autosummaries
     :nosignatures:
 
     ContinuousModel
@@ -123,19 +144,28 @@ A _parametric model_ is a model with at least one [parametric operator](sec-oper
 Parametric models are similar to nonparametric models: they are initialized with a list of operators, use `fit()` to calibrate operator entries, and `predict()` to solve the model.
 In addition, parametric models have an `evaluate()` method that returns a nonparametric model at a fixed parameter value.
 
-### Interpolated Models
+```{eval-rst}
+.. currentmodule:: opinf.models
 
-Interpolated models consist exclusively of [interpolated operators](sec-operators-interpolated).
+.. autosummary::
+   :nosignatures:
+
+   ParametricContinuousModel
+   ParametricDiscreteModel
+```
+
+### Interpolatory Models
+
+Interpolatory models consist exclusively of [interpolatory operators](sec-operators-interpolated).
 
 ```{eval-rst}
 .. currentmodule:: opinf.models
 
 .. autosummary::
-    :toctree: _autosummaries
     :nosignatures:
 
-    InterpolatedContinuousModel
-    InterpolatedDiscreteModel
+    InterpContinuousModel
+    InterpDiscreteModel
 ```
 
 :::{tip}
@@ -143,26 +173,26 @@ The `operators` constructor argument for these classes can also be a string that
 
 | Character | {mod}`opinf.operators` class |
 | :-------- | :------------------------------- |
-| `'c'` | {class}`opinf.operators.InterpolatedConstantOperator` |
-| `'A'` | {class}`opinf.operators.InterpolatedLinearOperator` |
-| `'H'` | {class}`opinf.operators.InterpolatedQuadraticOperator` |
-| `'G'` | {class}`opinf.operators.InterpolatedCubicOperator` |
-| `'B'` | {class}`opinf.operators.InterpolatedInputOperator` |
-| `'N'` | {class}`opinf.operators.InterpolatedStateInputOperator` |
+| `'c'` | {class}`opinf.operators.InterpConstantOperator` |
+| `'A'` | {class}`opinf.operators.InterpLinearOperator` |
+| `'H'` | {class}`opinf.operators.InterpQuadraticOperator` |
+| `'G'` | {class}`opinf.operators.InterpCubicOperator` |
+| `'B'` | {class}`opinf.operators.InterpInputOperator` |
+| `'N'` | {class}`opinf.operators.InterpStateInputOperator` |
 
 ```python
 import opinf
 
 # Initialize the model with a list of operator objects.
-model = opinf.models.InterpolatedContinuousModel(
+model = opinf.models.InterpContinuousModel(
     operators=[
-        opinf.operators.InterpolatedCubicOperator(),
-        opinf.operators.InterpolatedStateInputOperator(),
+        opinf.operators.InterpCubicOperator(),
+        opinf.operators.InterpStateInputOperator(),
     ]
 )
 
 # Equivalently, initialize the model with a string.
-model = opinf.models.InterpolatedContinuousModel(operators="GN")
+model = opinf.models.InterpContinuousModel(operators="GN")
 ```
 
 :::

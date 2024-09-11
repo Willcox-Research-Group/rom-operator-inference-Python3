@@ -2,8 +2,11 @@
 """Parametric monolithic dynamical systems models."""
 
 __all__ = [
-    # "ParametricDiscreteModel",
-    # "ParametricContinuousModel",
+    "ParametricDiscreteModel",
+    "ParametricContinuousModel",
+    "InterpDiscreteModel",
+    "InterpContinuousModel",
+    # Deprecations:
     "InterpolatedDiscreteModel",
     "InterpolatedContinuousModel",
 ]
@@ -18,7 +21,30 @@ from ._nonparametric import (
     _FrozenContinuousModel,
 )
 from ... import errors, utils
-from ... import operators as _operators
+from ...operators import (
+    OperatorTemplate,
+    ParametricOperatorTemplate,
+    InterpConstantOperator,
+    InterpLinearOperator,
+    InterpQuadraticOperator,
+    InterpCubicOperator,
+    InterpInputOperator,
+    InterpStateInputOperator,
+    _utils as oputils,
+)
+
+
+_operator_name2class = {
+    OpClass.__name__: OpClass
+    for OpClass in (
+        InterpConstantOperator,
+        InterpLinearOperator,
+        InterpQuadraticOperator,
+        InterpCubicOperator,
+        InterpInputOperator,
+        InterpStateInputOperator,
+    )
+}
 
 
 # Base classes ================================================================
@@ -48,20 +74,6 @@ class _ParametricModel(_Model):
         """String representation of input, e.g., "u(t)"."""
         return self._ModelClass._INPUT_LABEL
 
-    @property
-    def ModelClass(self):
-        """Nonparametric model class that represents this parametric model
-        when evaluated at a particular parameter value.
-
-        Examples
-        --------
-        >>> model = MyParametricModel(init_args).fit(fit_args)
-        >>> model_evaluated = model.evaluate(parameter_value)
-        >>> type(model_evaluated) is MyParametricModel.ModelClass
-        True
-        """
-        return self._ModelClass
-
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = dict()
 
@@ -70,8 +82,8 @@ class _ParametricModel(_Model):
         return isinstance(
             op,
             (
-                _operators.OperatorTemplate,
-                _operators.ParametricOperatorTemplate,
+                OperatorTemplate,
+                ParametricOperatorTemplate,
             ),
         )
 
@@ -81,7 +93,7 @@ class _ParametricModel(_Model):
         of operation (e.g., two constant operators).
         """
         OpClasses = {
-            (op.OperatorClass if _operators.is_parametric(op) else type(op))
+            (op._OperatorClass if oputils.is_parametric(op) else type(op))
             for op in ops
         }
         if len(OpClasses) != len(ops):
@@ -92,9 +104,9 @@ class _ParametricModel(_Model):
         operator class ``OpClass``.
         """
         for op in self.operators:
-            if (
-                _operators.is_parametric(op) and op.OperatorClass is OpClass
-            ) or (_operators.is_nonparametric(op) and isinstance(op, OpClass)):
+            if oputils.is_parametric(op) and op._OperatorClass is OpClass:
+                return op
+            if oputils.is_nonparametric(op) and isinstance(op, OpClass):
                 return op
 
     @property
@@ -109,7 +121,7 @@ class _ParametricModel(_Model):
 
         # Check at least one operator is parametric.
         parametric_operators = [
-            op for op in self.operators if _operators.is_parametric(op)
+            op for op in self.operators if oputils.is_parametric(op)
         ]
         if len(parametric_operators) == 0:
             warnings.warn(
@@ -119,80 +131,60 @@ class _ParametricModel(_Model):
             )
 
         # Check that not every operator is interpolated.
-        if not isinstance(self, _InterpolatedModel):
+        if not isinstance(self, _InterpModel):
             interpolated_operators = [
-                op
-                for op in self.operators
-                if _operators._interpolate.is_interpolated(op)
+                op for op in self.operators if oputils.is_interpolated(op)
             ]
             if len(interpolated_operators) == len(self.operators):
                 warnings.warn(
                     "all operators interpolatory, "
-                    "consider using an InterpolatedModel class",
+                    "consider using an InterpModel class",
                     errors.OpInfWarning,
                 )
-        self.__p = self._check_parameter_dimension_consistency(self.operators)
-
-    def _clear(self):
-        """Reset the entries of the non-intrusive operators and the
-        state, input, and parameter dimensions.
-        """
-        _Model._clear(self)
-        self.__p = self._check_parameter_dimension_consistency(self.operators)
+        self._synchronize_parameter_dimensions()
 
     # Properties: dimensions --------------------------------------------------
-    @staticmethod
-    def _check_parameter_dimension_consistency(ops):
-        """Ensure all operators have the same parameter dimension."""
+    @property
+    def parameter_dimension(self):
+        r"""Dimension :math:`p` of a parameter vector :math:`\bfmu`."""
+        return self.__p
+
+    def _synchronize_parameter_dimensions(self, newdim=None):
+        """Synchronize the parameter_dimension attribute for each operator."""
+        # Get any non-None parameter dimensions and check for uniqueness.
         ps = {
             op.parameter_dimension
-            for op in ops
-            if _operators.is_parametric(op)
-            and op.parameter_dimension is not None
+            for op in self.operators
+            if oputils.is_parametric(op) and op.parameter_dimension is not None
         }
         if len(ps) > 1:
             raise errors.DimensionalityError(
                 "operators not aligned "
                 "(parameter_dimension must be the same for all operators)"
             )
-        return ps.pop() if len(ps) == 1 else None
+        p = ps.pop() if len(ps) == 1 else None
 
-    @property
-    def parameter_dimension(self):
-        """Dimension :math:`p` of the parameters."""
-        return self.__p
+        # Check operator parameter_dimension matches new parameter_dimension.
+        if newdim is not None:
+            if p is None:
+                p = newdim
+            if p != newdim:
+                raise errors.DimensionalityError(
+                    f"{p} = each operator.parameter_dimension != "
+                    f"parameter dimension = {newdim}"
+                )
 
-    @parameter_dimension.setter
-    def parameter_dimension(self, p):
-        """Set the parameter dimension. Not allowed if any
-        existing operators have ``parameter_dimension != p``.
-        """
-        if self.operators is not None:
+        # Ensure all parametric operators have the same parameter_dimension.
+        if p is not None:
             for op in self.operators:
-                if _operators.is_nonparametric(op):
-                    continue
-                if (opp := op.parameter_dimension) is not None and opp != p:
-                    raise AttributeError(
-                        "can't set attribute "
-                        f"(existing operators have p = {self.__p})"
-                    )
+                if (
+                    oputils.is_parametric(op)
+                    and op.parameter_dimension is None
+                ):
+                    op.parameter_dimension = p
+
+        # Set the model's parameter_dimension to the same as the operators.
         self.__p = p
-
-    def _set_parameter_dimension_from_data(self, parameters):
-        """Extract and save the dimension of the parameter space from a set of
-        parameter values.
-
-        Parameters
-        ----------
-        parameters : (s, p) or (p,) ndarray
-            Parameter value(s).
-        """
-        if (dim := len(shape := np.shape(parameters))) == 1:
-            self.parameter_dimension = 1
-        elif dim == 2:
-            self.parameter_dimension = shape[1]
-        else:
-            raise ValueError("parameter values must be scalars or 1D arrays")
 
     # Fitting -----------------------------------------------------------------
     def _process_fit_arguments(self, parameters, states, lhs, inputs):
@@ -204,8 +196,15 @@ class _ParametricModel(_Model):
         self._clear()
 
         # Process parameters.
-        parameters = np.array(parameters)
-        self._set_parameter_dimension_from_data(parameters)
+        if (dim := len(shape := np.shape(parameters))) == 1:
+            p = 1
+        elif dim == 2:
+            p = shape[1]
+        else:
+            raise errors.DimensionalityError(
+                "'parameters' must be a sequence of scalars or 1D arrays"
+            )
+        self._synchronize_parameter_dimensions(p)
         n_datasets = len(parameters)
 
         def _check_valid_dimension0(dataset, label):
@@ -252,7 +251,7 @@ class _ParametricModel(_Model):
             inputs = [np.atleast_2d(U) for U in inputs]
             if not self.input_dimension:
                 self.input_dimension = inputs[0].shape[0]
-            _check_valid_dimension0(lhs, self._LHS_ARGNAME)
+            _check_valid_dimension0(inputs, "inputs")
             for i, subset in enumerate(inputs):
                 if (dim := subset.shape[0]) != (m := self.input_dimension):
                     raise errors.DimensionalityError(
@@ -264,16 +263,29 @@ class _ParametricModel(_Model):
 
         # Subtract known operator evaluations from the LHS.
         for ell in self._indices_of_known_operators:
+            op = self.operators[ell]
+            _isparametric = oputils.is_parametric(op)
             for i, lhsi in enumerate(lhs):
-                lhs[i] = lhsi - self.operators[ell].apply(
-                    parameters[i], states[i], inputs[i]
-                )
+                _args = [states[i], inputs[i]]
+                if _isparametric:
+                    _args.insert(0, parameters[i])
+                lhs[i] = lhsi - op.apply(*_args)
 
         return parameters, states, lhs, inputs
 
     def _assemble_data_matrix(self, parameters, states, inputs):
         """Assemble the data matrix for operator inference."""
-        raise NotImplementedError("future release")
+        blocks = []
+        for i in self._indices_of_operators_to_infer:
+            op = self.operators[i]
+            if not oputils.is_parametric(op):
+                block = np.hstack(
+                    [op.datablock(Q, U) for Q, U in zip(states, inputs)]
+                )
+            else:
+                block = op.datablock(parameters, states, inputs)
+            blocks.append(block.T)
+        return np.hstack(blocks)
 
     def _fit_solver(self, parameters, states, lhs, inputs=None):
         """Construct a solver for the operator inference least-squares
@@ -285,13 +297,32 @@ class _ParametricModel(_Model):
             inputs_,
         ) = self._process_fit_arguments(parameters, states, lhs, inputs)
 
+        # Set training_parameters for interpolatory operators.
+        for op in self.operators:
+            if oputils.is_interpolated(op):
+                op.set_training_parameters(parameters_)
+
         # Set up non-intrusive learning.
         D = self._assemble_data_matrix(parameters_, states_, inputs_)
         self.solver.fit(D, np.hstack(lhs_))
+        self.__s = len(parameters_)
 
     def _extract_operators(self, Ohat):
         """Unpack the operator matrix and populate operator entries."""
-        raise NotImplementedError("future release")
+        index = 0
+        for i in self._indices_of_operators_to_infer:
+            op = self.operators[i]
+            if oputils.is_parametric(op):
+                endex = index + op.operator_dimension(
+                    self.__s, self.state_dimension, self.input_dimension
+                )
+                op.set_entries(Ohat[:, index:endex], fromblock=True)
+            else:
+                endex = index + op.operator_dimension(
+                    self.state_dimension, self.input_dimension
+                )
+                op.set_entries(Ohat[:, index:endex])
+            index = endex
 
     def refit(self):
         """Solve the Operator Inference regression using the data from the
@@ -313,6 +344,7 @@ class _ParametricModel(_Model):
 
         # Execute non-intrusive learning.
         self._extract_operators(self.solver.solve())
+        return self
 
     def fit(self, parameters, states, lhs, inputs=None):
         r"""Learn the model operators from data.
@@ -348,7 +380,7 @@ class _ParametricModel(_Model):
 
         Parameters
         ----------
-        parameters : list of s scalars or (p,) 1D ndarrays
+        parameters : list of s (floats or (p,) ndarrays)
             Parameter values for which training data are available.
         states : list of s (r, k) ndarrays
             Snapshot training data. Each array ``states[i]`` is the data
@@ -366,7 +398,7 @@ class _ParametricModel(_Model):
             Input training data. Each array ``inputs[i]`` is the data
             corresponding to parameter value ``parameters[i]``; each column
             ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
-            May be a two-dimensional array if `m=1` (scalar input).
+            May be a two-dimensional array if :math:`m=1` (scalar input).
 
         Returns
         -------
@@ -380,8 +412,7 @@ class _ParametricModel(_Model):
             return self
 
         self._fit_solver(parameters, states, lhs, inputs)
-        self.refit()
-        return self
+        return self.refit()
 
     # Parametric evaluation ---------------------------------------------------
     def evaluate(self, parameter):
@@ -397,8 +428,11 @@ class _ParametricModel(_Model):
         model : _NonparametricModel
             Nonparametric model of type ``ModelClass``.
         """
-        return self.ModelClass(
-            [op.evaluate(parameter) for op in self.operators]
+        return self._ModelClass(
+            [
+                op.evaluate(parameter) if oputils.is_parametric(op) else op
+                for op in self.operators
+            ]
         )
 
     def rhs(self, parameter, *args, **kwargs):
@@ -573,7 +607,7 @@ class _ParametricDiscreteMixin:
             Input training data. Each array ``inputs[i]`` is the data
             corresponding to parameter value ``parameters[i]``; each column
             ``inputs[i][:, j]`` corresponds to the snapshot ``states[:, j]``.
-            May be a two-dimensional array if `m=1` (scalar input).
+            May be a two-dimensional array if :math:`m=1` (scalar input).
 
         Returns
         -------
@@ -781,7 +815,8 @@ class _ParametricContinuousMixin:
             corresponding to parameter value ``parameters[i]``; each column
             ``inputs[i][:, j]`` corresponds to the snapshot
             ``states[i][:, j]``.
-            May be a two-dimensional array if `m=1` (scalar input).
+            May be a two-dimensional array if :math:`m=1` (scalar input).
+            Only required if one or more model operators depend on inputs.
 
         Returns
         -------
@@ -973,8 +1008,8 @@ class ParametricContinuousModel(_ParametricContinuousMixin, _ParametricModel):
     pass
 
 
-# Special case: fully interpolation-based models ==============================
-class _InterpolatedModel(_ParametricModel):
+# Special case: completely interpolation-based models =========================
+class _InterpModel(_ParametricModel):
     """Base class for parametric monolithic models where all operators MUST be
     interpolation-based parametric operators. In this special case, the
     inference problems completely decouple by training parameter.
@@ -1007,7 +1042,7 @@ class _InterpolatedModel(_ParametricModel):
     @property
     def _ModelFitClass(self):
         """Parent of ModelClass that has a callable ``fit()`` method."""
-        return self.ModelClass.__bases__[-1]
+        return self._ModelClass.__bases__[-1]
 
     def __init__(self, operators, solver=None, InterpolatorClass=None):
         """Define the model structure and set the interpolator class."""
@@ -1037,15 +1072,9 @@ class _InterpolatedModel(_ParametricModel):
             for one-dimensional parameters and
             :class:`scipy.interpolate.LinearNDInterpolator` otherwise.
         """
-        # Check for consistency in the models.
+        # Check for consistency in the model operators.
         opclasses = [type(op) for op in models[0].operators]
-        ModelFitClass = cls._ModelClass.__bases__[-1]
         for mdl in models:
-            # Model class.
-            if not isinstance(mdl, ModelFitClass):
-                raise TypeError(
-                    f"expected models of type '{ModelFitClass.__name__}'"
-                )
             # Operator count and type.
             if len(mdl.operators) != len(opclasses):
                 raise ValueError(
@@ -1062,9 +1091,7 @@ class _InterpolatedModel(_ParametricModel):
         # Extract the operators from the individual models.
         return cls(
             operators=[
-                _operators._interpolate.nonparametric_to_interpolated(
-                    OpClass
-                )._from_operators(
+                oputils.nonparametric_to_interpolated(OpClass)._from_operators(
                     training_parameters=parameters,
                     operators=[mdl.operators[ell] for mdl in models],
                     InterpolatorClass=InterpolatorClass,
@@ -1097,17 +1124,17 @@ class _InterpolatedModel(_ParametricModel):
 
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = {
-        "c": _operators.InterpolatedConstantOperator,
-        "A": _operators.InterpolatedLinearOperator,
-        "H": _operators.InterpolatedQuadraticOperator,
-        "G": _operators.InterpolatedCubicOperator,
-        "B": _operators.InterpolatedInputOperator,
-        "N": _operators.InterpolatedStateInputOperator,
+        "c": InterpConstantOperator,
+        "A": InterpLinearOperator,
+        "H": InterpQuadraticOperator,
+        "G": InterpCubicOperator,
+        "B": InterpInputOperator,
+        "N": InterpStateInputOperator,
     }
 
     def _isvalidoperator(self, op):
         """Only interpolated parametric operators are allowed."""
-        return _operators._interpolate.is_interpolated(op)
+        return oputils.is_interpolated(op)
 
     # Fitting -----------------------------------------------------------------
     def _assemble_data_matrix(self, *args, **kwargs):  # pragma: no cover
@@ -1139,7 +1166,7 @@ class _InterpolatedModel(_ParametricModel):
         for i in range(n_datasets):
             model_i = self._ModelFitClass(
                 operators=[
-                    op.OperatorClass(
+                    op._OperatorClass(
                         op.entries[i] if op.entries is not None else None
                     )
                     for op in self.operators
@@ -1164,8 +1191,8 @@ class _InterpolatedModel(_ParametricModel):
 
         # Solve each independent subproblem.
         # TODO: parallelize?
-        for model_i in self._submodels:
-            model_i.refit()
+        for submodel in self._submodels:
+            submodel.refit()
 
         # Interpolate the resulting operators.
         for ell, op in enumerate(self.operators):
@@ -1174,8 +1201,6 @@ class _InterpolatedModel(_ParametricModel):
             op.set_entries(
                 [mdl.operators[ell].entries for mdl in self._submodels]
             )
-
-        # self.__InterpolatorClass = type(self.operators[0].interpolator)
 
         return self
 
@@ -1293,7 +1318,7 @@ class _InterpolatedModel(_ParametricModel):
                 gp = hf[f"operator_{i}"]
                 OpClassName = gp["meta"].attrs["class"]
                 ops.append(
-                    getattr(_operators, OpClassName).load(
+                    _operator_name2class[OpClassName].load(
                         gp, InterpolatorClass
                     )
                 )
@@ -1317,7 +1342,7 @@ class _InterpolatedModel(_ParametricModel):
         )
 
 
-class InterpolatedDiscreteModel(_ParametricDiscreteMixin, _InterpolatedModel):
+class InterpDiscreteModel(_ParametricDiscreteMixin, _InterpModel):
     r"""Parametric discrete dynamical system model
     :math:`\qhat(\bfmu)_{j+1} = \fhat(\qhat(\bfmu)_{j}, \u_{j}; \bfmu)`
     where the parametric dependence is handled by elementwise interpolation.
@@ -1353,9 +1378,9 @@ class InterpolatedDiscreteModel(_ParametricDiscreteMixin, _InterpolatedModel):
     pass
 
 
-class InterpolatedContinuousModel(
+class InterpContinuousModel(
     _ParametricContinuousMixin,
-    _InterpolatedModel,
+    _InterpModel,
 ):
     r"""Parametric system of ordinary differential equations
     :math:`\ddt\qhat(t; \bfmu) = \fhat(\qhat(t; \bfmu), \u(t); \bfmu)` where
@@ -1388,3 +1413,36 @@ class InterpolatedContinuousModel(
     """
 
     pass
+
+
+# Deprecations ================================================================
+class InterpolatedDiscreteModel(InterpDiscreteModel):
+    def __init__(self, operators, solver=None, InterpolatorClass=None):
+        warnings.warn(
+            "InterpolatedDiscreteModel has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpDiscreteModel",
+            DeprecationWarning,
+        )
+        InterpDiscreteModel.__init__(
+            self,
+            operators=operators,
+            solver=solver,
+            InterpolatorClass=InterpolatorClass,
+        )
+
+
+class InterpolatedContinuousModel(InterpContinuousModel):
+    def __init__(self, operators, solver=None, InterpolatorClass=None):
+        warnings.warn(
+            "InterpolatedContinuousModel has been renamed "
+            "and will be removed in an upcoming release, use "
+            "InterpContinuousModel",
+            DeprecationWarning,
+        )
+        InterpContinuousModel.__init__(
+            self,
+            operators=operators,
+            solver=solver,
+            InterpolatorClass=InterpolatorClass,
+        )

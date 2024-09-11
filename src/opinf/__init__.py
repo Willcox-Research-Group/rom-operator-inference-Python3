@@ -7,7 +7,7 @@ GitHub:
     https://github.com/Willcox-Research-Group/rom-operator-inference-Python3
 """
 
-__version__ = "0.5.7"
+__version__ = "0.5.8"
 
 from . import (
     basis,
@@ -24,3 +24,19 @@ from . import (
 )
 
 from .roms import *
+
+__all__ = [
+    "basis",
+    "errors",
+    "ddt",
+    "lift",
+    "lstsq",
+    "models",
+    "operators",
+    "pre",
+    "post",
+    "roms",
+    "utils",
+]
+
+__all__ += roms.__all__

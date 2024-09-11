@@ -11,6 +11,7 @@ docs/source/opinf/literature.md
 __pycache__/
 .ipynb_checkpoints/
 .pytest_cache/
+.ruff_cache/
 htmlcov/
 .coverage*
 build/
@@ -52,3 +53,4 @@ html/
 # Other
 *.swp
 .markdownlint.json
+Notes/

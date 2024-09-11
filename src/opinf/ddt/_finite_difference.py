@@ -863,11 +863,13 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
         return self.__scheme
 
     def __str__(self):
-        """String representation: class name, time domain."""
-        head = DerivativeEstimatorTemplate.__str__(self)
-        tail = [f"time step: {self.dt:.2e}"]
-        tail.append(f"finite difference scheme: {self.scheme.__name__}()")
-        return f"{head}\n  " + "\n  ".join(tail)
+        return "\n  ".join(
+            [
+                DerivativeEstimatorTemplate.__str__(self),
+                f"dt:          {self.dt:.4e}",
+                f"scheme:      {self.scheme.__name__}()",
+            ]
+        )
 
     # Main routine ------------------------------------------------------------
     def estimate(self, states, inputs=None):
@@ -927,9 +929,12 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
 
     def __str__(self):
         """String representation: class name, time domain."""
-        head = DerivativeEstimatorTemplate.__str__(self)
-        tail = "finite difference engine: np.gradient(edge_order=2)"
-        return f"{head}\n  {tail}"
+        return "\n  ".join(
+            [
+                DerivativeEstimatorTemplate.__str__(self),
+                "scheme:      np.gradient(edge_order=2)",
+            ]
+        )
 
     # Main routine ------------------------------------------------------------
     def estimate(self, states, inputs=None):

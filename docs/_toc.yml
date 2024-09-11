@@ -21,7 +21,10 @@ parts:
     # numbered: 1
     chapters:
     - file: source/tutorials/basics.ipynb
-    - file: source/tutorials/heat_equation.ipynb
+    - file: source/tutorials/inputs.ipynb
+    # - file: source/tutorials/lifting.ipynb
+    # - file: source/tutorials/regularization.ipynb
+    - file: source/tutorials/parametric.ipynb
 
   # API reference via sphinx-autodoc + limited handwritten documentation.
   - caption: API Reference

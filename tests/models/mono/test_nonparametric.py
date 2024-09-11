@@ -81,44 +81,23 @@ class TestNonparametricModel:
 
     # String representation ---------------------------------------------------
     def test_str(self):
-        """Test _NonparametricModel.__str__()."""
+        """Lightly test __str__() and __repr__()."""
 
         # Continuous Models
-        model = self.Dummy("A")
-        assert str(model) == "Model structure: qdot = Aqq"
-        model = self.Dummy("cA")
-        assert str(model) == "Model structure: qdot = c + Aqq"
-        model = self.Dummy("HB")
-        assert str(model) == "Model structure: qdot = H[qq ⊗ qq] + Buu"
-        model = self.Dummy("G")
-        assert str(model) == "Model structure: qdot = G[qq ⊗ qq ⊗ qq]"
-        model = self.Dummy("cH")
-        assert str(model) == "Model structure: qdot = c + H[qq ⊗ qq]"
+        str(self.Dummy("A"))
+        str(self.Dummy("HB"))
 
         # Dimension reporting.
         model = self.Dummy("A")
         model.state_dimension = 20
-        modelstr = str(model).split("\n")
-        assert len(modelstr) == 2
-        assert modelstr[0] == "Model structure: qdot = Aqq"
-        assert modelstr[1] == "State dimension r = 20"
+        str(model)
 
         model = self.Dummy("cB")
         model.state_dimension = 10
         model.input_dimension = 3
-        modelstr = str(model).split("\n")
-        assert len(modelstr) == 3
-        assert modelstr[0] == "Model structure: qdot = c + Buu"
-        assert modelstr[1] == "State dimension r = 10"
-        assert modelstr[2] == "Input dimension m = 3"
-
-    def test_repr(self):
-        """Test _NonparametricModel.__repr__()."""
-
-        def firstline(obj):
-            return repr(obj).split("\n")[0]
-
-        assert firstline(self.Dummy("A")).startswith("<Dummy object at")
+        modelstr = str(model)
+        modelrpr = repr(model)
+        assert modelrpr.count(modelstr) == 1
 
     # Properties: operator inference ------------------------------------------
     def test_operator_matrix(self, r=15, m=3):

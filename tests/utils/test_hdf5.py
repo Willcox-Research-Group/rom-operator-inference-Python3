@@ -5,6 +5,8 @@ import os
 import h5py
 import pytest
 import warnings
+import numpy as np
+import scipy.sparse as sparse
 
 import opinf
 
@@ -184,3 +186,30 @@ def test_hdf5_loadhandle():
         with subject(target):
             pass
     assert ex.value.args[0] == target
+
+
+def test_saveload_sparray(n=100, target="_saveloadsparraytest.h5"):
+    """Test save_sparray() and load_sparray()."""
+
+    with pytest.raises(TypeError) as ex:
+        opinf.utils.save_sparray(None, None)
+    assert ex.value.args[0] == "second arg must be a scipy.sparse array"
+
+    A = sparse.dok_array((n, n), dtype=float)
+    for _ in range(n // 10):
+        i, j = np.random.randint(0, n, size=2)
+        A[i, j] = np.random.random()
+
+    if os.path.isfile(target):
+        os.remove(target)
+
+    with h5py.File(target, "w") as hf:
+        opinf.utils.save_sparray(hf.create_group("sparsearray"), A)
+
+    with h5py.File(target, "r") as hf:
+        B = opinf.utils.load_sparray(hf["sparsearray"])
+
+    diff = np.abs((A - B).data)
+    assert np.allclose(diff, 0)
+
+    os.remove(target)

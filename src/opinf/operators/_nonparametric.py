@@ -13,6 +13,7 @@ __all__ = [
 import itertools
 import numpy as np
 import scipy.linalg as la
+import scipy.sparse as sparse
 import scipy.special as special
 
 from .. import utils
@@ -26,13 +27,13 @@ class ConstantOperator(OpInfOperator):
     Parameters
     ----------
     entries : (r,) ndarray or None
-        Operator entries :math:`\chat`.
+        Operator vector :math:`\chat`.
 
     Examples
     --------
     >>> import numpy as np
     >>> c = opinf.operators.ConstantOperator()
-    >>> entries = np.random.random(10)          # Operator entries.
+    >>> entries = np.random.random(10)          # Operator vector.
     >>> c.set_entries(np.random.random(10))
     >>> c.shape
     (10,)
@@ -45,15 +46,37 @@ class ConstantOperator(OpInfOperator):
     def _str(statestr=None, inputstr=None):
         return "c"
 
+    @property
+    def entries(self):
+        r"""Operator vector :math:`\chat`."""
+        return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
+    @property
+    def shape(self):
+        r"""Shape :math:`(r,)` of the operator vector :math:`\chat`."""
+        return OpInfOperator.shape.fget(self)
+
     def set_entries(self, entries):
-        r"""Set the ``entries`` attribute.
+        r"""Set the operator vector :math:`\chat`.
 
         Parameters
         ----------
         entries : (r,) ndarray
-            Operator entries :math:`\chat`.
+            Operator vector :math:`\chat`.
         """
-        if np.isscalar(entries):
+        if sparse.issparse(entries):
+            entries = entries.toarray()
+        elif np.isscalar(entries):
             entries = np.atleast_1d(entries)
         self._validate_entries(entries)
 
@@ -152,7 +175,7 @@ class ConstantOperator(OpInfOperator):
 
     @staticmethod
     def operator_dimension(r=None, m=None):
-        r"""Column dimension of the operator entries (always 1).
+        r"""Column dimension of the operator vector (always 1).
 
         Parameters
         ----------
@@ -172,13 +195,13 @@ class LinearOperator(OpInfOperator):
     Parameters
     ----------
     entries : (r, r) ndarray or None
-        Operator entries :math:`\Ahat`.
+        Operator matrix :math:`\Ahat`.
 
     Examples
     --------
     >>> import numpy as np
     >>> A = opinf.operators.LinearOperator()
-    >>> entries = np.random.random((10, 10))    # Operator entries.
+    >>> entries = np.random.random((10, 10))    # Operator matrix.
     >>> A.set_entries(entries)
     >>> A.shape
     (10, 10)
@@ -192,15 +215,38 @@ class LinearOperator(OpInfOperator):
     def _str(statestr, inputstr=None):
         return f"A{statestr}"
 
+    @property
+    def entries(self):
+        r"""Operator matrix :math:`\Ahat`."""
+        return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
+    @property
+    def shape(self):
+        r"""Shape :math:`(r, r)` of the operator matrix :math:`\Ahat`."""
+        return OpInfOperator.shape.fget(self)
+
     def set_entries(self, entries):
-        r"""Set the ``entries`` attribute.
+        r"""Set the operator matrix :math:`\Ahat`.
 
         Parameters
         ----------
         entries : (r, r) ndarray
-            Operator entries :math:`\Ahat`.
+            Operator matrix :math:`\Ahat`.
         """
-        if np.isscalar(entries) or np.shape(entries) == (1,):
+        if sparse.issparse(entries):
+            if not isinstance(entries, sparse.csr_array):
+                entries = entries.tocsr()
+        elif np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
         self._validate_entries(entries)
 
@@ -309,7 +355,7 @@ class LinearOperator(OpInfOperator):
 
     @staticmethod
     def operator_dimension(r, m=None):
-        """Column dimension :math:`r` of the operator entries.
+        r"""Column dimension :math:`r` of the operator matrix :math:`\Ahat`.
 
         Parameters
         ----------
@@ -326,20 +372,21 @@ class QuadraticOperator(OpInfOperator):
     :math:`\Ophat_{\ell}(\qhat,\u) = \Hhat[\qhat\otimes\qhat]`
     where :math:`\Hhat\in\RR^{r \times r^{2}}`.
 
-    Internally, the action of the operator is computed as the product of a
-    :math:`r \times r(r+1)/2` matrix and a compressed version of the Kronecker
-    product :math:`\qhat \otimes \qhat`.
+    Internally, the action of the operator is computed as the product of an
+    :math:`r \times r(r+1)/2` matrix :math:`\tilde{\H}` and a
+    compressed version of the Kronecker product :math:`\qhat \otimes \qhat`.
 
     Parameters
     ----------
     entries : (r, r^2) or (r, r(r+1)/2) or (r, r, r) ndarray or None
-        Operator entries :math:`\Hhat`.
+        Operator matrix :math:`\Hhat`, its compressed representation
+        :math:`\tilde{\H}`, or the equivalent symmetric tensor.
 
     Examples
     --------
     >>> import numpy as np
     >>> H = opinf.operators.QuadraticOperator()
-    >>> entries = np.random.random((10, 100))   # Operator entries.
+    >>> entries = np.random.random((10, 100))   # Operator matrix.
     >>> H.set_entries(entries)
     >>> H.shape                                 # Compressed shape.
     (10, 55)
@@ -367,13 +414,39 @@ class QuadraticOperator(OpInfOperator):
         Ht = self.expand_entries(self.entries).reshape((r, r, r))
         self._prejac = Ht + Ht.transpose(0, 2, 1)
 
+    @property
+    def entries(self):
+        r"""Internal representation :math:`\tilde{\H}` of the operator
+        matrix :math:`\Hhat`.
+        """
+        return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
+    @property
+    def shape(self):
+        r"""Shape :math:`(r, r(r+1)/2)` of the internal representation
+        :math:`\tilde{\H}` of the operator matrix :math:`\Hhat`.
+        """
+        return OpInfOperator.shape.fget(self)
+
     def set_entries(self, entries):
-        r"""Set the ``entries`` attribute.
+        r"""Set the internal representation :math:`\tilde{\H}` of the operator
+        matrix :math:`\Hhat`.
 
         Parameters
         ----------
         entries : (r, r^2) or (r, r(r+1)/2) or (r, r, r) ndarray
-            Operator entries :math:`\Hhat`.
+            Operator matrix :math:`\Hhat`, its compressed representation
+            :math:`\tilde{\H}`, or the equivalent symmetric tensor.
         """
         if np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
@@ -489,16 +562,16 @@ class QuadraticOperator(OpInfOperator):
            \end{array}\right]
            \in\RR^{r^2 \times k}.
 
-        Internally, a compressed Kronecker product :math:`\tilde{\otimes}` with
+        Internally, a compressed Kronecker product :math:`\hat{\otimes}` with
         :math:`r(r+1)/2 < r^{2}` degrees of freedom is used for efficiency,
         hence the data block is actually
 
         .. math::
            \D\trp
            = \left[\begin{array}{ccc}
-           \qhat_0\tilde{\otimes}\qhat_0
+           \qhat_0\,\hat{\otimes}\,\qhat_0
            & \cdots &
-           \qhat_{k-1}\tilde{\otimes}\qhat_{k-1}
+           \qhat_{k-1}\,\hat{\otimes}\,\qhat_{k-1}
            \end{array}\right]
            \in\RR^{r(r+1)/2 \times k}.
 
@@ -519,7 +592,8 @@ class QuadraticOperator(OpInfOperator):
 
     @staticmethod
     def operator_dimension(r, m=None):
-        """Column dimension :math:`r(r+1)/2` of the operator entries.
+        r"""Column dimension :math:`r(r+1)/2` of the internal representation
+        :math:`\tilde{\H}` of the operator matrix :math:`\Hhat`.
 
         Parameters
         ----------
@@ -561,11 +635,11 @@ class QuadraticOperator(OpInfOperator):
 
         Cross terms :math:`\hat{q}_i \hat{q}_j` for :math:`i \neq j` appear
         twice in :math:`\qhat\otimes\qhat`.
-        The *compressed Kronecker product* :math:`\qhat\hat{\otimes}\qhat`
+        The *compressed Kronecker product* :math:`\qhat\,\hat{\otimes}\,\qhat`
         consists of the unique terms of :math:`\qhat\otimes\qhat`:
 
         .. math::
-           \qhat\hat{\otimes}\qhat
+           \qhat\,\hat{\otimes}\,\qhat
            = \left[\begin{array}{c}
                \hat{q}_{1}^2
                \\
@@ -604,9 +678,9 @@ class QuadraticOperator(OpInfOperator):
            \end{array}\right]
            = \left[\begin{array}{ccc}
                & & \\
-               \qhat_0\hat{\otimes}\qhat_0
+               \qhat_0\,\hat{\otimes}\,\qhat_0
                & \cdots &
-               \qhat_{k-1}\hat{\otimes}\qhat_{k-1}
+               \qhat_{k-1}\,\hat{\otimes}\,\qhat_{k-1}
                \\ & &
            \end{array}\right]
            \in \RR^{r(r+1)/2 \times k}.
@@ -665,7 +739,8 @@ class QuadraticOperator(OpInfOperator):
     def compress_entries(H):
         r"""Given :math:`\Hhat\in\RR^{a\times r^2}`, construct the matrix
         :math:`\tilde{\H}\in\RR^{a \times r(r+1)/2}` such that
-        :math:`\Hhat[\qhat\otimes\qhat] = \tilde{\H}[\qhat\hat{\otimes}\qhat]`
+        :math:`\Hhat[\qhat\otimes\qhat]
+        = \tilde{\H}[\qhat\,\hat{\otimes}\,\qhat]`
         for all :math:`\qhat\in\RR^{r}` where :math:`\hat{\otimes}` is the
         compressed Kronecker product (see :meth:`ckron`).
 
@@ -719,7 +794,8 @@ class QuadraticOperator(OpInfOperator):
     def expand_entries(Hc):
         r"""Given :math:`\tilde{\H}\in\RR^{a \times r(r+1)/2}`, construct the
         matrix :math:`\Hhat\in\RR^{a\times r^2}` such that
-        :math:`\Hhat[\qhat\otimes\qhat] = \tilde{\H}[\qhat\hat{\otimes}\qhat]`
+        :math:`\Hhat[\qhat\otimes\qhat]
+        = \tilde{\H}[\qhat\,\hat{\otimes}\,\qhat]`
         for all :math:`\qhat\in\RR^{r}` where :math:`\hat{\otimes}` is the
         compressed Kronecker product (see :meth:`ckron`).
 
@@ -782,20 +858,22 @@ class CubicOperator(OpInfOperator):
     :math:`\Ophat_{\ell}(\qhat,\u) = \Ghat[\qhat\otimes\qhat\otimes\qhat]`
     where :math:`\Ghat\in\RR^{r \times r^{3}}`.
 
-    Internally, the action of the operator is computed as the product of a
-    :math:`r \times r(r+1)(r+2)/6` matrix and a compressed version of the
-    triple Kronecker product :math:`\qhat \otimes \qhat \otimes \qhat`.
+    Internally, the action of the operator is computed as the product of an
+    :math:`r \times r(r+1)(r+2)/6` matrix :math:`\tilde{\G}` and a compressed
+    version of the triple Kronecker product
+    :math:`\qhat \otimes \qhat \otimes \qhat`.
 
     Parameters
     ----------
     entries : (r, r^3) or (r, r(r+1)(r+2)/6) or (r, r, r, r) ndarray or None
-        Operator entries :math:`\Ghat`.
+        Operator matrix :math:`\Ghat`, its compressed representation
+        :math:`\tilde{\G}`, or the equivalent symmetric 4-tensor.
 
     Examples
     --------
     >>> import numpy as np
     >>> G = opinf.operators.CubicOperator()
-    >>> entries = np.random.random((10, 1000))  # Operator entries.
+    >>> entries = np.random.random((10, 1000))  # Operator matrix.
     >>> G.set_entries(entries)
     >>> G.shape                                 # Compressed shape.
     (10, 220)
@@ -823,13 +901,39 @@ class CubicOperator(OpInfOperator):
         Gt = self.expand_entries(self.entries).reshape((r, r, r, r))
         self._prejac = Gt + Gt.transpose(0, 2, 1, 3) + Gt.transpose(0, 3, 1, 2)
 
+    @property
+    def entries(self):
+        r"""Internal representation :math:`\tilde{\G}` of the operator
+        matrix :math:`\Ghat`.
+        """
+        return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
+    @property
+    def shape(self):
+        r"""Shape :math:`(r, r(r+1)(r+2)/6)` of the internal representation
+        :math:`\tilde{\G}` of the operator matrix :math:`\Ghat`.
+        """
+        return OpInfOperator.shape.fget(self)
+
     def set_entries(self, entries):
-        r"""Set the ``entries`` attribute.
+        r"""Set the internal representation :math:`\tilde{\G}` of the operator
+        matrix :math:`\Ghat`.
 
         Parameters
         ----------
         entries : (r, r^3) or (r, r(r+1)(r+2)/6) or (r, r, r, r) ndarray
-            Operator entries :math:`\Ghat`.
+            Operator matrix :math:`\Ghat`, its compressed representation
+            :math:`\tilde{\G}`, or the equivalent symmetric 4-tensor.
         """
         if np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
@@ -905,8 +1009,7 @@ class CubicOperator(OpInfOperator):
     @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
-        :math:`\widehat{\mathbf{G}} =
-        (\Wr\trp\Vr)^{-1}\Wr\trp\mathbf{G}[\Vr\otimes\Vr\otimes\Vr]`.
+        :math:`\Ghat = (\Wr\trp\Vr)^{-1}\Wr\trp\G[\Vr\otimes\Vr\otimes\Vr]`.
 
         Parameters
         ----------
@@ -958,9 +1061,9 @@ class CubicOperator(OpInfOperator):
         .. math::
            \D\trp
            = \left[\begin{array}{ccc}
-           \qhat_0\tilde{\otimes}\qhat_0\tilde{\otimes}\qhat_0
+           \qhat_0\,\hat{\otimes}\,\qhat_0\,\hat{\otimes}\,\qhat_0
            & \cdots &
-           \qhat_{k-1}\tilde{\otimes}\qhat_{k-1}\tilde{\otimes}\qhat_{k-1}
+           \qhat_{k-1}\,\hat{\otimes}\,\qhat_{k-1}\,\hat{\otimes}\,\qhat_{k-1}
            \end{array}\right]
            \in\RR^{r(r+1)(r+2)/6 \times k}.
 
@@ -981,7 +1084,8 @@ class CubicOperator(OpInfOperator):
 
     @staticmethod
     def operator_dimension(r, m=None):
-        """Column dimension :math:`r(r+1)(r+2)/6` of the operator entries.
+        r"""Column dimension :math:`r(r+1)(r+2)/6` of the internal
+        representation :math:`\tilde{\G}` of the operator matrix :math:`\Ghat`.
 
         Parameters
         ----------
@@ -1014,17 +1118,17 @@ class CubicOperator(OpInfOperator):
         not all equal appear multiple times in
         :math:`\qhat\otimes\qhat\otimes\qhat`.
         The *compressed cubic Kronecker product*
-        :math:`\qhat\hat{\otimes}\qhat\hat{\otimes}\qhat`
+        :math:`\qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,\qhat`
         consists of the unique terms of :math:`\qhat\otimes\qhat\otimes\qhat`:
 
         .. math::
-           \qhat\hat{\otimes}\qhat\hat{\otimes}\qhat
+           \qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,\qhat
            = \left[\begin{array}{c}
                \hat{q}_{1}^3
                \\
-               \hat{q}_{2}[\![\qhat\hat{\otimes}\qhat]\!]_{1:2}
+               \hat{q}_{2}[\![\qhat\,\hat{\otimes}\,\qhat]\!]_{1:2}
                \\ \vdots \\
-               \hat{q}_{r}[\![\qhat\hat{\otimes}\qhat]\!]_{1:r}
+               \hat{q}_{r}[\![\qhat\,\hat{\otimes}\,\qhat]\!]_{1:r}
            \end{array}\right]
            \in \RR^{r(r+1)(r+2)/6}.
 
@@ -1089,7 +1193,7 @@ class CubicOperator(OpInfOperator):
         r"""Given :math:`\Ghat\in\RR^{a\times r^2}`, construct the matrix
         :math:`\tilde{\G}\in\RR^{a \times r(r+1)(r+2)/6}` such that
         :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat]
-        = \tilde{\G}[\qhat\hat{\otimes}\qhat\hat{\otimes}\qhat]`
+        = \tilde{\G}[\qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,\qhat]`
         for all :math:`\qhat\in\RR^{r}`
         where :math:`\cdot\hat{\otimes}\cdot\hat{\otimes}\cdot` is the
         compressed cubic Kronecker product (see :meth:`ckron`).
@@ -1147,7 +1251,7 @@ class CubicOperator(OpInfOperator):
         r"""Given :math:`\tilde{\G}\in\RR^{a \times r(r+1)(r+2)/6}`,
         construct the matrix :math:`\Ghat\in\RR^{a\times r^3}` such that
         :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat]
-        = \tilde{\G}[\qhat\hat{\otimes}\qhat\hat{\otimes}\qhat]`
+        = \tilde{\G}[\qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,\qhat]`
         for all :math:`\qhat\in\RR^{r}`
         where :math:`\cdot\hat{\otimes}\cdot\hat{\otimes}\cdot` is the
         compressed cubic Kronecker product (see :meth:`ckron`).
@@ -1226,13 +1330,13 @@ class InputOperator(OpInfOperator, InputMixin):
     Parameters
     ----------
     entries : (r, m) ndarray or None
-        Operator entries :math:`\Bhat`.
+        Operator matrix :math:`\Bhat`.
 
     Examples
     --------
     >>> import numpy as np
     >>> B = opinf.operators.LinearOperator()
-    >>> entries = np.random.random((10, 3))     # Operator entries.
+    >>> entries = np.random.random((10, 3))     # Operator matrix.
     >>> B.set_entries(entries)
     >>> B.shape
     (10, 3)
@@ -1244,20 +1348,42 @@ class InputOperator(OpInfOperator, InputMixin):
 
     @property
     def input_dimension(self):
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        r"""Dimension :math:`m` of the input :math:`\u` that the operator
+        acts on.
+        """
         return None if self.entries is None else self.entries.shape[1]
 
     @staticmethod
     def _str(statestr, inputstr):
         return f"B{inputstr}"
 
+    @property
+    def entries(self):
+        r"""Operator matrix :math:`\Bhat`."""
+        return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
+    @property
+    def shape(self):
+        r"""Shape :math:`(r, m)` of the operator matrix :math:`\Bhat`."""
+        return OpInfOperator.shape.fget(self)
+
     def set_entries(self, entries):
-        r"""Set the ``entries`` attribute.
+        r"""Set the operator matrix :math:`\Bhat`.
 
         Parameters
         ----------
         entries : (r, m) ndarray
-            Operator entries :math:`\Bhat`.
+            Operator matrix :math:`\Bhat`.
         """
         if np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
@@ -1354,7 +1480,7 @@ class InputOperator(OpInfOperator, InputMixin):
 
     @staticmethod
     def operator_dimension(r, m):
-        """Column dimension :math:`m` of the operator entries.
+        r"""Column dimension :math:`m` of the operator matrix :math:`\Bhat`.
 
         Parameters
         ----------
@@ -1375,7 +1501,7 @@ class StateInputOperator(OpInfOperator, InputMixin):
     Parameters
     ----------
     entries : (r, rm) ndarray or None
-        Operator entries :math:`\Nhat`.
+        Operator matrix :math:`\Nhat`.
 
     Examples
     --------
@@ -1394,7 +1520,9 @@ class StateInputOperator(OpInfOperator, InputMixin):
 
     @property
     def input_dimension(self):
-        r"""Dimension of the input :math:`\u` that the operator acts on."""
+        r"""Dimension :math:`m` of the input :math:`\u` that the operator
+        acts on.
+        """
         if self.entries is None:
             return None
         return self.entries.shape[1] // self.entries.shape[0]
@@ -1403,13 +1531,33 @@ class StateInputOperator(OpInfOperator, InputMixin):
     def _str(statestr, inputstr):
         return f"N[{inputstr} ⊗ {statestr}]"
 
+    @property
+    def entries(self):
+        r"""Operator matrix :math:`\Nhat`."""
+        return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
+    @property
+    def shape(self):
+        r"""Shape :math:`(r, rm)` of the operator matrix :math:`\Nhat`."""
+        return OpInfOperator.shape.fget(self)
+
     def set_entries(self, entries):
-        r"""Set the ``entries`` attribute.
+        r"""Set the operator matrix :math:`\Nhat`.
 
         Parameters
         ----------
         entries : (r, rm) ndarray
-            Operator entries :math:`\Nhat`.
+            Operator matrix :math:`\Nhat`.
         """
         if np.isscalar(entries) or np.shape(entries) == (1,):
             entries = np.atleast_2d(entries)
@@ -1491,8 +1639,7 @@ class StateInputOperator(OpInfOperator, InputMixin):
     @utils.requires("entries")
     def galerkin(self, Vr, Wr=None):
         r"""Return the Galerkin projection of the operator,
-        :math:`\widehat{\mathbf{N}} =
-        (\Wr\trp\Vr)^{-1}\Wr\trp\mathbf{N}[\I_{m}\otimes\Vr]`.
+        :math:`\Nhat = (\Wr\trp\Vr)^{-1}\Wr\trp\N[\I_{m}\otimes\Vr]`.
 
         Parameters
         ----------
@@ -1554,7 +1701,7 @@ class StateInputOperator(OpInfOperator, InputMixin):
 
     @staticmethod
     def operator_dimension(r, m):
-        """Column dimension :math:`rm` of the operator entries.
+        r"""Column dimension :math:`rm` of the operator matrix :math:`\Nhat`.
 
         Parameters
         ----------

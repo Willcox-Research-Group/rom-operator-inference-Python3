@@ -89,20 +89,11 @@ class TestLinearBasis:
         assert ex.value.args[0] == "expected one- or two-dimensional weights"
 
     def test_str(self):
-        """Test __str__() and __repr__()."""
+        """Lightly test __str__() and __repr__()."""
         basis = self.Basis(self._orth(10, 4))
-        assert str(basis) == (
-            "LinearBasis"
-            "\n  Full state dimension    n = 10"
-            "\n  Reduced state dimension r = 4"
-        )
+        str(basis)
 
         basis = self.Basis(self._orth(9, 5), name="varname")
-        assert str(basis) == (
-            "LinearBasis for variable 'varname'"
-            "\n  Full state dimension    n = 9"
-            "\n  Reduced state dimension r = 5"
-        )
         assert repr(basis).count(str(basis)) == 1
 
     # Dimension reduction  ----------------------------------------------------

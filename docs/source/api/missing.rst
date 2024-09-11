@@ -64,7 +64,7 @@ ddt.ipynb
    DerivativeEstimatorTemplate
    UniformFiniteDifferencer
    NonuniformFiniteDifferencer
-   InterpolationDerivativeEstimator
+   InterpDerivativeEstimator
    fwd1
    fwd2
    fwd3
@@ -107,16 +107,18 @@ operators.ipynb
    StateInputOperator
    ParametricOperatorTemplate
    ParametricOpInfOperator
-   InterpolatedConstantOperator
-   InterpolatedLinearOperator
-   InterpolatedQuadraticOperator
-   InterpolatedCubicOperator
-   InterpolatedInputOperator
-   InterpolatedStateInputOperator
-   has_inputs
-   is_nonparametric
-   is_parametric
-   is_uncalibrated
+   AffineConstantOperator
+   AffineLinearOperator
+   AffineQuadraticOperator
+   AffineCubicOperator
+   AffineInputOperator
+   AffineStateInputOperator
+   InterpConstantOperator
+   InterpLinearOperator
+   InterpQuadraticOperator
+   InterpCubicOperator
+   InterpInputOperator
+   InterpStateInputOperator
 
 lstsq.ipynb
 -----------

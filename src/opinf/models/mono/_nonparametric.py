@@ -2,7 +2,7 @@
 """Nonparametric monolithic dynamical systems models."""
 
 __all__ = [
-    "SteadyModel",
+    # "SteadyModel",
     "DiscreteModel",
     "ContinuousModel",
 ]
@@ -15,7 +15,28 @@ import scipy.interpolate as spinterpolate
 
 from ._base import _Model
 from ... import errors, utils
-from ... import operators as _operators
+from ...operators import (
+    ConstantOperator,
+    LinearOperator,
+    QuadraticOperator,
+    CubicOperator,
+    InputOperator,
+    StateInputOperator,
+    _utils as oputils,
+)
+
+
+_operator_name2class = {
+    OpClass.__name__: OpClass
+    for OpClass in (
+        ConstantOperator,
+        LinearOperator,
+        QuadraticOperator,
+        CubicOperator,
+        InputOperator,
+        StateInputOperator,
+    )
+}
 
 
 # Base class ==================================================================
@@ -37,12 +58,12 @@ class _NonparametricModel(_Model):
 
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = {
-        "c": _operators.ConstantOperator,
-        "A": _operators.LinearOperator,
-        "H": _operators.QuadraticOperator,
-        "G": _operators.CubicOperator,
-        "B": _operators.InputOperator,
-        "N": _operators.StateInputOperator,
+        "c": ConstantOperator,
+        "A": LinearOperator,
+        "H": QuadraticOperator,
+        "G": CubicOperator,
+        "B": InputOperator,
+        "N": StateInputOperator,
     }
 
     @staticmethod
@@ -50,7 +71,7 @@ class _NonparametricModel(_Model):
         """Return True if and only if ``op`` is a valid operator object
         for this class of model.
         """
-        return _operators.is_nonparametric(op)
+        return oputils.is_nonparametric(op)
 
     @staticmethod
     def _check_operator_types_unique(ops):
@@ -69,20 +90,23 @@ class _NonparametricModel(_Model):
     # String representation ---------------------------------------------------
     def __str__(self):
         """String representation: structure of the model, dimensions, etc."""
-        # Build model structure.
-        out, terms = [], []
+        terms = [
+            op._str(self._STATE_LABEL, self._INPUT_LABEL)
+            for op in self.operators
+        ]
+
+        out = [
+            self.__class__.__name__,
+            f"structure: {self._LHS_LABEL} = " + " + ".join(terms),
+            f"state_dimension: {self.state_dimension}",
+            f"input_dimension: {self.input_dimension}",
+            "operators:",
+        ]
         for op in self.operators:
-            terms.append(op._str(self._STATE_LABEL, self._INPUT_LABEL))
-        structure = " + ".join(terms)
-        out.append(f"Model structure: {self._LHS_LABEL} = {structure}")
+            out.append("  " + "\n    ".join(str(op).split("\n")))
+        out.append("solver: " + "\n  ".join(str(self.solver).split("\n")))
 
-        # Report dimensions.
-        if self.state_dimension:
-            out.append(f"State dimension r = {self.state_dimension:d}")
-        if self.input_dimension:
-            out.append(f"Input dimension m = {self.input_dimension:d}")
-
-        return "\n".join(out)
+        return "\n  ".join(out)
 
     def __repr__(self):
         """Unique ID + string representation."""
@@ -437,7 +461,7 @@ class _NonparametricModel(_Model):
             for i in range(num_operators):
                 gp = hf[f"operator_{i}"]
                 OpClassName = gp["meta"].attrs["class"]
-                ops.append(getattr(_operators, OpClassName).load(gp))
+                ops.append(_operator_name2class[OpClassName].load(gp))
 
             # Construct the model.
             model = cls(ops)
