@@ -71,7 +71,8 @@ class NullTransformer(TransformerTemplate):
         return self
 
     def fit_transform(self, states, inplace: bool = True):
-        """Set the state dimension.
+        """Do nothing but set the state dimension; this transformation does not
+        affect the states.
 
         Parameters
         ----------
@@ -176,12 +177,18 @@ class NullTransformer(TransformerTemplate):
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             meta = hf.create_dataset("meta", shape=(0,))
             meta.attrs["name"] = str(self.name)
+            if (n := self.state_dimension) is not None:
+                meta.attrs["state_dimension"] = n
 
     @classmethod
     def load(cls, loadfile):
         with utils.hdf5_loadhandle(loadfile) as hf:
-            name = hf["meta"].attrs["name"]
-            return cls(name=(None if name == "None" else name))
+            meta = hf["meta"]
+            name = meta.attrs["name"]
+            ntf = cls(name=(None if name == "None" else name))
+            if "state_dimension" in meta.attrs:
+                ntf.state_dimension = int(meta.attrs["state_dimension"])
+            return ntf
 
 
 class TransformerMulti:

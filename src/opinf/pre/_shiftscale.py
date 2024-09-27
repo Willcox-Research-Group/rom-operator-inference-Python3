@@ -175,7 +175,10 @@ class ShiftTransformer(TransformerTemplate):
         """Set the reference snapshot."""
         super().__init__(name)
 
-        if reference_snapshot.ndim != 1:
+        if (
+            not isinstance(reference_snapshot, np.ndarray)
+            or reference_snapshot.ndim != 1
+        ):
             raise ValueError(
                 "reference snapshot must be a one-dimensional array"
             )

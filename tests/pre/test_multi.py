@@ -7,6 +7,15 @@ import numpy as np
 
 import opinf
 
+from .test_base import _TestTransformer
+
+
+class TestNullTransformer(_TestTransformer):
+    Transformer = opinf.pre.NullTransformer
+
+    def get_transformer(self, name=None):
+        return self.Transformer(name=name)
+
 
 class TestTransformerMulti:
     """Tests for pre._base.TransformerMulti."""

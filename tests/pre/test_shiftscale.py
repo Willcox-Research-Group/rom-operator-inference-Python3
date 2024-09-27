@@ -9,8 +9,10 @@ import numpy as np
 
 import opinf
 
+from .test_base import _TestTransformer
 
-# Data preprocessing: shifting and MinMax scaling / unscaling =================
+
+# Functions ===================================================================
 def test_shift(set_up_transformer_data):
     """Test pre._shift_scale.shift()."""
     X = set_up_transformer_data
@@ -70,7 +72,29 @@ def test_scale(set_up_transformer_data):
     assert np.allclose(opinf.pre.scale(Xscaled, scaled_from, scaled_to), X)
 
 
-# Transformer classes for centering and scaling ===============================
+class TestShiftTransformer(_TestTransformer):
+    Transformer = opinf.pre.ShiftTransformer
+    statedim = 20
+
+    def get_transformer(self, name=None):
+        return self.Transformer(np.random.random(self.statedim), name=name)
+
+    def test_init(self):
+        """Test __init__() and the reference property."""
+
+        with pytest.raises(ValueError) as ex:
+            self.Transformer("moose")
+        assert ex.value.args[0] == (
+            "reference snapshot must be a one-dimensional array"
+        )
+
+        tf = self.get_transformer()
+        assert tf.state_dimension == self.statedim
+        assert isinstance(tf.reference, np.ndarray)
+        assert tf.reference.shape == (tf.state_dimension,)
+
+
+# Transformer classes =========================================================
 class TestShiftScaleTransformer:
     """Test pre.ShiftScaleTransformer."""
 
