@@ -62,7 +62,7 @@ class TransformerTemplate(abc.ABC):
         """String representation: scaling type + centering bool."""
         out = [self.__class__.__name__]
         if self.state_dimension is not None:
-            out.append(f"(state dimension n = {self.state_dimension:d})")
+            out.append(f"(state_dimension = {self.state_dimension:d})")
         else:
             out.append("(call fit() or fit_transform() to train)")
         return " ".join(out)
@@ -75,8 +75,16 @@ class TransformerTemplate(abc.ABC):
         """Verify the shape of the snapshot set Q."""
         if (n := self.state_dimension) is not None and (n2 := Q.shape[0]) != n:
             raise ValueError(
-                f"states.shape[0] = {n2:d} != {n:d} = state dimension n"
+                f"states.shape[0] = {n2:d} != {n:d} = state_dimension"
             )
+
+    def _check_locs(self, locs, states_at_locs, label="states_transformed"):
+        """Verify that the locs and states are aligned."""
+        if isinstance(locs, slice):
+            locs = np.arange(self.state_dimension)[locs]
+        if states_at_locs.shape[0] != locs.size:
+            raise ValueError(f"{label} not aligned with locs")
+        return locs
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):
@@ -183,12 +191,35 @@ class TransformerTemplate(abc.ABC):
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile, overwrite=False):
-        """Save the transformer to an HDF5 file."""
+        """Save the transformer to an HDF5 file.
+
+        Parameters
+        ----------
+        savefile : str
+            Path of the file to save the transformer to.
+        overwrite : bool
+            If ``True``, overwrite the file if it already exists.
+
+        Raises
+        ------
+        FileExistsError
+            If ``overwrite=False`` but the ``savefile`` already exists.
+        """
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
     @classmethod
     def load(cls, loadfile):
-        """Load a transformer from an HDF5 file."""
+        """Load a previously saved transformer from an HDF5 file.
+
+        Parameters
+        ----------
+        loadfile : str
+            File where the transformer was stored via :meth:`save()`.
+
+        Returns
+        -------
+        transformer
+        """
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
     # Verification ------------------------------------------------------------

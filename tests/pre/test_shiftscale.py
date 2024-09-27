@@ -217,7 +217,7 @@ class TestShiftScaleTransformer:
 
         st = self.Transformer(centering=False, scaling=None)
         st.state_dimension = 100
-        assert str(st) == "ShiftScaleTransformer (state dimension n = 100)"
+        assert str(st) == "ShiftScaleTransformer (state_dimension = 100)"
 
         assert str(hex(id(st))) in repr(st)
 
@@ -328,7 +328,7 @@ class TestShiftScaleTransformer:
         with pytest.raises(ValueError) as ex:
             stm._check_shape(X[:-1])
         assert ex.value.args[0] == (
-            f"states.shape[0] = {n - 1} != {n} = state dimension n"
+            f"states.shape[0] = {n - 1} != {n} = state_dimension"
         )
 
     def test_is_trained(self, n=20):
