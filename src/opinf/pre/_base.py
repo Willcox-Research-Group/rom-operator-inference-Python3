@@ -61,11 +61,11 @@ class TransformerTemplate(abc.ABC):
     def __str__(self) -> str:
         """String representation: scaling type + centering bool."""
         out = [self.__class__.__name__]
+        if self.name is not None:
+            out[0] += f" for variable '{self.name}'"
         if self.state_dimension is not None:
-            out.append(f"(state_dimension = {self.state_dimension:d})")
-        else:
-            out.append("(call fit() or fit_transform() to train)")
-        return " ".join(out)
+            out.append(f"state_dimension: {self.state_dimension:d}")
+        return "\n  ".join(out)
 
     def __repr__(self) -> str:
         """Unique ID + string representation."""

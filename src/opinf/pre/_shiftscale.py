@@ -637,19 +637,13 @@ class ShiftScaleTransformer(TransformerTemplate):
         )
 
     def __str__(self) -> str:
-        """String representation: scaling type + centering bool."""
-        out = [self.__class__.__name__]
-        if self.state_dimension is not None:
-            out.append(f"(state_dimension = {self.state_dimension:d})")
-        if self.centering:
-            out.append("with mean-snapshot centering")
-            if self.scaling:
-                out.append(f"and '{self.scaling}' scaling")
-        elif self.scaling:
-            out.append(f"with '{self.scaling}' scaling")
-        if not self._is_trained():
-            out.append("(call fit() or fit_transform() to train)")
-        return " ".join(out)
+        out = TransformerTemplate.__str__(self).split("\n  ")
+        out.append(f"centering: {self.centering}")
+        s = " None" if self.scaling is None else f"'{self.scaling}'"
+        out.append(f"scaling:  {s}")
+        if self.scaling is not None:
+            out.append(f"byrow:     {self.byrow}")
+        return "\n  ".join(out)
 
     # Main routines -----------------------------------------------------------
     def _is_trained(self) -> bool:
@@ -666,7 +660,7 @@ class ShiftScaleTransformer(TransformerTemplate):
         """Raise an exception if the transformer is not trained."""
         if not self._is_trained():
             raise AttributeError(
-                "transformer not trained (call fit() or fit_transform())"
+                "transformer not trained, call fit() or fit_transform()"
             )
 
     def fit_transform(self, states, inplace: bool = False):
@@ -891,8 +885,12 @@ class ShiftScaleTransformer(TransformerTemplate):
         """
         self._check_is_trained()
 
+        shift_, scale_ = self.shift_, self.scale_
         if locs is not None:
             locs = self._check_locs(locs, states_transformed)
+            if self.byrow:
+                shift_ = shift_[locs]
+                scale_ = scale_[locs]
         else:
             self._check_shape(states_transformed)
 
@@ -900,8 +898,9 @@ class ShiftScaleTransformer(TransformerTemplate):
 
         # Unscale (re-dimensionalize) the data.
         if self.scaling:
-            Y -= self.shift_
-            Y /= self.scale_
+            _flip = self.byrow and Y.ndim > 1
+            Y -= shift_.reshape((-1, 1)) if _flip else shift_
+            Y /= scale_.reshape((-1, 1)) if _flip else scale_
 
         # Uncenter the unscaled snapshots.
         if self.centering:
