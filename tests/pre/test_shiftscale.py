@@ -70,6 +70,7 @@ def test_scale(set_up_transformer_data):
     assert np.allclose(opinf.pre.scale(Xscaled, scaled_from, scaled_to), X)
 
 
+# Transformer classes =========================================================
 class TestShiftTransformer(_TestTransformer):
     Transformer = opinf.pre.ShiftTransformer
     statedim = 20
@@ -80,7 +81,7 @@ class TestShiftTransformer(_TestTransformer):
     def test_init(self):
         """Test __init__() and the reference property."""
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(TypeError) as ex:
             self.Transformer("moose")
         assert ex.value.args[0] == (
             "reference snapshot must be a one-dimensional array"
@@ -91,8 +92,40 @@ class TestShiftTransformer(_TestTransformer):
         assert isinstance(tf.reference, np.ndarray)
         assert tf.reference.shape == (tf.state_dimension,)
 
+        with pytest.raises(AttributeError) as ex:
+            tf.state_dimension = self.statedim + 2
+        assert ex.value.args[0] == (
+            "can't set attribute 'state_dimension' to "
+            f"{self.statedim + 2} != {self.statedim} = reference.size"
+        )
 
-# Transformer classes =========================================================
+
+class TestScaleTransformer(_TestTransformer):
+    Transformer = opinf.pre.ScaleTransformer
+    statedim = 21
+
+    def get_transformers(self, name=None):
+        yield self.Transformer(np.random.random(), name=name)
+        yield self.Transformer(np.random.random(self.statedim), name=name)
+
+    def test_init(self):
+        """Test __init__() and the scale property."""
+
+        with pytest.raises(TypeError) as ex:
+            self.Transformer("bison")
+        assert ex.value.args[0] == (
+            "scaler must be a nonzero scalar or one-dimensional array"
+        )
+
+        tf = self.Transformer(10)
+        assert tf.state_dimension is None
+        assert tf.scaler == 10
+
+        tf = self.Transformer(np.random.random(self.statedim))
+        assert tf.state_dimension == self.statedim
+        assert isinstance(tf.scaler, np.ndarray)
+
+
 class TestShiftScaleTransformer(_TestTransformer):
     """Test pre.ShiftScaleTransformer."""
 

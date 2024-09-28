@@ -9,6 +9,7 @@ __all__ = [
     "ShiftScaleTransformer",
 ]
 
+import numbers
 import warnings
 import numpy as np
 
@@ -173,23 +174,34 @@ class ShiftTransformer(TransformerTemplate):
 
     def __init__(self, reference_snapshot, /, name=None):
         """Set the reference snapshot."""
-        super().__init__(name)
+        super().__init__(name=name)
 
         if (
             not isinstance(reference_snapshot, np.ndarray)
             or reference_snapshot.ndim != 1
         ):
-            raise ValueError(
+            raise TypeError(
                 "reference snapshot must be a one-dimensional array"
             )
         self.__qbar = reference_snapshot
-        self.state_dimension = reference_snapshot.shape[0]
 
     # Properties --------------------------------------------------------------
     @property
     def reference(self):
         r"""Reference snapshot :math:`\bar{\q}\in\RR^n`."""
         return self.__qbar
+
+    @property
+    def state_dimension(self):
+        return self.reference.shape[0]
+
+    @state_dimension.setter
+    def state_dimension(self, n):
+        if not isinstance(n, numbers.Number) or n != self.state_dimension:
+            raise AttributeError(
+                "can't set attribute 'state_dimension'"
+                f" to {n} != {self.state_dimension} = reference.size"
+            )
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):
@@ -348,10 +360,133 @@ class ShiftTransformer(TransformerTemplate):
 
 
 class ScaleTransformer(TransformerTemplate):
-    r"""Scale (nondimensionalize) snapshots by a given scalar :math:`\alpha`.
+    r"""Scale (nondimensionalize) snapshots as a whole or by row.
 
-    TODO
+    Parameters
+    ----------
+    scaler : float or (n,) ndarray
+        Scaling factor. If a float, data are scaled as a whole; if an
+        array, data are scaled by row.
+    name : str or None
+        Label for the state variable that this transformer acts on.
+
+    Notes
+    -----
+    In this class, the scaler :math:`\alpha` or :math:`\boldsymbol{\alpha}` is
+    provided explicitly. Use :class:`ShiftScaleTransformer` to learn different
+    types of scaling from training data.
     """
+
+    def __init__(self, scaler, /, name=None):
+        """Set the scaler."""
+        super().__init__(name=name)
+
+        if not (
+            (isinstance(scaler, numbers.Number) and scaler != 0)
+            or (
+                isinstance(scaler, np.ndarray)
+                and scaler.ndim == 1
+                and np.count_nonzero(scaler) == scaler.size
+            )
+        ):
+            raise TypeError(
+                "scaler must be a nonzero scalar or one-dimensional array"
+            )
+
+        self.__scl = scaler
+        if self.byrow:
+            TransformerTemplate.state_dimension.fset(self, scaler.size)
+
+    # Properties --------------------------------------------------------------
+    @property
+    def scaler(self):
+        """Scaling factor. If a float, data are scaled as a whole; if an array,
+        data are scaled by row.
+        """
+        return self.__scl
+
+    @property
+    def byrow(self):
+        """Whether data are scaled by row (``True``, :attr:`scaler` is an
+        array) or as a whole (``False``, :attr:`scaler` is a float).
+        """
+        return isinstance(self.scaler, np.ndarray)
+
+    @property
+    def state_dimension(self):
+        return TransformerTemplate.state_dimension.fget(self)
+
+    @state_dimension.setter
+    def state_dimension(self, n):
+        if self.byrow and (
+            not isinstance(n, numbers.Number) or n != self.state_dimension
+        ):
+            raise AttributeError(
+                "can't set attribute 'state_dimension'"
+                f" to {n} != {self.state_dimension} = scaler.size"
+            )
+        TransformerTemplate.state_dimension.fset(self, n)
+
+    # Main routines -----------------------------------------------------------
+    def fit(self, states):
+        if not self.byrow:
+            self.state_dimension = states.shape[0]
+        self._check_shape(states)
+        return self
+
+    def fit_transform(self, states, inplace=False):
+        self.fit(states)
+        return self.transform(states, inplace=inplace)
+
+    def transform(self, states, inplace=False):
+        self._check_shape(states)
+
+        Y = states if inplace else states.copy()
+        _flip = self.byrow and Y.ndim > 1
+        Y *= self.scaler.reshape((-1, 1)) if _flip else self.scaler
+
+        return Y
+
+    def transform_ddts(self, ddts, inplace=False):
+        return self.transform(ddts, inplace=inplace)
+
+    def inverse_transform(self, states_scaled, inplace=False, locs=None):
+        scaler_ = self.scaler
+        if locs is not None:
+            locs = self._check_locs(locs, states_scaled)
+            if self.byrow:
+                scaler_ = scaler_[locs]
+        else:
+            self._check_shape(states_scaled)
+
+        Y = states_scaled if inplace else states_scaled.copy()
+        _flip = self.byrow and Y.ndim > 1
+        Y /= scaler_.reshape((-1, 1)) if _flip else scaler_
+
+        return Y
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["name"] = str(self.name)
+            if (n := self.state_dimension) is not None:
+                meta.attrs["state_dimension"] = n
+            scaler = self.scaler if self.byrow else [self.scaler]
+            hf.create_dataset("scaler", data=scaler)
+
+    @classmethod
+    def load(cls, loadfile):
+        with utils.hdf5_loadhandle(loadfile) as hf:
+            meta = hf["meta"]
+            name = meta.attrs["name"]
+            scaler = hf["scaler"][:]
+            if scaler.shape == (1,):
+                scaler = scaler[0]
+            out = cls(scaler, name=(None if name == "None" else name))
+            if not out.byrow and "state_dimension" in meta.attrs:
+                out.state_dimension = int(meta.attrs["state_dimension"])
+            return out
 
 
 class ShiftScaleTransformer(TransformerTemplate):
@@ -578,7 +713,7 @@ class ShiftScaleTransformer(TransformerTemplate):
             raise AttributeError("cannot set scale_ (scaling=None)")
         if self.byrow:
             if self.state_dimension is None:
-                if np.ndim(alpha) != 1 or np.isscalar(alpha):
+                if np.ndim(alpha) != 1:
                     raise ValueError("expected one-dimensional scale_")
                 self.state_dimension = alpha.shape[0]
             if np.shape(alpha) != ((n := self.state_dimension),):
@@ -599,7 +734,7 @@ class ShiftScaleTransformer(TransformerTemplate):
             raise AttributeError("cannot set shift_ (scaling=None)")
         if self.byrow:
             if self.state_dimension is None:
-                if np.ndim(beta) != 1 or np.isscalar(beta):
+                if np.ndim(beta) != 1:
                     raise ValueError("expected one-dimensional shift_")
                 self.state_dimension = beta.shape[0]
             if np.shape(beta) != ((n := self.state_dimension),):

@@ -43,14 +43,16 @@ class _TestTransformer(abc.ABC):
         assert tf.name is None
 
     def test_state_dimension(self):
-        """Test the state_dimension setter."""
-        tf = self.get_transformer()
-        tf.state_dimension = 10.0
-        n = tf.state_dimension
-        assert isinstance(n, int)
-        assert tf.state_dimension == n
-        tf.state_dimension = None
-        assert tf.state_dimension is None
+        """Test the state_dimension setter if the state_dimension is not
+        already set after the initializer.
+        """
+        for tf in self.get_transformers():
+            if tf.state_dimension is None:
+                tf.state_dimension = 10.0
+                assert isinstance(tf.state_dimension, int)
+                assert tf.state_dimension == 10
+                tf.state_dimension = None
+                assert tf.state_dimension is None
 
     def test_str(self):
         """Lightly test __str__() and __repr__()."""
@@ -146,18 +148,14 @@ class _TestTransformer(abc.ABC):
     def test_verify(self, n=30, k=50):
         """Test verify()."""
         for tf in self.get_transformers():
+            if tf.state_dimension is None:
+                with pytest.raises(AttributeError) as ex:
+                    tf.verify()
+                assert ex.value.args[0] == (
+                    "transformer not trained (state_dimension not set), "
+                    "call fit() or fit_transform()"
+                )
+                tf.state_dimension = n
 
-            if (old_n := tf.state_dimension) is not None:
-                n = old_n
-            tf.state_dimension = None
-
-            with pytest.raises(AttributeError) as ex:
-                tf.verify()
-            assert ex.value.args[0] == (
-                "transformer not trained (state_dimension not set), "
-                "call fit() or fit_transform()"
-            )
-
-            tf.state_dimension = n
-            tf.fit(np.random.random((n, k)))
+            tf.fit(np.random.random((tf.state_dimension, k)))
             tf.verify()
