@@ -10,7 +10,38 @@ import opinf
 from .test_base import _TestTransformer
 
 
+class TestTransformerPipeline(_TestTransformer):
+    """Tests for pre._base.TransformerPipeline."""
+
+    state_dimension = 20
+    requires_training = None
+
+    class Transformer(opinf.pre.TransformerPipeline):
+        @classmethod
+        def load(cls, loadfile):
+            return super().load(
+                loadfile,
+                TransformerClasses=[
+                    opinf.pre.ShiftTransformer,
+                    opinf.pre.ScaleTransformer,
+                ],
+            )
+
+    def get_transformers(self, name=None):
+        t1 = opinf.pre.ShiftTransformer(np.random.random(self.state_dimension))
+        t2 = opinf.pre.ScaleTransformer(np.random.random())
+        self.requires_training = True
+        yield self.Transformer([t1, t2], name=name)
+
+        t1 = opinf.pre.ShiftTransformer(np.random.random(self.state_dimension))
+        t2 = opinf.pre.ScaleTransformer(np.random.random(self.state_dimension))
+        self.requires_training = False
+        yield self.Transformer([t1, t2], name=name)
+
+
 class TestNullTransformer(_TestTransformer):
+    """Tests for pre._base.NullTransformer."""
+
     Transformer = opinf.pre.NullTransformer
     requires_training = False
 

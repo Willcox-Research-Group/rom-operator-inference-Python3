@@ -14,7 +14,7 @@ import warnings
 import numpy as np
 
 from .. import errors, utils
-from ._base import TransformerTemplate
+from ._base import TransformerTemplate, requires_trained
 
 
 # Functional paradigm =========================================================
@@ -510,7 +510,7 @@ class ScaleTransformer(TransformerTemplate):
         self.fit(states)
         return self.transform(states, inplace=inplace)
 
-    @utils.requires("state_dimension")
+    @requires_trained
     def transform(self, states, inplace=False):
         """Apply the scaling.
 
@@ -544,7 +544,7 @@ class ScaleTransformer(TransformerTemplate):
 
         return Y
 
-    @utils.requires("state_dimension")
+    @requires_trained
     def transform_ddts(self, ddts, inplace=False):
         """Apply the scaling; the transformation for derivatives is the same
         as for snapshots.
@@ -573,7 +573,7 @@ class ScaleTransformer(TransformerTemplate):
         """
         return self.transform(ddts, inplace=inplace)
 
-    @utils.requires("state_dimension")
+    @requires_trained
     def inverse_transform(self, states_scaled, inplace=False, locs=None):
         """Apply the inverse scaling.
 

@@ -12,6 +12,12 @@ import scipy.linalg as la
 from .. import errors, ddt, utils
 
 
+requires_trained = utils.requires2(
+    "state_dimension",
+    "transformer not trained, call fit() or fit_transform()",
+)
+
+
 class TransformerTemplate(abc.ABC):
     """Template class for transformers.
 

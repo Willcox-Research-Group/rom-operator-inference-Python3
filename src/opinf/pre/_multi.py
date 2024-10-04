@@ -11,23 +11,25 @@ import warnings
 import numpy as np
 
 from .. import errors, utils
-from ._base import TransformerTemplate
-
-
-requires_trained = utils.requires2(
-    "state_dimension",
-    "transformer not trained, call fit() or fit_transform()",
-)
+from ._base import TransformerTemplate, requires_trained
 
 
 # Horizontal joining ==========================================================
-class TransformerPipeline:
+class TransformerPipeline(TransformerTemplate):
     r"""Chain multiple transformers.
 
     Given :math:`\tau\in\NN` transformers
     :math:`\mathcal{T}_1,\ldots,\mathcal{T}_{\tau}`, this class defines the
     compositional transformer
     :math:`\mathcal{T} = \mathcal{T}_{\tau}\circ\cdots\circ\mathcal{T}_1`.
+
+    Parameters
+    ----------
+    transformers : tuple of instantiated Transformer objects
+        Transformers to be chained together;
+        `transformers[0]` is applied first, then `transformers[1]`, and so on.
+    name : str or None
+        Label for the state variable that this transformer acts on.
 
     Notes
     -----
@@ -36,8 +38,125 @@ class TransformerPipeline:
     i.e., to assign different transformations for different parts of the state.
     """
 
-    def __init__(self):
-        raise NotImplementedError
+    def __init__(self, transformers, name=None):
+        """Set the transformers."""
+        super().__init__(name=name)
+
+        if isinstance(transformers, list):
+            transformers = tuple(transformers)
+        else:
+            raise TypeError("'transformers' should be a list or tuple")
+
+        statedims = set()
+        for i, tf in enumerate(transformers):
+            if not isinstance(tf, TransformerTemplate):
+                warnings.warn(
+                    f"transformers[{i}] does not inherit from "
+                    "TransformerTemplate, unexpected behavior may occur",
+                    errors.OpInfWarning,
+                )
+            statedims.add(tf.state_dimension)
+        statedims.discard(None)
+        if len(statedims) > 1:
+            raise ValueError("transformers have inconsistent state_dimension")
+
+        if len(transformers) == 1:
+            warnings.warn(
+                "only one transformer provided to TransformerPipeline",
+                errors.OpInfWarning,
+            )
+        self.__transformers = tuple(transformers)
+
+    # Properties --------------------------------------------------------------
+    @property
+    def transformers(self) -> tuple:
+        """Transformers being chained together;
+        `transformers[0]` is applied first, then `transformers[1]`, and so on.
+        """
+        return self.__transformers
+
+    @property
+    def num_transformers(self) -> int:
+        """Number of transformers chained together."""
+        return len(self.transformers)
+
+    @property
+    def state_dimension(self) -> int:
+        r"""Dimension :math:`n` of the state."""
+        for tf in self.transformers:
+            if (r := tf.state_dimension) is not None:
+                return r
+        return None
+
+    # Main routines -----------------------------------------------------------
+    def _chain(self, method, states, inplace=False, **kwargs):
+        """Apply the specified method for each transformer (forward)."""
+        func = getattr(self.transformers[0], method)
+        Y = func(states, inplace=inplace, **kwargs)
+        for tf in self.transformers[1:]:
+            func = getattr(tf, method)
+            Y = func(Y, inplace=True, **kwargs)
+        return Y
+
+    def fit_transform(self, states, inplace=False):
+        return self._chain("fit_transform", states, inplace=inplace)
+
+    def transform(self, states, inplace=False):
+        return self._chain("transform", states, inplace=inplace)
+
+    def inverse_transform(self, states_transformed, inplace=False, locs=None):
+        Y = self.transformers[-1].inverse_transform(
+            states_transformed,
+            inplace=inplace,
+            locs=locs,
+        )
+        for tf in reversed(self.transformers[:-1]):
+            Y = tf.inverse_transform(Y, inplace=True, locs=locs)
+        return Y
+
+    def transform_ddts(self, ddts, inplace=False):
+        return self._chain("transform_ddts", ddts, inplace=inplace)
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile: str, overwrite: bool = False):
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["name"] = str(self.name)
+            meta.attrs["num_transformers"] = self.num_transformers
+            for i, tf in enumerate(self.transformers):
+                tf.save(hf.create_group(f"transformer_{i:0>2d}"))
+
+    @classmethod
+    def load(cls, loadfile: str, TransformerClasses):
+        """Load a previously saved transformer from an HDF5 file.
+
+        Parameters
+        ----------
+        loadfile : str
+            File where the transformer was stored via :meth:`save()`.
+        TransformerClasses : Iterable[type]
+            Classes of the transformers for each state variable.
+
+        Returns
+        -------
+        TransformerPipeline
+        """
+        with utils.hdf5_loadhandle(loadfile) as hf:
+            meta = hf["meta"]
+            name = str(meta.attrs["name"])
+            num_transformers = int(meta.attrs["num_transformers"])
+            if (nclasses := len(TransformerClasses)) != num_transformers:
+                raise ValueError(
+                    f"file contains {num_transformers:d} transformers "
+                    f"but {nclasses:d} classes provided"
+                )
+
+            transformers = [
+                TransformerClasses[i].load(hf[f"transformer_{i:0>2d}"])
+                for i in range(num_transformers)
+            ]
+
+            return cls(transformers, name=name)
 
 
 # Vertical joining ============================================================
@@ -565,24 +684,14 @@ class TransformerMulti:
         return states_transformed if inplace else states
 
     # Model persistence -------------------------------------------------------
-    def save(self, savefile, overwrite=False):
-        """Save the transformer to an HDF5 file.
-
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the transformer to.
-        overwrite : bool
-            If ``True``, overwrite the file if it already exists. If ``False``
-            (default), raise a ``FileExistsError`` if the file already exists.
-        """
+    def save(self, savefile: str, overwrite: bool = False):
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             hf.create_dataset("num_variables", data=[self.num_variables])
             for i, tf in enumerate(self.transformers):
                 tf.save(hf.create_group(f"variable{i}"))
 
     @classmethod
-    def load(cls, loadfile, TransformerClasses):
+    def load(cls, loadfile: str, TransformerClasses):
         """Load a previously saved transformer from an HDF5 file.
 
         Parameters
