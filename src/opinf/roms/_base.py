@@ -241,6 +241,7 @@ class _BaseROM(abc.ABC):
             Version of ``states_compressed`` in the original state space.
         """
         inplace = False
+
         # Reverse dimensionality reduction.
         states = states_encoded
         if self.basis is not None:
@@ -286,7 +287,7 @@ class _BaseROM(abc.ABC):
         """
         return self.decode(self.encode(states))
 
-    # Abstract methods --------------------------------------------------------
+    # Training ----------------------------------------------------------------
     def _check_fit_args(self, lhs, inputs):
         """Verify required arguments for :meth:`fit()`."""
 
@@ -303,7 +304,6 @@ class _BaseROM(abc.ABC):
                 "argument 'inputs' required (model depends on external inputs)"
             )
 
-    # Training ----------------------------------------------------------------
     @abc.abstractmethod
     def fit(
         self,
@@ -353,7 +353,17 @@ class _BaseROM(abc.ABC):
 
         Returns
         -------
-        self
+        states : list of s (r, k_i) ndarrays
+            State snapshots in the reduced state space.
+        lhs : list of s (r, k_i) ndarrays or None
+            Left-hand side regression data in the reduced state space.
+        inputs : list of s (m, k_i) ndarrays or None
+            Processed input training data.
+
+        Notes
+        -----
+        This abstract method returns the processed training data, but in child
+        classes, ``fit()`` should return ``self``.
         """
         # Lifting.
         if self.lifter is not None:
@@ -414,3 +424,6 @@ class _BaseROM(abc.ABC):
     def predict(self, *args, **kwargs):
         """Evaluate the model."""
         raise NotImplementedError  # pragma: no cover
+
+    # Verification ------------------------------------------------------------
+    # TODO

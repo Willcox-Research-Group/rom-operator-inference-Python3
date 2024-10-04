@@ -55,6 +55,26 @@ class ParametricROM(_BaseROM):
         super().__init__(model, lifter, transformer, basis, ddt_estimator)
 
     # Training and evaluation -------------------------------------------------
+    def _fit_and_return_training_data(
+        self,
+        parameters,
+        states,
+        lhs,
+        inputs,
+        fit_transformer,
+        fit_basis,
+    ):
+        self._check_fit_args(lhs=lhs, inputs=inputs)
+        states, lhs, inputs = super().fit(
+            states=states,
+            lhs=lhs,
+            inputs=inputs,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+        )
+        self.model.fit(parameters, states, lhs, inputs)
+        return states, inputs
+
     def fit(
         self,
         parameters,
@@ -105,16 +125,14 @@ class ParametricROM(_BaseROM):
         -------
         self
         """
-        _BaseROM._check_fit_args(self, lhs=lhs, inputs=inputs)
-        states, lhs, inputs = _BaseROM.fit(
-            self,
+        self._fit_and_return_training_data(
+            parameters=parameters,
             states=states,
             lhs=lhs,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
         )
-        self.model.fit(parameters, states, lhs, inputs)
         return self
 
     def predict(self, parameter, state0, *args, **kwargs):

@@ -55,6 +55,42 @@ class ROM(_BaseROM):
         super().__init__(model, lifter, transformer, basis, ddt_estimator)
 
     # Training and evaluation -------------------------------------------------
+    def _fit_and_return_training_data(
+        self,
+        states,
+        lhs,
+        inputs,
+        fit_transformer,
+        fit_basis,
+    ):
+        """Process the training data, fit the model, and return the processed
+        training data.
+        """
+        self._check_fit_args(lhs=lhs, inputs=inputs)
+
+        # Single trajectory case.
+        if states[0].ndim == 1:
+            states = [states]
+            if lhs is not None:
+                lhs = [lhs]
+            if inputs is not None:
+                inputs = [inputs]
+
+        states, lhs, inputs = super().fit(
+            states=states,
+            lhs=lhs,
+            inputs=inputs,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+        )
+
+        # Concatentate trajectories.
+        if inputs is not None:
+            inputs = np.hstack(inputs)
+        self.model.fit(np.hstack(states), np.hstack(lhs), inputs)
+
+        return states, inputs
+
     def fit(
         self,
         states,
@@ -106,18 +142,42 @@ class ROM(_BaseROM):
         -------
         self
         """
-        _BaseROM._check_fit_args(self, lhs=lhs, inputs=inputs)
+        self._fit_and_return_training_data(
+            states=states,
+            lhs=lhs,
+            inputs=inputs,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+        )
+        return self
 
-        # Single trajectory case.
-        if states[0].ndim == 1:
-            states = [states]
-            if lhs is not None:
-                lhs = [lhs]
-            if inputs is not None:
-                inputs = [inputs]
+    def _fit_regselect(
+        self,
+        states,
+        lhs=None,
+        inputs=None,
+        fit_transformer: bool = True,
+        fit_basis: bool = True,
+        train_time_domain=None,
+        test_time_domain=None,
+        test_niters=None,
+        test_initial_conditions=None,
+        test_inputs=None,
+        predict_method: str = "RK45",
+        candidates=None,
+        regularizer_factory: callable = None,
+        stability_margin: float = 5.0,
+    ):
+        """Calibrate the model to training data, selecting the regularization
+        hyperparameter(s) that minimize the training error while maintaining
+        stability over the testing regime.
 
-        states, lhs, inputs = _BaseROM.fit(
-            self,
+        This method requires the :attr:`model` to have a ``solver`` of one of
+        the following types:
+        TODO
+        """
+        # Fit the model for the first time.
+        states, inputs = self._fit_and_return_training_data(
             states=states,
             lhs=lhs,
             inputs=inputs,
@@ -125,12 +185,7 @@ class ROM(_BaseROM):
             fit_basis=fit_basis,
         )
 
-        # Concatentate trajectories.
-        if inputs is not None:
-            inputs = np.hstack(inputs)
-        self.model.fit(np.hstack(states), np.hstack(lhs), inputs)
-
-        return self
+        # Validate ...all of the inputs...
 
     def predict(self, state0, *args, **kwargs):
         """Evaluate the reduced-order model.
