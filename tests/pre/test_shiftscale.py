@@ -73,6 +73,7 @@ def test_scale(set_up_transformer_data):
 # Transformer classes =========================================================
 class TestShiftTransformer(_TestTransformer):
     Transformer = opinf.pre.ShiftTransformer
+    requires_training = False
     statedim = 20
 
     def get_transformers(self, name=None):
@@ -102,10 +103,13 @@ class TestShiftTransformer(_TestTransformer):
 
 class TestScaleTransformer(_TestTransformer):
     Transformer = opinf.pre.ScaleTransformer
+    requires_training = None
     statedim = 21
 
     def get_transformers(self, name=None):
+        self.requires_training = True
         yield self.Transformer(np.random.random(), name=name)
+        self.requires_training = False
         yield self.Transformer(np.random.random(self.statedim), name=name)
 
     def test_init(self):
@@ -130,12 +134,15 @@ class TestShiftScaleTransformer(_TestTransformer):
     """Test pre.ShiftScaleTransformer."""
 
     Transformer = opinf.pre.ShiftScaleTransformer
+    requires_training = True
 
     def get_transformers(self, name=None):
         for scaling, centering in itertools.product(
             {None, *self.Transformer._VALID_SCALINGS},
             (True, False),
         ):
+            if scaling is None and centering is False:
+                self.requires_training = False
             yield self.Transformer(
                 centering=centering,
                 scaling=scaling,
@@ -143,6 +150,7 @@ class TestShiftScaleTransformer(_TestTransformer):
                 name=name,
                 verbose=False,
             )
+            self.requires_training = True
             if scaling is not None:
                 yield self.Transformer(
                     centering=centering,

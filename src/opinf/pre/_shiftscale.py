@@ -150,7 +150,7 @@ class ShiftTransformer(TransformerTemplate):
     .. math::
        \Q \mapsto \Q'
        = \Q - \bar{\q}\mathbf{1}_k\trp
-       = \left[\begin{array}{cccc}
+       = \left[\begin{array}{c|c|c|c}
           &&& \\
           \q_0 - \bar{\q} & \q_1 - \bar{\q} & \cdots & \q_{k-1} - \bar{\q}
           \\ &&&
@@ -169,7 +169,7 @@ class ShiftTransformer(TransformerTemplate):
     -----
     In this class, the reference snapshot :math:`\bar{\q}` is provided
     explicitly. Use :class:`ShiftScaleTransformer` to define :math:`\bar{\q}`
-    as the time-averaged training snapshot.
+    as the average training snapshot.
     """
 
     def __init__(self, reference_snapshot, /, name=None):
@@ -193,6 +193,7 @@ class ShiftTransformer(TransformerTemplate):
 
     @property
     def state_dimension(self):
+        r"""Dimension :math:`n` of the state."""
         return self.reference.shape[0]
 
     @state_dimension.setter
@@ -362,11 +363,40 @@ class ShiftTransformer(TransformerTemplate):
 class ScaleTransformer(TransformerTemplate):
     r"""Scale (nondimensionalize) snapshots as a whole or by row.
 
+    If the provided :attr:`scaler` is a number :math:`\alpha \neq 0`, this
+    transformation simply multiplies the input by that scaler. For a vector
+    :math:`\q\in\RR^n`, the transformation is
+    :math:`\q \mapsto \q' = \alpha\q` with inverse transformation
+    :math:`\q' \mapsto \q = \frac{1}{\alpha}\q'`, and similarly for matrices.
+
+    If the :attr:`scaler` is a vector :math:`\boldsymbol{\alpha}\in\RR^{n}`,
+    this transformation multiplies each row of the input by the corresponding
+    entry of :math:`\boldsymbol{\alpha}`. For a vector :math:`\q\in\RR^n`, the
+    transformation is :math:`\q\mapsto\q' = \boldsymbol{\alpha}\ast\q` where
+    :math:`\ast` is the elementwise (Hadamard) product (``*`` in NumPy).
+    The inverse transformation performs elementwise division (``/`` in NumPy).
+    For a matrix :math:`\Q\in\RR^{n \times k}`, the transformation is applied
+    columnwise: writing :math:`\Q = [~\q_0~~\q_1~~\cdots~~\q_{k-1}~]`,
+
+    .. math::
+       \Q \mapsto \Q'
+       = \Q \ast \boldsymbol{\alpha}\1\trp
+       = \left[\begin{array}{c|c|c|c}
+          &&& \\
+          \q_0 \ast \boldsymbol{\alpha} &
+          \q_1 \ast \boldsymbol{\alpha} &
+          \cdots &
+          \q_{k-1} \ast \boldsymbol{\alpha}
+          \\ &&&
+       \end{array}\right],
+
+    with the inverse transformation defined similarly.
+
     Parameters
     ----------
     scaler : float or (n,) ndarray
-        Scaling factor. If a float, data are scaled as a whole; if an
-        array, data are scaled by row.
+        Scaling factor. If a float, data are scaled as a whole; if an array,
+        data are scaled by row. Must be nonzero or have all nonzero entries.
     name : str or None
         Label for the state variable that this transformer acts on.
 
@@ -401,7 +431,7 @@ class ScaleTransformer(TransformerTemplate):
     @property
     def scaler(self):
         """Scaling factor. If a float, data are scaled as a whole; if an array,
-        data are scaled by row.
+        data are scaled by row. Must be nonzero or have all nonzero entries.
         """
         return self.__scl
 
@@ -414,6 +444,7 @@ class ScaleTransformer(TransformerTemplate):
 
     @property
     def state_dimension(self):
+        r"""Dimension :math:`n` of the state."""
         return TransformerTemplate.state_dimension.fget(self)
 
     @state_dimension.setter
@@ -429,16 +460,82 @@ class ScaleTransformer(TransformerTemplate):
 
     # Main routines -----------------------------------------------------------
     def fit(self, states):
+        """Set the :attr:`state_dimension` if :attr:`scaler` is not an array,
+        otherwise do nothing.
+
+        Parameters
+        ----------
+        states : (n, k) ndarray
+            Matrix of `k` `n`-dimensional snapshots.
+
+        Returns
+        -------
+        self
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`
+            (only when :attr:`scaler` is an array)
+        """
         if not self.byrow:
             self.state_dimension = states.shape[0]
         self._check_shape(states)
         return self
 
     def fit_transform(self, states, inplace=False):
+        """Set the :attr:`state_dimension` if :attr:`scaler` is not an array,
+        and apply the scaling.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
+        inplace : bool
+            If ``True``, overwrite ``states`` during transformation.
+            If ``False``, create a copy of the data to transform.
+
+        Returns
+        -------
+        states_scaled: (n, ...) ndarray
+            Matrix of `n`-dimensional scaled snapshots, or a single scaled
+            snapshot.
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`
+            (only when :attr:`scaler` is an array).
+        """
         self.fit(states)
         return self.transform(states, inplace=inplace)
 
+    @utils.requires("state_dimension")
     def transform(self, states, inplace=False):
+        """Apply the scaling.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
+        inplace : bool
+            If ``True``, overwrite ``states`` during transformation.
+            If ``False``, create a copy of the data to transform.
+
+        Returns
+        -------
+        states_scaled: (n, ...) ndarray
+            Matrix of `n`-dimensional shifted snapshots, or a single shifted
+            snapshot.
+
+        Raises
+        ------
+        AttributeError
+            If :attr:`scaler` is a number (not an array) but :meth:`fit` or
+            :meth:`fit_transform` have not been called yet.
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`.
+        """
         self._check_shape(states)
 
         Y = states if inplace else states.copy()
@@ -447,10 +544,68 @@ class ScaleTransformer(TransformerTemplate):
 
         return Y
 
+    @utils.requires("state_dimension")
     def transform_ddts(self, ddts, inplace=False):
+        """Apply the scaling; the transformation for derivatives is the same
+        as for snapshots.
+
+        Parameters
+        ----------
+        ddts : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshot time derivatives, or a
+            single snapshot time derivative.
+        inplace : bool
+            If ``True``, modify ``ddts`` inplace.
+            If ``False`` (default), return a new array.
+
+        Returns
+        -------
+        ddts_scaled : (n, ...) ndarray
+            Scaled snapshot time derivatives.
+
+        Raises
+        ------
+        AttributeError
+            If :attr:`scaler` is a number (not an array) but :meth:`fit` or
+            :meth:`fit_transform` have not been called yet.
+        ValueError
+            If the ``ddts`` do not align with the :attr:`state_dimension`.
+        """
         return self.transform(ddts, inplace=inplace)
 
+    @utils.requires("state_dimension")
     def inverse_transform(self, states_scaled, inplace=False, locs=None):
+        """Apply the inverse scaling.
+
+        Parameters
+        ----------
+        states_scaled : (n, ...) or (p, ...)  ndarray
+            Matrix of `n`-dimensional scaled snapshots, or a single scaled
+            snapshot.
+        inplace : bool
+            If ``True``, overwrite ``states_scaled`` during the inverse
+            transformation. If ``False``, create a copy of the data to
+            untransform.
+        locs : slice or (p,) ndarray of integers or None
+            If given, assume ``states_scaled`` contains the transformed
+            snapshots at only the `p` indices described by ``locs``.
+
+        Returns
+        -------
+        states_unscaled: (n, ...) or (p, ...) ndarray
+            Matrix of `n`-dimensional unscaled snapshots, or the `p` entries
+            of such at the indices specified by ``locs``.
+
+        Raises
+        ------
+        AttributeError
+            If :attr:`scaler` is a number (not an array) but :meth:`fit` or
+            :meth:`fit_transform` have not been called yet.
+        ValueError
+            If the ``states_scaled`` do not align with the ``locs`` (when
+            provided) or the :attr:`state_dimension` (when ``locs`` is not
+            provided).
+        """
         scaler_ = self.scaler
         if locs is not None:
             locs = self._check_locs(locs, states_scaled)
@@ -523,61 +678,77 @@ class ShiftScaleTransformer(TransformerTemplate):
 
         **Options:**
 
-        * ``'standard'``: standardize to zero mean and unit standard deviation.
+        .. dropdown:: ``'standard'``
+           Standardize to zero mean and unit standard deviation
 
-          .. math:: \Q'' = \Q' - \frac{\mean(\Q')}{\std(\Q')}.
+           .. list-table::
 
-          Guarantees :math:`\mean(\Q'') = 0` and :math:`\std(\Q'') = 1`.
+              * - Formula
+                - .. math:: \Q'' = \frac{\Q' - \mean(\Q')}{\std(\Q')}
+              * - ``byrow=False``
+                - :math:`\mean(\Q'') = 0` and :math:`\std(\Q'') = 1`
+              * - ``byrow=True``
+                - :math:`\mean_{j}(\Q_{i,j}'') = 0` and
+                  :math:`\std_j(\Q_{i,j}'') = 1` for each row index :math:`i`
 
-          If ``byrow=True``, then :math:`\mean_{j}(\Q_{i,j}'') = 0` and
-          :math:`\std_j(\Q_{i,j}'') = 1` for each row index :math:`i`.
+        .. dropdown:: ``'minmax'``
+           Minmax scaling to :math:`[0, 1]`
 
-        * ``'minmax'``: minmax scaling to :math:`[0, 1]`.
+           .. list-table::
 
-          .. math:: \Q'' = \frac{\Q' - \min(\Q')}{\max(\Q') - \min(\Q')}.
+              * - Formula
+                - .. math:: \Q'' = \frac{\Q'-\min(\Q')}{\max(\Q')-\min(\Q')}
+              * - ``byrow=False``
+                - :math:`\min(\Q'') = 0` and :math:`\max(\Q'') = 1`
+              * - ``byrow=True``
+                - :math:`\min_{j}(\Q_{i,j}'') = 0` and
+                  :math:`\max_{j}(\Q_{i,j}'') = 1` for each row index :math:`i`
 
-          Guarantees :math:`\min(\Q'') = 0` and :math:`\max(\Q'') = 1`.
+        .. dropdown:: ``'minmaxsym'``
+           Minmax scaling to :math:`[-1, 1]`
 
-          If ``byrow=True``, then :math:`\min_{j}(\Q_{i,j}'') = 0` and
-          :math:`\max_{j}(\Q_{i,j}'') = 1` for each row index :math:`i`.
+           .. list-table::
 
-        * ``'minmaxsym'``: minmax scaling to :math:`[-1, 1]`.
+              * - Formula
+                - .. math:: \Q'' = 2\frac{\Q'-\min(\Q')}{\max(\Q')-\min(\Q')}-1
+              * - ``byrow=False``
+                - :math:`\min(\Q'') = -1` and :math:`\max(\Q'') = 1`
+              * - ``byrow=True``
+                - :math:`\min_{j}(\Q_{i,j}'') = -1` and
+                  :math:`\max_{j}(\Q_{i,j}'') = 1` for each row index :math:`i`
 
-          .. math:: \Q'' = 2\frac{\Q' - \min(\Q')}{\max(\Q') - \min(\Q')} - 1.
+        .. dropdown:: ``'maxabs'``
+           Maximum absolute scaling to :math:`[-1, 1]` without scalar mean
+           shift
 
-          Guarantees :math:`\min(\Q'') = -1` and :math:`\max(\Q'') = 1`.
+           .. list-table::
 
-          If ``byrow=True``, then :math:`\min_{j}(\Q_{i,j}'') = -1` and
-          :math:`\max_{j}(\Q_{i,j}'') = 1` for each row index :math:`i`.
+              * - Formula
+                - .. math:: \Q'' = \frac{1}{\max(\text{abs}(\Q'))}\Q'
+              * - ``byrow=False``
+                - :math:`\mean(\Q'')=\frac{\mean(\Q')}{\max(\text{abs}(\Q'))}`
+                  and :math:`\max(\text{abs}(\Q'')) = 1`
+              * - ``byrow=True``
+                - :math:`\mean_{j}(\Q_{i,j}'')
+                  = \frac{\mean_j(\Q_{i,j}')}{\max_j(\text{abs}(\Q_{i,j}'))}`
+                  and :math:`\max_{j}(\text{abs}(\Q_{i,j}'')) = 1`
+                  for each row index :math:`i`
 
-        * ``'maxabs'``: maximum absolute scaling to :math:`[-1, 1]`
-          `without` scalar mean shift.
+        .. dropdown:: ``'maxabssym'``
+           Maximum absolute scaling to :math:`[-1, 1]` with scalar mean shift
 
-          .. math:: \Q'' = \frac{1}{\max(\text{abs}(\Q'))}\Q'.
+           .. list-table::
 
-          Guarantees
-          :math:`\mean(\Q'') = \frac{\mean(\Q')}{\max(\text{abs}(\Q'))}`
-          and :math:`\max(\text{abs}(\Q'')) = 1`.
-
-          If ``byrow=True``, then
-          :math:`\mean_{j}(\Q_{i,j}'')
-          = \frac{\mean_j(\Q_{i,j}')}{\max_j(\text{abs}(\Q_{i,j}'))}`
-          and :math:`\max_{j}(\text{abs}(\Q_{i,j}'')) = 1` for each
-          row index :math:`i`.
-
-        * ``'maxabssym'``: maximum absolute scaling to :math:`[-1, 1]`
-          `with` scalar mean shift.
-
-          .. math::
-             \Q''
-             = \frac{\Q' - \mean(\Q')}{\max(\text{abs}(\Q' - \mean(\Q')))}.
-
-          Guarantees :math:`\mean(\Q'') = 0` and
-          :math:`\max(\text{abs}(\Q'')) = 1`.
-
-          If ``byrow=True``, then :math:`\mean_j(\Q_{i,j}'') = 0` and
-          :math:`\max_j(\text{abs}(\Q_{i,j}'')) = 1` for each row index
-          :math:`i`.
+              * - Formula
+                - .. math::
+                     \Q'' = \frac{\Q' - \mean(\Q')}{
+                     \max(\text{abs}(\Q' - \mean(\Q')))}
+              * - ``byrow=False``
+                - :math:`\mean(\Q'')=0` and :math:`\max(\text{abs}(\Q''))=1`
+              * - ``byrow=True``
+                - :math:`\mean_j(\Q_{i,j}'') = 0` and
+                  :math:`\max_j(\text{abs}(\Q_{i,j}'')) = 1` for each row index
+                  :math:`i`
 
     byrow : bool
         If ``True``, scale each row of the snapshot matrix separately when a
@@ -590,7 +761,7 @@ class ShiftScaleTransformer(TransformerTemplate):
     -----
     A custom shifting vector (i.e., the mean snapshot) can be specified by
     setting the ``mean_`` attribute. Similarly, the scaling
-    :math:`q'\mapsto q'' = \alpha q' + \beta` can be adjusted by setting the
+    :math:`\q'\mapsto \q'' = \alpha \q' + \beta` can be adjusted by setting the
     ``scale_`` (:math:`\alpha`) and ``shift_`` (:math:`\beta`) attributes.
     However, calling :meth:`fit()` or :meth:`fit_transform()` will overwrite
     all three attributes.

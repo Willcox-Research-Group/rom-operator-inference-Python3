@@ -14,6 +14,7 @@ class _TestTransformer(abc.ABC):
 
     # Setup -------------------------------------------------------------------
     Transformer = NotImplemented  # Class being tested.
+    requires_training = True  # If fit() required before transform().
     exact_inverse = True  # If transform()/inverse_transform() are inverses
     saveload = True  # Whether to test save()/load().
 
@@ -71,6 +72,17 @@ class _TestTransformer(abc.ABC):
             y = Y[:, 0]
             Z = np.random.random((n, k + 2))
             z = Z[:, 0]
+
+            # Check that transform(), transform_ddts(), and inverse_transform()
+            # cannot be called before training.
+            if self.requires_training:
+                for method in (
+                    tf.transform,
+                    tf.transform_ddts,
+                    tf.inverse_transform,
+                ):
+                    with pytest.raises(AttributeError):
+                        method(Q)
 
             # Test fit().
             out = tf.fit(Q)

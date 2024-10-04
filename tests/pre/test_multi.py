@@ -12,6 +12,7 @@ from .test_base import _TestTransformer
 
 class TestNullTransformer(_TestTransformer):
     Transformer = opinf.pre.NullTransformer
+    requires_training = False
 
     def get_transformers(self, name=None):
         yield self.Transformer(name=name)
