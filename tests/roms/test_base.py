@@ -149,7 +149,7 @@ class _TestBaseROM(abc.ABC):
             with pytest.raises(AttributeError) as ex:
                 rom.encode(states)
             assert ex.value.args[0] == (
-                "transformer not trained (call fit() or fit_transform())"
+                "transformer not trained, call fit() or fit_transform()"
             )
 
             out = rom.encode(states, fit_transformer=True, inplace=False)
@@ -213,7 +213,7 @@ class _TestBaseROM(abc.ABC):
             with pytest.raises(AttributeError) as ex:
                 rom.decode(states)
             assert ex.value.args[0] == (
-                "transformer not trained (call fit() or fit_transform())"
+                "transformer not trained, call fit() or fit_transform()"
             )
             states = np.random.random((n, k))
             states_ = rom.encode(states, fit_transformer=True)
@@ -278,7 +278,7 @@ class _TestBaseROM(abc.ABC):
             with pytest.raises(AttributeError) as ex:
                 rom.project(states)
             assert ex.value.args[0] == (
-                "transformer not trained (call fit() or fit_transform())"
+                "transformer not trained, call fit() or fit_transform()"
             )
             _check(rom, preserved=True)
 

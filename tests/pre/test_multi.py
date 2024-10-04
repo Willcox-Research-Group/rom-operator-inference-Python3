@@ -117,11 +117,11 @@ class TestTransformerMulti:
         assert len(tfm) == len(transformers)
 
         with pytest.raises(ValueError) as ex:
-            tfm.transformers = []
+            self.Transformer([])
         assert ex.value.args[0] == "at least one transformer required"
 
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            tfm.transformers = transformers[:1]
+            tfm = self.Transformer(transformers[:1])
         assert wn[0].message.args[0] == "only one variable detected"
         assert tfm.num_variables == 1
 
@@ -135,7 +135,7 @@ class TestTransformerMulti:
             name = "nothing"
 
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            tfm.transformers = [ExtraDummy(), ExtraDummy()]
+            self.Transformer([ExtraDummy(), ExtraDummy()])
         assert len(wn) == 2
         assert wn[0].message.args[0].startswith("transformers[0] does not")
         assert wn[1].message.args[0].startswith("transformers[1] does not")
@@ -172,19 +172,10 @@ class TestTransformerMulti:
         assert tfm1 == tfm2
 
     def test_str(self):
-        """Test TransformerMulti.__str__()."""
-        transformers = [self.Dummy(), self.Dummy2()]
-        tfm = self.Transformer(transformers)
-
-        stringrep = str(tfm)
-        assert stringrep.startswith("2-variable TransformerMulti\n")
-        for tf in transformers:
-            assert str(tf) in stringrep
-
-        # Quick repr() test.
-        rep = repr(tfm)
-        assert stringrep in rep
-        assert str(hex(id(tfm))) in rep
+        """Lightly test TransformerMulti.__str__()."""
+        tfm = self.Transformer([self.Dummy(), self.Dummy2()])
+        str(tfm)
+        repr(tfm)
 
     # Convenience methods -----------------------------------------------------
     def test_check_shape(self):

@@ -458,6 +458,13 @@ class ScaleTransformer(TransformerTemplate):
             )
         TransformerTemplate.state_dimension.fset(self, n)
 
+    def __str__(self):
+        lines = super().__str__().split("\n  ")
+        lines.append(
+            "scaling by row" if self.byrow else f"scaler: {self.scaler:.4e}"
+        )
+        return "\n  ".join(lines)
+
     # Main routines -----------------------------------------------------------
     def fit(self, states):
         """Set the :attr:`state_dimension` if :attr:`scaler` is not an array,
@@ -943,7 +950,7 @@ class ShiftScaleTransformer(TransformerTemplate):
         )
 
     def __str__(self) -> str:
-        out = TransformerTemplate.__str__(self).split("\n  ")
+        out = super().__str__().split("\n  ")
         out.append(f"centering: {self.centering}")
         s = " None" if self.scaling is None else f"'{self.scaling}'"
         out.append(f"scaling:  {s}")

@@ -88,6 +88,19 @@ class TransformerPipeline(TransformerTemplate):
                 return r
         return None
 
+    def __str__(self):
+        lines = super().__str__().split("\n  ")
+        lines.append(f"num_transformers: {self.num_transformers}")
+        lines.append("transformers")
+        for tf in self.transformers:
+            tfstr = str(tf).split("\n  ")
+            tfstr[0] = f"  {tfstr[0]}"
+            lines.append("\n      ".join(tfstr))
+        return "\n  ".join(lines)
+
+    def __len__(self):
+        return self.num_transformers
+
     # Main routines -----------------------------------------------------------
     def _chain(self, method, states, inplace=False, **kwargs):
         """Apply the specified method for each transformer (forward)."""
@@ -352,30 +365,13 @@ class TransformerMulti:
 
     def __init__(self, transformers, variable_sizes=None):
         """Initialize the transformers."""
-        self.transformers = transformers
-
-        if variable_sizes is not None:
-            if len(variable_sizes) != len(transformers):
-                raise ValueError("len(variable_sizes) != len(transformers)")
-            for tf, ni in zip(transformers, variable_sizes):
-                TransformerTemplate.state_dimension.fset(tf, ni)
-
-    # Properties --------------------------------------------------------------
-    @property
-    def transformers(self) -> tuple:
-        """Transformers for each state variable."""
-        return self.__transformers
-
-    @transformers.setter
-    def transformers(self, tfs):
-        """Set the transformers."""
-        if (num_variables := len(tfs)) == 0:
+        if (num_variables := len(transformers)) == 0:
             raise ValueError("at least one transformer required")
         elif num_variables == 1:
             warnings.warn("only one variable detected", errors.OpInfWarning)
 
         # Check inheritance and set default variable names.
-        tfs = [NullTransformer() if tf is None else tf for tf in tfs]
+        tfs = [NullTransformer() if tf is None else tf for tf in transformers]
         for i, tf in enumerate(tfs):
             if not isinstance(tf, TransformerTemplate):
                 warnings.warn(
@@ -386,9 +382,28 @@ class TransformerMulti:
             if tf.name is None:
                 tf.name = f"variable {i}"
 
+        # Check variable sizes.
+        if variable_sizes is not None:
+            if len(variable_sizes) != num_variables:
+                raise ValueError("len(variable_sizes) != len(transformers)")
+            for tf, ni in zip(tfs, variable_sizes):
+                if tf.state_dimension is None:
+                    tf.state_dimension = ni
+                elif (tf_n := tf.state_dimension) != ni:
+                    raise ValueError(
+                        f"transformers[{i}].state_dimension = {tf_n} "
+                        f"!= {ni} = variable_sizes[{i}]"
+                    )
+
         # Store transformers and set slice dimensions.
         self.__nq = num_variables
         self.__transformers = tuple(tfs)
+
+    # Properties --------------------------------------------------------------
+    @property
+    def transformers(self) -> tuple:
+        """Transformers for each state variable."""
+        return self.__transformers
 
     @property
     def num_variables(self) -> int:
@@ -442,11 +457,16 @@ class TransformerMulti:
 
     def __str__(self) -> str:
         """String representation: str() of each transformer."""
-        out = [f"{self.num_variables}-variable {self.__class__.__name__}"]
-        namelength = max(len(name) for name in self.variable_names)
+        lines = [self.__class__.__name__]
+        if (n := self.state_dimension) is not None:
+            lines.append(f"state_dimension: {n}")
+        lines.append(f"num_variables:   {self.num_variables}")
+        lines.append("transformers")
         for tf in self.transformers:
-            out.append(f"* {{:>{namelength}}} | {tf}".format(tf.name))
-        return "\n".join(out)
+            tfstr = str(tf).split("\n  ")
+            tfstr[0] = f"  {tfstr[0]}"
+            lines.append("\n      ".join(tfstr))
+        return "\n  ".join(lines)
 
     def __repr__(self) -> str:
         """Unique ID + string representation."""
