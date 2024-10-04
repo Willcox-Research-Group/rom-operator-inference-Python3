@@ -25,5 +25,5 @@ def mpl_config():
     except ModuleNotFoundError as ex:  # pragma: no cover
         if ex.args[0] != "No module named 'pandas'":
             raise
-    else:
+    else:  # pragma: no cover
         pd.options.display.float_format = "{:.4%}".format

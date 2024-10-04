@@ -221,6 +221,11 @@ class TestPODBasis:
         basis = self.Basis(num_vectors=r, svdsolver=lambda s: s)
         assert repr(basis).count(str(basis)) == 1
 
+        def mysvdsolver(s):
+            return s
+
+        str(self.Basis(num_vectors=r, svdsolver=mysvdsolver))
+
     def test_fit(self, n=60, k=20, r=4):
         """Test fit()."""
         Q = np.random.random((n, k))

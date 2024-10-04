@@ -38,6 +38,57 @@ class TestTransformerPipeline(_TestTransformer):
         self.requires_training = False
         yield self.Transformer([t1, t2], name=name)
 
+    def test_init(self):
+        """Test __init__() and properties."""
+        with pytest.raises(TypeError) as ex:
+            self.Transformer("moosen", name="bryan")
+        assert ex.value.args[0] == "'transformers' should be a list or tuple"
+
+        class Dummy:
+            state_dimension = 10
+
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            tf = self.Transformer([Dummy(), Dummy()])
+        assert len(wn) == 2
+        assert wn[0].message.args[0] == (
+            "transformers[0] does not inherit from TransformerTemplate, "
+            "unexpected behavior may occur"
+        )
+        assert tf.state_dimension == 10
+        assert len(tf) == 2
+
+        Q = np.empty((self.state_dimension, 2))
+        t1 = opinf.pre.NullTransformer().fit(Q)
+        t2 = opinf.pre.NullTransformer().fit(Q[1:-1, :])
+        with pytest.raises(ValueError) as ex:
+            self.Transformer([t1, t2])
+        assert ex.value.args[0] == (
+            "transformers have inconsistent state_dimension"
+        )
+
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            tf = self.Transformer([opinf.pre.NullTransformer()])
+        assert len(wn) == 1
+        assert wn[0].message.args[0] == (
+            "only one transformer provided to TransformerPipeline"
+        )
+        assert tf.state_dimension is None
+
+    def test_saveload(self):
+        """Test save() and load()."""
+        super().test_saveload()
+
+        target = "_TransformerPipeline_saveloadtest.h5"
+        tf = self.get_transformer()
+        tf.save(target, overwrite=True)
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+            opinf.pre.TransformerPipeline.load(
+                target, [list, tuple, set, dict] * 2
+            )
+        assert ex.value.args[0].startswith("file contains")
+
+        os.remove(target)
+
 
 class TestNullTransformer(_TestTransformer):
     """Tests for pre._base.NullTransformer."""
@@ -131,6 +182,12 @@ class TestTransformerMulti:
         tfm = self.Transformer(transformers)
         assert tfm.state_dimension == 45
 
+        with pytest.raises(ValueError) as ex:
+            self.Transformer(transformers, variable_sizes=(12, 15, 20))
+        assert ex.value.args[0] == (
+            "transformers[2].state_dimension = 18 != 20 = variable_sizes[2]"
+        )
+
         class ExtraDummy:
             name = "nothing"
 
@@ -175,6 +232,8 @@ class TestTransformerMulti:
         """Lightly test TransformerMulti.__str__()."""
         tfm = self.Transformer([self.Dummy(), self.Dummy2()])
         str(tfm)
+        tfm.transformers[0].state_dimension = 4
+        tfm.transformers[1].state_dimension = 4
         repr(tfm)
 
     # Convenience methods -----------------------------------------------------

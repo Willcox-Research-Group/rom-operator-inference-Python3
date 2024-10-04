@@ -129,6 +129,13 @@ class TestScaleTransformer(_TestTransformer):
         assert tf.state_dimension == self.statedim
         assert isinstance(tf.scaler, np.ndarray)
 
+        with pytest.raises(AttributeError) as ex:
+            tf.state_dimension = self.statedim - 1
+        assert ex.value.args[0] == (
+            "can't set attribute 'state_dimension' to "
+            f"{self.statedim - 1} != {self.statedim} = scaler.size"
+        )
+
 
 class TestShiftScaleTransformer(_TestTransformer):
     """Test pre.ShiftScaleTransformer."""

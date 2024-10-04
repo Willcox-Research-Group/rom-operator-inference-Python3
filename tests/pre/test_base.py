@@ -113,15 +113,27 @@ class _TestTransformer(abc.ABC):
             assert Z1 is Z
 
             # Test inverse_transform().
+            Y1 = tf.transform(Y, inplace=False)
+            Y2 = tf.inverse_transform(Y1, inplace=False)
+            assert Y2.shape == Y.shape
+            assert Y2 is not Y1
+            Y3 = tf.inverse_transform(Y1, inplace=True)
+            assert Y3 is Y1
             if self.exact_inverse:
-                Y1 = tf.transform(Y, inplace=False)
-                Y2 = tf.inverse_transform(Y1, inplace=False)
-                assert Y2.shape == Y.shape
-                assert Y2 is not Y1
                 assert np.allclose(Y2, Y)
-                Y3 = tf.inverse_transform(Y1, inplace=True)
-                assert Y3 is Y1
                 assert np.allclose(Y3, Y2)
+            Y1 = tf.transform(Y, inplace=False)
+            locs = np.sort(np.random.choice(n, n // 3, replace=False))
+            Y2locs = tf.inverse_transform(Y1[locs], locs=locs, inplace=False)
+            assert Y2locs.shape == (locs.size, Y1.shape[1])
+            if self.exact_inverse:
+                assert np.allclose(Y2locs, Y[locs])
+
+            # Test shape issues.
+            with pytest.raises(ValueError):
+                tf.transform(Q[1:-1, :])
+            with pytest.raises(ValueError):
+                tf.inverse_transform(Q, locs=slice(0, 3))
 
     def test_saveload(self, n=24, k=50):
         """Test save() and load()."""
