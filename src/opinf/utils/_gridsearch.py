@@ -1,5 +1,5 @@
 # _gridsearch.py
-"""Routine for performing a gridsearch, followed by a derivative-free
+"""Routine for performing a grid search, followed by a derivative-free
 optimization.
 """
 
@@ -24,17 +24,17 @@ def gridsearch(
     gridsearch_only: bool = False,
     label: str = "parameter",
     verbose: bool = False,
-) -> float | np.ndarray:
+) -> typing.Union[float, np.ndarray]:
     r"""Minimize a function by first checking a collection of candidates, then
     following up with a derivative-free optimization routine.
 
-    If the candidates are one-dimensional (i.e., ``func`` is a scalar map
-    :math:`f:\RR\to\RR`), the optimization is carried out via
+    If the candidates are one-dimensional, meaning ``func()`` is a scalar map
+    :math:`f:\RR_+\to\RR`, the optimization is carried out via
     :func:`scipy.optimize.minimize_scalar` with ``method='brent'``.
 
-    If the candidates are higher dimensional (i.e., :math:`f:\RR^p\to\RR` for
-    some :math:`p > 1`), the optimization is carried out via
-    :func:`scipy.optimize.minimize` with ``method='Nelder-Mead'``.
+    Otherwise (:math:`f:\RR_+^p\to\RR` for some :math:`p > 1`), the
+    optimization is carried out via :func:`scipy.optimize.minimize` with
+    ``method='Nelder-Mead'``.
 
     Parameters
     ----------
@@ -54,25 +54,50 @@ def gridsearch(
     -------
     winner : float or ndarray
         Optimized candidate.
+
+    Raises
+    ------
+    RuntimeError
+        If the grid search fails because ``func()`` returns ``np.inf`` for
+        each candidate.
+
+    Warns
+    -----
+    OpInfWarning
+        1) If the ``candidates`` are one-dimensional and the grid search winner
+        is the smallest or largest candidate, or 2) If the minimization fails
+        or does not result in a solution that improves upon the grid search.
+
+    Notes
+    -----
+    The optimization minimizes ``func(x)`` by varying ``x`` logarithmically.
+    Unless ``gridsearch_only=True``, it is assumed that all entries of the
+    argument ``x`` are positive.
+
+    If only one scalar candidate is given, the (one-dimensional) optimization
+    sets the bounds to ``[candidate / 100, candidate * 100]``.
     """
     # Process the candidates.
     candidates = np.atleast_1d(candidates)
-    if np.ndim(candidates[0]) == 1:
+    if np.shape(candidates[0]) == (1,):
         candidates = [reg[0] for reg in candidates]
     scalar_regularization = np.ndim(candidates[0]) == 0
 
-    def printtrial(params):
-        pstr = "[" + ", ".join([f"{p:.3e}" for p in params]) + "]"
-        print(f"{label.title()} {pstr}...", end="", flush=True)
+    def pstr(params):
+        if np.isscalar(params):
+            return f"{params:.4e}"
+        else:
+            return "[" + ", ".join([f"{p:.3e}" for p in params]) + "]"
 
     def linfunc(params):
-        printtrial(params)
+        if verbose:
+            print(f"{label.title()} {pstr(params)}...", end="", flush=True)
         out = func(params)
         if verbose:
             if out == np.inf:
                 print("UNSTABLE")
             else:
-                print(f"{error:.2%} error")
+                print(f"{out:.2%} error")
         return out
 
     def logfunc(log10params):
@@ -93,12 +118,12 @@ def gridsearch(
             winning_error = error
             winner_index = i
     if winner_index is None:
-        raise RuntimeError("grid search failed")
+        raise RuntimeError(f"{label} grid search failed")
     gridsearch_winner = candidates[winner_index]
     if verbose:
         print(
             f"Best {label} candidate via grid search:",
-            f"{gridsearch_winner:.4e}",
+            pstr(gridsearch_winner),
         )
     if gridsearch_only:
         return gridsearch_winner
@@ -109,14 +134,14 @@ def gridsearch(
             search_bounds = [gridsearch_winner / 1e2, 1e2 * gridsearch_winner]
         elif winner_index == 0:
             warnings.warn(
-                f"smallest {label} candidate won gridsearch, "
+                f"smallest {label} candidate won grid search, "
                 f"consider using smaller candidates",
                 errors.OpInfWarning,
             )
             search_bounds = [gridsearch_winner / 1e2, candidates[1]]
         elif winner_index == num_tests - 1:
             warnings.warn(
-                f"largest {label} candidate won gridsearch, "
+                f"largest {label} candidate won grid search, "
                 f"consider using larger candidates",
                 errors.OpInfWarning,
             )
@@ -144,14 +169,20 @@ def gridsearch(
         )
 
     # Report results.
-    if opt_result.success and opt_result.fun != __MAXOPTVAL:
-        optimization_winner = 10**opt_result.x
-        if verbose:
-            print(
-                f"Best {label} candidate via optimization:",
-                f" {optimization_winner:.4e}",
-            )
+    success = opt_result.success and opt_result.fun != __MAXOPTVAL
+    if not success or (winning_error < opt_result.fun):
+        warnings.warn(
+            f"{label} grid search performed better than optimization, "
+            "falling back on grid search solution",
+            errors.OpInfWarning,
+        )
+        return gridsearch_winner
 
-        return optimization_winner
+    optimization_winner = 10**opt_result.x
 
-    raise RuntimeError(f"{label.title()} search optimization failed")
+    if verbose:
+        print(
+            f"Best {label} candidate via optimization:",
+            pstr(optimization_winner),
+        )
+    return optimization_winner
