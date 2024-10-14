@@ -7,7 +7,7 @@ import abc
 import warnings
 import numpy as np
 
-from .. import errors, utils
+from .. import errors, post, utils
 from .. import lift, pre, basis as _basis, ddt
 from ..models import _utils as modutils
 
@@ -419,6 +419,241 @@ class _BaseROM(abc.ABC):
                     ]
 
         return states, lhs, inputs
+
+    def _fit_regselect_continuous(
+        self,
+        train_time_domains: np.ndarray,
+        parameters: list,
+        states: list,
+        input_functions: list,
+        candidates: list,
+        regularizer_factory,
+        gridsearch_only: bool,
+        test_time_length: float,
+        stability_margin: float,
+        verbose: bool,
+        **predict_options: dict,
+    ):
+        """Regularization selection algorithm for time-continuous models.
+
+        Parameters
+        ----------
+        train_time_domains : list of s (k_i,) ndarrays
+            Time domain corresponding to the training ``states``.
+            If a single array is given, assume all training trajectories
+            correspond to the same time domain.
+        parameters : list of (s scalars or (p,) 1D ndarrays) or None
+            Parameter values corresponding to the states.
+            If provided, is is assumed that the :attr:`model` is parametric.
+        states : list of s (r, k_i) ndarrays
+            State snapshots in the reduced state space.
+        input_functions : list of s (callables or None)
+            Input functions corresponding to the training data, if the
+            :attr:`model` takes external inputs.
+        candidates : list of regularization parameters
+            Regularization hyperparameters to check. If a single hyperparameter
+            is given, use it as the start of an optimization-based search.
+        regularizer_factory : callable or None
+            Function mapping regularization hyperparameters to the full
+            regularizer. Specifically, ``regularizer_factory(candidates[i])``
+            will be assigned to ``model.solver.regularizer`` for each ``i``.
+        gridsearch_only : bool
+            If ``True``, stop after checking all regularization ``candidates``
+            and do not follow up with optimization.
+        test_time_length : float
+            Amount of time after the training regime in which to require model
+            stability.
+        stability_margin : float,
+            Factor by which the reduced states may deviate from the range of
+            the training data without being flagged as unstable.
+        verbose : bool
+            If ``True``, print information during the regularization selection.
+        predict_options : dict
+            Extra arguments for :meth:`opinf.models.ContinuousModel.predict`.
+        """
+        shifts = [np.mean(Q, axis=1).reshape((-1, 1)) for Q in states]
+        limits = [
+            stability_margin * np.abs(Q - qbar).max(axis=1)
+            for Q, qbar in zip(states, shifts)
+        ]
+        limmasks = [lims > max(lims) / 50 for lims in limits]
+
+        def unstable(_Q, ell, size):
+            """Return ``True`` if the solution is unstable."""
+            if _Q.shape[-1] != size:
+                return True
+            bounds = np.abs(_Q - shifts[ell]).max(axis=1)
+            return np.any(bounds[limmasks[ell]] > limits[ell][limmasks[ell]])
+
+        # Extend the training time domains by the testing time length.
+        if test_time_length > 0:
+            time_domains = []
+            for t_train in train_time_domains:
+                dt = np.mean(np.diff(t_train))
+                t_test = t_train[-1] + np.linspace(
+                    dt,
+                    dt + test_time_length,
+                    int(test_time_length / dt),
+                )
+                time_domains.append(np.concatenate(((t_train, t_test))))
+        else:
+            time_domains = train_time_domains
+
+        if input_functions is None:
+            input_functions = [None] * len(states)
+        loop_collections = [states, input_functions, time_domains]
+        if is_parametric := parameters is not None:
+            loop_collections.insert(0, parameters)
+
+        def update_model(reg_params):
+            """Reset the regularizer and refit the model operators."""
+            self.model.solver.regularizer = regularizer_factory(reg_params)
+            self.model.refit()
+
+        def training_error(reg_params):
+            """Compute the training error for a single regularization
+            candidate.
+            """
+            update_model(reg_params)
+
+            # Solve the model, check for stability, and compute training error.
+            error = 0
+            for ell, entries in enumerate(zip(*loop_collections)):
+                if is_parametric:
+                    params, Q, input_func, t = entries
+                    predict_args = (params, Q[:, 0], t, input_func)
+                else:
+                    Q, input_func, t = entries
+                    predict_args = (Q[:, 0], t, input_func)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    solution = self.model.predict(
+                        *predict_args, **predict_options
+                    )
+                if unstable(solution, ell, t.size):
+                    return np.inf
+                trainsize = Q.shape[-1]
+                solution_train = solution[:, :trainsize]
+                error += post.Lp_error(Q, solution_train, t[:trainsize])[1]
+            return error / len(states)
+
+        best_regularization = utils.gridsearch(
+            training_error,
+            candidates,
+            gridsearch_only=gridsearch_only,
+            label="regularization",
+            verbose=verbose,
+        )
+
+        update_model(best_regularization)
+        return self
+
+    def _fit_regselect_discrete(
+        self,
+        parameters: list,
+        states: list,
+        inputs: list,
+        candidates: list,
+        regularizer_factory,
+        gridsearch_only: bool,
+        num_test_iters: int,
+        stability_margin: float,
+        verbose: bool,
+    ):
+        """Regularization selection algorithm for time-discrete models.
+
+        Parameters
+        ----------
+        parameters : list of (s scalars or (p,) 1D ndarrays) or None
+            Parameter values corresponding to the states.
+            If provided, is is assumed that the :attr:`model` is parametric.
+        states : list of s (r, k_i) ndarrays
+            State snapshots in the reduced state space. This method assumes
+            the snapshots are sequential, i.e., the model maps
+            ``states[i][:, j]`` to ``states[i][:, j+1]``.
+        input_functions : list of s (m, k_i + num_test_iters) ndarray
+            Inputs corresponding to the training data, together with inputs
+            for the testing regime. Only required if the :attr:`model` takes
+            external inputs.
+        candidates : list of regularization parameters
+            Regularization hyperparameters to check. If a single hyperparameter
+            is given, use it as the start of an optimization-based search.
+        regularizer_factory : callable or None
+            Function mapping regularization hyperparameters to the full
+            regularizer. Specifically, ``regularizer_factory(candidates[i])``
+            will be assigned to ``model.solver.regularizer`` for each ``i``.
+        gridsearch_only : bool
+            If ``True``, stop after checking all regularization ``candidates``
+            and do not follow up with optimization.
+        num_test_iters : int
+            Number of iterations after the training data in which to require
+            model stability.
+        stability_margin : float,
+            Factor by which the reduced states may deviate from the range of
+            the training data without being flagged as unstable.
+        verbose : bool
+            If ``True``, print information during the regularization selection.
+        """
+        shifts = [np.mean(Q, axis=1).reshape((-1, 1)) for Q in states]
+        limits = [
+            stability_margin * np.abs(Q - qbar).max(axis=1)
+            for Q, qbar in zip(states, shifts)
+        ]
+
+        def unstable(_Q, ell, size):
+            """Return ``True`` if the solution is unstable."""
+            if _Q.shape[-1] != size:
+                return True
+            return np.any(np.abs(_Q - shifts[ell]).max(axis=1) > limits[ell])
+
+        # Extend the training time domains by the testing time length.
+        num_iters = [Q.shape[-1] for Q in states]
+        if num_test_iters > 0:
+            num_iters = [n + num_test_iters for n in num_iters]
+
+        loop_collections = [states, inputs, num_iters]
+        if is_parametric := parameters is not None:
+            loop_collections.insert(0, parameters)
+
+        def update_model(reg_params):
+            """Reset the regularizer and refit the model operators."""
+            self.model.solver.regularizer = regularizer_factory(reg_params)
+            self.model.refit()
+
+        def training_error(reg_params):
+            """Compute the mean training error for a single regularization
+            candidate.
+            """
+            update_model(reg_params)
+
+            # Solve the model, check for stability, and compute training error.
+            error = 0
+            for ell, entries in enumerate(loop_collections):
+                if is_parametric:
+                    params, Q, U, niter = entries
+                    predict_args = (params, Q[:, 0], niter, U)
+                else:
+                    Q, U, niter = entries
+                    predict_args = (Q[:, 0], niter, U)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    solution = self.model.predict(*predict_args)
+                if unstable(solution, ell, niter):
+                    print("UNSTABLE")
+                    return np.inf
+                error += post.frobenius_error(Q, solution[:, : Q.shape[-1]])[1]
+            return error / len(states)
+
+        best_regularization = utils.gridsearch(
+            training_error,
+            candidates,
+            gridsearch_only=gridsearch_only,
+            label="regularization",
+            verbose=verbose,
+        )
+
+        update_model(best_regularization)
+        return self
 
     @abc.abstractmethod
     def predict(self, *args, **kwargs):
