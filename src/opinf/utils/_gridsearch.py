@@ -97,7 +97,7 @@ def gridsearch(
             if out == np.inf:
                 print("UNSTABLE")
             else:
-                print(f"{out:.2%} error")
+                print(f"{out:.8%} error")
         return out
 
     def logfunc(log10params):
@@ -108,12 +108,13 @@ def gridsearch(
     num_tests = len(candidates)
     if verbose:
         print(f"\nGRID SEARCH ({num_tests} candidates)")
+        ndigits = len(str(num_tests))
     winning_error, winner_index = np.inf, None
     if scalar_regularization:
         candidates = np.sort(candidates)
     for i, candidate in enumerate(candidates):
         if verbose:
-            print(f"({i+1: >3d}/{num_tests:d}) ", end="")
+            print(f"({i+1: >{ndigits}d}/{num_tests:d}) ", end="")
         if (error := linfunc(candidate)) < winning_error:
             winning_error = error
             winner_index = i

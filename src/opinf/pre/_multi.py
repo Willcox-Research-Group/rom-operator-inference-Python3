@@ -49,7 +49,7 @@ class TransformerPipeline(TransformerTemplate):
 
         statedims = set()
         for i, tf in enumerate(transformers):
-            if not isinstance(tf, TransformerTemplate):
+            if not isinstance(tf, (TransformerTemplate, TransformerMulti)):
                 warnings.warn(
                     f"transformers[{i}] does not inherit from "
                     "TransformerTemplate, unexpected behavior may occur",
