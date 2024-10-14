@@ -23,7 +23,8 @@ parts:
     - file: source/tutorials/basics.ipynb
     - file: source/tutorials/inputs.ipynb
     # - file: source/tutorials/lifting.ipynb
-    - file: source/tutorials/regularization.ipynb
+    # - file: source/tutorials/regularization.ipynb
+    - file: source/tutorials/euler.ipynb
     - file: source/tutorials/parametric.ipynb
 
   # API reference via sphinx-autodoc + limited handwritten documentation.
