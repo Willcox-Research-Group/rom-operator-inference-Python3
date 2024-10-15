@@ -129,6 +129,7 @@ class ROM(_BaseROM):
         gridsearch_only: bool = False,
         test_time_length: float = 0,
         stability_margin: float = 5.0,
+        test_cases: list = None,
         verbose: bool = False,
         **predict_options: dict,
     ):
@@ -193,10 +194,13 @@ class ROM(_BaseROM):
             Factor by which the predicted reduced states may deviate from the
             range of the training reduced states without the trajectory being
             classified as unstable.
-        predict_options : dict or None
-            Extra arguments for :meth:`opinf.models.ContinuousModel.predict`.
+        test_cases : list of ContinuousRegTest objects
+            Additional test cases for which the model is required to be stable.
+            See :class:`opinf.utils.ContinuousRegTest`.
         verbose : bool
             If ``True``, print information during the regularization selection.
+        predict_options : dict or None
+            Extra arguments for :meth:`opinf.models.ContinuousModel.predict`.
 
         Notes
         -----
@@ -222,6 +226,7 @@ class ROM(_BaseROM):
             gridsearch_only=gridsearch_only,
             test_time_length=test_time_length,
             stability_margin=stability_margin,
+            test_cases=test_cases,
             verbose=verbose,
             **predict_options,
         )
@@ -237,6 +242,7 @@ class ROM(_BaseROM):
         gridsearch_only: bool = False,
         num_test_iters: int = 0,
         stability_margin: float = 5.0,
+        test_cases: list = None,
         verbose: bool = False,
     ):
         """Calibrate the fully discrete model to training data, selecting the
@@ -284,6 +290,9 @@ class ROM(_BaseROM):
         stability_margin : float,
             Factor by which the reduced states may deviate from the range of
             the training data without being flagged as unstable.
+        test_cases : list of DiscreteRegTest objects
+            Additional test cases for which the model is required to be stable.
+            See :class:`opinf.utils.DiscreteRegTest`.
         verbose : bool
             If ``True``, print information during the regularization selection.
 
@@ -304,6 +313,7 @@ class ROM(_BaseROM):
             gridsearch_only=gridsearch_only,
             num_test_iters=num_test_iters,
             stability_margin=stability_margin,
+            test_cases=test_cases,
             verbose=verbose,
         )
 

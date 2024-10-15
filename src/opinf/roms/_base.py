@@ -432,6 +432,23 @@ class _BaseROM(abc.ABC):
 
         return states, lhs, inputs
 
+    def _process_test_cases(self, test_cases, TestCaseClass):
+        if test_cases is not None:
+            if isinstance(test_cases, TestCaseClass):
+                test_cases = [test_cases]
+            processed_test_cases = []
+            for tcase in test_cases:
+                if not isinstance(tcase, TestCaseClass):
+                    raise TypeError(
+                        "test cases must be "
+                        f"'utils.{TestCaseClass.__name__}' objects"
+                    )
+                processed_test_cases.append(
+                    tcase.copy(self.encode(tcase.initial_conditions))
+                )
+            return processed_test_cases
+        return []
+
     def _fit_and_return_training_data(
         self,
         parameters,
@@ -466,11 +483,6 @@ class _BaseROM(abc.ABC):
 
         return states
 
-    @abc.abstractmethod
-    def fit(self, *args, **kwargs):
-        """Calibrate the model to training data."""
-        pass  # pragma: no cover
-
     def fit_regselect_continuous(
         self,
         candidates: list,
@@ -485,6 +497,7 @@ class _BaseROM(abc.ABC):
         gridsearch_only: bool = False,
         test_time_length: float = 0,
         stability_margin: float = 5.0,
+        test_cases: list = None,
         verbose: bool = False,
         **predict_options: dict,
     ):
@@ -551,10 +564,13 @@ class _BaseROM(abc.ABC):
             Factor by which the predicted reduced states may deviate from the
             range of the training reduced states without the trajectory being
             classified as unstable.
-        predict_options : dict or None
-            Extra arguments for :meth:`opinf.models.ContinuousModel.predict`.
+        test_cases : list of ContinuousRegTest objects
+            Additional test cases for which the model is required to be stable.
+            See :class:`opinf.utils.ContinuousRegTest`.
         verbose : bool
             If ``True``, print information during the regularization selection.
+        predict_options : dict or None
+            Extra arguments for :meth:`opinf.models.ContinuousModel.predict`.
 
         Notes
         -----
@@ -567,7 +583,6 @@ class _BaseROM(abc.ABC):
         which case it is assumed that each trajectory ``states[i]`` corresponds
         to the same time domain.
         """
-
         if not self._iscontinuous:
             raise AttributeError(
                 "this method is for time-continuous models only, "
@@ -606,6 +621,9 @@ class _BaseROM(abc.ABC):
                 raise ValueError("train_time_domains and states not aligned")
         if regularizer_factory is None:
             regularizer_factory = _identity
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.ContinuousRegTest
+        )
 
         # Fit the model for the first time.
         states = self._fit_and_return_training_data(
@@ -657,11 +675,17 @@ class _BaseROM(abc.ABC):
 
         def training_error(reg_params):
             """Compute the training error for a single regularization
-            candidate.
+            candidate by solving the model, checking for stability, and
+            comparing to available training data.
             """
             update_model(reg_params)
 
-            # Solve the model, check for stability, and compute training error.
+            # Pass stability checks.
+            for tcase in processed_test_cases:
+                if not tcase.evaluate(self.model, **predict_options):
+                    return np.inf
+
+            # Compute training error.
             error = 0
             for ell, entries in enumerate(zip(*loop_collections)):
                 if is_parametric:
@@ -705,6 +729,7 @@ class _BaseROM(abc.ABC):
         gridsearch_only: bool = False,
         num_test_iters: int = 0,
         stability_margin: float = 5.0,
+        test_cases: list = None,
         verbose: bool = False,
     ):
         """Calibrate the fully discrete model to training data, selecting the
@@ -758,6 +783,9 @@ class _BaseROM(abc.ABC):
         stability_margin : float,
             Factor by which the reduced states may deviate from the range of
             the training data without being flagged as unstable.
+        test_cases : list of DiscreteRegTest objects
+            Additional test cases for which the model is required to be stable.
+            See :class:`opinf.utils.DiscreteRegTest`.
         verbose : bool
             If ``True``, print information during the regularization selection.
 
@@ -796,6 +824,9 @@ class _BaseROM(abc.ABC):
                     )
         if regularizer_factory is None:
             regularizer_factory = _identity
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.DiscreteRegTest
+        )
 
         # Fit the model for the first time.
         states = self._fit_and_return_training_data(
@@ -838,9 +869,15 @@ class _BaseROM(abc.ABC):
 
         def training_error(reg_params):
             """Compute the mean training error for a single regularization
-            candidate.
+            candidate by solving the model, checking for stability, and
+            comparing to available training data.
             """
             update_model(reg_params)
+
+            # Pass stability checks.
+            for tcase in processed_test_cases:
+                if not tcase.evaluate(self.model):
+                    return np.inf
 
             # Solve the model, check for stability, and compute training error.
             error = 0
@@ -870,7 +907,12 @@ class _BaseROM(abc.ABC):
         update_model(best_regularization)
         return self
 
-    # Evaluation --------------------------------------------------------------
+    # Abstracts ---------------------------------------------------------------
+    @abc.abstractmethod
+    def fit(self, *args, **kwargs):
+        """Calibrate the model to training data."""
+        pass  # pragma: no cover
+
     @abc.abstractmethod
     def predict(self, *args, **kwargs):
         """Evaluate the model."""

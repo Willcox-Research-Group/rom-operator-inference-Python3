@@ -5,10 +5,14 @@ optimization.
 
 __all__ = [
     "gridsearch",
+    "DiscreteRegTest",
+    "ContinuousRegTest",
 ]
 
+import abc
 import typing
 import warnings
+import dataclasses
 import numpy as np
 import scipy.optimize
 
@@ -187,3 +191,158 @@ def gridsearch(
             pstr(optimization_winner),
         )
     return optimization_winner
+
+
+# Additional regularization test cases ========================================
+class _RegTest(abc.ABC):
+    def evaluate(self, model, **predict_options):
+        """Evaluate the ``model`` under the test case conditions.
+
+        Parameters
+        ----------
+        model : opinf.models object
+            Instantiated model, ready for prediction.
+        predict_options : dict
+            Additional keyword arguments for ``model.predict()``.
+
+        Returns
+        -------
+        result : bool
+            ``True`` if the ``model`` produces a stable solution under the test
+            case conditions, ``False`` otherwise.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            solution = model.predict(*self.predict_args, **predict_options)
+        return not self.unstable(solution)
+
+    @abc.abstractmethod
+    def unstable(self, Q):
+        """Return ``True`` if the trajectory ``Q`` is unstable."""
+        pass  # pragma: no cover
+
+    @abc.abstractmethod
+    def copy(self, newICs):
+        """Return a copy of this test case with new initial conditions."""
+        pass  # pragma: no cover
+
+
+@dataclasses.dataclass(frozen=True)
+class DiscreteRegTest(_RegTest):
+    """Test case for regularization selection with fully discrete models.
+
+    The ``test_cases`` argument of
+    :meth:`opinf.roms.ROM.fit_regselect_discrete` is a list of these.
+
+    Parameters
+    ----------
+    initial_conditions : (n,) ndarray
+        Initial conditions to be tested.
+    niters : int
+        Number of iterations to step forward from the initial conditions.
+    parameters : (p,) ndarray or float or None
+        Parameter value to be tested.
+    inputs : (m, niters) ndarray or None
+        Inputs to use in the forward prediction, if the model takes inputs.
+    bound : float or None
+        Amount that the forward prediction is allowed to deviate from the
+        initial conditions without the trajectory being classified as unstable.
+    """
+
+    initial_conditions: np.ndarray
+    niters: int
+    parameters: np.ndarray = None
+    inputs: np.ndarray = None
+    bound: float = None
+    predict_args: tuple = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        predict_args = [
+            self.initial_conditions,
+            self.niters,
+            self.inputs,
+        ]
+        if self.parameters is not None:
+            predict_args.insert(0, self.parameters)
+        object.__setattr__(self, "predict_args", tuple(predict_args))
+
+    def copy(self, newICs):
+        return self.__class__(
+            newICs,
+            self.niters,
+            self.parameters,
+            self.inputs,
+            self.bound,
+        )
+
+    def unstable(self, Q):
+        """Return ``True`` if the trajectory ``Q`` is unstable."""
+        if np.isnan(Q).any() or np.isinf(Q).any():
+            return True
+        if (B := self.bound) is not None:
+            Qshifted = Q - self.initial_conditions.reshape((-1, 1))
+            if np.any(Qshifted) > B:
+                return True
+        return False
+
+
+@dataclasses.dataclass(frozen=True)
+class ContinuousRegTest(_RegTest):
+    """Test case for regularization selection with time-continuous models.
+
+    The ``test_cases`` argument of
+    :meth:`opinf.roms.ROM.fit_regselect_continuous` is a list of these.
+
+    Parameters
+    ----------
+    initial_conditions : (n,) ndarray
+        Initial conditions to be tested.
+    time_domain : (k,) ndarray
+        Time domain over which to solve the model forward in time.
+    parameters : (p,) ndarray or float or None
+        Parameter value to be tested.
+    inputs : callable or None
+        Input function, mapping time to input vectors, to use in the forward
+        prediction, if the model takes inputs.
+    bound : float or None
+        Amount that the forward prediction is allowed to deviate from the
+        initial conditions without the trajectory being classified as unstable.
+    """
+
+    initial_conditions: np.ndarray
+    time_domain: np.ndarray
+    parameters: np.ndarray = None
+    input_function: typing.Callable = None
+    bound: float = None
+    predict_args: tuple = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        predict_args = [
+            self.initial_conditions,
+            self.time_domain,
+            self.input_function,
+        ]
+        if self.parameters is not None:
+            predict_args.insert(0, self.parameters)
+        object.__setattr__(self, "predict_args", tuple(predict_args))
+
+    def copy(self, newICs):
+        return self.__class__(
+            newICs,
+            self.time_domain,
+            self.parameters,
+            self.input_function,
+            self.bound,
+        )
+
+    def unstable(self, Q):
+        """Return ``True`` if the trajectory ``Q`` is unstable."""
+        if Q.shape[-1] != self.time_domain.size:
+            return True
+        if np.isnan(Q).any() or np.isinf(Q).any():
+            return True
+        if (B := self.bound) is not None:
+            Qshifted = Q - self.initial_conditions.reshape((-1, 1))
+            if np.any(Qshifted) > B:
+                return True
+        return False

@@ -46,10 +46,25 @@ The following functions perform miscellaneous tasks within the rest of the code 
     :toctree: _autosummaries
     :nosignatures:
 
-    gridsearch
     requires
     requires2
     str2repr
+```
+
+### Regularization Selection
+
+These helper routines support automatic regularization selection.
+
+```{eval-rst}
+.. currentmodule:: opinf.utils
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    gridsearch
+    DiscreteRegTest
+    ContinuousRegTest
 ```
 
 ## Documentation
