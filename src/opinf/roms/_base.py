@@ -449,6 +449,22 @@ class _BaseROM(abc.ABC):
             return processed_test_cases
         return []
 
+    def _get_stability_limits(self, states, stability_margin):
+        shifts = [np.mean(Q, axis=1).reshape((-1, 1)) for Q in states]
+        limits = [
+            stability_margin * np.abs(Q - qbar).max()
+            for Q, qbar in zip(states, shifts)
+        ]
+        for ell, lim in enumerate(limits):
+            if lim == 0:
+                warnings.warn(
+                    "ignoring stability limit"
+                    f" for constant training trajectory {ell}",
+                    errors.OpInfWarning,
+                )
+                limits[ell] = np.inf
+        return shifts, limits
+
     def _fit_and_return_training_data(
         self,
         parameters,
@@ -622,10 +638,9 @@ class _BaseROM(abc.ABC):
                     "argument 'input_functions' must be sequence of callables"
                 )
             inputs = [  # evaluate the inputs over the time domain.
-                u(t) for u, t in zip(input_functions, train_time_domains)
+                np.column_stack([u(tt) for tt in t])
+                for u, t in zip(input_functions, train_time_domains)
             ]
-            if np.ndim(inputs[0]) == 1:  # one-dimensional inputs (m = 1).
-                inputs = [np.reshape(U, (1, -1)) for U in inputs]
         else:
             inputs = None
         if test_time_length < 0:
@@ -647,11 +662,7 @@ class _BaseROM(abc.ABC):
         )
 
         # Set up the regularization selection.
-        shifts = [np.mean(Q, axis=1).reshape((-1, 1)) for Q in states]
-        limits = [
-            stability_margin * np.abs(Q - qbar).max()
-            for Q, qbar in zip(states, shifts)
-        ]
+        shifts, limits = self._get_stability_limits(states, stability_margin)
 
         def unstable(_Q, ell, size):
             """Return ``True`` if the solution is unstable."""
@@ -819,7 +830,10 @@ class _BaseROM(abc.ABC):
                 "which has a 'regularizer' attribute"
             )
 
-        states, _, inputs = self._fix_single_trajectory(states, None, inputs)
+        if parameters is None:
+            states, _, inputs = self._fix_single_trajectory(
+                states, None, inputs
+            )
 
         # Validate arguments.
         if num_test_iters < 0:
@@ -827,6 +841,11 @@ class _BaseROM(abc.ABC):
                 "argument 'num_test_iters' must be a nonnegative integer"
             )
         if inputs is not None:
+            if len(inputs) != len(states):
+                raise errors.DimensionalityError(
+                    f"{len(states)} state trajectories but "
+                    f"{len(inputs)} input trajectories detected"
+                )
             for Q, U in zip(states, inputs):
                 if U.shape[-1] < Q.shape[1] + num_test_iters:
                     raise ValueError(
@@ -851,11 +870,7 @@ class _BaseROM(abc.ABC):
         )
 
         # Set up the regularization selection.
-        shifts = [np.mean(Q, axis=1).reshape((-1, 1)) for Q in states]
-        limits = [
-            stability_margin * np.abs(Q - qbar).max()
-            for Q, qbar in zip(states, shifts)
-        ]
+        shifts, limits = self._get_stability_limits(states, stability_margin)
 
         def unstable(_Q, ell):
             """Return ``True`` if the solution is unstable."""

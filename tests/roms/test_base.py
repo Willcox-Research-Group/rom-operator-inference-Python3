@@ -18,7 +18,7 @@ class _TestBaseROM(abc.ABC):
     @abc.abstractmethod
     def _get_models(self):
         """Return a list of valid model instantiations."""
-        pass
+        raise NotImplementedError  # pragma: no cover
 
     @staticmethod
     def _get(*keys):
