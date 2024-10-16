@@ -338,6 +338,17 @@ class TestROM(_TestBaseROM):
                     f"2 state trajectories but "
                     f"{niters} input trajectories detected"
                 )
+                with pytest.raises(ValueError) as ex:
+                    rom.fit_regselect_discrete(
+                        None,
+                        Q,
+                        inputs=np.ones(niters),
+                        num_test_iters=10,
+                    )
+                assert ex.value.args[0] == (
+                    "argument 'inputs' must contain enough data for "
+                    "10 iterations after the training data"
+                )
 
             # Tests.
             regs = np.logspace(-12, 6, 19)
@@ -385,6 +396,22 @@ class TestROM(_TestBaseROM):
             assert len(wn) == 2
             for w in wn:
                 assert w.message.args[0].startswith("ignoring stability limit")
+            assert ex.value.args[0] == "regularization grid search failed"
+
+            with (
+                pytest.raises(RuntimeError) as ex,
+                pytest.warns(opinf.errors.OpInfWarning) as wn,
+            ):
+                rom.fit_regselect_discrete(
+                    regs,
+                    Q,
+                    inputs=(
+                        np.ones(niters) if rom.model._has_inputs else None
+                    ),
+                    test_cases=opinf.utils.DiscreteRegTest(Q[:, 0], niters=10),
+                )
+            assert len(wn) == 1
+            assert wn[0].message.args[0].startswith("ignoring stability limit")
             assert ex.value.args[0] == "regularization grid search failed"
 
 

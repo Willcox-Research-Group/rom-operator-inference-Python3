@@ -852,7 +852,6 @@ class _BaseROM(abc.ABC):
                         "argument 'inputs' must contain enough data for "
                         f"{num_test_iters} iterations after the training data"
                     )
-            # TODO: account for one-dimensional inputs!
         if regularizer_factory is None:
             regularizer_factory = _identity
         processed_test_cases = self._process_test_cases(
