@@ -195,6 +195,8 @@ def gridsearch(
 
 # Additional regularization test cases ========================================
 class _RegTest(abc.ABC):
+    """Base class for regularization selection test cases."""
+
     def evaluate(self, model, **predict_options):
         """Evaluate the ``model`` under the test case conditions.
 
@@ -281,7 +283,7 @@ class DiscreteRegTest(_RegTest):
             return True
         if (B := self.bound) is not None:
             Qshifted = Q - self.initial_conditions.reshape((-1, 1))
-            if np.any(Qshifted) > B:
+            if np.any(np.abs(Qshifted) > B):
                 return True
         return False
 
@@ -343,6 +345,6 @@ class ContinuousRegTest(_RegTest):
             return True
         if (B := self.bound) is not None:
             Qshifted = Q - self.initial_conditions.reshape((-1, 1))
-            if np.any(Qshifted) > B:
+            if np.any(np.abs(Qshifted) > B):
                 return True
         return False
