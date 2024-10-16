@@ -5,7 +5,9 @@ __all__ = [
     "TimedBlock",
 ]
 
+import io
 import os
+import sys
 import time
 import signal
 import logging
@@ -88,7 +90,7 @@ class TimedBlock:
     """
 
     verbose = True
-
+    rebuffer = False
     formatter = logging.Formatter(
         fmt="%(asctime)s  %(levelname)s:\t%(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -100,6 +102,8 @@ class TimedBlock:
         timelimit: int = None,
     ):
         """Store print/log message."""
+        self.__original_stdout = sys.stdout
+        self.__new_buffer = None
         self.__front = "\n" if message.endswith("\n") else ""
         self.message = message.rstrip()
         self.__back = "\n" if "\r" not in message else ""
@@ -122,8 +126,15 @@ class TimedBlock:
     def _signal_handler(signum, frame):
         raise TimeoutError("timed out!")
 
+    def _reset_stdout(self):
+        text = self.__new_buffer.getvalue()
+        sys.stdout = self.__original_stdout
+        print(text, end="", flush=True)
+
     def __enter__(self):
         """Print the message and record the current time."""
+        if self.rebuffer:
+            sys.stdout = self.__new_buffer = io.StringIO()
         if self.verbose:
             print(f"{self.message}...", end=self.__front, flush=True)
         self._tic = time.time()
@@ -143,6 +154,8 @@ class TimedBlock:
                 print(flush=True)
                 report = f"TIMED OUT after {elapsed:.2f} s."
                 logging.info(f"{self.message}...{report}")
+                if self.rebuffer:
+                    self._reset_stdout()
                 raise TimeoutError(report)
             print(f"{exc_type.__name__}: {exc_value}")
             logging.info(self.message)
@@ -150,12 +163,16 @@ class TimedBlock:
                 f"({exc_type.__name__}) {exc_value} "
                 f"(raised after {elapsed:.6f} s)"
             )
+            if self.rebuffer:
+                self._reset_stdout()
             raise
         else:  # If no exception, report execution time.
             if self.verbose:
                 print(f"done in {elapsed:.2f} s.", flush=True, end=self.__back)
             logging.info(f"{self.message}...done in {elapsed:.6f} s.")
         self.__elapsed = elapsed
+        if self.rebuffer:
+            self._reset_stdout()
         return
 
     @classmethod

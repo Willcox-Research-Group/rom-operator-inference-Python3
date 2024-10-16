@@ -7,6 +7,8 @@ __all__ = [
 
 import matplotlib.pyplot as plt
 
+from ._timer import TimedBlock
+
 
 def mpl_config():
     """Set matplotlib and pandas configuration defaults for the
@@ -18,6 +20,9 @@ def mpl_config():
     plt.rc("font", family="serif")
     plt.rc("legend", edgecolor="none", frameon=False)
     plt.rc("text", usetex=True)
+
+    # Turn off stdout flushing to keep notebook outputs together.
+    TimedBlock.rebuffer = True
 
     # Pandas display options.
     try:
