@@ -899,3 +899,7 @@ def test_is_uncalibrated():
 
     # op = TestParametricOpInfOperator.Dummy()
     # assert func(op)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

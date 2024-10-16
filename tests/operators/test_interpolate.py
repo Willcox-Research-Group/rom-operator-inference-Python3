@@ -517,3 +517,7 @@ def test_deprecations():
         with pytest.warns(DeprecationWarning) as wn:
             OpClass()
         assert len(wn) == 1
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

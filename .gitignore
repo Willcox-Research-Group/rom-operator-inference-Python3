@@ -54,3 +54,5 @@ html/
 *.swp
 .markdownlint.json
 Notes/
+tests/add_endclause.py
+docs/use_mathjax_shortcuts.py

@@ -171,3 +171,7 @@ class TestPolynomialLifter:
         for order in ((1, 2), (3, 5, 4, 2, 1), (-2, -1, 0.5)):
             print(order)
             self.Lifter(order).verify(Q, t)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

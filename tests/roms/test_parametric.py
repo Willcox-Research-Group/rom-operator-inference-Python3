@@ -192,3 +192,7 @@ class TestROM(_TestBaseROM):
         rom.fit(parameters, states, inputs=inputs)
         out = rom.predict(testparam, testinit, k0, inputs=inputs[0])
         assert out.shape == (n, k0)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

@@ -1013,3 +1013,7 @@ class TestTikhonovDecoupledSolver:
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
         assert np.allclose(solver2.solve(), solver.solve())
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

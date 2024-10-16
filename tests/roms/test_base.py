@@ -292,3 +292,7 @@ class _TestBaseROM(abc.ABC):
             # Lifter, transformer, and basis.
             a1, a2, a3 = self._get("lifter", "transformer", "basis")
             _check(self.ROM(model, lifter=a1, transformer=a2, basis=a3))
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

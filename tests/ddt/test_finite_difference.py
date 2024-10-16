@@ -267,3 +267,7 @@ def test_ddt(r=12, k=22):
     assert ex.value.args[0] == (
         "ddt() takes 2 or 3 positional arguments but 4 were given"
     )
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

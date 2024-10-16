@@ -383,3 +383,7 @@ class TestModel:
         for op2, op1 in zip(model2.operators, model.operators):
             assert op2 is not op1
             assert op2 == op1
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

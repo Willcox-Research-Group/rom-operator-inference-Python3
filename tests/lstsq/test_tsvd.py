@@ -90,3 +90,7 @@ class TestTotalLeastSquaresSolver:
         solver = self.Solver(None).fit(D, Z)
         Ohat = solver.solve()
         assert np.allclose(Ohat, Ohat_true)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

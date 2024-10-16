@@ -436,3 +436,7 @@ class TestShiftScaleTransformer(_TestTransformer):
                 )
 
         return super().test_mains(n, k)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

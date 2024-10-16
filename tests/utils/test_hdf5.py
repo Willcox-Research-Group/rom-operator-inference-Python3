@@ -213,3 +213,7 @@ def test_saveload_sparray(n=100, target="_saveloadsparraytest.h5"):
     assert np.allclose(diff, 0)
 
     os.remove(target)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

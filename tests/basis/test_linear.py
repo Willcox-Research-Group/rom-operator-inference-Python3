@@ -218,3 +218,7 @@ class TestLinearBasis:
 
         # Clean up.
         os.remove(target)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

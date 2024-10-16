@@ -379,3 +379,7 @@ class TestBasisMulti:
         )
 
         os.remove(target)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

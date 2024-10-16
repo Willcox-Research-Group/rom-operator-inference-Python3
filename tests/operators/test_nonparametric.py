@@ -1272,3 +1272,7 @@ class TestStateInputOperator(_TestNonparametricOperator):
     def test_verify(self):
         """Call verify()."""
         super().test_verify((7, 14))
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

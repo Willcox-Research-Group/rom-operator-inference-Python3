@@ -183,3 +183,7 @@ class _TestTransformer(abc.ABC):
 
             tf.fit(np.random.random((tf.state_dimension, k)))
             tf.verify()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

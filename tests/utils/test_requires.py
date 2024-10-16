@@ -24,3 +24,7 @@ def test_requires():
 
     d.attr = 10
     d.do_something()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

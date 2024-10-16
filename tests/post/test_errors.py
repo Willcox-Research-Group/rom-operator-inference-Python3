@@ -175,3 +175,7 @@ def test_Lp_error(set_up_error_data):
     abs_err, rel_err = opinf.post.Lp_error(X, Y, p=np.inf)
     assert round(abs_err, 4) == 1
     assert rel_err == 1
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

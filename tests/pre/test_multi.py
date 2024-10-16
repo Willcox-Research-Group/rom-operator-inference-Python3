@@ -444,3 +444,7 @@ class TestTransformerMulti:
             "transform() and inverse_transform() are not inverses "
             "(locs != None)"
         )
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

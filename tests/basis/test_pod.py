@@ -423,3 +423,7 @@ def test_pod_basis(n=40, k=20, r=3):
     assert W.shape == (k, r)
     assert np.allclose(V.T @ weights @ V, Id)
     assert np.allclose(W.T @ W, Id)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

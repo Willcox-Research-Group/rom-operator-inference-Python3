@@ -101,3 +101,7 @@ class TestLifterTemplate:
         assert ex.value.args[0].startswith(
             "lift_ddts() failed finite difference check"
         )
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

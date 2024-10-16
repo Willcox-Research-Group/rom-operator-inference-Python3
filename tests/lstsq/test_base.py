@@ -377,3 +377,7 @@ class TestPlainSolver:
         assert solver2.d == d
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

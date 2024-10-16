@@ -102,3 +102,7 @@ def test_gridsearchND(dim=4):
     assert isinstance(xhat, np.ndarray)
     assert xhat.shape == (dim,)
     assert np.allclose(xhat, 1, atol=3e-2)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])
