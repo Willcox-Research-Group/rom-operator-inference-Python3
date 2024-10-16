@@ -570,7 +570,12 @@ class _BaseROM(abc.ABC):
         verbose : bool
             If ``True``, print information during the regularization selection.
         predict_options : dict or None
-            Extra arguments for :meth:`opinf.models.ContinuousModel.predict`.
+            Extra arguments for :meth:`opinf.models.ContinuousModel.predict`,
+            for example, ``method="BDF"``.
+
+        Returns
+        -------
+        self
 
         Notes
         -----
@@ -602,23 +607,29 @@ class _BaseROM(abc.ABC):
             )
 
         # Validate arguments.
-        if input_functions is not None:
-            if not callable(input_functions[0]):
-                raise TypeError(
-                    "argument 'input_functions' must be sequence of callables"
-                )
-            inputs = [
-                u(t) for u, t in zip(input_functions, train_time_domains)
-            ]
-        else:
-            inputs = None
-        if test_time_length < 0:
-            raise ValueError("argument 'test_time_length' must be nonnegative")
         if np.isscalar(train_time_domains[0]):
             train_time_domains = [train_time_domains] * len(states)
         for t, Q in zip(train_time_domains, states):
             if t.shape != (Q.shape[1],):
-                raise ValueError("train_time_domains and states not aligned")
+                raise errors.DimensionalityError(
+                    "train_time_domains and states not aligned"
+                )
+        if input_functions is not None:
+            if callable(input_functions):  # one global input function.
+                input_functions = [input_functions] * len(states)
+            if not callable(input_functions[0]):
+                raise TypeError(
+                    "argument 'input_functions' must be sequence of callables"
+                )
+            inputs = [  # evaluate the inputs over the time domain.
+                u(t) for u, t in zip(input_functions, train_time_domains)
+            ]
+            if np.ndim(inputs[0]) == 1:  # one-dimensional inputs (m = 1).
+                inputs = [np.reshape(U, (1, -1)) for U in inputs]
+        else:
+            inputs = None
+        if test_time_length < 0:
+            raise ValueError("argument 'test_time_length' must be nonnegative")
         if regularizer_factory is None:
             regularizer_factory = _identity
         processed_test_cases = self._process_test_cases(
@@ -822,6 +833,7 @@ class _BaseROM(abc.ABC):
                         "argument 'inputs' must contain enough data for "
                         f"{num_test_iters} iterations after the training data"
                     )
+            # TODO: account for one-dimensional inputs!
         if regularizer_factory is None:
             regularizer_factory = _identity
         processed_test_cases = self._process_test_cases(
