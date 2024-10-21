@@ -98,6 +98,7 @@ sphinx:
           "B": "\\mathbf{B}"                  # input operator
           "N": "\\mathbf{N}"                  # bilinear operator
           "v": "\\mathbf{v}"                  # basis vector
+          "w": "\\mathbf{w}"                  # weight vector
           "V": "\\mathbf{V}"                  # generic basis matrix
           "W": "\\mathbf{W}"                  # weight matrix
           "Vr": "\\mathbf{V}_{\\!r}"          # trial basis matrix

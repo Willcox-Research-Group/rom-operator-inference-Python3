@@ -2,6 +2,7 @@
 r"""Miscellaneous utility functions."""
 
 
+from ._gridsearch import *
 from ._hdf5 import *
 from ._mpl_config import *
 from ._repr import *

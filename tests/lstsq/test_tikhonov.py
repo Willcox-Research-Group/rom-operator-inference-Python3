@@ -561,6 +561,73 @@ class TestTikhonovSolver:
         solver.method = "normal"
         repr(solver)
 
+    def test_get_operator_regularizer(self, r=5, m=3):
+        """Test get_operator_regularizer()."""
+        c = opinf.operators.ConstantOperator()
+        A = opinf.operators.LinearOperator()
+        H = opinf.operators.QuadraticOperator()
+        B = opinf.operators.InputOperator()
+
+        creg = 1e-1
+        Areg = 1e0
+        Hreg = 1e1
+        Breg = 5e-1
+
+        _r2 = r * (r + 1) // 2
+
+        with pytest.raises(ValueError) as ex:
+            self.Solver.get_operator_regularizer([c, A, H], [creg, Areg], r, m)
+        assert ex.value.args[0] == (
+            "len(operators) == 3 != 2 == len(regularization_parameters)"
+        )
+
+        with pytest.raises(TypeError) as ex:
+            self.Solver.get_operator_regularizer([c, 2], [creg, Areg], r)
+        assert ex.value.args[0] == "unsupported operator type 'int'"
+
+        # No inputs.
+        reg = self.Solver.get_operator_regularizer([c, A], [creg, Areg], r)
+        assert reg.shape == (1 + r,)
+        assert reg[0] == creg
+        assert np.all(reg[1:] == Areg)
+
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            self.Solver.get_operator_regularizer([c, H], [creg, Hreg], r, m)
+        assert len(wn) == 1
+        assert wn[0].message.args[0] == (
+            "argument 'input_dimension' ignored, no operators act on inputs"
+        )
+
+        # Yes inputs.
+        reg = self.Solver.get_operator_regularizer([H, B], [Hreg, Breg], r, m)
+        assert reg.shape == (_r2 + m,)
+        assert np.all(reg[:-m] == Hreg)
+        assert np.all(reg[-m:] == Breg)
+
+        with pytest.raises(ValueError) as ex:
+            self.Solver.get_operator_regularizer([A, B], [Areg, Breg], r)
+        assert ex.value.args[0] == (
+            "argument 'input_dimension' required, operators[1] acts on inputs"
+        )
+
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            self.Solver.get_operator_regularizer([A], [Areg], r)
+        assert len(wn) == 1
+        assert wn[0].message.args[0] == (
+            "consider using L2Solver for models with only one operator"
+        )
+
+        # Affine-parametric operators.
+        cp = opinf.operators.AffineConstantOperator(3)
+        Ap = opinf.operators.AffineLinearOperator(2)
+        reg = self.Solver.get_operator_regularizer(
+            [cp, Ap, H], [creg, Areg, Hreg], r
+        )
+        assert reg.shape == (3 + 2 * r + _r2,)
+        assert np.all(reg[:3] == creg)
+        assert np.all(reg[3 : 3 + 2 * r] == Areg)
+        assert np.all(reg[-_r2:] == Hreg)
+
     # Main methods ------------------------------------------------------------
     def test_fit(self, k=20, d=10, r=5):
         """Test fit()."""
@@ -1013,3 +1080,7 @@ class TestTikhonovDecoupledSolver:
         assert np.all(solver2.data_matrix == D)
         assert np.all(solver2.lhs_matrix == Z)
         assert np.allclose(solver2.solve(), solver.solve())
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

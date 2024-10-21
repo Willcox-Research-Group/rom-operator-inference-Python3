@@ -109,3 +109,7 @@ class TestTimedBlock:
                 text = infile.read().strip()
             assert text.count(newmessage) == 1
             os.remove(tfile)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

@@ -54,7 +54,7 @@ class ParametricROM(_BaseROM):
             raise TypeError("'model' must be a parametric model instance")
         super().__init__(model, lifter, transformer, basis, ddt_estimator)
 
-    # Training and evaluation -------------------------------------------------
+    # Training ----------------------------------------------------------------
     def fit(
         self,
         parameters,
@@ -105,18 +105,17 @@ class ParametricROM(_BaseROM):
         -------
         self
         """
-        _BaseROM._check_fit_args(self, lhs=lhs, inputs=inputs)
-        states, lhs, inputs = _BaseROM.fit(
-            self,
+        self._fit_and_return_training_data(
+            parameters=parameters,
             states=states,
             lhs=lhs,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
         )
-        self.model.fit(parameters, states, lhs, inputs)
         return self
 
+    # Evaluation --------------------------------------------------------------
     def predict(self, parameter, state0, *args, **kwargs):
         r"""Evaluate the reduced-order model.
 

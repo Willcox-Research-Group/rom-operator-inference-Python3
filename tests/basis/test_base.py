@@ -173,3 +173,7 @@ class TestBaseBasis:
 
         basis = Dummy5b()
         basis.verify()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

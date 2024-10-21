@@ -12,8 +12,8 @@ from .test_base import _TestBaseROM
 _module = opinf.roms
 
 
-class TestROM(_TestBaseROM):
-    """Test roms.ROM."""
+class TestParametricROM(_TestBaseROM):
+    """Test roms.ParametricROM."""
 
     ROM = _module.ParametricROM
     ModelClasses = (
@@ -192,3 +192,92 @@ class TestROM(_TestBaseROM):
         rom.fit(parameters, states, inputs=inputs)
         out = rom.predict(testparam, testinit, k0, inputs=inputs[0])
         assert out.shape == (n, k0)
+
+    def test_fit_regselect_continuous(self):
+        """Very lightly test fit_regselect_continuous()."""
+        for model in self._get_models():
+            rom = self.ROM(model)
+            if not rom._iscontinuous:
+                continue
+
+            # Give the model a compatible solver.
+            rom = self.ROM(
+                model.__class__(
+                    operators=model.operators,
+                    solver=opinf.lstsq.L2Solver(1e-2),
+                )
+            )
+
+            def func(t):
+                return np.ones(3)
+
+            # Tests.
+            t = np.linspace(0, 1, 100)
+            regs = np.logspace(-12, 2, 15)
+            Q = np.ones((20, t.size))
+
+            def blowup(*args, **kwargs):
+                return np.zeros((20, t.size // 2))
+
+            rom.model.predict = blowup
+
+            with (
+                pytest.raises(RuntimeError) as ex,
+                pytest.warns(opinf.errors.OpInfWarning) as wn,
+            ):
+                rom.fit_regselect_continuous(
+                    regs,
+                    t,
+                    [np.random.random(3) for i in range(8)],
+                    [Q + i for i in range(8)],
+                    ddts=[np.zeros_like(Q) for _ in range(8)],
+                    input_functions=func if rom.model._has_inputs else None,
+                    test_time_length=(t[-1] - t[0]) / 10,
+                )
+            assert len(wn) == 8
+            for w in wn:
+                assert w.message.args[0].startswith("ignoring stability limit")
+            assert ex.value.args[0] == "regularization grid search failed"
+
+    def test_fit_regselect_discrete(self):
+        """Very lightly test fit_regselect_discrete()."""
+        for model in self._get_models():
+            rom = self.ROM(model)
+            if rom._iscontinuous:
+                continue
+
+            # Give the model a compatible solver.
+            rom = self.ROM(
+                model.__class__(
+                    operators=model.operators,
+                    solver=opinf.lstsq.L2Solver(1e-2),
+                )
+            )
+
+            # Tests.
+            niters = 100
+            regs = np.logspace(-12, 6, 19)
+            Q = np.ones((20, niters))
+
+            with (
+                # pytest.raises(RuntimeError) as ex,
+                pytest.warns(opinf.errors.OpInfWarning) as wn,
+            ):
+                rom.fit_regselect_discrete(
+                    regs,
+                    [np.random.random(3) for _ in range(8)],
+                    [Q + i for i in range(8)],
+                    inputs=(
+                        [np.ones((3, niters)) for _ in range(8)]
+                        if rom.model._has_inputs
+                        else None
+                    ),
+                )
+            assert len(wn) >= 8
+            for w in wn[:8]:
+                assert w.message.args[0].startswith("ignoring stability limit")
+            # assert ex.value.args[0] == "regularization grid search failed"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

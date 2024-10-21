@@ -67,3 +67,7 @@ class TestInterpDerivativeEstimator:
 
         # One-dimensional inputs.
         est.estimate(Q, U[0])
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

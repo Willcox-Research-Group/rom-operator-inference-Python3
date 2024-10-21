@@ -840,3 +840,7 @@ class TestFrozenMixin:
             "_clear() is disabled for this class, call fit() "
             "on the parametric model object"
         )
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

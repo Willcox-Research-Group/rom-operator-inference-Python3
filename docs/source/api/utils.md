@@ -35,6 +35,38 @@ The following functions facilitate that data transfer.
     hdf5_savehandle
 ```
 
+## Helper Routines
+
+The following functions perform miscellaneous tasks within the rest of the code base.
+
+```{eval-rst}
+.. currentmodule:: opinf.utils
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    requires
+    requires2
+    str2repr
+```
+
+### Regularization Selection
+
+These helper routines support automatic regularization selection.
+
+```{eval-rst}
+.. currentmodule:: opinf.utils
+
+.. autosummary::
+    :toctree: _autosummaries
+    :nosignatures:
+
+    gridsearch
+    DiscreteRegTest
+    ContinuousRegTest
+```
+
 ## Documentation
 
 The following function initializes the Matplotlib defaults used in the documentation notebooks.

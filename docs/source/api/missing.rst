@@ -28,11 +28,15 @@ pre.ipynb
    :toctree: _autosummaries
    :nosignatures:
 
+   TransformerTemplate
+   NullTransformer
+   ShiftTransformer
+   ScaleTransformer
+   ShiftScaleTransformer
+   TransformerPipeline
+   TransformerMulti
    shift
    scale
-   ShiftScaleTransformer
-   TransformerMulti
-   TransformerTemplate
 
 basis.ipynb
 -----------

@@ -150,3 +150,7 @@ class TestDerivativeEstimatorTemplate:
 
         # Check that the original time domain was restored.
         assert dummy.time_domain is t
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

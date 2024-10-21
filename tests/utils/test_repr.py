@@ -22,3 +22,9 @@ def test_str2repr(s="test string representation"):
     assert len(lines) == 2
     assert str(hex(id(d))) in lines[0]
     assert lines[1] == s
+
+
+if __name__ == "__main__":
+    import pytest
+
+    pytest.main([__file__])

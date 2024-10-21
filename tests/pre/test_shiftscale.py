@@ -1,16 +1,16 @@
 # pre/test_shiftscale.py
 """Tests for pre._shiftscale.py."""
 
-import os
-import h5py
 import pytest
 import itertools
 import numpy as np
 
 import opinf
 
+from .test_base import _TestTransformer
 
-# Data preprocessing: shifting and MinMax scaling / unscaling =================
+
+# Functions ===================================================================
 def test_shift(set_up_transformer_data):
     """Test pre._shift_scale.shift()."""
     X = set_up_transformer_data
@@ -70,11 +70,102 @@ def test_scale(set_up_transformer_data):
     assert np.allclose(opinf.pre.scale(Xscaled, scaled_from, scaled_to), X)
 
 
-# Transformer classes for centering and scaling ===============================
-class TestShiftScaleTransformer:
+# Transformer classes =========================================================
+class TestShiftTransformer(_TestTransformer):
+    Transformer = opinf.pre.ShiftTransformer
+    requires_training = False
+    statedim = 20
+
+    def get_transformers(self, name=None):
+        yield self.Transformer(np.random.random(self.statedim), name=name)
+
+    def test_init(self):
+        """Test __init__() and the reference property."""
+
+        with pytest.raises(TypeError) as ex:
+            self.Transformer("moose")
+        assert ex.value.args[0] == (
+            "reference snapshot must be a one-dimensional array"
+        )
+
+        tf = self.get_transformer()
+        assert tf.state_dimension == self.statedim
+        assert isinstance(tf.reference, np.ndarray)
+        assert tf.reference.shape == (tf.state_dimension,)
+
+        with pytest.raises(AttributeError) as ex:
+            tf.state_dimension = self.statedim + 2
+        assert ex.value.args[0] == (
+            "can't set attribute 'state_dimension' to "
+            f"{self.statedim + 2} != {self.statedim} = reference.size"
+        )
+
+
+class TestScaleTransformer(_TestTransformer):
+    Transformer = opinf.pre.ScaleTransformer
+    requires_training = None
+    statedim = 21
+
+    def get_transformers(self, name=None):
+        self.requires_training = True
+        yield self.Transformer(np.random.random(), name=name)
+        self.requires_training = False
+        yield self.Transformer(np.random.random(self.statedim), name=name)
+
+    def test_init(self):
+        """Test __init__() and the scale property."""
+
+        with pytest.raises(TypeError) as ex:
+            self.Transformer("bison")
+        assert ex.value.args[0] == (
+            "scaler must be a nonzero scalar or one-dimensional array"
+        )
+
+        tf = self.Transformer(10)
+        assert tf.state_dimension is None
+        assert tf.scaler == 10
+
+        tf = self.Transformer(np.random.random(self.statedim))
+        assert tf.state_dimension == self.statedim
+        assert isinstance(tf.scaler, np.ndarray)
+
+        with pytest.raises(AttributeError) as ex:
+            tf.state_dimension = self.statedim - 1
+        assert ex.value.args[0] == (
+            "can't set attribute 'state_dimension' to "
+            f"{self.statedim - 1} != {self.statedim} = scaler.size"
+        )
+
+
+class TestShiftScaleTransformer(_TestTransformer):
     """Test pre.ShiftScaleTransformer."""
 
     Transformer = opinf.pre.ShiftScaleTransformer
+    requires_training = True
+
+    def get_transformers(self, name=None):
+        for scaling, centering in itertools.product(
+            {None, *self.Transformer._VALID_SCALINGS},
+            (True, False),
+        ):
+            if scaling is None and centering is False:
+                self.requires_training = False
+            yield self.Transformer(
+                centering=centering,
+                scaling=scaling,
+                byrow=False,
+                name=name,
+                verbose=False,
+            )
+            self.requires_training = True
+            if scaling is not None:
+                yield self.Transformer(
+                    centering=centering,
+                    scaling=scaling,
+                    byrow=True,
+                    name=name,
+                    verbose=True,
+                )
 
     def test_init(self, n=10):
         """Test ShiftScaleTransformer.__init__()."""
@@ -197,190 +288,13 @@ class TestShiftScaleTransformer:
         st2.scale_, st2.shift_ = a, b
         assert st1 == st2
 
-    # Printing ----------------------------------------------------------------
-    def test_str(self):
-        """Test ShiftScaleTransformer.__str__()."""
-        st = self.Transformer()
-        assert str(st) == "ShiftScaleTransformer"
-
-        st = self.Transformer(centering=True)
-        trn = "(call fit() or fit_transform() to train)"
-        msc = "ShiftScaleTransformer with mean-snapshot centering"
-        assert str(st) == f"{msc} {trn}"
-        for s in st._VALID_SCALINGS:
-            st = self.Transformer(centering=True, scaling=s)
-            assert str(st) == f"{msc} and '{s}' scaling {trn}"
-
-        for s in st._VALID_SCALINGS:
-            st = self.Transformer(centering=False, scaling=s)
-            assert str(st) == f"ShiftScaleTransformer with '{s}' scaling {trn}"
-
-        st = self.Transformer(centering=False, scaling=None)
-        st.state_dimension = 100
-        assert str(st) == "ShiftScaleTransformer (state dimension n = 100)"
-
-        assert str(hex(id(st))) in repr(st)
-
     def test_statistics_report(self):
         """Test ShiftScaleTransformer._statistics_report()."""
         X = np.arange(10) - 4
         report = self.Transformer._statistics_report(X)
         assert report == "-4.000e+00 |  5.000e-01 |  5.000e+00 |  2.872e+00"
 
-    # Persistence -------------------------------------------------------------
-    def test_save(self, n=200, k=50):
-        """Test ShiftScaleTransformer.save()."""
-        # Clean up after old tests.
-        target = "_savetransformertest.h5"
-        if os.path.isfile(target):  # pragma: no cover
-            os.remove(target)
-
-        def _checkfile(filename, st):
-            assert os.path.isfile(filename)
-            with h5py.File(filename, "r") as hf:
-                # Check transformation metadata.
-                assert "meta" in hf
-                assert len(hf["meta"]) == 0
-                for attr in ("centering", "scaling", "byrow", "verbose"):
-                    assert attr in hf["meta"].attrs
-                    if attr == "scaling" and st.scaling is None:
-                        assert not hf["meta"].attrs[attr]
-                    else:
-                        assert hf["meta"].attrs[attr] == getattr(st, attr)
-
-                # Check transformation parameters.
-                if st.centering and hasattr(st, "mean_"):
-                    assert "transformation/mean_" in hf
-                    assert np.all(hf["transformation/mean_"][:] == st.mean_)
-                if st.scaling and hasattr(st, "scale_"):
-                    assert "transformation/scale_" in hf
-                    assert np.all(hf["transformation/scale_"][:] == st.scale_)
-                    assert "transformation/shift_" in hf
-                    assert np.all(hf["transformation/shift_"][:] == st.shift_)
-
-        # Check file creation and overwrite protocol on null transformation.
-        st = self.Transformer()
-        st.save(target)
-        _checkfile(target, st)
-
-        with pytest.raises(FileExistsError) as ex:
-            st.save(target, overwrite=False)
-        ex.value.args[0] == f"{target} (overwrite=True to ignore)"
-
-        st.save(target, overwrite=True)
-        _checkfile(target, st)
-
-        # Check non-null transformations.
-        X = np.random.randint(0, 100, (n, k)).astype(float)
-        for scaling, centering, byrow in itertools.product(
-            *[{None, *st._VALID_SCALINGS}, (True, False), (True, False)]
-        ):
-            st = self.Transformer(
-                centering=centering,
-                scaling=scaling,
-                byrow=byrow if scaling else False,
-                verbose=centering,
-            )
-            st.fit_transform(X)
-            st.save(target, overwrite=True)
-            _checkfile(target, st)
-
-        os.remove(target)
-
-    def test_load(self, n=200, k=50):
-        """Test ShiftScaleTransformer.load()."""
-        # Clean up after old tests.
-        target = "_loadtransformertest.h5"
-        if os.path.isfile(target):  # pragma: no cover
-            os.remove(target)
-
-        # Check that save() -> load() gives the same transformer.
-        X = np.random.randint(0, 100, (n, k)).astype(float)
-        for scaling, centering, byrow in itertools.product(
-            *[
-                {None, *self.Transformer._VALID_SCALINGS},
-                (True, False),
-                (True, False),
-            ]
-        ):
-            st = self.Transformer(
-                centering=centering,
-                scaling=scaling,
-                byrow=byrow if scaling else False,
-                verbose=not centering,
-            )
-            st.state_dimension = n
-            st.fit_transform(X, inplace=False)
-            st.save(target, overwrite=True)
-            st2 = self.Transformer.load(target)
-            assert st == st2
-
-        os.remove(target)
-
-    # Main routines -----------------------------------------------------------
-    def test_check_shape(self, n=12):
-        """Test ShiftScaleTransformerMulti._check_shape()."""
-        stm = self.Transformer()
-        stm.state_dimension = n
-        X = np.random.randint(0, 100, (n, 2 * n)).astype(float)
-        stm._check_shape(X)
-
-        with pytest.raises(ValueError) as ex:
-            stm._check_shape(X[:-1])
-        assert ex.value.args[0] == (
-            f"states.shape[0] = {n - 1} != {n} = state dimension n"
-        )
-
-    def test_is_trained(self, n=20):
-        """Test ShiftScaleTransformer._is_trained()."""
-        Q = np.random.random((n, 2 * n))
-        # Null transformer is always trained.
-        st = self.Transformer()
-        assert st._is_trained() is True
-        st = self.Transformer().fit(Q)
-        assert st._is_trained() is True
-        st._check_is_trained()
-
-        # Centering.
-        st = self.Transformer(centering=True)
-        assert st._is_trained() is False
-        st.mean_ = np.random.random(n)
-        assert st._is_trained() is True
-
-        # Scaling.
-        st = self.Transformer(centering=False, scaling="minmax")
-        with pytest.raises(AttributeError) as ex:
-            st._check_is_trained()
-        assert ex.value.args[0] == (
-            "transformer not trained (call fit() or fit_transform())"
-        )
-
-        st.scale_ = 10
-        assert st._is_trained() is False
-        st.shift_ = 20
-        assert st._is_trained() is True
-
-        st = self.Transformer(centering=True, scaling="standard")
-        assert st._is_trained() is False
-        st.mean_ = np.random.random(n)
-        assert st._is_trained() is False
-        st.scale_ = np.random.random(n)
-        assert st._is_trained() is False
-        st.shift_ = np.random.random(n)
-        assert st._is_trained() is True
-
-    def test_verify(self, n=150, k=400):
-        """Use ShiftScaleTransformer.verify() to run tests."""
-        Q = np.random.random((n, k))
-
-        for scaling, centering in itertools.product(
-            {None, *self.Transformer._VALID_SCALINGS}, (True, False)
-        ):
-            st = self.Transformer(centering=centering, scaling=scaling)
-            st.fit(Q)
-            st.verify()
-
-    def test_fit_transform(self, n=200, k=50):
+    def test_transformation_types(self, n=80, k=39):
         """Test ShiftScaleTransformer.fit_transform()."""
 
         def fit_transform_copy(st, A):
@@ -500,97 +414,29 @@ class TestShiftScaleTransformer:
             assert np.allclose(np.mean(Y, axis=1), 0)
             assert np.allclose(np.max(np.abs(Y), axis=1), 1)
 
-    def test_transform(self, n=200, k=50):
-        """Test ShiftScaleTransformer.transform()."""
-        X = np.random.randint(0, 100, (n, k)).astype(float)
-        st = self.Transformer(verbose=False)
+    def test_mains(self, n=11, k=21):
+        """Test fit(), fit_transform(), transform(), transform_ddts(), and
+        inverse_transform().
+        """
 
-        # Test null transformation.
-        X = np.random.randint(0, 100, (n, k)).astype(float)
-        st.fit_transform(X)
-        Y = np.random.randint(0, 100, (n, k)).astype(float)
-        Z = st.transform(Y, inplace=True)
-        assert Z is Y
-        Z = st.transform(Y, inplace=False)
-        assert Z is not Y
-        assert Z.shape == Y.shape
-        assert np.all(Z == Y)
-
-        # Test mean shift.
-        st = self.Transformer(centering=True, scaling=None)
-        with pytest.raises(AttributeError) as ex:
-            st.transform(Y, inplace=False)
-        assert ex.value.args[0] == (
-            "transformer not trained (call fit() or fit_transform())"
-        )
-        st.fit_transform(X)
-        µ = st.mean_
-        Z = st.transform(Y, inplace=False)
-        assert np.allclose(Z, Y - µ.reshape(-1, 1))
-
-        # Test each scaling.
-        for scl in st._VALID_SCALINGS:
-            X = np.random.randint(0, 100, (n, k)).astype(float)
-            Y = np.random.randint(0, 100, (n, k)).astype(float)
-            st = self.Transformer(centering=False, scaling=scl)
-            st.fit(X)
-            a, b = st.scale_, st.shift_
-            Z = st.transform(Y, inplace=False)
-            assert np.allclose(Z, a * Y + b)
-
-            # Test transforming a one-dimensional array.
-            Y = np.random.randint(0, 100, n).astype(float)
-            Z = st.transform(Y, inplace=False)
-            assert Z.shape == Y.shape
-            assert np.allclose(Z, a * Y + b)
-
-    def test_inverse_transform(self, n=200, k=50):
-        """Test ShiftScaleTransformer.inverse_transform()."""
-        X = np.random.randint(0, 100, (n, k)).astype(float)
-        st = self.Transformer(centering=True, verbose=False)
-
-        with pytest.raises(AttributeError) as ex:
-            st.inverse_transform(X, inplace=False)
-        assert ex.value.args[0] == (
-            "transformer not trained (call fit() or fit_transform())"
-        )
-
-        def _test_single(st, Y):
-            Z = st.transform(Y, inplace=False)
-            assert Z.shape == Y.shape
-            st.inverse_transform(Z, inplace=True)
-            assert Z.shape == Y.shape
-            assert np.allclose(Z, Y)
-
-        def _test_locs(st, Y, locs):
-            Ylocs = Y[locs]
-            Z = st.transform(Y, inplace=False)
-            Zlocs = Z[locs]
-            Ynew = st.inverse_transform(Zlocs, inplace=False, locs=locs)
-            assert Ynew.shape == Ylocs.shape
-            assert np.allclose(Ynew, Ylocs)
-            st.inverse_transform(Zlocs, inplace=True, locs=locs)
-            assert Zlocs.shape == Ylocs.shape
-            assert np.allclose(Zlocs, Ylocs)
-
-        for scaling, centering in itertools.product(
-            {None, *st._VALID_SCALINGS}, (True, False)
+        Q = np.random.random((n, k))
+        for tf in (
+            self.Transformer(centering=True),
+            self.Transformer(scaling="standard"),
         ):
-            st = self.Transformer(centering=centering, scaling=scaling)
-            st.fit_transform(X, inplace=False)
-            locs = np.unique(np.sort(np.random.randint(0, n, n // 4)))
+            for method in (
+                tf.transform,
+                tf.inverse_transform,
+                tf.transform_ddts,
+            ):
+                with pytest.raises(AttributeError) as ex:
+                    method(Q)
+                assert ex.value.args[0] == (
+                    "transformer not trained, call fit() or fit_transform()"
+                )
 
-            # Test matrix of snapshots.
-            Y = np.random.randint(0, 100, (n, k)).astype(float)
-            _test_single(st, Y)
-            _test_locs(st, Y, locs)
+        return super().test_mains(n, k)
 
-            # Test a single snapshot.
-            locs = slice(n // 6)
-            Y = np.random.randint(0, 100, n).astype(float)
-            _test_single(st, Y)
-            _test_locs(st, Y, locs)
 
-        with pytest.raises(ValueError) as ex:
-            st.inverse_transform(Y, locs=locs)
-        assert ex.value.args[0] == "states_transformed not aligned with locs"
+if __name__ == "__main__":
+    pytest.main([__file__])

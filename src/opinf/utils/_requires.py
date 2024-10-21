@@ -6,10 +6,11 @@ __all__ = [
     "requires2",
 ]
 
+import typing
 import functools
 
 
-def requires2(attr: str, message: str) -> callable:
+def requires2(attr: str, message: str) -> typing.Callable:
     """Wrapper for methods that require an attribute to be initialized.
 
     Parameters
@@ -32,7 +33,7 @@ def requires2(attr: str, message: str) -> callable:
     return _wrapper
 
 
-def requires(attr: str) -> callable:
+def requires(attr: str) -> typing.Callable:
     """Wrapper for methods that require an attribute to be initialized.
 
     Parameters

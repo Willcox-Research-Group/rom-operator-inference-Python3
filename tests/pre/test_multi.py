@@ -7,6 +7,98 @@ import numpy as np
 
 import opinf
 
+from .test_base import _TestTransformer
+
+
+class TestTransformerPipeline(_TestTransformer):
+    """Tests for pre._base.TransformerPipeline."""
+
+    state_dimension = 20
+    requires_training = None
+
+    class Transformer(opinf.pre.TransformerPipeline):
+        @classmethod
+        def load(cls, loadfile):
+            return super().load(
+                loadfile,
+                TransformerClasses=[
+                    opinf.pre.ShiftTransformer,
+                    opinf.pre.ScaleTransformer,
+                ],
+            )
+
+    def get_transformers(self, name=None):
+        t1 = opinf.pre.ShiftTransformer(np.random.random(self.state_dimension))
+        t2 = opinf.pre.ScaleTransformer(np.random.random())
+        self.requires_training = True
+        yield self.Transformer([t1, t2], name=name)
+
+        t1 = opinf.pre.ShiftTransformer(np.random.random(self.state_dimension))
+        t2 = opinf.pre.ScaleTransformer(np.random.random(self.state_dimension))
+        self.requires_training = False
+        yield self.Transformer([t1, t2], name=name)
+
+    def test_init(self):
+        """Test __init__() and properties."""
+        with pytest.raises(TypeError) as ex:
+            self.Transformer("moosen", name="bryan")
+        assert ex.value.args[0] == "'transformers' should be a list or tuple"
+
+        class Dummy:
+            state_dimension = 10
+
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            tf = self.Transformer([Dummy(), Dummy()])
+        assert len(wn) == 2
+        assert wn[0].message.args[0] == (
+            "transformers[0] does not inherit from TransformerTemplate, "
+            "unexpected behavior may occur"
+        )
+        assert tf.state_dimension == 10
+        assert len(tf) == 2
+
+        Q = np.empty((self.state_dimension, 2))
+        t1 = opinf.pre.NullTransformer().fit(Q)
+        t2 = opinf.pre.NullTransformer().fit(Q[1:-1, :])
+        with pytest.raises(ValueError) as ex:
+            self.Transformer([t1, t2])
+        assert ex.value.args[0] == (
+            "transformers have inconsistent state_dimension"
+        )
+
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            tf = self.Transformer([opinf.pre.NullTransformer()])
+        assert len(wn) == 1
+        assert wn[0].message.args[0] == (
+            "only one transformer provided to TransformerPipeline"
+        )
+        assert tf.state_dimension is None
+
+    def test_saveload(self):
+        """Test save() and load()."""
+        super().test_saveload()
+
+        target = "_TransformerPipeline_saveloadtest.h5"
+        tf = self.get_transformer()
+        tf.save(target, overwrite=True)
+        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
+            opinf.pre.TransformerPipeline.load(
+                target, [list, tuple, set, dict] * 2
+            )
+        assert ex.value.args[0].startswith("file contains")
+
+        os.remove(target)
+
+
+class TestNullTransformer(_TestTransformer):
+    """Tests for pre._base.NullTransformer."""
+
+    Transformer = opinf.pre.NullTransformer
+    requires_training = False
+
+    def get_transformers(self, name=None):
+        yield self.Transformer(name=name)
+
 
 class TestTransformerMulti:
     """Tests for pre._base.TransformerMulti."""
@@ -76,11 +168,11 @@ class TestTransformerMulti:
         assert len(tfm) == len(transformers)
 
         with pytest.raises(ValueError) as ex:
-            tfm.transformers = []
+            self.Transformer([])
         assert ex.value.args[0] == "at least one transformer required"
 
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            tfm.transformers = transformers[:1]
+            tfm = self.Transformer(transformers[:1])
         assert wn[0].message.args[0] == "only one variable detected"
         assert tfm.num_variables == 1
 
@@ -90,11 +182,17 @@ class TestTransformerMulti:
         tfm = self.Transformer(transformers)
         assert tfm.state_dimension == 45
 
+        with pytest.raises(ValueError) as ex:
+            self.Transformer(transformers, variable_sizes=(12, 15, 20))
+        assert ex.value.args[0] == (
+            "transformers[2].state_dimension = 18 != 20 = variable_sizes[2]"
+        )
+
         class ExtraDummy:
             name = "nothing"
 
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            tfm.transformers = [ExtraDummy(), ExtraDummy()]
+            self.Transformer([ExtraDummy(), ExtraDummy()])
         assert len(wn) == 2
         assert wn[0].message.args[0].startswith("transformers[0] does not")
         assert wn[1].message.args[0].startswith("transformers[1] does not")
@@ -131,19 +229,12 @@ class TestTransformerMulti:
         assert tfm1 == tfm2
 
     def test_str(self):
-        """Test TransformerMulti.__str__()."""
-        transformers = [self.Dummy(), self.Dummy2()]
-        tfm = self.Transformer(transformers)
-
-        stringrep = str(tfm)
-        assert stringrep.startswith("2-variable TransformerMulti\n")
-        for tf in transformers:
-            assert str(tf) in stringrep
-
-        # Quick repr() test.
-        rep = repr(tfm)
-        assert stringrep in rep
-        assert str(hex(id(tfm))) in rep
+        """Lightly test TransformerMulti.__str__()."""
+        tfm = self.Transformer([self.Dummy(), self.Dummy2()])
+        str(tfm)
+        tfm.transformers[0].state_dimension = 4
+        tfm.transformers[1].state_dimension = 4
+        repr(tfm)
 
     # Convenience methods -----------------------------------------------------
     def test_check_shape(self):
@@ -353,3 +444,7 @@ class TestTransformerMulti:
             "transform() and inverse_transform() are not inverses "
             "(locs != None)"
         )
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

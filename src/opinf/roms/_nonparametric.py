@@ -54,7 +54,7 @@ class ROM(_BaseROM):
             raise TypeError("'model' must be a nonparametric model instance")
         super().__init__(model, lifter, transformer, basis, ddt_estimator)
 
-    # Training and evaluation -------------------------------------------------
+    # Training ----------------------------------------------------------------
     def fit(
         self,
         states,
@@ -106,32 +106,218 @@ class ROM(_BaseROM):
         -------
         self
         """
-        _BaseROM._check_fit_args(self, lhs=lhs, inputs=inputs)
-
-        # Single trajectory case.
-        if states[0].ndim == 1:
-            states = [states]
-            if lhs is not None:
-                lhs = [lhs]
-            if inputs is not None:
-                inputs = [inputs]
-
-        states, lhs, inputs = _BaseROM.fit(
-            self,
+        self._fit_and_return_training_data(
+            parameters=None,
             states=states,
             lhs=lhs,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
         )
-
-        # Concatentate trajectories.
-        if inputs is not None:
-            inputs = np.hstack(inputs)
-        self.model.fit(np.hstack(states), np.hstack(lhs), inputs)
-
         return self
 
+    def fit_regselect_continuous(
+        self,
+        candidates: list,
+        train_time_domains: np.ndarray,
+        states: list,
+        ddts: list = None,
+        input_functions: list = None,
+        fit_transformer: bool = True,
+        fit_basis: bool = True,
+        regularizer_factory=None,
+        gridsearch_only: bool = False,
+        test_time_length: float = 0,
+        stability_margin: float = 5.0,
+        test_cases: list = None,
+        verbose: bool = False,
+        **predict_options: dict,
+    ):
+        """Calibrate the time-continuous model to training data, selecting the
+        regularization hyperparameter(s) that minimize the training error while
+        maintaining stability over the testing regime.
+
+        This method requires the :attr:`model` to be time-continuous and to
+        have a ``solver`` of one of the following types:
+
+        * :class:`opinf.lstsq.L2Solver`
+        * :class:`opinf.lstsq.L2DecoupledSolver`
+        * :class:`opinf.lstsq.TikhonovSolver`
+        * :class:`opinf.lstsq.TikhonovDecoupledSolver`
+
+        The ``solver.regularizer`` is repeatedly adjusted, and the model is
+        recalibrated, until a best regularization is selected.
+
+        Parameters
+        ----------
+        candidates : list of regularization hyperparameters
+            Regularization hyperparameters to check before carrying out a
+            derivative-free optimization.
+        train_time_domains : list of s (k_i,) ndarrays
+            Time domain corresponding to the training states.
+        states : list of s (n, k_i) ndarrays
+            State snapshots in the original state space. Each array
+            ``states[i]`` is data corresponding to a different trajectory;
+            each column ``states[i][:, j]`` is one snapshot.
+        ddts : list of s (n, k_i) ndarrays or None
+            Snapshot time derivative data. Each array ``ddts[i]`` are the time
+            derivatives of ``states[i]``; each column ``ddts[i][:, j]``
+            corresponds to the snapshot ``states[i][:, j]``. If ``None``
+            (default), these are estimated using :attr:`ddt_estimator`.
+        input_functions : list of s callables or None
+            Input functions mapping time to input vectors. Only required if the
+            :attr:`model` takes external inputs. Each ``input_functions[i]``
+            is the function corresponding to ``states[i]``, and
+            ``input_functions[i](train_time_domains[i][j])`` is the input
+            vector corresponding to the snapshot ``states[i][:, j]``.
+        fit_transformer : bool
+            If ``True`` (default), calibrate the preprocessing transformation
+            using the ``states``.
+            If ``False``, assume the transformer is already calibrated.
+        fit_basis : bool
+            If ``True`` (default), calibrate the high-to-low dimensional
+            mapping using the ``states``.
+            If ``False``, assume the basis is already calibrated.
+        regularizer_factory : callable or None
+            Function mapping regularization hyperparameters to the full
+            regularizer. Specifically, ``regularizer_factory(candidates[i])``
+            will be assigned to ``model.solver.regularizer`` for each ``i``.
+            If ``None`` (default), set ``regularizer_factory()`` to the
+            identity function.
+        gridsearch_only : bool
+            If ``True``, stop after checking all regularization ``candidates``
+            and do not follow up with optimization.
+        test_time_length : float or None
+            Amount of time after the training regime in which to require model
+            stability.
+        stability_margin : float
+            Factor by which the predicted reduced states may deviate from the
+            range of the training reduced states without the trajectory being
+            classified as unstable.
+        test_cases : list of ContinuousRegTest objects
+            Additional test cases for which the model is required to be stable.
+            See :class:`opinf.utils.ContinuousRegTest`.
+        verbose : bool
+            If ``True``, print information during the regularization selection.
+        predict_options : dict or None
+            Extra arguments for :meth:`opinf.models.ContinuousModel.predict`.
+
+        Notes
+        -----
+        If there is only one trajectory of training data (s = 1), ``states``
+        may be provided as an (n, k) ndarray. In this case, it is assumed that
+        ``ddts`` (if provided) is an (n, k) ndarray and that ``inputs`` (if
+        provided) is a single callable.
+
+        The ``train_time_domains`` may be a single one-dimensional array, in
+        which case it is assumed that each trajectory ``states[i]`` corresponds
+        to the same time domain.
+        """
+        super().fit_regselect_continuous(
+            candidates=candidates,
+            train_time_domains=train_time_domains,
+            parameters=None,
+            states=states,
+            ddts=ddts,
+            input_functions=input_functions,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+            regularizer_factory=regularizer_factory,
+            gridsearch_only=gridsearch_only,
+            test_time_length=test_time_length,
+            stability_margin=stability_margin,
+            test_cases=test_cases,
+            verbose=verbose,
+            **predict_options,
+        )
+
+    def fit_regselect_discrete(
+        self,
+        candidates: list,
+        states: list,
+        inputs: list = None,
+        fit_transformer: bool = True,
+        fit_basis: bool = True,
+        regularizer_factory=None,
+        gridsearch_only: bool = False,
+        num_test_iters: int = 0,
+        stability_margin: float = 5.0,
+        test_cases: list = None,
+        verbose: bool = False,
+    ):
+        """Calibrate the fully discrete model to training data, selecting the
+        regularization hyperparameter(s) that minimize the training error
+        while maintaining stability over the testing regime.
+
+        This method requires the :attr:`model` to be time-continuous and to
+        have a ``solver`` of one of the following types:
+
+        * :class:`opinf.lstsq.L2Solver`
+        * :class:`opinf.lstsq.L2DecoupledSolver`
+        * :class:`opinf.lstsq.TikhonovSolver`
+        * :class:`opinf.lstsq.TikhonovDecoupledSolver`
+
+        The ``solver.regularizer`` is repeatedly adjusted, and the model is
+        recalibrated, until a best regularization is selected.
+
+        candidates : list of regularization hyperparameters
+            Regularization hyperparameters to check. If a single hyperparameter
+            is given, use it as the start of an optimization-based search.
+        states : list of s (n, k_i) ndarrays
+            State snapshots in the original state space. Each array
+            ``states[i]`` is data corresponding to a different trajectory;
+            each column ``states[i][:, j]`` is one snapshot. This method
+            assumes the snapshots are sequential, i.e., the model maps
+            ``states[i][:, j]`` to ``states[i][:, j+1]``.
+        states : list of s (r, k_i) ndarrays
+            State snapshots in the reduced state space. This method assumes
+            the snapshots are sequential, i.e., the model maps
+            ``states[i][:, j]`` to ``states[i][:, j+1]``.
+        inputs : list of s (m, k_i + num_test_iters) ndarrays
+            Inputs corresponding to the training data, together with inputs
+            for the testing regime. Only required if the :attr:`model` takes
+            external inputs.
+        regularizer_factory : callable or None
+            Function mapping regularization hyperparameters to the full
+            regularizer. Specifically, ``regularizer_factory(candidates[i])``
+            will be assigned to ``model.solver.regularizer`` for each ``i``.
+        gridsearch_only : bool
+            If ``True``, stop after checking all regularization ``candidates``
+            and do not follow up with optimization.
+        num_test_iters : int
+            Number of iterations after the training data in which to require
+            model stability.
+        stability_margin : float,
+            Factor by which the reduced states may deviate from the range of
+            the training data without being flagged as unstable.
+        test_cases : list of DiscreteRegTest objects
+            Additional test cases for which the model is required to be stable.
+            See :class:`opinf.utils.DiscreteRegTest`.
+        verbose : bool
+            If ``True``, print information during the regularization selection.
+
+        Notes
+        -----
+        If there is only one trajectory of training data (s = 1), ``states``
+        may be provided as an (n, k) ndarray. In this case, it is assumed that
+        ``inputs`` (if provided) is a single (m, k) ndarray.
+        """
+        return super().fit_regselect_discrete(
+            candidates=candidates,
+            parameters=None,
+            states=states,
+            inputs=inputs,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+            regularizer_factory=regularizer_factory,
+            gridsearch_only=gridsearch_only,
+            num_test_iters=num_test_iters,
+            stability_margin=stability_margin,
+            test_cases=test_cases,
+            verbose=verbose,
+        )
+
+    # Evaluation --------------------------------------------------------------
     def predict(self, state0, *args, **kwargs):
         """Evaluate the reduced-order model.
 

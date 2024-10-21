@@ -414,3 +414,7 @@ def test_nonparametric_to_affine():
 
     OpClass = _submodule.nonparametric_to_affine(opinf.operators.CubicOperator)
     assert OpClass is opinf.operators.AffineCubicOperator
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

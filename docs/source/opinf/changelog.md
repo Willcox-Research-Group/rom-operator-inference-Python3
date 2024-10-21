@@ -5,6 +5,27 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+## Version 0.5.9
+
+Automatic regularization selection:
+
+- New methods `fit_regselect_continuous()` and `fit_regselect_discrete()` in the `ROM` and `ParametricROM` classes.
+- `utils.gridsearch()` implements grid search followed up by derivative-free log-scale optimization.
+- Class method `TikhonovSolver.get_operator_regularizer()` to construct diagonal Tikhonov regularizers where each operator is regularized by a different scalar.
+
+New transformers for custom shifting / scaling:
+
+- `pre.ShiftTransformer`
+- `pre.ScaleTransformer`
+- `pre.NullTransformer`
+- `pre.TransformerPipeline`
+
+Small improvements:
+
+- Executing individual test files now runs the tests contained within.
+- `utils.TimedBlock` has a `rebuffer` attribute that, when set to `True`, prevents printing until the end of the block.
+- Improved test coverage, fixed some documentation typos, etc.
+
 ## Version 0.5.8
 
 Support for affine-parametric problems:

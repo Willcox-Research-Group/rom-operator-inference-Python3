@@ -2,6 +2,8 @@
 """Transformer for states with multiple variables."""
 
 __all__ = [
+    "TransformerPipeline",
+    "NullTransformer",
     "TransformerMulti",
 ]
 
@@ -9,13 +11,316 @@ import warnings
 import numpy as np
 
 from .. import errors, utils
-from ._base import TransformerTemplate
+from ._base import TransformerTemplate, requires_trained
 
 
-requires_trained = utils.requires2(
-    "state_dimension",
-    "transformer not trained, call fit() or fit_transform()",
-)
+# Horizontal joining ==========================================================
+class TransformerPipeline(TransformerTemplate):
+    r"""Chain multiple transformers.
+
+    Given :math:`\tau\in\NN` transformers
+    :math:`\mathcal{T}_1,\ldots,\mathcal{T}_{\tau}`, this class defines the
+    compositional transformer
+    :math:`\mathcal{T} = \mathcal{T}_{\tau}\circ\cdots\circ\mathcal{T}_1`.
+
+    Parameters
+    ----------
+    transformers : tuple of instantiated Transformer objects
+        Transformers to be chained together;
+        `transformers[0]` is applied first, then `transformers[1]`, and so on.
+    name : str or None
+        Label for the state variable that this transformer acts on.
+
+    Notes
+    -----
+    This class connects multiple transformers "horizontally"; see
+    :class:`TransformerMulti` to connect multiple transformers "vertically",
+    i.e., to assign different transformations for different parts of the state.
+    """
+
+    def __init__(self, transformers, name=None):
+        """Set the transformers."""
+        super().__init__(name=name)
+
+        if isinstance(transformers, list):
+            transformers = tuple(transformers)
+        else:
+            raise TypeError("'transformers' should be a list or tuple")
+
+        statedims = set()
+        for i, tf in enumerate(transformers):
+            if not isinstance(tf, (TransformerTemplate, TransformerMulti)):
+                warnings.warn(
+                    f"transformers[{i}] does not inherit from "
+                    "TransformerTemplate, unexpected behavior may occur",
+                    errors.OpInfWarning,
+                )
+            statedims.add(tf.state_dimension)
+        statedims.discard(None)
+        if len(statedims) > 1:
+            raise ValueError("transformers have inconsistent state_dimension")
+
+        if len(transformers) == 1:
+            warnings.warn(
+                "only one transformer provided to TransformerPipeline",
+                errors.OpInfWarning,
+            )
+        self.__transformers = tuple(transformers)
+
+    # Properties --------------------------------------------------------------
+    @property
+    def transformers(self) -> tuple:
+        """Transformers being chained together;
+        `transformers[0]` is applied first, then `transformers[1]`, and so on.
+        """
+        return self.__transformers
+
+    @property
+    def num_transformers(self) -> int:
+        """Number of transformers chained together."""
+        return len(self.transformers)
+
+    @property
+    def state_dimension(self) -> int:
+        r"""Dimension :math:`n` of the state."""
+        for tf in self.transformers:
+            if (r := tf.state_dimension) is not None:
+                return r
+        return None
+
+    def __str__(self):
+        lines = super().__str__().split("\n  ")
+        lines.append(f"num_transformers: {self.num_transformers}")
+        lines.append("transformers")
+        for tf in self.transformers:
+            tfstr = str(tf).split("\n  ")
+            tfstr[0] = f"  {tfstr[0]}"
+            lines.append("\n      ".join(tfstr))
+        return "\n  ".join(lines)
+
+    def __len__(self):
+        return self.num_transformers
+
+    # Main routines -----------------------------------------------------------
+    def _chain(self, method, states, inplace=False, **kwargs):
+        """Apply the specified method for each transformer (forward)."""
+        func = getattr(self.transformers[0], method)
+        Y = func(states, inplace=inplace, **kwargs)
+        for tf in self.transformers[1:]:
+            func = getattr(tf, method)
+            Y = func(Y, inplace=True, **kwargs)
+        return Y
+
+    def fit_transform(self, states, inplace=False):
+        return self._chain("fit_transform", states, inplace=inplace)
+
+    def transform(self, states, inplace=False):
+        return self._chain("transform", states, inplace=inplace)
+
+    def inverse_transform(self, states_transformed, inplace=False, locs=None):
+        Y = self.transformers[-1].inverse_transform(
+            states_transformed,
+            inplace=inplace,
+            locs=locs,
+        )
+        for tf in reversed(self.transformers[:-1]):
+            Y = tf.inverse_transform(Y, inplace=True, locs=locs)
+        return Y
+
+    def transform_ddts(self, ddts, inplace=False):
+        return self._chain("transform_ddts", ddts, inplace=inplace)
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile: str, overwrite: bool = False):
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["name"] = str(self.name)
+            meta.attrs["num_transformers"] = self.num_transformers
+            for i, tf in enumerate(self.transformers):
+                tf.save(hf.create_group(f"transformer_{i:0>2d}"))
+
+    @classmethod
+    def load(cls, loadfile: str, TransformerClasses):
+        """Load a previously saved transformer from an HDF5 file.
+
+        Parameters
+        ----------
+        loadfile : str
+            File where the transformer was stored via :meth:`save()`.
+        TransformerClasses : Iterable[type]
+            Classes of the transformers for each state variable.
+
+        Returns
+        -------
+        TransformerPipeline
+        """
+        with utils.hdf5_loadhandle(loadfile) as hf:
+            meta = hf["meta"]
+            name = str(meta.attrs["name"])
+            num_transformers = int(meta.attrs["num_transformers"])
+            if (nclasses := len(TransformerClasses)) != num_transformers:
+                raise ValueError(
+                    f"file contains {num_transformers:d} transformers "
+                    f"but {nclasses:d} classes provided"
+                )
+
+            transformers = [
+                TransformerClasses[i].load(hf[f"transformer_{i:0>2d}"])
+                for i in range(num_transformers)
+            ]
+
+            return cls(transformers, name=name)
+
+
+# Vertical joining ============================================================
+class NullTransformer(TransformerTemplate):
+    r"""Identity transformation :math:`\q\mapsto\q`.
+
+    This transformer can be used in conjunction with :class:`TransformerMulti`
+    if separate transformations are desired for individual state variables but
+    one of those state variable is to remain unchanged.
+
+    Parameters
+    ----------
+    name : str or None
+        Label for the state variable that this transformer "acts" on.
+    """
+
+    # Main routines -----------------------------------------------------------
+    def fit(self, states):
+        """Set the state dimension.
+
+        Parameters
+        ----------
+        states : (n, k) ndarray
+            Matrix of `k` `n`-dimensional snapshots.
+
+        Returns
+        -------
+        self
+        """
+        self.state_dimension = states.shape[0]
+        return self
+
+    def fit_transform(self, states, inplace: bool = True):
+        """Do nothing but set the state dimension; this transformation does not
+        affect the states.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
+        inplace : bool
+            If ``True`` (default), return ``states``.
+            If ``False``, return a copy of ``states``.
+
+        Returns
+        -------
+        states: (n, ...) ndarray
+            State snapshots, or a copy of them if ``inplace=False``.
+        """
+        self.fit(states)
+        return states if inplace else states.copy()
+
+    def transform(self, states, inplace: bool = False):
+        """Do nothing; this transformation does not affect the states.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
+        inplace : bool
+            If ``True`` (default), return ``states``.
+            If ``False``, return a copy of ``states``.
+
+        Returns
+        -------
+        states: (n, ...) ndarray
+            State snapshots, or a copy of them if ``inplace=False``.
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`.
+        """
+        self._check_shape(states)
+        return states if inplace else states.copy()
+
+    def transform_ddts(self, ddts, inplace: bool = True):
+        r"""Do nothing; this transformation does not affect derivatives.
+
+        Parameters
+        ----------
+        ddts : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshot time derivatives, or a
+            single snapshot time derivative.
+        inplace : bool
+            If ``True`` (default), return ``ddts``.
+            If ``False``, return a create a copy of ``ddts``.
+
+        Returns
+        -------
+        ddts : (n, ...) ndarray
+            Snapshot time derivatives, or a copy of them if ``inplace=False``.
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`.
+        """
+        self._check_shape(ddts)
+        return ddts if inplace else ddts.copy()
+
+    def inverse_transform(self, states_transformed, inplace=False, locs=None):
+        """Do nothing; this transformation does not affect the states.
+
+        Parameters
+        ----------
+        states_transformed : (n, ...) or (p, ...)  ndarray
+            Matrix of `n`-dimensional transformed snapshots, or a single
+            transformed snapshot.
+        inplace : bool
+            If ``True`` (default), return ``states_transformed``.
+            If ``False``, return a create a copy of ``states_transformed``.
+        locs : slice or (p,) ndarray of integers or None
+            If given, assume ``states_transformed`` contains the transformed
+            snapshots at only the `p` indices described by ``locs``.
+
+        Returns
+        -------
+        states_transformed: (n, ...) or (p, ...) ndarray
+            Transformed states, or a copy of them if ``inplace=False``.
+
+        Raises
+        ------
+        ValueError
+            If the ``states_transformed`` do not align with the ``locs`` (when
+            provided) or the :attr:`state_dimension` (when ``locs`` is not
+            provided).
+        """
+        if locs is not None:
+            locs = self._check_locs(locs, states_transformed)
+        else:
+            self._check_shape(states_transformed)
+        return states_transformed if inplace else states_transformed.copy()
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["name"] = str(self.name)
+            if (n := self.state_dimension) is not None:
+                meta.attrs["state_dimension"] = n
+
+    @classmethod
+    def load(cls, loadfile):
+        with utils.hdf5_loadhandle(loadfile) as hf:
+            meta = hf["meta"]
+            name = meta.attrs["name"]
+            ntf = cls(name=(None if name == "None" else name))
+            if "state_dimension" in meta.attrs:
+                ntf.state_dimension = int(meta.attrs["state_dimension"])
+            return ntf
 
 
 class TransformerMulti:
@@ -39,7 +344,8 @@ class TransformerMulti:
     ----------
     transformers : list
         Initialized (but not necessarily trained) transformer objects,
-        one for each state variable.
+        one for each state variable. Entries of this list can be ``None``,
+        in which case a :class:`NullTransformer` is used.
     variable_sizes : list or None
         Dimensions for each state variable, :math:`n_0,\ldots,n_{n_q-1}`.
         If ``None`` (default), set :math:`n_i` to
@@ -47,33 +353,25 @@ class TransformerMulti:
         assume all state variables have the same dimension, i.e.,
         :math:`n_0 = n_1 = \cdots = n_x \in \NN` with :math:`n_x` to be
         determined in :meth:`fit`. In this case, :math:`n = n_q n_x`.
+
+    Notes
+    -----
+    This class connects multiple transformers "vertically" by assigning
+    different transformations for different parts of the state; see
+    :class:`TransformerPipeline` to connect multiple transformers
+    "horizontally", i.e., to perform one transformation after another on the
+    entire state.
     """
 
     def __init__(self, transformers, variable_sizes=None):
         """Initialize the transformers."""
-        self.transformers = transformers
-
-        if variable_sizes is not None:
-            if len(variable_sizes) != len(transformers):
-                raise ValueError("len(variable_sizes) != len(transformers)")
-            for tf, ni in zip(transformers, variable_sizes):
-                TransformerTemplate.state_dimension.fset(tf, ni)
-
-    # Properties --------------------------------------------------------------
-    @property
-    def transformers(self) -> tuple:
-        """Transformers for each state variable."""
-        return self.__transformers
-
-    @transformers.setter
-    def transformers(self, tfs):
-        """Set the transformers."""
-        if (num_variables := len(tfs)) == 0:
+        if (num_variables := len(transformers)) == 0:
             raise ValueError("at least one transformer required")
         elif num_variables == 1:
             warnings.warn("only one variable detected", errors.OpInfWarning)
 
         # Check inheritance and set default variable names.
+        tfs = [NullTransformer() if tf is None else tf for tf in transformers]
         for i, tf in enumerate(tfs):
             if not isinstance(tf, TransformerTemplate):
                 warnings.warn(
@@ -84,9 +382,28 @@ class TransformerMulti:
             if tf.name is None:
                 tf.name = f"variable {i}"
 
+        # Check variable sizes.
+        if variable_sizes is not None:
+            if len(variable_sizes) != num_variables:
+                raise ValueError("len(variable_sizes) != len(transformers)")
+            for tf, ni in zip(tfs, variable_sizes):
+                if tf.state_dimension is None:
+                    tf.state_dimension = ni
+                elif (tf_n := tf.state_dimension) != ni:
+                    raise ValueError(
+                        f"transformers[{i}].state_dimension = {tf_n} "
+                        f"!= {ni} = variable_sizes[{i}]"
+                    )
+
         # Store transformers and set slice dimensions.
         self.__nq = num_variables
         self.__transformers = tuple(tfs)
+
+    # Properties --------------------------------------------------------------
+    @property
+    def transformers(self) -> tuple:
+        """Transformers for each state variable."""
+        return self.__transformers
 
     @property
     def num_variables(self) -> int:
@@ -140,11 +457,16 @@ class TransformerMulti:
 
     def __str__(self) -> str:
         """String representation: str() of each transformer."""
-        out = [f"{self.num_variables}-variable {self.__class__.__name__}"]
-        namelength = max(len(name) for name in self.variable_names)
+        lines = [self.__class__.__name__]
+        if (n := self.state_dimension) is not None:
+            lines.append(f"state_dimension: {n}")
+        lines.append(f"num_variables:   {self.num_variables}")
+        lines.append("transformers")
         for tf in self.transformers:
-            out.append(f"* {{:>{namelength}}} | {tf}".format(tf.name))
-        return "\n".join(out)
+            tfstr = str(tf).split("\n  ")
+            tfstr[0] = f"  {tfstr[0]}"
+            lines.append("\n      ".join(tfstr))
+        return "\n  ".join(lines)
 
     def __repr__(self) -> str:
         """Unique ID + string representation."""
@@ -382,24 +704,14 @@ class TransformerMulti:
         return states_transformed if inplace else states
 
     # Model persistence -------------------------------------------------------
-    def save(self, savefile, overwrite=False):
-        """Save the transformer to an HDF5 file.
-
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the transformer to.
-        overwrite : bool
-            If ``True``, overwrite the file if it already exists. If ``False``
-            (default), raise a ``FileExistsError`` if the file already exists.
-        """
+    def save(self, savefile: str, overwrite: bool = False):
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             hf.create_dataset("num_variables", data=[self.num_variables])
             for i, tf in enumerate(self.transformers):
                 tf.save(hf.create_group(f"variable{i}"))
 
     @classmethod
-    def load(cls, loadfile, TransformerClasses):
+    def load(cls, loadfile: str, TransformerClasses):
         """Load a previously saved transformer from an HDF5 file.
 
         Parameters

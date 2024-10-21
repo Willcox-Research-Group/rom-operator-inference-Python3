@@ -4,14 +4,17 @@
 __all__ = [
     "shift",
     "scale",
+    "ShiftTransformer",
+    "ScaleTransformer",
     "ShiftScaleTransformer",
 ]
 
+import numbers
 import warnings
 import numpy as np
 
 from .. import errors, utils
-from ._base import TransformerTemplate
+from ._base import TransformerTemplate, requires_trained
 
 
 # Functional paradigm =========================================================
@@ -134,6 +137,520 @@ def scale(states: np.ndarray, scale_to: tuple, scale_from: tuple = None):
 
 
 # Object-oriented paradigm ====================================================
+class ShiftTransformer(TransformerTemplate):
+    r"""Shift snapshots by a given reference snapshot :math:`\bar{\q}`.
+
+    For a vector :math:`\q\in\RR^n`, this transformation is
+    :math:`\q \mapsto \q' = \q - \bar{\q}` with inverse transformation
+    :math:`\q' \mapsto \q = \q' + \bar{\q}`.
+
+    For a matrix :math:`\Q\in\RR^{n \times k}`, the transformation is applied
+    columnwise. Writing :math:`\Q = [~\q_0~~\q_1~~\cdots~~\q_{k-1}~]`,
+
+    .. math::
+       \Q \mapsto \Q'
+       = \Q - \bar{\q}\mathbf{1}_k\trp
+       = \left[\begin{array}{c|c|c|c}
+          &&& \\
+          \q_0 - \bar{\q} & \q_1 - \bar{\q} & \cdots & \q_{k-1} - \bar{\q}
+          \\ &&&
+       \end{array}\right],
+
+    with the inverse transformation defined similarly.
+
+    Parameters
+    ----------
+    reference_snapshot : (n,) ndarray
+        Reference snapshot :math:`\bar{\q}\in\RR^n`.
+    name : str or None
+        Label for the state variable that this transformer acts on.
+
+    Notes
+    -----
+    In this class, the reference snapshot :math:`\bar{\q}` is provided
+    explicitly. Use :class:`ShiftScaleTransformer` to define :math:`\bar{\q}`
+    as the average training snapshot.
+    """
+
+    def __init__(self, reference_snapshot, /, name=None):
+        """Set the reference snapshot."""
+        super().__init__(name=name)
+
+        if (
+            not isinstance(reference_snapshot, np.ndarray)
+            or reference_snapshot.ndim != 1
+        ):
+            raise TypeError(
+                "reference snapshot must be a one-dimensional array"
+            )
+        self.__qbar = reference_snapshot
+
+    # Properties --------------------------------------------------------------
+    @property
+    def reference(self):
+        r"""Reference snapshot :math:`\bar{\q}\in\RR^n`."""
+        return self.__qbar
+
+    @property
+    def state_dimension(self):
+        r"""Dimension :math:`n` of the state."""
+        return self.reference.shape[0]
+
+    @state_dimension.setter
+    def state_dimension(self, n):
+        if not isinstance(n, numbers.Number) or n != self.state_dimension:
+            raise AttributeError(
+                "can't set attribute 'state_dimension'"
+                f" to {n} != {self.state_dimension} = reference.size"
+            )
+
+    # Main routines -----------------------------------------------------------
+    def fit(self, states):
+        """Do nothing; this transformation is not learned from data.
+
+        Parameters
+        ----------
+        states : (n, k) ndarray
+            Matrix of `k` `n`-dimensional snapshots.
+
+        Returns
+        -------
+        self
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`.
+        """
+        self._check_shape(states)
+        return self
+
+    def fit_transform(self, states, inplace: bool = False):
+        """Apply the shift.
+
+        This method is equivalent to :meth:`transform` because the
+        transformation is not learned from data (there is nothing to "fit").
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
+        inplace : bool
+            If ``True``, overwrite ``states`` during transformation.
+            If ``False``, create a copy of the data to transform.
+
+        Returns
+        -------
+        states_shifted: (n, ...) ndarray
+            Matrix of `n`-dimensional shifted snapshots, or a single shifted
+            snapshot.
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`.
+        """
+        return self.transform(states, inplace=inplace)
+
+    def transform(self, states, inplace: bool = False):
+        """Apply the shift.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
+        inplace : bool
+            If ``True``, overwrite ``states`` during transformation.
+            If ``False``, create a copy of the data to transform.
+
+        Returns
+        -------
+        states_shifted: (n, ...) ndarray
+            Matrix of `n`-dimensional shifted snapshots, or a single shifted
+            snapshot.
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`.
+        """
+        self._check_shape(states)
+        Y = states if inplace else states.copy()
+        Y -= self.reference.reshape((-1, 1)) if Y.ndim > 1 else self.reference
+        return Y
+
+    def transform_ddts(self, ddts, inplace: bool = True):
+        r"""Do nothing; this transformation does not affect derivatives.
+
+        Parameters
+        ----------
+        ddts : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshot time derivatives, or a
+            single snapshot time derivative.
+        inplace : bool
+            If ``True`` (default), return ``ddts``.
+            If ``False``, return a create a copy of ``ddts``.
+
+        Returns
+        -------
+        ddts : (n, ...) ndarray
+            Snapshot time derivatives, or a copy of them if ``inplace=False``.
+
+        Raises
+        ------
+        ValueError
+            If the ``ddts`` do not align with the :attr:`state_dimension`.
+        """
+        return ddts if inplace else ddts.copy()
+
+    def inverse_transform(self, states_shifted, inplace=False, locs=None):
+        """Apply the inverse shift.
+
+        Parameters
+        ----------
+        states_shifted : (n, ...) or (p, ...)  ndarray
+            Matrix of `n`-dimensional shifted snapshots, or a single shifted
+            snapshot.
+        inplace : bool
+            If ``True``, overwrite ``states_shifted`` during the inverse
+            transformation. If ``False``, create a copy of the data to
+            untransform.
+        locs : slice or (p,) ndarray of integers or None
+            If given, assume ``states_shifted`` contains the transformed
+            snapshots at only the `p` indices described by ``locs``.
+
+        Returns
+        -------
+        states_unshifted: (n, ...) or (p, ...) ndarray
+            Matrix of `n`-dimensional unshifted snapshots, or the `p`
+            entries of such at the indices specified by ``locs``.
+
+        Raises
+        ------
+        ValueError
+            If the ``states_shifted`` do not align with the ``locs`` (when
+            provided) or the :attr:`state_dimension` (when ``locs`` is not
+            provided).
+        """
+        if locs is not None:
+            locs = self._check_locs(locs, states_shifted, "states_shifted")
+        else:
+            self._check_shape(states_shifted)
+
+        Y = states_shifted if inplace else states_shifted.copy()
+        qbar = self.reference if locs is None else self.reference[locs]
+        Y += qbar.reshape((-1, 1)) if Y.ndim > 1 else qbar
+
+        return Y
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["name"] = str(self.name)
+            hf.create_dataset("reference_snapshot", data=self.reference)
+
+    @classmethod
+    def load(cls, loadfile):
+        with utils.hdf5_loadhandle(loadfile) as hf:
+            name = hf["meta"].attrs["name"]
+            return cls(
+                hf["reference_snapshot"][:],
+                name=(None if name == "None" else name),
+            )
+
+
+class ScaleTransformer(TransformerTemplate):
+    r"""Scale (nondimensionalize) snapshots as a whole or by row.
+
+    If the provided :attr:`scaler` is a number :math:`\alpha \neq 0`, this
+    transformation simply multiplies the input by that scaler. For a vector
+    :math:`\q\in\RR^n`, the transformation is
+    :math:`\q \mapsto \q' = \alpha\q` with inverse transformation
+    :math:`\q' \mapsto \q = \frac{1}{\alpha}\q'`, and similarly for matrices.
+
+    If the :attr:`scaler` is a vector :math:`\boldsymbol{\alpha}\in\RR^{n}`,
+    this transformation multiplies each row of the input by the corresponding
+    entry of :math:`\boldsymbol{\alpha}`. For a vector :math:`\q\in\RR^n`, the
+    transformation is :math:`\q\mapsto\q' = \boldsymbol{\alpha}\ast\q` where
+    :math:`\ast` is the elementwise (Hadamard) product (``*`` in NumPy).
+    The inverse transformation performs elementwise division (``/`` in NumPy).
+    For a matrix :math:`\Q\in\RR^{n \times k}`, the transformation is applied
+    columnwise: writing :math:`\Q = [~\q_0~~\q_1~~\cdots~~\q_{k-1}~]`,
+
+    .. math::
+       \Q \mapsto \Q'
+       = \Q \ast \boldsymbol{\alpha}\1\trp
+       = \left[\begin{array}{c|c|c|c}
+          &&& \\
+          \q_0 \ast \boldsymbol{\alpha} &
+          \q_1 \ast \boldsymbol{\alpha} &
+          \cdots &
+          \q_{k-1} \ast \boldsymbol{\alpha}
+          \\ &&&
+       \end{array}\right],
+
+    with the inverse transformation defined similarly.
+
+    Parameters
+    ----------
+    scaler : float or (n,) ndarray
+        Scaling factor. If a float, data are scaled as a whole; if an array,
+        data are scaled by row. Must be nonzero or have all nonzero entries.
+    name : str or None
+        Label for the state variable that this transformer acts on.
+
+    Notes
+    -----
+    In this class, the scaler :math:`\alpha` or :math:`\boldsymbol{\alpha}` is
+    provided explicitly. Use :class:`ShiftScaleTransformer` to learn different
+    types of scaling from training data.
+    """
+
+    def __init__(self, scaler, /, name=None):
+        """Set the scaler."""
+        super().__init__(name=name)
+
+        if not (
+            (isinstance(scaler, numbers.Number) and scaler != 0)
+            or (
+                isinstance(scaler, np.ndarray)
+                and scaler.ndim == 1
+                and np.count_nonzero(scaler) == scaler.size
+            )
+        ):
+            raise TypeError(
+                "scaler must be a nonzero scalar or one-dimensional array"
+            )
+
+        self.__scl = scaler
+        if self.byrow:
+            TransformerTemplate.state_dimension.fset(self, scaler.size)
+
+    # Properties --------------------------------------------------------------
+    @property
+    def scaler(self):
+        """Scaling factor. If a float, data are scaled as a whole; if an array,
+        data are scaled by row. Must be nonzero or have all nonzero entries.
+        """
+        return self.__scl
+
+    @property
+    def byrow(self):
+        """Whether data are scaled by row (``True``, :attr:`scaler` is an
+        array) or as a whole (``False``, :attr:`scaler` is a float).
+        """
+        return isinstance(self.scaler, np.ndarray)
+
+    @property
+    def state_dimension(self):
+        r"""Dimension :math:`n` of the state."""
+        return TransformerTemplate.state_dimension.fget(self)
+
+    @state_dimension.setter
+    def state_dimension(self, n):
+        if self.byrow and (
+            not isinstance(n, numbers.Number) or n != self.state_dimension
+        ):
+            raise AttributeError(
+                "can't set attribute 'state_dimension'"
+                f" to {n} != {self.state_dimension} = scaler.size"
+            )
+        TransformerTemplate.state_dimension.fset(self, n)
+
+    def __str__(self):
+        lines = super().__str__().split("\n  ")
+        lines.append(
+            "scaling by row" if self.byrow else f"scaler: {self.scaler:.4e}"
+        )
+        return "\n  ".join(lines)
+
+    # Main routines -----------------------------------------------------------
+    def fit(self, states):
+        """Set the :attr:`state_dimension` if :attr:`scaler` is not an array,
+        otherwise do nothing.
+
+        Parameters
+        ----------
+        states : (n, k) ndarray
+            Matrix of `k` `n`-dimensional snapshots.
+
+        Returns
+        -------
+        self
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`
+            (only when :attr:`scaler` is an array)
+        """
+        if not self.byrow:
+            self.state_dimension = states.shape[0]
+        self._check_shape(states)
+        return self
+
+    def fit_transform(self, states, inplace=False):
+        """Set the :attr:`state_dimension` if :attr:`scaler` is not an array,
+        and apply the scaling.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
+        inplace : bool
+            If ``True``, overwrite ``states`` during transformation.
+            If ``False``, create a copy of the data to transform.
+
+        Returns
+        -------
+        states_scaled: (n, ...) ndarray
+            Matrix of `n`-dimensional scaled snapshots, or a single scaled
+            snapshot.
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`
+            (only when :attr:`scaler` is an array).
+        """
+        self.fit(states)
+        return self.transform(states, inplace=inplace)
+
+    @requires_trained
+    def transform(self, states, inplace=False):
+        """Apply the scaling.
+
+        Parameters
+        ----------
+        states : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshots, or a single snapshot.
+        inplace : bool
+            If ``True``, overwrite ``states`` during transformation.
+            If ``False``, create a copy of the data to transform.
+
+        Returns
+        -------
+        states_scaled: (n, ...) ndarray
+            Matrix of `n`-dimensional shifted snapshots, or a single shifted
+            snapshot.
+
+        Raises
+        ------
+        AttributeError
+            If :attr:`scaler` is a number (not an array) but :meth:`fit` or
+            :meth:`fit_transform` have not been called yet.
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`.
+        """
+        self._check_shape(states)
+
+        Y = states if inplace else states.copy()
+        _flip = self.byrow and Y.ndim > 1
+        Y *= self.scaler.reshape((-1, 1)) if _flip else self.scaler
+
+        return Y
+
+    @requires_trained
+    def transform_ddts(self, ddts, inplace=False):
+        """Apply the scaling; the transformation for derivatives is the same
+        as for snapshots.
+
+        Parameters
+        ----------
+        ddts : (n, ...) ndarray
+            Matrix of `n`-dimensional snapshot time derivatives, or a
+            single snapshot time derivative.
+        inplace : bool
+            If ``True``, modify ``ddts`` inplace.
+            If ``False`` (default), return a new array.
+
+        Returns
+        -------
+        ddts_scaled : (n, ...) ndarray
+            Scaled snapshot time derivatives.
+
+        Raises
+        ------
+        AttributeError
+            If :attr:`scaler` is a number (not an array) but :meth:`fit` or
+            :meth:`fit_transform` have not been called yet.
+        ValueError
+            If the ``ddts`` do not align with the :attr:`state_dimension`.
+        """
+        return self.transform(ddts, inplace=inplace)
+
+    @requires_trained
+    def inverse_transform(self, states_scaled, inplace=False, locs=None):
+        """Apply the inverse scaling.
+
+        Parameters
+        ----------
+        states_scaled : (n, ...) or (p, ...)  ndarray
+            Matrix of `n`-dimensional scaled snapshots, or a single scaled
+            snapshot.
+        inplace : bool
+            If ``True``, overwrite ``states_scaled`` during the inverse
+            transformation. If ``False``, create a copy of the data to
+            untransform.
+        locs : slice or (p,) ndarray of integers or None
+            If given, assume ``states_scaled`` contains the transformed
+            snapshots at only the `p` indices described by ``locs``.
+
+        Returns
+        -------
+        states_unscaled: (n, ...) or (p, ...) ndarray
+            Matrix of `n`-dimensional unscaled snapshots, or the `p` entries
+            of such at the indices specified by ``locs``.
+
+        Raises
+        ------
+        AttributeError
+            If :attr:`scaler` is a number (not an array) but :meth:`fit` or
+            :meth:`fit_transform` have not been called yet.
+        ValueError
+            If the ``states_scaled`` do not align with the ``locs`` (when
+            provided) or the :attr:`state_dimension` (when ``locs`` is not
+            provided).
+        """
+        scaler_ = self.scaler
+        if locs is not None:
+            locs = self._check_locs(locs, states_scaled)
+            if self.byrow:
+                scaler_ = scaler_[locs]
+        else:
+            self._check_shape(states_scaled)
+
+        Y = states_scaled if inplace else states_scaled.copy()
+        _flip = self.byrow and Y.ndim > 1
+        Y /= scaler_.reshape((-1, 1)) if _flip else scaler_
+
+        return Y
+
+    # Model persistence -------------------------------------------------------
+    def save(self, savefile, overwrite=False):
+        with utils.hdf5_savehandle(savefile, overwrite) as hf:
+            meta = hf.create_dataset("meta", shape=(0,))
+            meta.attrs["name"] = str(self.name)
+            if (n := self.state_dimension) is not None:
+                meta.attrs["state_dimension"] = n
+            scaler = self.scaler if self.byrow else [self.scaler]
+            hf.create_dataset("scaler", data=scaler)
+
+    @classmethod
+    def load(cls, loadfile):
+        with utils.hdf5_loadhandle(loadfile) as hf:
+            meta = hf["meta"]
+            name = meta.attrs["name"]
+            scaler = hf["scaler"][:]
+            if scaler.shape == (1,):
+                scaler = scaler[0]
+            out = cls(scaler, name=(None if name == "None" else name))
+            if not out.byrow and "state_dimension" in meta.attrs:
+                out.state_dimension = int(meta.attrs["state_dimension"])
+            return out
+
+
 class ShiftScaleTransformer(TransformerTemplate):
     r"""Process snapshots by centering and/or scaling (in that order).
 
@@ -168,61 +685,77 @@ class ShiftScaleTransformer(TransformerTemplate):
 
         **Options:**
 
-        * ``'standard'``: standardize to zero mean and unit standard deviation.
+        .. dropdown:: ``'standard'``
+           Standardize to zero mean and unit standard deviation
 
-          .. math:: \Q'' = \Q' - \frac{\mean(\Q')}{\std(\Q')}.
+           .. list-table::
 
-          Guarantees :math:`\mean(\Q'') = 0` and :math:`\std(\Q'') = 1`.
+              * - Formula
+                - .. math:: \Q'' = \frac{\Q' - \mean(\Q')}{\std(\Q')}
+              * - ``byrow=False``
+                - :math:`\mean(\Q'') = 0` and :math:`\std(\Q'') = 1`
+              * - ``byrow=True``
+                - :math:`\mean_{j}(\Q_{i,j}'') = 0` and
+                  :math:`\std_j(\Q_{i,j}'') = 1` for each row index :math:`i`
 
-          If ``byrow=True``, then :math:`\mean_{j}(\Q_{i,j}'') = 0` and
-          :math:`\std_j(\Q_{i,j}'') = 1` for each row index :math:`i`.
+        .. dropdown:: ``'minmax'``
+           Minmax scaling to :math:`[0, 1]`
 
-        * ``'minmax'``: minmax scaling to :math:`[0, 1]`.
+           .. list-table::
 
-          .. math:: \Q'' = \frac{\Q' - \min(\Q')}{\max(\Q') - \min(\Q')}.
+              * - Formula
+                - .. math:: \Q'' = \frac{\Q'-\min(\Q')}{\max(\Q')-\min(\Q')}
+              * - ``byrow=False``
+                - :math:`\min(\Q'') = 0` and :math:`\max(\Q'') = 1`
+              * - ``byrow=True``
+                - :math:`\min_{j}(\Q_{i,j}'') = 0` and
+                  :math:`\max_{j}(\Q_{i,j}'') = 1` for each row index :math:`i`
 
-          Guarantees :math:`\min(\Q'') = 0` and :math:`\max(\Q'') = 1`.
+        .. dropdown:: ``'minmaxsym'``
+           Minmax scaling to :math:`[-1, 1]`
 
-          If ``byrow=True``, then :math:`\min_{j}(\Q_{i,j}'') = 0` and
-          :math:`\max_{j}(\Q_{i,j}'') = 1` for each row index :math:`i`.
+           .. list-table::
 
-        * ``'minmaxsym'``: minmax scaling to :math:`[-1, 1]`.
+              * - Formula
+                - .. math:: \Q'' = 2\frac{\Q'-\min(\Q')}{\max(\Q')-\min(\Q')}-1
+              * - ``byrow=False``
+                - :math:`\min(\Q'') = -1` and :math:`\max(\Q'') = 1`
+              * - ``byrow=True``
+                - :math:`\min_{j}(\Q_{i,j}'') = -1` and
+                  :math:`\max_{j}(\Q_{i,j}'') = 1` for each row index :math:`i`
 
-          .. math:: \Q'' = 2\frac{\Q' - \min(\Q')}{\max(\Q') - \min(\Q')} - 1.
+        .. dropdown:: ``'maxabs'``
+           Maximum absolute scaling to :math:`[-1, 1]` without scalar mean
+           shift
 
-          Guarantees :math:`\min(\Q'') = -1` and :math:`\max(\Q'') = 1`.
+           .. list-table::
 
-          If ``byrow=True``, then :math:`\min_{j}(\Q_{i,j}'') = -1` and
-          :math:`\max_{j}(\Q_{i,j}'') = 1` for each row index :math:`i`.
+              * - Formula
+                - .. math:: \Q'' = \frac{1}{\max(\text{abs}(\Q'))}\Q'
+              * - ``byrow=False``
+                - :math:`\mean(\Q'')=\frac{\mean(\Q')}{\max(\text{abs}(\Q'))}`
+                  and :math:`\max(\text{abs}(\Q'')) = 1`
+              * - ``byrow=True``
+                - :math:`\mean_{j}(\Q_{i,j}'')
+                  = \frac{\mean_j(\Q_{i,j}')}{\max_j(\text{abs}(\Q_{i,j}'))}`
+                  and :math:`\max_{j}(\text{abs}(\Q_{i,j}'')) = 1`
+                  for each row index :math:`i`
 
-        * ``'maxabs'``: maximum absolute scaling to :math:`[-1, 1]`
-          `without` scalar mean shift.
+        .. dropdown:: ``'maxabssym'``
+           Maximum absolute scaling to :math:`[-1, 1]` with scalar mean shift
 
-          .. math:: \Q'' = \frac{1}{\max(\text{abs}(\Q'))}\Q'.
+           .. list-table::
 
-          Guarantees
-          :math:`\mean(\Q'') = \frac{\mean(\Q')}{\max(\text{abs}(\Q'))}`
-          and :math:`\max(\text{abs}(\Q'')) = 1`.
-
-          If ``byrow=True``, then
-          :math:`\mean_{j}(\Q_{i,j}'')
-          = \frac{\mean_j(\Q_{i,j}')}{\max_j(\text{abs}(\Q_{i,j}'))}`
-          and :math:`\max_{j}(\text{abs}(\Q_{i,j}'')) = 1` for each
-          row index :math:`i`.
-
-        * ``'maxabssym'``: maximum absolute scaling to :math:`[-1, 1]`
-          `with` scalar mean shift.
-
-          .. math::
-             \Q''
-             = \frac{\Q' - \mean(\Q')}{\max(\text{abs}(\Q' - \mean(\Q')))}.
-
-          Guarantees :math:`\mean(\Q'') = 0` and
-          :math:`\max(\text{abs}(\Q'')) = 1`.
-
-          If ``byrow=True``, then :math:`\mean_j(\Q_{i,j}'') = 0` and
-          :math:`\max_j(\text{abs}(\Q_{i,j}'')) = 1` for each row index
-          :math:`i`.
+              * - Formula
+                - .. math::
+                     \Q'' = \frac{\Q' - \mean(\Q')}{
+                     \max(\text{abs}(\Q' - \mean(\Q')))}
+              * - ``byrow=False``
+                - :math:`\mean(\Q'')=0` and :math:`\max(\text{abs}(\Q''))=1`
+              * - ``byrow=True``
+                - :math:`\mean_j(\Q_{i,j}'') = 0` and
+                  :math:`\max_j(\text{abs}(\Q_{i,j}'')) = 1` for each row index
+                  :math:`i`
 
     byrow : bool
         If ``True``, scale each row of the snapshot matrix separately when a
@@ -235,10 +768,14 @@ class ShiftScaleTransformer(TransformerTemplate):
     -----
     A custom shifting vector (i.e., the mean snapshot) can be specified by
     setting the ``mean_`` attribute. Similarly, the scaling
-    :math:`q'\mapsto q'' = \alpha q' + \beta` can be adjusted by setting the
+    :math:`\q'\mapsto \q'' = \alpha \q' + \beta` can be adjusted by setting the
     ``scale_`` (:math:`\alpha`) and ``shift_`` (:math:`\beta`) attributes.
     However, calling :meth:`fit()` or :meth:`fit_transform()` will overwrite
     all three attributes.
+
+    A cleaner alternative is to use a :class:`ShiftTransformer`, which takes a
+    custom shifting vector, and/or a :class:`ScaleTransformer`, which takes a
+    custom scaling. These can be joined with a :class:`TransformerPipeline`.
     """
 
     _VALID_SCALINGS = frozenset(
@@ -354,7 +891,7 @@ class ShiftScaleTransformer(TransformerTemplate):
             raise AttributeError("cannot set scale_ (scaling=None)")
         if self.byrow:
             if self.state_dimension is None:
-                if np.ndim(alpha) != 1 or np.isscalar(alpha):
+                if np.ndim(alpha) != 1:
                     raise ValueError("expected one-dimensional scale_")
                 self.state_dimension = alpha.shape[0]
             if np.shape(alpha) != ((n := self.state_dimension),):
@@ -375,7 +912,7 @@ class ShiftScaleTransformer(TransformerTemplate):
             raise AttributeError("cannot set shift_ (scaling=None)")
         if self.byrow:
             if self.state_dimension is None:
-                if np.ndim(beta) != 1 or np.isscalar(beta):
+                if np.ndim(beta) != 1:
                     raise ValueError("expected one-dimensional shift_")
                 self.state_dimension = beta.shape[0]
             if np.shape(beta) != ((n := self.state_dimension),):
@@ -413,19 +950,13 @@ class ShiftScaleTransformer(TransformerTemplate):
         )
 
     def __str__(self) -> str:
-        """String representation: scaling type + centering bool."""
-        out = [self.__class__.__name__]
-        if self.state_dimension is not None:
-            out.append(f"(state dimension n = {self.state_dimension:d})")
-        if self.centering:
-            out.append("with mean-snapshot centering")
-            if self.scaling:
-                out.append(f"and '{self.scaling}' scaling")
-        elif self.scaling:
-            out.append(f"with '{self.scaling}' scaling")
-        if not self._is_trained():
-            out.append("(call fit() or fit_transform() to train)")
-        return " ".join(out)
+        out = super().__str__().split("\n  ")
+        out.append(f"centering: {self.centering}")
+        s = " None" if self.scaling is None else f"'{self.scaling}'"
+        out.append(f"scaling:  {s}")
+        if self.scaling is not None:
+            out.append(f"byrow:     {self.byrow}")
+        return "\n  ".join(out)
 
     # Main routines -----------------------------------------------------------
     def _is_trained(self) -> bool:
@@ -442,7 +973,7 @@ class ShiftScaleTransformer(TransformerTemplate):
         """Raise an exception if the transformer is not trained."""
         if not self._is_trained():
             raise AttributeError(
-                "transformer not trained (call fit() or fit_transform())"
+                "transformer not trained, call fit() or fit_transform()"
             )
 
     def fit_transform(self, states, inplace: bool = False):
@@ -460,6 +991,11 @@ class ShiftScaleTransformer(TransformerTemplate):
         -------
         states_transformed: (n, k) ndarray
             Matrix of `k` `n`-dimensional transformed snapshots.
+
+        Raises
+        ------
+        ValueError
+            If the ``states`` are not two-dimensional.
         """
         if states.ndim != 2:
             raise ValueError("2D array required to fit transformer")
@@ -558,6 +1094,14 @@ class ShiftScaleTransformer(TransformerTemplate):
         states_transformed: (n, ...) ndarray
             Matrix of `n`-dimensional transformed snapshots, or a single
             transformed snapshot.
+
+        Raises
+        ------
+        AttributeError
+            If the transformer is not ready because :meth:`fit` or
+            :meth:`fit_transform` have not been called.
+        ValueError
+            If the ``states`` do not align with the :attr:`state_dimension`.
         """
         self._check_is_trained()
         self._check_shape(states)
@@ -596,6 +1140,14 @@ class ShiftScaleTransformer(TransformerTemplate):
         -------
         ddts_transformed : (n, ...) ndarray
             Transformed `n`-dimensional snapshot time derivatives.
+
+        Raises
+        ------
+        AttributeError
+            If the transformer is not ready because :meth:`fit` or
+            :meth:`fit_transform` have not been called.
+        ValueError
+            If the ``ddts`` do not align with the :attr:`state_dimension`.
         """
         self._check_is_trained()
         self._check_shape(ddts)
@@ -633,14 +1185,25 @@ class ShiftScaleTransformer(TransformerTemplate):
         states_untransformed: (n, ...) or (p, ...) ndarray
             Matrix of `n`-dimensional untransformed snapshots, or the `p`
             entries of such at the indices specified by ``locs``.
+
+        Raises
+        ------
+        AttributeError
+            If the transformer is not ready because :meth:`fit` or
+            :meth:`fit_transform` have not been called.
+        ValueError
+            If the ``states_transformed`` do not align with the ``locs`` (when
+            provided) or the :attr:`state_dimension` (when ``locs`` is not
+            provided).
         """
         self._check_is_trained()
 
+        shift_, scale_ = self.shift_, self.scale_
         if locs is not None:
-            if isinstance(locs, slice):
-                locs = np.arange(self.state_dimension)[locs]
-            if states_transformed.shape[0] != locs.size:
-                raise ValueError("states_transformed not aligned with locs")
+            locs = self._check_locs(locs, states_transformed)
+            if self.byrow:
+                shift_ = shift_[locs]
+                scale_ = scale_[locs]
         else:
             self._check_shape(states_transformed)
 
@@ -648,8 +1211,9 @@ class ShiftScaleTransformer(TransformerTemplate):
 
         # Unscale (re-dimensionalize) the data.
         if self.scaling:
-            Y -= self.shift_
-            Y /= self.scale_
+            _flip = self.byrow and Y.ndim > 1
+            Y -= shift_.reshape((-1, 1)) if _flip else shift_
+            Y /= scale_.reshape((-1, 1)) if _flip else scale_
 
         # Uncenter the unscaled snapshots.
         if self.centering:
@@ -660,16 +1224,6 @@ class ShiftScaleTransformer(TransformerTemplate):
 
     # Model persistence -------------------------------------------------------
     def save(self, savefile: str, overwrite: bool = False) -> None:
-        """Save the transformer to an HDF5 file.
-
-        Parameters
-        ----------
-        savefile : str
-            Path of the file to save the transformer to.
-        overwrite : bool
-            If ``True``, overwrite the file if it already exists. If ``False``
-            (default), raise a ``FileExistsError`` if the file already exists.
-        """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
             # Store transformation hyperparameter metadata.
             meta = hf.create_dataset("meta", shape=(0,))
@@ -699,17 +1253,6 @@ class ShiftScaleTransformer(TransformerTemplate):
 
     @classmethod
     def load(cls, loadfile: str):
-        """Load a previously saved transformer from an HDF5 file.
-
-        Parameters
-        ----------
-        loadfile : str
-            File where the transformer was stored via :meth:`save()`.
-
-        Returns
-        -------
-        ShiftScaleTransformer
-        """
         with utils.hdf5_loadhandle(loadfile) as hf:
             # Load transformation hyperparameters.
             meta = hf["meta"]

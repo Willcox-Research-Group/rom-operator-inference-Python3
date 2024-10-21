@@ -7,6 +7,8 @@ __all__ = [
 
 import matplotlib.pyplot as plt
 
+from ._timer import TimedBlock
+
 
 def mpl_config():
     """Set matplotlib and pandas configuration defaults for the
@@ -19,11 +21,14 @@ def mpl_config():
     plt.rc("legend", edgecolor="none", frameon=False)
     plt.rc("text", usetex=True)
 
+    # Turn off stdout flushing to keep notebook outputs together.
+    TimedBlock.rebuffer = True
+
     # Pandas display options.
     try:
         import pandas as pd
     except ModuleNotFoundError as ex:  # pragma: no cover
         if ex.args[0] != "No module named 'pandas'":
             raise
-    else:
+    else:  # pragma: no cover
         pd.options.display.float_format = "{:.4%}".format
