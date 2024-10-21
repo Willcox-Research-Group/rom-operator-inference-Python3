@@ -668,6 +668,29 @@ class TikhonovSolver(_BaseRegularizedSolver):
         input_dimension : int
             Dimension of the input.
             If there is no input, this should be 0 (default).
+
+        Returns
+        -------
+        regularizer : (d,) ndarray
+            Diagonals of the regularization matrix so that ``operators[i]`` is
+            regularized with constant ``regularization_parameters[i]``.
+
+        Warns
+        -----
+        OpInfWarning
+            If only one operator is provided (use :class:`L2Solver` instead),
+            or if the ``input_dimension`` is provided but none of the operators
+            act on inputs.
+
+        Raises
+        ------
+        ValueError
+            If a different number of ``operators`` and '
+            ``regularization_parameters`` are provided, or if the
+            ``input_dimension`` is not provided but at least one of the
+            operators acts on inputs.
+        TypeError
+            If an entry ``operators`` has an unsupported type.
         """
         if (n1 := len(operators)) != (n2 := len(regularization_parameters)):
             raise ValueError(
