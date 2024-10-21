@@ -16,6 +16,7 @@ import scipy.linalg as la
 import scipy.sparse as sparse
 
 from .. import errors, utils
+from ..operators import _utils as oputils
 from ._base import SolverTemplate, _require_trained
 
 
@@ -624,6 +625,99 @@ class TikhonovSolver(_BaseRegularizedSolver):
 
         if self.d is not None:
             self._check_regularizer_shape()
+
+    @classmethod
+    def get_operator_regularizer(
+        cls,
+        operators: list,
+        regularization_parameters: list,
+        state_dimension: int,
+        input_dimension: int = 0,
+    ):
+        r"""Construct a regularizer so that each operator is regularized
+        separately.
+
+        The regularization term for this solver is
+
+        .. math::
+           \|\bfGamma\Ohat\trp\|_F^2
+
+        where :math:`\Ohat\in\RR^{r\times d}` is the unknown and
+        :math:`\bfGamma\in\RR^{d \times d}` is a given regularization matrix.
+        This method constructs :math:`\bfGamma` such that each operator
+        represented in :math:`\Ohat` is regularized separately. For example, if
+        :math:`\Ohat = [~\chat~~\Ahat~~\Hhat~~\Bhat~]`, then :math:`\bfGamma`
+        may be designed so that
+
+        .. math::
+           \|\bfGamma\Ohat\trp\|_F^2
+           = \gamma_1\|\chat\|_F^2
+           + \gamma_2\|\Ahat\|_F^2
+           + \gamma_3\|\Hhat\|_F^2
+           + \gamma_4\|\Bhat\|_F^2.
+
+        Parameters
+        ----------
+        operators : list of opinf.operators objects
+            Collection of operators comprising the operator matrix.
+        regularization_parameters : list of floats or ndarrays
+            Regularization hyperparameters for each operator, i.e.,
+            ``regularization_parameters[i]`` corresponds to ``operators[i]``.
+        state_dimension : int
+            Dimension of the (reduced) state.
+        input_dimension : int
+            Dimension of the input.
+            If there is no input, this should be 0 (default).
+        """
+        if (n1 := len(operators)) != (n2 := len(regularization_parameters)):
+            raise ValueError(
+                f"len(operators) == {n1} != "
+                f"{n2} == len(regularization_parameters)"
+            )
+        if n1 == 1:
+            warnings.warn(
+                "consider using L2Solver for models with only one operator",
+                errors.OpInfWarning,
+            )
+
+        # Check if input_dimension is needed or not.
+        has_inputs = [oputils.has_inputs(op) for op in operators]
+        inputs_required = any(has_inputs)
+        if inputs_required and input_dimension == 0:
+            idx = np.argmax(has_inputs)
+            raise ValueError(
+                "argument 'input_dimension' required, "
+                f"operators[{idx}] acts on inputs"
+            )
+        elif not inputs_required and input_dimension > 0:
+            warnings.warn(
+                "argument 'input_dimension' ignored, "
+                "no operators act on inputs",
+                errors.OpInfWarning,
+            )
+
+        # Get operator dimensions.
+        r, m = state_dimension, input_dimension
+        dims = []
+        for op in operators:
+            if oputils.is_nonparametric(op):
+                dims.append(op.operator_dimension(r, m))
+            elif oputils.is_affine(op):
+                dims.append(op.operator_dimension(None, r, m))
+            else:
+                raise TypeError(
+                    f"unsupported operator type '{type(op).__name__}'"
+                )
+
+        # Construct the regularizer.
+        regularizer = np.zeros(sum(dims))
+        index = 0
+        for dim, reg in zip(dims, regularization_parameters):
+            endex = index + dim
+            regularizer[index:endex] = reg
+            index = endex
+
+        return regularizer
 
     @property
     def method(self):
