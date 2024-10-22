@@ -88,6 +88,11 @@ class TotalLeastSquaresSolver(SolverTemplate):
             If one-dimensional, assume :math:`r = 1`.
         """
         SolverTemplate.fit(self, data_matrix, lhs_matrix)
+        if self.k < self.d + self.r:
+            raise ValueError(
+                "total least-squares system is underdetermined, k > d + r "
+                f"is required (k = {self.k}, d = {self.d}, r = {self.r})"
+            )
 
         # Compute the SVD of the concatenation [D Z^T].
         D_Zt = np.hstack((self.data_matrix, self.lhs_matrix.T))

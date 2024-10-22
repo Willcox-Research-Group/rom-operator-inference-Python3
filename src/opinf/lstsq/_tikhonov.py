@@ -48,9 +48,9 @@ class _BaseRegularizedSolver(SolverTemplate):
 
     # Properties: regularization ----------------------------------------------
     @abc.abstractmethod
-    def regularizer(self):  # pragma: no cover
+    def regularizer(self):
         """Regularization scalar, matrix, or list of these."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Main methods ------------------------------------------------------------
     def fit(self, data_matrix: np.ndarray, lhs_matrix: np.ndarray):
@@ -72,18 +72,32 @@ class _BaseRegularizedSolver(SolverTemplate):
             )
         return self
 
+    @abc.abstractmethod
+    def posterior(self):
+        """Construct the means and inverse covariances of probability
+        distributions for the rows of an operator matrix posterior.
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+        """
+        raise NotImplementedError  # pragma: no cover
+
     # Post-processing ---------------------------------------------------------
     @abc.abstractmethod
-    def regcond(self) -> float:  # pragma: no cover
+    def regcond(self) -> float:
         r"""Compute the :math:`2`-norm condition number of the regularized
         data matrix :math:`[~\D\trp~~\bfGamma\trp~]\trp.`
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
-    def regresidual(self, Ohat: np.ndarray) -> np.ndarray:  # pragma: no cover
+    def regresidual(self, Ohat: np.ndarray) -> np.ndarray:
         """Compute the residual of the regularized regression problem."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Persistence -------------------------------------------------------------
     def _save(self, savefile, overwrite=False, extras=tuple()):
@@ -197,7 +211,7 @@ class L2Solver(_BaseRegularizedSolver):
     Parameters
     ----------
     regularizer : float
-        Scalar :math:`L_2` regularization constant.
+        Scalar :math:`L_2` regularization constant :math:`\lambda`.
     lapack_driver : str
         LAPACK routine for computing the singular value decomposition.
         See :func:`scipy.linalg.svd()`.
@@ -284,6 +298,36 @@ class L2Solver(_BaseRegularizedSolver):
         svals = self._svals.reshape((-1, 1))
         svals_inv = svals / (svals**2 + self.regularizer**2)
         return (self._ZPhi * svals_inv.T) @ self._PsiT
+
+    def posterior(self):
+        r"""Construct the means and inverse covariances of probability
+        distributions for the rows of an operator matrix posterior.
+
+        .. math::
+           \bfmu_i &= \argmin_{\bfxi}\left\{
+               \|\D\ohat_i - \z_i\|_2^2 + \lambda^2\|\ohat_i\|_2^2
+           \right\},
+           \\
+           \bfSigma_i &= \sigma_i^2 \left(
+               \D\trp\D + \lambda^2\I\right)^{-1}
+           \right),
+           \\
+           \sigma_i = \frac{1}{k}\left(
+               \|\D\ohat_i - \z_i\|_2^2 + \lambda^2\|\ohat_i\|_2^2
+           \right)
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+        """
+        Ohat = self.solve()
+        DTD = self.data_matrix.T @ self.data_matrix
+        invcov_unscaled = DTD + (self.regularizer**2 * np.eye(self.d))
+        sigmas = self.regresidual(Ohat) / self.k
+        return Ohat, [invcov_unscaled / sig for sig in sigmas]
 
     # Post-processing ---------------------------------------------------------
     @_require_trained
@@ -388,7 +432,7 @@ class L2DecoupledSolver(L2Solver):
     That is, for :math:`i = 1, \ldots, r`, construct :math:`\Ohat` by solving
 
     .. math::
-        \argmin_{\Ohat}\|\D\ohat_i - \z_i\|_2^2 + \|\lambda_i\Ohat_i\|_2^2
+        \argmin_{\Ohat}\|\D\ohat_i - \z_i\|_2^2 + \|\lambda_i\ohat_i\|_2^2
 
     where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
     :math:`\Ohat` and :math:`\Z`, respectively, with corresponding
@@ -456,6 +500,40 @@ class L2DecoupledSolver(L2Solver):
         L2Solver.fit(self, data_matrix, lhs_matrix)
         self._check_regularizer_shape()
         return self
+
+    def posterior(self):
+        r"""Construct the means and inverse covariances of probability
+        distributions for the rows of an operator matrix posterior.
+
+        .. math::
+           \bfmu_i &= \argmin_{\bfxi}\left\{
+               \|\D\ohat_i - \z_i\|_2^2 + \lambda_i^2\|\ohat_i\|_2^2
+           \right\},
+           \\
+           \bfSigma_i &= \sigma_i^2 \left(
+               \D\trp\D + \lambda_i^2\I\right)^{-1}
+           \right),
+           \\
+           \sigma_i = \frac{1}{k}\left(
+               \|\D\ohat_i - \z_i\|_2^2 + \lambda_i^2\|\ohat_i\|_2^2
+           \right)
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+        """
+        Ohat = self.solve()
+        DTD = self.data_matrix.T @ self.data_matrix
+        Id = np.eye(self.d)
+        sigmas = self.regresidual(Ohat) / self.k
+        precisions = [
+            (DTD + (reg**2 * Id)) / sig
+            for reg, sig in zip(self.regularizer, sigmas)
+        ]
+        return Ohat, precisions
 
     # Post-processing ---------------------------------------------------------
     @_require_trained
@@ -651,10 +729,10 @@ class TikhonovSolver(_BaseRegularizedSolver):
 
         .. math::
            \|\bfGamma\Ohat\trp\|_F^2
-           = \gamma_1\|\chat\|_F^2
-           + \gamma_2\|\Ahat\|_F^2
-           + \gamma_3\|\Hhat\|_F^2
-           + \gamma_4\|\Bhat\|_F^2.
+           = \gamma_1^2\|\chat\|_F^2
+           + \gamma_2^2\|\Ahat\|_F^2
+           + \gamma_3^2\|\Hhat\|_F^2
+           + \gamma_4^2\|\Bhat\|_F^2.
 
         Parameters
         ----------
@@ -797,6 +875,37 @@ class TikhonovSolver(_BaseRegularizedSolver):
             regD = self._DtD + (self.regularizer.T @ self.regularizer)
             Ohat = la.solve(regD, self._DtZt, assume_a="pos").T
         return Ohat
+
+    def posterior(self):
+        r"""Construct the means and inverse covariances of probability
+        distributions for the rows of an operator matrix posterior.
+
+        .. math::
+           \bfmu_i &= \argmin_{\bfxi}\left\{
+               \|\D\ohat_i - \z_i\|_2^2 + \|\bfGamma\ohat_i\|_2^2
+           \right\},
+           \\
+           \bfSigma_i &= \sigma_i^2 \left(
+               \D\trp\D + \bfGamma\trp\bfGamma\right)^{-1}
+           \right),
+           \\
+           \sigma_i = \frac{1}{k}\left(
+               \|\D\ohat_i - \z_i\|_2^2 + \|\bfGamma\ohat_i\|_2^2
+           \right)
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+        """
+        Ohat = self.solve()
+        DTD = self.data_matrix.T @ self.data_matrix
+        GTG = self.regularizer.T @ self.regularizer
+        invcov_unscaled = DTD + GTG
+        sigmas = self.regresidual(Ohat) / self.k
+        return Ohat, [invcov_unscaled / sig for sig in sigmas]
 
     # Post-processing ---------------------------------------------------------
     @_require_trained
@@ -1004,6 +1113,39 @@ class TikhonovDecoupledSolver(TikhonovSolver):
                 regD = self._DtD + Gamma.T @ Gamma
                 Ohat[i] = la.solve(regD, self._DtZt[:, i], assume_a="pos")
         return Ohat
+
+    def posterior(self):
+        r"""Construct the means and inverse covariances of probability
+        distributions for the rows of an operator matrix posterior.
+
+        .. math::
+           \bfmu_i &= \argmin_{\bfxi}\left\{
+               \|\D\ohat_i - \z_i\|_2^2 + \|\bfGamma_i\ohat_i\|_2^2
+           \right\},
+           \\
+           \bfSigma_i &= \sigma_i^2 \left(
+               \D\trp\D + \bfGamma_i\trp\bfGamma_i\right)^{-1}
+           \right),
+           \\
+           \sigma_i = \frac{1}{k}\left(
+               \|\D\ohat_i - \z_i\|_2^2 + \|\bfGamma_i\ohat_i\|_2^2
+           \right)
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+        """
+        Ohat = self.solve()
+        DTD = self.data_matrix.T @ self.data_matrix
+        sigmas = self.regresidual(Ohat) / self.k
+        precisions = [
+            (DTD + Gamma.T @ Gamma) / sig
+            for Gamma, sig in zip(self.regularizer, sigmas)
+        ]
+        return Ohat, precisions
 
     # Post-processing ---------------------------------------------------------
     @_require_trained

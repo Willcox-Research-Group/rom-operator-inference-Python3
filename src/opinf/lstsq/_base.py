@@ -181,7 +181,7 @@ class SolverTemplate(abc.ABC):
         return self
 
     @abc.abstractmethod
-    def solve(self) -> np.ndarray:  # pragma: no cover
+    def solve(self) -> np.ndarray:
         r"""Solve the Operator Inference regression.
 
         Returns
@@ -189,7 +189,7 @@ class SolverTemplate(abc.ABC):
         Ohat : (r, d) ndarray
             Operator matrix :math:`\Ohat` (not its transpose!).
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Post-processing --------------------------------------------------------
     @_require_trained
@@ -398,12 +398,11 @@ class PlainSolver(SolverTemplate):
             "Left-hand side" data matrix :math:`\Z` (not its transpose!).
             If one-dimensional, assume :math:`r = 1`.
         """
-        SolverTemplate.fit(self, data_matrix, lhs_matrix)
+        super().fit(data_matrix, lhs_matrix)
         if self.k < self.d:
             warnings.warn(
                 "least-squares system is underdetermined",
                 errors.OpInfWarning,
-                stacklevel=2,
             )
         return self
 
