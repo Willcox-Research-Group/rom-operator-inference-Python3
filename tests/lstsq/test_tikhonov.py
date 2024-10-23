@@ -49,6 +49,14 @@ class _TestBaseRegularizedSolver(_TestSolverTemplate):
                 assert isinstance(prec, np.ndarray)
                 assert prec.shape == (d, d)
 
+        # Detect perfect regression.
+        solver.fit(D, np.zeros_like(Z))
+        with pytest.raises(RuntimeError) as ex:
+            solver.posterior()
+        assert ex.value.args[0] == (
+            "zero residual --> posterior is deterministic"
+        )
+
 
 class TestL2Solver(_TestBaseRegularizedSolver):
     """Test lstsq._tikhonov.L2Solver."""
