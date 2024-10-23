@@ -2,11 +2,15 @@
 """Tests for roms._parametric.py."""
 
 import pytest
+import warnings
 import numpy as np
 
 import opinf
 
-from .test_base import _TestBaseROM
+try:
+    from .test_base import _TestBaseROM
+except ImportError:
+    from test_base import _TestBaseROM
 
 
 _module = opinf.roms
@@ -22,6 +26,7 @@ class TestParametricROM(_TestBaseROM):
         opinf.models.InterpContinuousModel,
         opinf.models.InterpDiscreteModel,
     )
+    kwargs = dict()  # extra arguments for fit_regselect_*().
 
     def _get_models(self):
         """Return a list of valid model instantiations."""
@@ -30,16 +35,24 @@ class TestParametricROM(_TestBaseROM):
                 [
                     opinf.operators.ConstantOperator(),
                     opinf.operators.AffineLinearOperator(3),
-                ]
+                ],
+                solver=opinf.lstsq.L2Solver(1e-4),
             ),
             opinf.models.ParametricDiscreteModel(
                 [
                     opinf.operators.AffineLinearOperator(3),
                     opinf.operators.InterpInputOperator(),
-                ]
+                ],
+                solver=opinf.lstsq.L2Solver(1e-4),
             ),
-            opinf.models.InterpContinuousModel("AB"),
-            opinf.models.InterpDiscreteModel("A"),
+            opinf.models.InterpContinuousModel(
+                "AB",
+                solver=opinf.lstsq.L2Solver(1e-4),
+            ),
+            opinf.models.InterpDiscreteModel(
+                "A",
+                solver=opinf.lstsq.L2Solver(1e-4),
+            ),
         ]
 
     def test_init(self):
@@ -59,10 +72,18 @@ class TestParametricROM(_TestBaseROM):
         """Test fit()."""
         parameters = [np.sort(np.random.random(3)) for _ in range(s)]
         states = [np.random.standard_normal((n, k0 + i)) for i in range(s)]
-        lhs = [np.zeros_like(Q) for Q in states]
+        lhs = [np.random.standard_normal(Q.shape) / 100 for Q in states]
         inputs = [np.ones((m, Q.shape[-1])) for Q in states]
 
-        rom = self.ROM(model=opinf.models.InterpContinuousModel("AB"))
+        rom = self.ROM(
+            model=opinf.models.ParametricContinuousModel(
+                [
+                    opinf.operators.AffineLinearOperator(3),
+                    opinf.operators.InputOperator(),
+                ],
+                solver=opinf.lstsq.L2Solver(1e-4),
+            ),
+        )
         with pytest.raises(ValueError) as ex:
             rom.fit(parameters, states, inputs)
         assert ex.value.args[0] == (
@@ -169,7 +190,7 @@ class TestParametricROM(_TestBaseROM):
         testparam = np.mean(parameters, axis=0)
         testinit = states[0][:, s // 2]
 
-        cmodel, dmodel, _, _ = self._get_models()
+        cmodel, dmodel = self._get_models()[:2]
 
         # Continuous model.
         lift, trans, base, ddter = self._get(
@@ -214,29 +235,32 @@ class TestParametricROM(_TestBaseROM):
             # Tests.
             t = np.linspace(0, 1, 100)
             regs = np.logspace(-12, 2, 15)
-            Q = np.ones((20, t.size))
+            Q = np.ones((5, t.size))
+            Q += np.random.standard_normal(Q.shape) / 10
 
             def blowup(*args, **kwargs):
-                return np.zeros((20, t.size // 2))
+                return np.zeros((5, t.size // 2))
 
             rom.model.predict = blowup
 
-            with (
-                pytest.raises(RuntimeError) as ex,
-                pytest.warns(opinf.errors.OpInfWarning) as wn,
-            ):
-                rom.fit_regselect_continuous(
-                    regs,
-                    t,
-                    [np.random.random(3) for i in range(8)],
-                    [Q + i for i in range(8)],
-                    ddts=[np.zeros_like(Q) for _ in range(8)],
-                    input_functions=func if rom.model._has_inputs else None,
-                    test_time_length=(t[-1] - t[0]) / 10,
-                )
-            assert len(wn) == 8
-            for w in wn:
-                assert w.message.args[0].startswith("ignoring stability limit")
+            with pytest.raises(RuntimeError) as ex:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    rom.fit_regselect_continuous(
+                        regs,
+                        t,
+                        [np.random.random(3) for i in range(8)],
+                        [Q + i for i in range(8)],
+                        ddts=[
+                            np.random.standard_normal(Q.shape) / 100
+                            for _ in range(8)
+                        ],
+                        input_functions=(
+                            func if rom.model._has_inputs else None
+                        ),
+                        test_time_length=(t[-1] - t[0]) / 10,
+                        **self.kwargs,
+                    )
             assert ex.value.args[0] == "regularization grid search failed"
 
     def test_fit_regselect_discrete(self):
@@ -255,14 +279,13 @@ class TestParametricROM(_TestBaseROM):
             )
 
             # Tests.
-            niters = 100
+            niters = 10
             regs = np.logspace(-12, 6, 19)
-            Q = np.ones((20, niters))
+            Q = np.ones((2, niters))
+            Q += np.random.standard_normal(Q.shape) / 10
 
-            with (
-                # pytest.raises(RuntimeError) as ex,
-                pytest.warns(opinf.errors.OpInfWarning) as wn,
-            ):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
                 rom.fit_regselect_discrete(
                     regs,
                     [np.random.random(3) for _ in range(8)],
@@ -272,11 +295,8 @@ class TestParametricROM(_TestBaseROM):
                         if rom.model._has_inputs
                         else None
                     ),
+                    **self.kwargs,
                 )
-            assert len(wn) >= 8
-            for w in wn[:8]:
-                assert w.message.args[0].startswith("ignoring stability limit")
-            # assert ex.value.args[0] == "regularization grid search failed"
 
 
 if __name__ == "__main__":

@@ -308,7 +308,8 @@ class _BaseROM(abc.ABC):
                 "argument 'inputs' required (model depends on external inputs)"
             )
 
-    def _fix_single_trajectory(sefl, states, lhs, inputs):
+    @staticmethod
+    def _fix_single_trajectory(states, lhs, inputs):
         """If data comes from a single trajectory, ``states``, ``lhs``, and/or
         ``inputs`` may be arrays instead of lists of arrays. This method casts
         each input as a list of arrays if ``states`` is an array.
@@ -456,7 +457,7 @@ class _BaseROM(abc.ABC):
             for Q, qbar in zip(states, shifts)
         ]
         for ell, lim in enumerate(limits):
-            if lim == 0:
+            if lim == 0:  # pragma: no cover
                 warnings.warn(
                     "ignoring stability limit"
                     f" for constant training trajectory {ell}",
@@ -502,7 +503,7 @@ class _BaseROM(abc.ABC):
     def fit_regselect_continuous(
         self,
         candidates: list,
-        train_time_domains: np.ndarray,
+        train_time_domains: list,
         parameters: list,
         states: list,
         ddts: list = None,

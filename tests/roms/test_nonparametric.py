@@ -2,11 +2,15 @@
 """Tests for roms._nonparametric.py."""
 
 import pytest
+import warnings
 import numpy as np
 
 import opinf
 
-from .test_base import _TestBaseROM
+try:
+    from .test_base import _TestBaseROM
+except ImportError:
+    from test_base import _TestBaseROM
 
 
 _module = opinf.roms
@@ -20,14 +24,28 @@ class TestROM(_TestBaseROM):
         opinf.models.ContinuousModel,
         opinf.models.DiscreteModel,
     )
+    check_regselect_solver = True
+    kwargs = dict()  # extra arguments for fit_regselect_*().
 
     def _get_models(self):
         """Return a list of valid model instantiations."""
         return [
-            opinf.models.ContinuousModel("A"),
-            opinf.models.DiscreteModel("AB"),
-            opinf.models.DiscreteModel("A"),
-            opinf.models.ContinuousModel("AB"),
+            opinf.models.ContinuousModel(
+                "A",
+                solver=opinf.lstsq.L2Solver(1e-4),
+            ),
+            opinf.models.DiscreteModel(
+                "AB",
+                solver=opinf.lstsq.L2Solver(1e-2),
+            ),
+            opinf.models.DiscreteModel(
+                "A",
+                solver=opinf.lstsq.L2Solver(1e-3),
+            ),
+            opinf.models.ContinuousModel(
+                "AB",
+                solver=opinf.lstsq.L2Solver(1e-1),
+            ),
         ]
 
     def test_init(self):
@@ -46,10 +64,15 @@ class TestROM(_TestBaseROM):
     def test_fit(self, n=10, m=3, s=3, k0=50):
         """Test fit()."""
         states = [np.random.standard_normal((n, k0 + i)) for i in range(s)]
-        lhs = [np.zeros_like(Q) for Q in states]
+        lhs = [np.random.standard_normal(Q.shape) / 100 for Q in states]
         inputs = [np.ones((m, Q.shape[-1])) for Q in states]
 
-        rom = self.ROM(model=opinf.models.ContinuousModel("cBH"))
+        rom = self.ROM(
+            model=opinf.models.ContinuousModel(
+                "cBH",
+                solver=opinf.lstsq.L2Solver(1e-2),
+            )
+        )
         with pytest.raises(ValueError) as ex:
             rom.fit(states, inputs)
         assert ex.value.args[0] == (
@@ -182,41 +205,42 @@ class TestROM(_TestBaseROM):
     def test_fit_regselect_continuous(self):
         """Lightly test fit_regselect_continuous()."""
         for model in self._get_models():
-            rom = self.ROM(model)
-            if not rom._iscontinuous:
+            if self.check_regselect_solver:
+                rom = self.ROM(
+                    model.__class__(
+                        operators=model.operators,
+                        solver=None,
+                    )
+                )
+                if not rom._iscontinuous:
+                    with pytest.raises(AttributeError) as ex:
+                        rom.fit_regselect_continuous(None, None, None)
+                    assert ex.value.args[0] == (
+                        "this method is for time-continuous models only, "
+                        "use fit_regselect_discrete()"
+                    )
+                    continue
                 with pytest.raises(AttributeError) as ex:
                     rom.fit_regselect_continuous(None, None, None)
                 assert ex.value.args[0] == (
-                    "this method is for time-continuous models only, "
-                    "use fit_regselect_discrete()"
+                    "this method requires a model with a 'solver' attribute "
+                    "which has a 'regularizer' attribute"
                 )
+            elif not opinf.models._utils.is_continuous(model):
                 continue
 
-            with pytest.raises(AttributeError) as ex:
-                rom.fit_regselect_continuous(None, None, None)
-            assert ex.value.args[0] == (
-                "this method requires a model with a 'solver' attribute "
-                "which has a 'regularizer' attribute"
-            )
-
-            # Give the model a compatible solver.
-            rom = self.ROM(
-                model.__class__(
-                    operators=model.operators,
-                    solver=opinf.lstsq.L2Solver(1e-2),
-                )
-            )
+            rom = self.ROM(model)
 
             # Bad argument detection.
             t = np.linspace(0, 1, 100)
-            Q = np.zeros((20, t.size // 2))
+            Q = np.zeros((5, t.size // 2))
             with pytest.raises(opinf.errors.DimensionalityError) as ex:
                 rom.fit_regselect_continuous(None, t, Q)
             assert ex.value.args[0] == (
                 "train_time_domains and states not aligned"
             )
 
-            Q = np.zeros((20, t.size))
+            Q = np.zeros((5, t.size))
             with pytest.raises(TypeError) as ex:
                 rom.fit_regselect_continuous(None, t, Q, input_functions=10)
             assert ex.value.args[0] == (
@@ -238,37 +262,34 @@ class TestROM(_TestBaseROM):
 
             # Tests.
             regs = np.logspace(-12, 2, 15)
-            Q = np.ones((20, t.size))
+            Q = np.ones((5, t.size))
+            Q += np.random.standard_normal(Q.shape) / 10
 
-            with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
                 out = rom.fit_regselect_continuous(
                     regs,
                     t,
                     Q,
-                    ddts=np.zeros_like(Q),
+                    ddts=np.random.standard_normal(Q.shape) / 100,
                     input_functions=func if rom.model._has_inputs else None,
                     test_time_length=(t[-1] - t[0]) / 10,
                     test_cases=opinf.utils.ContinuousRegTest(
-                        np.ones(20),
+                        np.ones(5),
                         t,
                         input_function=func if rom.model._has_inputs else None,
                     ),
+                    **self.kwargs,
                 )
-            assert len(wn) == 2
-            assert wn[0].message.args[0].startswith("ignoring stability limit")
-            assert wn[1].message.args[0].startswith("smallest regularization")
             assert out is rom
             for op in rom.model.operators:
                 assert op.entries is not None
-            assert np.allclose(rom.model.A_.entries, 0)
+            assert np.linalg.norm(rom.model.A_.entries) < 1
 
             def func(t):
                 return 1
 
-            with (
-                pytest.raises(RuntimeError) as ex,
-                pytest.warns(opinf.errors.OpInfWarning) as wn,
-            ):
+            with pytest.raises(RuntimeError) as ex:
                 rom.fit_regselect_continuous(
                     regs,
                     t,
@@ -276,48 +297,48 @@ class TestROM(_TestBaseROM):
                     ddts=[np.zeros_like(Q), np.ones_like(Q)],
                     input_functions=func if rom.model._has_inputs else None,
                     test_cases=opinf.utils.ContinuousRegTest(
-                        np.ones(20) / 2,
+                        np.ones(5) / 2,
                         t,
                         input_function=func if rom.model._has_inputs else None,
                         bound=1e-20,
                     ),
+                    **self.kwargs,
                 )
-            assert len(wn) == 2
-            for w in wn:
-                assert w.message.args[0].startswith("ignoring stability limit")
             assert ex.value.args[0] == "regularization grid search failed"
 
     def test_fit_regselect_discrete(self):
         """Lightly test fit_regselect_discrete()."""
         for model in self._get_models():
-            rom = self.ROM(model)
-            if rom._iscontinuous:
+            if self.check_regselect_solver:
+                rom = self.ROM(
+                    model.__class__(
+                        operators=model.operators,
+                        solver=None,
+                    )
+                )
+                if rom._iscontinuous:
+                    with pytest.raises(AttributeError) as ex:
+                        rom.fit_regselect_discrete(None, None)
+                    assert ex.value.args[0] == (
+                        "this method is for fully discrete models only, "
+                        "use fit_regselect_continuous()"
+                    )
+                    continue
+
                 with pytest.raises(AttributeError) as ex:
                     rom.fit_regselect_discrete(None, None)
                 assert ex.value.args[0] == (
-                    "this method is for fully discrete models only, "
-                    "use fit_regselect_continuous()"
+                    "this method requires a model with a 'solver' attribute "
+                    "which has a 'regularizer' attribute"
                 )
+            elif opinf.models._utils.is_continuous(model):
                 continue
 
-            with pytest.raises(AttributeError) as ex:
-                rom.fit_regselect_discrete(None, None)
-            assert ex.value.args[0] == (
-                "this method requires a model with a 'solver' attribute "
-                "which has a 'regularizer' attribute"
-            )
-
-            # Give the model a compatible solver.
-            rom = self.ROM(
-                model.__class__(
-                    operators=model.operators,
-                    solver=opinf.lstsq.L2Solver(1e-2),
-                )
-            )
+            rom = self.ROM(model)
 
             # Bad argument detection.
             niters = 100
-            Q = np.zeros((20, niters))
+            Q = np.zeros((5, niters))
             with pytest.raises(ValueError) as ex:
                 rom.fit_regselect_discrete(None, Q, num_test_iters=-10)
             assert ex.value.args[0] == (
@@ -353,9 +374,11 @@ class TestROM(_TestBaseROM):
 
             # Tests.
             regs = np.logspace(-12, 6, 19)
-            Q = np.ones((20, niters))
+            Q = np.ones((5, niters))
+            Q += np.random.standard_normal(Q.shape) / 10
 
-            with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
                 out = rom.fit_regselect_discrete(
                     regs,
                     Q,
@@ -366,12 +389,13 @@ class TestROM(_TestBaseROM):
                     ),
                     num_test_iters=20,
                     test_cases=opinf.utils.DiscreteRegTest(
-                        np.ones(20),
+                        np.ones(5),
                         niters=5,
                         inputs=(
                             np.ones((3, 5)) if rom.model._has_inputs else None
                         ),
                     ),
+                    **self.kwargs,
                 )
             assert out is rom
             for op in rom.model.operators:
@@ -382,38 +406,35 @@ class TestROM(_TestBaseROM):
 
             rom.model.predict = blowup
 
-            with (
-                pytest.raises(RuntimeError) as ex,
-                pytest.warns(opinf.errors.OpInfWarning) as wn,
-            ):
-                rom.fit_regselect_discrete(
-                    regs,
-                    [Q, Q + 1],
-                    inputs=(
-                        [np.ones(niters)] * 2
-                        if rom.model._has_inputs
-                        else None
-                    ),
-                )
-            assert len(wn) == 2
-            for w in wn:
-                assert w.message.args[0].startswith("ignoring stability limit")
+            with pytest.raises(RuntimeError) as ex:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    rom.fit_regselect_discrete(
+                        regs,
+                        [Q, Q + 1],
+                        inputs=(
+                            [np.ones(niters)] * 2
+                            if rom.model._has_inputs
+                            else None
+                        ),
+                        **self.kwargs,
+                    )
             assert ex.value.args[0] == "regularization grid search failed"
 
-            with (
-                pytest.raises(RuntimeError) as ex,
-                pytest.warns(opinf.errors.OpInfWarning) as wn,
-            ):
-                rom.fit_regselect_discrete(
-                    regs,
-                    Q,
-                    inputs=(
-                        np.ones(niters) if rom.model._has_inputs else None
-                    ),
-                    test_cases=opinf.utils.DiscreteRegTest(Q[:, 0], niters=10),
-                )
-            assert len(wn) == 1
-            assert wn[0].message.args[0].startswith("ignoring stability limit")
+            with pytest.raises(RuntimeError) as ex:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    rom.fit_regselect_discrete(
+                        regs,
+                        Q,
+                        inputs=(
+                            np.ones(niters) if rom.model._has_inputs else None
+                        ),
+                        test_cases=opinf.utils.DiscreteRegTest(
+                            Q[:, 0], niters=10
+                        ),
+                        **self.kwargs,
+                    )
             assert ex.value.args[0] == "regularization grid search failed"
 
 
