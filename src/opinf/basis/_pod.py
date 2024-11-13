@@ -42,11 +42,62 @@ def _Wmult(W, arr):
             raise ValueError("expected one- or two-dimensional array")
     return W @ arr
 
+def _method_of_snapshots(states, **options):
+    """
+
+    Parameters
+    ----------
+    states : (N, K) ndarray,
+        snapshots from which to compute the POD space
+    inner_product_matrix : (N, N) sparse matrix, symmetric positive definite, optional
+        spatial inner product matrix for measuring how different indices in the snapshot matrix interact with each
+        other. If not provided, default to Euclidean inner product
+
+    Returns
+    -------
+    V : (N, k) ndarray, k <= K
+        left singular vectors for all computed non-zero singular values
+    svals : (k,) ndarray, k <= K
+        non-zero singular values
+    W : (N, k) ndarray, k <= K
+        same as V, only returned to avoid conflicts with rest of the code. With the method of snapshots,
+        right singular values do not get computed
+    """
+    inner_product_matrix = options.get("inner_product_matrix", None)
+    n_states = states.shape[1]
+    if inner_product_matrix is None:
+        gramian = states.T @ states / n_states
+    else:
+        yolo = _Wmult(inner_product_matrix, states / n_states)
+        gramian = states.T @ yolo
+
+    # compute eigenvalue decomposition, using that the gramian is symmetric
+    eigvals, eigvecs = la.eigh(gramian)
+
+    # re-order (largest to smallest)
+    eigvals = eigvals[::-1]
+    eigvecs = eigvecs[:, ::-1]
+
+    # set negative eigenvalues to zero
+    eigvals = np.maximum(eigvals, 0)
+    # note: we know by definition that gramian is symmetric positive semi-definite. If any eigenvalues are
+    # smaller than zero, they are only measuring numerical error and can be replaced by zero.
+
+    # compute singular values
+    svals = np.sqrt(eigvals * n_states)
+
+    # rescale eigvals to left singular values
+    yolo = svals.copy()
+    yolo[svals < 1e-15] = 1
+    V = states @ (eigvecs / yolo)
+    # to avoid division by zero, we are dividing by 1 if the singular values are too small
+
+    return V, svals, V
 
 # Main class ==================================================================
 class PODBasis(LinearBasis):
     r"""Proper othogonal decomposition basis, consisting of the principal left
-    singular vectors of a collection of states.
+    singular vectors of a collection of states.==0
 
     .. math::
        \text{svd}(\Q) = \bfPhi\bfSigma\bfPsi\trp
@@ -113,6 +164,12 @@ class PODBasis(LinearBasis):
           to limit the number of computed singular vectors. In this case,
           only ``max_vectors`` singular *values* are computed as well, meaning
           the cumulative and residual energies cannot be computed exactly.
+        * ``"method-of-snapshots"'' compute the POD space through an eigenvalue
+          decomposition rather than the SVD. This is how POD was originally
+          introduced. If the state dimension is larger than the number of
+          snapshots, the method of snapshots is much more efficient than the
+          SVD. Moreover, handling non-Euclidean inner products (see weights)
+          is much more cost efficient.
         * callable: If this argument is a callable function, use it for the
           SVD computation. The signature must match :func:`scipy.linalg.svd()`,
           i.e., ``U, s, Vh = svdsolver(states, **svdsolver_options)``
@@ -133,6 +190,7 @@ class PODBasis(LinearBasis):
         {
             "dense": la.svd,
             "randomized": sklmath.randomized_svd,
+            "method-of-snapshots": _method_of_snapshots,
             # "streaming":  # TODO
         }
     )
@@ -182,7 +240,7 @@ class PODBasis(LinearBasis):
         self.__residual_energy = None
 
         # Store weights (separate from LinearBasis.__weights)
-        if weights is not None:
+        if weights is not None and self.__svdsolverlabel != "method-of-snapshots":
             if weights.ndim == 1:
                 self.__sqrt_weights = np.sqrt(weights)
             else:  # (weights.ndim == 2, checked by LinearBasis)
@@ -572,9 +630,11 @@ class PODBasis(LinearBasis):
                 options["random_state"] = None
             if keep < rmax:
                 self.__energy_is_being_estimated = True
+        elif self.__svdsolverlabel == "method-of-snapshots":
+            options["inner_product_matrix"] = self.weights
 
         # Weight the states.
-        if self.weights is not None:
+        if self.weights is not None and self.__svdsolverlabel != "method-of-snapshots":
             if states.shape[0] != (nW := self.__sqrt_weights.shape[0]):
                 raise errors.DimensionalityError(
                     f"states not aligned with weights, should have {nW:d} rows"
@@ -585,7 +645,7 @@ class PODBasis(LinearBasis):
         V, svdvals, Wt = self.__svdengine(states, **options)
 
         # Unweight the basis.
-        if self.weights is not None:
+        if self.weights is not None and self.__svdsolverlabel != "method-of-snapshots":
             if self.__sqrt_weights.ndim == 1:
                 V = _Wmult(1 / self.__sqrt_weights, V)
             else:
@@ -1304,3 +1364,5 @@ def residual_energy(
 
     if threshold:
         return ranks[0] if one_threshold else ranks
+
+

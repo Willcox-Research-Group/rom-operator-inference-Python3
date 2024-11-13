@@ -9,7 +9,6 @@ from matplotlib import pyplot as plt
 
 import opinf
 
-
 def _spd(n):
     """Generate a random symmetric postive definite nxn matrix."""
     u, s, _ = la.svd(np.random.standard_normal((n, n)))
@@ -297,6 +296,63 @@ class TestPODBasis:
             "projection error is being estimated from only "
             f"{r + 1} singular values"
         )
+
+        # method of snapshots, Euclidean inner product
+        print("Testing method of snapshots, Euclidean inner product")
+        Q = np.random.random((n, k))
+        basis = self.Basis(num_vectors=r, max_vectors=k + 2, svdsolver="method-of-snapshots")
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            out = basis.fit(Q)
+
+        assert wn[0].message.args[0] == (
+            f"only {k} singular vectors can be extracted from ({n} x {k}) "
+            f"snapshots, setting max_vectors={k}"
+        )
+        assert out is basis
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert basis.max_vectors == k
+        assert np.allclose(basis.entries.T @ basis.entries, np.eye(r))
+
+        # method of snapshots, arbitrary inner product
+        print("Testing method of snapshots, arbitrary inner product")
+        Q = np.random.random((n, k))
+        SP = np.random.random((n, n))
+        SP = SP.T @ SP
+        SP = np.eye(n) + SP / la.norm(SP)
+
+        basis = self.Basis(num_vectors=r, max_vectors=k + 2, svdsolver="method-of-snapshots", weights=SP)
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            out = basis.fit(Q)
+
+        assert wn[0].message.args[0] == (
+            f"only {k} singular vectors can be extracted from ({n} x {k}) "
+            f"snapshots, setting max_vectors={k}"
+        )
+        assert out is basis
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert basis.max_vectors == k
+        assert np.allclose(basis.entries.T @ SP @ basis.entries, np.eye(r))
+
+        # method of snapshots, arbitrary inner product
+        print("Testing method of snapshots, diagonal inner product")
+        Q = np.random.random((n, k))
+        SP = np.random.random((n,))**2 + 1
+
+        basis = self.Basis(num_vectors=r, max_vectors=k + 2, svdsolver="method-of-snapshots", weights=SP)
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            out = basis.fit(Q)
+
+        assert wn[0].message.args[0] == (
+            f"only {k} singular vectors can be extracted from ({n} x {k}) "
+            f"snapshots, setting max_vectors={k}"
+        )
+        assert out is basis
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert basis.max_vectors == k
+        assert np.allclose(basis.entries.T @ np.diag(SP) @ basis.entries, np.eye(r))
 
     # Visualization -----------------------------------------------------------
     def test_plots(self, n=40, r=4):
