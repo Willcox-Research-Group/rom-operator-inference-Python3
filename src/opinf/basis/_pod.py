@@ -42,16 +42,18 @@ def _Wmult(W, arr):
             raise ValueError("expected one- or two-dimensional array")
     return W @ arr
 
+
 def _method_of_snapshots(states, **options):
     """
 
     Parameters
     ----------
     states : (N, K) ndarray,
-        snapshots from which to compute the POD space
-    inner_product_matrix : (N, N) sparse matrix, symmetric positive definite, optional
-        spatial inner product matrix for measuring how different indices in the snapshot matrix interact with each
-        other. If not provided, default to Euclidean inner product
+        Snapshots from which to compute the POD space
+    inner_product_matrix : (N, N) sparse SPD matrix or None
+        Spatial inner product matrix for measuring how different indices in
+        the snapshot matrix interact with each other. If not provided, default
+        to Euclidean inner product
 
     Returns
     -------
@@ -60,8 +62,8 @@ def _method_of_snapshots(states, **options):
     svals : (k,) ndarray, k <= K
         non-zero singular values
     W : (N, k) ndarray, k <= K
-        same as V, only returned to avoid conflicts with rest of the code. With the method of snapshots,
-        right singular values do not get computed
+        Same as ``V``, only returned to avoid conflicts with rest of the code.
+        With the method of snapshots, right singular values are not computed.
     """
     inner_product_matrix = options.get("inner_product_matrix", None)
     n_states = states.shape[1]
@@ -71,28 +73,30 @@ def _method_of_snapshots(states, **options):
         yolo = _Wmult(inner_product_matrix, states / n_states)
         gramian = states.T @ yolo
 
-    # compute eigenvalue decomposition, using that the gramian is symmetric
+    # Compute eigenvalue decomposition, using that the gramian is symmetric
     eigvals, eigvecs = la.eigh(gramian)
 
-    # re-order (largest to smallest)
+    # Re-order (largest to smallest)
     eigvals = eigvals[::-1]
     eigvecs = eigvecs[:, ::-1]
 
-    # set negative eigenvalues to zero
+    # Set negative eigenvalues to zero
     eigvals = np.maximum(eigvals, 0)
-    # note: we know by definition that gramian is symmetric positive semi-definite. If any eigenvalues are
-    # smaller than zero, they are only measuring numerical error and can be replaced by zero.
+    # NOTE: By definition that gramian is symmetric positive semi-definite.
+    # If any eigenvalues are smaller than zero, they are only measuring
+    # numerical error and can be replaced by zero.
 
-    # compute singular values
+    # Compute singular values
     svals = np.sqrt(eigvals * n_states)
 
-    # rescale eigvals to left singular values
+    # Rescale eigvals to left singular values
     yolo = svals.copy()
     yolo[svals < 1e-15] = 1
     V = states @ (eigvecs / yolo)
-    # to avoid division by zero, we are dividing by 1 if the singular values are too small
+    # To avoid zero division, divide by 1 if the singular values are too small.
 
     return V, svals, V
+
 
 # Main class ==================================================================
 class PODBasis(LinearBasis):
@@ -240,7 +244,10 @@ class PODBasis(LinearBasis):
         self.__residual_energy = None
 
         # Store weights (separate from LinearBasis.__weights)
-        if weights is not None and self.__svdsolverlabel != "method-of-snapshots":
+        if (
+            weights is not None
+            and self.__svdsolverlabel != "method-of-snapshots"
+        ):
             if weights.ndim == 1:
                 self.__sqrt_weights = np.sqrt(weights)
             else:  # (weights.ndim == 2, checked by LinearBasis)
@@ -634,7 +641,10 @@ class PODBasis(LinearBasis):
             options["inner_product_matrix"] = self.weights
 
         # Weight the states.
-        if self.weights is not None and self.__svdsolverlabel != "method-of-snapshots":
+        if (
+            self.weights is not None
+            and self.__svdsolverlabel != "method-of-snapshots"
+        ):
             if states.shape[0] != (nW := self.__sqrt_weights.shape[0]):
                 raise errors.DimensionalityError(
                     f"states not aligned with weights, should have {nW:d} rows"
@@ -645,7 +655,10 @@ class PODBasis(LinearBasis):
         V, svdvals, Wt = self.__svdengine(states, **options)
 
         # Unweight the basis.
-        if self.weights is not None and self.__svdsolverlabel != "method-of-snapshots":
+        if (
+            self.weights is not None
+            and self.__svdsolverlabel != "method-of-snapshots"
+        ):
             if self.__sqrt_weights.ndim == 1:
                 V = _Wmult(1 / self.__sqrt_weights, V)
             else:
@@ -1364,5 +1377,3 @@ def residual_energy(
 
     if threshold:
         return ranks[0] if one_threshold else ranks
-
-

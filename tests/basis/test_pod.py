@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 
 import opinf
 
+
 def _spd(n):
     """Generate a random symmetric postive definite nxn matrix."""
     u, s, _ = la.svd(np.random.standard_normal((n, n)))
@@ -300,7 +301,9 @@ class TestPODBasis:
         # method of snapshots, Euclidean inner product
         print("Testing method of snapshots, Euclidean inner product")
         Q = np.random.random((n, k))
-        basis = self.Basis(num_vectors=r, max_vectors=k + 2, svdsolver="method-of-snapshots")
+        basis = self.Basis(
+            num_vectors=r, max_vectors=k + 2, svdsolver="method-of-snapshots"
+        )
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
             out = basis.fit(Q)
 
@@ -321,7 +324,12 @@ class TestPODBasis:
         SP = SP.T @ SP
         SP = np.eye(n) + SP / la.norm(SP)
 
-        basis = self.Basis(num_vectors=r, max_vectors=k + 2, svdsolver="method-of-snapshots", weights=SP)
+        basis = self.Basis(
+            num_vectors=r,
+            max_vectors=k + 2,
+            svdsolver="method-of-snapshots",
+            weights=SP,
+        )
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
             out = basis.fit(Q)
 
@@ -338,9 +346,14 @@ class TestPODBasis:
         # method of snapshots, arbitrary inner product
         print("Testing method of snapshots, diagonal inner product")
         Q = np.random.random((n, k))
-        SP = np.random.random((n,))**2 + 1
+        SP = np.random.random((n,)) ** 2 + 1
 
-        basis = self.Basis(num_vectors=r, max_vectors=k + 2, svdsolver="method-of-snapshots", weights=SP)
+        basis = self.Basis(
+            num_vectors=r,
+            max_vectors=k + 2,
+            svdsolver="method-of-snapshots",
+            weights=SP,
+        )
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
             out = basis.fit(Q)
 
@@ -352,7 +365,9 @@ class TestPODBasis:
         assert basis.full_state_dimension == n
         assert basis.reduced_state_dimension == r
         assert basis.max_vectors == k
-        assert np.allclose(basis.entries.T @ np.diag(SP) @ basis.entries, np.eye(r))
+        assert np.allclose(
+            basis.entries.T @ np.diag(SP) @ basis.entries, np.eye(r)
+        )
 
     # Visualization -----------------------------------------------------------
     def test_plots(self, n=40, r=4):
