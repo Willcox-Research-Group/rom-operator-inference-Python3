@@ -53,12 +53,12 @@ def method_of_snapshots(
     r"""Use the method of snapshots to compute the left singular values of a
     collection of state snapshots.
 
-    For a snapshot matrix :math:`\Q\in\RR^{n\times k}` with :math:`n \ge k`
-    and a spatial weighting matrix :math:`\W\in\RR^{n\times n}`, the method of
-    snapshots computes the symmetric eigendecomposition
+    For a snapshot matrix :math:`\Q\in\RR^{n\times k}` (usually with
+    :math:`n \ge k`) and a weighting matrix :math:`\W\in\RR^{n\times n}`,
+    the method of snapshots computes the symmetric eigendecomposition
 
     .. math::
-       \Q\trp\W\Q = \bfPsi\bfLambda\bfPsi.
+       \Q\trp\W\Q = \bfPsi\bfLambda\bfPsi\trp.
 
     The matrix :math:`\bfPsi\in\RR^{k\times k}` consists of the right singular
     vectors of :math:`\Q` and :math:`\bfLambda\in\RR^{k\times k}` is a diagonal
@@ -73,9 +73,10 @@ def method_of_snapshots(
     states : (n, k) ndarray,
         Snapshot matrix :math:`\Q` from which to compute the POD vectors.
     inner_product_matrix : (n, n) sparse SPD matrix or None
-        Spatial inner product matrix for measuring how different indices in
-        the snapshot matrix interact with each other.
-        If not provided, default to the standard Euclidean inner product.
+        Spatial inner product matrix :math:`\W` for measuring how different
+        indices in the snapshot matrix interact with each other.
+        If not provided, default to the standard Euclidean inner product
+        (:math:`\W = \I`).
     minthresh : float > 0
         Threshold at which to truncate small eigenvalues. Singular vectors
         corresponding to eigenvalues that are less than this threshold are
@@ -92,6 +93,12 @@ def method_of_snapshots(
         descending order.
     eigvecsT : (k', k') ndarray
         Transposed right singular vectors :math:`\bfPsi\trp`.
+
+    Notes
+    -----
+    If, due to numerical precision errors, :func:`scipy.linalg.eigh` returns
+    any negative eigenvalues, then ``minthresh`` is increased to the absolute
+    value of the most negative eigenvalue.
     """
     n_states = states.shape[1]
     if inner_product_matrix is None:
@@ -139,7 +146,7 @@ class PODBasis(LinearBasis):
     matrix :math:`\W` is specified, a weighted SVD is computed so that
     :math:`\Vr\trp\W\Vr = \I`. The columns of the basis entries are also the
     dominant eigenvectors of :math:`\Q\trp\W\Q` and can be computed through
-    eigendecomposition by setting ``svdsolver="eigh"`.
+    eigendecomposition by setting ``svdsolver="eigh"``.
 
     The number of left singular vectors :math:`r` is the dimension of the
     reduced state and is set by specifying exactly one of the constructor

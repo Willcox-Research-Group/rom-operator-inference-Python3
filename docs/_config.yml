@@ -122,9 +122,10 @@ sphinx:
           "bfPhi": "\\boldsymbol{\\Phi}"      # left singular vectors
           "bfSigma": "\\boldsymbol{\\Sigma}"  # singular values
           "bfPsi": "\\boldsymbol{\\Psi}"      # right singular vectors
+          "bfLambda": "\\boldsymbol{\\Lambda}"            # eigenvalues
           "trp": "{^{\\mathsf{T}}}"           # transpose
-          "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"    # time derivative
-          "ddqhat": "\\frac{\\partial}{\\partial\\qhat}"    # d/dqhat
+          "ddt": "\\frac{\\textrm{d}}{\\textrm{d}t}"      # time derivative
+          "ddqhat": "\\frac{\\partial}{\\partial\\qhat}"  # d/dqhat
           "mean": "\\operatorname{mean}"      # mean
           "std": "\\operatorname{std}"        # standard deviation
           "argmin": "\\operatorname{argmin}"  # argmin
