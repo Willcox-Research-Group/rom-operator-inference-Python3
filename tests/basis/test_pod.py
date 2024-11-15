@@ -298,6 +298,66 @@ class TestPODBasis:
             f"{r + 1} singular values"
         )
 
+        # Method of snapshots, Euclidean inner product
+        Q = np.random.random((n, k))
+        basis = self.Basis(
+            num_vectors=r,
+            max_vectors=k + 2,
+            svdsolver="method-of-snapshots",
+        )
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            out = basis.fit(Q)
+        assert wn[0].message.args[0] == (
+            f"only {k} singular vectors can be extracted from ({n} x {k}) "
+            f"snapshots, setting max_vectors={k}"
+        )
+        assert out is basis
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert basis.max_vectors <= k
+        assert np.allclose(basis.entries.T @ basis.entries, np.eye(r))
+
+        # Method of snapshots, weighted inner product (full matrix)
+        Q = np.random.random((n, k))
+        SP = np.random.random((n, n))
+        SP = SP.T @ SP
+        SP = np.eye(n) + SP / la.norm(SP)
+
+        basis = self.Basis(
+            num_vectors=r,
+            max_vectors=r + 2,
+            svdsolver="eigh",
+            weights=SP,
+            minthresh=1e-20,
+        )
+        out = basis.fit(Q)
+        assert out is basis
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert basis.max_vectors <= r + 2
+        assert np.allclose(basis.entries.T @ SP @ basis.entries, np.eye(r))
+        assert basis.rightvecs is not None
+
+        # Method of snapshots, weighted inner product (diagonals)
+        Q = np.random.random((n, k))
+        SP = np.random.random((n,)) ** 2 + 1
+
+        basis = self.Basis(
+            num_vectors=r,
+            max_vectors=r,
+            svdsolver="method-of-snapshots",
+            weights=SP,
+        )
+        out = basis.fit(Q)
+        assert out is basis
+        assert basis.full_state_dimension == n
+        assert basis.reduced_state_dimension == r
+        assert basis.max_vectors == r
+        assert np.allclose(
+            basis.entries.T @ np.diag(SP) @ basis.entries,
+            np.eye(r),
+        )
+
     # Visualization -----------------------------------------------------------
     def test_plots(self, n=40, r=4):
         """Lightly test plot_*()."""

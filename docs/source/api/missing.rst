@@ -48,6 +48,7 @@ basis.ipynb
    :nosignatures:
 
    pod_basis
+   method_of_snapshots
    cumulative_energy
    residual_energy
    svdval_decay

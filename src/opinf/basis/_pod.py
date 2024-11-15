@@ -3,6 +3,7 @@
 
 __all__ = [
     "PODBasis",
+    "method_of_snapshots",
     "pod_basis",
     "svdval_decay",
     "cumulative_energy",
@@ -43,6 +44,89 @@ def _Wmult(W, arr):
     return W @ arr
 
 
+def method_of_snapshots(
+    states,
+    inner_product_matrix=None,
+    minthresh: float = 1e-15,
+    **options,
+):
+    r"""Use the method of snapshots to compute the left singular values of a
+    collection of state snapshots.
+
+    For a snapshot matrix :math:`\Q\in\RR^{n\times k}` (usually with
+    :math:`n \ge k`) and a weighting matrix :math:`\W\in\RR^{n\times n}`,
+    the method of snapshots computes the symmetric eigendecomposition
+
+    .. math::
+       \Q\trp\W\Q = \bfPsi\bfLambda\bfPsi\trp.
+
+    The matrix :math:`\bfPsi\in\RR^{k\times k}` consists of the right singular
+    vectors of :math:`\Q` and :math:`\bfLambda\in\RR^{k\times k}` is a diagonal
+    matrix containing the square of the singular values of :math:`\Q`. The
+    (weighted) left singular vectors are then given by
+    :math:`\bfPhi = \Q\bfPsi\bfLambda^{-1/2} \in \RR^{n \times k}` and satisfy
+    :math:`\Q = \bfPhi\bfLambda^{1/2}\bfPsi\trp` and
+    :math:`\bfPhi\trp\W\bfPhi = \I`.
+
+    Parameters
+    ----------
+    states : (n, k) ndarray,
+        Snapshot matrix :math:`\Q` from which to compute the POD vectors.
+    inner_product_matrix : (n, n) sparse SPD matrix or None
+        Spatial inner product matrix :math:`\W` for measuring how different
+        indices in the snapshot matrix interact with each other.
+        If not provided, default to the standard Euclidean inner product
+        (:math:`\W = \I`).
+    minthresh : float > 0
+        Threshold at which to truncate small eigenvalues. Singular vectors
+        corresponding to eigenvalues that are less than this threshold are
+        not included in the returned arrays.
+    options : dict
+        Additional arguments for :func:`scipy.linalg.eigh`.
+
+    Returns
+    -------
+    V : (n, k') ndarray, k' <= k
+        Left singular vectors :math:`\bfPhi`.
+    svals : (k',) ndarray, k' <= k
+        Singular values :math:`\operatorname{diag}(\bfLambda^{1/2})` in
+        descending order.
+    eigvecsT : (k', k') ndarray
+        Transposed right singular vectors :math:`\bfPsi\trp`.
+
+    Notes
+    -----
+    If, due to numerical precision errors, :func:`scipy.linalg.eigh` returns
+    any negative eigenvalues, then ``minthresh`` is increased to the absolute
+    value of the most negative eigenvalue.
+    """
+    n_states = states.shape[1]
+    if inner_product_matrix is None:
+        gramian = states.T @ (states / n_states)
+    else:
+        gramian = states.T @ _Wmult(inner_product_matrix, states / n_states)
+
+    # Compute eigenvalue decomposition, using that the Gramian is symmetric.
+    eigvals, eigvecs = la.eigh(gramian, **options)
+
+    # Re-order (largest to smallest).
+    eigvals = eigvals[::-1]
+    eigvecs = eigvecs[:, ::-1]
+
+    # NOTE: By definition the Gramian is symmetric positive semi-definite.
+    # If any eigenvalues are smaller than zero, they are only measuring
+    # numerical error and can be truncated.
+    positives = eigvals > max(minthresh, abs(np.min(eigvals)))
+    eigvecs = eigvecs[:, positives]
+    eigvals = eigvals[positives]
+
+    # Rescale and square root eigenvalues to get singular values.
+    svals = np.sqrt(eigvals * n_states)
+    V = states @ (eigvecs / svals)
+
+    return V, svals, eigvecs.T
+
+
 # Main class ==================================================================
 class PODBasis(LinearBasis):
     r"""Proper othogonal decomposition basis, consisting of the principal left
@@ -60,7 +144,9 @@ class PODBasis(LinearBasis):
     The POD basis entries matrix :math:`\Vr = \bfPhi_{:,:r}\in\RR^{n\times r}`
     always has orthonormal columns, i.e., :math:`\Vr\trp\Vr = \I`. If a weight
     matrix :math:`\W` is specified, a weighted SVD is computed so that
-    :math:`\Vr\trp\W\Vr = \I`.
+    :math:`\Vr\trp\W\Vr = \I`. The columns of the basis entries are also the
+    dominant eigenvectors of :math:`\Q\trp\W\Q` and can be computed through
+    eigendecomposition by setting ``svdsolver="eigh"``.
 
     The number of left singular vectors :math:`r` is the dimension of the
     reduced state and is set by specifying exactly one of the constructor
@@ -104,17 +190,27 @@ class PODBasis(LinearBasis):
 
         **Options:**
 
-        * ``"dense"`` (default): Use :func:`scipy.linalg.svd()` to
+        * ``"dense"`` (default): Use :func:`scipy.linalg.svd` to
           compute the SVD. May be inefficient for very large state matrices.
         * ``"randomized"``: Compute an approximate SVD with a randomized
-          approach via :func:`sklearn.utils.extmath.randomized_svd()`.
+          approach via :func:`sklearn.utils.extmath.randomized_svd`.
           May be more efficient but less accurate for very large state
           matrices. **NOTE**: it is highly recommended to set ``max_vectors``
           to limit the number of computed singular vectors. In this case,
           only ``max_vectors`` singular *values* are computed as well, meaning
           the cumulative and residual energies cannot be computed exactly.
+        * ``"method-of-snapshots"`` or ``"eigh"``: Compute the basis through a
+          symmetric eigenvalue decomposition, rather than through the SVD, via
+          :func:`scipy.linalg.eigh`. This is how POD was computed when it was
+          orginally introduced. If the state dimension is larger than the
+          number of snapshots, this method is much more efficient than the SVD.
+          Moreover, non-Euclidean inner products (see :attr:`weights`)
+          are handled much more efficiently this way than with an SVD-based
+          approach. **NOTE**: in this case, an additional keyword argument
+          ``minthresh`` defines a threshold at which small eigenvalues are
+          truncated.
         * callable: If this argument is a callable function, use it for the
-          SVD computation. The signature must match :func:`scipy.linalg.svd()`,
+          SVD computation. The signature must match :func:`scipy.linalg.svd`,
           i.e., ``U, s, Vh = svdsolver(states, **svdsolver_options)``
     weights : (n, n) ndarray or (n,) ndarray None
         Weight matrix :math:`\W` or its diagonals.
@@ -133,6 +229,7 @@ class PODBasis(LinearBasis):
         {
             "dense": la.svd,
             "randomized": sklmath.randomized_svd,
+            "method-of-snapshots": method_of_snapshots,
             # "streaming":  # TODO
         }
     )
@@ -182,7 +279,10 @@ class PODBasis(LinearBasis):
         self.__residual_energy = None
 
         # Store weights (separate from LinearBasis.__weights)
-        if weights is not None:
+        if (
+            weights is not None
+            and self.__svdsolverlabel != "method-of-snapshots"
+        ):
             if weights.ndim == 1:
                 self.__sqrt_weights = np.sqrt(weights)
             else:  # (weights.ndim == 2, checked by LinearBasis)
@@ -267,6 +367,9 @@ class PODBasis(LinearBasis):
             self.__svdengine = s
             return
 
+        if s == "eigh":
+            s = "method-of-snapshots"
+
         if s not in self.__SVDSOLVERS:
             raise AttributeError(
                 f"invalid svdsolver '{s}', options: "
@@ -308,7 +411,9 @@ class PODBasis(LinearBasis):
 
     @property
     def rightvecs(self):
-        """Leading *right* singular vectors of the training data."""
+        """Leading *right* singular vectors of the training data,
+        if available.
+        """
         return self.__rightvecs
 
     @property
@@ -572,9 +677,14 @@ class PODBasis(LinearBasis):
                 options["random_state"] = None
             if keep < rmax:
                 self.__energy_is_being_estimated = True
+        elif self.__svdsolverlabel == "method-of-snapshots":
+            options["inner_product_matrix"] = self.weights
 
         # Weight the states.
-        if self.weights is not None:
+        if (
+            self.weights is not None
+            and self.__svdsolverlabel != "method-of-snapshots"
+        ):
             if states.shape[0] != (nW := self.__sqrt_weights.shape[0]):
                 raise errors.DimensionalityError(
                     f"states not aligned with weights, should have {nW:d} rows"
@@ -585,12 +695,14 @@ class PODBasis(LinearBasis):
         V, svdvals, Wt = self.__svdengine(states, **options)
 
         # Unweight the basis.
-        if self.weights is not None:
+        if (
+            self.weights is not None
+            and self.__svdsolverlabel != "method-of-snapshots"
+        ):
             if self.__sqrt_weights.ndim == 1:
                 V = _Wmult(1 / self.__sqrt_weights, V)
             else:
                 V = la.cho_solve(self.__sqrt_weights_cho, V)
-                # V = la.solve(sqrtW, V)
 
         # Store the results.
         self._store_svd(
@@ -628,7 +740,7 @@ class PODBasis(LinearBasis):
             Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
         options : dict
-            Options to pass to :func:`matplotlib.pyplot.semilogy()`.
+            Options to pass to :func:`matplotlib.pyplot.semilogy`.
 
         Returns
         -------
@@ -666,7 +778,7 @@ class PODBasis(LinearBasis):
             Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
         kwargs : dict
-            Options to pass to :func:`matplotlib.pyplot.semilogy()`.
+            Options to pass to :func:`matplotlib.pyplot.semilogy`.
 
         Returns
         -------
@@ -708,7 +820,7 @@ class PODBasis(LinearBasis):
             Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
         options : dict
-            Options to pass to :func:`matplotlib.pyplot.semilogy()`.
+            Options to pass to :func:`matplotlib.pyplot.semilogy`.
 
         Returns
         -------
@@ -755,7 +867,7 @@ class PODBasis(LinearBasis):
             Axes to plot on.
             If ``None`` (default), a new single-axes figure is created.
         options : dict
-            Options to pass to :func:`matplotlib.pyplot.semilogy()`.
+            Options to pass to :func:`matplotlib.pyplot.semilogy`.
 
         Returns
         -------
@@ -765,7 +877,7 @@ class PODBasis(LinearBasis):
         Notes
         -----
         This method shows the projection error of the training snapshots.
-        See :meth:`projection_error()` to calculate the projection error for an
+        See :meth:`projection_error` to calculate the projection error for an
         arbitrary snapshot or collection of snapshots.
         """
         kwargs = dict(
@@ -869,7 +981,7 @@ class PODBasis(LinearBasis):
         Parameters
         ----------
         loadfile : str
-            Path to the file where the basis was stored via :meth:`save()`.
+            Path to the file where the basis was stored via :meth:`save`.
         max_vectors : int or None
             Maximum number of POD vectors to load.
             If ``None`` (default), load all stored vectors.
@@ -1003,7 +1115,7 @@ def svdval_decay(
         Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
     kwargs : dict
-        Options to pass to :func:`matplotlib.pyplot.semilogy()`.
+        Options to pass to :func:`matplotlib.pyplot.semilogy`.
 
     Returns
     -------
@@ -1110,7 +1222,7 @@ def cumulative_energy(
         Axes to plot the results on if ``plot=True``.
         If not given, a new single-axes figure is created.
     kwargs : dict
-        Options to pass to :func:`matplotlib.pyplot.plot()`.
+        Options to pass to :func:`matplotlib.pyplot.plot`.
 
     Returns
     -------
@@ -1225,7 +1337,7 @@ def residual_energy(
         If ``True``, square root the residual energies to get the projection
         error of the training snapshots.
     kwargs : dict
-        Options to pass to :func:`matplotlib.pyplot.semilogy()`.
+        Options to pass to :func:`matplotlib.pyplot.semilogy`.
 
     Returns
     -------
