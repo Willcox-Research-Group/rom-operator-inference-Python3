@@ -778,7 +778,7 @@ class ShiftScaleTransformer(TransformerTemplate):
                 - .. math:: \Q'' = \frac{1}{\max_j(\|\Q'_{:,j}\|_2)}\Q'
               * - ``byrow=False``
                 - :math:`\mean(\Q'')=\frac{\mean(\Q')}{\max_j(\|\Q'_{:,j}\|)}`
-                  and :math:`\max(\|\Q''_{:,j}\|) = 1`
+                  and :math:`\max_j(\|\Q''_{:,j}\|) = 1`
               * - ``byrow=True``
                 - ``ValueError``: use ``'maxabs'`` instead
 
@@ -793,7 +793,7 @@ class ShiftScaleTransformer(TransformerTemplate):
                      \Q'' = \frac{\Q' - \text{mean}(\Q')}{
                      \max_j(\|\Q'_{:,j} - \text{mean}(\Q')\|_2)}
               * - ``byrow=False``
-                - :math:`\mean(\Q'')=0` and :math:`\max(\|\Q''_{:,j}\|) = 1`
+                - :math:`\mean(\Q'')=0` and :math:`\max_j(\|\Q''_{:,j}\|) = 1`
               * - ``byrow=True``
                 - ``ValueError``: use ``'maxabssym'`` instead
 
