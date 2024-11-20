@@ -1,0 +1,12 @@
+/* Color and style of property names */
+dl.py.attribute dt.sig.sig-object.py .sig-name.descname {
+    color: inherit;
+    font-size: inherit;
+    font-weight: bold;
+}
+
+/* Indent and reduce space between properties */
+dl.py.attribute {
+    margin-bottom: .5em !important;
+    padding-left: 2.5em;
+}
