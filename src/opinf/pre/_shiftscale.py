@@ -757,6 +757,20 @@ class ShiftScaleTransformer(TransformerTemplate):
                   :math:`\max_j(\text{abs}(\Q_{i,j}'')) = 1` for each row index
                   :math:`i`
 
+        ..dropdown:: ``'maxnorm'``
+            Maximum Euclidean norm scaling to :math:`[0, 1]` without
+            scalar mean shift
+
+            .. list-table::
+
+              * - Formula
+                - .. math:: \Q'' = \frac{1}{\max(\text{norm}(\Q'))}\Q'
+              * - ``byrow=False``
+                - :math:`\mean(\Q'')=\frac{\mean(\Q')}{\max(\text{norm}(\Q'))}`
+                  and :math:`\max(\text{norm}(\Q'')) = 1`
+              * - ``byrow=True``
+                - RuntimeError: use ``'maxabs'`` instead
+
     byrow : bool
         If ``True``, scale each row of the snapshot matrix separately when a
         scaling is specified. Otherwise, scale the entire matrix at once.
@@ -779,13 +793,7 @@ class ShiftScaleTransformer(TransformerTemplate):
     """
 
     _VALID_SCALINGS = frozenset(
-        (
-            "standard",
-            "minmax",
-            "minmaxsym",
-            "maxabs",
-            "maxabssym",
-        )
+        ("standard", "minmax", "minmaxsym", "maxabs", "maxabssym", "maxnorm")
     )
 
     _table_header = (
@@ -1056,6 +1064,17 @@ class ShiftScaleTransformer(TransformerTemplate):
                 self.scale_ = 1 / np.max(np.abs(Y), axis=axis)
                 self.shift_ = -mu * self.scale_
                 Y += mu if axis is None else mu.reshape((-1, 1))
+
+            # Maxnorm: Q' = Q / max(norm(Q))
+            elif self.scaling == "maxnorm":
+                # scale such that the norm of each snapshot is <= 1
+                if self.byrow:
+                    raise RuntimeError(
+                        f"invalid scaling '{self.scaling}' for option byrow"
+                    )
+
+                self.scale_ = 1 / np.max(np.linalg.norm(Y, axis=0, ord=2))
+                self.shift_ = 0
 
             else:  # pragma nocover
                 raise RuntimeError(f"invalid scaling '{self.scaling}'")
