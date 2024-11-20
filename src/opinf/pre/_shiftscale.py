@@ -757,23 +757,24 @@ class ShiftScaleTransformer(TransformerTemplate):
                   :math:`\max_j(\text{abs}(\Q_{i,j}'')) = 1` for each row index
                   :math:`i`
 
-        ..dropdown:: ``'maxnorm'``
+        .. dropdown:: ``'maxnorm'``
             Maximum Euclidean norm scaling to :math:`[0, 1]` without
             scalar mean shift
 
             .. list-table::
 
               * - Formula
-                - .. math:: \Q'' = \frac{1}{\max(\text{norm}(\Q'))}\Q'
+                - .. math:: \Q'' = \frac{1}{\max_j(\|\Q'_{:,j}\|_2)}\Q'
               * - ``byrow=False``
-                - :math:`\mean(\Q'')=\frac{\mean(\Q')}{\max(\text{norm}(\Q'))}`
-                  and :math:`\max(\text{norm}(\Q'')) = 1`
+                - :math:`\mean(\Q'')=\frac{\mean(\Q')}{\max_j(\|\Q'_{:,j}\|)}`
+                  and :math:`\max(\|\Q''_{:,j}\|) = 1`
               * - ``byrow=True``
-                - RuntimeError: use ``'maxabs'`` instead
+                - ``ValueError``: use ``'maxabs'`` instead
 
     byrow : bool
         If ``True``, scale each row of the snapshot matrix separately when a
-        scaling is specified. Otherwise, scale the entire matrix at once.
+        scaling is specified. Otherwise, scale the entire matrix at once
+        (default).
 
     verbose : bool
         If ``True``, print information upon learning a transformation.
@@ -793,7 +794,14 @@ class ShiftScaleTransformer(TransformerTemplate):
     """
 
     _VALID_SCALINGS = frozenset(
-        ("standard", "minmax", "minmaxsym", "maxabs", "maxabssym", "maxnorm")
+        (
+            "standard",
+            "minmax",
+            "minmaxsym",
+            "maxabs",
+            "maxabssym",
+            "maxnorm",
+        )
     )
 
     _table_header = (
@@ -832,6 +840,8 @@ class ShiftScaleTransformer(TransformerTemplate):
                 "scaling=None --> byrow=True will have no effect",
                 errors.OpInfWarning,
             )
+        if self.__byrow and self.__scaling == (bad := "maxnorm"):
+            raise ValueError(f"scaling '{bad}' is invalid when byrow=True")
 
         # Set other properties.
         self.verbose = verbose
@@ -1068,15 +1078,15 @@ class ShiftScaleTransformer(TransformerTemplate):
             # Maxnorm: Q' = Q / max(norm(Q))
             elif self.scaling == "maxnorm":
                 # scale such that the norm of each snapshot is <= 1
-                if self.byrow:
+                if self.byrow:  # pragma: nocover
                     raise RuntimeError(
-                        f"invalid scaling '{self.scaling}' for option byrow"
+                        f"invalid scaling '{self.scaling}' for byrow=True"
                     )
 
                 self.scale_ = 1 / np.max(np.linalg.norm(Y, axis=0, ord=2))
                 self.shift_ = 0
 
-            else:  # pragma nocover
+            else:  # pragma: nocover
                 raise RuntimeError(f"invalid scaling '{self.scaling}'")
 
             # Apply the scaling.

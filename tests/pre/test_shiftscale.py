@@ -7,7 +7,10 @@ import numpy as np
 
 import opinf
 
-from test_base import _TestTransformer
+try:
+    from .test_base import _TestTransformer
+except ImportError:
+    from test_base import _TestTransformer
 
 
 # Functions ===================================================================
@@ -421,11 +424,15 @@ class TestShiftScaleTransformer(_TestTransformer):
             assert np.allclose(np.max(np.abs(Y), axis=1), 1)
 
             # Test norm scaling.
-            st = self.Transformer(
-                centering=centering, scaling="maxnorm", byrow=True
+            with pytest.raises(ValueError) as ex:
+                self.Transformer(
+                    centering=centering,
+                    scaling="maxnorm",
+                    byrow=True,
+                )
+            assert ex.value.args[0] == (
+                "scaling 'maxnorm' is invalid when byrow=True"
             )
-            with pytest.raises(RuntimeError):
-                fit_transform_copy(st, X)
 
     def test_mains(self, n=11, k=21):
         """Test fit(), fit_transform(), transform(), transform_ddts(), and
