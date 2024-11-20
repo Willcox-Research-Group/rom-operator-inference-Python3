@@ -5,6 +5,11 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+## Version 0.5.11
+
+- New scaling option for ``pre.ShiftScaleTransformer`` so that training snapshots have at maximum norm 1. Contributed by [@nicolearetz](https://github.com/nicolearetz).
+- Small clarifications to ``pre.ShiftScaleTransformer`` and updates to the ``pre`` documentation.
+
 ## Version 0.5.10
 
 New POD basis solver option `basis.PODBasis(solver="method-of-snapshots")` (or `solver="eigh"`), which solves a symmetric eigenvalue problem instead of computing a (weighted) SVD. This method is more efficient than the SVD for snapshot matrices $\mathbf{Q}\in\mathbb{R}^{n\times k}$ where $n \gg k$ and is significantly more efficient than the SVD when a non-diagonal weight matrix is provided.

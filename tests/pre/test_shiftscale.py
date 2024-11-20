@@ -7,7 +7,10 @@ import numpy as np
 
 import opinf
 
-from .test_base import _TestTransformer
+try:
+    from .test_base import _TestTransformer
+except ImportError:
+    from test_base import _TestTransformer
 
 
 # Functions ===================================================================
@@ -158,7 +161,8 @@ class TestShiftScaleTransformer(_TestTransformer):
                 verbose=False,
             )
             self.requires_training = True
-            if scaling is not None:
+            if scaling is not None and "maxnorm" not in scaling:
+                # "maxnorm" scaling is incompatible with byrow=True
                 yield self.Transformer(
                     centering=centering,
                     scaling=scaling,
@@ -361,6 +365,17 @@ class TestShiftScaleTransformer(_TestTransformer):
             assert np.isclose(np.mean(Y), 0)
             assert np.isclose(np.max(np.abs(Y)), 1)
 
+            # Test maximum norm scaling.
+            st = self.Transformer(centering=centering, scaling="maxnorm")
+            Y = fit_transform_copy(st, X)
+            assert np.isclose(np.max(np.linalg.norm(Y, axis=0)), 1)
+
+            # Test symmetric maximum norm scaling.
+            st = self.Transformer(centering=centering, scaling="maxnormsym")
+            Y = fit_transform_copy(st, X)
+            assert np.isclose(np.mean(Y), 0)
+            assert np.isclose(np.max(np.linalg.norm(Y, axis=0)), 1)
+
         # Test scaling by row (without and with centering).
         for centering in (False, True):
             # Test standard scaling.
@@ -413,6 +428,18 @@ class TestShiftScaleTransformer(_TestTransformer):
             Y = fit_transform_copy(st, X)
             assert np.allclose(np.mean(Y, axis=1), 0)
             assert np.allclose(np.max(np.abs(Y), axis=1), 1)
+
+            # Test norm scaling.
+            for s in "maxnorm", "maxnormsym":
+                with pytest.raises(ValueError) as ex:
+                    self.Transformer(
+                        centering=centering,
+                        scaling=s,
+                        byrow=True,
+                    )
+                assert ex.value.args[0] == (
+                    f"scaling '{s}' is invalid when byrow=True"
+                )
 
     def test_mains(self, n=11, k=21):
         """Test fit(), fit_transform(), transform(), transform_ddts(), and
