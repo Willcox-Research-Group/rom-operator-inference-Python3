@@ -161,7 +161,7 @@ class TestShiftScaleTransformer(_TestTransformer):
                 verbose=False,
             )
             self.requires_training = True
-            if scaling is not None and scaling != "maxnorm":
+            if scaling is not None and "maxnorm" not in scaling:
                 # "maxnorm" scaling is incompatible with byrow=True
                 yield self.Transformer(
                     centering=centering,
@@ -365,9 +365,15 @@ class TestShiftScaleTransformer(_TestTransformer):
             assert np.isclose(np.mean(Y), 0)
             assert np.isclose(np.max(np.abs(Y)), 1)
 
-            # Test norm scaling.
+            # Test maximum norm scaling.
             st = self.Transformer(centering=centering, scaling="maxnorm")
             Y = fit_transform_copy(st, X)
+            assert np.isclose(np.max(np.linalg.norm(Y, axis=0)), 1)
+
+            # Test symmetric maximum norm scaling.
+            st = self.Transformer(centering=centering, scaling="maxnormsym")
+            Y = fit_transform_copy(st, X)
+            assert np.isclose(np.mean(Y), 0)
             assert np.isclose(np.max(np.linalg.norm(Y, axis=0)), 1)
 
         # Test scaling by row (without and with centering).
@@ -424,15 +430,16 @@ class TestShiftScaleTransformer(_TestTransformer):
             assert np.allclose(np.max(np.abs(Y), axis=1), 1)
 
             # Test norm scaling.
-            with pytest.raises(ValueError) as ex:
-                self.Transformer(
-                    centering=centering,
-                    scaling="maxnorm",
-                    byrow=True,
+            for s in "maxnorm", "maxnormsym":
+                with pytest.raises(ValueError) as ex:
+                    self.Transformer(
+                        centering=centering,
+                        scaling=s,
+                        byrow=True,
+                    )
+                assert ex.value.args[0] == (
+                    f"scaling '{s}' is invalid when byrow=True"
                 )
-            assert ex.value.args[0] == (
-                "scaling 'maxnorm' is invalid when byrow=True"
-            )
 
     def test_mains(self, n=11, k=21):
         """Test fit(), fit_transform(), transform(), transform_ddts(), and

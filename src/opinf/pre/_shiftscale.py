@@ -652,7 +652,8 @@ class ScaleTransformer(TransformerTemplate):
 
 
 class ShiftScaleTransformer(TransformerTemplate):
-    r"""Process snapshots by centering and/or scaling (in that order).
+    r"""Process snapshots by vector centering and/or affine scaling
+    (in that order).
 
     Transformations with this class are notated below as
 
@@ -664,9 +665,11 @@ class ShiftScaleTransformer(TransformerTemplate):
 
     where :math:`\Q\in\RR^{n \times k}` is the snapshot matrix to be
     transformed and :math:`\Q''\in\RR^{n \times k}` is the transformed snapshot
-    matrix.
+    matrix. Transformation parameters are learned from a training data set, not
+    provided explicitly by the user as in :class:`ShiftTransformer` or
+    :class:`ScaleTransformer`.
 
-    All transformations with this class are `affine` and hence can be written
+    All transformations with this class are *affine* and hence can be written
     componentwise as :math:`\Q_{i,j}'' = \alpha_{i,j} \Q_{i,j} + \beta_{i,j}`
     for some choice of :math:`\alpha_{i,j},\beta_{i,j}\in\RR`.
 
@@ -682,6 +685,14 @@ class ShiftScaleTransformer(TransformerTemplate):
     scaling : str or None
         If given, scale (non-dimensionalize) the centered snapshot entries.
         Otherwise, :math:`\Q'' = \Q'` (default).
+
+        All scaling options multiply :math:`\Q'` by a constant; others
+        (symmetric scalings, ``'standard'`` and those ending in ``'sym'``)
+        shift the entries of :math:`\Q'` by a constant (the mean entry) as
+        well. This is different from setting ``centering=True``, which shifts
+        each column of :math:`\Q` by a vector; however, when ``centering=True``
+        symmetric scaling options are equivalent to their non-symmetric
+        counterparts because in that case the mean of :math:`\Q'` is zero.
 
         **Options:**
 
@@ -771,6 +782,21 @@ class ShiftScaleTransformer(TransformerTemplate):
               * - ``byrow=True``
                 - ``ValueError``: use ``'maxabs'`` instead
 
+        .. dropdown:: ``'maxnormsym'``
+            Maximum Euclidean norm scaling to :math:`[0, 1]` with scalar mean
+            shift
+
+            .. list-table::
+
+              * - Formula
+                - .. math::
+                     \Q'' = \frac{\Q' - \text{mean}(\Q')}{
+                     \max_j(\|\Q'_{:,j} - \text{mean}(\Q')\|_2)}
+              * - ``byrow=False``
+                - :math:`\mean(\Q'')=0` and :math:`\max(\|\Q''_{:,j}\|) = 1`
+              * - ``byrow=True``
+                - ``ValueError``: use ``'maxabssym'`` instead
+
     byrow : bool
         If ``True``, scale each row of the snapshot matrix separately when a
         scaling is specified. Otherwise, scale the entire matrix at once
@@ -801,6 +827,7 @@ class ShiftScaleTransformer(TransformerTemplate):
             "maxabs",
             "maxabssym",
             "maxnorm",
+            "maxnormsym",
         )
     )
 
@@ -840,8 +867,10 @@ class ShiftScaleTransformer(TransformerTemplate):
                 "scaling=None --> byrow=True will have no effect",
                 errors.OpInfWarning,
             )
-        if self.__byrow and self.__scaling == (bad := "maxnorm"):
-            raise ValueError(f"scaling '{bad}' is invalid when byrow=True")
+        if self.__byrow and self.__scaling in ("maxnorm", "maxnormsym"):
+            raise ValueError(
+                f"scaling '{self.__scaling}' is invalid when byrow=True"
+            )
 
         # Set other properties.
         self.verbose = verbose
@@ -1067,7 +1096,7 @@ class ShiftScaleTransformer(TransformerTemplate):
                     0 if axis is None else np.zeros(self.state_dimension)
                 )
 
-            # maxabssym: Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)))
+            # Symmetric MaxAbs: Q' = (Q - mean(Q)) / max(abs(Q - mean(Q)))
             elif self.scaling == "maxabssym":
                 mu = np.mean(Y, axis=axis)
                 Y -= mu if axis is None else mu.reshape((-1, 1))
@@ -1075,7 +1104,7 @@ class ShiftScaleTransformer(TransformerTemplate):
                 self.shift_ = -mu * self.scale_
                 Y += mu if axis is None else mu.reshape((-1, 1))
 
-            # Maxnorm: Q' = Q / max(norm(Q))
+            # MaxNorm: Q' = Q / max(norm(Q))
             elif self.scaling == "maxnorm":
                 # scale such that the norm of each snapshot is <= 1
                 if self.byrow:  # pragma: nocover
@@ -1085,6 +1114,16 @@ class ShiftScaleTransformer(TransformerTemplate):
 
                 self.scale_ = 1 / np.max(np.linalg.norm(Y, axis=0, ord=2))
                 self.shift_ = 0
+
+            # Symmetric MaxNorm: Q' = (Q - mean(Q)) / max(norm(Q - mean(Q)))
+            elif self.scaling == "maxnormsym":
+                if self.byrow:  # pragma: nocover
+                    raise RuntimeError(
+                        f"invalid scaling '{self.scaling}' for byrow=True"
+                    )
+                mu = np.mean(Y)
+                self.scale_ = 1 / np.max(np.linalg.norm(Y - mu, axis=0, ord=2))
+                self.shift_ = -mu * self.scale_
 
             else:  # pragma: nocover
                 raise RuntimeError(f"invalid scaling '{self.scaling}'")
