@@ -1,32 +1,60 @@
 # models/mono/test_base.py
 """Tests for models.mono._base."""
 
+import abc
 import pytest
+import itertools
 import numpy as np
 import scipy.linalg as la
 
 import opinf
 
-from . import _get_operators
-
 
 _module = opinf.models.mono._base
 
 
-class TestModel:
-    """Test models._base._Model."""
+MODELFORM_KEYS = "cAHGBN"
 
-    class Dummy(_module._Model):
-        """Instantiable version of _Model."""
+MODEL_FORMS = [
+    "".join(s)
+    for k in range(1, len(MODELFORM_KEYS) + 1)
+    for s in itertools.combinations(MODELFORM_KEYS, k)
+]
 
-        def _isvalidoperator(self, op):
-            return hasattr(opinf.operators, op.__class__.__name__)
 
-        def _check_operator_types_unique(*args, **kwargs):
-            return True
+# Helper functions ============================================================
+def _get_operators(operatorkeys, r=8, m=1):
+    """Construct fake model operators."""
+    ops = []
+    for key in operatorkeys:
+        if key == "c":
+            ops.append(opinf.operators.ConstantOperator(np.random.random(r)))
+        elif key == "A":
+            ops.append(opinf.operators.LinearOperator(np.eye(r)))
+        elif key == "H":
+            entries = np.zeros((r, r * (r + 1) // 2))
+            ops.append(opinf.operators.QuadraticOperator(entries))
+        elif key == "G":
+            entries = np.zeros((r, r * (r + 1) * (r + 2) // 6))
+            ops.append(opinf.operators.CubicOperator(entries))
+        elif key == "B":
+            ops.append(opinf.operators.InputOperator(np.random.random((r, m))))
+        elif key == "N":
+            entries = np.random.random((r, r * m))
+            ops.append(opinf.operators.StateInputOperator(entries))
+        else:
+            raise KeyError
+    return ops
 
-        def _get_operator_of_type(*args, **kwargs):  # pragma: no cover
-            raise NotImplementedError
+
+# Test classes ================================================================
+class _TestModel(abc.ABC):
+    """Tests for classes that inherit from models._base._Model."""
+
+    @abc.abstractmethod
+    def get_models(self):
+        """Yield models to test."""
+        raise NotImplementedError
 
     # Properties: operators ---------------------------------------------------
     def test_operators(self, m=4, r=7):

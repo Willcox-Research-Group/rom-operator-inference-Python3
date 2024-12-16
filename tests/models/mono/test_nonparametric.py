@@ -9,12 +9,32 @@ from scipy import linalg as la
 
 import opinf
 
-from . import MODEL_FORMS, _get_data, _get_operators, _trainedmodel
+try:
+    from .test_base import MODEL_FORMS, _get_operators
+except ImportError:
+    from test_base import MODEL_FORMS, _get_operators
 
 
 _module = opinf.models.mono._nonparametric
+
+
+# Helper functions ------------------------------------------------------------
 kron2c = opinf.operators.QuadraticOperator.ckron
 kron3c = opinf.operators.CubicOperator.ckron
+
+
+def _get_data(n=60, k=25, m=20):
+    """Get dummy snapshot, time derivative, and input data."""
+    Q = np.random.random((n, k))
+    Qdot = np.random.random((n, k))
+    U = np.ones((m, k))
+
+    return Q, Qdot, U
+
+
+def _trainedmodel(ModelClass, operatorkeys, r, m=20):
+    """Construct a base class with model operators already constructed."""
+    return ModelClass(_get_operators(operatorkeys, r, m))
 
 
 class TestNonparametricModel:
