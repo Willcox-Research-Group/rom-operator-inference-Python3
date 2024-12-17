@@ -213,7 +213,7 @@ class ROM(_BaseROM):
         which case it is assumed that each trajectory ``states[i]`` corresponds
         to the same time domain.
         """
-        super().fit_regselect_continuous(
+        return super().fit_regselect_continuous(
             candidates=candidates,
             train_time_domains=train_time_domains,
             parameters=None,
