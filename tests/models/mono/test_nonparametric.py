@@ -2,17 +2,18 @@
 """Tests for models.mono._nonparametric."""
 
 import os
-import h5py
+import abc
 import pytest
+import itertools
 import numpy as np
 from scipy import linalg as la
 
 import opinf
 
 try:
-    from .test_base import MODEL_FORMS, _get_operators
+    from .test_base import _TestModel
 except ImportError:
-    from test_base import MODEL_FORMS, _get_operators
+    from test_base import _TestModel
 
 
 _module = opinf.models.mono._nonparametric
@@ -23,146 +24,162 @@ kron2c = opinf.operators.QuadraticOperator.ckron
 kron3c = opinf.operators.CubicOperator.ckron
 
 
-def _get_data(n=60, k=25, m=20):
-    """Get dummy snapshot, time derivative, and input data."""
-    Q = np.random.random((n, k))
-    Qdot = np.random.random((n, k))
-    U = np.ones((m, k))
+# Base tests ==================================================================
+class _TestNonparametricModel(_TestModel):
+    """Tests for classes that inherit from
+    models.nonparametric._base._NonparametricModel.
+    """
 
-    return Q, Qdot, U
+    # Setup -------------------------------------------------------------------
+    def get_operators(self, r=None, m=None):
+        """Return a valid collection of operators to test."""
+        if r is None:
+            ops = [
+                opinf.operators.ConstantOperator(),
+                opinf.operators.LinearOperator(),
+                opinf.operators.QuadraticOperator(),
+                opinf.operators.CubicOperator(),
+            ]
+            if m == 0:
+                return ops
+            return ops + [
+                opinf.operators.InputOperator(),
+                opinf.operators.StateInputOperator(),
+            ]
 
+        assert m is not None, "if r is given, m must be given as well"
+        rand = np.random.random
+        ops = [
+            opinf.operators.ConstantOperator(rand(r)),
+            opinf.operators.LinearOperator(rand((r, r))),
+            opinf.operators.QuadraticOperator(rand((r, r**2))),
+            opinf.operators.CubicOperator(rand((r, r**3))),
+        ]
+        if m == 0:
+            return ops
+        return ops + [
+            opinf.operators.InputOperator(rand((r, m))),
+            opinf.operators.StateInputOperator(rand((r, r * m))),
+        ]
 
-def _trainedmodel(ModelClass, operatorkeys, r, m=20):
-    """Construct a base class with model operators already constructed."""
-    return ModelClass(_get_operators(operatorkeys, r, m))
+    def get_data(self, n=60, k=25, m=20):
+        """Get dummy snapshot, time derivative, and input data."""
+        Q = np.random.random((n, k))
+        Qdot = np.random.random((n, k))
+        U = np.ones((m, k))
 
+        return Q, Qdot, U
 
-class TestNonparametricModel:
-    """Test models.nonparametric._base._NonparametricModel."""
-
-    class Dummy(_module._NonparametricModel):
-        """Instantiable version of _NonparametricModel."""
-
-        _LHS_ARGNAME = "mylhs"
-        _LHS_LABEL = "qdot"
-        _STATE_LABEL = "qq"
-        _INPUT_LABEL = "uu"
-
-        def predict(*args, **kwargs):
-            pass
-
-    # Properties: operators ---------------------------------------------------
+    # Properties --------------------------------------------------------------
     def test_operators(self):
-        """Test _NonparametricModel.operators
-        (_operator_abbreviations, _isvalidoperator(),
-        _check_operator_types_unique()).
-        """
-        # Try with duplicate (nonintrusive) operator types.
+        """Test the operators property and related methods."""
+        super().test_operators()
+
+        # Test __init__() shortcuts.
+        keys = list(self.Model._operator_abbreviations.keys())
+        model = self.Model(keys)
+        assert len(model.operators) == len(self.Model._operator_abbreviations)
+        for key, op in zip(keys, model.operators):
+            assert isinstance(op, self.Model._operator_abbreviations[key])
+            assert op.entries is None
+
+    def test_isvalidoperator(self):
+        """Test _isvalidoperator()."""
+        with pytest.raises(TypeError) as ex:
+            self.Model([opinf.operators.InterpConstantOperator()])
+        assert ex.value.args[0].startswith("invalid operator of type")
+
+    def test_check_operators_types_unique(self):
+        """Test _check_operators_types_unique()."""
+        ops = self.get_operators()
         with pytest.raises(ValueError) as ex:
-            self.Dummy("AA")
+            self.Model(ops + ops[::-1])
         assert ex.value.args[0] == (
             "duplicate type in list of operators to infer"
         )
 
-        # Test __init__() shortcuts.
-        model = self.Dummy("cHB")
-        assert len(model.operators) == 3
-        for i in range(3):
-            assert model.operators[i].entries is None
-        assert isinstance(model.operators[0], opinf.operators.ConstantOperator)
-        assert isinstance(
-            model.operators[1], opinf.operators.QuadraticOperator
-        )
-        assert isinstance(model.operators[2], opinf.operators.InputOperator)
-
-        model.operators = [opinf.operators.ConstantOperator(), "A", "N"]
-        assert len(model.operators) == 3
-        for i in range(3):
-            assert model.operators[i].entries is None
-        assert isinstance(model.operators[0], opinf.operators.ConstantOperator)
-        assert isinstance(model.operators[1], opinf.operators.LinearOperator)
-        assert isinstance(
-            model.operators[2], opinf.operators.StateInputOperator
-        )
-
     def test_get_operator_of_type(self, m=4, r=7):
-        """Test _NonparametricModel._get_operator_of_type()
-        and the [caHGBN]_ properties.
-        """
-        [c, A, H, B, N] = _get_operators("cAHBN", r, m)
-        model = self.Dummy([A, B, c, H, N])
+        """Test _get_operator_of_type() and the [caHGBN]_ properties."""
+        model = self.Model(
+            [
+                opinf.operators.LinearOperator(),
+                opinf.operators.InputOperator(),
+                opinf.operators.ConstantOperator(),
+                opinf.operators.StateInputOperator(),
+            ]
+        )
 
         assert model.A_ is model.operators[0]
         assert model.B_ is model.operators[1]
         assert model.c_ is model.operators[2]
-        assert model.H_ is model.operators[3]
-        assert model.N_ is model.operators[4]
+        assert model.N_ is model.operators[3]
+        assert model.H_ is None
         assert model.G_ is None
 
-    # String representation ---------------------------------------------------
     def test_str(self):
         """Lightly test __str__() and __repr__()."""
 
-        # Continuous Models
-        str(self.Dummy("A"))
-        str(self.Dummy("HB"))
+        str(self.Model("A"))
+        str(self.Model("HB"))
 
-        # Dimension reporting.
-        model = self.Dummy("A")
+        model = self.Model("A")
         model.state_dimension = 20
         str(model)
 
-        model = self.Dummy("cB")
+        model = self.Model("cB", solver=2)
         model.state_dimension = 10
         model.input_dimension = 3
         modelstr = str(model)
         modelrpr = repr(model)
         assert modelrpr.count(modelstr) == 1
 
-    # Properties: operator inference ------------------------------------------
     def test_operator_matrix(self, r=15, m=3):
-        """Test _NonparametricModel.operator_matrix."""
-        c, A, H, G, B, N = _get_operators("cAHGBN", r, m)
+        """Test the operator_matrix property."""
+        c, A, H, G, B, N = self.get_operators(r, m)
 
-        model = self.Dummy("cA")
+        model = self.Model("cA")
+        with pytest.raises(AttributeError) as ex:
+            Ohat = model.operator_matrix
+        assert ex.value.args[0].endswith("(call fit())")
+
         model.state_dimension = r
         model.operators[:] = (c, A)
-        D = np.column_stack([c.entries, A.entries])
-        assert np.all(model.operator_matrix == D)
+        Ohat = np.column_stack([c.entries, A.entries])
+        assert np.all(model.operator_matrix == Ohat)
 
         model.operators[:] = (H, B)
         model._has_inputs = True
         model.input_dimension = m
-        D = np.column_stack([H.entries, B.entries])
-        assert np.all(model.operator_matrix == D)
+        Ohat = np.column_stack([H.entries, B.entries])
+        assert np.all(model.operator_matrix == Ohat)
 
         model.operators[:] = [G, N]
-        D = np.column_stack([G.entries, N.entries])
-        assert np.all(model.operator_matrix == D)
+        Ohat = np.column_stack([G.entries, N.entries])
+        assert np.all(model.operator_matrix == Ohat)
 
     # Fitting -----------------------------------------------------------------
     def test_process_fit_arguments(self, k=50, m=4, r=6):
         """Test _NonparametricModel._process_fit_arguments()."""
         # Get test data.
-        Q, lhs, U = _get_data(r, k, m)
-        A, B = _get_operators("AB", r, m)
+        Q, lhs, U = self.get_data(r, k, m)
+        c, A, H, G, B, N = self.get_operators(r, m)
         U1d = U[0, :]
         ones = np.ones(k)
 
         # Exceptions #
 
         # States do not match dimensions 'r'.
-        model = self.Dummy(["c", A])
+        model = self.Model(["c", A])
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(Q[1:], None, None)
         assert ex.value.args[0] == f"states.shape[0] = {r-1} != r = {r}"
 
         # LHS not aligned with states.
-        model = self.Dummy([A, "B"])
+        model = self.Model([A, "B"])
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model._process_fit_arguments(Q, lhs[:, :-1], U)
         assert ex.value.args[0] == (
-            f"{self.Dummy._LHS_ARGNAME}.shape[-1] = {k-1} "
+            f"{self.Model._LHS_ARGNAME}.shape[-1] = {k-1} "
             f"!= {k} = states.shape[-1]"
         )
 
@@ -191,7 +208,7 @@ class TestNonparametricModel:
         assert U_ is U
 
         # With a one-dimensional input.
-        model = self.Dummy("cHB")
+        model = self.Model("cHB")
         Q_, lhs_, inputs = model._process_fit_arguments(Q, lhs, U1d)
         assert model.state_dimension == r
         assert model.input_dimension == 1
@@ -201,7 +218,7 @@ class TestNonparametricModel:
         assert np.all(inputs[0] == U1d)
 
         # Without input.
-        model = self.Dummy("cA")
+        model = self.Model("cA")
         Q_, lhs_, inputs = model._process_fit_arguments(Q, lhs, None)
         assert model.state_dimension == r
         assert model.input_dimension == 0
@@ -210,21 +227,20 @@ class TestNonparametricModel:
         assert lhs_ is lhs
 
         # With known operators for A.
-        model = self.Dummy(["c", A])
+        model = self.Model(["c", A])
         Q_, lhs_, _ = model._process_fit_arguments(Q, lhs, None)
         assert np.allclose(lhs_, lhs - (A.entries @ Q))
 
         # With known operators for c and B.
-        c_, B_ = _get_operators("cB", r, m)
-        model = self.Dummy([c_, "A", B_])
+        model = self.Model([c, "A", B])
         Q_, lhs_, _ = model._process_fit_arguments(Q, lhs, U)
-        lhstrue = lhs - B_.entries @ U - np.outer(c_.entries, ones)
+        lhstrue = lhs - B.entries @ U - np.outer(c.entries, ones)
         assert np.allclose(lhs_, lhstrue)
 
         # Special case: m = inputs.ndim = 1
         U1d = U[0]
         assert U1d.shape == (k,)
-        B1d = opinf.operators.InputOperator(B_.entries[:, 0])
+        B1d = opinf.operators.InputOperator(B.entries[:, 0])
         assert B1d.shape == (r, 1)
         model.operators = ["A", B1d]
         assert model.input_dimension == 1
@@ -234,7 +250,7 @@ class TestNonparametricModel:
     def test_assemble_data_matrix(self, k=50, m=6, r=8):
         """Test _NonparametricModel._assemble_data_matrix()."""
         # Get test data.
-        Q_, _, U = _get_data(r, k, m)
+        Q_, _, U = self.get_data(r, k, m)
 
         for opkeys, d in (
             ("c", 1),
@@ -246,7 +262,7 @@ class TestNonparametricModel:
             ("cHB", 1 + r * (r + 1) // 2 + m),
             ("AGN", r * (m + 1) + r * (r + 1) * (r + 2) // 6),
         ):
-            model = self.Dummy(opkeys)
+            model = self.Model(opkeys)
             model.state_dimension = r
             if model._has_inputs:
                 model.input_dimension = m
@@ -281,10 +297,8 @@ class TestNonparametricModel:
 
     def test_extract_operators(self, m=2, r=10):
         """Test _NonparametricModel._extract_operators()."""
-        model = self.Dummy("c")
-        c, A, H, G, B, N = [
-            op.entries for op in _get_operators("cAHGBN", r, m)
-        ]
+        model = self.Model("c")
+        c, A, H, G, B, N = [op.entries for op in self.get_operators(r, m)]
 
         model.operators = "cH"
         model.state_dimension = r
@@ -312,26 +326,29 @@ class TestNonparametricModel:
     def test_fit(self, k=500, m=4, r=6):
         """Test _NonparametricModel.fit()."""
         # Get test data.
-        Q, F, U = _get_data(r, k, m)
+        Q, F, U = self.get_data(r, k, m)
         U1d = U[0, :]
         args = [Q, F]
 
         # Fit the model with each modelform.
-        for oplist in MODEL_FORMS:
-            model = self.Dummy(oplist)
-            if "B" in oplist or "N" in oplist:
-                model.fit(*args, U)  # Two-dimensional inputs.
-                model.fit(*args, U1d)  # One-dimensional inputs.
-            else:
-                model.fit(*args)  # No inputs.
+        keys = list(self.Model._operator_abbreviations.keys())
+        for k in range(1, len(keys) + 1):
+            for oplist in itertools.combinations(keys, k):
+                model = self.Model(oplist)
+                if "B" in oplist or "N" in oplist:
+                    model.fit(*args, U)  # Two-dimensional inputs.
+                    model.fit(*args, U1d)  # One-dimensional inputs.
+                else:
+                    model.fit(*args)  # No inputs.
 
         # Special case: fully intrusive.
-        A, B = _get_operators("AB", r, m)
-        model.operators = [A, B]
-        model.input_dimension = m
+        c, A, H, G, B, N = self.get_operators(r, m)
 
-        with pytest.warns(UserWarning) as wn:
-            out = model.fit(None, None, None)
+        model.operators = [A, B]
+        assert model._fully_intrusive is True
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            out = model.fit(Q, F)
+        assert len(wn) == 1
         assert wn[0].message.args[0] == (
             "all operators initialized explicitly, nothing to learn"
         )
@@ -356,182 +373,127 @@ class TestNonparametricModel:
     # Model evaluation --------------------------------------------------------
     def test_rhs(self, m=2, k=10, r=5, ntrials=10):
         """Test _NonparametricModel.rhs()."""
-        c_, A_, H_, B_ = _get_operators("cAHB", r, m)
+        c, A, H, G, B, N = self.get_operators(r, m)
 
-        model = self.Dummy([c_, A_])
+        model = self.Model([c, A])
         for _ in range(ntrials):
-            q_ = np.random.random(r)
-            y_ = c_.entries + A_.entries @ q_
-            out = model.rhs(q_)
-            assert out.shape == y_.shape
-            assert np.allclose(out, y_)
+            q = np.random.random(r)
+            y = c.entries + A.entries @ q
+            out = model.rhs(q)
+            assert out.shape == y.shape
+            assert np.allclose(out, y)
 
-            Q_ = np.random.random((r, k))
-            Y_ = c_.entries.reshape((r, 1)) + A_.entries @ Q_
-            out = model.rhs(Q_)
-            assert out.shape == Y_.shape
-            assert np.allclose(out, Y_)
+            Q = np.random.random((r, k))
+            Y = c.entries.reshape((r, 1)) + A.entries @ Q
+            out = model.rhs(Q)
+            assert out.shape == Y.shape
+            assert np.allclose(out, Y)
 
-        model = self.Dummy([H_, B_])
+        model = self.Model([H, B])
         for _ in range(ntrials):
             u = np.random.random(m)
-            q_ = np.random.random(r)
-            y_ = H_.entries @ kron2c(q_) + B_.entries @ u
-            out = model.rhs(q_, u)
-            assert out.shape == y_.shape
-            assert np.allclose(out, y_)
+            q = np.random.random(r)
+            y = H.entries @ kron2c(q) + B.entries @ u
+            out = model.rhs(q, u)
+            assert out.shape == y.shape
+            assert np.allclose(out, y)
 
-            Q_ = np.random.random((r, k))
+            Q = np.random.random((r, k))
             U = np.random.random((m, k))
-            Y_ = H_.entries @ kron2c(Q_) + B_.entries @ U
-            out = model.rhs(Q_, U)
-            assert out.shape == Y_.shape
-            assert np.allclose(out, Y_)
+            Y = H.entries @ kron2c(Q) + B.entries @ U
+            out = model.rhs(Q, U)
+            assert out.shape == Y.shape
+            assert np.allclose(out, Y)
 
     def test_jacobian(self, r=5, m=2, ntrials=10):
         """Test _NonparametricModel.jacobian()."""
-        c_, A_, B_ = _get_operators("cAB", r, m)
+        c, A, H, G, B, N = self.get_operators(r, m)
 
-        for oplist in ([c_, A_], [c_, A_, B_]):
-            model = self.Dummy(oplist)
-            q_ = np.random.random(r)
-            out = model.jacobian(q_)
+        for oplist in ([c, A], [c, A, B]):
+            model = self.Model(oplist)
+            q = np.random.random(r)
+            out = model.jacobian(q)
             assert out.shape == (r, r)
-            assert np.allclose(out, A_.entries)
+            assert np.allclose(out, A.entries)
+
+    @abc.abstractmethod
+    def test_predict(self):
+        """Test predict()."""
+        raise NotImplementedError
 
     # Model persistence -------------------------------------------------------
-    def test_save(self, m=2, r=3, target="_savemodeltest.h5"):
-        """Test _NonparametricModel.save()."""
+    def test_saveload(self, m=2, r=3, target="_savemodeltest.h5"):
+        """Test save() and load()."""
         # Clean up after old tests.
         if os.path.isfile(target):  # pragma: no cover
             os.remove(target)
 
-        model = self.Dummy("cAHGB")
+        with pytest.raises(FileNotFoundError):
+            self.Model.load(target)
+
+        model = self.Model(self.get_operators())
         model.save(target)
         assert os.path.isfile(target)
 
-        with pytest.raises(FileExistsError) as ex:
-            model.save(target, overwrite=False)
-        assert ex.value.args[0] == f"{target} (overwrite=True to ignore)"
+        try:
+            # Check overwrite behavior.
+            with pytest.raises(FileExistsError):
+                model.save(target, overwrite=False)
+            model.save(target, overwrite=True)
 
-        model.save(target, overwrite=True)
+            # Blank operators and dimensions.
+            loaded = self.Model.load(target)
+            assert loaded is not model
+            assert loaded == model
 
-        model.operators = "AB"
-        model.save(target, overwrite=True)
+            # Some operators fixed + known dimensions.
+            ops1 = self.get_operators(r=r, m=m)
+            ops2 = self.get_operators(r=None, m=None)
+            model.operators = ops1[::2] + ops2[1::2]
+            model.save(target, overwrite=True)
 
-        os.remove(target)
+            loaded = self.Model.load(target)
+            assert loaded is not model
+            assert loaded == model
+            assert (
+                loaded._indices_of_operators_to_infer
+                == model._indices_of_operators_to_infer
+            )
+            assert (
+                loaded._indices_of_known_operators
+                == model._indices_of_known_operators
+            )
 
-    def test_load(self, n=20, m=2, r=5, target="_loadmodeltest.h5"):
-        """Test _NonparametricModel.load()."""
-        # Clean up after old tests if needed.
-        if os.path.isfile(target):  # pragma: no cover
-            os.remove(target)
-
-        # Make an empty HDF5 file to start with.
-        with h5py.File(target, "w"):
-            pass
-
-        with pytest.raises(opinf.errors.LoadfileFormatError) as ex:
-            model = self.Dummy.load(target)
-        assert ex.value.args[0].endswith("(object 'meta' doesn't exist)")
-
-        with h5py.File(target, "a") as hf:
-            meta = hf.create_dataset("meta", shape=(0,))
-            meta.attrs["num_operators"] = 1
-
-        # Check that save() and load() are inverses.
-        model = self.Dummy("cAN")
-        model.input_dimension = m
-        model.save(target, overwrite=True)
-        model2 = model.load(target)
-        assert model2 is not model
-        for attr in [
-            "input_dimension",
-            "state_dimension",
-            "_indices_of_operators_to_infer",
-            "_indices_of_known_operators",
-            "__class__",
-        ]:
-            assert getattr(model2, attr) == getattr(model, attr)
-        for name in "cAN":
-            attr = getattr(model2, f"{name}_")
-            assert attr is not None
-            assert attr.entries is None
-        for name in "HGB":
-            assert getattr(model2, f"{name}_") is None
-
-        # Load model with operators with entries.
-        model = self.Dummy(_get_operators("AG", r, m))
-        model.save(target, overwrite=True)
-        model2 = model.load(target)
-        assert model2 is not model
-        for attr in [
-            "input_dimension",
-            "state_dimension",
-            "_indices_of_operators_to_infer",
-            "_indices_of_known_operators",
-            "__class__",
-        ]:
-            assert getattr(model2, attr) == getattr(model, attr)
-        for name in "cHBN":
-            assert getattr(model2, f"{name}_") is None
-        for name in "AG":
-            attr2 = getattr(model2, f"{name}_")
-            assert attr2 is not None
-            attr = getattr(model, f"{name}_")
-            assert attr2.entries.shape == attr.entries.shape
-            assert np.all(attr2.entries == attr.entries)
-
-        # Clean up.
-        os.remove(target)
+        finally:
+            if os.path.isfile(target):
+                os.remove(target)
 
 
-class TestSteadyModel:
-    """Test models.monolithic.nonparametric._public.SteadyModel."""
+# Test public classes =========================================================
+# class TestSteadyModel(_TestNonparametricModel):
+#     """Test models.monolithic.nonparametric._public.SteadyModel."""
 
-    ModelClass = _module.SteadyModel
+#     Model = _module.SteadyModel
 
-    def test_rhs(self, r=10):
-        """Lightly test SteadyModel.rhs().
-        Stronger tests in test_base.TestNonparametricModel.test_rhs().
-        """
-        model = _trainedmodel(self.ModelClass, "cAH", r, 0)
-        model.rhs(np.random.random(r))
-
-    def test_jacobian(self, r=6, m=3):
-        """Lightly test DiscreteModel.jacobian().
-        Stronger tests in test_base.TestNonparametricModel.test_jacobian().
-        """
-        model = _trainedmodel(self.ModelClass, "A", r, 0)
-        model.jacobian(np.random.random(r))
-
-    def test_fit(self, k=400, r=10):
-        """Lightly test SteadyModel.fit().
-        Stronger tests in test_base.TestNonparametricModel.test_fit().
-        """
-        Q, F, _ = _get_data(r, k, 2)
-        model = self.ModelClass("A")
-        model.fit(Q, F)
-
-    # def test_predict(self):
-    #     """Test SteadyModel.predict()."""
-    #     raise NotImplementedError
+#     def test_predict(self):
+#         """Test SteadyModel.predict()."""
+#         raise NotImplementedError
 
 
-class TestDiscreteModel:
+class TestDiscreteModel(_TestNonparametricModel):
     """Test models.monolithic.nonparametric._public.DiscreteModel."""
 
-    ModelClass = _module.DiscreteModel
+    Model = _module.DiscreteModel
 
     def test_stack_trajectories(self, r=10, k=20, m=5, num_trajectories=4):
         """Test DiscreteModel.stack_trajectories()."""
         statelist, inputlist = [], []
         for _ in range(num_trajectories):
-            Q, _, U = _get_data(r, k, m)
+            Q, _, U = self.get_data(r, k, m)
             statelist.append(Q)
             inputlist.append(U)
 
-        Qs, Qnexts = self.ModelClass.stack_trajectories(statelist)
+        Qs, Qnexts = self.Model.stack_trajectories(statelist)
         assert Qs.shape == (r, (k - 1) * num_trajectories)
         assert Qnexts.shape == Qs.shape
         Qs_split = np.split(Qs, num_trajectories, axis=1)
@@ -541,7 +503,7 @@ class TestDiscreteModel:
             assert np.all(Qs_split[i] == statelist[i][:, :-1])
             assert np.all(Qnexts_split[i] == statelist[i][:, 1:])
 
-        Qs2, Qnexts2, Us = self.ModelClass.stack_trajectories(
+        Qs2, Qnexts2, Us = self.Model.stack_trajectories(
             statelist,
             inputlist,
         )
@@ -555,7 +517,7 @@ class TestDiscreteModel:
 
         # 1D inputs
         inputlist_1d = [np.random.random(k) for _ in range(num_trajectories)]
-        Qs3, Qnexts3, Us_1d = self.ModelClass.stack_trajectories(
+        Qs3, Qnexts3, Us_1d = self.Model.stack_trajectories(
             statelist,
             inputlist_1d,
         )
@@ -567,44 +529,31 @@ class TestDiscreteModel:
         for i, Usplit in enumerate(np.split(Us_1d, num_trajectories, axis=0)):
             assert np.all(Usplit == inputlist_1d[i][: (k - 1)])
 
-    def test_rhs(self, r=6, m=3):
-        """Lightly test DiscreteModel.rhs().
-        Stronger tests in test_base.TestNonparametricModel.test_rhs().
-        """
-        model = _trainedmodel(self.ModelClass, "cG", r, 0)
-        model.rhs(np.random.random(r))
-
-    def test_jacobian(self, r=6, m=3):
-        """Lightly test DiscreteModel.jacobian().
-        Stronger tests in test_base.TestNonparametricModel.test_jacobian().
-        """
-        model = _trainedmodel(self.ModelClass, "cG", r, 0)
-        model.jacobian(np.random.random(r))
-
     def test_fit(self, k=50, r=5, m=3):
         """Test DiscreteModel.fit()."""
-        Q, _, U = _get_data(r, k, m)
+        super().test_fit()
+
+        Q, _, U = self.get_data(r, k, m)
         Qnext = Q[:, 1:]
-        model = self.ModelClass("A").fit(Q)
-        model2 = self.ModelClass("A").fit(Q[:, :-1], Qnext)
+        model = self.Model("A").fit(Q)
+        model2 = self.Model("A").fit(Q[:, :-1], Qnext)
         assert model.A_ == model2.A_
 
-        model = self.ModelClass("AB").fit(Q, inputs=U)
-        model2 = self.ModelClass("AB").fit(Q[:, :-1], Qnext, inputs=U)
+        model = self.Model("AB").fit(Q, inputs=U)
+        model2 = self.Model("AB").fit(Q[:, :-1], Qnext, inputs=U)
         assert model.A_ == model2.A_
         assert model.B_ == model2.B_
 
     def test_predict(self, k=20, m=6, r=4):
         """Test DiscreteModel.predict()."""
         # Get test data.
-        Q = _get_data(r, k, m)[0]
         niters = 5
-        q0 = Q[:, 0]
+        q0 = np.random.random(r)
         U = np.ones((m, niters - 1))
 
-        ops = A_, B_ = _get_operators("AB", r, m)
-        B1d_ = _get_operators("B", r, m=1)[0]
-        model = self.ModelClass(ops)
+        ops = c, A, H, G, B, N = self.get_operators(r, m)
+        B1d = opinf.operators.InputOperator(entries=B.entries[:, 0])
+        model = self.Model(ops)
 
         # Try to predict with invalid initial condition.
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
@@ -629,7 +578,7 @@ class TestDiscreteModel:
             f"!= {(m, niters-1)} = (m, niters-1)"
         )
 
-        model_m1 = self.ModelClass([A_, B1d_])
+        model_m1 = self.Model([A, B1d])
         with pytest.raises(ValueError) as ex:
             model_m1.predict(q0, niters, np.random.random((2, niters - 1)))
         assert ex.value.args[0] == (
@@ -643,89 +592,112 @@ class TestDiscreteModel:
         assert ex.value.args[0] == "inputs must be NumPy array, not callable"
 
         # No control inputs.
-        model = self.ModelClass([A_])
+        model = self.Model([A])
         out = model.predict(q0, niters)
         assert isinstance(out, np.ndarray)
         assert out.shape == (r, niters)
 
         # With 2D inputs.
-        model = self.ModelClass([A_, B_])
+        model = self.Model([A, B])
         out = model.predict(q0, niters, U)
         assert isinstance(out, np.ndarray)
         assert out.shape == (r, niters)
 
         # With 1D inputs.
-        model = self.ModelClass([A_, B1d_])
+        model = self.Model([A, B1d])
         out = model.predict(q0, niters, np.ones(niters))
         assert isinstance(out, np.ndarray)
         assert out.shape == (r, niters)
 
 
-class TestContinuousModel:
+class TestContinuousModel(_TestNonparametricModel):
     """Test models.monolithic.nonparametric._public.ContinuousModel."""
 
-    ModelClass = _module.ContinuousModel
+    Model = _module.ContinuousModel
 
-    def test_rhs(self, r=5, m=2):
+    def test_rhs(self, k=10, r=5, m=2, ntrials=10):
         """Test ContinuousModel.rhs()."""
-        A_, B_ = _get_operators("AB", r, m)
+        c, A, H, G, B, N = self.get_operators(r, m)
 
-        model = self.ModelClass([A_])
-        q_ = np.random.random(r)
-        model.rhs(10, q_)
+        model = self.Model([c, A])
+        for _ in range(ntrials):
+            q = np.random.random(r)
+            y = c.entries + A.entries @ q
+            out = model.rhs(1, q)
+            assert out.shape == y.shape
+            assert np.allclose(out, y)
 
-        model = self.ModelClass([A_, B_])
-        with pytest.raises(TypeError) as ex:
-            model.rhs(5, q_, 10)
-        assert "object is not callable" in ex.value.args[0]
+            Q = np.random.random((r, k))
+            Y = c.entries.reshape((r, 1)) + A.entries @ Q
+            out = model.rhs(2, Q)
+            assert out.shape == Y.shape
+            assert np.allclose(out, Y)
+
+        U = np.random.random((m, k))
+        u = U[:, 0]
 
         def input_func(t):
-            return np.random.random(m)
+            return u
 
-        model.rhs(np.pi, q_, input_func)
+        def input_func2(t):
+            return U
+
+        model = self.Model([H, B])
+        for _ in range(ntrials):
+            q = np.random.random(r)
+            y = H.entries @ kron2c(q) + B.entries @ u
+            out = model.rhs(0, q, input_func)
+            assert out.shape == y.shape
+            assert np.allclose(out, y)
+
+            Q = np.random.random((r, k))
+            U = np.random.random((m, k))
+            Y = H.entries @ kron2c(Q) + B.entries @ U
+            out = model.rhs(20, Q, input_func2)
+            assert out.shape == Y.shape
+            assert np.allclose(out, Y)
+
+        model = self.Model([A, B])
+        with pytest.raises(TypeError) as ex:
+            model.rhs(5, q, 10)
+        assert "object is not callable" in ex.value.args[0]
 
     def test_jacobian(self, r=6, m=3):
         """Test ContinuousModel.jacobian()."""
-        A_, B_ = _get_operators("AB", r, m)
+        c, A, H, G, B, N = self.get_operators(r=r, m=m)
 
-        model = self.ModelClass([A_])
-        q_ = np.random.random(r)
-        model.jacobian(8, q_)
-
-        model = self.ModelClass([A_, B_])
-        with pytest.raises(TypeError) as ex:
-            model.jacobian(5, q_, 10)
-        assert "object is not callable" in ex.value.args[0]
+        model = self.Model([c, A])
+        q = np.random.random(r)
+        out = model.jacobian(8, q)
+        assert out.shape == (r, r)
+        assert np.allclose(out, A.entries)
 
         def input_func(t):
             return np.random.random(m)
 
-        model.jacobian(2, q_, input_func)
+        model = self.Model([A, B])
+        with pytest.raises(TypeError) as ex:
+            model.jacobian(5, q, 10)
+        assert "object is not callable" in ex.value.args[0]
 
-    def test_fit(self, k=20, m=3, r=4):
-        """Lightly test ContinuousModel.fit().
-        Stronger tests in test_base.TestNonparametricModel.test_fit().
-        """
-        Q, Qdot, U = _get_data(r, k, m)
-        self.ModelClass("AB").fit(Q, Qdot, U)
+        out = model.jacobian(2, q, input_func)
+        assert out.shape == (r, r)
+        assert np.allclose(out, A.entries)
 
     def test_predict(self, k=50, m=10, r=6):
         """Test ContinuousModel.predict()."""
         # Get test data.
-        Q = _get_data(r, k, m)[0]
         nt = 5
-        q0 = Q[:, 0]
-        t = np.linspace(0, 0.01 * nt, nt)
+        q0 = np.zeros(r)
+        t = np.linspace(0, 1e-5 * nt, nt)
 
-        def input_func(tt):
-            return tt * np.ones(m)
-
-        Upred = np.column_stack([input_func(tt) for tt in t])
+        # No inputs #
 
         # Try to predict with invalid initial condition.
-        model = _trainedmodel(self.ModelClass, "cAHB", r, m)
+        ops = self.get_operators(r=r, m=0)
+        model = self.Model(ops)
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            model.predict(q0[1:], t, input_func)
+            model.predict(q0[1:], t)
         assert ex.value.args[0] == (
             "initial condition not aligned with model "
             f"(state0.shape = ({r-1},) != ({r},) = (r,))"
@@ -733,41 +705,42 @@ class TestContinuousModel:
 
         # Try to predict with bad time array.
         with pytest.raises(ValueError) as ex:
-            model.predict(q0, np.vstack((t, t)), input_func)
+            model.predict(q0, np.atleast_2d(t))
         assert ex.value.args[0] == "time 't' must be one-dimensional"
 
         # Predict without inputs.
-        for form in MODEL_FORMS:
-            if "B" not in form and "N" not in form:
-                model = _trainedmodel(self.ModelClass, form, r, None)
-                out = model.predict(q0, t)
-                assert isinstance(out, np.ndarray)
-                assert out.shape == (r, t.size)
+        for k in range(1, len(ops) + 1):
+            for comb in itertools.combinations(ops, k):
+                model.operators = list(comb)
+                for method in ["RK45", "BDF"]:
+                    out = model.predict(q0, t, method=method)
+                    assert isinstance(out, np.ndarray)
+                    assert out.shape == (r, t.size)
 
-        # Predict with no basis gives result in low-dimensional space.
-        model = _trainedmodel(self.ModelClass, "cA", r, None)
-        model.basis = None
-        out = model.predict(q0, t)
-        assert isinstance(out, np.ndarray)
-        assert out.shape == (r, t.size)
+        # With inputs #
+
+        def input_func(tt):
+            return tt * np.zeros(m)
+
+        Upred = np.column_stack([input_func(tt) for tt in t])
+
+        ops = self.get_operators(r=r, m=m)
+        model = self.Model(ops)
 
         # Try to predict with badly-shaped discrete inputs.
-        model = _trainedmodel(self.ModelClass, "cAHB", r, m)
         with pytest.raises(ValueError) as ex:
             model.predict(q0, t, np.random.random((m - 1, nt)))
         assert ex.value.args[0] == (
             f"input_func.shape = {(m-1, nt)} != {(m, nt)} = (m, len(t))"
         )
 
-        model = _trainedmodel(self.ModelClass, "cAHB", r, m=1)
         with pytest.raises(ValueError) as ex:
-            model.predict(q0, t, np.random.random((2, nt)))
+            model.predict(q0, t, np.random.random((m + 1, nt)))
         assert ex.value.args[0] == (
-            f"input_func.shape = {(2, nt)} != {(1, nt)} = (m, len(t))"
+            f"input_func.shape = {(m+1, nt)} != {(m, nt)} = (m, len(t))"
         )
 
         # Try to predict with badly-shaped continuous inputs.
-        model = _trainedmodel(self.ModelClass, "cAHB", r, m)
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model.predict(q0, t, lambda t: np.ones(m - 1))
         assert ex.value.args[0] == (
@@ -779,25 +752,19 @@ class TestContinuousModel:
             f"input_func() must return ndarray of shape (m,) = {(m,)}"
         )
 
-        model = _trainedmodel(self.ModelClass, "cAHB", r, m=1)
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            model.predict(q0, t, input_func)
-        assert ex.value.args[0] == (
-            "input_func() must return ndarray of shape (m,) = (1,)"
-        )
-
         # Try to predict with continuous inputs with bad return type
-        model = _trainedmodel(self.ModelClass, "cAHB", r, m)
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
             model.predict(q0, t, lambda t: set([5]))
         assert ex.value.args[0] == (
             f"input_func() must return ndarray of shape (m,) = {(m,)}"
         )
 
-        for form in MODEL_FORMS:
-            if "B" in form or "N" in form:
-                # Predict with 2D inputs.
-                model = _trainedmodel(self.ModelClass, form, r, m)
+        # Correct prediction with inputs.
+        for k in range(1, len(ops) + 1):
+            for comb in itertools.combinations(ops, k):
+                model.operators = list(comb)
+                if not model._has_inputs:
+                    continue
                 # continuous input.
                 for method in ["RK45", "BDF"]:
                     out = model.predict(q0, t, input_func, method=method)
@@ -807,9 +774,15 @@ class TestContinuousModel:
                 out = model.predict(q0, t, Upred)
                 assert isinstance(out, np.ndarray)
                 assert out.shape == (r, nt)
+                assert hasattr(model, "predict_result_")
 
-                # Predict with 1D inputs.
-                model = _trainedmodel(self.ModelClass, form, r, 1)
+        # Correct prediction with 1D inputs.
+        ops = self.get_operators(r=r, m=1)
+        for k in range(1, len(ops) + 1):
+            for comb in itertools.combinations(ops, k):
+                model.operators = list(comb)
+                if not model._has_inputs:
+                    continue
                 # continuous input.
                 out = model.predict(q0, t, lambda t: 1)
                 assert isinstance(out, np.ndarray)
@@ -824,23 +797,19 @@ class TestContinuousModel:
                 assert hasattr(model, "predict_result_")
 
 
-class TestFrozenMixin:
-    """Test models.monolithic.nonparametric._frozen._FrozenMixin."""
+# Test "frozen" classes =======================================================
+class _TestFrozenMixin:
+    """Tests for clases that inherit from
+    models.monolithic.nonparametric._frozen._FrozenMixin.
+    """
 
-    class Dummy(
-        _module._FrozenMixin,
-        _module._NonparametricModel,
-    ):
-        """Instantiable version of _FrozenMixin."""
+    Model = NotImplemented
 
-        def predict(*args, **kwargs):
-            pass
-
-    def test_disabled(self, ModelClass=None):
-        """Test _FrozenMixin.fit() and other disabled methods."""
-        if ModelClass is None:
-            ModelClass = self.Dummy
-        model = ModelClass("A", solver=2)
+    def test_disabled(self, Model=None):
+        """Test fit() and other disabled methods."""
+        if Model is None:
+            Model = self.Model
+        model = Model("A", solver=2)
 
         # Test disabled properties.
         assert model.solver is None
@@ -860,6 +829,18 @@ class TestFrozenMixin:
             "_clear() is disabled for this class, call fit() "
             "on the parametric model object"
         )
+
+
+class TestFrozenSteadyModel(_TestFrozenMixin):
+    Model = _module._FrozenSteadyModel
+
+
+class TestFrozenDiscreteModel(_TestFrozenMixin):
+    Model = _module._FrozenDiscreteModel
+
+
+class TestFrozenContinuousModel(_TestFrozenMixin):
+    Model = _module._FrozenContinuousModel
 
 
 if __name__ == "__main__":

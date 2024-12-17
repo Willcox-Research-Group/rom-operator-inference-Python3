@@ -3,93 +3,113 @@
 
 import abc
 import pytest
-import itertools
 import numpy as np
 import scipy.linalg as la
 
 import opinf
-
-
-_module = opinf.models.mono._base
-
-
-MODELFORM_KEYS = "cAHGBN"
-
-MODEL_FORMS = [
-    "".join(s)
-    for k in range(1, len(MODELFORM_KEYS) + 1)
-    for s in itertools.combinations(MODELFORM_KEYS, k)
-]
-
-
-# Helper functions ============================================================
-def _get_operators(operatorkeys, r=8, m=1):
-    """Construct fake model operators."""
-    ops = []
-    for key in operatorkeys:
-        if key == "c":
-            ops.append(opinf.operators.ConstantOperator(np.random.random(r)))
-        elif key == "A":
-            ops.append(opinf.operators.LinearOperator(np.eye(r)))
-        elif key == "H":
-            entries = np.zeros((r, r * (r + 1) // 2))
-            ops.append(opinf.operators.QuadraticOperator(entries))
-        elif key == "G":
-            entries = np.zeros((r, r * (r + 1) * (r + 2) // 6))
-            ops.append(opinf.operators.CubicOperator(entries))
-        elif key == "B":
-            ops.append(opinf.operators.InputOperator(np.random.random((r, m))))
-        elif key == "N":
-            entries = np.random.random((r, r * m))
-            ops.append(opinf.operators.StateInputOperator(entries))
-        else:
-            raise KeyError
-    return ops
+from opinf.operators import _utils as oputils
 
 
 # Test classes ================================================================
 class _TestModel(abc.ABC):
     """Tests for classes that inherit from models._base._Model."""
 
+    # Setup -------------------------------------------------------------------
+    Model = NotImplemented  # Class being tested.
+
     @abc.abstractmethod
-    def get_models(self):
-        """Yield models to test."""
+    def get_operators(self, r=None, m=None):
+        """Return a valid collection of operators to test.
+
+        Parameters
+        ----------
+        r : None or int > 0
+            State dimension.
+            If ``None`` (default), operator entries should not be populated.
+            If a positive integer, operator entries should be populated.
+        m : int or None
+            Input dimension. Only required if ``r`` is a postive integer.
+            If ``m=0``, do not include operators that act on inputs.
+
+        Returns
+        -------
+        ops : list
+            List of instantiated operators (not abbreviations).
+        """
         raise NotImplementedError
 
-    # Properties: operators ---------------------------------------------------
-    def test_operators(self, m=4, r=7):
-        """Test _Model.__init__(), operators, _clear(), and __iter__()."""
-        operators = _get_operators("cAHGBN", r, m)
+    def get_opinf_operator(self, r=None, m=None):
+        """Get a single OpInf operator. If ``m`` is given, return"""
+        ops = self.get_operators(r=r, m=m)
+        hasinputs = (m is not None) and (m != 0)
+        for op in ops:
+            if hasinputs and not oputils.has_inputs(op):
+                continue
+            if oputils.is_opinf(op):
+                return op
+        raise opinf.errors.VerificationError(  # pragma: no cover
+            "no input-dependent OpInf operators detected"
+            if hasinputs
+            else "no OpInf operators detected"
+        )
 
+    # Abstract methods --------------------------------------------------------
+    @abc.abstractmethod
+    def test_isvalidoperator(self):
+        """Test _isvalidoperator()."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def test_check_operators_types_unique(self):
+        """Test _check_operators_types_unique()."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def test_get_operator_of_type(self):
+        """Test _get_operator_of_type()."""
+        raise NotImplementedError
+
+    # Properties --------------------------------------------------------------
+    def test_operators(self, r=4, m=2):
+        """Test the following methods.
+
+        * __init__()
+        * operators.setter
+        * _check_state_dimension_consistency()
+        * _check_state_dimension_consistency()
+        * _clear()
+        * __iter__()
+
+        """
         # Try to instantiate without any operators.
         with pytest.raises(ValueError) as ex:
-            self.Dummy([])
+            self.Model([])
         assert ex.value.args[0] == "at least one operator required"
 
         # Try to instantiate with non-operator.
         with pytest.raises(TypeError) as ex:
-            self.Dummy([1])
+            self.Model([1])
         assert ex.value.args[0] == "invalid operator of type 'int'"
 
-        # Try to instantiate with operators of mismatched shape (no basis).
-        bad_ops = [
-            opinf.operators.LinearOperator(np.random.random((r, r))),
-            opinf.operators.ConstantOperator(np.random.random(r + 1)),
+        # Try to instantiate with operators of mismatched shape.
+        ops = [
+            self.get_opinf_operator(r=r, m=0),
+            self.get_opinf_operator(r=r + 1, m=0),
         ]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            self.Dummy(bad_ops)
+            self.Model(ops)
         assert ex.value.args[0] == (
             "operators not aligned "
             "(state dimension must be the same for all operators)"
         )
 
         # Try to instantiate with input operators not aligned.
-        bad_ops = [
-            opinf.operators.InputOperator(np.random.random((r, m - 1))),
-            opinf.operators.StateInputOperator(np.random.random((r, r * m))),
+        ops = [
+            self.get_opinf_operator(r=r, m=m),
+            self.get_opinf_operator(r=r, m=m + 1),
         ]
         with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            self.Dummy(bad_ops)
+            self.Model(ops)
         assert ex.value.args[0] == (
             "input operators not aligned "
             "(input dimension must be the same for all input operators)"
@@ -97,108 +117,111 @@ class _TestModel(abc.ABC):
 
         # Try with bad operator abbrevation.
         with pytest.raises(TypeError) as ex:
-            self.Dummy("X")
-        assert ex.value.args[0] == "operator abbreviation 'X' not recognized"
+            self.Model("®")
+        assert ex.value.args[0] == "operator abbreviation '®' not recognized"
 
-        # Test operators.setter().
-        model = self.Dummy(opinf.operators.ConstantOperator())
-        for attr in (
-            "operators",
-            "input_dimension",
-            "state_dimension",
-            "_has_inputs",
-            "_indices_of_operators_to_infer",
-            "_indices_of_known_operators",
-        ):
-            assert hasattr(model, attr)
-        # Operators with no entries, no inputs.
+        with pytest.raises(TypeError) as ex:
+            self.Model([ops[0], "ç"])
+        assert ex.value.args[0] == "operator abbreviation 'ç' not recognized"
+
+        # Test operators.setter() - - - - - - - - - - - - - - - - - - - - - - -
+
+        # Single operator, no entries, no inputs.
+        op = self.get_opinf_operator(r=None, m=0)
+        model = self.Model(op)
         assert len(model.operators) == 1
-        assert isinstance(model.operators[0], opinf.operators.ConstantOperator)
-        assert len(model._indices_of_operators_to_infer) == 1
+        assert model.operators[0] is op
         assert model._indices_of_operators_to_infer == [0]
-        assert len(model._indices_of_known_operators) == 0
+        assert model._indices_of_known_operators == []
         assert model._has_inputs is False
         assert model.input_dimension == 0
         assert model.state_dimension is None
 
-        # Operators with entries, no inputs.
-        model = self.Dummy(operators[:2])
-        assert len(model._indices_of_operators_to_infer) == 0
-        assert len(model._indices_of_known_operators) == 2
-        assert model._indices_of_known_operators == [0, 1]
-        assert model._has_inputs is False
-        assert model.input_dimension == 0
-        assert model.state_dimension == r
-        for i in range(2):
-            assert model.operators[i] is operators[i]
-            assert model.operators[i].entries is not None
-
-        # Some operators with entries, some without; with inputs.
-        operators[5]._clear()
-        model = self.Dummy(operators[3:6])
-        assert len(model._indices_of_operators_to_infer) == 1
-        assert model._indices_of_operators_to_infer == [2]
-        assert len(model._indices_of_known_operators) == 2
-        assert model._indices_of_known_operators == [0, 1]
+        # Several operators, no entries, with inputs.
+        ops = self.get_operators(r=None, m=None)
+        model = self.Model(ops)
+        assert len(model.operators) == len(ops)
+        for i, op in enumerate(model.operators):
+            assert op is ops[i]
+            if oputils.is_uncalibrated(op):
+                assert i in model._indices_of_operators_to_infer
+            else:
+                assert i in model._indices_of_known_operators
         assert model._has_inputs is True
-        assert model.input_dimension == m
+        assert model.input_dimension is None
+        assert model.state_dimension is None
+
+        # Several operators with entries, with inputs.
+        ops = self.get_operators(r=r, m=m)
+        model = self.Model(ops)
+        assert len(model.operators) == len(ops)
+        for i, op in enumerate(model.operators):
+            assert op is ops[i]
+            if oputils.is_uncalibrated(op):
+                assert i in model._indices_of_operators_to_infer
+            else:
+                assert i in model._indices_of_known_operators
+        assert model._has_inputs is True
         assert model.state_dimension == r
-        for i in model._indices_of_operators_to_infer:
-            assert model.operators[i] is operators[i + 3]
-            assert model.operators[i].entries is None
-        for i in model._indices_of_known_operators:
-            assert model.operators[i] is operators[i + 3]
-            assert model.operators[i].entries is not None
+        assert model.input_dimension == m
+
+        # Some operators with entries, some without.
+        ops1 = self.get_operators(r=r, m=m)
+        ops2 = self.get_operators(r=r, m=m)
+        ops = ops1[:2] + ops2[2:]
+        model.operators = ops
+        assert len(model.operators) == len(ops)
+        for i, op in enumerate(model.operators):
+            assert op is ops[i]
+            if oputils.is_uncalibrated(op):
+                assert i in model._indices_of_operators_to_infer
+            else:
+                assert i in model._indices_of_known_operators
+        assert model._has_inputs is True
+        assert model.state_dimension == r
+        assert model.input_dimension == m
 
         # Test __iter__().
         iterated = [op for op in model]
-        assert len(iterated) == 3
-        assert iterated == operators[3:6]
+        assert len(iterated) == len(ops)
+        assert iterated == ops
 
         # Test _clear().
-        model.operators[2].set_entries(np.random.random((r, r * m)))
+        ops1 = [
+            op for op in self.get_operators(r=r, m=m) if oputils.is_opinf(op)
+        ]
+        ops2 = [op for op in self.get_operators() if oputils.is_opinf(op)]
+        ops = [op for pair in zip(ops1[::2], ops2[1::2]) for op in pair]
+        model = self.Model(ops)
+        for i in range(1, len(ops), 2):
+            model.operators[i].set_entries(ops1[i].entries)
         model._clear()
-        assert model.operators[2].entries is None
-        assert len(model._indices_of_operators_to_infer) == 1
-        assert model._indices_of_operators_to_infer == [2]
-        assert len(model._indices_of_known_operators) == 2
-        assert model._indices_of_known_operators == [0, 1]
-        for i in model._indices_of_operators_to_infer:
+        for i in range(1, len(ops), 2):
             assert model.operators[i].entries is None
-        for i in model._indices_of_known_operators:
-            assert model.operators[i].entries is not None
-        assert model.state_dimension == r  # Dimensions not erased.
-        assert model.input_dimension == m  # Dimensions not erased.
 
-    # Properties: dimensions --------------------------------------------------
-    def test_dimension_properties(self, m=3, r=7):
-        """Test the properties _Model.state_dimension and
-        _Model.input_dimension.
+    def test_dimensions(self, r=7, m=3):
+        """Test state_dimension and input_dimension properties, including
+        setters and behavior with _clear().
         """
         # Case 1: no inputs.
-        model = self.Dummy(
-            [
-                opinf.operators.ConstantOperator(),
-                opinf.operators.QuadraticOperator(),
-            ]
-        )
+        model = self.Model(self.get_operators(r=None, m=0))
         assert model.state_dimension is None
         assert model.input_dimension == 0
 
-        # Check that we can set the state dimension.
+        # Check that we can set and reset the state dimension.
         model.state_dimension = 10
         model.state_dimension = 11
         model._clear()
         assert model.state_dimension is None
         assert model.input_dimension == 0
 
-        # Try setting m with no inputs.
+        # Try setting the input dimension when there are no inputs.
         with pytest.raises(AttributeError) as ex:
             model.input_dimension = 1
         assert ex.value.args[0] == "can't set attribute (no input operators)"
 
         # Try setting r when there is an operator with a different shape.
-        model = self.Dummy(_get_operators("A", r))
+        model = self.Model(self.get_operators(r=r, m=0))
         with pytest.raises(AttributeError) as ex:
             model.state_dimension = r + 1
         assert ex.value.args[0] == (
@@ -209,22 +232,17 @@ class _TestModel(abc.ABC):
         assert model.input_dimension == 0
 
         # Case 2: has inputs.
-        model = self.Dummy(
-            [
-                opinf.operators.LinearOperator(),
-                opinf.operators.InputOperator(),
-            ]
-        )
+        model = self.Model(self.get_operators())
         assert model.input_dimension is None
         model.state_dimension = r
 
-        # Check that we can set the input dimension.
+        # Check that we can set and reset the input dimension.
         model.input_dimension = m
         model._clear()
         assert model.input_dimension is None
 
         # Try setting m when there is an input operator with a different m.
-        model = self.Dummy(_get_operators("AB", r, m))
+        model = self.Model(self.get_operators(r=r, m=m))
         assert model.state_dimension == r
         assert model.input_dimension == m
         with pytest.raises(AttributeError) as ex:
@@ -236,37 +254,10 @@ class _TestModel(abc.ABC):
         assert model.state_dimension == r
         assert model.input_dimension == m
 
-    # Dimensionality reduction ------------------------------------------------
-    def test_galerkin(self, n=20, r=6):
-        """Test _Model.galerkin()."""
-        A = _get_operators("A", n)[0]
-        Vr = la.qr(np.random.random((20, 6)), mode="economic")[0]
-
-        fom = self.Dummy(
-            [
-                opinf.operators.ConstantOperator(),
-                A,
-                opinf.operators.QuadraticOperator(),
-            ]
-        )
-        assert fom.state_dimension == n
-
-        rom = fom.galerkin(Vr)
-        assert rom.state_dimension == r
-        newA = rom.operators[1]
-        assert isinstance(newA, opinf.operators.LinearOperator)
-        assert newA.entries.shape == (r, r)
-        assert np.allclose(newA.entries, Vr.T @ A.entries @ Vr)
-        assert isinstance(rom.operators[0], opinf.operators.ConstantOperator)
-        assert isinstance(rom.operators[2], opinf.operators.QuadraticOperator)
-        for i in [0, 2]:
-            assert rom.operators[i].entries is None
-
-    # Validation methods ------------------------------------------------------
-    def test_solver(self):
-        """Test __init__() and solver."""
-        ops = [opinf.operators.LinearOperator()]
-        model = self.Dummy(ops)
+    def test_solver(self, r=5, m=2):
+        """Test the solver property, including its setter."""
+        ops = self.get_operators(r=None, m=None)
+        model = self.Model(ops)
         assert isinstance(model.solver, opinf.lstsq.PlainSolver)
 
         with pytest.raises(ValueError) as ex:
@@ -288,50 +279,57 @@ class _TestModel(abc.ABC):
         model.solver = 1
         assert isinstance(model.solver, opinf.lstsq.L2Solver)
 
-        ops[0].entries = np.random.random((3, 3))
+        ops = self.get_operators(r=r, m=m)
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            model = self.Dummy(ops, solver=2)
+            model = self.Model(ops, solver=2)
         assert len(wn) == 1
         assert wn[0].message.args[0] == (
             "all operators initialized explicity, setting solver=None"
         )
+        assert model.solver is None
 
-    def test_check_inputargs(self):
-        """Test _Model._check_inputargs()."""
+    # Dimensionality reduction ------------------------------------------------
+    def test_galerkin(self, n=20, r=6, m=2):
+        """Lightly test galerkin()."""
+        ops1 = [
+            op for op in self.get_operators(r=n, m=m) if oputils.is_opinf(op)
+        ]
+        ops2 = [op for op in self.get_operators() if oputils.is_opinf(op)]
+        Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
+
+        fom = self.Model(ops1[::2] + ops2[1::2])
+        assert fom.state_dimension == n
+
+        rom = fom.galerkin(Vr)
+        assert rom.state_dimension == r
+        assert len(rom.operators) == len(fom.operators)
+        for i in range(idx := len(ops1[::2])):
+            assert rom.operators[i].entries is not None
+        for i in range(idx, len(ops1)):
+            assert rom.operators[i].entries is None
+
+    # Validation methods ------------------------------------------------------
+    def test_check_inputargs(self, r=5, m=2):
+        """Test _check_inputargs()."""
 
         # Try with input operator but without inputs.
-        model = self.Dummy(
-            [
-                opinf.operators.ConstantOperator(),
-                opinf.operators.InputOperator(),
-            ]
-        )
+        model = self.Model(self.get_operators(r=r, m=m))
         with pytest.raises(ValueError) as ex:
             model._check_inputargs(None, "U")
         assert ex.value.args[0] == "argument 'U' required"
 
         # Try without input operator but with inputs.
-        model = self.Dummy(
-            [
-                opinf.operators.ConstantOperator(),
-                opinf.operators.LinearOperator(),
-            ]
-        )
-        with pytest.warns(UserWarning) as wn:
+        model = self.Model(self.get_operators(r=None, m=0))
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
             model._check_inputargs(1, "u")
         assert len(wn) == 1
         assert wn[0].message.args[0] == (
             "argument 'u' should be None, argument will be ignored"
         )
 
-    def test_is_trained(self, m=4, r=7):
+    def test_is_trained(self, r=7, m=4):
         """Test _Model._check_is_trained()."""
-        model = self.Dummy(
-            [
-                opinf.operators.ConstantOperator(),
-                opinf.operators.InputOperator(),
-            ]
-        )
+        model = self.Model(self.get_operators())
         with pytest.raises(AttributeError) as ex:
             model._check_is_trained()
         assert ex.value.args[0] == "no state_dimension (call fit())"
@@ -348,36 +346,19 @@ class _TestModel(abc.ABC):
         assert ex.value.args[0] == "model not trained (call fit())"
 
         # Successful check.
-        model.operators = _get_operators("cABH", r, m)
+        model.operators = self.get_operators(r=r, m=m)
         model._check_is_trained()
 
     def test_eq(self):
         """Test _Model.__eq__()."""
-        model1 = self.Dummy(
-            [
-                opinf.operators.ConstantOperator(),
-                opinf.operators.InputOperator(),
-            ]
-        )
+        ops = self.get_operators(r=None, m=None)
+        model1 = self.Model(ops)
         assert model1 != 10
 
-        model2 = self.Dummy([opinf.operators.ConstantOperator()])
+        model2 = self.Model(ops[:-1])
         assert model1 != model2
 
-        model2 = self.Dummy(
-            [
-                opinf.operators.ConstantOperator(),
-                opinf.operators.QuadraticOperator(),
-            ]
-        )
-        assert model1 != model2
-
-        model2 = self.Dummy(
-            [
-                opinf.operators.ConstantOperator(),
-                opinf.operators.InputOperator(),
-            ]
-        )
+        model2 = self.Model(ops)
         assert model1 == model2
         model1.state_dimension = 5
         assert model1 != model2
@@ -393,17 +374,20 @@ class _TestModel(abc.ABC):
         model2.input_dimension = model1.input_dimension
         assert model1 == model2
 
+        model1 = self.Model(ops)
+        model2 = self.Model(ops[::-1])
+        assert model1 == model2
+
+        model1 = self.Model(ops[:-1])
+        model2 = self.Model(ops[1:])
+        assert model1 != model2
+
     # Model persistence -------------------------------------------------------
     def test_copy(self, r=4, m=3):
         """Test _Model.copy()."""
-        A, H = _get_operators("AH", r, m)
-        model = self.Dummy(
-            [
-                opinf.operators.ConstantOperator(),
-                A,
-                H,
-            ]
-        )
+        ops1 = self.get_operators(r=r, m=m)
+        ops2 = self.get_operators()
+        model = self.Model(ops1[::2] + ops2[1::2])
         model2 = model.copy()
         assert model2 is not model
         assert isinstance(model2, model.__class__)

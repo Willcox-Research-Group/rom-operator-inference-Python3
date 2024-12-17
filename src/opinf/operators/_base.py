@@ -1313,9 +1313,13 @@ class ParametricOpInfOperator(ParametricOperatorTemplate):
         raise NotImplementedError  # pragma: no cover
 
 
+def is_opinf(obj) -> bool:
+    """Return ``True`` if ``obj`` is an OpInf operator (whether or not the
+    entries are calibrated).
+    """
+    return isinstance(obj, (OpInfOperator, ParametricOpInfOperator))
+
+
 def is_uncalibrated(obj) -> bool:
     """Return ``True`` if ``obj`` is an OpInf operator with empty entries."""
-    return (
-        isinstance(obj, (OpInfOperator, ParametricOpInfOperator))
-        and obj.entries is None
-    )
+    return is_opinf(obj) and obj.entries is None
