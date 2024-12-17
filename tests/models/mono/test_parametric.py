@@ -10,38 +10,67 @@ import scipy.interpolate as interp
 import opinf
 
 
+try:
+    from .test_base import _TestModel
+except ImportError:
+    from test_base import _TestModel
+
+
 _module = opinf.models
 
 
 # Parametric models ===========================================================
-class _TestParametricModel:
+class _TestParametricModel(_TestModel):
     """Test models.mono._parametric._ParametricModel."""
 
-    Model = NotImplemented
+    # Setup -------------------------------------------------------------------
     _iscontinuous = NotImplemented
 
-    def _get_single_operator(self, p=4):
+    def get_single_operator(self, p=4):
         """Get a single uncalibrated operator."""
         return opinf.operators.AffineLinearOperator(p)
 
-    def _get_parametric_operators(self, p, r, m=0):
-        """Get calibrated constant + linear + input affine operators."""
-        op1 = opinf.operators.AffineConstantOperator(
-            coeffs=p,
-            entries=[np.random.random(r) for _ in range(p)],
-        )
-        op2 = opinf.operators.AffineLinearOperator(
-            coeffs=p,
-            entries=[np.random.random((r, r)) for _ in range(p)],
-        )
-        operators = [op1, op2]
-        if m > 0:
-            op3 = opinf.operators.AffineInputOperator(
+    def get_operators(self, r=None, m=None, p=3):
+        """Return a valid collection of operators to test."""
+        if r is None:
+            ops = [
+                opinf.operators.AffineConstantOperator(coeffs=p),
+                opinf.operators.AffineLinearOperator(coeffs=p),
+            ]
+            if m == 0:
+                return ops
+            return ops + [opinf.operators.AffineInputOperator(coeffs=p)]
+
+        assert m is not None, "if r is given, m must be as well"
+        rand = np.random.random
+        ops = [
+            opinf.operators.AffineConstantOperator(
+                coeffs=p,
+                entries=[rand(r) for _ in range(p)],
+            ),
+            opinf.operators.AffineLinearOperator(
+                coeffs=p,
+                entries=[rand((r, r)) for _ in range(p)],
+            ),
+        ]
+        if m == 0:
+            return ops
+        return ops + [
+            opinf.operators.AffineInputOperator(
                 coeffs=p,
                 entries=[np.random.random((r, m)) for _ in range(p)],
             )
-            operators.append(op3)
-        return operators, np.random.random(p)
+        ]
+
+    def get_parametric_operators(self, p, r, m=0):
+        """Get calibrated constant + linear + input affine operators."""
+        return self.get_operators(r, m, p), np.random.random(p)
+
+    def test_isvalidoperator(self):
+        """Test _isvalidoperator()."""
+        with pytest.raises(TypeError) as ex:
+            self.Model([100])
+        assert ex.value.args[0].startswith("invalid operator of type")
 
     def test_check_operator_types_unique(self, p=2):
         """Test _check_operator_types_unique()."""
@@ -58,6 +87,26 @@ class _TestParametricModel:
 
         operators[1] = opinf.operators.ConstantOperator()
         self.Model._check_operator_types_unique(operators)
+
+    def test_get_operator_of_type(self):
+        """Test _get_operator_of_type() and the [caHGBN]_ properties."""
+        ops = self.get_operators()
+        model = self.Model(ops)
+
+        assert model.c_ is model.operators[0]
+        assert model.A_ is model.operators[1]
+        assert model.B_ is model.operators[2]
+        assert model.N_ is None
+        assert model.H_ is None
+        assert model.G_ is None
+
+        model = self.Model(
+            [
+                (c := opinf.operators.ConstantOperator()),
+                opinf.operators.AffineLinearOperator(2),
+            ]
+        )
+        assert model.c_ is c
 
     def test_set_operators(self, p=3):
         """Test operators.fset()."""
@@ -92,23 +141,6 @@ class _TestParametricModel:
         model = self.Model(operators[1])
         assert len(model.operators) == 1
         assert model.operators[0] is operators[1]
-
-    def test_get_operator_of_type(self, p=2):
-        """Test _get_operator_of_type()."""
-        operators = [
-            opinf.operators.ConstantOperator(),
-            opinf.operators.AffineLinearOperator(p),
-        ]
-        model = self.Model(operators)
-
-        op = model._get_operator_of_type(opinf.operators.ConstantOperator)
-        assert op is operators[0]
-
-        op = model._get_operator_of_type(opinf.operators.LinearOperator)
-        assert op is operators[1]
-
-        op = model._get_operator_of_type(float)
-        assert op is None
 
     def test_parameter_dimension(self, p=4):
         """Test parameter_dimension and _synchronize_parameter_dimensions()."""
@@ -154,7 +186,7 @@ class _TestParametricModel:
         lhs = [np.ones((r, k)) for _ in range(s)]
         inputs = [np.empty((m, k)) for _ in range(s)]
 
-        op = self._get_single_operator()
+        op = self.get_single_operator()
         model = self.Model([op])
 
         # Invalid parameters.
@@ -238,7 +270,7 @@ class _TestParametricModel:
         lhs = [np.ones((r, k)) for _ in range(s)]
         inputs = [np.ones((m, k)) for _ in range(s)]
 
-        operators, _ = self._get_parametric_operators(p, r, m)
+        operators, _ = self.get_parametric_operators(p, r, m)
 
         # Fully intrusive case.
         model = self.Model(operators)
@@ -309,10 +341,10 @@ class _TestParametricModel:
 
     def test_evaluate(self, p=8, r=4, m=2):
         """Test evaluate()."""
-        operators, testparam = self._get_parametric_operators(p, r, m)
+        operators, testparam = self.get_parametric_operators(p, r, m)
 
         # Some operators not populated.
-        model = self.Model([self._get_single_operator()])
+        model = self.Model([self.get_single_operator()])
         with pytest.raises(AttributeError):
             model.evaluate(testparam)
 
@@ -331,7 +363,7 @@ class _TestParametricModel:
 
     def test_rhs(self, p=7, r=2, m=4):
         """Lightly test rhs()."""
-        operators, testparam = self._get_parametric_operators(p, r, m)
+        operators, testparam = self.get_parametric_operators(p, r, m)
         teststate = np.random.random(r)
         args = [testparam, teststate]
         if self._iscontinuous:
@@ -344,7 +376,7 @@ class _TestParametricModel:
             testinput = np.random.random(m)
 
         # Some operators not populated.
-        model = self.Model([self._get_single_operator()])
+        model = self.Model([self.get_single_operator()])
         with pytest.raises(AttributeError):
             model.rhs(*args)
 
@@ -363,7 +395,7 @@ class _TestParametricModel:
 
     def test_jacobian(self, p=9, r=3, m=2):
         """Lightly test jacobian()."""
-        operators, testparam = self._get_parametric_operators(p, r, m)
+        operators, testparam = self.get_parametric_operators(p, r, m)
         teststate = np.random.random(r)
         args = [testparam, teststate]
         if self._iscontinuous:
@@ -376,7 +408,7 @@ class _TestParametricModel:
             testinput = np.random.random(m)
 
         # Some operators not populated.
-        model = self.Model([self._get_single_operator()])
+        model = self.Model([self.get_single_operator()])
         with pytest.raises(AttributeError):
             model.jacobian(*args)
 
@@ -475,29 +507,52 @@ class TestParametricContinuousModel(_TestParametricModel):
 class _TestInterpModel(_TestParametricModel):
     """Test models.mono._parametric._InterpModel."""
 
-    def _get_single_operator(self):
+    def get_single_operator(self):
         """Get a single uncalibrated operator."""
         return opinf.operators.InterpLinearOperator()
 
-    def _get_parametric_operators(self, s, r, m=0):
-        """Get calibrated constant + linear + input affine operators."""
-        params = np.sort(np.random.random(s))
-        op1 = opinf.operators.InterpConstantOperator(
-            params,
-            entries=[np.random.random(r) for _ in range(s)],
-        )
-        op2 = opinf.operators.InterpLinearOperator(
-            params,
-            entries=[np.random.random((r, r)) for _ in range(s)],
-        )
-        operators = [op1, op2]
-        if m > 0:
-            op3 = opinf.operators.InterpInputOperator(
+    def get_operators(self, r=None, m=None, s=10, params=None):
+        """Return a valid collection of operators to test."""
+        if params is None:
+            params = np.sort(np.random.random(s))
+        s = len(params)
+        if r is None:
+            ops = [
+                opinf.operators.InterpConstantOperator(params),
+                opinf.operators.InterpLinearOperator(params),
+            ]
+            if m == 0:
+                return ops
+            return ops + [opinf.operators.InterpInputOperator(params)]
+
+        assert m is not None, "if r is given, m must be as well"
+        rand = np.random.random
+        ops = [
+            opinf.operators.InterpConstantOperator(
+                params,
+                entries=[rand(r) for _ in range(s)],
+            ),
+            opinf.operators.InterpLinearOperator(
+                params,
+                entries=[rand((r, r)) for _ in range(s)],
+            ),
+        ]
+        if m == 0:
+            return ops
+        return ops + [
+            opinf.operators.InterpInputOperator(
                 params,
                 entries=[np.random.random((r, m)) for _ in range(s)],
             )
-            operators.append(op3)
-        return operators, (params[-1] + params[0]) / 2
+        ]
+
+    def get_parametric_operators(self, s, r, m=0):
+        """Get calibrated constant + linear + input affine operators."""
+        params = np.sort(np.random.random(s))
+        return (
+            self.get_operators(r, m, s, params=params),
+            (params[-1] - params[0]) / 2,
+        )
 
     def test_set_operators(self):
         """Test operators.fset()."""

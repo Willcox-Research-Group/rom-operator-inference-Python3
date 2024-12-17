@@ -39,7 +39,9 @@ class _TestModel(abc.ABC):
         raise NotImplementedError
 
     def get_opinf_operator(self, r=None, m=None):
-        """Get a single OpInf operator. If ``m`` is given, return"""
+        """Get a single OpInf operator. If ``m`` is given, return an operator
+        that acts on the inputs.
+        """
         ops = self.get_operators(r=r, m=m)
         hasinputs = (m is not None) and (m != 0)
         for op in ops:
@@ -60,7 +62,7 @@ class _TestModel(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def test_check_operators_types_unique(self):
+    def test_check_operator_types_unique(self):
         """Test _check_operators_types_unique()."""
         raise NotImplementedError
 
@@ -328,7 +330,7 @@ class _TestModel(abc.ABC):
         )
 
     def test_is_trained(self, r=7, m=4):
-        """Test _Model._check_is_trained()."""
+        """Test _check_is_trained()."""
         model = self.Model(self.get_operators())
         with pytest.raises(AttributeError) as ex:
             model._check_is_trained()
@@ -350,7 +352,7 @@ class _TestModel(abc.ABC):
         model._check_is_trained()
 
     def test_eq(self):
-        """Test _Model.__eq__()."""
+        """Test __eq__()."""
         ops = self.get_operators(r=None, m=None)
         model1 = self.Model(ops)
         assert model1 != 10
@@ -384,7 +386,7 @@ class _TestModel(abc.ABC):
 
     # Model persistence -------------------------------------------------------
     def test_copy(self, r=4, m=3):
-        """Test _Model.copy()."""
+        """Test copy()."""
         ops1 = self.get_operators(r=r, m=m)
         ops2 = self.get_operators()
         model = self.Model(ops1[::2] + ops2[1::2])
@@ -392,9 +394,6 @@ class _TestModel(abc.ABC):
         assert model2 is not model
         assert isinstance(model2, model.__class__)
         assert len(model2.operators) == len(model.operators)
-        for op2, op1 in zip(model2.operators, model.operators):
-            assert op2 is not op1
-            assert op2 == op1
 
 
 if __name__ == "__main__":

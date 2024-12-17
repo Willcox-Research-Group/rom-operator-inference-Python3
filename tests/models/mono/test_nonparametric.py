@@ -89,7 +89,7 @@ class _TestNonparametricModel(_TestModel):
             self.Model([opinf.operators.InterpConstantOperator()])
         assert ex.value.args[0].startswith("invalid operator of type")
 
-    def test_check_operators_types_unique(self):
+    def test_check_operator_types_unique(self):
         """Test _check_operators_types_unique()."""
         ops = self.get_operators()
         with pytest.raises(ValueError) as ex:
@@ -422,6 +422,19 @@ class _TestNonparametricModel(_TestModel):
         raise NotImplementedError
 
     # Model persistence -------------------------------------------------------
+    def test_copy(self, r=4, m=3):
+        """Test copy()."""
+        ops1 = self.get_operators(r=r, m=m)
+        ops2 = self.get_operators()
+        model = self.Model(ops1[::2] + ops2[1::2])
+        model2 = model.copy()
+        assert model2 is not model
+        assert isinstance(model2, model.__class__)
+        assert len(model2.operators) == len(model.operators)
+        for op2, op1 in zip(model2.operators, model.operators):
+            assert op2 is not op1
+            assert op2 == op1
+
     def test_saveload(self, m=2, r=3, target="_savemodeltest.h5"):
         """Test save() and load()."""
         # Clean up after old tests.

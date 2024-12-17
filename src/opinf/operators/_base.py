@@ -581,7 +581,7 @@ class OpInfOperator(OperatorTemplate):
         return None if self.entries is None else self.entries[key]
 
     def __eq__(self, other):
-        """Two operator objects are equal if they are of the same class
+        """Two OpInf operators are equal if they are of the same class
         and have the same ``entries`` array.
         """
         if not isinstance(other, self.__class__):
