@@ -818,6 +818,299 @@ class TestCubicOperator(_TestNonparametricOperator):
             assert np.allclose(Gc2, Gc)
 
 
+class TestQuarticOperator(_TestNonparametricOperator):
+
+    Operator = _module.QuarticOperator
+    has_inputs = False
+
+    def test_set_entries(self, r=4):
+        """Test set_entries()."""
+        op = self.Operator()
+
+        # Too many dimensions.
+        Qbad = np.arange(4).reshape((1, 2, 1, 2, 1))
+        with pytest.raises(ValueError) as ex:
+            op.set_entries(Qbad)
+        assert ex.value.args[0] == (
+            "QuarticOperator entries must be two-dimensional"
+        )
+
+        # Two-dimensional but invalid shape.
+        Gbad = np.random.random((3, 8))
+        with pytest.raises(ValueError) as ex:
+            op.set_entries(Gbad)
+        assert ex.value.args[0] == "invalid QuarticOperator entries dimensions"
+
+        # Special case: r = 1
+        G = np.random.random((1, 1))
+        op.set_entries(G)
+        assert op.shape == (1, 1)
+        assert np.allclose(op.entries, G)
+
+        # Full operator, compressed internally.
+        G = np.random.random((r, r**4))
+        G_ = self.Operator.compress_entries(G)
+        op.set_entries(G)
+        r4_ = r * (r + 1) * (r + 2) * (r + 3) // 24
+        assert op.shape == (r, r4_)
+        assert np.allclose(op.entries, G_)
+
+        # Three-dimensional tensor.
+        op.set_entries(G.reshape((r, r, r, r, r)))
+        assert op.shape == (r, r4_)
+        assert np.allclose(op.entries, G_)
+
+        # Compressed operator.
+        G = np.random.random((r, r4_))
+        op.set_entries(G)
+        assert op.entries is G
+
+        # Test _clear().
+        op._clear()
+        assert op.entries is None
+        assert op._mask is None
+        assert op._prejac is None
+
+    def test_apply(self, k=20, ntrials=10):
+        """Test apply()/__call__()."""
+        op = self.Operator()
+
+        def _test_single(r):
+            G = np.random.random((r, r**4))
+            op.set_entries(G)
+            for _ in range(ntrials):
+                # Evaluation for a single vector.
+                q = np.random.random(r)
+                evaltrue = G @ np.kron(np.kron(np.kron(q, q), q), q)
+                evalgot = op.apply(q)
+                assert np.allclose(evalgot, evaltrue)
+                # Vectorized evaluation.
+                Q = np.random.random((r, k))
+                evaltrue = G @ la.khatri_rao(
+                    Q, la.khatri_rao(Q, la.khatri_rao(Q, Q))
+                )
+                evalgot = op.apply(Q)
+                assert evalgot.shape == (r, k)
+                assert np.allclose(evalgot, evaltrue)
+
+        _test_single(5)
+        _test_single(3)
+        _test_single(1)
+
+        # Special case: r = 1 and q is a scalar.
+        G = np.random.random()
+        op.set_entries(G)
+        for _ in range(ntrials):
+            # Evaluation for a single vector.
+            q = np.random.random()
+            evaltrue = G * q**4
+            evalgot = op.apply(q)
+            assert np.isscalar(evalgot)
+            assert np.allclose(evalgot, evaltrue)
+            # Vectorized evaluation.
+            Q = np.random.random(k)
+            evaltrue = G * Q**4
+            evalgot = op.apply(Q)
+            assert evalgot.shape == (k,)
+            assert np.allclose(evalgot, evaltrue)
+
+    def test_jacobian(self, r=5, ntrials=10):
+        """Test jacobian()."""
+        G = np.random.random((r, r**4))
+        op = self.Operator(G)
+        assert op._prejac is None
+
+        # TODO: DONE TO HERE!
+        Id = np.eye(r)
+        for _ in range(ntrials):
+            q = np.random.random(r)
+            Idq = np.kron(Id, q)
+            qId = np.kron(q, Id)
+            Idqq = np.kron(Idq, q)
+            qqId = np.kron(q, qId)
+            Idqqq = np.kron(Idqq, q)
+            qIdqq = np.kron(q, Idqq)
+            qqIdq = np.kron(qqId, q)
+            qqqId = np.kron(q, qqId)
+            jac_true = G @ (Idqqq + qIdqq + qqIdq + qqqId).T
+            jac = op.jacobian(q)
+            assert jac.shape == (r, r)
+            assert np.allclose(jac, jac_true)
+
+        # Special case: r = 1
+        G = np.random.random()
+        op.set_entries(G)
+        for _ in range(ntrials):
+            q = np.random.random()
+            jac_true = 4 * G * q**3
+            jac = op.jacobian(q)
+            assert jac.shape == (1, 1)
+            assert np.isclose(jac[0, 0], jac_true)
+
+    def test_datablock(self, k=20, r=10):
+        """Test datablock()."""
+        op = self.Operator()
+        state_ = np.random.random((r, k))
+        r4_ = r * (r + 1) * (r + 2) * (r + 3) // 24
+
+        # More thorough tests elsewhere for ckron().
+        block = op.datablock(state_)
+        assert block.shape == (r4_, k)
+        op.entries = np.random.random((r, r4_))
+        mult = op.entries @ block
+        evald = op.apply(state_)
+        assert mult.shape == evald.shape
+        assert np.allclose(mult, evald)
+
+        # Special case: r = 1.
+        state_ = state_[0]
+        block = op.datablock(state_)
+        assert block.shape == (1, k)
+        op.entries = np.random.random()
+        mult = op.entries[0, 0] * block[0]
+        evald = op.apply(state_)
+        assert mult.shape == evald.shape
+        assert np.allclose(mult, evald)
+
+    def test_operator_dimension(self):
+        """Test operator_dimension()."""
+        assert self.Operator.operator_dimension(1) == 1
+        assert self.Operator.operator_dimension(3) == 15
+        assert self.Operator.operator_dimension(5, 2) == 70
+
+    def test_ckron(self, n_tests=20):
+        """Test ckron()."""
+
+        def _check(q, q4):
+            for i in range(len(q)):
+                assert np.allclose(
+                    q4[
+                        i
+                        * (i + 1)
+                        * (i + 2)
+                        * (i + 3)
+                        // 24 : (i + 1)
+                        * (i + 2)
+                        * (i + 3)
+                        * (i + 4)
+                        // 24
+                    ],
+                    q[i] * TestCubicOperator.Operator.ckron(q[: i + 1]),
+                )
+
+        for r in np.random.randint(2, 10, n_tests):
+            q = np.random.random(r)
+            q4 = self.Operator.ckron(q)
+            r4 = r * (r + 1) * (r + 2) * (r + 3) // 24
+            assert q4.shape == (r4,)
+            _check(q, q4)
+
+            k = np.random.randint(1, 10)
+            Q = np.random.random((r, k))
+            Q4 = self.Operator.ckron(Q)
+            assert Q4.shape == (r4, k)
+            _check(Q, Q4)
+
+    def test_ckron_indices(self, n_tests=20):
+        """Test ckron_indices()."""
+        # Manufactured test.
+        mask = self.Operator.ckron_indices(2)
+        assert np.all(
+            mask
+            == np.array(
+                [
+                    [0, 0, 0, 0],
+                    [1, 0, 0, 0],
+                    [1, 1, 0, 0],
+                    [1, 1, 1, 0],
+                    [1, 1, 1, 1],
+                ],
+                dtype=int,
+            )
+        )
+
+        # Random tests.
+        for _ in range(n_tests):
+            r = np.random.randint(2, 10)
+            mask = self.Operator.ckron_indices(r)
+            _r4 = r * (r + 1) * (r + 2) * (r + 3) // 24
+            mask = self.Operator.ckron_indices(r)
+            assert mask.shape == (_r4, 4)
+            q = np.random.random(r)
+            assert np.allclose(
+                np.prod(q[mask], axis=1), self.Operator.ckron(q)
+            )
+
+    def test_compress_entries(self, n_tests=20):
+        """Test compress_entries()."""
+        # Try with bad second dimension.
+        r = 5
+        r4bad = r**4 + 1
+        G = np.empty((r, r4bad))
+        with pytest.raises(ValueError) as ex:
+            self.Operator.compress_entries(G)
+        assert ex.value.args[0] == (
+            f"invalid shape (a, r4) = {(r, r4bad)} "
+            "with r4 not a perfect quartic"
+        )
+
+        # One-dimensional G (r = 1).
+        Gc = self.Operator.compress_entries([6])
+        assert Gc.shape == (1, 1)
+        assert Gc[0, 0] == 6
+
+        # Random tests.
+        for r in np.random.randint(2, 10, n_tests):
+            # Check dimensions.
+            a = np.random.randint(2, 10)
+            G = np.random.random((a, r**4))
+            r4 = r * (r + 1) * (r + 2) * (r + 3) // 24
+            Gc = self.Operator.compress_entries(G)
+            assert Gc.shape == (a, r4)
+
+            # Check that Gc(q^4) == G(q ⊗ q ⊗ q ⊗ q).
+            for _ in range(5):
+                q = np.random.random(r)
+                Gq4 = G @ np.kron(q, np.kron(q, np.kron(q, q)))
+                assert np.allclose(Gq4, Gc @ self.Operator.ckron(q))
+
+    def test_expand_entries(self, n_tests=20):
+        """Test expand_entries()."""
+        # Try with bad second dimension.
+        r = 5
+        r4bad = (r * (r + 1) * (r + 2) * (r + 3) // 24) + 1
+        Gc = np.empty((r, r4bad))
+        with pytest.raises(ValueError) as ex:
+            self.Operator.expand_entries(Gc)
+        assert ex.value.args[0] == (
+            f"invalid shape (a, r4) = {(r, r4bad)} "
+            "with r4 != r(r+1)(r+2)(r+3)/24 for any integer r"
+        )
+
+        # One-dimensional G (r = 1).
+        G = self.Operator.expand_entries([5])
+        assert G.shape == (1, 1)
+        assert G[0, 0] == 5
+
+        # Random tests.
+        for r in np.random.randint(2, 10, n_tests):
+            # Check dimensions.
+            a = np.random.randint(2, 10)
+            Gc = np.random.random((a, r * (r + 1) * (r + 2) * (r + 3) // 24))
+            G = self.Operator.expand_entries(Gc)
+            assert G.shape == (a, r**4)
+
+            # Check that Gc[q^4] == G[q ⊗ q ⊗ q ⊗ q].
+            for _ in range(5):
+                q = np.random.random(r)
+                Gq4 = G @ np.kron(q, np.kron(q, np.kron(q, q)))
+                assert np.allclose(Gq4, Gc @ self.Operator.ckron(q))
+
+            # Check that expand_entries() and compress_entries() are inverses.
+            Gc2 = self.Operator.compress_entries(G)
+            assert np.allclose(Gc2, Gc)
+
+
 # Dependent on input but not on state =========================================
 class TestInputOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.InputOperator."""
