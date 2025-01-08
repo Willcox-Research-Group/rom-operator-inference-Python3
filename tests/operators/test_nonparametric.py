@@ -1,6 +1,7 @@
 # operators/test_nonparametric.py
 """Tests for operators._nonparametric."""
 
+import abc
 import pytest
 import numpy as np
 import scipy.linalg as la
@@ -8,48 +9,29 @@ import scipy.sparse as sparse
 
 import opinf
 
+try:
+    from .test_base import _TestOpInfOperator
+except ImportError:
+    from test_base import _TestOpInfOperator
+
 
 _module = opinf.operators._nonparametric
 
 
-class _TestNonparametricOperator:
+class _TestNonparametricOperator(_TestOpInfOperator):
 
-    Operator = NotImplemented
+    def get_operator(self, r=None, m=None):
+        if r is None:
+            return self.Operator()
+        return self.Operator(self.get_entries(r, m))
 
-    def test_galerkin(self, op, shape, n, m, r, ntrials):
-        """Test galerkin()."""
-        Vr = la.qr(np.random.random((n, r)), mode="economic")[0]
-        Wr = np.random.random((n, r))
+    def get_entries(self, r, m=None):
+        d = self.Operator.operator_dimension(r, m)
+        return np.random.standard_normal((r, d))
 
-        op_ = op.galerkin(Vr)
-        assert isinstance(op_, op.__class__)
-        assert op_.shape == shape
-        for _ in range(ntrials):
-            q_ = np.random.random(r)
-            u = np.random.random(m)
-            full = Vr.T @ op.apply(Vr @ q_, u)
-            reduced = op_.apply(q_, u)
-            assert np.allclose(reduced, full)
-
-        op_ = op.galerkin(Vr, Wr)
-        assert isinstance(op_, op.__class__)
-        assert op_.shape == shape
-        for _ in range(ntrials):
-            q_ = np.random.random(r)
-            u = np.random.random(m)
-            full = la.solve(Wr.T @ Vr, Wr.T @ op.apply(Vr @ q_, u))
-            reduced = op_.apply(q_, u)
-            assert np.allclose(reduced, full)
-
-    def test_verify(self, shape=None):
-        """Call verify()."""
-        op = self.Operator()
-        op.verify()
-
-        op.entries = np.random.random(shape)
-        op.verify()
-        del op.entries
-        assert op.entries is None
+    @abc.abstractmethod
+    def test_set_entries(self):
+        raise NotImplementedError
 
 
 # No dependence on state or input =============================================
@@ -57,13 +39,7 @@ class TestConstantOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.ConstantOperator."""
 
     Operator = _module.ConstantOperator
-
-    def test_str(self):
-        """Test _str()."""
-        op = self.Operator()
-        assert op._str() == "c"
-        assert op._str("q_j") == "c"
-        assert op._str("q(t)", "u(t)") == "c"
+    has_inputs = False
 
     def test_set_entries(self):
         """Test set_entries()."""
@@ -136,12 +112,6 @@ class TestConstantOperator(_TestNonparametricOperator):
         assert out.shape == (k,)
         assert np.all(out == c)
 
-    def test_galerkin(self, n=10, r=3, ntrials=10):
-        """Test galerkin()."""
-        c = np.random.random(n)
-        op = self.Operator(c)
-        super().test_galerkin(op, (r,), n, 2, r, ntrials)
-
     def test_datablock(self, k=20):
         """Test datablock()."""
         op = self.Operator()
@@ -161,22 +131,13 @@ class TestConstantOperator(_TestNonparametricOperator):
         assert self.Operator.operator_dimension(4) == 1
         assert self.Operator.operator_dimension(1, 6) == 1
 
-    def test_verify(self):
-        """Call verify()."""
-        super().test_verify((10,))
-
 
 # Dependent on state but not on input =========================================
 class TestLinearOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.LinearOperator."""
 
     Operator = _module.LinearOperator
-
-    def test_str(self):
-        """Test _str()."""
-        op = self.Operator()
-        assert op._str("q_j") == "Aq_j"
-        assert op._str("q(t)", "u(t)") == "Aq(t)"
+    has_inputs = False
 
     def test_set_entries(self):
         """Test set_entries()."""
@@ -260,11 +221,6 @@ class TestLinearOperator(_TestNonparametricOperator):
         assert jac.shape == A.shape
         assert np.all(jac == A)
 
-    def test_galerkin(self, n=10, r=3, ntrials=10):
-        """Test galerkin()."""
-        op = self.Operator(np.random.random((n, n)))
-        super().test_galerkin(op, (r, r), n, 2, r, ntrials)
-
     def test_datablock(self, m=3, k=20, r=10):
         """Test datablock()."""
         op = self.Operator()
@@ -285,21 +241,12 @@ class TestLinearOperator(_TestNonparametricOperator):
         assert self.Operator.operator_dimension(2) == 2
         assert self.Operator.operator_dimension(4, 6) == 4
 
-    def test_verify(self):
-        """Call verify()."""
-        super().test_verify((10, 10))
-
 
 class TestQuadraticOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.QuadraticOperator."""
 
     Operator = _module.QuadraticOperator
-
-    def test_str(self):
-        """Test _str()."""
-        op = self.Operator()
-        assert op._str("q_j") == "H[q_j ⊗ q_j]"
-        assert op._str("q(t)", "u(t)") == "H[q(t) ⊗ q(t)]"
+    has_inputs = False
 
     def test_set_entries(self, r=4):
         """Test set_entries()."""
@@ -423,11 +370,6 @@ class TestQuadraticOperator(_TestNonparametricOperator):
             jac = op.jacobian(q)
             assert jac.shape == (1, 1)
             assert np.isclose(jac[0, 0], jac_true)
-
-    def test_galerkin(self, n=10, r=3, ntrials=10):
-        """Test galerkin()."""
-        op = self.Operator(np.random.random((n, n**2)))
-        super().test_galerkin(op, (r, r * (r + 1) // 2), n, 2, r, ntrials)
 
     def test_datablock(self, k=20, r=10):
         """Test datablock()."""
@@ -595,21 +537,12 @@ class TestQuadraticOperator(_TestNonparametricOperator):
             Hc2 = self.Operator.compress_entries(H)
             assert np.allclose(Hc2, Hc)
 
-    def test_verify(self):
-        """Call verify()."""
-        super().test_verify((10, 55))
-
 
 class TestCubicOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.CubicOperator."""
 
     Operator = _module.CubicOperator
-
-    def test_str(self):
-        """Test _str()."""
-        op = self.Operator()
-        assert op._str("q_j") == "G[q_j ⊗ q_j ⊗ q_j]"
-        assert op._str("q(t)", "u(t)") == "G[q(t) ⊗ q(t) ⊗ q(t)]"
+    has_inputs = False
 
     def test_set_entries(self, r=4):
         """Test set_entries()."""
@@ -728,13 +661,6 @@ class TestCubicOperator(_TestNonparametricOperator):
             jac = op.jacobian(q)
             assert jac.shape == (1, 1)
             assert np.isclose(jac[0, 0], jac_true)
-
-    def test_galerkin(self, n=5, r=2, ntrials=10):
-        """Test galerkin()."""
-        op = self.Operator(np.random.random((n, n**3)))
-        super().test_galerkin(
-            op, (r, r * (r + 1) * (r + 2) // 6), n, 2, r, ntrials
-        )
 
     def test_datablock(self, k=20, r=10):
         """Test datablock()."""
@@ -891,30 +817,13 @@ class TestCubicOperator(_TestNonparametricOperator):
             Gc2 = self.Operator.compress_entries(G)
             assert np.allclose(Gc2, Gc)
 
-    def test_verify(self):
-        """Call verify()."""
-        super().test_verify((8, 120))
-
 
 # Dependent on input but not on state =========================================
 class TestInputOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.InputOperator."""
 
     Operator = _module.InputOperator
-
-    def test_input_dimension(self):
-        """Test input_dimension()."""
-        op = self.Operator()
-        assert op.input_dimension is None
-        for m in np.random.randint(1, 10, 5):
-            op = self.Operator(np.random.random((3, m)))
-            assert op.input_dimension == m
-
-    def test_str(self):
-        """Test _str()."""
-        op = self.Operator()
-        assert op._str("q_j", "u_j") == "Bu_j"
-        assert op._str(None, "u(t)") == "Bu(t)"
+    has_inputs = True
 
     def test_set_entries(self):
         """Test set_entries()."""
@@ -1012,11 +921,6 @@ class TestInputOperator(_TestNonparametricOperator):
         assert out.shape == (r, k)
         assert np.allclose(out, np.column_stack([B * u for u in U]))
 
-    def test_galerkin(self, n=10, r=4, m=3, ntrials=10):
-        """Test galerkin()."""
-        op = self.Operator(np.random.random((n, m)))
-        super().test_galerkin(op, (r, m), n, m, r, ntrials)
-
     def test_datablock(self, m=3, k=20, r=10):
         """Test datablock()."""
         op = self.Operator()
@@ -1038,30 +942,13 @@ class TestInputOperator(_TestNonparametricOperator):
         assert self.Operator.operator_dimension(3, 8) == 8
         assert self.Operator.operator_dimension(5, 2) == 2
 
-    def test_verify(self):
-        """Call verify()."""
-        super().test_verify((6, 4))
-
 
 # Dependent on state and input ================================================
 class TestStateInputOperator(_TestNonparametricOperator):
     """Test operators._nonparametric.StateInputOperator."""
 
     Operator = _module.StateInputOperator
-
-    def test_input_dimension(self):
-        """Test input_dimension()."""
-        op = self.Operator()
-        assert op.input_dimension is None
-        for m in np.random.randint(1, 10, 5):
-            op = self.Operator(np.random.random((3, 3 * m)))
-            assert op.input_dimension == m
-
-    def test_str(self):
-        """Test _str()."""
-        op = self.Operator()
-        assert op._str("q_j", "u_j") == "N[u_j ⊗ q_j]"
-        assert op._str("q(t)", "u(t)") == "N[u(t) ⊗ q(t)]"
+    has_inputs = True
 
     def test_set_entries(self):
         """Test set_entries()."""
@@ -1212,11 +1099,6 @@ class TestStateInputOperator(_TestNonparametricOperator):
             assert jac.shape == (1, 1)
             assert np.isclose(jac[0, 0], jac_true)
 
-    def test_galerkin(self, n=10, r=4, m=3, ntrials=10):
-        """Test galerkin()."""
-        op = self.Operator(np.random.random((n, n * m)))
-        super().test_galerkin(op, (r, r * m), n, m, r, ntrials)
-
     def test_datablock(self, m=3, k=20, r=10):
         """Test datablock()."""
         op = self.Operator()
@@ -1268,10 +1150,6 @@ class TestStateInputOperator(_TestNonparametricOperator):
         assert self.Operator.operator_dimension(1, 2) == 2
         assert self.Operator.operator_dimension(3, 6) == 18
         assert self.Operator.operator_dimension(5, 2) == 10
-
-    def test_verify(self):
-        """Call verify()."""
-        super().test_verify((7, 14))
 
 
 if __name__ == "__main__":

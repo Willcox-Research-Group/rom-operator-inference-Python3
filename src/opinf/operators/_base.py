@@ -89,6 +89,9 @@ class OperatorTemplate(abc.ABC):
             out.append(f"input_dimension: {self.input_dimension}")
         return "\n  ".join(out)
 
+    def __repr__(self) -> str:
+        return utils.str2repr(self)
+
     @staticmethod
     def _str(statestr, inputstr=None):
         """String representation of the operator, used when printing out the
@@ -107,7 +110,7 @@ class OperatorTemplate(abc.ABC):
             String representation of the operator acting on the state/input,
             e.g., ``"Aq(t)"`` or ``"Bu(t)"`` or ``"H[q(t) ⊗ q(t)]"``.
         """
-        return f"f({statestr}, {inputstr})"
+        return f"f({statestr}, {inputstr})"  # pragma: no cover
 
     # Evaluation --------------------------------------------------------------
     @abc.abstractmethod
@@ -193,7 +196,7 @@ class OperatorTemplate(abc.ABC):
     # Model persistence -------------------------------------------------------
     def copy(self):
         """Return a copy of the operator using :func:`copy.deepcopy()`."""
-        return copy.deepcopy(self)
+        return copy.deepcopy(self)  # pragma: no cover
 
     def save(self, savefile: str, overwrite: bool = False) -> None:
         """Save the operator to an HDF5 file.
@@ -225,6 +228,7 @@ class OperatorTemplate(abc.ABC):
         plot: bool = False,
         *,
         k: int = 10,
+        fdifftol: float = 1e-5,
         ntests: int = 4,
     ) -> None:
         """Verify consistency between dimension properties and required
@@ -253,14 +257,18 @@ class OperatorTemplate(abc.ABC):
         consistent.
         """
         # Verify dimensions exist and are valid.
-        if not isinstance((r := self.state_dimension), int) or r <= 0:
+        if (
+            not isinstance((r := self.state_dimension), int) or r <= 0
+        ):  # pragma: no cover
             raise errors.VerificationError(
                 "state_dimension must be a positive integer "
                 f"(current value: {repr(r)}, of type '{type(r).__name__}')"
             )
 
         if hasinputs := has_inputs(self):
-            if not isinstance((m := self.input_dimension), int) or m <= 0:
+            if (
+                not isinstance((m := self.input_dimension), int) or m <= 0
+            ):  # pragma: no cover
                 raise errors.VerificationError(
                     "input_dimension must be a positive integer "
                     f"(current value: {repr(m)}, of type '{type(r).__name__}')"
@@ -277,7 +285,9 @@ class OperatorTemplate(abc.ABC):
             u = U[:, 0]
 
         out = self.apply(q, u)
-        if not isinstance(out, np.ndarray) or out.shape != (r,):
+        if not isinstance(out, np.ndarray) or out.shape != (
+            r,
+        ):  # pragma: no cover
             _message = [
                 "apply(q, u) must return array of shape (state_dimension,)",
                 "when q.shape = (state_dimension,)",
@@ -288,7 +298,10 @@ class OperatorTemplate(abc.ABC):
             raise errors.VerificationError(" ".join(_message))
 
         out = self.apply(Q, U)
-        if not isinstance(out, np.ndarray) or out.shape != (r, k):
+        if not isinstance(out, np.ndarray) or out.shape != (
+            r,
+            k,
+        ):  # pragma: no cover
             _message = [
                 "apply(Q, U) must return array of shape (state_dimension, k)",
                 "when Q.shape = (state_dimension, k)",
@@ -326,12 +339,15 @@ class OperatorTemplate(abc.ABC):
 
         try:
             out = self.jacobian(q, u)
-        except NotImplementedError:
+        except NotImplementedError:  # pragma: no cover
             print("jacobian() not implemented")
         else:
-            if np.isscalar(out) and out == 0:
+            if np.isscalar(out) and out == 0:  # pragma: no cover
                 print("jacobian() = 0")
-            elif not isinstance(out, np.ndarray) or out.shape != (r, r):
+            elif not isinstance(out, np.ndarray) or out.shape != (
+                r,
+                r,
+            ):  # pragma: no cover
                 _message = [
                     "jacobian(q, u) must return array",
                     "of shape (state_dimension, state_dimension)",
@@ -350,7 +366,7 @@ class OperatorTemplate(abc.ABC):
                     lambda x: self.jacobian(x, u),
                     np.random.standard_normal(r),
                 )
-                if plot:
+                if plot:  # pragma: no cover
                     plt.loglog(hs, diffs, ".-", markersize=5, linewidth=0.5)
                 else:
                     print(
@@ -360,6 +376,10 @@ class OperatorTemplate(abc.ABC):
                     )
                     for h, err in zip(hs, diffs):
                         print(f"  h = {h:.2e}\terror = {err:.4e}")
+                if np.min(diffs) > fdifftol:  # pragma: no cover
+                    raise errors.VerificationError(
+                        "jacobian() finite difference check failed"
+                    )
 
         # Verify galerkin() - - - - - - - - - - - - - - - - - - - - - - - - - -
         def _orth(n, k):
@@ -372,19 +392,19 @@ class OperatorTemplate(abc.ABC):
             Wr = _orth(r, rnew)
             try:
                 out = self.galerkin(Vr, Wr)
-            except NotImplementedError:
+            except NotImplementedError:  # pragma: no cover
                 print("galerkin() not implemented")
             else:
-                if not isinstance(out, OperatorTemplate):
+                if not isinstance(out, OperatorTemplate):  # pragma: no cover
                     raise errors.VerificationError(
                         "galerkin() must return object "
                         "whose class inherits from OperatorTemplate"
                     )
-                if out.state_dimension != rnew:
+                if out.state_dimension != rnew:  # pragma: no cover
                     raise errors.VerificationError(
                         "galerkin(Vr, Wr).state_dimension != Vr.shape[1]"
                     )
-                if hasinputs and out.input_dimension != m:
+                if hasinputs and out.input_dimension != m:  # pragma: no cover
                     raise errors.VerificationError(
                         "self.galerkin(Vr, Wr).input_dimension "
                         "!= self.input_dimension"
@@ -394,7 +414,7 @@ class OperatorTemplate(abc.ABC):
                     qr = np.random.random(rnew)
                     full = la.lu_solve(WrTVr_LU, Wr.T @ self.apply(Vr @ qr, u))
                     reduced = out.apply(qr, u)
-                    if not np.allclose(reduced, full):
+                    if not np.allclose(reduced, full):  # pragma: no cover
                         raise errors.VerificationError(
                             "op2.apply(qr, u) != "
                             "inv(Wr.T @ Vr) @ Wr.T @ self.apply(Vr @ qr, u) "
@@ -405,36 +425,38 @@ class OperatorTemplate(abc.ABC):
                     qr = np.random.random(rnew)
                     full = Vr.T @ self.apply(Vr @ qr, u)
                     reduced = out.apply(qr, u)
-                    if not np.allclose(reduced, full):
+                    if not np.allclose(reduced, full):  # pragma: no cover
                         raise errors.VerificationError(
                             "op2.apply(qr, u) != "
                             "Vr.T @ self.apply(Vr @ qr, u) "
                             "where op2 = self.galerkin(Vr) and Vr.T @ Vr = I"
                         )
                 print("galerkin() is consistent with apply()")
-        else:
+        else:  # pragma: no cover
             print("cannot test galerkin() when state_dimension = 1")
 
         # Verify copy() - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         out = self.copy()
-        if out is self:
+        if out is self:  # pragma: no cover
             raise errors.VerificationError("self.copy() is self")
-        if out.__class__ is not self.__class__:
+        if out.__class__ is not self.__class__:  # pragma: no cover
             raise errors.VerificationError(
                 "type(self.copy()) is not type(self)"
             )
-        if out.state_dimension != r:
+        if out.state_dimension != r:  # pragma: no cover
             raise errors.VerificationError(
                 "self.copy().state_dimension != self.state_dimension"
             )
-        if hasinputs and out.input_dimension != m:
+        if hasinputs and out.input_dimension != m:  # pragma: no cover
             raise errors.VerificationError(
                 "self.copy().input_dimension != self.input_dimension"
             )
         _report_isconsistent("copy()")
         for _ in range(ntests):
             q = np.random.random(r)
-            if not np.allclose(out.apply(q, u), self.apply(q, u)):
+            if not np.allclose(
+                out.apply(q, u), self.apply(q, u)
+            ):  # pragma: no cover
                 raise errors.VerificationError(
                     "self.copy().apply() not consistent with self.apply()"
                 )
@@ -445,30 +467,32 @@ class OperatorTemplate(abc.ABC):
         try:
             self.save(tempfile)
             out = self.load(tempfile)
-        except NotImplementedError:
+        except NotImplementedError:  # pragma: no cover
             print("save() and/or load() not implemented")
         else:
-            if out.__class__ is not self.__class__:
+            if out.__class__ is not self.__class__:  # pragma: no cover
                 raise errors.VerificationError(
                     "save()/load() does not preserve object type"
                 )
-            if out.state_dimension != r:
+            if out.state_dimension != r:  # pragma: no cover
                 raise errors.VerificationError(
                     "save()/load() does not preserve state_dimension"
                 )
-            if hasinputs and out.input_dimension != m:
+            if hasinputs and out.input_dimension != m:  # pragma: no cover
                 raise errors.VerificationError(
                     "save()/load() does not preserve input_dimension"
                 )
             _report_isconsistent("save()/load()")
             for _ in range(ntests):
                 q = np.random.random(r)
-                if not np.allclose(out.apply(q, u), self.apply(q, u)):
+                if not np.allclose(
+                    out.apply(q, u), self.apply(q, u)
+                ):  # pragma: no cover
                     raise errors.VerificationError(
                         "save()/load() does not preserve the result of apply()"
                     )
             print("save()/load() preserves the results of apply()")
-
+        finally:
             if os.path.isfile(tempfile):  # pragma: no cover
                 os.remove(tempfile)
 
@@ -674,9 +698,9 @@ class OpInfOperator(OperatorTemplate):
         if Wr is None:
             Wr = Vr
         n, r = Wr.shape
-        if self.entries.shape[0] != n:
+        if self.entries.shape[0] != n:  # pragma: no cover
             raise errors.DimensionalityError("basis and operator not aligned")
-        if Vr.shape[1] != r:
+        if Vr.shape[1] != r:  # pragma: no cover
             raise errors.DimensionalityError(
                 "trial and test bases not aligned"
             )
@@ -785,7 +809,9 @@ class OpInfOperator(OperatorTemplate):
             Path to the file where the operator was stored via :meth:`save()`.
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
-            if (ClassName := hf["meta"].attrs["class"]) != cls.__name__:
+            if (
+                ClassName := hf["meta"].attrs["class"]
+            ) != cls.__name__:  # pragma: no cover
                 raise TypeError(
                     f"file '{loadfile}' contains '{ClassName}' "
                     f"object, use '{ClassName}.load()"
@@ -829,34 +855,38 @@ class OpInfOperator(OperatorTemplate):
         consistent.
         """
         # Verify operator_dimension() - - - - - - - - - - - - - - - - - - - - -
-        if not isinstance(self.operator_dimension, types.FunctionType):
+        if not isinstance(
+            self.operator_dimension, types.FunctionType
+        ):  # pragma: no cover
             raise errors.VerificationError(
                 "operator_dimension() must have @staticmethod decorator"
             )
         d = self.operator_dimension(r, m)
-        if not isinstance(d, int) or d <= 0:
+        if not isinstance(d, int) or d <= 0:  # pragma: no cover
             raise errors.VerificationError(
                 "operator_dimension() must return a positive integer"
             )
 
         # Verify datablock() - - - - - - - - - - - - - - - - - - - - - - - - -
-        if not isinstance(self.datablock, types.FunctionType):
+        if not isinstance(
+            self.datablock, types.FunctionType
+        ):  # pragma: no cover
             raise errors.VerificationError(
                 "datablock() must have @staticmethod decorator"
             )
         Dt = self.datablock(np.random.random((r, k)), np.random.random((m, k)))
-        if not isinstance(Dt, np.ndarray) or Dt.ndim != 2:
+        if not isinstance(Dt, np.ndarray) or Dt.ndim != 2:  # pragma: no cover
             raise errors.VerificationError(
                 "datablock() must return a two-dimensional array"
             )
-        if Dt.shape != (d, k):
+        if Dt.shape != (d, k):  # pragma: no cover
             raise errors.VerificationError(
                 "datablock().shape[0] != operator_dimension()"
             )
         print("operator_dimension() is consistent with datablock()")
 
         # Verify instance methods - - - - - - - - - - - - - - - - - - - - - - -
-        if self.entries is None:
+        if self.entries is None:  # pragma: no cover
             return print("cannot verify apply() when entries=None")
 
         OperatorTemplate.verify(self, plot=plot, k=k, ntests=ntests)
@@ -1103,20 +1133,26 @@ class ParametricOperatorTemplate(abc.ABC):
             standard Normal distribution.
         """
         # Check the _OperatorClass.
-        if not issubclass(self._OperatorClass, OperatorTemplate):
+        if not issubclass(
+            self._OperatorClass, OperatorTemplate
+        ):  # pragma: no cover
             raise errors.VerificationError(
                 "_OperatorClass must be a nonparametric operator type"
             )
 
         # Verify dimensions exist and are valid.
-        if not isinstance((r := self.state_dimension), int) or r <= 0:
+        if (
+            not isinstance((r := self.state_dimension), int) or r <= 0
+        ):  # pragma: no cover
             raise errors.VerificationError(
                 "state_dimension must be a positive integer "
                 f"(current value: {repr(r)}, of type '{type(r).__name__}')"
             )
 
         if hasinputs := has_inputs(self):
-            if not isinstance((m := self.input_dimension), int) or m <= 0:
+            if (
+                not isinstance((m := self.input_dimension), int) or m <= 0
+            ):  # pragma: no cover
                 raise errors.VerificationError(
                     "input_dimension must be a positive integer "
                     f"(current value: {repr(m)}, of type '{type(r).__name__}')"
@@ -1127,35 +1163,40 @@ class ParametricOperatorTemplate(abc.ABC):
         # Get a test parameter.
         if testparam is None:
             testparam = np.random.standard_normal(self.parameter_dimension)
-        if np.shape(testparam) != (self.parameter_dimension,):
+        if np.shape(testparam) != (
+            self.parameter_dimension,
+        ):  # pragma: no cover
             raise ValueError("testparam.shape != (parameter_dimension,)")
 
         # Evaluate the operator at the test parameter.
         op_evaluated = self.evaluate(testparam)
-        if not isinstance(op_evaluated, self._OperatorClass):
+        if not isinstance(
+            op_evaluated, self._OperatorClass
+        ):  # pragma: no cover
             raise errors.VerificationError(
                 "evaluate() must return instance of type _OperatorClass"
             )
-        if not is_nonparametric(op_evaluated):
+        if not is_nonparametric(op_evaluated):  # pragma: no cover
             raise errors.VerificationError(
                 "_OperatorClass must be a nonparametric operator type"
             )
-
-        if op_evaluated.state_dimension != self.state_dimension:
+        if (
+            op_evaluated.state_dimension != self.state_dimension
+        ):  # pragma: no cover
             raise errors.VerificationError(
                 "result of evaluate() does not retain the state_dimension"
             )
         if hasinputs:
-            if not has_inputs(op_evaluated):
+            if not has_inputs(op_evaluated):  # pragma: no cover
                 raise errors.VerificationError(
                     "result of evaluate() should depend on inputs"
                 )
-            if op_evaluated.input_dimension != m:
+            if op_evaluated.input_dimension != m:  # pragma: no cover
                 raise errors.VerificationError(
                     "result of evaluate() does not retain the input_dimension"
                 )
         else:
-            if has_inputs(op_evaluated):
+            if has_inputs(op_evaluated):  # pragma: no cover
                 raise errors.VerificationError(
                     "result of evaluate() should not depend on inputs"
                 )
