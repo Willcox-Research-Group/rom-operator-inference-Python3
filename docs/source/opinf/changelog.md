@@ -5,10 +5,16 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+## Version 0.5.12
+
+- New `operators.QuarticOperator`, plus unit tests.
+- Reorganized some unit tests for models and operators to have OOP structure.
+- Bugfix: `fit_regselect_continuous()` now returns `self`
+
 ## Version 0.5.11
 
-- New scaling option for ``pre.ShiftScaleTransformer`` so that training snapshots have at maximum norm 1. Contributed by [@nicolearetz](https://github.com/nicolearetz).
-- Small clarifications to ``pre.ShiftScaleTransformer`` and updates to the ``pre`` documentation.
+- New scaling option for `pre.ShiftScaleTransformer` so that training snapshots have at maximum norm 1. Contributed by [@nicolearetz](https://github.com/nicolearetz).
+- Small clarifications to `pre.ShiftScaleTransformer` and updates to the `pre` documentation.
 
 ## Version 0.5.10
 
