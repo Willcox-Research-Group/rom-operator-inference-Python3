@@ -128,7 +128,7 @@ class TestInterpOperator:
             "parameter values must be scalars or 1D arrays"
         )
 
-        mu = np.empty((s, p))
+        mu = np.random.random((s, p))
         op.set_training_parameters(mu)
         assert np.all(op.training_parameters == mu)
         assert op.state_dimension is None
