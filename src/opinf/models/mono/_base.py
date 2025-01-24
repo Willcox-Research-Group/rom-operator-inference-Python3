@@ -7,16 +7,8 @@ import abc
 import warnings
 import numpy as np
 
-from ... import errors, lstsq
-from ...operators import (
-    ConstantOperator,
-    LinearOperator,
-    QuadraticOperator,
-    CubicOperator,
-    InputOperator,
-    StateInputOperator,
-    _utils as oputils,
-)
+from ... import errors, lstsq, operators as _operators
+from ...operators import _utils as oputils
 
 
 class _Model(abc.ABC):
@@ -135,32 +127,32 @@ class _Model(abc.ABC):
     @property
     def c_(self):
         """:class:`opinf.operators.ConstantOperator` (or ``None``)."""
-        return self._get_operator_of_type(ConstantOperator)
+        return self._get_operator_of_type(_operators.ConstantOperator)
 
     @property
     def A_(self):
         """:class:`opinf.operators.LinearOperator` (or ``None``)."""
-        return self._get_operator_of_type(LinearOperator)
+        return self._get_operator_of_type(_operators.LinearOperator)
 
     @property
     def H_(self):
         """:class:`opinf.operators.QuadraticOperator` (or ``None``)."""
-        return self._get_operator_of_type(QuadraticOperator)
+        return self._get_operator_of_type(_operators.QuadraticOperator)
 
     @property
     def G_(self):
         """:class:`opinf.operators.CubicOperator` (or ``None``)."""
-        return self._get_operator_of_type(CubicOperator)
+        return self._get_operator_of_type(_operators.CubicOperator)
 
     @property
     def B_(self):
         """:class:`opinf.operators.InputOperator` (or ``None``)."""
-        return self._get_operator_of_type(InputOperator)
+        return self._get_operator_of_type(_operators.InputOperator)
 
     @property
     def N_(self):
         """:class:`opinf.operators.StateInputOperator` (or ``None``)."""
-        return self._get_operator_of_type(StateInputOperator)
+        return self._get_operator_of_type(_operators.StateInputOperator)
 
     # Properties: dimensions --------------------------------------------------
     @staticmethod
@@ -362,10 +354,8 @@ class _Model(abc.ABC):
             raise AttributeError("no state_dimension (call fit())")
         if self._has_inputs and (self.input_dimension is None):
             raise AttributeError("no input_dimension (call fit())")
-
-        for op in self.operators:
-            if op.entries is None:
-                raise AttributeError("model not trained (call fit())")
+        if any(oputils.is_uncalibrated(op) for op in self.operators):
+            raise AttributeError("model not trained (call fit())")
 
     def __eq__(self, other):
         """Two models are equal if they have equivalent operators."""
@@ -373,16 +363,24 @@ class _Model(abc.ABC):
             return False
         if len(self.operators) != len(other.operators):
             return False
-        for selfop, otherop in zip(self.operators, other.operators):
-            if selfop != otherop:
-                return False
         if self.state_dimension != other.state_dimension:
             return False
         if self.input_dimension != other.input_dimension:
             return False
+        marked = set()
+        for selfop in self.operators:
+            found = False
+            for i, otherop in enumerate(other.operators):
+                if selfop == otherop and i not in marked:
+                    found = True
+                    marked.add(i)
+                    break
+            if not found:
+                return False
         return True
 
     # Model persistence -------------------------------------------------------
     def copy(self):
         """Make a copy of the model."""
-        return self.__class__([op.copy() for op in self.operators])
+        sol = self.solver.copy() if self.solver is not None else None
+        return self.__class__([op.copy() for op in self.operators], solver=sol)

@@ -6,6 +6,7 @@ __all__ = [
     "LinearOperator",
     "QuadraticOperator",
     "CubicOperator",
+    "QuarticOperator",
     "InputOperator",
     "StateInputOperator",
 ]
@@ -606,7 +607,7 @@ class QuadraticOperator(OpInfOperator):
 
     # Utilities ---------------------------------------------------------------
     @staticmethod
-    def ckron(state, checkdim=False):
+    def ckron(state):
         r"""Calculate the compressed Kronecker product of a vector with itself.
 
         For a vector :math:`\qhat = [~\hat{q}_{1}~~\cdots~~\hat{q}_{r}~]\trp`,
@@ -1055,7 +1056,7 @@ class CubicOperator(OpInfOperator):
            \in \RR^{r^3 \times k}.
 
         Internally, a compressed triple Kronecker product with
-        :math:`r(r+1)(r+2)/2 < r^{2}` degrees of freedom is used for
+        :math:`r(r+1)(r+2)/6 < r^{3}` degrees of freedom is used for
         efficiency, hence the data block is actually
 
         .. math::
@@ -1114,7 +1115,7 @@ class CubicOperator(OpInfOperator):
            \end{array}\right]
            \in\RR^{r^3}.
 
-        Cross terms :math:`\hat{q}_i \hat{q}_j \hat{q}_j` for :math:`i,j,k`
+        Cross terms :math:`\hat{q}_i \hat{q}_j \hat{q}_k` for :math:`i,j,k`
         not all equal appear multiple times in
         :math:`\qhat\otimes\qhat\otimes\qhat`.
         The *compressed cubic Kronecker product*
@@ -1145,7 +1146,7 @@ class CubicOperator(OpInfOperator):
         product : (r(r+1)(r+2)/6,) or (r(r+1)(r+2)/6, k) ndarray
             The compressed triple Kronecker product of ``state`` with itself.
         """
-        state2 = QuadraticOperator.ckron(state, False)
+        state2 = QuadraticOperator.ckron(state)
         lens = special.binom(np.arange(2, len(state) + 2), 2).astype(int)
         return np.concatenate(
             [state[i] * state2[: lens[i]] for i in range(state.shape[0])],
@@ -1190,7 +1191,7 @@ class CubicOperator(OpInfOperator):
 
     @staticmethod
     def compress_entries(G):
-        r"""Given :math:`\Ghat\in\RR^{a\times r^2}`, construct the matrix
+        r"""Given :math:`\Ghat\in\RR^{a\times r^3}`, construct the matrix
         :math:`\tilde{\G}\in\RR^{a \times r(r+1)(r+2)/6}` such that
         :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat]
         = \tilde{\G}[\qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,\qhat]`
@@ -1258,7 +1259,7 @@ class CubicOperator(OpInfOperator):
 
         Parameters
         ----------
-        Gc : (a, r(r+1)(r+2)/2) ndarray
+        Gc : (a, r(r+1)(r+2)/6) ndarray
             Matrix that acts on the compressed cubic Kronecker product.
 
         Returns
@@ -1278,7 +1279,7 @@ class CubicOperator(OpInfOperator):
         (20, 8000)
         >>> q = np.random.random(r)
         >>> Gq3 = G @ np.kron(q, np.kron(q, q))
-        >>> np.allclose(Gq2, Gtilde @ CubicOperator.ckron(q))
+        >>> np.allclose(Gq3, Gtilde @ CubicOperator.ckron(q))
         True
         >>> np.all(CubicOperator.compress_entries(G) == Gtilde)
         True
@@ -1319,6 +1320,504 @@ class CubicOperator(OpInfOperator):
             r = rnew
         raise ValueError(  # pragma: no cover
             f"Newton solve for r such that r(r+1)(r+2)/6 = {b} failed"
+        )
+
+
+class QuarticOperator(OpInfOperator):
+    r"""Quartic state operator
+    :math:`\Ophat_{\ell}(\qhat,\u)
+    = \Ghat[\qhat\otimes\qhat\otimes\qhat\otimes\qhat]`
+    where :math:`\Ghat\in\RR^{r \times r^{4}}`.
+
+    Internally, the action of the operator is computed as the product of an
+    :math:`r \times r(r+1)(r+2)(r+3)/24` matrix :math:`\tilde{\G}` and a
+    compressed version of the quadruple Kronecker product
+    :math:`\qhat \otimes \qhat \otimes \qhat \otimes \qhat`.
+
+    Parameters
+    ----------
+    entries : (r, r^4)/(r, r(r+1)(r+2)(r+2)/24)/(r, r, r, r, r) ndarray or None
+        Operator matrix :math:`\Ghat`, its compressed representation
+        :math:`\tilde{\G}`, or the equivalent symmetric 5-tensor.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> G = opinf.operators.QuarticOperator()
+    >>> entries = np.random.random((10, 10000))  # Operator matrix.
+    >>> G.set_entries(entries)
+    >>> G.shape                                  # Compressed shape.
+    (10, 715)
+    >>> q = np.random.random(10)                 # State vector.
+    >>> out = G.apply(q)                         # Apply the operator to q.
+    >>> np.allclose(out, entries @ np.kron(q, np.kron(q, np.kron(q, q))))
+    True
+    """
+
+    @staticmethod
+    def _str(statestr, inputstr=None):
+        return f"G[{statestr} ⊗ {statestr} ⊗ {statestr} ⊗ {statestr}]"
+
+    def _clear(self):
+        """Delete operator ``entries`` and related attributes."""
+        self._mask = None
+        self._prejac = None
+        OpInfOperator._clear(self)
+
+    def _precompute_jacobian_jit(self):
+        """Compute (just in time) the pre-Jacobian tensor Jt such that
+        ((Jt @ q) @ q) @ q = jacobian(q).
+        """
+        r = self.entries.shape[0]
+        Gt = self.expand_entries(self.entries).reshape((r, r, r, r, r))
+        self._prejac = (
+            Gt
+            + Gt.transpose(0, 2, 1, 3, 4)
+            + Gt.transpose(0, 3, 2, 1, 4)
+            + Gt.transpose(0, 4, 2, 3, 1)
+        )
+
+    @property
+    def entries(self):
+        r"""Internal representation :math:`\tilde{\G}` of the operator
+        matrix :math:`\Ghat`.
+        """
+        return OpInfOperator.entries.fget(self)
+
+    @entries.setter
+    def entries(self, entries):
+        """Set the ``entries`` attribute."""
+        OpInfOperator.entries.fset(self, entries)
+
+    @entries.deleter
+    def entries(self):
+        """Reset the ``entries`` attribute."""
+        OpInfOperator.entries.fdel(self)
+
+    @property
+    def shape(self):
+        r"""Shape :math:`(r, r(r+1)(r+2)/6)` of the internal representation
+        :math:`\tilde{\G}` of the operator matrix :math:`\Ghat`.
+        """
+        return OpInfOperator.shape.fget(self)
+
+    def set_entries(self, entries):
+        r"""Set the internal representation :math:`\tilde{\G}` of the operator
+        matrix :math:`\Ghat`.
+
+        Parameters
+        ----------
+        entries : (r, r^3) or (r, r(r+1)(r+2)/6) or (r, r, r, r) ndarray
+            Operator matrix :math:`\Ghat`, its compressed representation
+            :math:`\tilde{\G}`, or the equivalent symmetric 4-tensor.
+        """
+        if np.isscalar(entries) or np.shape(entries) == (1,):
+            entries = np.atleast_2d(entries)
+        self._validate_entries(entries)
+
+        # Ensure that the operator has valid dimensions.
+        if entries.ndim == 5 and len(set(entries.shape)) == 1:
+            # Reshape (r x r x r x r x r) tensor.
+            entries = entries.reshape((entries.shape[0], -1))
+        if entries.ndim != 2:
+            raise ValueError("QuarticOperator entries must be two-dimensional")
+        r, r4 = entries.shape
+        if r4 == r**4:
+            entries = self.compress_entries(entries)
+        elif r4 != self.operator_dimension(r):
+            raise ValueError("invalid QuarticOperator entries dimensions")
+
+        # Precompute compressed Kronecker product mask and Jacobian tensor.
+        self._mask = self.ckron_indices(r)
+        self._prejac = None
+
+        OpInfOperator.set_entries(self, entries)
+
+    @utils.requires("entries")
+    def apply(self, state, input_=None):
+        r"""Apply the operator to the given state / input:
+        :math:`\Ophat_{\ell}(\qhat,\u) = \Ghat[\qhat\otimes\qhat\otimes\qhat]`.
+
+        Parameters
+        ----------
+        state : (r,) ndarray
+            State vector.
+        input_ : (m,) ndarray or None
+            Input vector (not used).
+
+        Returns
+        -------
+        out : (r,) ndarray
+            The evaluation :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat]`.
+        """
+        if self.entries.shape[0] == 1:
+            return self.entries[0, 0] * state**4  # r = 1.
+        return self.entries @ np.prod(state[self._mask], axis=1)
+
+    @utils.requires("entries")
+    def jacobian(self, state, input_=None):
+        r"""Construct the state Jacobian of the operator:
+        :math:`\ddqhat\Ophat_{\ell}(\qhat,\u)
+        = \Ghat[(\I_r\otimes\qhat\otimes\qhat)
+        + (\qhat\otimes\I_r\otimes\qhat)
+        + (\qhat\otimes\qhat\otimes\I_r)]`.
+
+        Parameters
+        ----------
+        state : (r,) ndarray or None
+            State vector.
+        input_ : (m,) ndarray or None
+            Input vector (not used).
+
+        Returns
+        -------
+        jac : (r, r) ndarray
+            State Jacobian
+            :math:`\Ghat[(\I_r\otimes\qhat\otimes\qhat)
+            + (\qhat\otimes\I_r\otimes\qhat)
+            + (\qhat\otimes\qhat\otimes\I_r)]`.
+        """
+        if self._prejac is None:
+            self._precompute_jacobian_jit()
+        q = np.atleast_1d(state)
+        return (self._prejac @ q) @ q @ q
+
+    @utils.requires("entries")
+    def galerkin(self, Vr, Wr=None):
+        r"""Return the Galerkin projection of the operator,
+        :math:`\Ghat
+        = (\Wr\trp\Vr)^{-1}\Wr\trp\G[\Vr\otimes\Vr\otimes\Vr\otimes\Vr]`.
+
+        Parameters
+        ----------
+        Vr : (n, r) ndarray
+            Basis for the trial space.
+        Wr : (n, r) ndarray or None
+            Basis for the test space. If ``None``, defaults to ``Vr``.
+
+        Returns
+        -------
+        projected : :class:`opinf.operators.CubicOperator`
+            Projected operator.
+        """
+
+        def _pg(G, V):
+            return self.expand_entries(G) @ np.kron(
+                V, np.kron(V, np.kron(V, V))
+            )
+
+        return self._galerkin(Vr, Wr, _pg)
+
+    @staticmethod
+    def datablock(states, inputs=None):
+        r"""Return the data matrix block corresponding to the operator,
+        the Khatri--Rao product of the state with itself three times:
+        :math:`\Qhat\odot\Qhat\odot\Qhat\odot\Qhat` where :math:`\Qhat` is
+        ``states``.
+
+        Since :math:`\Ophat_\ell(\qhat,\u) = \Ohat_{\ell}\d_{\ell}(\qhat,\u)`
+        with :math:`\Ohat_{\ell} = \Ghat` and
+        :math:`\d_{\ell}(\qhat,\u)
+        = \qhat\otimes\qhat\otimes\qhat\otimes\qhat`,
+        the data block should be
+
+        .. math::
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \d_{\ell}(\qhat_0,\u_0)
+           & \cdots &
+           \d_{\ell}(\qhat_{k-1},\u_{k-1})
+           \end{array}\right]
+           = \left[\begin{array}{ccc}
+           \qhat_0\otimes\qhat_0\otimes\qhat_0\otimes\qhat_0
+           & \cdots &
+           \qhat_{k-1}\otimes\qhat_{k-1}\otimes\qhat_{k-1}\otimes\qhat_{k-1}
+           \end{array}\right]
+           \in \RR^{r^4 \times k}.
+
+        Internally, a compressed quadruple Kronecker product with
+        :math:`r(r+1)(r+2)(r+3)/24 < r^{4}` degrees of freedom is used for
+        efficiency, hence the data block is actually
+
+        .. math::
+           \D\trp
+           = \left[\begin{array}{ccc}
+           \qhat_0\,\hat{\otimes}\,
+           \qhat_0\,\hat{\otimes}\,\qhat_0\,\hat{\otimes}\,\qhat_0
+           & \cdots &
+           \qhat_{k-1}\,\hat{\otimes}\,
+           \qhat_{k-1}\,\hat{\otimes}\,\qhat_{k-1}\,\hat{\otimes}\,\qhat_{k-1}
+           \end{array}\right]
+           \in\RR^{r(r+1)(r+2)(r+3)/24 \times k}.
+
+        Parameters
+        ----------
+        states : (r, k) or (k,) ndarray
+            State vectors. Each column is a single state vector.
+            If one dimensional, it is assumed that :math:`r = 1`.
+        inputs : (m, k) or (k,) ndarray or None
+            Input vectors (not used).
+
+        Returns
+        -------
+        product_ : (r(r+1)(r+2)(r+3)/24, k) ndarray
+            Compressed triple Khatri--Rao product of ``states`` with itself.
+        """
+        return QuarticOperator.ckron(np.atleast_2d(states))
+
+    @staticmethod
+    def operator_dimension(r, m=None):
+        r"""Column dimension :math:`r(r+1)(r+2)(r+3)/24` of the internal
+        representation :math:`\tilde{\G}` of the operator matrix :math:`\Ghat`.
+
+        Parameters
+        ----------
+        r : int
+            State dimension.
+        m : int or None
+            Input dimension.
+        """
+        return r * (r + 1) * (r + 2) * (r + 3) // 24
+
+    # Utilities ---------------------------------------------------------------
+    @staticmethod
+    def ckron(state):
+        r"""Calculate the compressed quartic Kronecker product of a vector with
+        itself.
+
+        For a vector :math:`\qhat = [~\hat{q}_{1}~~\cdots~~\hat{q}_{r}~]\trp`,
+        the cubic Kronecker product of :math:`\qhat` with itself is given by
+
+        .. math::
+           \qhat \otimes \qhat \otimes \qhat
+           = \left[\begin{array}{c}
+               \hat{q}_{1}(\qhat \otimes \qhat \otimes \qhat)
+               \\ \vdots \\
+               \hat{q}_{r}(\qhat \otimes \qhat \otimes \qhat)
+           \end{array}\right]
+           \in\RR^{r^4}.
+
+        Cross terms :math:`\hat{q}_i \hat{q}_j \hat{q}_k \hat{q}_\ell` for
+        :math:`i,j,k,\ell`
+        not all equal appear multiple times in
+        :math:`\qhat\otimes\qhat\otimes\qhat\otimes\qhat`.
+        The *compressed quartic Kronecker product*
+        :math:`\qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,
+        \qhat\,\hat{\otimes}\,\qhat`
+        consists of the unique terms of
+        :math:`\qhat\otimes\qhat\otimes\qhat\otimes\qhat`:
+
+        .. math::
+           \qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,\qhat
+           = \left[\begin{array}{c}
+               \hat{q}_{1}^4
+               \\
+               \hat{q}_{2}
+               [\![\qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,\qhat]\!]_{1:2}
+               \\ \vdots \\
+               \hat{q}_{r}[\![\qhat\,\hat{\otimes}\,\qhat]\!]_{1:r}
+           \end{array}\right]
+           \in \RR^{r(r+1)(r+2)(r+3)/24}.
+
+        See :meth:`opinf.operators.CubicOperator.ckron`.
+        For matrices, the product is computed columnwise.
+
+        Parameters
+        ----------
+        state : (r,) or (r, k) numpy.ndarray
+            State vector or matrix where each column is a state vector.
+
+        Returns
+        -------
+        product : (r(r+1)(r+2)(r+3)/24,) or (r(r+1)(r+2)(r+3)/24, k) ndarray
+            The compressed triple Kronecker product of ``state`` with itself.
+        """
+        state3 = CubicOperator.ckron(state)
+        lens = special.binom(np.arange(3, len(state) + 3), 3).astype(int)
+        return np.concatenate(
+            [state[i] * state3[: lens[i]] for i in range(state.shape[0])],
+            axis=0,
+        )
+
+    @staticmethod
+    def ckron_indices(r):
+        """Construct a mask for efficiently computing the compressed Kronecker
+        quadruple product.
+
+        This method provides a faster way to evaluate :meth:`ckron`
+        when the state dimension ``r`` is known *a priori*.
+
+        Parameters
+        ----------
+        r : int
+            State dimension.
+
+        Returns
+        -------
+        mask : ndarray
+            Compressed Kronecker product mask.
+
+        Examples
+        --------
+        >>> from opinf.operators import QuarticOperator
+        >>> r = 20
+        >>> mask = QuarticOperator.kron_indices(r)
+        >>> q = np.random.random(r)
+        >>> np.allclose(QuarticOperator.ckron(q), np.prod(q[mask], axis=1))
+        True
+        """
+        mask = np.zeros((r * (r + 1) * (r + 2) * (r + 3) // 24, 4), dtype=int)
+        count = 0
+        for i in range(r):
+            for j in range(i + 1):
+                for k in range(j + 1):
+                    for ell in range(k + 1):
+                        mask[count, :] = (i, j, k, ell)
+                        count += 1
+        return mask
+
+    @staticmethod
+    def compress_entries(G):
+        r"""Given :math:`\Ghat\in\RR^{a\times r^4}`, construct the matrix
+        :math:`\tilde{\G}\in\RR^{a \times r(r+1)(r+2)(r+3)/24}` such that
+        :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat\otimes\qhat]
+        = \tilde{\G}[\qhat\,\hat{\otimes}\,
+        \qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,\qhat]`
+        for all :math:`\qhat\in\RR^{r}`
+        where :math:`\cdot\hat{\otimes}\cdot\hat{\otimes}\cdot` is the
+        compressed quartic Kronecker product (see :meth:`ckron`).
+
+        Parameters
+        ----------
+        G : (a, r^4) ndarray
+            Matrix that acts on the full quartic Kronecker product.
+
+        Returns
+        -------
+        Gc : (a, r(r+1)(r+2)(r+3)/24) ndarray
+            Matrix that acts on the compressed quartic Kronecker product.
+
+        Examples
+        --------
+        >>> from opinf.operators import CubicOperator
+        >>> r = 20
+        >>> G = np.random.random((r, r**4))
+        >>> G.shape
+        (20, 160000)
+        >>> Gtilde = CubicOperator.compress_entries(G)
+        >>> Gtilde.shape
+        (20, 8855)
+        >>> q = np.random.random(r)
+        >>> Gq3 = G @ np.kron(q, np.kron(q, q))
+        >>> np.allclose(Gq3, Gtilde @ CubicOperator.ckron(q))
+        True
+        """
+        if np.ndim(G) == 1:
+            G = np.atleast_2d(G)
+        r4 = G.shape[1]
+        if (r := int(round(r4 ** (1 / 4), 0))) ** 4 != r4:
+            raise ValueError(
+                f"invalid shape (a, r4) = {G.shape} "
+                "with r4 not a perfect quartic"
+            )
+        Gc = np.empty((G.shape[0], r * (r + 1) * (r + 2) * (r + 3) // 24))
+
+        fj = 0
+        for i in range(r):
+            for j in range(i + 1):
+                for k in range(j + 1):
+                    for ell in range(k + 1):
+                        idxs = set(itertools.permutations((i, j, k, ell), 4))
+                        Gc[:, fj] = np.sum(
+                            [
+                                G[:, (a * r**3) + (b * r**2) + (c * r) + d]
+                                for a, b, c, d in idxs
+                            ],
+                            axis=0,
+                        )
+                        fj += 1
+
+        return Gc
+
+    @staticmethod
+    def expand_entries(Gc):
+        r"""Given :math:`\tilde{\G}\in\RR^{a \times r(r+1)(r+2)(r+3)/24}`,
+        construct the matrix :math:`\Ghat\in\RR^{a\times r^4}` such that
+        :math:`\Ghat[\qhat\otimes\qhat\otimes\qhat\otimes\qhat]
+        = \tilde{\G}[\qhat\,\hat{\otimes}\,\qhat\,\hat{\otimes}\,\qhat
+        \,\hat{\otimes}\,\qhat]`
+        for all :math:`\qhat\in\RR^{r}`
+        where
+        :math:`\cdot\hat{\otimes}\cdot\hat{\otimes}\cdot\hat{\otimes}\cdot` is
+        the compressed quartic Kronecker product (see :meth:`ckron`).
+
+        Parameters
+        ----------
+        Gc : (a, r(r+1)(r+2)(r+3)/24) ndarray
+            Matrix that acts on the compressed cubic Kronecker product.
+
+        Returns
+        -------
+        G : (a, r^4) ndarray
+            Matrix that acts on the full cubic Kronecker product.
+
+        Examples
+        --------
+        >>> from opinf.operators import QuarticOperator
+        >>> r = 20
+        >>> Gtilde = np.random.random((r, r*(r + 1)*(r + 2)*(r + 3)/24))
+        >>> Gtilde.shape
+        (20, 8855)
+        >>> G = QuarticOperator.expand_entries(Gtilde)
+        >>> G.shape
+        (20, 160000)
+        >>> q = np.random.random(r)
+        >>> Gq4 = G @ np.kron(q, np.kron(q, np.kron(q, q)))
+        >>> np.allclose(Gq4, Gtilde @ QuarticOperator.ckron(q))
+        True
+        >>> np.all(QuarticOperator.compress_entries(G) == Gtilde)
+        True
+        """
+        if np.ndim(Gc) == 1:
+            Gc = np.atleast_2d(Gc)
+        b = Gc.shape[1]
+        r = QuarticOperator._rfromcompressed(b)
+        if r * (r + 1) * (r + 2) * (r + 3) // 24 != b:
+            raise ValueError(
+                f"invalid shape (a, r4) = {Gc.shape} "
+                "with r4 != r(r+1)(r+2)(r+3)/24 for any integer r"
+            )
+
+        G = np.empty((Gc.shape[0], r**4))
+        fj = 0
+        for i in range(r):
+            for j in range(i + 1):
+                for k in range(j + 1):
+                    for ell in range(k + 1):
+                        idxs = set(itertools.permutations((i, j, k, ell), 4))
+                        fill = Gc[:, fj] / len(idxs)
+                        for a, b, c, d in idxs:
+                            G[:, (a * r**3) + (b * r**2) + (c * r) + d] = fill
+                        fj += 1
+
+        return G
+
+    @staticmethod
+    def _rfromcompressed(b: int, maxiters: int = 10, tol: float = 0.25) -> int:
+        """Compute r such that r(r+1)(r+2)(r+3)/24 = b
+        via 1D Newton's method.
+        """
+        r = int(b ** (1 / 4))
+        _24b = 24 * b
+        for _ in range(maxiters):
+            rnew = r - (r**4 + 6 * r**3 + 11 * r**2 + 6 * r - _24b) / (
+                4 * r**3 + 18 * r**2 + 22 * r + 6
+            )
+            if abs(r - rnew) < tol:
+                return int(round(rnew, 0))
+            r = rnew
+        raise ValueError(  # pragma: no cover
+            f"Newton solve for r such that r(r+1)(r+2)(r+3)/24 = {b} failed"
         )
 
 

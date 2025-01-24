@@ -102,10 +102,12 @@ class TimedBlock:
         timelimit: int = None,
     ):
         """Store print/log message."""
+        if not message:
+            message = ""
         self.__original_stdout = sys.stdout
         self.__new_buffer = None
         self.__front = "\n" if message.endswith("\n") else ""
-        self.message = message.rstrip()
+        self.message = "" if message is None else message.rstrip()
         self.__back = "\n" if "\r" not in message else ""
         if timelimit is not None:
             timelimit = max(int(timelimit), 1)
@@ -151,7 +153,8 @@ class TimedBlock:
         elapsed = self._toc - self._tic
         if exc_type:  # Report an exception if present.
             if self.timelimit is not None and exc_type is TimeoutError:
-                print(flush=True)
+                if self.message:
+                    print(flush=True)
                 report = f"TIMED OUT after {elapsed:.2f} s."
                 logging.info(f"{self.message}...{report}")
                 if self.rebuffer:

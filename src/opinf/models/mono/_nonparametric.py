@@ -14,29 +14,8 @@ import scipy.integrate as spintegrate
 import scipy.interpolate as spinterpolate
 
 from ._base import _Model
-from ... import errors, utils
-from ...operators import (
-    ConstantOperator,
-    LinearOperator,
-    QuadraticOperator,
-    CubicOperator,
-    InputOperator,
-    StateInputOperator,
-    _utils as oputils,
-)
-
-
-_operator_name2class = {
-    OpClass.__name__: OpClass
-    for OpClass in (
-        ConstantOperator,
-        LinearOperator,
-        QuadraticOperator,
-        CubicOperator,
-        InputOperator,
-        StateInputOperator,
-    )
-}
+from ... import errors, utils, operators as _operators
+from ...operators import _utils as oputils
 
 
 # Base class ==================================================================
@@ -58,12 +37,12 @@ class _NonparametricModel(_Model):
 
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = {
-        "c": ConstantOperator,
-        "A": LinearOperator,
-        "H": QuadraticOperator,
-        "G": CubicOperator,
-        "B": InputOperator,
-        "N": StateInputOperator,
+        "c": _operators.ConstantOperator,
+        "A": _operators.LinearOperator,
+        "H": _operators.QuadraticOperator,
+        "G": _operators.CubicOperator,
+        "B": _operators.InputOperator,
+        "N": _operators.StateInputOperator,
     }
 
     @staticmethod
@@ -460,8 +439,8 @@ class _NonparametricModel(_Model):
             ops = []
             for i in range(num_operators):
                 gp = hf[f"operator_{i}"]
-                OpClassName = gp["meta"].attrs["class"]
-                ops.append(_operator_name2class[OpClassName].load(gp))
+                OpClass = getattr(_operators, gp["meta"].attrs["class"])
+                ops.append(OpClass.load(gp))
 
             # Construct the model.
             model = cls(ops)
@@ -1105,7 +1084,7 @@ class _FrozenSteadyModel(_FrozenMixin, SteadyModel):
     a parametric model.
     """
 
-    pass  # pragma: no cover
+    pass
 
 
 class _FrozenDiscreteModel(_FrozenMixin, DiscreteModel):
@@ -1113,7 +1092,7 @@ class _FrozenDiscreteModel(_FrozenMixin, DiscreteModel):
     a parametric model.
     """
 
-    pass  # pragma: no cover
+    pass
 
 
 class _FrozenContinuousModel(_FrozenMixin, ContinuousModel):
@@ -1121,4 +1100,4 @@ class _FrozenContinuousModel(_FrozenMixin, ContinuousModel):
     a parametric model.
     """
 
-    pass  # pragma: no cover
+    pass

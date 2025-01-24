@@ -11,7 +11,11 @@ import scipy.interpolate as interp
 import opinf
 import opinf.operators._utils as oputils
 
-from . import _get_operator_entries
+
+# try:
+#     from .test_base import _TestParametricOpInfOperator
+# except ImportError:
+#     from test_base import _TestParametricOpInfOperator
 
 
 _module = opinf.operators
@@ -19,6 +23,17 @@ _submodule = _module._interpolate
 
 _d = 8
 _Dblock = np.random.random((4, _d))
+
+
+def _get_operator_entries(r=10, m=3, expanded=False):
+    """Construct fake model operators."""
+    c = np.random.random(r)
+    A = np.eye(r)
+    H = np.zeros((r, r**2 if expanded else r * (r + 1) // 2))
+    G = np.zeros((r, r**3 if expanded else r * (r + 1) * (r + 2) // 6))
+    B = np.random.random((r, m)) if m else None
+    N = np.random.random((r, r * m)) if m else None
+    return c, A, H, G, B, N
 
 
 class _DummyOperator(opinf.operators.OpInfOperator):
@@ -113,7 +128,7 @@ class TestInterpOperator:
             "parameter values must be scalars or 1D arrays"
         )
 
-        mu = np.empty((s, p))
+        mu = np.random.random((s, p))
         op.set_training_parameters(mu)
         assert np.all(op.training_parameters == mu)
         assert op.state_dimension is None

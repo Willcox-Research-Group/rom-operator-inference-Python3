@@ -241,7 +241,7 @@ class TestROM(_TestBaseROM):
             Q = np.ones((20, t.size))
 
             with pytest.warns(opinf.errors.OpInfWarning) as wn:
-                rom.fit_regselect_continuous(
+                out = rom.fit_regselect_continuous(
                     regs,
                     t,
                     Q,
@@ -257,6 +257,7 @@ class TestROM(_TestBaseROM):
             assert len(wn) == 2
             assert wn[0].message.args[0].startswith("ignoring stability limit")
             assert wn[1].message.args[0].startswith("smallest regularization")
+            assert out is rom
             for op in rom.model.operators:
                 assert op.entries is not None
             assert np.allclose(rom.model.A_.entries, 0)
@@ -355,7 +356,7 @@ class TestROM(_TestBaseROM):
             Q = np.ones((20, niters))
 
             with pytest.warns(opinf.errors.OpInfWarning) as wn:
-                rom.fit_regselect_discrete(
+                out = rom.fit_regselect_discrete(
                     regs,
                     Q,
                     inputs=(
@@ -372,6 +373,7 @@ class TestROM(_TestBaseROM):
                         ),
                     ),
                 )
+            assert out is rom
             for op in rom.model.operators:
                 assert op.entries is not None
 

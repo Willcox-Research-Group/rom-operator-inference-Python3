@@ -728,6 +728,13 @@ class _BaseROM(abc.ABC):
                 error += post.Lp_error(Q, solution_train, t[:trainsize])[1]
             return error / len(states)
 
+        # BUG: training states may not align with the first `trainsize`
+        # entries of `solution` because `Q` (from `states`) may have been
+        # cropped by the time derivative estimator.
+        # This is not an issue for fully discrete models.
+        # Potential fix: implement some kind of mask in ddt_estimator and
+        # replace `solution[:, :trainsize]` -> `solution[:, the_ddt_mask]`.
+
         best_regularization = utils.gridsearch(
             training_error,
             candidates,

@@ -20,31 +20,8 @@ from ._nonparametric import (
     _FrozenDiscreteModel,
     _FrozenContinuousModel,
 )
-from ... import errors, utils
-from ...operators import (
-    OperatorTemplate,
-    ParametricOperatorTemplate,
-    InterpConstantOperator,
-    InterpLinearOperator,
-    InterpQuadraticOperator,
-    InterpCubicOperator,
-    InterpInputOperator,
-    InterpStateInputOperator,
-    _utils as oputils,
-)
-
-
-_operator_name2class = {
-    OpClass.__name__: OpClass
-    for OpClass in (
-        InterpConstantOperator,
-        InterpLinearOperator,
-        InterpQuadraticOperator,
-        InterpCubicOperator,
-        InterpInputOperator,
-        InterpStateInputOperator,
-    )
-}
+from ... import errors, utils, operators as _operators
+from ...operators import _utils as oputils
 
 
 # Base classes ================================================================
@@ -82,8 +59,8 @@ class _ParametricModel(_Model):
         return isinstance(
             op,
             (
-                OperatorTemplate,
-                ParametricOperatorTemplate,
+                _operators.OperatorTemplate,
+                _operators.ParametricOperatorTemplate,
             ),
         )
 
@@ -1124,12 +1101,12 @@ class _InterpModel(_ParametricModel):
 
     # Properties: operators ---------------------------------------------------
     _operator_abbreviations = {
-        "c": InterpConstantOperator,
-        "A": InterpLinearOperator,
-        "H": InterpQuadraticOperator,
-        "G": InterpCubicOperator,
-        "B": InterpInputOperator,
-        "N": InterpStateInputOperator,
+        "c": _operators.InterpConstantOperator,
+        "A": _operators.InterpLinearOperator,
+        "H": _operators.InterpQuadraticOperator,
+        "G": _operators.InterpCubicOperator,
+        "B": _operators.InterpInputOperator,
+        "N": _operators.InterpStateInputOperator,
     }
 
     def _isvalidoperator(self, op):
@@ -1317,11 +1294,8 @@ class _InterpModel(_ParametricModel):
             for i in range(num_operators):
                 gp = hf[f"operator_{i}"]
                 OpClassName = gp["meta"].attrs["class"]
-                ops.append(
-                    _operator_name2class[OpClassName].load(
-                        gp, InterpolatorClass
-                    )
-                )
+                OpClass = getattr(_operators, OpClassName)
+                ops.append(OpClass.load(gp, InterpolatorClass))
 
             # Construct the model.
             model = cls(ops)
