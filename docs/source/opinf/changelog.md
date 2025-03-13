@@ -5,6 +5,16 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+## Version 0.5.13
+
+Bayesian operator inference:
+
+- New `roms.BayesianROM` class.
+- New supporting class `roms.OperatorPosterior`.
+- Updates to relevant least-squares solvers.
+
+These changes implement the framework proposed in {cite}`guo2022bayesopinf`.
+
 ## Version 0.5.12
 
 - New `operators.QuarticOperator`, plus unit tests.

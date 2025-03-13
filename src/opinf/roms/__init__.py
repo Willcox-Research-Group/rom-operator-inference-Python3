@@ -3,5 +3,4 @@
 
 from ._nonparametric import *
 from ._parametric import *
-
-__all__ = _nonparametric.__all__ + _parametric.__all__
+from ._bayes import *
