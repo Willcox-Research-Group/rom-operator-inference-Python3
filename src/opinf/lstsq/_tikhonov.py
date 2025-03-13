@@ -20,6 +20,16 @@ from ..operators import _utils as oputils
 from ._base import SolverTemplate, _require_trained
 
 
+def _symmetrize(A):
+    return (A.T + A) / 2
+
+
+def _check_sigmas(sigmas):
+    if np.any(sigmas < np.finfo(np.float64).eps):
+        raise RuntimeError("zero residual --> posterior is deterministic")
+    return sigmas
+
+
 # Solver classes ==============================================================
 class _BaseRegularizedSolver(SolverTemplate):
     r"""Base class for solvers of regularized linear least-squares problems.
@@ -48,9 +58,9 @@ class _BaseRegularizedSolver(SolverTemplate):
 
     # Properties: regularization ----------------------------------------------
     @abc.abstractmethod
-    def regularizer(self):  # pragma: no cover
+    def regularizer(self):
         """Regularization scalar, matrix, or list of these."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Main methods ------------------------------------------------------------
     def fit(self, data_matrix: np.ndarray, lhs_matrix: np.ndarray):
@@ -72,18 +82,35 @@ class _BaseRegularizedSolver(SolverTemplate):
             )
         return self
 
+    @abc.abstractmethod
+    def posterior(self):
+        r"""Solve the Bayesian operator inference regression, constructing the
+        means and inverse covariances of probability distributions for the
+        rows of an operator matrix posterior.
+
+        See :cite:`guo2022bayesopinf` for details.
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+        """
+        raise NotImplementedError  # pragma: no cover
+
     # Post-processing ---------------------------------------------------------
     @abc.abstractmethod
-    def regcond(self) -> float:  # pragma: no cover
+    def regcond(self) -> float:
         r"""Compute the :math:`2`-norm condition number of the regularized
         data matrix :math:`[~\D\trp~~\bfGamma\trp~]\trp.`
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
-    def regresidual(self, Ohat: np.ndarray) -> np.ndarray:  # pragma: no cover
+    def regresidual(self, Ohat: np.ndarray) -> np.ndarray:
         """Compute the residual of the regularized regression problem."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     # Persistence -------------------------------------------------------------
     def _save(self, savefile, overwrite=False, extras=tuple()):
@@ -197,7 +224,7 @@ class L2Solver(_BaseRegularizedSolver):
     Parameters
     ----------
     regularizer : float
-        Scalar :math:`L_2` regularization constant.
+        Scalar :math:`L_2` regularization constant :math:`\lambda`.
     lapack_driver : str
         LAPACK routine for computing the singular value decomposition.
         See :func:`scipy.linalg.svd()`.
@@ -284,6 +311,53 @@ class L2Solver(_BaseRegularizedSolver):
         svals = self._svals.reshape((-1, 1))
         svals_inv = svals / (svals**2 + self.regularizer**2)
         return (self._ZPhi * svals_inv.T) @ self._PsiT
+
+    def posterior(self):
+        r"""Solve the Bayesian operator inference regression, constructing the
+        means and inverse covariances of probability distributions for the
+        rows of an operator matrix posterior.
+
+        In this method, the :attr:`regularizer`, denoted :math:`\lambda`, is
+        interpreted as a prior variance for the operator matrix distribution.
+        The :math:`i`-th row of the operator matrix follows a multivariate
+        normal distribution with the following mean and covariance.
+
+        .. math::
+           \bfmu_i &= \argmin_{\bfxi}\left\{
+               \|\D\bfxi - \z_i\|_2^2 + \lambda^2\|\bfxi\|_2^2
+           \right\},
+           \\
+           \bfSigma_i &= \sigma_i^2 \left(
+               \D\trp\D + \lambda^2\I
+           \right)^{-1},
+           \\
+           \sigma_i^2 &= \frac{1}{k}\left(
+               \|\D\bfmu_i - \z_i\|_2^2 + \lambda^2\|\bfmu_i\|_2^2
+           \right),
+
+        where :math:`\z_i\in\RR^k` is the :math:`i`-th row of :math:`\Z`.
+        See :cite:`guo2022bayesopinf` for details.
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+
+        Raises
+        ------
+        RuntimeError
+            If any solver residual :math:`\sigma_i^2` is zero (a perfect
+            regression), meaning the resulting covariance should be zero.
+            In this case, do a deterministic regression with :meth:`solve()`,
+            not a Bayesian regression.
+        """
+        Ohat = self.solve()
+        DTD = _symmetrize(self.data_matrix.T @ self.data_matrix)
+        invcov_unscaled = DTD + (self.regularizer**2 * np.eye(self.d))
+        sigmas = _check_sigmas(self.regresidual(Ohat)) / self.k
+        return Ohat, [invcov_unscaled / sig for sig in sigmas]
 
     # Post-processing ---------------------------------------------------------
     @_require_trained
@@ -388,7 +462,7 @@ class L2DecoupledSolver(L2Solver):
     That is, for :math:`i = 1, \ldots, r`, construct :math:`\Ohat` by solving
 
     .. math::
-        \argmin_{\Ohat}\|\D\ohat_i - \z_i\|_2^2 + \|\lambda_i\Ohat_i\|_2^2
+        \argmin_{\Ohat}\|\D\ohat_i - \z_i\|_2^2 + \|\lambda_i\ohat_i\|_2^2
 
     where :math:`\ohat_i` and :math:`\z_i` are the :math:`i`-th rows of
     :math:`\Ohat` and :math:`\Z`, respectively, with corresponding
@@ -456,6 +530,57 @@ class L2DecoupledSolver(L2Solver):
         L2Solver.fit(self, data_matrix, lhs_matrix)
         self._check_regularizer_shape()
         return self
+
+    def posterior(self):
+        r"""Solve the Bayesian operator inference regression, constructing the
+        means and inverse covariances of probability distributions for the
+        rows of an operator matrix posterior.
+
+        In this method, the :math:`i`-th entry of :attr:`regularizer`, denoted
+        :math:`\lambda_i`, is interpreted as a prior variance for the
+        :math:`i`-th row of the operator matrix, which follows a multivariate
+        normal distribution with the following mean and covariance.
+
+        .. math::
+           \bfmu_i &= \argmin_{\bfxi}\left\{
+               \|\D\bfxi - \z_i\|_2^2 + \lambda_i^2\|\bfxi\|_2^2
+           \right\},
+           \\
+           \bfSigma_i &= \sigma_i^2 \left(
+               \D\trp\D + \lambda_i^2\I
+           \right)^{-1},
+           \\
+           \sigma_i^2 &= \frac{1}{k}\left(
+               \|\D\bfmu_i - \z_i\|_2^2 + \lambda_i^2\|\bfmu_i\|_2^2
+           \right),
+
+        where :math:`\z_i\in\RR^k` is the :math:`i`-th row of :math:`\Z`.
+        See :cite:`guo2022bayesopinf` for details.
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+
+        Raises
+        ------
+        RuntimeError
+            If any solver residual :math:`\sigma_i^2` is zero (a perfect
+            regression), meaning the resulting covariance should be zero.
+            In this case, do a deterministic regression with :meth:`solve()`,
+            not a Bayesian regression.
+        """
+        Ohat = self.solve()
+        DTD = _symmetrize(self.data_matrix.T @ self.data_matrix)
+        Id = np.eye(self.d)
+        sigmas = _check_sigmas(self.regresidual(Ohat)) / self.k
+        precisions = [
+            (DTD + (reg**2 * Id)) / sig
+            for reg, sig in zip(self.regularizer, sigmas)
+        ]
+        return Ohat, precisions
 
     # Post-processing ---------------------------------------------------------
     @_require_trained
@@ -651,10 +776,10 @@ class TikhonovSolver(_BaseRegularizedSolver):
 
         .. math::
            \|\bfGamma\Ohat\trp\|_F^2
-           = \gamma_1\|\chat\|_F^2
-           + \gamma_2\|\Ahat\|_F^2
-           + \gamma_3\|\Hhat\|_F^2
-           + \gamma_4\|\Bhat\|_F^2.
+           = \gamma_1^2\|\chat\|_F^2
+           + \gamma_2^2\|\Ahat\|_F^2
+           + \gamma_3^2\|\Hhat\|_F^2
+           + \gamma_4^2\|\Bhat\|_F^2.
 
         Parameters
         ----------
@@ -668,6 +793,29 @@ class TikhonovSolver(_BaseRegularizedSolver):
         input_dimension : int
             Dimension of the input.
             If there is no input, this should be 0 (default).
+
+        Returns
+        -------
+        regularizer : (d,) ndarray
+            Diagonals of the regularization matrix so that ``operators[i]`` is
+            regularized with constant ``regularization_parameters[i]``.
+
+        Warns
+        -----
+        OpInfWarning
+            If only one operator is provided (use :class:`L2Solver` instead),
+            or if the ``input_dimension`` is provided but none of the operators
+            act on inputs.
+
+        Raises
+        ------
+        ValueError
+            If a different number of ``operators`` and '
+            ``regularization_parameters`` are provided, or if the
+            ``input_dimension`` is not provided but at least one of the
+            operators acts on inputs.
+        TypeError
+            If an entry ``operators`` has an unsupported type.
         """
         if (n1 := len(operators)) != (n2 := len(regularization_parameters)):
             raise ValueError(
@@ -774,6 +922,54 @@ class TikhonovSolver(_BaseRegularizedSolver):
             regD = self._DtD + (self.regularizer.T @ self.regularizer)
             Ohat = la.solve(regD, self._DtZt, assume_a="pos").T
         return Ohat
+
+    def posterior(self):
+        r"""Solve the Bayesian operator inference regression, constructing the
+        means and inverse covariances of probability distributions for the
+        rows of an operator matrix posterior.
+
+        In this method, the :attr:`regularizer`, denoted :math:`\bfGamma`, is
+        interpreted as a prior covariance for the operator matrix distribution.
+        The :math:`i`-th row of the operator matrix follows a multivariate
+        normal distribution with the following mean and covariance.
+
+        .. math::
+           \bfmu_i &= \argmin_{\bfxi}\left\{
+               \|\D\bfxi - \z_i\|_2^2 + \|\bfGamma\bfxi\|_2^2
+           \right\},
+           \\
+           \bfSigma_i &= \sigma_i^2 \left(
+               \D\trp\D + \bfGamma\trp\bfGamma
+           \right)^{-1},
+           \\
+           \sigma_i^2 &= \frac{1}{k}\left(
+               \|\D\bfmu_i - \z_i\|_2^2 + \|\bfGamma\bfmu_i\|_2^2
+           \right),
+
+        where :math:`\z_i\in\RR^k` is the :math:`i`-th row of :math:`\Z`.
+        See :cite:`guo2022bayesopinf` for details.
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+
+        Raises
+        ------
+        RuntimeError
+            If any solver residual :math:`\sigma_i^2` is zero (a perfect
+            regression), meaning the resulting covariance should be zero.
+            In this case, do a deterministic regression with :meth:`solve()`,
+            not a Bayesian regression.
+        """
+        Ohat = self.solve()
+        DTD = _symmetrize(self.data_matrix.T @ self.data_matrix)
+        GTG = _symmetrize(self.regularizer.T @ self.regularizer)
+        invcov_unscaled = DTD + GTG
+        sigmas = _check_sigmas(self.regresidual(Ohat)) / self.k
+        return Ohat, [invcov_unscaled / sig for sig in sigmas]
 
     # Post-processing ---------------------------------------------------------
     @_require_trained
@@ -981,6 +1177,56 @@ class TikhonovDecoupledSolver(TikhonovSolver):
                 regD = self._DtD + Gamma.T @ Gamma
                 Ohat[i] = la.solve(regD, self._DtZt[:, i], assume_a="pos")
         return Ohat
+
+    def posterior(self):
+        r"""Solve the Bayesian operator inference regression, constructing the
+        means and inverse covariances of probability distributions for the
+        rows of an operator matrix posterior.
+
+        In this method, the :math:`i`-th entry of :attr:`regularizer`, denoted
+        :math:`\bfGamma_i`, is interpreted as a prior covariance for the
+        :math:`i`-th row of the operator matrix, which follows a multivariate
+        normal distribution with the following mean and covariance.
+
+        .. math::
+           \bfmu_i &= \argmin_{\bfxi}\left\{
+               \|\D\bfxi - \z_i\|_2^2 + \|\bfGamma_i\bfxi\|_2^2
+           \right\},
+           \\
+           \bfSigma_i &= \sigma_i^2 \left(
+               \D\trp\D + \bfGamma_i\trp\bfGamma_i
+           \right)^{-1},
+           \\
+           \sigma_i^2 &= \frac{1}{k}\left(
+               \|\D\bfmu_i - \z_i\|_2^2 + \|\bfGamma_i\bfmu_i\|_2^2
+           \right),
+
+        where :math:`\z_i\in\RR^k` is the :math:`i`-th row of :math:`\Z`.
+        See :cite:`guo2022bayesopinf` for details.
+
+        Returns
+        -------
+        means : list of r (d,) ndarrays
+            Mean vectors.
+        precisions : list of r (d, d) ndarrays
+            Inverse covariance matrices.
+
+        Raises
+        ------
+        RuntimeError
+            If any solver residual :math:`\sigma_i^2` is zero (a perfect
+            regression), meaning the resulting covariance should be zero.
+            In this case, do a deterministic regression with :meth:`solve()`,
+            not a Bayesian regression.
+        """
+        Ohat = self.solve()
+        DTD = _symmetrize(self.data_matrix.T @ self.data_matrix)
+        sigmas = _check_sigmas(self.regresidual(Ohat)) / self.k
+        precisions = [
+            (DTD + _symmetrize(Gamma.T @ Gamma)) / sig
+            for Gamma, sig in zip(self.regularizer, sigmas)
+        ]
+        return Ohat, precisions
 
     # Post-processing ---------------------------------------------------------
     @_require_trained

@@ -63,6 +63,7 @@ deploy_package:
 	$(TOX)
 	$(PIP) --upgrade build
 	$(PIP) --upgrade twine
+	$(PIP) --upgrade packaging
 	$(REMOVE) dist/
 	$(PYTHON) -m build --sdist --wheel
 	$(PYTHON) -m twine check dist/*

@@ -1,7 +1,7 @@
 # lstsq/_base.py
 """Tests for lstsq._base.py."""
 
-import os
+import abc
 import pytest
 import numpy as np
 import scipy.linalg as la
@@ -41,235 +41,166 @@ def test_lstsq_size():
     assert opinf.lstsq.lstsq_size("A", r, affines={"A": [0, 0]}) == 2 * r
 
 
-class TestSolverTemplate:
-    """Test lstsq._base.SolverTemplate."""
+class _TestSolverTemplate(abc.ABC):
+    """Base class for tests of classes inheriting from SolverTemplate."""
 
-    class Dummy(opinf.lstsq._base.SolverTemplate):
-        """Instantiable version of SolverTemplate."""
+    Solver = NotImplemented  # Class to test.
+    test_1D_Z = True  # Whether to test one-dimensional rhs matrices.
 
-        def solve(self):
-            return np.ones((self.r, self.d))
+    @abc.abstractmethod
+    def get_solvers(self):
+        """Yield (untrained) solvers to test."""
+        raise NotImplementedError
 
-    def test_properties(self):
-        """Test data_matrix, lhs_matrix, k, d, r, properties."""
-        solver = self.Dummy()
-        for attr in ("data_matrix", "lhs_matrix", "k", "d", "r"):
-            assert hasattr(solver, attr)
-            assert getattr(solver, attr) is None
-
-    def test_fit(self, k=30, d=20, r=5):
-        """Test fit()."""
-        solver = self.Dummy()
-
-        # Bad dimensions.
-        D = np.random.random(k)
-        Z = np.random.random((r, k))
-        with pytest.raises(ValueError) as ex:
-            solver.fit(D, Z)
-        assert ex.value.args[0] == "data_matrix must be two-dimensional"
-
-        D = np.random.random((k, d))
-        Z = np.random.random((r, k, d))
-        with pytest.raises(ValueError) as ex:
-            solver.fit(D, Z)
-        assert ex.value.args[0] == "lhs_matrix must be one- or two-dimensional"
-
-        # Mismatched shapes.
-        D = np.random.random((k, d))
-        Z = np.random.random((r, k - 1))
-        with pytest.raises(ValueError) as ex:
-            solver.fit(D, Z)
-        assert ex.value.args[0] == (
-            "data_matrix and lhs_matrix not aligned "
-            f"(lhs_matrix.shape[-1] = {k - 1} != {k} = data_matrix.shape[0])"
-        )
-
-        # Correct usage, r > 1.
+    def test_fit_and_str(self, k=20, d=10, r=5):
+        """Test fit() and lightly test __str__() and __repr__()."""
         D = np.random.random((k, d))
         Z = np.random.random((r, k))
-        assert solver.fit(D, Z) is solver
-        assert solver.data_matrix is D
-        assert solver.lhs_matrix is Z
-        assert solver.k == k
-        assert solver.d == d
-        assert solver.r == r
+        Zbad = np.random.random((r, k, d))
 
-        # Correct usage, r = 1.
-        Z = np.random.random(k)
-        assert solver.fit(D, Z) is solver
-        assert solver.data_matrix is D
-        assert solver.lhs_matrix.shape == (1, k)
-        assert solver.k == k
-        assert solver.d == d
-        assert solver.r == 1
-        assert np.all(solver.lhs_matrix[0, :] == Z)
+        for solver in self.get_solvers():
 
-    # String representations --------------------------------------------------
-    def test_str(self, k=20, d=6, r=3):
-        """Lightly test __str__() and __repr__()."""
-        solver = self.Dummy()
-        str(solver)
+            repr(solver)
 
-        D = np.empty((k, d))
-        Z = np.empty((r, k))
-        solver.fit(D, Z)
-        assert repr(solver).count(str(solver)) == 1
+            # Bad shapes.
+            with pytest.raises(ValueError) as ex:
+                solver.fit(D[:, 0], Z)
+            assert ex.value.args[0] == "data_matrix must be two-dimensional"
+
+            with pytest.raises(ValueError) as ex:
+                solver.fit(D, Zbad)
+            assert ex.value.args[0] == (
+                "lhs_matrix must be one- or two-dimensional"
+            )
+
+            # Mismatched shapes.
+            with pytest.raises(opinf.errors.DimensionalityError) as ex:
+                solver.fit(D, Z[:, :-1])
+            assert ex.value.args[0] == (
+                "data_matrix and lhs_matrix not aligned "
+                f"(lhs_matrix.shape[-1] = {k - 1} "
+                f"!= {k} = data_matrix.shape[0])"
+            )
+
+            # Correct usage, r > 1.
+            assert solver.fit(D, Z) is solver
+            assert solver.data_matrix is D
+            assert solver.lhs_matrix is Z
+            assert solver.k == k
+            assert solver.d == d
+            assert solver.r == r
+
+            repr(solver)
+
+            # Correct usage, r = 1.
+            if self.test_1D_Z:
+                assert solver.fit(D, Z[0]) is solver
+                assert solver.data_matrix is D
+                assert solver.lhs_matrix.shape == (1, k)
+                assert solver.k == k
+                assert solver.d == d
+                assert solver.r == 1
+                assert np.all(solver.lhs_matrix[0, :] == Z[0])
+
+    @abc.abstractmethod
+    def test_solve(self):
+        """Test solve()."""
+        raise NotImplementedError  # pragma: no cover
 
     # Post-processing ---------------------------------------------------------
     def test_cond(self, k=20, d=11, r=3):
         """Test cond()."""
-        solver = self.Dummy()
+        for solver in self.get_solvers():
 
-        # Try before calling fit().
-        with pytest.raises(AttributeError) as ex:
-            solver.cond()
-        assert ex.value.args[0] == "solver not trained, call fit()"
+            # Try before calling fit().
+            with pytest.raises(AttributeError) as ex:
+                solver.cond()
+            assert ex.value.args[0] == "solver not trained, call fit()"
 
-        # Contrived test 1
-        D = np.eye(d)
-        Z = np.zeros((r, d))
-        solver.fit(D, Z)
-        assert np.isclose(solver.cond(), 1)
+            # Contrived test 1
+            D = np.eye(d)
+            Z = np.zeros((r, d))
+            solver.fit(D, Z)
+            assert np.isclose(solver.cond(), 1)
 
-        # Contrived test 2
-        D = np.diag(np.arange(1, d + 1))
-        Z = np.zeros((r, d))
-        solver.fit(D, Z)
-        assert np.isclose(solver.cond(), d)
+            # Contrived test 2
+            D = np.diag(np.arange(1, d + 1))
+            Z = np.zeros((r, d))
+            solver.fit(D, Z)
+            assert np.isclose(solver.cond(), d)
 
-        # Random test
-        D = np.random.standard_normal((k, d))
-        Z = np.random.standard_normal((r, k))
-        svals = la.svdvals(D)
-        solver.fit(D, Z)
-        assert np.isclose(solver.cond(), svals[0] / svals[-1])
+            # Random test
+            D = np.random.standard_normal((k, d))
+            Z = np.random.standard_normal((r, k))
+            svals = la.svdvals(D)
+            solver.fit(D, Z)
+            assert np.isclose(solver.cond(), svals[0] / svals[-1])
 
     def test_residual(self, k=20, d=10, r=4):
         """Test residual()."""
-        solver = self.Dummy()
-
-        # Try before calling fit().
-        with pytest.raises(AttributeError) as ex:
-            solver.residual(0)
-        assert ex.value.args[0] == "solver not trained, call fit()"
-
         D = np.random.standard_normal((k, d))
         Z = np.random.standard_normal((r, k))
-        solver.fit(D, Z)
 
-        # Try with badly shaped Ohat.
-        Ohat = np.random.standard_normal((r - 1, d + 1))
-        with pytest.raises(ValueError) as ex:
-            solver.residual(Ohat)
-        assert ex.value.args[0] == (
-            f"Ohat.shape = {(r - 1, d + 1)} != {(r, d)} = (r, d)"
-        )
+        for solver in self.get_solvers():
 
-        # Two-dimensional case.
-        Ohat = np.random.standard_normal((r, d))
-        residual = solver.residual(Ohat)
-        assert isinstance(residual, np.ndarray)
-        assert residual.shape == (r,)
-        for i in range(r):
-            assert np.isclose(residual[i], la.norm(D @ Ohat[i] - Z[i]) ** 2)
+            # Try before calling fit().
+            with pytest.raises(AttributeError) as ex:
+                solver.residual(0)
+            assert ex.value.args[0] == "solver not trained, call fit()"
 
-        # One-dimensional case.
-        z = Z[0, :]
-        solver.fit(D, z)
-        assert solver.r == 1
-        ohat = np.random.standard_normal(d)
-        residual = solver.residual(ohat)
-        assert isinstance(residual, np.ndarray)
-        assert residual.shape == (1,)
-        assert np.isclose(residual[0], la.norm(D @ ohat - z) ** 2)
+            solver.fit(D, Z)
 
-    def test_copy(self, k=18, d=10, r=4):
-        """Test copy()."""
-        solver = self.Dummy()
-        solver2 = solver.copy()
-        assert solver2 is not solver
-        assert isinstance(solver2, self.Dummy)
-        assert solver2.data_matrix is None
-        assert solver2.lhs_matrix is None
+            # Try with badly shaped Ohat.
+            Ohat = np.random.standard_normal((r - 1, d + 1))
+            with pytest.raises(opinf.errors.DimensionalityError) as ex:
+                solver.residual(Ohat)
+            assert ex.value.args[0] == (
+                f"Ohat.shape = {(r - 1, d + 1)} != {(r, d)} = (r, d)"
+            )
 
+            # Two-dimensional case.
+            Ohat = np.random.standard_normal((r, d))
+            residual = solver.residual(Ohat)
+            assert isinstance(residual, np.ndarray)
+            assert residual.shape == (r,)
+            for i in range(r):
+                assert np.isclose(
+                    residual[i], la.norm(D @ Ohat[i] - Z[i]) ** 2
+                )
+
+            # One-dimensional case.
+            if self.test_1D_Z:
+                z = Z[0, :]
+                solver.fit(D, z)
+                assert solver.r == 1
+                ohat = np.random.standard_normal(d)
+                residual = solver.residual(ohat)
+                assert isinstance(residual, np.ndarray)
+                assert residual.shape == (1,)
+                assert np.isclose(residual[0], la.norm(D @ ohat - z) ** 2)
+
+    def test_save_load_and_copy_via_verify(self, k=20, d=11, r=6):
+        """Use verify() to test save(), load(), and copy()."""
         D = np.random.random((k, d))
         Z = np.random.random((r, k))
-        solver.fit(D, Z)
-        solver2 = solver.copy()
-        assert solver2 is not solver
-        assert isinstance(solver2, self.Dummy)
-        assert solver2.r == r
-        assert solver2.k == k
-        assert solver2.d == d
-        assert np.all(solver2.data_matrix == D)
-        assert np.all(solver2.lhs_matrix == Z)
 
-    # Verification ------------------------------------------------------------
-    def test_verify(self, r=5, k=40, d=10):
-        """Test verify()."""
-        D = np.random.random((k, d))
-        Z = np.random.random((r, k))
-        self.Dummy().verify()
-
-        def _single(DClass, message):
-            dummy = DClass()
-            dummy.fit(D, Z)
-            with pytest.raises(opinf.errors.VerificationError) as ex:
-                dummy.verify()
-            assert ex.value.args[0].startswith(message)
-
-        class Dummy2(self.Dummy):
-            def copy(self):
-                return 10
-
-        _single(Dummy2, "Dummy2.copy() returned object of type 'int'")
-
-        class Dummy5(self.Dummy):
-            def solve(self):
-                return np.empty((1, 1))
-
-        _single(Dummy5, "solve() did not return array of shape (r, d)")
-
-        class Dummy6(self.Dummy):
-            def copy(self):
-                newsolver = Dummy6()
-                if self.data_matrix is not None:
-                    newsolver.fit(self.data_matrix[:, 1:], self.lhs_matrix)
-                return newsolver
-
-        _single(Dummy6, "copy() does not preserve problem dimensions")
-
-        class Dummy7(self.Dummy):
-            def solve(self):
-                return np.random.random((self.r, self.d))
-
-        _single(Dummy7, "copy() does not preserve the result of solve()")
-
-        class Dummy8(self.Dummy):
-            def save(self, savefile, overwrite=False):
-                Dummy8.D = self.data_matrix
-                Dummy8.Z = self.lhs_matrix
-
-            @classmethod
-            def load(cls, loadfile):
-                newsolver = Dummy8()
-                if cls.D is not None:
-                    newsolver.fit(cls.D[:, 1:], cls.Z)
-                return newsolver
-
-        _single(Dummy8, "save()/load() does not preserve problem dimensions")
-
-        self.Dummy().fit(D, Z).verify()
+        for solver in self.get_solvers():
+            solver.fit(D, Z)
+            solver.verify()
 
 
-class TestPlainSolver:
+class TestPlainSolver(_TestSolverTemplate):
     """Test lstsq._base.PlainSolver."""
 
     Solver = opinf.lstsq.PlainSolver
 
-    def test_fit(self):
-        """Test fit()."""
-        solver = self.Solver(lapack_driver="gelsy")
+    def get_solvers(self):
+        """Yield solvers to test."""
+        yield self.Solver(lapack_driver="gelsy")
+        yield self.Solver(lapack_driver="gelsd", cond=1e-10)
+
+    def test_fit_and_str(self):
+        """Test fit() and lightly test __str__() and __repr__()."""
 
         # Underdetermined.
         k = 5
@@ -278,21 +209,14 @@ class TestPlainSolver:
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))
 
+        solver = next(self.get_solvers())
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
             solver.fit(D, Z)
         assert wn[0].message.args[0] == (
             "least-squares system is underdetermined"
         )
 
-        # Overdetermined.
-        k = 15
-        D = np.random.standard_normal((k, d))
-        Z = np.random.random((r, k))
-        solver = self.Solver(lapack_driver="gelsy", cond=1e-4)
-        out = solver.fit(D, Z)
-        assert out is solver
-
-        repr(solver)
+        return super().test_fit_and_str()
 
     def test_solve(self, k=20, d=11, r=3):
         """Test solve()."""
@@ -303,80 +227,9 @@ class TestPlainSolver:
         Ohat_true = Z @ U @ np.diag(1 / s) @ Vt
 
         # Check the least-squares solution.
-        solver = self.Solver().fit(D, Z)
-        Ohat = solver.solve()
-        assert np.allclose(Ohat, Ohat_true)
-
-    def test_save(self, k=6, d=4, r=2, outfile="_plainsolversavetest.h5"):
-        """Lightly test save()."""
-        if os.path.isfile(outfile):  # pragma: no cover
-            os.remove(outfile)
-
-        solver = self.Solver(lapack_driver="gelsy", cond=1e-14)
-        solver.save(outfile)
-
-        assert os.path.isfile(outfile)
-
-        D = np.random.standard_normal((k, d))
-        Z = np.random.random((r, k))
-        solver = self.Solver().fit(D, Z)
-        solver.save(outfile, overwrite=True)
-
-        os.remove(outfile)
-
-    def test_load(self, k=10, d=6, r=3, outfile="_plainsolverloadtest.h5"):
-        """Test that load() is the inverse of save()."""
-        if os.path.isfile(outfile):  # pragma: no cover
-            os.remove(outfile)
-
-        solver = self.Solver()
-        solver.save(outfile)
-        solver2 = self.Solver.load(outfile)
-        assert solver2.data_matrix is None
-
-        solver = self.Solver(lapack_driver="gelsy", cond=1e-12)
-        solver.save(outfile, overwrite=True)
-        solver2 = self.Solver.load(outfile)
-        assert solver2.data_matrix is None
-        assert solver2.options["lapack_driver"] == "gelsy"
-        assert solver2.options["cond"] == 1e-12
-
-        D = np.random.standard_normal((k, d))
-        Z = np.random.random((r, k))
-        solver = self.Solver().fit(D, Z)
-        solver.save(outfile, overwrite=True)
-        solver2 = self.Solver.load(outfile)
-        assert solver2.r == r
-        assert solver2.k == k
-        assert solver2.d == d
-        assert np.all(solver2.data_matrix == D)
-        assert np.all(solver2.lhs_matrix == Z)
-
-        os.remove(outfile)
-
-    def test_copy(self, k=18, d=10, r=4):
-        """Test copy()."""
-        solver = self.Solver(lapack_driver="gelsy")
-        solver2 = solver.copy()
-        assert solver2 is not solver
-        assert isinstance(solver2, self.Solver)
-        assert solver2.data_matrix is None
-        assert solver2.lhs_matrix is None
-        assert solver2.options["lapack_driver"] == "gelsy"
-
-        solver = self.Solver(cond=2e-3)
-        D = np.random.random((k, d))
-        Z = np.random.random((r, k))
-        solver.fit(D, Z)
-        solver2 = solver.copy()
-        assert solver2 is not solver
-        assert isinstance(solver2, self.Solver)
-        assert solver2.options["cond"] == 2e-3
-        assert solver2.r == r
-        assert solver2.k == k
-        assert solver2.d == d
-        assert np.all(solver2.data_matrix == D)
-        assert np.all(solver2.lhs_matrix == Z)
+        for solver in self.get_solvers():
+            Ohat = solver.fit(D, Z).solve()
+            assert np.allclose(Ohat, Ohat_true)
 
 
 if __name__ == "__main__":

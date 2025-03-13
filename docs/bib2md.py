@@ -18,6 +18,7 @@ categories = {
     "method": "Methodology",
     "structure": "Structure Preservation",
     "theory": "Theory",
+    "software": "Software / Implementation",
     "application": "Applications",
     "thesis": "Dissertations and Theses",
     "other": "Other",
@@ -30,15 +31,21 @@ subsubsections = {
 
 # Author citation IDs (https://scholar.google.com/citation?user=<this ID>)
 scholarIDS = {
-    "iman_adibnazari": "u8vJ9-oAAAAJ",
+    "nicole_aretz": "Oje7mbAAAAAJ",
     "anthony_ashley": "9KFAXLYAAAAJ",
+    "sean_babiniec": "xcSVh00AAAAJ",
     "laura_balzano": "X6fRNfUAAAAJ",
     "peter_benner": "6zcRrC4AAAAJ",
+    "patrick_blonigan": "lOmH5XcAAAAJ",
     "anirban_chaudhuri": "oGL9YJIAAAAJ",
+    "pascal_denboef": "vFlzL7kAAAAJ",
     "igor_duff": "OAkPFdkAAAAJ",
+    "melina_freitag": "iE4t4WcAAAAJ",
     "ionut-gabriel_farcas": "Cts5ePIAAAAJ",
     "rudy_geelen": "vBzKRMsAAAAJ",
+    "yuwei_geng": "lms4MbwAAAAJ",
     "omar_ghattas": "A5vhsIYAAAAJ",
+    "leonidas_gkimisis": "0GzUUzMAAAAJ",
     "marcos_gomes": "s6mocWAAAAAJ",
     "pawan_goyal": "9rEfaRwAAAAJ",
     "anthony_gruber": "CJVuqfoAAAAJ",
@@ -50,26 +57,40 @@ scholarIDS = {
     "lili_ju": "JkKUWoAAAAAJ",
     "bülent_karasözen": "R906kj0AAAAJ",
     "parisa_khodabakhshi": "lYr_g-MAAAAJ",
+    "hyeonghun_kim": "sdR-LZ4AAAAJ",
     "tomoki_koike": "HFoIGcMAAAAJ",
     "boris_kramer": "yfmbPNoAAAAJ",
+    "diana_manvelyan": "V0k8Xb4AAAAJ",
+    "jan_nicolaus": "47DRMUwAAAAJ",
+    "joseph_maubach": "nBRKw6cAAAAJ",
+    "alexandre_marquez": "p9zb2Y0AAAAJ",
     "shane_mcquarrie": "qQ6JDJ4AAAAJ",
+    "jonathan_murray": "NScAg7AAAAAJ",
     "david_najera-flores": "HJ-Dfl8AAAAJ",
     "alberto_nogueira": "66DEy5wAAAAJ",
     "benjamin_peherstorfer": "C81WhlkAAAAJ",
-    "arthur-pires": "qIUw-GEAAAAJ",
-    "gleb-pogudin": "C5NP1o0AAAAJ",
+    "arthur_pires": "qIUw-GEAAAAJ",
+    "gleb_pogudin": "C5NP1o0AAAAJ",
     "elizabeth_qian": "jnHI7wQAAAAJ",
+    "thomas_richter": "C8R6xtMAAAAJ",
+    "wil_schilders": "UGKPyqkAAAAJ",
     "harsh_sharma": "Pb-tL5oAAAAJ",
+    "jasdeep_singh": "VcmXMxgAAAAJ",
     "renee_swischuk": "L9D0LBsAAAAJ",
+    "john_tencer": "M6AwtC4AAAAJ",
     "irina_tezaur": "Q3fx78kAAAAJ",
+    "marco_tezzele": "UPcyNXIAAAAJ",
     "michael_todd": "jzY8TSkAAAAJ",
     "michael_tolley": "0kOHVOkAAAAJ",
     "wayne_uy": "hNN_KRQAAAAJ",
+    "nathan_vandewouw": "pcQCbN8AAAAJ",
+    "arjun_vijaywargiya": "_fcSwDYAAAAJ",
     "zhu_wang": "jkmwEF0AAAAJ",
     "yuxiao_wen": "uXJoQCAAAAAJ",
     "karen_willcox": "axvGyXoAAAAJ",
     "stephen_wright": "VFQRIOwAAAAJ",
     "süleyman_yıldız": "UVPD79MAAAAJ",
+    "benjamin_zastrow": "ODLjrBAAAAAJ",
 }
 
 # LaTeX special characters to convert for the markdown version.
@@ -132,10 +153,13 @@ You can also submit entries yourself through a pull request:
 
      `authors = {{First1 Last1 and First2 Last2}},`
 
+     Enclose multi-word names in braces, for example,
+
+     `authors = {{Vincent {{van Gogh}} and Balthasar {{van der Pol}}}},`
    - Include a "doi" field if applicable.
    - Add a "category" field to indicate which section the reference should be
      listed under on this page. Options include `survey`, `method`,
-     `structure`, `theory`, `application`, `thesis`, and `other`.
+     `structure`, `theory`, `software`, `application`, `thesis`, and `other`.
 3. Add the Google Scholar IDs of each author who has one to the `scholarIDS`
    dictionary in `docs/bib2md.py`. This is the unique part of a Google Scholar
    profile page url:
@@ -183,21 +207,27 @@ def clean_title(title):
     return re.subn(r"\{(\w+?)\}", r"\1", clean_name(title))[0]
 
 
-def linkedname(names):
+def linkedname(author):
     """Get the string of the form "First, Last" with a link to their
     Google Scholar page if possible.
     """
+    # Separate names, keeping {} groups together.
+    names = [
+        match[1:-1] if match.startswith("{") and match.endswith("}") else match
+        for match in re.findall(r"\{[^}]*\}|\S+", author)
+    ]
+
     # Extract first and last names and initials.
     firstname = clean_name(names[0]).lower()
     if names[-1] == "Jr":
         lastname = clean_name(names[-2])
         initials = " ".join([name[0] + "." for name in names[:-2]])
-        key = f"{firstname}_{lastname.lower()}"
+        key = f"{firstname}_{lastname.replace(" ", "").lower()}"
         lastname = f"{lastname} Jr."
     else:
         lastname = clean_name(names[-1])
         initials = " ".join([name[0] + "." for name in names[:-1]])
-        key = f"{firstname}_{lastname.lower()}"
+        key = f"{firstname}_{lastname.replace(" ", "").lower()}"
 
     # Get the Google Scholar link if possible.
     if key in scholarIDS:
@@ -241,7 +271,7 @@ def main(bibfile, mdfile):
                 raise ValueError(
                     f"change {bibfile} to avoid ',' in author '{author}'"
                 )
-            authors.append(linkedname(author.split(" ")))
+            authors.append(linkedname(author))
 
         if len(authors) == 0:
             raise ValueError("empty author field")

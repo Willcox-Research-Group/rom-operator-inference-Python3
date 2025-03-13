@@ -137,16 +137,18 @@ class ROM(_BaseROM):
         regularization hyperparameter(s) that minimize the training error while
         maintaining stability over the testing regime.
 
-        This method requires the :attr:`model` to be time-continuous and to
-        have a ``solver`` of one of the following types:
+        This method requires the :attr:`model` to be time-continuous (use
+        :meth:`fit_regselect_discrete` for fully discrete models) and to have a
+        ``solver`` of one of the following types:
 
         * :class:`opinf.lstsq.L2Solver`
         * :class:`opinf.lstsq.L2DecoupledSolver`
         * :class:`opinf.lstsq.TikhonovSolver`
         * :class:`opinf.lstsq.TikhonovDecoupledSolver`
 
-        The ``solver.regularizer`` is repeatedly adjusted, and the model is
-        recalibrated, until a best regularization is selected.
+        The ``model.solver.regularizer`` is repeatedly adjusted, and the model
+        is recalibrated, until a best regularization is selected.
+        See :cite:`mcquarrie2021combustion`.
 
         Parameters
         ----------
@@ -206,12 +208,12 @@ class ROM(_BaseROM):
         -----
         If there is only one trajectory of training data (s = 1), ``states``
         may be provided as an (n, k) ndarray. In this case, it is assumed that
-        ``ddts`` (if provided) is an (n, k) ndarray and that ``inputs`` (if
-        provided) is a single callable.
+        ``ddts`` (if provided) is an (n, k) ndarray.
 
         The ``train_time_domains`` may be a single one-dimensional array, in
         which case it is assumed that each trajectory ``states[i]`` corresponds
-        to the same time domain.
+        to the same time domain. Similarly, if ``input_functions`` is a single
+        callable, it is assumed to be the input function for each trajectory.
         """
         return super().fit_regselect_continuous(
             candidates=candidates,
@@ -249,7 +251,8 @@ class ROM(_BaseROM):
         regularization hyperparameter(s) that minimize the training error
         while maintaining stability over the testing regime.
 
-        This method requires the :attr:`model` to be time-continuous and to
+        This method requires the :attr:`model` to be fully discrete (use
+        :meth:`fit_regselect_continuous` for time-continuous models) and to
         have a ``solver`` of one of the following types:
 
         * :class:`opinf.lstsq.L2Solver`
@@ -257,8 +260,9 @@ class ROM(_BaseROM):
         * :class:`opinf.lstsq.TikhonovSolver`
         * :class:`opinf.lstsq.TikhonovDecoupledSolver`
 
-        The ``solver.regularizer`` is repeatedly adjusted, and the model is
-        recalibrated, until a best regularization is selected.
+        The ``model.solver.regularizer`` is repeatedly adjusted, and the model
+        is recalibrated, until a best regularization is selected.
+        See :cite:`mcquarrie2021combustion`.
 
         candidates : list of regularization hyperparameters
             Regularization hyperparameters to check. If a single hyperparameter
@@ -300,7 +304,7 @@ class ROM(_BaseROM):
         -----
         If there is only one trajectory of training data (s = 1), ``states``
         may be provided as an (n, k) ndarray. In this case, it is assumed that
-        ``inputs`` (if provided) is a single (m, k) ndarray.
+        ``inputs`` (if provided) is a single (m, k + num_test_iters) ndarray.
         """
         return super().fit_regselect_discrete(
             candidates=candidates,

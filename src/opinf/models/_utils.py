@@ -5,6 +5,7 @@ __all__ = [
     "is_continuous",
     "is_discrete",
     "is_parametric",
+    "is_interpolatory",
     "is_nonparametric",
 ]
 
@@ -17,6 +18,7 @@ from .mono._parametric import (
     _ParametricContinuousMixin,
     _ParametricDiscreteMixin,
     _ParametricModel,
+    _InterpModel,
 )
 
 
@@ -44,3 +46,8 @@ def is_nonparametric(model):
 def is_parametric(model):
     """``True`` if the model is parametric."""
     return isinstance(model, _ParametricModel)
+
+
+def is_interpolatory(model):
+    """``True`` if the model is fully interpolatory."""
+    return isinstance(model, _InterpModel)

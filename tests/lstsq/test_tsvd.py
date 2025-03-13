@@ -7,11 +7,21 @@ import scipy.linalg as la
 
 import opinf
 
+try:
+    from .test_base import _TestSolverTemplate
+except ImportError:
+    from test_base import _TestSolverTemplate
 
-class TestTotalLeastSquaresSolver:
+
+class TestTotalLeastSquaresSolver(_TestSolverTemplate):
     """Test lstsq._tsvd.TruncatedSVDSolver."""
 
     Solver = opinf.lstsq.TruncatedSVDSolver
+
+    def get_solvers(self):
+        """Yield solvers to test."""
+        yield self.Solver(None)
+        yield self.Solver(3)
 
     def test_init(self):
         """Test __init__() and properties."""
@@ -27,8 +37,6 @@ class TestTotalLeastSquaresSolver:
             else:
                 assert solver.num_svdmodes == n
             assert solver.max_modes is None
-
-        repr(solver)
 
     def test_fit(self, k=20, d=10, r=6):
         """Test fit()."""
@@ -75,11 +83,10 @@ class TestTotalLeastSquaresSolver:
         assert np.isclose(solver.tcond(), solver.cond())
 
     def test_solve(self, k=15, d=7, r=5):
-        """Test solve() via verify()."""
+        """Test solve()."""
         D = np.random.standard_normal((k, d))
         Z = np.random.random((r, k))
         solver = self.Solver(min(D.shape) - 2).fit(D, Z)
-        solver.verify()
 
         Ohat_true = la.lstsq(D, Z.T)[0].T
         resid_true = la.norm(solver.residual(Ohat_true))
