@@ -9,17 +9,8 @@
 
 # Operator Inference in Python
 
-This is a Python implementation of Operator Inference for learning projection-based polynomial reduced-order models of dynamical systems.
+This package is a Python implementation of the Operator Inference framework for learning projection-based polynomial reduced-order models of dynamical systems.
 The procedure is **data-driven** and **non-intrusive**, making it a viable candidate for model reduction of "glass-box" systems.
 The methodology was [introduced in 2016 by Peherstorfer and Willcox](https://www.sciencedirect.com/science/article/pii/S0045782516301104).
 
-[**See the Documentation Here**](https://Willcox-Research-Group.github.io/rom-operator-inference-Python3/).
-
----
-
-**Contributors**:
-[Shane McQuarrie](https://github.com/shanemcq18),
-[Renee Swischuk](https://github.com/swischuk),
-[Elizabeth Qian](https://github.com/elizqian),
-[Boris Kramer](http://kramer.ucsd.edu/),
-[Karen Willcox](https://kiwi.oden.utexas.edu/).
+[**See the Documentation Here**](https://willcox-research-group.github.io/rom-operator-inference-Python3/).
