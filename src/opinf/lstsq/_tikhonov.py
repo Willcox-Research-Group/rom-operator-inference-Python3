@@ -84,8 +84,11 @@ class _BaseRegularizedSolver(SolverTemplate):
 
     @abc.abstractmethod
     def posterior(self):
-        """Construct the means and inverse covariances of probability
-        distributions for the rows of an operator matrix posterior.
+        r"""Solve the Bayesian operator inference regression, constructing the
+        means and inverse covariances of probability distributions for the
+        rows of an operator matrix posterior.
+
+        See :cite:`guo2022bayesopinf` for details.
 
         Returns
         -------
@@ -328,9 +331,12 @@ class L2Solver(_BaseRegularizedSolver):
                \D\trp\D + \lambda^2\I
            \right)^{-1},
            \\
-           \sigma_i^2 = \frac{1}{k}\left(
+           \sigma_i^2 &= \frac{1}{k}\left(
                \|\D\bfmu_i - \z_i\|_2^2 + \lambda^2\|\bfmu_i\|_2^2
-           \right)
+           \right),
+
+        where :math:`\z_i\in\RR^k` is the :math:`i`-th row of :math:`\Z`.
+        See :cite:`guo2022bayesopinf` for details.
 
         Returns
         -------
@@ -544,9 +550,12 @@ class L2DecoupledSolver(L2Solver):
                \D\trp\D + \lambda_i^2\I
            \right)^{-1},
            \\
-           \sigma_i^2 = \frac{1}{k}\left(
+           \sigma_i^2 &= \frac{1}{k}\left(
                \|\D\bfmu_i - \z_i\|_2^2 + \lambda_i^2\|\bfmu_i\|_2^2
-           \right)
+           \right),
+
+        where :math:`\z_i\in\RR^k` is the :math:`i`-th row of :math:`\Z`.
+        See :cite:`guo2022bayesopinf` for details.
 
         Returns
         -------
@@ -933,9 +942,12 @@ class TikhonovSolver(_BaseRegularizedSolver):
                \D\trp\D + \bfGamma\trp\bfGamma
            \right)^{-1},
            \\
-           \sigma_i^2 = \frac{1}{k}\left(
+           \sigma_i^2 &= \frac{1}{k}\left(
                \|\D\bfmu_i - \z_i\|_2^2 + \|\bfGamma\bfmu_i\|_2^2
-           \right)
+           \right),
+
+        where :math:`\z_i\in\RR^k` is the :math:`i`-th row of :math:`\Z`.
+        See :cite:`guo2022bayesopinf` for details.
 
         Returns
         -------
@@ -1185,9 +1197,12 @@ class TikhonovDecoupledSolver(TikhonovSolver):
                \D\trp\D + \bfGamma_i\trp\bfGamma_i
            \right)^{-1},
            \\
-           \sigma_i^2 = \frac{1}{k}\left(
+           \sigma_i^2 &= \frac{1}{k}\left(
                \|\D\bfmu_i - \z_i\|_2^2 + \|\bfGamma_i\bfmu_i\|_2^2
-           \right)
+           \right),
+
+        where :math:`\z_i\in\RR^k` is the :math:`i`-th row of :math:`\Z`.
+        See :cite:`guo2022bayesopinf` for details.
 
         Returns
         -------

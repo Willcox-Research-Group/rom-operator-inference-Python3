@@ -17,15 +17,15 @@ def _identity(x):
 
 
 class _BaseROM(abc.ABC):
-    """Reduced-order model.
+    r"""Base class for reduced-order models.
 
-    This class connects classes from the various submodules to form a complete
-    reduced-order modeling workflow.
+    ROM classes connect classes from the various submodules to form a complete
+    reduced-order modeling workflow:
 
     High-dimensional data
-        -> transformed / preprocessed data
-        -> compressed data
-        -> low-dimensional model.
+    :math:`\to` transformed / preprocessed data
+    :math:`\to` compressed data
+    :math:`\to` low-dimensional model.
 
     Parameters
     ----------
@@ -522,16 +522,18 @@ class _BaseROM(abc.ABC):
         regularization hyperparameter(s) that minimize the training error while
         maintaining stability over the testing regime.
 
-        This method requires the :attr:`model` to be time-continuous and to
-        have a ``solver`` of one of the following types:
+        This method requires the :attr:`model` to be time-continuous (use
+        :meth:`fit_regselect_discrete` for fully discrete models) and to have a
+        ``solver`` of one of the following types:
 
         * :class:`opinf.lstsq.L2Solver`
         * :class:`opinf.lstsq.L2DecoupledSolver`
         * :class:`opinf.lstsq.TikhonovSolver`
         * :class:`opinf.lstsq.TikhonovDecoupledSolver`
 
-        The ``solver.regularizer`` is repeatedly adjusted, and the model is
-        recalibrated, until a best regularization is selected.
+        The ``model.solver.regularizer`` is repeatedly adjusted, and the model
+        is recalibrated, until a best regularization is selected.
+        See :cite:`mcquarrie2021combustion,mcquarrie2023parametric`.
 
         Parameters
         ----------
@@ -596,14 +598,10 @@ class _BaseROM(abc.ABC):
 
         Notes
         -----
-        If there is only one trajectory of training data (s = 1), ``states``
-        may be provided as an (n, k) ndarray. In this case, it is assumed that
-        ``ddts`` (if provided) is an (n, k) ndarray and that ``inputs`` (if
-        provided) is a single callable.
-
         The ``train_time_domains`` may be a single one-dimensional array, in
         which case it is assumed that each trajectory ``states[i]`` corresponds
-        to the same time domain.
+        to the same time domain. Similarly, if ``input_functions`` is a single
+        callable, it is assumed to be the input function for each trajectory.
         """
         if not self._iscontinuous:
             raise AttributeError(
@@ -766,7 +764,8 @@ class _BaseROM(abc.ABC):
         regularization hyperparameter(s) that minimize the training error
         while maintaining stability over the testing regime.
 
-        This method requires the :attr:`model` to be time-continuous and to
+        This method requires the :attr:`model` to be fully discrete (use
+        :meth:`fit_regselect_continuous` for time-continuous models) and to
         have a ``solver`` of one of the following types:
 
         * :class:`opinf.lstsq.L2Solver`
@@ -774,9 +773,12 @@ class _BaseROM(abc.ABC):
         * :class:`opinf.lstsq.TikhonovSolver`
         * :class:`opinf.lstsq.TikhonovDecoupledSolver`
 
-        The ``solver.regularizer`` is repeatedly adjusted, and the model is
-        recalibrated, until a best regularization is selected.
+        The ``model.solver.regularizer`` is repeatedly adjusted, and the model
+        is recalibrated, until a best regularization is selected.
+        See :cite:`mcquarrie2021combustion,mcquarrie2023parametric`.
 
+        Parameters
+        ----------
         candidates : list of regularization hyperparameters
             Regularization hyperparameters to check. If a single hyperparameter
             is given, use it as the start of an optimization-based search.
@@ -818,12 +820,6 @@ class _BaseROM(abc.ABC):
             See :class:`opinf.utils.DiscreteRegTest`.
         verbose : bool
             If ``True``, print information during the regularization selection.
-
-        Notes
-        -----
-        If there is only one trajectory of training data (s = 1), ``states``
-        may be provided as an (n, k) ndarray. In this case, it is assumed that
-        ``inputs`` (if provided) is a single (m, k) ndarray.
         """
         if self._iscontinuous:
             raise AttributeError(

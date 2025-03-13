@@ -23,7 +23,7 @@ from . import (
     utils,
 )
 
-from .roms import *
+from .roms import ROM, ParametricROM
 
 __all__ = [
     "basis",
@@ -37,6 +37,6 @@ __all__ = [
     "post",
     "roms",
     "utils",
+    "ROM",
+    "ParametricROM",
 ]
-
-__all__ += roms.__all__
