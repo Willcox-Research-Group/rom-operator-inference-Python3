@@ -42,6 +42,11 @@ class TestTimedBlock:
             pass
         assert obj.message == message
 
+        # No message.
+        with self.Timer(None) as obj:
+            pass
+        assert obj.message == ""
+
     @skipwindows
     def test_timeout(self, message="TimedBlock test with problems"):
         # Time limit expires.
