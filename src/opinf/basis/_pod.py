@@ -72,6 +72,7 @@ def method_of_snapshots(
     ----------
     states : (n, k) ndarray,
         Snapshot matrix :math:`\Q` from which to compute the POD vectors.
+        This method is computationally efficient when n >> k.
     inner_product_matrix : (n, n) sparse SPD matrix or None
         Spatial inner product matrix :math:`\W` for measuring how different
         indices in the snapshot matrix interact with each other.
@@ -100,7 +101,13 @@ def method_of_snapshots(
     any negative eigenvalues, then ``minthresh`` is increased to the absolute
     value of the most negative eigenvalue.
     """
-    n_states = states.shape[1]
+    state_dimension, n_states = states.shape
+    if n_states > state_dimension:
+        warnings.warn(
+            "state dimension < number of states, "
+            "method-of-snapshots / eigh may be inefficient",
+            errors.OpInfWarning,
+        )
     if inner_product_matrix is None:
         gramian = states.T @ (states / n_states)
     else:
@@ -113,7 +120,7 @@ def method_of_snapshots(
     eigvals = eigvals[::-1]
     eigvecs = eigvecs[:, ::-1]
 
-    # NOTE: By definition the Gramian is symmetric positive semi-definite.
+    # By definition the Gramian is symmetric positive semi-definite.
     # If any eigenvalues are smaller than zero, they are only measuring
     # numerical error and can be truncated.
     positives = eigvals > max(minthresh, abs(np.min(eigvals)))
