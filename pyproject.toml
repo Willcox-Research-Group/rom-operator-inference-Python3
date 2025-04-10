@@ -39,13 +39,13 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "bibtexparser>=2.0.0b7",
-    "tox>=4",
-    "pre-commit>=3.7.1",
-    "flake8==7.0.0",
     "black==24.4.2",
+    "flake8==7.0.0",
     "jupyterlab",
-    "pandas",
     "notebook",
+    "pandas",
+    "pre-commit>=3.7.1",
+    "tox>=4",
 ]
 
 [project.urls]

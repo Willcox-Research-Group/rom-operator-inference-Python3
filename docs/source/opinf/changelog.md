@@ -5,6 +5,13 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+## Version 0.5.14
+
+- Catch any errors in `fit_regselect*()` that occur when the model uses `refit()`.
+- Tikhonov-type least-squares solvers do not require the regularizer in the constructor but will raise an `AttributeError` in `solve()` (and other methods) if the regularizer is not set. This makes using `fit_regselect_*()` much less cumbersome.
+- `PODBasis.fit(Q)` raises a warning when using the `"method-of-snapshots"`/`"eigh"` strategy if $n < k$ for $\mathbf{Q}\in\mathbb{R}^{n \times k}.$ In this case, calculating the $n \times k$ SVD is likely more efficient than the $k \times k$ eigenvalue problem.
+- Added Python 3.13 to list of tests.
+
 ## Version 0.5.13
 
 Bayesian operator inference:

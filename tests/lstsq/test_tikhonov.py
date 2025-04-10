@@ -71,6 +71,10 @@ class TestL2Solver(_TestBaseRegularizedSolver):
     # Properties --------------------------------------------------------------
     def test_regularizer(self):
         """Test regularizer property and setter."""
+        solver = self.Solver()
+        assert solver.regularizer is None
+        str(solver)
+
         # Try with nonscalar regularizer.
         with pytest.raises(TypeError) as ex:
             self.Solver([1, 2, 3])
@@ -99,6 +103,11 @@ class TestL2Solver(_TestBaseRegularizedSolver):
                 o1 = o1.reshape((1, -1))
             assert o2.shape == o1.shape
             assert np.allclose(o2, o1)
+
+        solver = self.Solver().fit(D, Z)
+        with pytest.raises(AttributeError) as ex:
+            solver.solve()
+        assert ex.value.args[0] == "solver regularizer not set"
 
         for solver in self.get_solvers():
 
@@ -162,6 +171,12 @@ class TestL2Solver(_TestBaseRegularizedSolver):
             regcond_true = np.linalg.cond(np.vstack((A, reg * np.eye(d))))
             _singletest(reg, regcond_true)
 
+        # No regularizer.
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.regcond()
+        assert ex.value.args[0] == "solver regularizer not set"
+
     def test_regresidual(self, k=20, d=11, r=3, ntests=5):
         """Test regresidual()."""
         solver = self.Solver(0)
@@ -207,6 +222,12 @@ class TestL2Solver(_TestBaseRegularizedSolver):
             ans = np.linalg.norm(A @ x - b) ** 2 + np.linalg.norm(reg * x) ** 2
             assert np.isclose(residual[0], ans)
 
+        # No regularizer.
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.regresidual(None)
+        assert ex.value.args[0] == "solver regularizer not set"
+
 
 class TestL2DecoupledSolver(_TestBaseRegularizedSolver):
     """Test lstsq._tikhonov.L2DecoupledSolver."""
@@ -222,6 +243,10 @@ class TestL2DecoupledSolver(_TestBaseRegularizedSolver):
     # Properties --------------------------------------------------------------
     def test_regularizer(self, k=10, d=6, r=3):
         """Test _check_regularizer_shape(), fit(), and regularizer property."""
+        solver = self.Solver()
+        assert solver.regularizer is None
+        str(solver)
+
         solver = self.Solver(np.random.random(r + 1))
         A = np.empty((k, d))
         B = np.empty((r, k))
@@ -259,6 +284,12 @@ class TestL2DecoupledSolver(_TestBaseRegularizedSolver):
         Z = np.random.random((r, k))
         Id = np.eye(d)
         ZpadT = np.vstack((Z.T, np.zeros((d, r))))
+
+        solver = self.Solver()
+        solver.fit(D, Z)
+        with pytest.raises(AttributeError) as ex:
+            solver.solve()
+        assert ex.value.args[0] == "solver regularizer not set"
 
         for solver in self.get_solvers():
             Ohat1 = []
@@ -316,6 +347,12 @@ class TestL2DecoupledSolver(_TestBaseRegularizedSolver):
         conds = [np.linalg.cond(np.vstack((A, reg * Id))) for reg in regs]
         assert np.allclose(solver.regcond(), conds)
 
+        # No regularizer.
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.regcond()
+        assert ex.value.args[0] == "solver regularizer not set"
+
     def test_regresidual(self, k=20, d=11, r=3):
         """Test lstsq._tikhonov.L2DecoupledSolver.residual()."""
         solver = self.Solver([0] * r)
@@ -350,6 +387,12 @@ class TestL2DecoupledSolver(_TestBaseRegularizedSolver):
         )
         assert np.allclose(residual, ans)
 
+        # No regularizer.
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.regresidual(None)
+        assert ex.value.args[0] == "solver regularizer not set"
+
     def test_save_load_and_copy_via_verify(self, k=20, d=11):
         return super().test_save_load_and_copy_via_verify(k, d, 4)
 
@@ -371,6 +414,10 @@ class TestTikhonovSolver(_TestBaseRegularizedSolver):
     # Properties --------------------------------------------------------------
     def test_regularizer(self, k=20, d=11, r=3):
         """Test _check_regularizer_shape(), regularizer, and method."""
+        solver = self.Solver()
+        assert solver.regularizer is None
+        str(solver)
+
         Z = np.random.random((d, d))
 
         with pytest.raises(ValueError) as ex:
@@ -492,6 +539,12 @@ class TestTikhonovSolver(_TestBaseRegularizedSolver):
         d = 10
         A = np.random.random((k, d))
         B = np.random.random((r, k))
+
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.solve()
+        assert ex.value.args[0] == "solver regularizer not set"
+
         Bpad = np.concatenate((B.T, np.zeros((d, r))))
         b = B[0, :]
         bpad = Bpad[:, 0]
@@ -595,6 +648,12 @@ class TestTikhonovSolver(_TestBaseRegularizedSolver):
             solver.regularizer = P
             assert np.isclose(solver.regcond(), cond)
 
+        # No regularizer.
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.regcond()
+        assert ex.value.args[0] == "solver regularizer not set"
+
     def test_regresidual(self, k=20, d=11, r=3, ntests=5):
         """Test lstsq._tikhonov.TikhonovSolver.residual()."""
         Z = np.zeros(d)
@@ -635,6 +694,12 @@ class TestTikhonovSolver(_TestBaseRegularizedSolver):
             ans = np.linalg.norm(A @ x - b) ** 2 + np.linalg.norm(P * x) ** 2
             assert np.isclose(residual[0], ans)
 
+        # No regularizer.
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.regresidual(None)
+        assert ex.value.args[0] == "solver regularizer not set"
+
     def test_save_load_and_copy_via_verify(self, k=20, r=6):
         return super().test_save_load_and_copy_via_verify(k=k, d=10, r=r)
 
@@ -655,6 +720,10 @@ class TestTikhonovDecoupledSolver(_TestBaseRegularizedSolver):
     # Properties --------------------------------------------------------------
     def test_regularizer(self, k=10, d=6, r=3):
         """Test _check_regularizer_shape() and regularizer."""
+        solver = self.Solver()
+        assert solver.regularizer is None
+        str(solver)
+
         Z = np.random.random((d, d))
         solver = opinf.lstsq.TikhonovDecoupledSolver([Z] * r)
         A = np.empty((k, d))
@@ -699,9 +768,14 @@ class TestTikhonovDecoupledSolver(_TestBaseRegularizedSolver):
         r = len(Ps)
         A = np.random.random((k, d))
         B = np.random.random((r, k))
-        solver = self.Solver(Ps)
+
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.solve()
+        assert ex.value.args[0] == "solver regularizer not set"
 
         # Try solving before fitting.
+        solver = self.Solver(Ps)
         with pytest.raises(AttributeError) as ex:
             solver.solve()
         assert ex.value.args[0] == "solver not trained, call fit()"
@@ -772,6 +846,12 @@ class TestTikhonovDecoupledSolver(_TestBaseRegularizedSolver):
         conds = [np.linalg.cond(np.vstack((A, P))) for P in Ps]
         assert np.allclose(solver.regcond(), conds)
 
+        # No regularizer.
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.regcond()
+        assert ex.value.args[0] == "solver regularizer not set"
+
     def test_residual(self, k=20):
         return super().test_residual(k, d=10, r=5)
 
@@ -792,6 +872,12 @@ class TestTikhonovDecoupledSolver(_TestBaseRegularizedSolver):
             [la.norm(P @ Ohat[i], ord=2) ** 2 for i, P in enumerate(Ps)]
         )
         assert np.allclose(residual, ans)
+
+        # No regularizer.
+        solver = self.Solver().fit(A, B)
+        with pytest.raises(AttributeError) as ex:
+            solver.regresidual(None)
+        assert ex.value.args[0] == "solver regularizer not set"
 
     def test_save_load_and_copy_via_verify(self, k=20):
         return super().test_save_load_and_copy_via_verify(k=k, d=10, r=5)

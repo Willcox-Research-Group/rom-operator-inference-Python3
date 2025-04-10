@@ -129,10 +129,10 @@ class _BaseRegularizedSolver(SolverTemplate):
             Names of additional attributes to save.
         """
         with utils.hdf5_savehandle(savefile, overwrite) as hf:
-            reg = self.regularizer
-            if self.__class__ is L2Solver:
-                reg = [reg]
-            hf.create_dataset("regularizer", data=reg)
+            if (reg := self.regularizer) is not None:
+                if self.__class__ is L2Solver:
+                    reg = [reg]
+                hf.create_dataset("regularizer", data=reg)
 
             if isinstance(self, TikhonovSolver):
                 meta = hf.create_dataset("meta", shape=(0,))
@@ -165,9 +165,11 @@ class _BaseRegularizedSolver(SolverTemplate):
         """
         with utils.hdf5_loadhandle(loadfile) as hf:
 
-            reg = hf["regularizer"][:]
-            if cls is L2Solver:
-                reg = reg[0]
+            reg = None
+            if "regularizer" in hf:
+                reg = hf["regularizer"][:]
+                if cls is L2Solver:
+                    reg = reg[0]
 
             options = cls._load_dict(hf, "options")
             kwargs = dict(
@@ -230,7 +232,7 @@ class L2Solver(_BaseRegularizedSolver):
         See :func:`scipy.linalg.svd()`.
     """
 
-    def __init__(self, regularizer, lapack_driver: str = "gesdd"):
+    def __init__(self, regularizer=None, lapack_driver: str = "gesdd"):
         """Store the regularizer and initialize attributes."""
         _BaseRegularizedSolver.__init__(self)
         self.regularizer = regularizer
@@ -249,10 +251,11 @@ class L2Solver(_BaseRegularizedSolver):
     @regularizer.setter
     def regularizer(self, reg):
         """Set the regularization constant."""
-        if not np.isscalar(reg):
-            raise TypeError("regularization constant must be a scalar")
-        if reg < 0:
-            raise ValueError("regularization constant must be nonnegative")
+        if reg is not None:
+            if not np.isscalar(reg):
+                raise TypeError("regularization constant must be a scalar")
+            if reg < 0:
+                raise ValueError("regularization constant must be nonnegative")
         self.__reg = reg
 
     @property
@@ -265,10 +268,13 @@ class L2Solver(_BaseRegularizedSolver):
     def __str__(self):
         """String representation: dimensions + solver options."""
         kwargs = self._print_kwargs(self.options)
-        if np.isscalar(self.regularizer):
-            regstr = f"{self.regularizer:.4e}"
+        if self.regularizer is not None:
+            if np.isscalar(self.regularizer):
+                regstr = f"{self.regularizer:.4e}"
+            else:
+                regstr = f"{self.regularizer.shape}"
         else:
-            regstr = f"{self.regularizer.shape}"
+            regstr = "None"
         return "\n  ".join(
             [
                 SolverTemplate.__str__(self),
@@ -308,6 +314,8 @@ class L2Solver(_BaseRegularizedSolver):
         Ohat : (r, d) ndarray
             Operator matrix :math:`\Ohat` (not its transpose!).
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         svals = self._svals.reshape((-1, 1))
         svals_inv = svals / (svals**2 + self.regularizer**2)
         return (self._ZPhi * svals_inv.T) @ self._PsiT
@@ -377,6 +385,8 @@ class L2Solver(_BaseRegularizedSolver):
         cond : float
             Condition number of the regularized data matrix.
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         svals2 = self._svals**2 + self.regularizer**2
         return np.sqrt(svals2.max() / svals2.min())
 
@@ -404,6 +414,8 @@ class L2Solver(_BaseRegularizedSolver):
         residuals : (r,) ndarray
             :math:`2`-norm residuals for each row of the operator matrix.
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         residual = self.residual(Ohat)
         return residual + (self.regularizer**2 * np.sum(Ohat**2, axis=-1))
 
@@ -505,13 +517,16 @@ class L2DecoupledSolver(L2Solver):
     @regularizer.setter
     def regularizer(self, regs):
         """Set the regularization constants."""
-        regs = np.array(regs)
-        if regs.ndim != 1:
-            raise ValueError("regularizer must be one-dimensional")
-        if np.any(regs < 0):
-            raise ValueError("regularization constants must be nonnegative")
+        if regs is not None:
+            regs = np.array(regs)
+            if regs.ndim != 1:
+                raise ValueError("regularizer must be one-dimensional")
+            if np.any(regs < 0):
+                raise ValueError(
+                    "regularization constants must be nonnegative"
+                )
         self.__regs = regs
-        if self.r is not None:
+        if self.r is not None and regs is not None:
             self._check_regularizer_shape()
 
     # Main methods ------------------------------------------------------------
@@ -528,7 +543,8 @@ class L2DecoupledSolver(L2Solver):
             If one-dimensional, assume :math:`r = 1`.
         """
         L2Solver.fit(self, data_matrix, lhs_matrix)
-        self._check_regularizer_shape()
+        if self.regularizer is not None:
+            self._check_regularizer_shape()
         return self
 
     def posterior(self):
@@ -594,6 +610,8 @@ class L2DecoupledSolver(L2Solver):
         conds : (r,) ndarray
             Condition numbers of the regularized data matrices.
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         svals2 = self._svals**2 + self.regularizer.reshape((-1, 1)) ** 2
         return np.sqrt(svals2.max(axis=1) / svals2.min(axis=1))
 
@@ -682,7 +700,7 @@ class TikhonovSolver(_BaseRegularizedSolver):
 
     def __init__(
         self,
-        regularizer,
+        regularizer=None,
         method: str = "lstsq",
         cond: float = None,
         lapack_driver: str = None,
@@ -702,13 +720,16 @@ class TikhonovSolver(_BaseRegularizedSolver):
     def __str__(self):
         """String representation: dimensions + solver options."""
         kwargs = self._print_kwargs(self.options)
-        if self.regularizer[0].ndim == 1:
-            regstr = f"     {self.regularizer.shape}"
+        if self.regularizer is not None:
+            if self.regularizer[0].ndim == 1:
+                regstr = f"     {self.regularizer.shape}"
+            else:
+                regstr = (
+                    f"     {len(self.regularizer)} "
+                    f"{self.regularizer[0].shape} ndarrays"
+                )
         else:
-            regstr = (
-                f"     {len(self.regularizer)} "
-                f"{self.regularizer[0].shape} ndarrays"
-            )
+            regstr = "None"
         if self.method == "lstsq":
             kwargs = self._print_kwargs(self.options)
             spstr = f"solver ('lstsq'): scipy.linalg.lstsq({kwargs})"
@@ -734,21 +755,22 @@ class TikhonovSolver(_BaseRegularizedSolver):
     @regularizer.setter
     def regularizer(self, G):
         """Set the regularization matrix."""
-        if sparse.issparse(G):
-            G = G.toarray()
-        elif not isinstance(G, np.ndarray):
-            G = np.array(G)
+        if G is not None:
+            if sparse.issparse(G):
+                G = G.toarray()
+            elif not isinstance(G, np.ndarray):
+                G = np.array(G)
 
-        if G.ndim == 1:
-            if np.any(G < 0):
-                raise ValueError(
-                    "diagonal regularizer must be positive semi-definite"
-                )
-            G = np.diag(G)
+            if G.ndim == 1:
+                if np.any(G < 0):
+                    raise ValueError(
+                        "diagonal regularizer must be positive semi-definite"
+                    )
+                G = np.diag(G)
 
         self.__reg = G
 
-        if self.d is not None:
+        if self.d is not None and G is not None:
             self._check_regularizer_shape()
 
     @classmethod
@@ -894,7 +916,8 @@ class TikhonovSolver(_BaseRegularizedSolver):
             "Left-hand side" data matrix :math:`\Z` (not its transpose!).
         """
         _BaseRegularizedSolver.fit(self, data_matrix, lhs_matrix)
-        self._check_regularizer_shape()
+        if self.regularizer is not None:
+            self._check_regularizer_shape()
         D, Z = self.data_matrix, self.lhs_matrix
 
         # Pad lhs matrix for "svd" solve.
@@ -915,6 +938,8 @@ class TikhonovSolver(_BaseRegularizedSolver):
         Ohat : (r, d) ndarray
             Operator matrix :math:`\Ohat` (not its transpose!).
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         if self.method == "lstsq":
             DPad = np.vstack((self.data_matrix, self.regularizer))
             Ohat = la.lstsq(DPad, self._ZtPad, **self.options)[0].T
@@ -982,6 +1007,8 @@ class TikhonovSolver(_BaseRegularizedSolver):
         cond : float
             Condition number of the regularized data matrix.
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         return np.linalg.cond(np.vstack((self.data_matrix, self.regularizer)))
 
     @_require_trained
@@ -1008,6 +1035,8 @@ class TikhonovSolver(_BaseRegularizedSolver):
         residuals : (r,) ndarray
             :math:`2`-norm residuals for each row of the operator matrix.
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         residual = self.residual(Ohat)
         return residual + np.sum((self.regularizer @ Ohat.T) ** 2, axis=0)
 
@@ -1138,22 +1167,25 @@ class TikhonovDecoupledSolver(TikhonovSolver):
     @regularizer.setter
     def regularizer(self, Gs):
         """Set the regularization matrices."""
-        regs = []
-        for G in Gs:
-            if sparse.issparse(G):
-                G = G.toarray()
-            elif not isinstance(G, np.ndarray):
-                G = np.array(G)
-            if G.ndim == 1:
-                if np.any(G < 0):
-                    raise ValueError(
-                        "diagonal regularizer must be positive semi-definite"
-                    )
-                G = np.diag(G)
-            regs.append(G)
+        regs = None
+        if Gs is not None:
+            regs = []
+            for G in Gs:
+                if sparse.issparse(G):
+                    G = G.toarray()
+                elif not isinstance(G, np.ndarray):
+                    G = np.array(G)
+                if G.ndim == 1:
+                    if np.any(G < 0):
+                        raise ValueError(
+                            "diagonal regularizer must be "
+                            "positive semi-definite"
+                        )
+                    G = np.diag(G)
+                regs.append(G)
 
         self.__regs = regs
-        if self.d is not None:
+        if self.d is not None and Gs is not None:
             self._check_regularizer_shape()
 
     # Main methods ------------------------------------------------------------
@@ -1166,6 +1198,8 @@ class TikhonovDecoupledSolver(TikhonovSolver):
         Ohat : (r, d) ndarray
             Operator matrix :math:`\Ohat` (not its transpose!).
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         Ohat = np.empty((self.r, self.d))
 
         # Solve each independent regression problem (sequentially for now).
@@ -1239,6 +1273,8 @@ class TikhonovDecoupledSolver(TikhonovSolver):
         conds : (r,) ndarray
             Condition numbers for the regularized data matrices.
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         return np.array(
             [
                 np.linalg.cond(np.vstack((self.data_matrix, G)))
@@ -1271,6 +1307,8 @@ class TikhonovDecoupledSolver(TikhonovSolver):
         residuals : (r,) ndarray
             :math:`2`-norm residuals for each row of the operator matrix.
         """
+        if self.regularizer is None:
+            raise AttributeError("solver regularizer not set")
         residual = self.residual(Ohat)
         rg = [np.sum((G @ oi) ** 2) for G, oi in zip(self.regularizer, Ohat)]
         return residual + np.array(rg)

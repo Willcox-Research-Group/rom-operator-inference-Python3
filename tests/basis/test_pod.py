@@ -358,6 +358,15 @@ class TestPODBasis:
             np.eye(r),
         )
 
+        Q = np.random.random((n, 2 * n))
+        with pytest.warns(opinf.errors.OpInfWarning) as wn:
+            basis.fit(Q)
+        assert len(wn) == 1
+        assert wn[0].message.args[0] == (
+            "state dimension < number of states, "
+            "method-of-snapshots / eigh may be inefficient"
+        )
+
     # Visualization -----------------------------------------------------------
     def test_plots(self, n=40, r=4):
         """Lightly test plot_*()."""
