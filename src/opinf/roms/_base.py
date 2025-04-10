@@ -699,7 +699,12 @@ class _BaseROM(abc.ABC):
             candidate by solving the model, checking for stability, and
             comparing to available training data.
             """
-            update_model(reg_params)
+            try:
+                update_model(reg_params)
+            except Exception as ex:
+                if verbose:
+                    print(f"{type(ex).__name__} in refit(): {ex}")
+                return np.inf
 
             # Pass stability checks.
             for tcase in processed_test_cases:
@@ -902,7 +907,12 @@ class _BaseROM(abc.ABC):
             candidate by solving the model, checking for stability, and
             comparing to available training data.
             """
-            update_model(reg_params)
+            try:
+                update_model(reg_params)
+            except Exception as ex:
+                if verbose:
+                    print(f"{type(ex).__name__} in refit(): {ex}")
+                return np.inf
 
             # Pass stability checks.
             for tcase in processed_test_cases:
