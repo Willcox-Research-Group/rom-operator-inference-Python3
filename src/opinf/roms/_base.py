@@ -474,6 +474,7 @@ class _BaseROM(abc.ABC):
         inputs,
         fit_transformer,
         fit_basis,
+        execute_solver: bool = True,
     ):
         """Process the training data, fit the model, and return the processed
         training data.
@@ -494,9 +495,14 @@ class _BaseROM(abc.ABC):
 
         if parameters is None:
             inputdata = None if inputs is None else np.hstack(inputs)
-            self.model.fit(np.hstack(states), np.hstack(lhs), inputdata)
+            self.model._fit_solver(
+                np.hstack(states), np.hstack(lhs), inputdata
+            )
         else:
-            self.model.fit(parameters, states, lhs, inputs)
+            self.model._fit_solver(parameters, states, lhs, inputs)
+
+        if execute_solver:
+            self.model.refit()
 
         return states
 
@@ -651,26 +657,15 @@ class _BaseROM(abc.ABC):
         )
 
         # Fit the model for the first time.
-        initialized = False
-        for reg in candidates:
-            self.model.solver.regularizer = regularizer_factory(reg)
-            try:
-                states = self._fit_and_return_training_data(
-                    parameters=parameters,
-                    states=states,
-                    lhs=ddts,
-                    inputs=inputs,
-                    fit_transformer=fit_transformer,
-                    fit_basis=fit_basis,
-                )
-                initialized = True
-                break
-            except Exception:  # pragma: no cover
-                pass
-        if not initialized:  # pragma: no cover
-            raise RuntimeError(
-                "fit() failed with all regularization candidates"
-            )
+        states = self._fit_and_return_training_data(
+            parameters=parameters,
+            states=states,
+            lhs=ddts,
+            inputs=inputs,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+            execute_solver=False,
+        )
 
         # Set up the regularization selection.
         shifts, limits = self._get_stability_limits(states, stability_margin)
@@ -880,26 +875,15 @@ class _BaseROM(abc.ABC):
         )
 
         # Fit the model for the first time.
-        initialized = False
-        for reg in candidates:
-            self.model.solver.regularizer = regularizer_factory(candidates[0])
-            try:
-                states = self._fit_and_return_training_data(
-                    parameters=parameters,
-                    states=states,
-                    lhs=None,
-                    inputs=inputs,
-                    fit_transformer=fit_transformer,
-                    fit_basis=fit_basis,
-                )
-                initialized = True
-                break
-            except Exception:  # pragma: no cover
-                pass
-        if not initialized:  # pragma: no cover
-            raise RuntimeError(
-                "fit() failed with all regularization candidates"
-            )
+        states = self._fit_and_return_training_data(
+            parameters=parameters,
+            states=states,
+            lhs=None,
+            inputs=inputs,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+            execute_solver=False,
+        )
 
         # Set up the regularization selection.
         shifts, limits = self._get_stability_limits(states, stability_margin)
