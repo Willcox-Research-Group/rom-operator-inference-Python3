@@ -45,6 +45,8 @@ dev = [
     "notebook",
     "pandas",
     "pre-commit>=3.7.1",
+    "pytest",
+    "pytest-cov",
     "tox>=4",
 ]
 
