@@ -105,7 +105,7 @@ class ParametricROM(_BaseROM):
         -------
         self
         """
-        self._fit_and_return_training_data(
+        self._fit_solver(
             parameters=parameters,
             states=states,
             lhs=lhs,
@@ -113,6 +113,7 @@ class ParametricROM(_BaseROM):
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
         )
+        self.model.refit()
         return self
 
     # Evaluation --------------------------------------------------------------

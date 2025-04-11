@@ -106,7 +106,7 @@ class ROM(_BaseROM):
         -------
         self
         """
-        self._fit_and_return_training_data(
+        self._fit_solver(
             parameters=None,
             states=states,
             lhs=lhs,
@@ -114,6 +114,7 @@ class ROM(_BaseROM):
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
         )
+        self.model.refit()
         return self
 
     def fit_regselect_continuous(
