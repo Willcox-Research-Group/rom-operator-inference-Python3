@@ -735,16 +735,12 @@ class _BaseROM(abc.ABC):
                 if unstable(solution, ell, t.size):
                     return np.inf
                 trainsize = Q.shape[-1]
-                solution_train = solution[:, :trainsize]
+                if self.ddt_estimator is not None:
+                    solution_train = self.ddt_estimator.mask(solution)
+                else:
+                    solution_train = solution[:, :trainsize]
                 error += post.Lp_error(Q, solution_train, t[:trainsize])[1]
             return error / len(states)
-
-        # BUG: training states may not align with the first `trainsize`
-        # entries of `solution` because `Q` (from `states`) may have been
-        # cropped by the time derivative estimator.
-        # This is not an issue for fully discrete models.
-        # Potential fix: implement some kind of mask in ddt_estimator and
-        # replace `solution[:, :trainsize]` -> `solution[:, the_ddt_mask]`.
 
         best_regularization = utils.gridsearch(
             training_error,
