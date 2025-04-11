@@ -1,0 +1,8 @@
+﻿:orphan:
+
+fwd4\(\)
+==============
+
+.. currentmodule:: opinf.ddt
+
+.. autofunction:: opinf.ddt.fwd4
