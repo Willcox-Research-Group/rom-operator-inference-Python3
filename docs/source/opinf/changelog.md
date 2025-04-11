@@ -7,9 +7,9 @@ New versions may introduce substantial new features or API adjustments.
 
 ## Version 0.5.15
 
-- Improvement to `fit_regselect_*()` so that the regularization does not have to be initialized before fitting the model.
+- Improvement to `fit_regselect_*()` so that the regularization does not have to be initialized before fitting the model. This fixes a longstanding chicken/egg problem and makes using `fit_regselect_*()` much less cumbersome.
+- Ensured error computation correctly aligns training and predicted states in  `fit_regselect_continuous()`. Previously, this could have been misaligned when using a time derivative estimator that truncates states.
 - Time derivative estimators in `opinf.ddt` now have a `mask()` method that map states to the estimation grid.
-- Applied the `mask()` in `fit_regselect_continuous()` so that the error computation is correctly aligned with the training snapshots.
 - Added regression tests based on the tutorial notebooks.
 - Added `pytest` and `pytest-cov` to the dependencies for developers.
 

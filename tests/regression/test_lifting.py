@@ -204,7 +204,7 @@ def test_02(data):
         ),
         model=opinf.models.ContinuousModel(
             operators=[opinf.operators.QuadraticOperator()],
-            solver=opinf.lstsq.L2Solver(regularizer=1e-8),
+            solver=opinf.lstsq.L2Solver(),
         ),
     ).fit_regselect_continuous(
         candidates=np.logspace(-12, 2, 15),
@@ -245,7 +245,7 @@ def test_03(data):
                 opinf.operators.LinearOperator(),  # Aq(t)
                 opinf.operators.QuadraticOperator(),  # H[q(t) ⊗ q(t)]
             ],
-            solver=opinf.lstsq.L2Solver(regularizer=1e-8),
+            solver=opinf.lstsq.L2Solver(),
         ),
     )
 
@@ -287,7 +287,7 @@ def test_04(data):
                 opinf.operators.LinearOperator(),
                 opinf.operators.QuadraticOperator(),
             ],
-            solver=opinf.lstsq.L2Solver(regularizer=1e-8),
+            solver=opinf.lstsq.L2Solver(),
         ),
     )
 
