@@ -466,7 +466,7 @@ class _BaseROM(abc.ABC):
                 limits[ell] = np.inf
         return shifts, limits
 
-    def _fit_and_return_training_data(
+    def _fit_solver(
         self,
         parameters,
         states,
@@ -475,8 +475,9 @@ class _BaseROM(abc.ABC):
         fit_transformer,
         fit_basis,
     ):
-        """Process the training data, fit the model, and return the processed
-        training data.
+        """Process the training data and fit the model solver.
+        Returns the processed training data.
+
         """
         self._check_fit_args(lhs=lhs, inputs=inputs)
         if parameters is None:
@@ -494,9 +495,11 @@ class _BaseROM(abc.ABC):
 
         if parameters is None:
             inputdata = None if inputs is None else np.hstack(inputs)
-            self.model.fit(np.hstack(states), np.hstack(lhs), inputdata)
+            self.model._fit_solver(
+                np.hstack(states), np.hstack(lhs), inputdata
+            )
         else:
-            self.model.fit(parameters, states, lhs, inputs)
+            self.model._fit_solver(parameters, states, lhs, inputs)
 
         return states
 
@@ -651,29 +654,18 @@ class _BaseROM(abc.ABC):
         )
 
         # Fit the model for the first time.
-        initialized = False
-        for reg in candidates:
-            self.model.solver.regularizer = regularizer_factory(reg)
-            try:
-                states = self._fit_and_return_training_data(
-                    parameters=parameters,
-                    states=states,
-                    lhs=ddts,
-                    inputs=inputs,
-                    fit_transformer=fit_transformer,
-                    fit_basis=fit_basis,
-                )
-                initialized = True
-                break
-            except Exception:  # pragma: no cover
-                pass
-        if not initialized:  # pragma: no cover
-            raise RuntimeError(
-                "fit() failed with all regularization candidates"
-            )
+        self._fit_solver(
+            parameters=parameters,
+            states=states,
+            lhs=ddts,
+            inputs=inputs,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+        )
 
         # Set up the regularization selection.
-        shifts, limits = self._get_stability_limits(states, stability_margin)
+        states_ = [self.encode(Q) for Q in states]
+        shifts, limits = self._get_stability_limits(states_, stability_margin)
 
         def unstable(_Q, ell, size):
             """Return ``True`` if the solution is unstable."""
@@ -696,8 +688,8 @@ class _BaseROM(abc.ABC):
             time_domains = train_time_domains
 
         if input_functions is None:
-            input_functions = [None] * len(states)
-        loop_collections = [states, input_functions, time_domains]
+            input_functions = [None] * len(states_)
+        loop_collections = [states_, input_functions, time_domains]
         if is_parametric := parameters is not None:
             loop_collections.insert(0, parameters)
 
@@ -740,16 +732,10 @@ class _BaseROM(abc.ABC):
                 if unstable(solution, ell, t.size):
                     return np.inf
                 trainsize = Q.shape[-1]
-                solution_train = solution[:, :trainsize]
-                error += post.Lp_error(Q, solution_train, t[:trainsize])[1]
-            return error / len(states)
-
-        # BUG: training states may not align with the first `trainsize`
-        # entries of `solution` because `Q` (from `states`) may have been
-        # cropped by the time derivative estimator.
-        # This is not an issue for fully discrete models.
-        # Potential fix: implement some kind of mask in ddt_estimator and
-        # replace `solution[:, :trainsize]` -> `solution[:, the_ddt_mask]`.
+                error += post.Lp_error(
+                    Q, solution[:, :trainsize], t[:trainsize]
+                )[1]
+            return error / len(states_)
 
         best_regularization = utils.gridsearch(
             training_error,
@@ -879,30 +865,18 @@ class _BaseROM(abc.ABC):
             test_cases, utils.DiscreteRegTest
         )
 
-        # Fit the model for the first time.
-        initialized = False
-        for reg in candidates:
-            self.model.solver.regularizer = regularizer_factory(candidates[0])
-            try:
-                states = self._fit_and_return_training_data(
-                    parameters=parameters,
-                    states=states,
-                    lhs=None,
-                    inputs=inputs,
-                    fit_transformer=fit_transformer,
-                    fit_basis=fit_basis,
-                )
-                initialized = True
-                break
-            except Exception:  # pragma: no cover
-                pass
-        if not initialized:  # pragma: no cover
-            raise RuntimeError(
-                "fit() failed with all regularization candidates"
-            )
+        # Fit the model for the first time and get compressed training data.
+        states_ = self._fit_solver(
+            parameters=parameters,
+            states=states,
+            lhs=None,
+            inputs=inputs,
+            fit_transformer=fit_transformer,
+            fit_basis=fit_basis,
+        )
 
         # Set up the regularization selection.
-        shifts, limits = self._get_stability_limits(states, stability_margin)
+        shifts, limits = self._get_stability_limits(states_, stability_margin)
 
         def unstable(_Q, ell):
             """Return ``True`` if the solution is unstable."""
@@ -911,13 +885,13 @@ class _BaseROM(abc.ABC):
             return np.any(np.abs(_Q - shifts[ell]).max() > limits[ell])
 
         # Extend the iteration counts by the number of testing iterations.
-        num_iters = [Q.shape[-1] for Q in states]
+        num_iters = [Q.shape[-1] for Q in states_]
         if num_test_iters > 0:
             num_iters = [n + num_test_iters for n in num_iters]
 
         if inputs is None:
-            inputs = [None] * len(states)
-        loop_collections = [states, inputs, num_iters]
+            inputs = [None] * len(states_)
+        loop_collections = [states_, inputs, num_iters]
         if is_parametric := parameters is not None:
             loop_collections.insert(0, parameters)
 
@@ -958,7 +932,7 @@ class _BaseROM(abc.ABC):
                 if unstable(solution, ell):
                     return np.inf
                 error += post.frobenius_error(Q, solution[:, : Q.shape[-1]])[1]
-            return error / len(states)
+            return error / len(states_)
 
         best_regularization = utils.gridsearch(
             training_error,

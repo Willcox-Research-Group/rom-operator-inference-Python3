@@ -235,50 +235,6 @@ class _Model(abc.ABC):
                     )
         self.__m = int(m)
 
-    # Properties: solver ------------------------------------------------------
-    @property
-    def solver(self):
-        """Solver for the least-squares regression, see :mod:`opinf.lstsq`."""
-        return self.__solver
-
-    @solver.setter
-    def solver(self, solver):
-        """Set the solver, including default options."""
-        if self._fully_intrusive:
-            if solver is not None:
-                warnings.warn(
-                    "all operators initialized explicity, setting solver=None",
-                    errors.OpInfWarning,
-                )
-            self.__solver = None
-            return
-
-        # Defaults and shortcuts.
-        if solver is None:
-            # No regularization.
-            solver = lstsq.PlainSolver()
-        elif np.isscalar(solver):
-            if solver == 0:
-                # Also no regularization.
-                solver = lstsq.PlainSolver()
-            elif solver > 0:
-                # Scalar Tikhonov (L2) regularization.
-                solver = lstsq.L2Solver(solver)
-            else:
-                raise ValueError("if a scalar, solver must be nonnegative")
-
-        # Light validation: must be instance w/ fit(), solve().
-        if isinstance(solver, type):
-            raise TypeError("solver must be an instance, not a class")
-        for mtd in "fit", "solve":
-            if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
-                warnings.warn(
-                    f"solver should have a '{mtd}()' method",
-                    errors.OpInfWarning,
-                )
-
-        self.__solver = solver
-
     # Dimensionality reduction ------------------------------------------------
     def galerkin(self, Vr, Wr=None):
         r"""Construct a reduced-order model by taking the (Petrov-)Galerkin
@@ -335,28 +291,6 @@ class _Model(abc.ABC):
             ]
         )
 
-    # Validation methods ------------------------------------------------------
-    def _check_inputargs(self, u, argname):
-        """Check that the model structure agrees with input arguments."""
-        if self._has_inputs and u is None:
-            raise ValueError(f"argument '{argname}' required")
-
-        if not self._has_inputs and u is not None:
-            warnings.warn(
-                f"argument '{argname}' should be None, "
-                "argument will be ignored",
-                errors.OpInfWarning,
-            )
-
-    def _check_is_trained(self):
-        """Ensure that the model is trained and ready for prediction."""
-        if self.state_dimension is None:
-            raise AttributeError("no state_dimension (call fit())")
-        if self._has_inputs and (self.input_dimension is None):
-            raise AttributeError("no input_dimension (call fit())")
-        if any(oputils.is_uncalibrated(op) for op in self.operators):
-            raise AttributeError("model not trained (call fit())")
-
     def __eq__(self, other):
         """Two models are equal if they have equivalent operators."""
         if not isinstance(other, self.__class__):
@@ -384,3 +318,104 @@ class _Model(abc.ABC):
         """Make a copy of the model."""
         sol = self.solver.copy() if self.solver is not None else None
         return self.__class__([op.copy() for op in self.operators], solver=sol)
+
+
+class _OpInfModel(_Model):
+    """Base class for monolithic models with Operator Inference learning."""
+
+    # Properties: solver ------------------------------------------------------
+    @property
+    def solver(self):
+        """Solver for the least-squares regression, see :mod:`opinf.lstsq`."""
+        return self.__solver
+
+    @solver.setter
+    def solver(self, solver):
+        """Set the solver, including default options."""
+        if self._fully_intrusive:
+            if solver is not None:
+                warnings.warn(
+                    "all operators initialized explicity, setting solver=None",
+                    errors.OpInfWarning,
+                )
+            self.__solver = None
+            return
+
+        # Defaults and shortcuts.
+        if solver is None:
+            # No regularization.
+            solver = lstsq.PlainSolver()
+        elif np.isscalar(solver):
+            if solver == 0:
+                # Also no regularization.
+                solver = lstsq.PlainSolver()
+            elif solver > 0:
+                # Scalar Tikhonov (L2) regularization.
+                solver = lstsq.L2Solver(solver)
+            else:
+                raise ValueError("if a scalar, solver must be nonnegative")
+
+        # Light validation: must be instance w/ fit(), solve().
+        if isinstance(solver, type):
+            raise TypeError("solver must be an instance, not a class")
+        for mtd in "fit", "solve":
+            if not hasattr(solver, mtd) or not callable(getattr(solver, mtd)):
+                warnings.warn(
+                    f"solver should have a '{mtd}()' method",
+                    errors.OpInfWarning,
+                )
+
+        self.__solver = solver
+
+    # Validation methods ------------------------------------------------------
+    def _check_inputargs(self, u, argname):
+        """Check that the model structure agrees with input arguments."""
+        if self._has_inputs and u is None:
+            raise ValueError(f"argument '{argname}' required")
+
+        if not self._has_inputs and u is not None:
+            warnings.warn(
+                f"argument '{argname}' should be None, "
+                "argument will be ignored",
+                errors.OpInfWarning,
+            )
+
+    def _check_is_trained(self):
+        """Ensure that the model is trained and ready for prediction."""
+        if self.state_dimension is None:
+            raise AttributeError("no state_dimension (call fit())")
+        if self._has_inputs and (self.input_dimension is None):
+            raise AttributeError("no input_dimension (call fit())")
+        if any(oputils.is_uncalibrated(op) for op in self.operators):
+            raise AttributeError("model not trained (call fit())")
+
+    # Fitting -----------------------------------------------------------------
+    @abc.abstractmethod
+    def _process_fit_arguments(self, *args, **kwargs):
+        """Prepare training data, validate and set dimensions, etc."""
+        pass
+
+    @abc.abstractmethod
+    def _assemble_data_matrix(self, *args, **kwargs):
+        """Construct the Operator Inference data matrix."""
+        pass
+
+    @abc.abstractmethod
+    def _extract_operators(self, *args, **kwargs):
+        """Unpack the Operator Inference solution, the operator matrix."""
+        pass
+
+    @abc.abstractmethod
+    def _fit_solver(self, *args, **kwargs):
+        """Initialize the regression solver."""
+        pass
+
+    @abc.abstractmethod
+    def refit(self, *args, **kwargs):
+        """Solve the regression and unpack the results."""
+        pass
+
+    @abc.abstractmethod
+    def fit(self, *args, **kwargs):
+        """Learn model operators from data."""
+        pass

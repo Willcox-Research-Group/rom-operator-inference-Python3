@@ -13,16 +13,16 @@ import numpy as np
 import scipy.integrate as spintegrate
 import scipy.interpolate as spinterpolate
 
-from ._base import _Model
+from ._base import _OpInfModel
 from ... import errors, utils, operators as _operators
 from ...operators import _utils as oputils
 
 
 # Base class ==================================================================
-class _NonparametricModel(_Model):
+class _NonparametricModel(_OpInfModel):
     """Base class for nonparametric monolithic models.
 
-    Parent class: :class:`opinf.models.mono._base._Model`
+    Parent class: :class:`opinf.models.mono._base._OpInfModel`
 
     Child classes:
 
@@ -249,6 +249,7 @@ class _NonparametricModel(_Model):
 
         # Execute non-intrusive learning.
         self._extract_operators(self.solver.solve())
+        return self
 
     def fit(self, states, lhs, inputs=None):
         r"""Learn the model operators from data.
@@ -311,8 +312,7 @@ class _NonparametricModel(_Model):
             return self
 
         self._fit_solver(states, lhs, inputs)
-        self.refit()
-        return self
+        return self.refit()
 
     # Model evaluation --------------------------------------------------------
     def rhs(self, state, input_=None):

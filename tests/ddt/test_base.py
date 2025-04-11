@@ -1,6 +1,7 @@
 # ddt/test_base.py
 """Tests for ddt._base."""
 
+import abc
 import pytest
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,148 +9,97 @@ import matplotlib.pyplot as plt
 import opinf
 
 
-_module = opinf.ddt._base
+class _TestDerivativeEstimatorTemplate:
+    """Base class for classes that test time derivative estimators."""
 
+    Estimator = NotImplemented  # Class to test.
 
-class TestDerivativeEstimatorTemplate:
-    """Test _base.DerivativeEstimatorTemplate."""
-
-    Base = _module.DerivativeEstimatorTemplate
-
-    class Dummy(Base):
-        """Instantiable version of DerivativeEstimatorTemplate."""
-
-        def estimate(self, states, inputs=None):
-            if inputs is not None:
-                return states, states, inputs
-            return states, states
+    @abc.abstractmethod
+    def get_estimators(self):
+        """Yield estimators to test."""
+        raise NotImplementedError
 
     def test_init(self, k=100):
-        """Test __init__() and time_domain."""
+        """Test __init__(), time_domain, __str__(), and __repr__()."""
         t = np.linspace(0, 1, k)
-        dummy = self.Dummy(t)
-        assert dummy.time_domain is t
+        t2D = np.zeros((2, 3, 3))
 
-    def test_verify_shapes(self, k=100):
-        """Test verify_shapes()."""
-        t = np.linspace(0, 1, k)
-
-        # Bad number of outputs with inputs=None.
-
-        class Dummy1(self.Dummy):
-            def estimate(self, states, inputs=None):
-                return states, states, inputs
-
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy1(t).verify_shapes()
-        assert ex.value.args[0] == "len(estimate(states, inputs=None)) != 2"
-
-        # Misaligned output shapes with inputs=None.
-
-        class Dummy2(self.Dummy):
-            def estimate(self, states, inputs=None):
-                return states[1:], states
-
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy2(t).verify_shapes()
+        with pytest.raises(ValueError) as ex:
+            self.Estimator(t2D)
         assert ex.value.args[0] == (
-            "estimate(states)[0].shape[0] != states.shape[0]"
+            "time_domain must be a one-dimensional array"
         )
 
-        class Dummy3(self.Dummy):
-            def estimate(self, states, inputs=None):
-                return states, states[1:]
+        estimator = self.Estimator(t)
+        assert estimator.time_domain is t
 
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy3(t).verify_shapes()
-        assert ex.value.args[0] == (
-            "estimate(states)[1].shape[0] != states.shape[0]"
-        )
+        repr(estimator)
 
-        class Dummy4(self.Dummy):
-            def estimate(self, states, inputs=None):
-                return states[:, :-1], states
+    def test_estimate(self, check_against_time: bool = True):
+        """Use verify() to test estimate()."""
+        for estimator in self.get_estimators():
 
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy4(t).verify_shapes()
-        assert ex.value.args[0] == (
-            "Q.shape[1] != dQdt.shape[1] "
-            "where Q, dQdt = estimate(states, inputs=None)"
-        )
+            t_original = estimator.time_domain
+            k = t_original.size
 
-        # Bad number of outputs with inputs != None
+            # states must be two-dimensional.
+            Q = np.random.random(k)
+            with pytest.raises(opinf.errors.DimensionalityError) as ex:
+                estimator.estimate(Q)
+            assert ex.value.args[0] == "states must be two-dimensional"
 
-        class Dummy5(self.Dummy):
-            def estimate(self, states, inputs=None):
-                return states, states
+            Q = np.random.random((2, k))
+            if check_against_time:
+                # states and time_domain must be aligned.
+                with pytest.raises(opinf.errors.DimensionalityError) as ex:
+                    estimator.estimate(Q[:, :-1])
+                assert ex.value.args[0] == "states and time_domain not aligned"
 
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy5(t).verify_shapes()
-        assert ex.value.args[0] == "len(estimate(states, inputs)) != 3"
+            # states and inputs must be aligned.
+            U = np.random.random((2, k))
+            with pytest.raises(opinf.errors.DimensionalityError) as ex:
+                estimator.estimate(Q, U[:, :-1])
+            assert ex.value.args[0] == "states and inputs not aligned"
 
-        # Misaligned output shapes with inputs != None.
+            # One-dimensional inputs.
+            estimator.estimate(Q, U[0])
 
-        class Dummy6(self.Dummy):
-            def estimate(self, states, inputs=None):
-                if inputs is None:
-                    return states, states
-                return states, states, None
+            # Test with verify().
+            errors = estimator.verify(plot=False, return_errors=True)
+            for label, results in errors.items():
+                if label == "dts":
+                    continue
+                assert (
+                    np.min(results) < 5e-7
+                ), f"test '{label}' failed for estimator\n{estimator}"
+            assert estimator.time_domain is t_original
 
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy6(t).verify_shapes()
-        assert ex.value.args[0] == (
-            "estimates(states, inputs)[2] should not be None"
-        )
+            interactive = plt.isinteractive()
+            plt.ion()
+            errors = estimator.verify(plot=True)
+            assert errors is None
+            fig = plt.gcf()
+            assert len(fig.axes) == 1
+            plt.close(fig)
 
-        class Dummy7(self.Dummy):
-            def estimate(self, states, inputs=None):
-                if inputs is None:
-                    return states, states
-                return states, states, inputs[1:]
+            if not interactive:
+                plt.ioff()
 
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy7(t).verify_shapes()
-        assert ex.value.args[0] == (
-            "estimate(states, inputs)[2].shape[0] != inputs.shape[0]"
-        )
+            assert estimator.time_domain is t_original
 
-        class Dummy8(self.Dummy):
-            def estimate(self, states, inputs=None):
-                if inputs is None:
-                    return states, states
-                return states, states, inputs[:, :-1]
+    def test_mask(self):
+        """Test mask()."""
+        for estimator in self.get_estimators():
+            k = estimator.time_domain.size
+            Q1 = np.random.random((2, k))
+            Q2 = np.random.random((2, k))
 
-        with pytest.raises(opinf.errors.VerificationError) as ex:
-            Dummy8(t).verify_shapes()
-        assert ex.value.args[0] == (
-            "Q.shape[1] != U.shape[1] where Q, _, U = estimate(states, inputs)"
-        )
+            Q1new, dQ = estimator.estimate(Q1)
+            Q1mask = estimator.mask(Q1)
+            assert np.all(Q1mask == Q1new)
 
-    def test_verify(self, k=100):
-        """Lilghtly test verify()."""
-        t = np.sort(np.random.random(k))
-        dummy = self.Dummy(t)
-
-        # No plotting.
-        errors = dummy.verify(plot=False, return_errors=True)
-        num_tests = len(errors["dts"])
-        for dataset in errors.values():
-            assert len(dataset) == num_tests
-
-        # Plotting.
-        interactive = plt.isinteractive()
-        plt.ion()
-        errors = dummy.verify(plot=True)
-        assert errors is None
-        fig = plt.gcf()
-        assert len(fig.axes) == 1
-        plt.close(fig)
-
-        if not interactive:
-            plt.ioff()
-
-        # Check that the original time domain was restored.
-        assert dummy.time_domain is t
+            Q2mask = estimator.mask(Q2)
+            assert Q2mask.shape == Q1new.shape
 
 
 if __name__ == "__main__":

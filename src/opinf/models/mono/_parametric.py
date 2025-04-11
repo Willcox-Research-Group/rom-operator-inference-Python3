@@ -15,7 +15,7 @@ import warnings
 import numpy as np
 import scipy.interpolate as spinterpolate
 
-from ._base import _Model
+from ._base import _OpInfModel
 from ._nonparametric import (
     _FrozenDiscreteModel,
     _FrozenContinuousModel,
@@ -25,7 +25,7 @@ from ...operators import _utils as oputils
 
 
 # Base classes ================================================================
-class _ParametricModel(_Model):
+class _ParametricModel(_OpInfModel):
     """Base class for parametric monolithic models."""
 
     _ModelClass = NotImplemented  # Must be specified by child classes.
@@ -89,12 +89,12 @@ class _ParametricModel(_Model):
     @property
     def operators(self):
         """Operators comprising the terms of the model."""
-        return _Model.operators.fget(self)
+        return _OpInfModel.operators.fget(self)
 
     @operators.setter
     def operators(self, ops):
         """Set the operators."""
-        _Model.operators.fset(self, ops)
+        _OpInfModel.operators.fset(self, ops)
 
         # Check at least one operator is parametric.
         parametric_operators = [

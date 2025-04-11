@@ -7,14 +7,27 @@ import scipy.interpolate as interp
 
 import opinf
 
+try:
+    from .test_base import _TestDerivativeEstimatorTemplate
+except ImportError:
+    from test_base import _TestDerivativeEstimatorTemplate
+
 
 _module = opinf.ddt._interpolation
 
 
-class TestInterpDerivativeEstimator:
+class TestInterpDerivativeEstimator(_TestDerivativeEstimatorTemplate):
     """Test opinf.ddt.InterpDerivativeEstimator."""
 
     Estimator = _module.InterpDerivativeEstimator
+
+    def get_estimators(self):
+        t = np.linspace(0, 1, 100)
+        t2 = np.linspace(0.1, 0.9, 40)
+
+        for name in self.Estimator._interpolators:
+            yield self.Estimator(t, InterpolatorClass=name)
+            yield self.Estimator(t, InterpolatorClass=name, new_time_domain=t2)
 
     def test_init(self, k=100):
         """Test __init__() and properties."""
@@ -43,30 +56,7 @@ class TestInterpDerivativeEstimator:
         assert est.new_time_domain.shape == t.shape
         repr(est)
 
-    def test_estimate(self, r=5, m=3, k=20):
-        """Use verify() to test estimate()."""
-        t = np.linspace(0, 1, k)
-        t2 = (t[1:-2] / 1.5) + (1 / 6)
-        Q = np.random.random((r, k))
-        U = np.random.random((m, k))
-
-        for name in self.Estimator._interpolators:
-            est = self.Estimator(t, InterpolatorClass=name)
-            errors = est.verify(plot=False, return_errors=True)
-            for label, results in errors.items():
-                if label == "dts":
-                    continue
-                assert (
-                    np.min(results) < 5e-7
-                ), f"problem with InterpolatorClass '{name}', test '{label}'"
-
-            est = self.Estimator(t, InterpolatorClass=name, new_time_domain=t2)
-            Q_, Qdot_, U_ = est.estimate(Q, U)
-            assert Q_.shape == (r, t2.size) == Qdot_.shape
-            assert U_.shape == (m, t2.size)
-
-        # One-dimensional inputs.
-        est.estimate(Q, U[0])
+        return super().test_init()
 
 
 if __name__ == "__main__":

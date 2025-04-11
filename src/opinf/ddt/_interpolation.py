@@ -189,3 +189,55 @@ class InterpDerivativeEstimator(DerivativeEstimatorTemplate):
         if inputs is None:
             return states, ddts
         return states, ddts, inputs
+
+    def mask(self, arr):
+        """Map an array from the training time domain to the domain of the
+        estimated time derivatives.
+
+
+        This method is used in post-hoc regularization selection routines.
+
+        Parameters
+        ----------
+        arr : (..., k) ndarray
+            Array (states, inputs, etc.) aligned with the training time domain.
+
+        Returns
+        -------
+        _arr : (..., k) ndarray
+            Array mapped to the domain of the estimated time derivatives.
+
+        Notes
+        -----
+        If :attr:`new_time_domain` is not the same as :attr:`time_domain`,
+        this method interpolates the ``arr`` and evaluates the interpolant
+        (not its derivative) over the :attr:`new_time_domain`.
+
+        Examples
+        --------
+        >>> Q, dQ = estimator.esimate(states)
+        >>> Q2 = estimator.mask(states)
+        >>> np.all(Q2 == Q)
+        True
+        >>> Q3 = estimator.mask(other_states_on_same_time_grid)
+        >>> Q3.shape == Q.shape
+        True
+        """
+        if self.new_time_domain is None:
+            return arr
+
+        # Interpolate to the new time domain.
+        statespline = self.InterpolatorClass(
+            self.time_domain,
+            arr,
+            **self.options,
+        )
+        return statespline(self.new_time_domain)
+
+    # Verification ------------------------------------------------------------
+    def verify(self, plot=False, return_errors=False):
+        new_time_domain = self.__t2
+        self.__t2 = None
+        out = super().verify(plot, return_errors)
+        self.__t2 = new_time_domain
+        return out

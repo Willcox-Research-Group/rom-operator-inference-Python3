@@ -104,7 +104,7 @@ class DerivativeEstimatorTemplate(abc.ABC):
             raise errors.DimensionalityError("states must be two-dimensional")
         if check_against_time and states.shape[-1] != self.time_domain.size:
             raise errors.DimensionalityError(
-                "states not aligned with time_domain"
+                "states and time_domain not aligned"
             )
         if inputs is not None:
             if inputs.ndim == 1:
@@ -135,6 +135,41 @@ class DerivativeEstimatorTemplate(abc.ABC):
         _inputs : (m, k') ndarray or None
             Inputs corresponding to ``_states``, if applicable.
             **Only returned** if ``inputs`` is provided.
+
+        Raises
+        ------
+        opinf.errors.DimensionalityError
+            If the ``states`` or ``inputs`` are not aligned with the
+            :attr:`time_domain`.
+        """
+        raise NotImplementedError  # pragma: no cover
+
+    @abc.abstractmethod
+    def mask(self, arr):
+        """Map an array from the training time domain to the domain of the
+        estimated time derivatives.
+
+        This method is used in post-hoc regularization selection routines.
+
+        Parameters
+        ----------
+        arr : (..., k) ndarray
+            Array (states, inputs, etc.) aligned with the training time domain.
+
+        Returns
+        -------
+        _arr : (..., k') ndarray
+            Array mapped to the domain of the estimated time derivatives.
+
+        Examples
+        --------
+        >>> Q, dQ = estimator.esimate(states)
+        >>> Q2 = estimator.mask(states)
+        >>> np.all(Q2 == Q)
+        True
+        >>> Q3 = estimator.mask(other_states_on_same_time_grid)
+        >>> Q3.shape == Q.shape
+        True
         """
         raise NotImplementedError  # pragma: no cover
 

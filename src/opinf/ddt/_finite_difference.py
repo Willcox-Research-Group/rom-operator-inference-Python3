@@ -774,9 +774,8 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
         Time domain corresponding to the snapshot data.
         This class requires uniformly spaced time domains, see
         :class:`NonuniformFiniteDifferencer` for non-uniform domains.
-    scheme : str or callable
-        Finite difference scheme to use.
-        **Options:**
+    scheme : str
+        Finite difference scheme to use. **Options:**
 
         * ``'fwd1'``: first-order forward differences, see :func:`fwd1`.
         * ``'fwd2'``: second-order forward differences, see :func:`fwd2`.
@@ -796,17 +795,6 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
         * ``'ord2'``: second-order differences, see :func:`ord2`.
         * ``'ord4'``: fourth-order differences, see :func:`ord4`.
         * ``'ord6'``: sixth-order differences, see :func:`ord6`.
-
-        If ``scheme`` is a callable function, its signature must match the
-        following syntax.
-
-        .. code-block:: python
-
-           _states, ddts = scheme(states, dt)
-           _states, ddts, _inputs = scheme(states, dt, inputs)
-
-        Here ``dt`` is a positive float, the uniform time step.
-        Each output should have the same number of columns.
     """
 
     _schemes = types.MappingProxyType(
@@ -832,7 +820,7 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
         }
     )
 
-    def __init__(self, time_domain, scheme="ord4"):
+    def __init__(self, time_domain, scheme: str = "ord4"):
         """Store the time domain and set the finite difference scheme."""
         DerivativeEstimatorTemplate.__init__(self, time_domain)
 
@@ -842,13 +830,9 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
             raise ValueError("time domain must be uniformly spaced")
 
         # Set the finite difference scheme.
-        if not callable(scheme):
-            if scheme not in self._schemes:
-                raise ValueError(
-                    f"invalid finite difference scheme '{scheme}'"
-                )
-            scheme = self._schemes[scheme]
-        self.__scheme = scheme
+        if scheme not in self._schemes:
+            raise ValueError(f"invalid finite difference scheme '{scheme}'")
+        self.__scheme = self._schemes[scheme]
 
     # Properties --------------------------------------------------------------
     @property
@@ -898,6 +882,47 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
         """
         states, inputs = self._check_dimensions(states, inputs, False)
         return self.scheme(states, self.dt, inputs)
+
+    def mask(self, arr):
+        """Map an array from the training time domain to the domain of the
+        estimated time derivatives.
+
+        This method is used in post-hoc regularization selection routines.
+
+        Parameters
+        ----------
+        arr : (..., k) ndarray
+            Array (states, inputs, etc.) aligned with the training time domain.
+
+        Returns
+        -------
+        _arr : (..., k') ndarray
+            Array mapped to the domain of the estimated time derivatives.
+
+        Examples
+        --------
+        >>> Q, dQ = estimator.esimate(states)
+        >>> Q2 = estimator.mask(states)
+        >>> np.all(Q2 == Q)
+        True
+        >>> Q3 = estimator.mask(other_states_on_same_time_grid)
+        >>> Q3.shape == Q.shape
+        True
+        """
+        schema = self.scheme.__name__
+        mode, order = schema[:3], int(schema[3])
+        if mode == "ord":
+            return arr
+        elif mode == "fwd":
+            cols = slice(0, -order)
+        elif mode == "bwd":
+            cols = slice(order, None)
+        elif mode == "ctr":
+            margin = order // 2
+            cols = slice(margin, -margin)
+        else:  # pragma: no cover
+            raise RuntimeError("invalid scheme name!")
+        return arr[..., cols]
 
 
 class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
@@ -966,6 +991,35 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
         if inputs is not None:
             return states, ddts, inputs
         return states, ddts
+
+    def mask(self, arr):
+        """Map an array from the training time domain to the domain of the
+        estimated time derivatives. Since this class provides an estimate at
+        every time step, this method simply returns ``arr``.
+
+        This method is used in post-hoc regularization selection routines.
+
+        Parameters
+        ----------
+        arr : (..., k) ndarray
+            Array (states, inputs, etc.) aligned with the training time domain.
+
+        Returns
+        -------
+        _arr : (..., k') ndarray
+            Array mapped to the domain of the estimated time derivatives.
+
+        Examples
+        --------
+        >>> Q, dQ = estimator.esimate(states)
+        >>> Q2 = estimator.mask(states)
+        >>> np.all(Q2 == Q)
+        True
+        >>> Q3 = estimator.mask(other_states_on_same_time_grid)
+        >>> Q3.shape == Q.shape
+        True
+        """
+        return arr
 
 
 # Old API =====================================================================
