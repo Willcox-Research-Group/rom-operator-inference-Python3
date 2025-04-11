@@ -657,7 +657,7 @@ class _BaseROM(abc.ABC):
         )
 
         # Fit the model for the first time.
-        states = self._fit_and_return_training_data(
+        states_ = self._fit_and_return_training_data(
             parameters=parameters,
             states=states,
             lhs=ddts,
@@ -668,6 +668,8 @@ class _BaseROM(abc.ABC):
         )
 
         # Set up the regularization selection.
+        initial_conditions = [self.encode(Q[:, 0]) for Q in states]
+        states = states_
         shifts, limits = self._get_stability_limits(states, stability_margin)
 
         def unstable(_Q, ell, size):
@@ -692,7 +694,12 @@ class _BaseROM(abc.ABC):
 
         if input_functions is None:
             input_functions = [None] * len(states)
-        loop_collections = [states, input_functions, time_domains]
+        loop_collections = [
+            initial_conditions,
+            states,
+            input_functions,
+            time_domains,
+        ]
         if is_parametric := parameters is not None:
             loop_collections.insert(0, parameters)
 
@@ -722,11 +729,11 @@ class _BaseROM(abc.ABC):
             error = 0
             for ell, entries in enumerate(zip(*loop_collections)):
                 if is_parametric:
-                    params, Q, input_func, t = entries
-                    predict_args = (params, Q[:, 0], t, input_func)
+                    params, q0, Q, input_func, t = entries
+                    predict_args = (params, q0, t, input_func)
                 else:
-                    Q, input_func, t = entries
-                    predict_args = (Q[:, 0], t, input_func)
+                    q0, Q, input_func, t = entries
+                    predict_args = (q0, t, input_func)
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     solution = self.model.predict(
@@ -735,11 +742,12 @@ class _BaseROM(abc.ABC):
                 if unstable(solution, ell, t.size):
                     return np.inf
                 trainsize = Q.shape[-1]
+                solution_train = solution[:, :trainsize]
+                t_train = t[:trainsize]
                 if self.ddt_estimator is not None:
-                    solution_train = self.ddt_estimator.mask(solution)
-                else:
-                    solution_train = solution[:, :trainsize]
-                error += post.Lp_error(Q, solution_train, t[:trainsize])[1]
+                    solution_train = self.ddt_estimator.mask(solution_train)
+                    t_train = self.ddt_estimator.mask(t_train)
+                error += post.Lp_error(Q, solution_train, t_train)[1]
             return error / len(states)
 
         best_regularization = utils.gridsearch(
