@@ -2,9 +2,15 @@
 """Tests for ddt._finite_difference.py"""
 
 import pytest
+import warnings
 import numpy as np
 
 import opinf
+
+try:
+    from .test_base import _TestDerivativeEstimatorTemplate
+except ImportError:
+    from test_base import _TestDerivativeEstimatorTemplate
 
 
 _module = opinf.ddt._finite_difference
@@ -34,141 +40,69 @@ def test_finite_difference(r=10, k=20, m=3):
     assert U1d_.shape == (k - 3,)
 
 
-class TestUniformFiniteDifferencer:
+class TestUniformFiniteDifferencer(_TestDerivativeEstimatorTemplate):
     """Test ddt.UniformFiniteDifferencer."""
 
-    Diff = _module.UniformFiniteDifferencer
+    Estimator = _module.UniformFiniteDifferencer
+
+    def get_estimators(self):
+        t = np.linspace(0, 1, 100)
+        for name in self.Estimator._schemes.keys():
+            yield self.Estimator(t, scheme=name)
 
     def test_init(self, k=100):
-        """Test __init__(), time_domain, and scheme."""
+        """Test __init__(), time_domain, scheme, __str__(), and __repr__()."""
         t = np.linspace(0, 1, k)
-        differ = self.Diff(t)
+        differ = self.Estimator(t)
         assert differ.time_domain is t
         assert differ.dt == (t[1] - t[0])
 
         # Try with non-uniform spacing.
         t2 = t**2
         with pytest.raises(ValueError) as ex:
-            self.Diff(t2)
+            self.Estimator(t2)
         assert ex.value.args[0] == "time domain must be uniformly spaced"
-
-        # Too many dimensions.
-        t3 = np.sort(np.random.random((3, 3, 3)))
-        with pytest.raises(ValueError) as ex:
-            self.Diff(t3)
-        assert ex.value.args[0] == (
-            "time_domain must be a one-dimensional array"
-        )
 
         # Bad scheme.
         with pytest.raises(ValueError) as ex:
-            self.Diff(t, scheme="best")
+            self.Estimator(t, scheme="best")
         assert ex.value.args[0] == "invalid finite difference scheme 'best'"
 
-        # Custom scheme.
-
-        def myscheme():
-            pass
-
-        differ = self.Diff(t, myscheme)
-        assert differ.scheme is myscheme
-
-        # Registered schemes.
-        for name, func in self.Diff._schemes.items():
+        # Valid schemes.
+        for name, func in self.Estimator._schemes.items():
             assert callable(func)
-            differ = self.Diff(t, scheme=name)
+            differ = self.Estimator(t, scheme=name)
             assert differ.scheme is func
 
-        repr(differ)
+        return super().test_init(k)
 
-    def test_estimate(self, r=3, k=100, m=2):
-        """Use verify() to validate estimate()
-        for all registered difference schemes.
-        """
-        t = np.linspace(0, 1, k)
-
-        differ = self.Diff(t)
-        Q = np.random.random(k)
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            differ.estimate(Q)
-        assert ex.value.args[0] == "states must be two-dimensional"
-
-        Q = np.random.random((r, k))
-        U = np.random.random((m, k))
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            differ.estimate(Q, U[:, :-1])
-        assert ex.value.args[0] == "states and inputs not aligned"
-
-        # One-dimensional inputs.
-        differ.estimate(Q, U[0])
-
-        # Test all schemes.
-        for name in self.Diff._schemes.keys():
-            differ = self.Diff(t, scheme=name)
-            errors = differ.verify(plot=False, return_errors=True)
-            for label, results in errors.items():
-                if label == "dts":
-                    continue
-                assert (
-                    np.min(results) < 5e-7
-                ), f"problem with scheme '{name}', test '{label}'"
+    def test_estimate(self):
+        super().test_estimate(check_against_time=False)
 
 
-class TestNonuniformFiniteDifferencer:
+class TestNonuniformFiniteDifferencer(_TestDerivativeEstimatorTemplate):
     """Test ddt.NonuniformFiniteDifferencer."""
 
-    Diff = _module.NonuniformFiniteDifferencer
+    Estimator = _module.NonuniformFiniteDifferencer
+
+    def get_estimators(self):
+        t = np.linspace(0, 1, 100) ** 2
+        yield self.Estimator(t)
 
     def test_init(self, k=100):
         """Test __init__(), time_domain, and order."""
         t = np.linspace(0, 1, k)
 
         with pytest.warns(opinf.errors.OpInfWarning) as wn:
-            self.Diff(t)
+            self.Estimator(t)
         assert wn[0].message.args[0] == (
             "time_domain is uniformly spaced, consider using "
             "UniformFiniteDifferencer"
         )
 
-        t = t**2
-        differ = self.Diff(t)
-        assert differ.time_domain is t
-        repr(differ)
-
-        # Too many dimensions.
-        t3 = np.sort(np.random.random((3, 3, 3)))
-        with pytest.raises(ValueError) as ex:
-            self.Diff(t3)
-        assert ex.value.args[0] == (
-            "time_domain must be a one-dimensional array"
-        )
-
-    def test_estimate(self, r=3, k=100, m=4):
-        """Use verify() to test estimate()."""
-        t = np.linspace(0, 1, k) ** 2
-        differ = self.Diff(t)
-
-        # Coverage for error messages.
-        Q = np.random.random(k)
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            differ.estimate(Q)
-        assert ex.value.args[0] == "states must be two-dimensional"
-
-        Q = np.random.random((r, k))
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            differ.estimate(Q[:, :-1])
-        assert ex.value.args[0] == "states not aligned with time_domain"
-
-        U = np.random.random((m, k))
-        with pytest.raises(opinf.errors.DimensionalityError) as ex:
-            differ.estimate(Q, U[:, :-1])
-        assert ex.value.args[0] == "states and inputs not aligned"
-
-        # One-dimensional inputs.
-        differ.estimate(Q, U[0])
-
-        # Test the implementation.
-        differ.verify()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", opinf.errors.OpInfWarning)
+            return super().test_init()
 
 
 # Old API =====================================================================
