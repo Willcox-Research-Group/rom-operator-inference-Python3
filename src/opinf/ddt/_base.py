@@ -145,20 +145,21 @@ class DerivativeEstimatorTemplate(abc.ABC):
         raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
-    def mask(self, states):
-        """Extract the states that align with estimated time derivatives.
+    def mask(self, arr):
+        """Map an array from the training time domain to the domain of the
+        estimated time derivatives.
 
         This method is used in post-hoc regularization selection routines.
 
         Parameters
         ----------
-        states : (r, k) ndarray
-            State snapshots, either full or (preferably) reduced.
+        arr : (..., k) ndarray
+            Array (states, inputs, etc.) aligned with the training time domain.
 
         Returns
         -------
-        _states : (r, k') ndarray
-            Subset of the state snapshots.
+        _arr : (..., k') ndarray
+            Array mapped to the domain of the estimated time derivatives.
 
         Examples
         --------

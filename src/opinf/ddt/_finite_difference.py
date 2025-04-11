@@ -883,22 +883,21 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
         states, inputs = self._check_dimensions(states, inputs, False)
         return self.scheme(states, self.dt, inputs)
 
-    def mask(self, states):
-        """Extract the states that align with estimated time derivatives.
-        Since :meth:`estimate` provides an estimate at every time step, this
-        method simply returns ``states``.
+    def mask(self, arr):
+        """Map an array from the training time domain to the domain of the
+        estimated time derivatives.
 
         This method is used in post-hoc regularization selection routines.
 
         Parameters
         ----------
-        states : (r, k) ndarray
-            State snapshots, either full or (preferably) reduced.
+        arr : (..., k) ndarray
+            Array (states, inputs, etc.) aligned with the training time domain.
 
         Returns
         -------
-        _states : (r, k') ndarray
-            Subset of the state snapshots.
+        _arr : (..., k') ndarray
+            Array mapped to the domain of the estimated time derivatives.
 
         Examples
         --------
@@ -913,7 +912,7 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
         schema = self.scheme.__name__
         mode, order = schema[:3], int(schema[3])
         if mode == "ord":
-            return states
+            return arr
         elif mode == "fwd":
             cols = slice(0, -order)
         elif mode == "bwd":
@@ -923,7 +922,7 @@ class UniformFiniteDifferencer(DerivativeEstimatorTemplate):
             cols = slice(margin, -margin)
         else:  # pragma: no cover
             raise RuntimeError("invalid scheme name!")
-        return states[:, cols]
+        return arr[..., cols]
 
 
 class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
@@ -993,22 +992,22 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
             return states, ddts, inputs
         return states, ddts
 
-    def mask(self, states):
-        """Extract the states that align with estimated time derivatives.
-        Since :meth:`estimate` provides an estimate at every time step, this
-        method simply returns ``states``.
+    def mask(self, arr):
+        """Map an array from the training time domain to the domain of the
+        estimated time derivatives. Since this class provides an estimate at
+        every time step, this method simply returns ``arr``.
 
         This method is used in post-hoc regularization selection routines.
 
         Parameters
         ----------
-        states : (r, k) ndarray
-            State snapshots, either full or (preferably) reduced.
+        arr : (..., k) ndarray
+            Array (states, inputs, etc.) aligned with the training time domain.
 
         Returns
         -------
-        _states : (r, k') ndarray
-            Subset of the state snapshots.
+        _arr : (..., k') ndarray
+            Array mapped to the domain of the estimated time derivatives.
 
         Examples
         --------
@@ -1020,7 +1019,7 @@ class NonuniformFiniteDifferencer(DerivativeEstimatorTemplate):
         >>> Q3.shape == Q.shape
         True
         """
-        return states
+        return arr
 
 
 # Old API =====================================================================

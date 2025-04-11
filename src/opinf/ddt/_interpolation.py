@@ -190,25 +190,27 @@ class InterpDerivativeEstimator(DerivativeEstimatorTemplate):
             return states, ddts
         return states, ddts, inputs
 
-    def mask(self, states):
-        """Extract the states that align with estimated time derivatives.
+    def mask(self, arr):
+        """Map an array from the training time domain to the domain of the
+        estimated time derivatives.
+
 
         This method is used in post-hoc regularization selection routines.
 
         Parameters
         ----------
-        states : (r, k) ndarray
-            State snapshots, either full or (preferably) reduced.
+        arr : (..., k) ndarray
+            Array (states, inputs, etc.) aligned with the training time domain.
 
         Returns
         -------
-        _states : (r, k') ndarray
-            Subset of the state snapshots.
+        _arr : (..., k) ndarray
+            Array mapped to the domain of the estimated time derivatives.
 
         Notes
         -----
         If :attr:`new_time_domain` is not the same as :attr:`time_domain`,
-        this method interpolates the ``states`` and evaluates the interpolant
+        this method interpolates the ``arr`` and evaluates the interpolant
         (not its derivative) over the :attr:`new_time_domain`.
 
         Examples
@@ -222,12 +224,12 @@ class InterpDerivativeEstimator(DerivativeEstimatorTemplate):
         True
         """
         if self.new_time_domain is None:
-            return states
+            return arr
 
         # Interpolate to the new time domain.
         statespline = self.InterpolatorClass(
             self.time_domain,
-            states,
+            arr,
             **self.options,
         )
         return statespline(self.new_time_domain)
