@@ -5,6 +5,17 @@
 New versions may introduce substantial new features or API adjustments.
 :::
 
+## Version 0.5.16
+
+Backend improvements to the regularization selection procedure.
+
+- `ROM.fit()` calls `ROM.model.fit()` instead of `ROM.model._fit_solver()`, which works better for inheritance.
+- `BayesianROM.fit_regselect_*()` catches errors and suppresses warnings from the least-squares solver.
+- Fixed a bug for interpolatory parametric models where `fit_regselect_*()` would only update the regularizer for the overall `model.solver`, not for each of the individual solvers for the models to be interpolated.
+- Fixed a bug related to test cases being processed before the basis was initialized.
+- Removed unnecessary abstract methods from `models.mono._base._OpInfModel`.
+- Small updates to the literature page.
+
 ## Version 0.5.15
 
 - Improvement to `fit_regselect_*()` so that the regularization does not have to be initialized before fitting the model. This fixes a longstanding chicken/egg problem and makes using `fit_regselect_*()` much less cumbersome.
