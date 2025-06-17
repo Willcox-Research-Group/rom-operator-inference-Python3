@@ -471,18 +471,25 @@ class _BaseROM(abc.ABC):
                 limits[ell] = np.inf
         return shifts, limits
 
-    def _fit_solver(
+    def _fit_model(
         self,
         parameters,
         states,
         lhs,
         inputs,
-        fit_transformer,
-        fit_basis,
+        fit_transformer: bool,
+        fit_basis: bool,
+        solver_only: bool = False,
     ):
         """Process the training data and fit the model solver.
         Returns the processed training data.
 
+        Parameters
+        ----------
+        solver_only : bool
+            If ``True``, call ``self.model._fit_solver()`` instead of
+            ``self.model.fit()``. This is useful for regularization selection.
+            If ``False`` (default), call ``self.model.fit()``.
         """
         self._check_fit_args(lhs=lhs, inputs=inputs)
         if parameters is None:
@@ -500,11 +507,17 @@ class _BaseROM(abc.ABC):
 
         if parameters is None:
             inputdata = None if inputs is None else np.hstack(inputs)
-            self.model._fit_solver(
-                np.hstack(states), np.hstack(lhs), inputdata
-            )
+            if solver_only:
+                self.model._fit_solver(
+                    np.hstack(states), np.hstack(lhs), inputdata
+                )
+            else:
+                self.model.fit(np.hstack(states), np.hstack(lhs), inputdata)
         else:
-            self.model._fit_solver(parameters, states, lhs, inputs)
+            if solver_only:
+                self.model._fit_solver(parameters, states, lhs, inputs)
+            else:
+                self.model.fit(parameters, states, lhs, inputs)
 
         return states
 
@@ -656,13 +669,14 @@ class _BaseROM(abc.ABC):
             regularizer_factory = _identity
 
         # Fit the model for the first time.
-        self._fit_solver(
+        self._fit_model(
             parameters=parameters,
             states=states,
             lhs=ddts,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
+            solver_only=True,
         )
 
         # Set up the regularization selection.
@@ -868,13 +882,14 @@ class _BaseROM(abc.ABC):
             regularizer_factory = _identity
 
         # Fit the model for the first time and get compressed training data.
-        states_ = self._fit_solver(
+        states_ = self._fit_model(
             parameters=parameters,
             states=states,
             lhs=None,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
+            solver_only=True,
         )
 
         # Set up the regularization selection.

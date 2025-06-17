@@ -8,7 +8,6 @@ __all__ = [
 
 import warnings
 import numpy as np
-import scipy.linalg
 import scipy.stats
 
 from .. import errors, lstsq, post, utils
@@ -292,23 +291,24 @@ class _BayesianROMMixin:
             raise ValueError("argument 'test_time_length' must be nonnegative")
         if regularizer_factory is None:
             regularizer_factory = _identity
-        processed_test_cases = self._process_test_cases(
-            test_cases, utils.ContinuousRegTest
-        )
 
         # Fit the model for the first time.
-        self._fit_solver(
+        self._fit_model(
             parameters=parameters,
             states=states,
             lhs=ddts,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
+            solver_only=True,
         )
 
         # Set up the regularization selection.
         states_ = [self.encode(Q) for Q in states]
         shifts, limits = self._get_stability_limits(states_, stability_margin)
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.ContinuousRegTest
+        )
 
         def unstable(_Q, ell, size):
             """Return ``True`` if the solution is unstable."""
@@ -439,22 +439,23 @@ class _BayesianROMMixin:
                     )
         if regularizer_factory is None:
             regularizer_factory = _identity
-        processed_test_cases = self._process_test_cases(
-            test_cases, utils.DiscreteRegTest
-        )
 
         # Fit the model for the first time.
-        states_ = self._fit_solver(
+        states_ = self._fit_model(
             parameters=parameters,
             states=states,
             lhs=None,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
+            solver_only=True,
         )
 
         # Set up the regularization selection.
         shifts, limits = self._get_stability_limits(states_, stability_margin)
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.DiscreteRegTest
+        )
 
         def unstable(_Q, ell):
             """Return ``True`` if the solution is unstable."""
