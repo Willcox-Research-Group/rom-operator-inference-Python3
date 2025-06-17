@@ -668,6 +668,11 @@ class _BaseROM(abc.ABC):
         if regularizer_factory is None:
             regularizer_factory = _identity
 
+        # Reset the solver (in case the basis dimension changed between calls).
+        interp = modutils.is_interpolatory(self.model)
+        if hasattr(self.model, "reset"):
+            self.model.solver.reset()
+
         # Fit the model for the first time.
         self._fit_model(
             parameters=parameters,
@@ -714,7 +719,12 @@ class _BaseROM(abc.ABC):
 
         def update_model(reg_params):
             """Reset the regularizer and refit the model operators."""
-            self.model.solver.regularizer = regularizer_factory(reg_params)
+            reg = regularizer_factory(reg_params)
+            if interp:
+                for solver in self.model.solvers:
+                    solver.regularizer = reg
+            else:
+                self.model.solver.regularizer = reg
             self.model.refit()
 
         def training_error(reg_params):
@@ -881,6 +891,11 @@ class _BaseROM(abc.ABC):
         if regularizer_factory is None:
             regularizer_factory = _identity
 
+        # Reset the solver (in case the basis dimension changed between calls).
+        interp = modutils.is_interpolatory(self.model)
+        if hasattr(self.model, "reset"):
+            self.model.solver.reset()
+
         # Fit the model for the first time and get compressed training data.
         states_ = self._fit_model(
             parameters=parameters,
@@ -917,7 +932,12 @@ class _BaseROM(abc.ABC):
 
         def update_model(reg_params):
             """Reset the regularizer and refit the model operators."""
-            self.model.solver.regularizer = regularizer_factory(reg_params)
+            reg = regularizer_factory(reg_params)
+            if interp:
+                for solver in self.model.solvers:
+                    solver.regularizer = reg
+            else:
+                self.model.solver.regularizer = reg
             self.model.refit()
 
         def training_error(reg_params):

@@ -293,6 +293,8 @@ class _BayesianROMMixin:
             regularizer_factory = _identity
 
         # Fit the model for the first time.
+        if hasattr(self.model.solver, "reset"):
+            self.model.solver.reset()
         self._fit_model(
             parameters=parameters,
             states=states,
@@ -443,6 +445,8 @@ class _BayesianROMMixin:
             regularizer_factory = _identity
 
         # Fit the model for the first time.
+        if hasattr(self.model.solver, "reset"):
+            self.model.solver.reset()
         states_ = self._fit_model(
             parameters=parameters,
             states=states,

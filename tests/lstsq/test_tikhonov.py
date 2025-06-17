@@ -57,6 +57,17 @@ class _TestBaseRegularizedSolver(_TestSolverTemplate):
             "zero residual --> posterior is deterministic"
         )
 
+    def test_save_load_copy_and_reset(self, k=20, d=11, r=6):
+        D = np.random.random((k, d))
+        Z = np.random.random((r, k))
+
+        for solver in self.get_solvers():
+            solver.fit(D, Z)
+            solver.reset()
+            assert solver.regularizer is None
+
+        return super().test_save_load_copy_and_reset(k, d, r)
+
 
 class TestL2Solver(_TestBaseRegularizedSolver):
     """Test lstsq._tikhonov.L2Solver."""
@@ -393,8 +404,8 @@ class TestL2DecoupledSolver(_TestBaseRegularizedSolver):
             solver.regresidual(None)
         assert ex.value.args[0] == "solver regularizer not set"
 
-    def test_save_load_and_copy_via_verify(self, k=20, d=11):
-        return super().test_save_load_and_copy_via_verify(k, d, 4)
+    def test_save_load_copy_and_reset(self, k=20, d=11):
+        return super().test_save_load_copy_and_reset(k, d, 4)
 
 
 class TestTikhonovSolver(_TestBaseRegularizedSolver):
@@ -700,8 +711,8 @@ class TestTikhonovSolver(_TestBaseRegularizedSolver):
             solver.regresidual(None)
         assert ex.value.args[0] == "solver regularizer not set"
 
-    def test_save_load_and_copy_via_verify(self, k=20, r=6):
-        return super().test_save_load_and_copy_via_verify(k=k, d=10, r=r)
+    def test_save_load_copy_and_reset(self, k=20, r=6):
+        return super().test_save_load_copy_and_reset(k=k, d=10, r=r)
 
 
 class TestTikhonovDecoupledSolver(_TestBaseRegularizedSolver):
@@ -879,8 +890,8 @@ class TestTikhonovDecoupledSolver(_TestBaseRegularizedSolver):
             solver.regresidual(None)
         assert ex.value.args[0] == "solver regularizer not set"
 
-    def test_save_load_and_copy_via_verify(self, k=20):
-        return super().test_save_load_and_copy_via_verify(k=k, d=10, r=5)
+    def test_save_load_copy_and_reset(self, k=20):
+        return super().test_save_load_copy_and_reset(k=k, d=10, r=5)
 
 
 if __name__ == "__main__":
