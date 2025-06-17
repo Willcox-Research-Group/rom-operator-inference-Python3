@@ -433,22 +433,27 @@ class _BaseROM(abc.ABC):
 
         return states, lhs, inputs
 
-    def _process_test_cases(self, test_cases, TestCaseClass):
-        if test_cases is not None:
-            if isinstance(test_cases, TestCaseClass):
-                test_cases = [test_cases]
-            processed_test_cases = []
-            for tcase in test_cases:
-                if not isinstance(tcase, TestCaseClass):
-                    raise TypeError(
-                        "test cases must be "
-                        f"'utils.{TestCaseClass.__name__}' objects"
-                    )
-                processed_test_cases.append(
-                    tcase.copy(self.encode(tcase.initial_conditions))
+    def _process_test_cases(
+        self,
+        test_cases,
+        TestCaseClass: utils._gridsearch._RegTest,
+    ):
+        if test_cases is None:
+            return []
+
+        if isinstance(test_cases, TestCaseClass):
+            test_cases = [test_cases]
+        processed_test_cases = []
+        for tcase in test_cases:
+            if not isinstance(tcase, TestCaseClass):
+                raise TypeError(
+                    "test cases must be "
+                    f"'utils.{TestCaseClass.__name__}' objects"
                 )
-            return processed_test_cases
-        return []
+            processed_test_cases.append(
+                tcase.copy(self.encode(tcase.initial_conditions))
+            )
+        return processed_test_cases
 
     def _get_stability_limits(self, states, stability_margin):
         shifts = [np.mean(Q, axis=1).reshape((-1, 1)) for Q in states]
@@ -649,9 +654,6 @@ class _BaseROM(abc.ABC):
             raise ValueError("argument 'test_time_length' must be nonnegative")
         if regularizer_factory is None:
             regularizer_factory = _identity
-        processed_test_cases = self._process_test_cases(
-            test_cases, utils.ContinuousRegTest
-        )
 
         # Fit the model for the first time.
         self._fit_solver(
@@ -666,6 +668,9 @@ class _BaseROM(abc.ABC):
         # Set up the regularization selection.
         states_ = [self.encode(Q) for Q in states]
         shifts, limits = self._get_stability_limits(states_, stability_margin)
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.ContinuousRegTest
+        )
 
         def unstable(_Q, ell, size):
             """Return ``True`` if the solution is unstable."""
@@ -861,9 +866,6 @@ class _BaseROM(abc.ABC):
                     )
         if regularizer_factory is None:
             regularizer_factory = _identity
-        processed_test_cases = self._process_test_cases(
-            test_cases, utils.DiscreteRegTest
-        )
 
         # Fit the model for the first time and get compressed training data.
         states_ = self._fit_solver(
@@ -877,6 +879,9 @@ class _BaseROM(abc.ABC):
 
         # Set up the regularization selection.
         shifts, limits = self._get_stability_limits(states_, stability_margin)
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.DiscreteRegTest
+        )
 
         def unstable(_Q, ell):
             """Return ``True`` if the solution is unstable."""
