@@ -9,6 +9,7 @@ __all__ = [
 import warnings
 import numpy as np
 import scipy.stats
+import scipy.linalg
 
 from .. import errors, lstsq, post, utils
 from ..models import _utils as modutils
@@ -223,12 +224,11 @@ class _BayesianROMMixin:
 
     def _initialize_posterior(self):
         """Set the operator posterior if numerically possible."""
-        means, precisions = self.model.solver.posterior()
         try:
+            means, precisions = self.model.solver.posterior()
             self.__posterior = OperatorPosterior(means, precisions)
-        except np.linalg.LinAlgError as ex:
-            if ex.args[0] == "Matrix is not positive definite":
-                self.__posterior = None
+        except np.linalg.LinAlgError:
+            self.__posterior = None
 
     def draw_operators(self):
         """Set the :attr:`model` operators to a new random draw from the
@@ -339,7 +339,9 @@ class _BayesianROMMixin:
         def update_model(reg_params):
             """Reset the regularizer and refit the model operators."""
             self.model.solver.regularizer = regularizer_factory(reg_params)
-            self._initialize_posterior()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", scipy.linalg.LinAlgWarning)
+                self._initialize_posterior()
 
         def training_error(reg_params):
             """Compute the training error for a single regularization
@@ -477,7 +479,9 @@ class _BayesianROMMixin:
         def update_model(reg_params):
             """Reset the regularizer and refit the model operators."""
             self.model.solver.regularizer = regularizer_factory(reg_params)
-            self._initialize_posterior()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", scipy.linalg.LinAlgWarning)
+                self._initialize_posterior()
 
         def training_error(reg_params):
             """Compute the mean training error for a single regularization
