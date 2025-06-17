@@ -179,14 +179,17 @@ class _TestSolverTemplate(abc.ABC):
                 assert residual.shape == (1,)
                 assert np.isclose(residual[0], la.norm(D @ ohat - z) ** 2)
 
-    def test_save_load_and_copy_via_verify(self, k=20, d=11, r=6):
-        """Use verify() to test save(), load(), and copy()."""
+    def test_save_load_copy_and_reset(self, k=20, d=11, r=6):
+        """Use verify() to test save(), load(), copy(); test reset()."""
         D = np.random.random((k, d))
         Z = np.random.random((r, k))
 
         for solver in self.get_solvers():
             solver.fit(D, Z)
             solver.verify()
+            solver.reset()
+            assert solver.data_matrix is None
+            assert solver.lhs_matrix is None
 
 
 class TestPlainSolver(_TestSolverTemplate):

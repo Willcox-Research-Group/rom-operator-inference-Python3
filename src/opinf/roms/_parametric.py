@@ -105,15 +105,15 @@ class ParametricROM(_BaseROM):
         -------
         self
         """
-        self._fit_solver(
+        self._fit_model(
             parameters=parameters,
             states=states,
             lhs=lhs,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
+            solver_only=False,
         )
-        self.model.refit()
         return self
 
     # Evaluation --------------------------------------------------------------

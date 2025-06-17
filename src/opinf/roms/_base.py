@@ -433,22 +433,27 @@ class _BaseROM(abc.ABC):
 
         return states, lhs, inputs
 
-    def _process_test_cases(self, test_cases, TestCaseClass):
-        if test_cases is not None:
-            if isinstance(test_cases, TestCaseClass):
-                test_cases = [test_cases]
-            processed_test_cases = []
-            for tcase in test_cases:
-                if not isinstance(tcase, TestCaseClass):
-                    raise TypeError(
-                        "test cases must be "
-                        f"'utils.{TestCaseClass.__name__}' objects"
-                    )
-                processed_test_cases.append(
-                    tcase.copy(self.encode(tcase.initial_conditions))
+    def _process_test_cases(
+        self,
+        test_cases,
+        TestCaseClass: utils._gridsearch._RegTest,
+    ):
+        if test_cases is None:
+            return []
+
+        if isinstance(test_cases, TestCaseClass):
+            test_cases = [test_cases]
+        processed_test_cases = []
+        for tcase in test_cases:
+            if not isinstance(tcase, TestCaseClass):
+                raise TypeError(
+                    "test cases must be "
+                    f"'utils.{TestCaseClass.__name__}' objects"
                 )
-            return processed_test_cases
-        return []
+            processed_test_cases.append(
+                tcase.copy(self.encode(tcase.initial_conditions))
+            )
+        return processed_test_cases
 
     def _get_stability_limits(self, states, stability_margin):
         shifts = [np.mean(Q, axis=1).reshape((-1, 1)) for Q in states]
@@ -466,18 +471,25 @@ class _BaseROM(abc.ABC):
                 limits[ell] = np.inf
         return shifts, limits
 
-    def _fit_solver(
+    def _fit_model(
         self,
         parameters,
         states,
         lhs,
         inputs,
-        fit_transformer,
-        fit_basis,
+        fit_transformer: bool,
+        fit_basis: bool,
+        solver_only: bool = False,
     ):
         """Process the training data and fit the model solver.
         Returns the processed training data.
 
+        Parameters
+        ----------
+        solver_only : bool
+            If ``True``, call ``self.model._fit_solver()`` instead of
+            ``self.model.fit()``. This is useful for regularization selection.
+            If ``False`` (default), call ``self.model.fit()``.
         """
         self._check_fit_args(lhs=lhs, inputs=inputs)
         if parameters is None:
@@ -495,11 +507,17 @@ class _BaseROM(abc.ABC):
 
         if parameters is None:
             inputdata = None if inputs is None else np.hstack(inputs)
-            self.model._fit_solver(
-                np.hstack(states), np.hstack(lhs), inputdata
-            )
+            if solver_only:
+                self.model._fit_solver(
+                    np.hstack(states), np.hstack(lhs), inputdata
+                )
+            else:
+                self.model.fit(np.hstack(states), np.hstack(lhs), inputdata)
         else:
-            self.model._fit_solver(parameters, states, lhs, inputs)
+            if solver_only:
+                self.model._fit_solver(parameters, states, lhs, inputs)
+            else:
+                self.model.fit(parameters, states, lhs, inputs)
 
         return states
 
@@ -649,23 +667,29 @@ class _BaseROM(abc.ABC):
             raise ValueError("argument 'test_time_length' must be nonnegative")
         if regularizer_factory is None:
             regularizer_factory = _identity
-        processed_test_cases = self._process_test_cases(
-            test_cases, utils.ContinuousRegTest
-        )
+
+        # Reset the solver (in case the basis dimension changed between calls).
+        interp = modutils.is_interpolatory(self.model)
+        if hasattr(self.model, "reset"):
+            self.model.solver.reset()
 
         # Fit the model for the first time.
-        self._fit_solver(
+        self._fit_model(
             parameters=parameters,
             states=states,
             lhs=ddts,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
+            solver_only=True,
         )
 
         # Set up the regularization selection.
         states_ = [self.encode(Q) for Q in states]
         shifts, limits = self._get_stability_limits(states_, stability_margin)
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.ContinuousRegTest
+        )
 
         def unstable(_Q, ell, size):
             """Return ``True`` if the solution is unstable."""
@@ -695,7 +719,12 @@ class _BaseROM(abc.ABC):
 
         def update_model(reg_params):
             """Reset the regularizer and refit the model operators."""
-            self.model.solver.regularizer = regularizer_factory(reg_params)
+            reg = regularizer_factory(reg_params)
+            if interp:
+                for solver in self.model.solvers:
+                    solver.regularizer = reg
+            else:
+                self.model.solver.regularizer = reg
             self.model.refit()
 
         def training_error(reg_params):
@@ -861,22 +890,28 @@ class _BaseROM(abc.ABC):
                     )
         if regularizer_factory is None:
             regularizer_factory = _identity
-        processed_test_cases = self._process_test_cases(
-            test_cases, utils.DiscreteRegTest
-        )
+
+        # Reset the solver (in case the basis dimension changed between calls).
+        interp = modutils.is_interpolatory(self.model)
+        if hasattr(self.model, "reset"):
+            self.model.solver.reset()
 
         # Fit the model for the first time and get compressed training data.
-        states_ = self._fit_solver(
+        states_ = self._fit_model(
             parameters=parameters,
             states=states,
             lhs=None,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
+            solver_only=True,
         )
 
         # Set up the regularization selection.
         shifts, limits = self._get_stability_limits(states_, stability_margin)
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.DiscreteRegTest
+        )
 
         def unstable(_Q, ell):
             """Return ``True`` if the solution is unstable."""
@@ -897,7 +932,12 @@ class _BaseROM(abc.ABC):
 
         def update_model(reg_params):
             """Reset the regularizer and refit the model operators."""
-            self.model.solver.regularizer = regularizer_factory(reg_params)
+            reg = regularizer_factory(reg_params)
+            if interp:
+                for solver in self.model.solvers:
+                    solver.regularizer = reg
+            else:
+                self.model.solver.regularizer = reg
             self.model.refit()
 
         def training_error(reg_params):

@@ -8,8 +8,8 @@ __all__ = [
 
 import warnings
 import numpy as np
-import scipy.linalg
 import scipy.stats
+import scipy.linalg
 
 from .. import errors, lstsq, post, utils
 from ..models import _utils as modutils
@@ -224,12 +224,11 @@ class _BayesianROMMixin:
 
     def _initialize_posterior(self):
         """Set the operator posterior if numerically possible."""
-        means, precisions = self.model.solver.posterior()
         try:
+            means, precisions = self.model.solver.posterior()
             self.__posterior = OperatorPosterior(means, precisions)
-        except np.linalg.LinAlgError as ex:
-            if ex.args[0] == "Matrix is not positive definite":
-                self.__posterior = None
+        except np.linalg.LinAlgError:
+            self.__posterior = None
 
     def draw_operators(self):
         """Set the :attr:`model` operators to a new random draw from the
@@ -292,23 +291,26 @@ class _BayesianROMMixin:
             raise ValueError("argument 'test_time_length' must be nonnegative")
         if regularizer_factory is None:
             regularizer_factory = _identity
-        processed_test_cases = self._process_test_cases(
-            test_cases, utils.ContinuousRegTest
-        )
 
         # Fit the model for the first time.
-        self._fit_solver(
+        if hasattr(self.model.solver, "reset"):
+            self.model.solver.reset()
+        self._fit_model(
             parameters=parameters,
             states=states,
             lhs=ddts,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
+            solver_only=True,
         )
 
         # Set up the regularization selection.
         states_ = [self.encode(Q) for Q in states]
         shifts, limits = self._get_stability_limits(states_, stability_margin)
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.ContinuousRegTest
+        )
 
         def unstable(_Q, ell, size):
             """Return ``True`` if the solution is unstable."""
@@ -339,7 +341,9 @@ class _BayesianROMMixin:
         def update_model(reg_params):
             """Reset the regularizer and refit the model operators."""
             self.model.solver.regularizer = regularizer_factory(reg_params)
-            self._initialize_posterior()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", scipy.linalg.LinAlgWarning)
+                self._initialize_posterior()
 
         def training_error(reg_params):
             """Compute the training error for a single regularization
@@ -439,22 +443,25 @@ class _BayesianROMMixin:
                     )
         if regularizer_factory is None:
             regularizer_factory = _identity
-        processed_test_cases = self._process_test_cases(
-            test_cases, utils.DiscreteRegTest
-        )
 
         # Fit the model for the first time.
-        states_ = self._fit_solver(
+        if hasattr(self.model.solver, "reset"):
+            self.model.solver.reset()
+        states_ = self._fit_model(
             parameters=parameters,
             states=states,
             lhs=None,
             inputs=inputs,
             fit_transformer=fit_transformer,
             fit_basis=fit_basis,
+            solver_only=True,
         )
 
         # Set up the regularization selection.
         shifts, limits = self._get_stability_limits(states_, stability_margin)
+        processed_test_cases = self._process_test_cases(
+            test_cases, utils.DiscreteRegTest
+        )
 
         def unstable(_Q, ell):
             """Return ``True`` if the solution is unstable."""
@@ -476,7 +483,9 @@ class _BayesianROMMixin:
         def update_model(reg_params):
             """Reset the regularizer and refit the model operators."""
             self.model.solver.regularizer = regularizer_factory(reg_params)
-            self._initialize_posterior()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", scipy.linalg.LinAlgWarning)
+                self._initialize_posterior()
 
         def training_error(reg_params):
             """Compute the mean training error for a single regularization

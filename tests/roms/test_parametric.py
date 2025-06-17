@@ -274,7 +274,7 @@ class TestParametricROM(_TestBaseROM):
             rom = self.ROM(
                 model.__class__(
                     operators=model.operators,
-                    solver=opinf.lstsq.L2Solver(1e-2),
+                    solver=opinf.lstsq.L2Solver(),
                 )
             )
 
