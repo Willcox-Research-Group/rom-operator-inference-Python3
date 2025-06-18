@@ -1,0 +1,8 @@
+:orphan:
+
+set_entries\(\)
+============================================
+
+.. currentmodule:: opinf.operators
+
+.. automethod:: opinf.operators.ConstantOperator.set_entries
