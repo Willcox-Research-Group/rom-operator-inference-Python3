@@ -753,7 +753,7 @@ class OpInfOperator(OperatorTemplate):
            \end{array}\right]
            \in \RR^{d \times k}.
 
-        Here, ``states`` is the snapshot matrix
+        Here, ``states`` is the projected snapshot matrix
         :math:`[~\qhat_0~~\cdots~~\qhat_{k-1}~]`
         and ``inputs`` is the (optional) input matrix
         :math:`[~\u_0~~\cdots~~\u_{k-1}~]`.
