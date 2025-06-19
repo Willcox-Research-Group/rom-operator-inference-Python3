@@ -3,7 +3,8 @@ from ._base import OpInfOperator
 
 import numpy as np
 
-# import scipy.linalg as la
+import scipy.linalg as la
+
 # import scipy.sparse as sparse
 from scipy.special import comb
 
@@ -51,6 +52,10 @@ class PolynomialOperator(OpInfOperator):
                 f"expected non-negative integer polynomial order p. Got p={p}"
             )
 
+        # for constant operators the dimension does not matter
+        if p == 0:
+            return 1
+
         return comb(r, p, repetition=True, exact=True)
 
     def my_operator_dimension(self, r: int) -> int:
@@ -62,9 +67,107 @@ class PolynomialOperator(OpInfOperator):
             r=r, p=self.polynomial_order
         )
 
-    def datablock(states: np.ndarray, inputs=None) -> np.ndarray:
+    def datablock(self, states: np.ndarray, inputs=None) -> np.ndarray:
+        r"""Return the data matrix block corresponding to
+        this operator's polynomial order,
+        with ``states`` being the projected snapshots.
 
-        pass
+        Parameters
+        ----------
+        states : (r, k) or (k,) ndarray
+            State vectors. Each column is a single state vector.
+            If one dimensional, it is assumed that :math:`r = 1`.
+        inputs : (m, k) or (k,) ndarray or None
+            Input vectors (not used).
+
+        Returns
+        -------
+        datablock : (PolynomialOperator.operator_dimension(r, p), k) ndarray
+            where p is the polynomial order for this operator.
+        """
+        # if constant, we just return an array containing ones
+        # of shape 1 x <number of data points>
+        if self.polynomial_order == 0:
+            return np.ones((1, np.atleast_1d(states).shape[-1]))
+
+        # make sure data is in 2D
+        states = np.atleast_2d(states)
+
+        if states.shape[0] == 0:
+            return np.empty(shape=(0, states.shape[1]))
+
+        # compute data matrix
+        return PolynomialOperator.exp_p(states, self.polynomial_order)
+
+    @staticmethod
+    def keptIndices_p(r, p):
+        """
+        returns the non-redundant indices in a kronecker-product with
+        exponent p when the dimension of the vector is r
+        """
+        if p == 0:
+            return np.array([0])
+
+        dim_if_p_was_one_smaller = PolynomialOperator.operator_dimension(
+            r=r, p=p - 1
+        )
+        indexmatrix = np.reshape(
+            np.arange(r * dim_if_p_was_one_smaller),
+            (r, dim_if_p_was_one_smaller),
+        )
+        return np.hstack(
+            [
+                indexmatrix[
+                    i, : PolynomialOperator.operator_dimension(i + 1, p - 1)
+                ]
+                for i in range(r)
+            ]
+        )
+
+    @staticmethod
+    def exp_p(x, p, kept=None):
+        """
+        recursively computes x^p without the redundant terms
+        (it still computes them but then takes them out)
+        the result has shape
+
+        if x is 1-dimensional:
+        (PolynomialOperator.operator_dimension(x.shape[0]),)
+
+        otherwise:
+        (PolynomialOperator.operator_dimension(x.shape[0]), x.shape[1])
+        """
+        # for a constant operator, we just return 1 (x^0 = 1)
+        if p == 0:
+            return np.ones(
+                1,
+            )
+
+        # for a linear operator, x^1 = 1
+        if p == 1:
+            return x
+
+        # identify kept entries in condensed Kronecker product for
+        # this reduced dimension
+        # for all polynomial orders up to self.polynomial order
+        if kept is None:
+            r = x.shape[0]
+            kept = [
+                PolynomialOperator.keptIndices_p(r=r, p=i)
+                for i in range(p + 1)
+            ]
+
+        # distinguish between the shapes of the input
+        if len(x.shape) == 1:
+            # this gets called when the ROM is run
+            return np.kron(x, PolynomialOperator.exp_p(x, p - 1, kept))[
+                kept[p]
+            ]
+        else:
+            # this gets called for constructing the data matrix
+            return la.khatri_rao(x, PolynomialOperator.exp_p(x, p - 1, kept))[
+                kept[p]
+            ]
 
     def apply(self, state: np.ndarray, input_=None) -> np.ndarray:
         pass

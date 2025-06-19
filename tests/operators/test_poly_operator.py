@@ -68,3 +68,74 @@ def test_operator_dimension_invalid_r(r):
 def test_operator_dimension_invalid_p(p):
     with pytest.raises(ValueError):
         PolynomialOperator.operator_dimension(r=2, p=p)
+
+
+@pytest.mark.parametrize(
+    "r,k", [(r, k) for r in range(1, 20) for k in [10, 20, 50, 100]]
+)
+def test_datablock_against_reference_implementation(r, k):
+    state_ = np.random.random((r, k))
+
+    # constant
+    operator = PolynomialOperator(polynomial_order=0)
+    datamatrix = operator.datablock(states=state_)
+    operator_ref = other_operators.ConstantOperator()
+    datamatrix_ref = operator_ref.datablock(states=state_)
+
+    # check that the shape is correct
+    assert (
+        datamatrix.shape
+        == datamatrix_ref.shape
+        == (PolynomialOperator.operator_dimension(r=r, p=0), k)
+    )
+
+    # check that the entries are correct
+    assert (datamatrix == datamatrix_ref).all()
+
+    # linear
+    operator = PolynomialOperator(polynomial_order=1)
+    datamatrix = operator.datablock(states=state_)
+    operator_ref = other_operators.LinearOperator()
+    datamatrix_ref = operator_ref.datablock(states=state_)
+
+    # check that the shape is correct
+    assert (
+        datamatrix.shape
+        == datamatrix_ref.shape
+        == (PolynomialOperator.operator_dimension(r=r, p=1), k)
+    )
+
+    # check that the entries are correct
+    assert (datamatrix == datamatrix_ref).all()
+
+    # quadratic
+    operator = PolynomialOperator(polynomial_order=2)
+    datamatrix = operator.datablock(states=state_)
+    operator_ref = other_operators.QuadraticOperator()
+    datamatrix_ref = operator_ref.datablock(states=state_)
+
+    # check that the shape is correct
+    assert (
+        datamatrix.shape
+        == datamatrix_ref.shape
+        == (PolynomialOperator.operator_dimension(r=r, p=2), k)
+    )
+
+    # check that the entries are correct
+    assert (datamatrix == datamatrix_ref).all()
+
+    # cubic
+    operator = PolynomialOperator(polynomial_order=3)
+    datamatrix = operator.datablock(states=state_)
+    operator_ref = other_operators.CubicOperator()
+    datamatrix_ref = operator_ref.datablock(states=state_)
+
+    # check that the shape is correct
+    assert (
+        datamatrix.shape
+        == datamatrix_ref.shape
+        == (PolynomialOperator.operator_dimension(r=r, p=3), k)
+    )
+
+    # check that the entries are correct
+    assert (datamatrix == datamatrix_ref).all()
