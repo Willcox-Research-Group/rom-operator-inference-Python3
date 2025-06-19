@@ -126,6 +126,72 @@ def test_01(data):
         assert error < maxerr
 
 
+def test_02(data):
+    """Regularization selection."""
+    t_all, training_parameters, testing_parameters, Qtrain, Qtest = (
+        data["t_all"],
+        data["training_parameters"],
+        data["testing_parameters"],
+        data["Qtrain"],
+        data["Qtest"],
+    )
+
+    rom = opinf.ParametricROM(
+        basis=opinf.basis.PODBasis(num_vectors=6),
+        ddt_estimator=opinf.ddt.UniformFiniteDifferencer(t_all, "ord6"),
+        model=opinf.models.ParametricContinuousModel(
+            operators=[
+                opinf.operators.AffineConstantOperator(1),
+                opinf.operators.AffineLinearOperator(1),
+            ],
+            solver=opinf.lstsq.L2Solver(),
+        ),
+    ).fit_regselect_continuous(
+        [1e-14, 1e-10, 1e-6],
+        train_time_domains=t_all,
+        parameters=training_parameters,
+        states=Qtrain,
+        gridsearch_only=True,
+        test_cases=[
+            opinf.utils.ContinuousRegTest(Q[:, 0], t_all, parameters=mu)
+            for mu, Q in zip(testing_parameters, Qtest)
+        ],
+    )
+
+    maxerrors = [
+        0.0528,
+        0.0344,
+        0.0228,
+        0.0156,
+        0.0111,
+        0.0078,
+        0.0051,
+        0.0028,
+        0.0010,
+        0.0002,
+    ]
+    for mu, Q, maxerr in zip(training_parameters, Qtrain, maxerrors):
+        Q_ROM = rom.predict(mu, Q[:, 0], t_all, method="BDF")
+        error = opinf.post.frobenius_error(Q, Q_ROM)[1]
+        assert error < maxerr
+
+    maxerrors = [
+        0.0426,
+        0.0279,
+        0.0188,
+        0.0131,
+        0.0093,
+        0.0064,
+        0.0039,
+        0.0018,
+        0.0004,
+    ]
+    for mu, Q, maxerr in zip(testing_parameters, Qtest, maxerrors):
+        Q_ROM = rom.predict(mu, Q[:, 0], t_all, method="BDF")
+        error = opinf.post.frobenius_error(Q, Q_ROM)[1]
+        assert error < maxerr
+
+
 if __name__ == "__main__":
     import pytest
 

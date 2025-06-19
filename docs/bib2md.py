@@ -1,5 +1,26 @@
 # bib2md.py
-"""Generate the markdown literature page from bibtex."""
+"""Generate the markdown Literature page from bibtex.
+
+Instructions for updating the Literature page:
+
+1. Add BibTeX entries to `docs/literature.bib`.
+    - Keep the entries sorted by year, then by author last name.
+    - Authors should be listed with first-then-last names and separated with
+    "and": `authors = {{First1 Last1 and First2 Last2}},`.
+    Enclose multi-word names in braces, for example,
+    `authors = {{Vincent {{van Gogh}} and Balthasar {{van der Pol}}}},`
+   - Include a "doi" field if applicable.
+   - Add a "category" field to indicate which section the reference should be
+     listed under on this page.
+
+2. Add the Google Scholar IDs of each author who has one to the `scholarIDS`
+   dictionary in `docs/bib2md.py`. This is the unique part of a Google Scholar
+   profile page url:
+   `https://scholar.google.com/citations?user=<GoogleScholarID>&hl=en`
+
+Note that `docs/literature.bib` is generated automatically from this file and
+is not tracked by git.
+"""
 
 import re
 import collections
@@ -13,20 +34,51 @@ import bibtexparser.middlewares as bm
 # Categories to group the references by.
 # These are the options for the `categories` field in literature.bib entries.
 categories = {
-    "origin": "Original Paper",
-    "survey": "Surveys",
-    "method": "Methodology",
-    "structure": "Structure Preservation",
-    "theory": "Theory",
-    "software": "Software / Implementation",
-    "application": "Applications",
-    "thesis": "Dissertations and Theses",
-    "other": "Other",
+    "origin": "## Original Paper",
+    "survey": "## Surveys",
+    "nonlinear": "## Methodology\n### Lifting and Nonlinearity",
+    "reprojection": "### Re-projection",
+    "structure": "### Structure Preservation",
+    "parametric": "### Parametric Problems",
+    "statistical": "### Statistical Methods",
+    "domaindecomp": "### Domain Decomposition",
+    "manifolds": "### Nonlinear Manifolds",
+    "scalable": "### Scalability",
+    "application": "## Applications",
+    "thesis": "## Dissertations and Theses",
 }
 
-# These categories will be subsubsections, not subsections.
-subsubsections = {
-    "structure",
+# Extra text to place under the heading before continuing.
+details = {
+    "nonlinear": """Operator Inference learns reduced-order models with
+polynomial structure. The methods developed in the following papers focus on
+dealing with non-polynomial nonlinearities through variable transformations
+(lifting) and/or coupling Operator Inference methods with other approximation
+strategies.""",
+    "reprojection": """In some cases, if the training data are chosen
+judiciously, Operator Inference can recover traditional reduced-order models
+defined by intrusive projection. The following papers develop and apply this
+idea.""",
+    "structure": """The methods developed in these works augment Operator
+Inference so that the resulting reduced-order models automatically inherit
+certain properties from the full-order system, such as block structure,
+symmetries, energy conservation, gradient structure, and more.""",
+    "parametric": """Many systems depend on independent parameters that
+describe material properties or other physical characteristics of the
+phenomenon being modeled. The following papers develop Operator Inference
+approaches that are specifically designed for parametric problems.""",
+    "statistical": """These papers focus on problems with noisy or missing
+data, stochastic systems, and methods for constructing probabilistic
+reduced-order models with Operator Inference.""",
+    "domaindecomp": """The methods in the following papers focus on scalability
+and accuracy improvements by decomposition spatial or latent space domains and
+learning a coupled system of reduced-order models.""",
+    "manifolds": """Traditional model reduction methods approximate the
+high-dimensional system state with a low-dimensional linear (or affine)
+representation. The methods in these papers explore using nonlinear
+low-dimensional representations in the context of Operator Inference.""",
+    "scalable": """These works focus on the computational challenge of applying
+Operator Inference to large-scale problems.""",
 }
 
 # Author citation IDs (https://scholar.google.com/citation?user=<this ID>)
@@ -106,15 +158,16 @@ specialChars = (
 HEADER = r"""# Literature
 
 This page lists scholarly publications that develop, extend, or apply
-Operator Inference.
+Operator Inference, categorized into topics and sorted by publication year,
+then by the last name of the first author. Although some could be placed in
+multiple categories, each publication is only listed once.
 
-:::{admonition} Add Your Work
+:::{admonition} Share Your Work!
 :class: hint
 
 Don't see your publication?
 [**Click here**](https://forms.gle/BgZK4b4DfuaPsGFd7)
-to submit a request to add entries to this page,
-or see the [instructions for adding entries with git](lit:add-your-work).
+to submit a request to add entries to this page.
 :::
 """
 
@@ -136,43 +189,6 @@ FOOTER = r"""## BibTex File
 {}
 ```
 :::
-
-(lit:add-your-work)=
-## Add Your Work
-
-[**Click here**](https://forms.gle/BgZK4b4DfuaPsGFd7)
-to submit a request to add entries to this page.
-You can also submit entries yourself through a pull request:
-
-1. Fork and clone the repository (see
-   [How to Contribute](../contributing/how_to_contribute.md)).
-2. On a new branch, add BibTeX entries to `docs/literature.bib`.
-   - Please keep the entries sorted by year, then by author last name.
-   - Authors should be listed with first-then-last names and separated with
-     "and":
-
-     `authors = {{First1 Last1 and First2 Last2}},`
-
-     Enclose multi-word names in braces, for example,
-
-     `authors = {{Vincent {{van Gogh}} and Balthasar {{van der Pol}}}},`
-   - Include a "doi" field if applicable.
-   - Add a "category" field to indicate which section the reference should be
-     listed under on this page. Options include `survey`, `method`,
-     `structure`, `theory`, `software`, `application`, `thesis`, and `other`.
-3. Add the Google Scholar IDs of each author who has one to the `scholarIDS`
-   dictionary in `docs/bib2md.py`. This is the unique part of a Google Scholar
-   profile page url:
-
-   `https://scholar.google.com/citations?user=<GoogleScholarID>&hl=en`
-
-4. Build the documentation with `make docs`, then open
-   `docs/_build/html/source/opinf/literature.html`
-   in a browser to verify the additions.
-5. Commit the changes, push to your fork, and make a pull request on GitHub.
-
-Note that this page is generated automatically from `docs/literature.bib` and
-`docs/bib2md.py` and is not tracked by git.
 """
 
 
@@ -328,8 +344,10 @@ def main(bibfile, mdfile):
         for cat in categories:
             if cat not in sectiontxt:
                 continue
-            prefix = "\n###" if cat in subsubsections else "\n##"
-            outfile.write(f"{prefix} {categories[cat]}\n")
+            text = f"\n{categories[cat]}\n\n"
+            if cat in details:
+                text = f"{text}{details[cat]}\n\n"
+            outfile.write(text)
             outfile.write("\n  <p></p>\n".join(sectiontxt[cat]) + "\n")
 
         footer = FOOTER.format(

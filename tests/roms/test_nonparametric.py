@@ -231,6 +231,9 @@ class TestROM(_TestBaseROM):
 
             rom = self.ROM(model)
 
+            def func(t):
+                return np.ones(3)
+
             # Bad argument detection.
             t = np.linspace(0, 1, 100)
             Q = np.zeros((5, t.size // 2))
@@ -240,7 +243,7 @@ class TestROM(_TestBaseROM):
                 "train_time_domains and states not aligned"
             )
 
-            Q = np.zeros((5, t.size))
+            Q = np.random.standard_normal((5, t.size))
             with pytest.raises(TypeError) as ex:
                 rom.fit_regselect_continuous(None, t, Q, input_functions=10)
             assert ex.value.args[0] == (
@@ -252,13 +255,17 @@ class TestROM(_TestBaseROM):
                 "argument 'test_time_length' must be nonnegative"
             )
             with pytest.raises(TypeError) as ex:
-                rom.fit_regselect_continuous(None, t, Q, test_cases=[10, 20])
+                rom.fit_regselect_continuous(
+                    candidates=None,
+                    train_time_domains=t,
+                    states=Q,
+                    ddts=Q if rom.ddt_estimator is None else None,
+                    input_functions=func if rom.model._has_inputs else None,
+                    test_cases=[10, 20],
+                )
             assert ex.value.args[0] == (
                 "test cases must be 'utils.ContinuousRegTest' objects"
             )
-
-            def func(t):
-                return np.ones(3)
 
             # Tests.
             regs = np.logspace(-12, 2, 15)
@@ -338,14 +345,19 @@ class TestROM(_TestBaseROM):
 
             # Bad argument detection.
             niters = 100
-            Q = np.zeros((5, niters))
+            Q = np.random.standard_normal((5, niters))
             with pytest.raises(ValueError) as ex:
                 rom.fit_regselect_discrete(None, Q, num_test_iters=-10)
             assert ex.value.args[0] == (
                 "argument 'num_test_iters' must be a nonnegative integer"
             )
             with pytest.raises(TypeError) as ex:
-                rom.fit_regselect_discrete(None, Q, test_cases=[10, 20])
+                rom.fit_regselect_discrete(
+                    candidates=None,
+                    states=Q,
+                    inputs=np.ones(niters) if rom.model._has_inputs else None,
+                    test_cases=[10, 20],
+                )
             assert ex.value.args[0] == (
                 "test cases must be 'utils.DiscreteRegTest' objects"
             )

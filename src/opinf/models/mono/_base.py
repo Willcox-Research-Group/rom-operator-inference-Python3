@@ -391,31 +391,6 @@ class _OpInfModel(_Model):
 
     # Fitting -----------------------------------------------------------------
     @abc.abstractmethod
-    def _process_fit_arguments(self, *args, **kwargs):
-        """Prepare training data, validate and set dimensions, etc."""
-        pass
-
-    @abc.abstractmethod
-    def _assemble_data_matrix(self, *args, **kwargs):
-        """Construct the Operator Inference data matrix."""
-        pass
-
-    @abc.abstractmethod
-    def _extract_operators(self, *args, **kwargs):
-        """Unpack the Operator Inference solution, the operator matrix."""
-        pass
-
-    @abc.abstractmethod
-    def _fit_solver(self, *args, **kwargs):
-        """Initialize the regression solver."""
-        pass
-
-    @abc.abstractmethod
-    def refit(self, *args, **kwargs):
-        """Solve the regression and unpack the results."""
-        pass
-
-    @abc.abstractmethod
-    def fit(self, *args, **kwargs):
+    def fit(self, *args, **kwargs):  # pragma: no cover
         """Learn model operators from data."""
         pass

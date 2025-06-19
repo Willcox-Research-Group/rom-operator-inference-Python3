@@ -287,6 +287,10 @@ class SolverTemplate(abc.ABC):
             options[key] = None if value == "NULL" else value
         return options
 
+    def reset(self) -> None:
+        """Reset the solver by deleting data matrices."""
+        SolverTemplate.__init__(self)
+
     def copy(self):
         """Make a copy of the solver."""
         return copy.deepcopy(self)

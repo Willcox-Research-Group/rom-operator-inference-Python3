@@ -113,6 +113,11 @@ class _BaseRegularizedSolver(SolverTemplate):
         raise NotImplementedError  # pragma: no cover
 
     # Persistence -------------------------------------------------------------
+    def reset(self) -> None:
+        """Reset the solver by deleting data matrices and the regularizer."""
+        super().reset()
+        self.regularizer = None
+
     def _save(self, savefile, overwrite=False, extras=tuple()):
         """Serialize the solver, saving it in HDF5 format.
         The model can be recovered with the :meth:`_load()` class method.
