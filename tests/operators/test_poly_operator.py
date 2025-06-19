@@ -10,14 +10,14 @@ import numpy as np
 
 import opinf
 
-from opinf.operators._poly_operator import PolyOperator
+from opinf.operators._polynomial_operator import PolynomialOperator
 
 other_operators = opinf.operators._nonparametric
 
 
 def test_instantiation():
     expected_polynomial_order = 0
-    thingy = PolyOperator(polynomial_order=expected_polynomial_order)
+    thingy = PolynomialOperator(polynomial_order=expected_polynomial_order)
     print(f"Successfully instantiated: {thingy}")
     assert thingy.polynomial_order == expected_polynomial_order
 
@@ -26,34 +26,34 @@ def test_instantiation():
 def test_operator_dimension(r):
 
     # constant
-    operator = PolyOperator(polynomial_order=0)
+    operator = PolynomialOperator(polynomial_order=0)
     assert (
         operator.my_operator_dimension(r=r)
         == other_operators.ConstantOperator.operator_dimension(r=r)
-        == PolyOperator.operator_dimension(r=r, p=0)
+        == PolynomialOperator.operator_dimension(r=r, p=0)
     )
 
     # linear
-    operator = PolyOperator(polynomial_order=1)
+    operator = PolynomialOperator(polynomial_order=1)
     assert (
         operator.my_operator_dimension(r=r)
-        == PolyOperator.operator_dimension(r=r, p=1)
+        == PolynomialOperator.operator_dimension(r=r, p=1)
         == other_operators.LinearOperator.operator_dimension(r=r)
     )
 
     # quadratic
-    operator = PolyOperator(polynomial_order=2)
+    operator = PolynomialOperator(polynomial_order=2)
     assert (
         operator.my_operator_dimension(r=r)
-        == PolyOperator.operator_dimension(r=r, p=2)
+        == PolynomialOperator.operator_dimension(r=r, p=2)
         == other_operators.QuadraticOperator.operator_dimension(r=r)
     )
 
     # cubic
-    operator = PolyOperator(polynomial_order=3)
+    operator = PolynomialOperator(polynomial_order=3)
     assert (
         operator.my_operator_dimension(r=r)
-        == PolyOperator.operator_dimension(r=r, p=3)
+        == PolynomialOperator.operator_dimension(r=r, p=3)
         == other_operators.CubicOperator.operator_dimension(r=r)
     )
 
@@ -61,10 +61,10 @@ def test_operator_dimension(r):
 @pytest.mark.parametrize("r", [-1, -0.5, 3.5])
 def test_operator_dimension_invalid_r(r):
     with pytest.raises(ValueError):
-        PolyOperator.operator_dimension(r=r, p=0)
+        PolynomialOperator.operator_dimension(r=r, p=0)
 
 
 @pytest.mark.parametrize("p", [-1, -0.5, 3.5])
 def test_operator_dimension_invalid_p(p):
     with pytest.raises(ValueError):
-        PolyOperator.operator_dimension(r=2, p=p)
+        PolynomialOperator.operator_dimension(r=2, p=p)

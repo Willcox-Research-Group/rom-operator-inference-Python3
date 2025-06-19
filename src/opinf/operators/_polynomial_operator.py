@@ -7,10 +7,10 @@ import numpy as np
 # import scipy.sparse as sparse
 from scipy.special import comb
 
-__all__ = ["PolyOperator"]
+__all__ = ["PolynomialOperator"]
 
 
-class PolyOperator(OpInfOperator):
+class PolynomialOperator(OpInfOperator):
 
     def __init__(self, polynomial_order, entries=None):
         """Initialize an empty operator."""
@@ -58,7 +58,9 @@ class PolyOperator(OpInfOperator):
         Like PolyOperator.operator_dimension but uses self.polynomial_order
         for p.
         """
-        return PolyOperator.operator_dimension(r=r, p=self.polynomial_order)
+        return PolynomialOperator.operator_dimension(
+            r=r, p=self.polynomial_order
+        )
 
     def datablock(states: np.ndarray, inputs=None) -> np.ndarray:
 
