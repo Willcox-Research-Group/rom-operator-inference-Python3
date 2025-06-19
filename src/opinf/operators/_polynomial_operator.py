@@ -139,9 +139,7 @@ class PolynomialOperator(OpInfOperator):
         """
         # for a constant operator, we just return 1 (x^0 = 1)
         if p == 0:
-            return np.ones(
-                1,
-            )
+            return np.ones([1])
 
         # for a linear operator, x^1 = 1
         if p == 1:
@@ -170,4 +168,51 @@ class PolynomialOperator(OpInfOperator):
             ]
 
     def apply(self, state: np.ndarray, input_=None) -> np.ndarray:
-        pass
+        r"""Apply the operator to the given state. Input is not used.
+        See OpInfOperator.apply for description.
+        """
+        if state.shape[0] != self.state_dimension:
+            raise ValueError(
+                f"Expected state of dimension r={self.state_dimension}."
+                + f"Got state.shape={state.shape}"
+            )
+
+        # constant
+        if self.polynomial_order == 0:
+            return self.entries
+        # note: no need to go through the trouble of identifying the
+        # non-redundant indices
+
+        # linear
+        if self.polynomial_order == 1:
+            return self.entries @ state
+        # note: no need to go through the trouble of identifying the
+        # non-redundant indices
+
+        # higher-order
+        restricted_kronecker_product = PolynomialOperator.exp_p(
+            x=state, p=self.polynomial_order, kept=self.nonredudant_entries
+        )
+        return self.entries @ restricted_kronecker_product
+
+    # Properties --------------------------------------------------------------
+    @property
+    def nonredudant_entries(self) -> list:
+        r"""list containing at index i a list of the indices that are kept
+        when restricting the i-times Kronecker product of a vector of
+        shape self.state_dimension() with itself.
+        """
+        # return self.__nonredudant_entries
+        return [
+            PolynomialOperator.keptIndices_p(r=self.state_dimension, p=i)
+            for i in range(self.polynomial_order + 1)
+        ]
+
+    # @nonredudant_entries.setter
+    # def nonredudant_entries(self):
+    #     """Set the ``entries`` attribute."""
+
+    # @nonredudant_entries.deleter
+    # def nonredudant_entries(self):
+    #     """Reset the ``nonredudant_entries`` attribute."""
+    #     self._clear()

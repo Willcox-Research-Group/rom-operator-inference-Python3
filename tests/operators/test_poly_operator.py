@@ -139,3 +139,41 @@ def test_datablock_against_reference_implementation(r, k):
 
     # check that the entries are correct
     assert (datamatrix == datamatrix_ref).all()
+
+
+@pytest.mark.parametrize(
+    "r,p", [(r, p) for r in range(1, 10) for p in range(4)]
+)
+def test_apply_against_reference(r, p):
+
+    # test all operators with the same state
+    _state = np.random.random((r,))
+
+    # get random operator entries of the correct size
+    if p == 0:
+        _entries = np.random.random((r,))
+    else:
+        _entries = np.random.random(
+            (r, PolynomialOperator.operator_dimension(r=r, p=p))
+        )
+        print(_entries.shape)
+
+    # initialize operator and compute action on the state
+    operator = PolynomialOperator(polynomial_order=p)
+    operator.entries = _entries
+    action = operator.apply(_state)
+
+    # compare to code for the same polynomial order
+    references = [
+        other_operators.ConstantOperator(),
+        other_operators.LinearOperator(),
+        other_operators.QuadraticOperator(),
+        other_operators.CubicOperator(),
+    ]
+    operator_ref = references[p]
+    operator_ref.entries = _entries
+    action_ref = operator_ref.apply(_state)
+
+    # compare
+    assert action.shape == action_ref.shape == (r,)  # same size
+    assert np.isclose(action, action_ref).all()  # same entries
