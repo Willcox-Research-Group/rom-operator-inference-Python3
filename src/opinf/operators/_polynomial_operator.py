@@ -12,18 +12,52 @@ __all__ = ["PolynomialOperator"]
 
 
 class PolynomialOperator(OpInfOperator):
+    r"""Polynomial state operator
+    :math:`\Ophat_{\ell}(\qhat,\u) = \Phat[\qhat^{\otimes p}]`
+    where :math:`\otimes p` indicates the Kronecker product of a vector with
+    itself :math:`p` times. The matrix :math:`\Phat` is
+    :math:`r \times \binom{r+p-1}{p}`.
 
-    def __init__(self, polynomial_order, entries=None):
+    This class is equivalent to the following.
+
+    * :math:`p = 1`: :class:`ConstantOperator`
+    * :math:`p = 2`: :class:`QuadraticOperator`
+    * :math:`p = 3`: :class:`CubicOperator`
+    * :math:`p = 4`: :class:`QuarticOperator`
+
+    Parameters
+    ----------
+    polynomial_order : int
+        Order of the Kronecker product.
+    entries : (r, (r + p - 1 choose p)) ndarray or None
+        Operator matrix :math:`\Phat`.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> H = opinf.operators.QuadraticOperator()
+    >>> P = opinf.operators.PolynomialOperator(2)
+    >>> entries = np.random.rnadom((10, 100))
+    >>> H.set_entries(entries)
+    >>> H.shape
+    (10, 55)
+    >>> P.set_entries(H.entries)
+    >>> q = np.random.random(10)
+    >>> outH = H.apply(q)
+    >>> out
+    """
+
+    def __init__(self, polynomial_order: int, entries=None):
         """Initialize an empty operator."""
         if polynomial_order < 0 or (
-            not np.isclose(polynomial_order, int(polynomial_order))
+            not np.isclose(polynomial_order, p := int(polynomial_order))
         ):
             raise ValueError(
                 "expected non-negative integer polynomial order"
                 + f" polynomial_order. Got p={polynomial_order}"
             )
 
-        self.polynomial_order = polynomial_order
+        self.polynomial_order = p
 
         super().__init__(entries=entries)
 
