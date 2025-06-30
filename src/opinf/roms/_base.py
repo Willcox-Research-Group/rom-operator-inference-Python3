@@ -404,6 +404,7 @@ class _BaseROM(abc.ABC):
         # Dimensionality reduction.
         if self.basis is not None:
             if fit_basis:
+                # NOTE: self.basis.fit_compress() here?
                 self.basis.fit(np.hstack(states))
             states = [self.basis.compress(Q) for Q in states]
             if lhs is not None:
