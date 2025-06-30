@@ -4,8 +4,9 @@
 import os
 import pytest
 import numpy as np
-from scipy import linalg as la
-from matplotlib import pyplot as plt
+import scipy.linalg as la
+import scipy.sparse as sparse
+import matplotlib.pyplot as plt
 
 import opinf
 
@@ -85,6 +86,15 @@ class TestPODBasis(_TestBasisTemplate):
             weights=SP,
             minthresh=1e-20,
         ), 200
+
+        n = 50
+        SP = sparse.eye_array(50)
+        yield self.Basis(
+            num_vectors=5,
+            max_vectors=9,
+            svdsolver="dense",
+            weights=SP,
+        ), 50
 
     # Constructors ------------------------------------------------------------
     def test_init(self):
