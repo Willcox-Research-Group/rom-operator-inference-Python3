@@ -9,6 +9,11 @@ from matplotlib import pyplot as plt
 
 import opinf
 
+try:
+    from .test_base import _TestBasisTemplate
+except ImportError:
+    from test_base import _TestBasisTemplate
+
 
 def _spd(n):
     """Generate a random symmetric postive definite nxn matrix."""
@@ -44,10 +49,42 @@ def test_Wmult(n=10):
     assert ex.value.args[0] == "expected one- or two-dimensional array"
 
 
-class TestPODBasis:
+class TestPODBasis(_TestBasisTemplate):
     """Test basis._pod.PODBasis."""
 
+    # Setup -------------------------------------------------------------------
     Basis = opinf.basis.PODBasis
+
+    def get_bases(self):
+        yield self.Basis(
+            num_vectors=5,
+            max_vectors=10,
+            svdsolver="dense",
+        ), 20
+
+        w = np.random.random(30) + 0.1
+        yield self.Basis(
+            residual_energy=1e-3,
+            svdsolver="dense",
+            weights=w,
+        ), 30
+
+        yield self.Basis(
+            svdval_threshold=1e-3,
+            svdsolver="method-of-snapshots",
+        ), 400
+
+        n = 200
+        SP = np.random.random((n, n))
+        SP = SP.T @ SP
+        SP = np.eye(n) + SP / la.norm(SP)
+        yield self.Basis(
+            num_vectors=6,
+            max_vectors=8,
+            svdsolver="eigh",
+            weights=SP,
+            minthresh=1e-20,
+        ), 200
 
     # Constructors ------------------------------------------------------------
     def test_init(self):

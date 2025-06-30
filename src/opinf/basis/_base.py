@@ -6,6 +6,7 @@ __all__ = [
 ]
 
 import abc
+import copy
 import numpy as np
 import scipy.linalg as la
 
@@ -221,8 +222,12 @@ class BasisTemplate(abc.ABC):
         """Load a transformer from an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
+    def copy(self):
+        """Make a copy of the basis."""
+        return copy.deepcopy(self)
+
     # Verification ------------------------------------------------------------
-    def verify(self):
+    def verify(self):  # pragma: no cover
         """Verify that :meth:`compress()` and :meth:`decompress()` are
         consistent in the sense that the range of :meth:`decompress()` is in
         the domain of :meth:`compress()` and that :meth:`project()` defines
@@ -266,7 +271,9 @@ class BasisTemplate(abc.ABC):
             )
         print("compress() and decompress() are consistent")
 
-    def _verify_locs(self, states_compressed, states_projected):
+    def _verify_locs(
+        self, states_compressed, states_projected
+    ):  # pragma: no cover
         """Verification of decompress() with locs != None."""
         n = states_projected.shape[0]
         locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
