@@ -174,7 +174,7 @@ class DerivativeEstimatorTemplate(abc.ABC):
         raise NotImplementedError  # pragma: no cover
 
     # Verification ------------------------------------------------------------
-    def verify_shapes(self, r: int = 5, m: int = 3):
+    def verify_shapes(self, r: int = 5, m: int = 3):  # pragma: no cover
         """Verify that :meth:`estimate()` is consistent in the sense that the
         all outputs have the same number of columns. This method does **not**
         check the accuracy of the derivative estimation.

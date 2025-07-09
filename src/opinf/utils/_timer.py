@@ -139,7 +139,7 @@ class TimedBlock:
             sys.stdout = self.__new_buffer = io.StringIO()
         if self.verbose:
             print(f"{self.message}...", end=self.__front, flush=True)
-        self._tic = time.time()
+        self._tic = time.process_time()
         if self.timelimit is not None:
             signal.signal(signal.SIGALRM, self._signal_handler)
             signal.alarm(self.timelimit)
@@ -147,7 +147,7 @@ class TimedBlock:
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         """Calculate and report the elapsed time."""
-        self._toc = time.time()
+        self._toc = time.process_time()
         if self.timelimit is not None:
             signal.alarm(0)
         elapsed = self._toc - self._tic
@@ -170,7 +170,7 @@ class TimedBlock:
                 self._reset_stdout()
             raise
         else:  # If no exception, report execution time.
-            if self.verbose:
+            if self.verbose and self.message:
                 print(f"done in {elapsed:.2f} s.", flush=True, end=self.__back)
             logging.info(f"{self.message}...done in {elapsed:.6f} s.")
         self.__elapsed = elapsed

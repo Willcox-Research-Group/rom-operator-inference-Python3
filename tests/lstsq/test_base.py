@@ -102,6 +102,8 @@ class _TestSolverTemplate(abc.ABC):
                 assert solver.r == 1
                 assert np.all(solver.lhs_matrix[0, :] == Z[0])
 
+            assert isinstance(solver.copy(), type(solver))
+
     @abc.abstractmethod
     def test_solve(self):
         """Test solve()."""

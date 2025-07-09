@@ -6,6 +6,7 @@ __all__ = [
 ]
 
 import abc
+import copy
 import numpy as np
 import scipy.linalg as la
 
@@ -102,13 +103,14 @@ class BasisTemplate(abc.ABC):
         Parameters
         ----------
         states : (n, ...) ndarray
-            Matrix of `n`-dimensional state vectors, or a single state vector.
+            Matrix of :math:`n`-dimensional state vectors, or a single state
+            vector.
 
         Returns
         -------
         states_compressed : (r, ...) ndarray
-            Matrix of `r`-dimensional latent coordinate vectors, or a single
-            coordinate vector.
+            Matrix of :math:`r`-dimensional latent coordinate vectors, or a
+            single coordinate vector.
         """
         raise NotImplementedError  # pragma: no cover
 
@@ -119,8 +121,8 @@ class BasisTemplate(abc.ABC):
         Parameters
         ----------
         states_compressed : (r, ...) ndarray
-            Matrix of `r`-dimensional latent coordinate vectors, or a single
-            coordinate vector.
+            Matrix of :math:`r`-dimensional latent coordinate vectors, or a
+            single coordinate vector.
         locs : slice or (p,) ndarray of integers or None
             If given, return the decompressed state at *only* the
             `p` specified locations (indices) described by ``locs``.
@@ -128,10 +130,27 @@ class BasisTemplate(abc.ABC):
         Returns
         -------
         states_decompressed : (n, ...) or (p, ...) ndarray
-            Matrix of `n`-dimensional decompressed state vectors, or the `p`
-            entries of such at the entries specified by ``locs``.
+            Matrix of :math:`n`-dimensional decompressed state vectors, or the
+            :math:`p` entries of such at the entries specified by ``locs``.
         """
         raise NotImplementedError  # pragma: no cover
+
+    def fit_compress(self, states):
+        """Construct the basis and map high-dimensional states to
+        low-dimensional latent coordinates.
+
+        Parameters
+        ----------
+        states : (n, k) ndarray
+            Matrix of :math:`k` :math:`n`-dimensional snapshots.
+
+        Returns
+        -------
+        states_compressed : (r, k) ndarray
+            Matrix of :math:`r`-dimensional latent coordinate vectors.
+        """
+        self.fit(states)
+        return self.compress(states)
 
     # Projection --------------------------------------------------------------
     def project(self, state):
@@ -150,13 +169,14 @@ class BasisTemplate(abc.ABC):
         Parameters
         ----------
         states : (n, ...) ndarray
-            Matrix of `n`-dimensional state vectors, or a single state vector.
+            Matrix of :math:`n`-dimensional state vectors, or a single state
+            vector.
 
         Returns
         -------
         state_projected : (n, ...) ndarray
-            Matrix of `n`-dimensional projected state vectors, or a single
-            projected state vector.
+            Matrix of :math:`n`-dimensional projected state vectors, or a
+            single projected state vector.
         """
         return self.decompress(self.compress(state))
 
@@ -202,8 +222,12 @@ class BasisTemplate(abc.ABC):
         """Load a transformer from an HDF5 file."""
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
+    def copy(self):
+        """Make a copy of the basis."""
+        return copy.deepcopy(self)
+
     # Verification ------------------------------------------------------------
-    def verify(self):
+    def verify(self):  # pragma: no cover
         """Verify that :meth:`compress()` and :meth:`decompress()` are
         consistent in the sense that the range of :meth:`decompress()` is in
         the domain of :meth:`compress()` and that :meth:`project()` defines
@@ -247,7 +271,9 @@ class BasisTemplate(abc.ABC):
             )
         print("compress() and decompress() are consistent")
 
-    def _verify_locs(self, states_compressed, states_projected):
+    def _verify_locs(
+        self, states_compressed, states_projected
+    ):  # pragma: no cover
         """Verification of decompress() with locs != None."""
         n = states_projected.shape[0]
         locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
