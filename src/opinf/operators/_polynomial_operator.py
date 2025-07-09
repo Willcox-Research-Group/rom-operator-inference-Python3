@@ -203,7 +203,9 @@ class PolynomialOperator(OpInfOperator):
         if self.polynomial_order == 0:
             if np.ndim(state) == 2:  # r, k > 1.
                 return np.outer(self.entries, np.ones(state.shape[-1]))
-            return self.entries[:, 0]
+            if np.ndim(self.entries) == 2:
+                return self.entries[:, 0]
+            return self.entries
         # note: no need to go through the trouble of identifying the
         # non-redundant indices
 

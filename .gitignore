@@ -21,6 +21,7 @@ dist/
 .vscode/
 .pypirc
 .tox/
+.idea/
 
 # Extra Matlab files
 *.mat
