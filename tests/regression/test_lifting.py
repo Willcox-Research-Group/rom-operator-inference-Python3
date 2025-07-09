@@ -300,6 +300,47 @@ def test_04(data):
     rom_test_error(rom, 0.0021)
 
 
+def test_05(data):
+    """Same as test_04 with PolynomialOperator."""
+    t_train, Qs = data["t_train"], data["Qs"]
+
+    rom = opinf.ROM(
+        lifter=EulerLifter(),
+        transformer=opinf.pre.TransformerPipeline(
+            [
+                opinf.pre.ShiftScaleTransformer(centering=True),  # Center.
+                opinf.pre.TransformerMulti(
+                    transformers=[
+                        opinf.pre.ScaleTransformer(1 / v_bar),
+                        opinf.pre.ScaleTransformer(1 / p_bar),
+                        opinf.pre.ScaleTransformer(1 / z_bar),
+                    ]
+                ),
+            ],
+        ),
+        basis=opinf.basis.PODBasis(num_vectors=8),
+        ddt_estimator=opinf.ddt.UniformFiniteDifferencer(
+            t_train, scheme="fwd4"
+        ),
+        model=opinf.models.ContinuousModel(
+            operators=[
+                opinf.operators.PolynomialOperator(polynomial_order=0),
+                opinf.operators.PolynomialOperator(polynomial_order=1),
+                opinf.operators.PolynomialOperator(polynomial_order=2),
+            ],
+            solver=opinf.lstsq.L2Solver(),
+        ),
+    )
+
+    rom.fit_regselect_continuous(
+        candidates=np.logspace(-12, 2, 15),
+        train_time_domains=t_train,
+        states=Qs,
+    )
+
+    rom_test_error(rom, 0.0021)
+
+
 if __name__ == "__main__":
     import pytest
 

@@ -57,7 +57,25 @@ class _NonparametricModel(_OpInfModel):
         """Raise a ValueError if any two operators represent the same kind
         of operation (e.g., two constant operators).
         """
-        if len({type(op) for op in ops}) != len(ops):
+        optypes = []
+        for op in ops:
+            if isinstance(op, _operators.PolynomialOperator):
+                p = op.polynomial_order
+                if p == 0:
+                    optypes.append(_operators.ConstantOperator)
+                elif p == 1:
+                    optypes.append(_operators.LinearOperator)
+                elif p == 2:
+                    optypes.append(_operators.QuadraticOperator)
+                elif p == 3:
+                    optypes.append(_operators.CubicOperator)
+                elif p == 4:
+                    optypes.append(_operators.QuarticOperator)
+                else:
+                    optypes.append(f"PolynomialOperator_ord{p}")
+            else:
+                optypes.append(type(op))
+        if len(set(optypes)) != len(optypes):
             raise ValueError("duplicate type in list of operators to infer")
 
     def _get_operator_of_type(self, OpClass):

@@ -106,6 +106,25 @@ def test_02(data):
         assert error < maxerr
 
 
+def test_03(data, whichinit: int = 0):
+    """Same as test_01 but with PolynomialOperator."""
+    t, Qs = data["t"], data["Qs"]
+    Q = Qs[whichinit]
+
+    rom = opinf.ROM(
+        basis=opinf.basis.PODBasis(cumulative_energy=0.9999),
+        ddt_estimator=opinf.ddt.UniformFiniteDifferencer(t, "ord6"),
+        model=opinf.models.ContinuousModel(
+            operators=[opinf.operators.PolynomialOperator(polynomial_order=1)],
+            solver=opinf.lstsq.L2Solver(regularizer=1e-8),
+        ),
+    ).fit(Q)
+
+    Q_ROM = rom.predict(Q[:, 0], t, method="BDF")
+    error = opinf.post.frobenius_error(Q, Q_ROM)[1]
+    assert error < 0.00105
+
+
 if __name__ == "__main__":
     import pytest
 
