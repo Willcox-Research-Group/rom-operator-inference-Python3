@@ -404,6 +404,7 @@ class _BaseROM(abc.ABC):
         # Dimensionality reduction.
         if self.basis is not None:
             if fit_basis:
+                # NOTE: self.basis.fit_compress() here?
                 self.basis.fit(np.hstack(states))
             states = [self.basis.compress(Q) for Q in states]
             if lhs is not None:
@@ -734,7 +735,7 @@ class _BaseROM(abc.ABC):
             """
             try:
                 update_model(reg_params)
-            except Exception as ex:
+            except Exception as ex:  # pragma: no cover
                 if verbose:
                     print(f"{type(ex).__name__} in refit(): {ex}")
                 return np.inf
@@ -947,7 +948,7 @@ class _BaseROM(abc.ABC):
             """
             try:
                 update_model(reg_params)
-            except Exception as ex:
+            except Exception as ex:  # pragma: no cover
                 if verbose:
                     print(f"{type(ex).__name__} in refit(): {ex}")
                 return np.inf

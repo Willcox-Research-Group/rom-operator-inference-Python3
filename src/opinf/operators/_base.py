@@ -230,7 +230,7 @@ class OperatorTemplate(abc.ABC):
         k: int = 10,
         fdifftol: float = 1e-5,
         ntests: int = 4,
-    ) -> None:
+    ) -> None:  # pragma: no cover
         """Verify consistency between dimension properties and required
         methods.
 
@@ -827,7 +827,7 @@ class OpInfOperator(OperatorTemplate):
         ntests: int = 4,
         r: int = 6,
         m: int = 3,
-    ) -> None:
+    ) -> None:  # pragma: no cover
         """Verify consistency between dimension properties and required
         methods.
 

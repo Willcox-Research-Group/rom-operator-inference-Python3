@@ -9,15 +9,34 @@ import matplotlib.pyplot as plt
 
 import opinf
 
+try:
+    from .test_base import _TestBasisTemplate
+except ImportError:
+    from test_base import _TestBasisTemplate
 
-class TestLinearBasis:
+
+class TestLinearBasis(_TestBasisTemplate):
     """Test basis._linear.LinearBasis."""
 
+    # Setup -------------------------------------------------------------------
     Basis = opinf.basis.LinearBasis
 
     def _orth(self, n, r):
         return la.svd(np.random.random((n, r)), full_matrices=False)[0]
 
+    def get_bases(self):
+        Vr = self._orth(20, 4)
+        yield self.Basis(Vr), 20
+
+        w = np.random.random(50)
+        w[0] = 0.25
+        w[1] = 0.25
+        Vr = np.zeros((50, 2))
+        Vr[0, 0] = 2
+        Vr[1, 1] = 2
+        yield self.Basis(Vr, weights=w, check_orthogonality=True), 50
+
+    # Tests -------------------------------------------------------------------
     def test_init(self, n=10, r=3):
         """Test __init__(), fit(), and entries."""
         # Empty basis.
@@ -88,41 +107,6 @@ class TestLinearBasis:
             )
         assert ex.value.args[0] == "expected one- or two-dimensional weights"
 
-    def test_str(self):
-        """Lightly test __str__() and __repr__()."""
-        basis = self.Basis(self._orth(10, 4))
-        str(basis)
-
-        basis = self.Basis(self._orth(9, 5), name="varname")
-        assert repr(basis).count(str(basis)) == 1
-
-    # Dimension reduction  ----------------------------------------------------
-    def test_compress(self, n=9, r=4):
-        """Test compress()."""
-        Vr = self._orth(n, r)
-        basis = self.Basis(Vr)
-        q = np.random.random(n)
-        q_ = Vr.T @ q
-        assert np.allclose(basis.compress(q), q_)
-
-        w = np.random.random(n)
-        basis = self.Basis(Vr, weights=w, check_orthogonality=False)
-        q_ = basis.entries.T @ (w * q)
-        assert np.allclose(basis.compress(q), q_)
-
-    def test_decompress(self, n=9, r=4):
-        """Test decompress()."""
-        Vr = self._orth(n, r)
-        basis = self.Basis(Vr)
-        q_ = np.random.random(r)
-        q = Vr @ q_
-        assert np.allclose(basis.decompress(q_), q)
-
-        # Get only a few coordinates.
-        locs = np.array([0, 2], dtype=int)
-        assert np.allclose(basis.decompress(q_, locs=locs), q[locs])
-
-    # Visualization -----------------------------------------------------------
     def test_plot1D(self, n=20, r=4):
         """Lightly test plot1D()."""
         basis = self.Basis(self._orth(n, r))
@@ -144,7 +128,6 @@ class TestLinearBasis:
         # Restore interactive mode setting.
         plt.interactive(_pltio)
 
-    # Persistence -------------------------------------------------------------
     def test_eq(self):
         """Test __eq__()."""
         basis1 = self.Basis(self._orth(10, 4))

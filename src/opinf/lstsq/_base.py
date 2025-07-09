@@ -296,7 +296,7 @@ class SolverTemplate(abc.ABC):
         return copy.deepcopy(self)
 
     # Verification ------------------------------------------------------------
-    def verify(self):
+    def verify(self):  # pragma: no cover
         """Verify the solver.
 
         If the solver is already trained, check :meth:`solve()`,

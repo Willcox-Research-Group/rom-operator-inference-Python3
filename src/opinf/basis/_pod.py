@@ -293,6 +293,14 @@ class PODBasis(LinearBasis):
             if weights.ndim == 1:
                 self.__sqrt_weights = np.sqrt(weights)
             else:  # (weights.ndim == 2, checked by LinearBasis)
+                if sparse.issparse(weights):
+                    weights = weights.toarray()
+                if weights.shape[0] > 100:  # pragma: no cover
+                    warnings.warn(
+                        "computing the square root of a large weight matrix, "
+                        "consider using svdsolver='method-of-snapshots'",
+                        errors.OpInfWarning,
+                    )
                 self.__sqrt_weights = la.sqrtm(weights)
                 self.__sqrt_weights_cho = la.cho_factor(self.__sqrt_weights)
 

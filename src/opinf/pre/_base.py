@@ -229,7 +229,7 @@ class TransformerTemplate(abc.ABC):
         raise NotImplementedError("use pickle/joblib")  # pragma: no cover
 
     # Verification ------------------------------------------------------------
-    def verify(self, tol: float = 1e-4):
+    def verify(self, tol: float = 1e-4):  # pragma: no cover
         r"""Verify that :meth:`transform()` and :meth:`inverse_transform()`
         are consistent and that :meth:`transform_ddts()`, if implemented,
         is consistent with :meth:`transform()`.
@@ -333,7 +333,7 @@ class TransformerTemplate(abc.ABC):
             )
         print("transform() and transform_ddts() are consistent")
 
-    def _verify_locs(self, states, states_transformed):
+    def _verify_locs(self, states, states_transformed):  # pragma: no cover
         """Verification for inverse_transform() with locs != None"""
         n = states.shape[0]
         locs = np.sort(np.random.choice(n, size=(n // 3), replace=False))
