@@ -201,7 +201,9 @@ class PolynomialOperator(OpInfOperator):
 
         # constant
         if self.polynomial_order == 0:
-            return self.entries
+            if np.ndim(state) == 2:  # r, k > 1.
+                return np.outer(self.entries, np.ones(state.shape[-1]))
+            return self.entries[:, 0]
         # note: no need to go through the trouble of identifying the
         # non-redundant indices
 
@@ -229,12 +231,3 @@ class PolynomialOperator(OpInfOperator):
             PolynomialOperator.keptIndices_p(r=self.state_dimension, p=i)
             for i in range(self.polynomial_order + 1)
         ]
-
-    # @nonredudant_entries.setter
-    # def nonredudant_entries(self):
-    #     """Set the ``entries`` attribute."""
-
-    # @nonredudant_entries.deleter
-    # def nonredudant_entries(self):
-    #     """Reset the ``nonredudant_entries`` attribute."""
-    #     self._clear()
