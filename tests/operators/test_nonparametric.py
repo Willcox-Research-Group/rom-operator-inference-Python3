@@ -33,6 +33,19 @@ class _TestNonparametricOperator(_TestOpInfOperator):
     def test_set_entries(self):
         raise NotImplementedError
 
+    def test_in_model(self, r=3, k=100, m=2):
+        """See if we can fit a model with this operator."""
+        model = opinf.models.ContinuousModel(operators=[self.get_operator()])
+
+        Q = np.random.random((r, k))
+        dQ = np.random.random((r, k))
+
+        if self.has_inputs:
+            U = np.random.random((m, k))
+            model.fit(states=Q, ddts=dQ, inputs=U)
+        else:
+            model.fit(states=Q, ddts=dQ, inputs=None)
+
 
 # No dependence on state or input =============================================
 class TestConstantOperator(_TestNonparametricOperator):

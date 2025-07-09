@@ -1,12 +1,7 @@
 # operators/test_poly_operator.py
 
-# import abc
 import pytest
 import numpy as np
-
-# import scipy.linalg as la
-# import scipy.sparse as sparse
-# from scipy.special import comb
 
 import opinf
 
