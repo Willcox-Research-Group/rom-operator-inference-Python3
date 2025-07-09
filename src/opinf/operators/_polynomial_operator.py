@@ -37,14 +37,16 @@ class PolynomialOperator(OpInfOperator):
     >>> import numpy as np
     >>> H = opinf.operators.QuadraticOperator()
     >>> P = opinf.operators.PolynomialOperator(2)
-    >>> entries = np.random.rnadom((10, 100))
+    >>> entries = np.random.random((10, 100))
     >>> H.set_entries(entries)
     >>> H.shape
     (10, 55)
     >>> P.set_entries(H.entries)
     >>> q = np.random.random(10)
     >>> outH = H.apply(q)
-    >>> out
+    >>> out = P.apply(q)
+    >>> np.allclose(out, outH)
+    True
     """
 
     def __init__(self, polynomial_order: int, entries=None):
@@ -61,8 +63,7 @@ class PolynomialOperator(OpInfOperator):
 
         super().__init__(entries=entries)
 
-    @staticmethod
-    def operator_dimension(r: int, p: int, m=None) -> int:
+    def operator_dimension(self, r: int, m=None) -> int:
         """
         computes the number of non-redundant terms in a vector of length r
         that is taken to the power p with the Kronecker product
@@ -71,8 +72,6 @@ class PolynomialOperator(OpInfOperator):
         ----------
         r : int
             State dimension.
-        p : int
-            Polynomial order.
         m : int or None
             Input dimension -- currently not used
         """
@@ -81,25 +80,11 @@ class PolynomialOperator(OpInfOperator):
                 f"expected non-negative integer reduced dimension r. Got r={r}"
             )
 
-        if p < 0 or (not np.isclose(p, int(p))):
-            raise ValueError(
-                f"expected non-negative integer polynomial order p. Got p={p}"
-            )
-
         # for constant operators the dimension does not matter
-        if p == 0:
+        if (p := self.polynomial_order) == 0:
             return 1
 
         return comb(r, p, repetition=True, exact=True)
-
-    def my_operator_dimension(self, r: int) -> int:
-        """
-        Like PolyOperator.operator_dimension but uses self.polynomial_order
-        for p.
-        """
-        return PolynomialOperator.operator_dimension(
-            r=r, p=self.polynomial_order
-        )
 
     def datablock(self, states: np.ndarray, inputs=None) -> np.ndarray:
         r"""Return the data matrix block corresponding to
@@ -116,7 +101,7 @@ class PolynomialOperator(OpInfOperator):
 
         Returns
         -------
-        datablock : (PolynomialOperator.operator_dimension(r, p), k) ndarray
+        datablock : (self.operator_dimension(r), k) ndarray
             where p is the polynomial order for this operator.
         """
         # if constant, we just return an array containing ones
@@ -142,9 +127,9 @@ class PolynomialOperator(OpInfOperator):
         if p == 0:
             return np.array([0])
 
-        dim_if_p_was_one_smaller = PolynomialOperator.operator_dimension(
-            r=r, p=p - 1
-        )
+        dim_if_p_was_one_smaller = PolynomialOperator(
+            polynomial_order=(p - 1)
+        ).operator_dimension(r=r)
         indexmatrix = np.reshape(
             np.arange(r * dim_if_p_was_one_smaller),
             (r, dim_if_p_was_one_smaller),
@@ -152,7 +137,10 @@ class PolynomialOperator(OpInfOperator):
         return np.hstack(
             [
                 indexmatrix[
-                    i, : PolynomialOperator.operator_dimension(i + 1, p - 1)
+                    i,
+                    : PolynomialOperator(
+                        polynomial_order=(p - 1)
+                    ).operator_dimension(i + 1),
                 ]
                 for i in range(r)
             ]

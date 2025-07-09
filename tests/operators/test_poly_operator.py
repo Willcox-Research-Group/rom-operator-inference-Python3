@@ -22,47 +22,34 @@ def test_operator_dimension(r):
 
     # constant
     operator = PolynomialOperator(polynomial_order=0)
-    assert (
-        operator.my_operator_dimension(r=r)
-        == other_operators.ConstantOperator.operator_dimension(r=r)
-        == PolynomialOperator.operator_dimension(r=r, p=0)
-    )
+    assert operator.operator_dimension(
+        r=r
+    ) == other_operators.ConstantOperator.operator_dimension(r=r)
 
     # linear
     operator = PolynomialOperator(polynomial_order=1)
-    assert (
-        operator.my_operator_dimension(r=r)
-        == PolynomialOperator.operator_dimension(r=r, p=1)
-        == other_operators.LinearOperator.operator_dimension(r=r)
-    )
+    assert operator.operator_dimension(
+        r=r
+    ) == other_operators.LinearOperator.operator_dimension(r=r)
 
     # quadratic
     operator = PolynomialOperator(polynomial_order=2)
-    assert (
-        operator.my_operator_dimension(r=r)
-        == PolynomialOperator.operator_dimension(r=r, p=2)
-        == other_operators.QuadraticOperator.operator_dimension(r=r)
-    )
+    assert operator.operator_dimension(
+        r=r
+    ) == other_operators.QuadraticOperator.operator_dimension(r=r)
 
     # cubic
     operator = PolynomialOperator(polynomial_order=3)
-    assert (
-        operator.my_operator_dimension(r=r)
-        == PolynomialOperator.operator_dimension(r=r, p=3)
-        == other_operators.CubicOperator.operator_dimension(r=r)
-    )
+    assert operator.operator_dimension(
+        r=r
+    ) == other_operators.CubicOperator.operator_dimension(r=r)
 
 
 @pytest.mark.parametrize("r", [-1, -0.5, 3.5])
 def test_operator_dimension_invalid_r(r):
+    op = PolynomialOperator(polynomial_order=1)
     with pytest.raises(ValueError):
-        PolynomialOperator.operator_dimension(r=r, p=0)
-
-
-@pytest.mark.parametrize("p", [-1, -0.5, 3.5])
-def test_operator_dimension_invalid_p(p):
-    with pytest.raises(ValueError):
-        PolynomialOperator.operator_dimension(r=2, p=p)
+        op.operator_dimension(r=r)
 
 
 @pytest.mark.parametrize(
@@ -81,7 +68,7 @@ def test_datablock_against_reference_implementation(r, k):
     assert (
         datamatrix.shape
         == datamatrix_ref.shape
-        == (PolynomialOperator.operator_dimension(r=r, p=0), k)
+        == (operator.operator_dimension(r=r), k)
     )
 
     # check that the entries are correct
@@ -97,7 +84,7 @@ def test_datablock_against_reference_implementation(r, k):
     assert (
         datamatrix.shape
         == datamatrix_ref.shape
-        == (PolynomialOperator.operator_dimension(r=r, p=1), k)
+        == (operator.operator_dimension(r=r), k)
     )
 
     # check that the entries are correct
@@ -113,7 +100,7 @@ def test_datablock_against_reference_implementation(r, k):
     assert (
         datamatrix.shape
         == datamatrix_ref.shape
-        == (PolynomialOperator.operator_dimension(r=r, p=2), k)
+        == (operator.operator_dimension(r=r), k)
     )
 
     # check that the entries are correct
@@ -129,7 +116,7 @@ def test_datablock_against_reference_implementation(r, k):
     assert (
         datamatrix.shape
         == datamatrix_ref.shape
-        == (PolynomialOperator.operator_dimension(r=r, p=3), k)
+        == (operator.operator_dimension(r=r), k)
     )
 
     # check that the entries are correct
@@ -149,7 +136,7 @@ def test_apply_against_reference(r, p):
         _entries = np.random.random((r,))
     else:
         _entries = np.random.random(
-            (r, PolynomialOperator.operator_dimension(r=r, p=p))
+            (r, PolynomialOperator(p).operator_dimension(r=r))
         )
         print(_entries.shape)
 
